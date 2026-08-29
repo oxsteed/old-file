@@ -155,9 +155,9 @@ function EmptyState({ icon: Icon = Package, title, body, action }) {
   );
 }
 
-function SectionCard({ title, eyebrow, children, className = '' }) {
+function SectionCard({ title, eyebrow, children, className = '', ...props }) {
   return (
-    <section className={`rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-sm ${className}`}>
+    <section {...props} className={`rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-sm ${className}`}>
       {eyebrow && (
         <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-300">{eyebrow}</div>
       )}
@@ -290,7 +290,7 @@ export function DirectLandingPage() {
       )}
     >
       <div className="grid gap-6 lg:grid-cols-3">
-        <SectionCard title="Services" eyebrow="OxSteed as a company">
+        <SectionCard id="services" title="Services" eyebrow="OxSteed as a company" className="scroll-mt-28">
           <div className="flex flex-wrap gap-2">
             {(profile.serviceAreas || DEFAULT_PROFILE.serviceAreas).map((city) => <Chip key={city}>{city}</Chip>)}
           </div>

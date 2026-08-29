@@ -171,7 +171,7 @@ function HomeCompanySection() {
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </Link>
-            <Link to="/direct" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
+            <Link to="/direct#services" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
               {t('homePage.company.viewServices', { defaultValue: 'View services' })}
             </Link>
           </div>
