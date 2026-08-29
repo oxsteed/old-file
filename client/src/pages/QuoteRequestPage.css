@@ -1,0 +1,229 @@
+.quote-request-page {
+  padding: 2rem 1rem 4rem;
+}
+
+.quote-request-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.quote-request-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.quote-request-main,
+.quote-request-side,
+.quote-request-success {
+  border: 1px solid var(--color-border);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lg);
+}
+
+.quote-request-main {
+  background: linear-gradient(180deg, rgba(249,115,22,0.14), rgba(15,23,42,0.95));
+  padding: 2rem;
+}
+
+.quote-request-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(249,115,22,0.12);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quote-request-title {
+  margin: 1rem 0 0.5rem;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.02;
+}
+
+.quote-request-copy {
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  max-width: 700px;
+}
+
+.quote-request-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.quote-request-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.quote-request-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.quote-request-actions .ox-btn {
+  min-width: 180px;
+}
+
+.quote-request-side {
+  display: grid;
+  gap: 1rem;
+  background: var(--color-surface);
+  padding: 1.25rem;
+}
+
+.quote-request-side-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  padding: 1.25rem;
+}
+
+.quote-request-side-card h2 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.quote-request-side-card ol,
+.quote-request-side-card ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+}
+
+.quote-request-success {
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--color-surface);
+  padding: 2rem;
+}
+
+.quote-request-success h1 {
+  margin-top: 0;
+  font-size: 2rem;
+}
+
+.quote-request-success-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.quote-request-field {
+  display: grid;
+  gap: 8px;
+}
+
+.quote-request-field-label {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.quote-request-contact-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.quote-request-contact-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.7rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.quote-request-contact-option input {
+  margin: 0;
+}
+
+.quote-request-input,
+.quote-request-select,
+.quote-request-textarea {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.quote-request-textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+@media (max-width: 920px) {
+  .quote-request-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-request-main,
+  .quote-request-side,
+  .quote-request-success {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .quote-request-side {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .quote-request-page {
+    padding: 1rem 0.75rem 3rem;
+  }
+
+  .quote-request-main {
+    padding: 1.25rem;
+    border-radius: 22px;
+  }
+
+  .quote-request-success {
+    padding: 1.25rem;
+    border-radius: 22px;
+  }
+
+  .quote-request-row {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-request-actions .ox-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .quote-request-contact-option {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 18px;
+  }
+
+  .quote-request-side-card {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .quote-request-title {
+    font-size: clamp(1.8rem, 8vw, 2.4rem);
+  }
+}

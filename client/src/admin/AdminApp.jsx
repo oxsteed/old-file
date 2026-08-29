@@ -81,6 +81,7 @@ import SkillsManager   from './pages/SkillsManager';
 import LicensesManager from './pages/LicensesManager';
 import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
+import QuoteRequestsInbox from './pages/QuoteRequestsInbox';
 import AdminSearch     from './pages/AdminSearch';
 import AdminMessages   from './pages/AdminMessages';
 import ConsultingDashboard from './pages/ConsultingDashboard';
@@ -176,6 +177,7 @@ export default function AdminApp() {
           <Route path="licenses"            element={<LicensesManager />} />
           <Route path="content-removals"    element={<ContentRemovals />} />
           <Route path="support"             element={<SupportTickets />} />
+          <Route path="quote-requests"      element={<QuoteRequestsInbox />} />
           <Route path="search"              element={<AdminSearch />} />
           <Route path="messages"            element={<AdminMessages />} />
           <Route path="businesses"          element={<BusinessModeration />} />

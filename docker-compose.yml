@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.4-alpine
     container_name: oxsteed-postgres
     environment:
       POSTGRES_USER: oxsteed
@@ -39,7 +39,7 @@ services:
         condition: service_healthy
     environment:
       # Database
-      DATABASE_URL: postgresql://oxsteed:dev-password-change-in-production@postgres:5432/oxsteed_db
+      DATABASE_URL: postgresql://oxsteed:dev-password-change-in-production@postgres:5432/oxsteed_db?sslmode=disable
       
       # Server
       PORT: 5000
@@ -74,15 +74,15 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       
       # Client URL (for CORS, password reset links, etc)
-      CLIENT_URL: http://localhost:5000
-      APP_URL: http://localhost:5000
+      CLIENT_URL: https://oxsteed.com
+      APP_URL: https://oxsteed.com
       
       # Analytics (optional)
       VITE_GA_MEASUREMENT_ID: ${VITE_GA_MEASUREMENT_ID:-}
       VITE_META_PIXEL_ID: ${VITE_META_PIXEL_ID:-}
       
     ports:
-      - "5000:5000"
+      - "80:5000"
     volumes:
       - ./server:/app/server
     healthcheck:

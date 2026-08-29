@@ -35,6 +35,38 @@ const SKILL_SLUGS = [
   { slug: 'tutoring',     icon: '📚' },
 ];
 
+const OXSTEED_SERVICE_PROFILE = {
+  companyName: 'OxSteed',
+  headline: 'Food, tools, and local service work under one company.',
+  startingPrice: '$100 minimum',
+  availability: 'Monday through Thursday',
+  baseCity: 'Springfield, OH',
+  serviceTypes: [
+    'Home help',
+    'Tool-based jobs',
+    'Delivery and hauling',
+    'Cleanup and setup',
+  ],
+  toolList: [
+    'Truck and hauling gear',
+    'Power drill and bit set',
+    'Ladders and step stools',
+    'Pressure washer',
+    'Hand tools and repair kit',
+    'Measuring and layout tools',
+    'Cleanup and janitorial supplies',
+    'Phone and photo inspection kit',
+  ],
+  travelCities: [
+    'Springfield',
+    'Dayton',
+    'Columbus',
+    'Beavercreek',
+    'Fairborn',
+    'Urbana',
+  ],
+};
+
 /** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 26 }) {
   return (
@@ -69,6 +101,83 @@ function OxSteedIcon({ size = 26 }) {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function HomeCompanySection() {
+  const { t } = useTranslation();
+  const profile = OXSTEED_SERVICE_PROFILE;
+  return (
+    <section className="hp-section hp-company-section">
+      <div className="hp-container">
+        <div className="hp-company-card">
+          <div className="hp-company-hero">
+            <div className="hp-company-badge" aria-hidden="true">
+              <span>OxS</span>
+            </div>
+            <div className="hp-company-copy">
+              <p className="hp-company-kicker">
+                {t('homePage.company.kicker', { defaultValue: 'OxSteed as a company' })}
+              </p>
+              <h2 className="hp-company-title">
+                {t('homePage.company.heading', { defaultValue: profile.companyName })}
+              </h2>
+              <p className="hp-company-subcopy">
+                {t('homePage.company.subcopy', { defaultValue: profile.headline })}
+              </p>
+              <div className="hp-company-meta">
+                <span>{profile.startingPrice}</span>
+                <span>•</span>
+                <span>{profile.availability}</span>
+                <span>•</span>
+                <span>{profile.baseCity}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="hp-company-grid">
+            <div className="hp-company-panel">
+              <h3>{t('homePage.company.services', { defaultValue: 'Services' })}</h3>
+              <div className="hp-chip-grid">
+                {profile.serviceTypes.map((item) => (
+                  <span key={item} className="hp-chip hp-chip--warm">{item}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="hp-company-panel">
+              <h3>{t('homePage.company.tools', { defaultValue: 'Tools' })}</h3>
+              <div className="hp-chip-grid">
+                {profile.toolList.map((item) => (
+                  <span key={item} className="hp-chip hp-chip--cool">{item}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="hp-company-panel hp-company-panel--wide">
+              <h3>{t('homePage.company.travelCities', { defaultValue: 'Travel cities' })}</h3>
+              <div className="hp-chip-grid">
+                {profile.travelCities.map((item) => (
+                  <span key={item} className="hp-chip hp-chip--blue">{item}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+            <div className="hp-company-actions">
+            <Link to="/direct/request-quote" className="hp-btn hp-btn-primary hp-btn-lg hp-company-btn">
+              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </Link>
+            <Link to="/direct" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
+              {t('homePage.company.viewServices', { defaultValue: 'View services' })}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -493,6 +602,7 @@ export default function HomePage() {
       </section>
 
       {/* -- Browse by Skills -- */}
+      <HomeCompanySection />
       <section className="hp-section">
         <div className="hp-container">
           <div className="hp-section-head">
@@ -597,7 +707,7 @@ export default function HomePage() {
           <div className="hp-consulting-cta">
             <div>
               <Link
-                to="/consulting-intake"
+                to="/direct/request-quote"
                 className="hp-btn hp-btn-primary hp-btn-lg hp-consulting-btn"
                 style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
               >

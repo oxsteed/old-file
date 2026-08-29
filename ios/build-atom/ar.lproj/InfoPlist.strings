@@ -1,8 +1,0 @@
-"NSCameraUsageDescription" = "يستخدم OxSteed الكاميرا لالتقاط صور الأعمال.";
-"NSFaceIDUsageDescription" = "يستخدم OxSteed ‏Face ID / Touch ID لحماية حسابك.";
-"NSLocationWhenInUseUsageDescription" = "يستخدم OxSteed موقعك لعرض الأعمال والمساعدين القريبين.";
-"NSMicrophoneUsageDescription" = "يستخدم OxSteed الميكروفون للسماح لك بإملاء نص للأعمال والرسائل.";
-"NSPhotoLibraryUsageDescription" = "يستخدم OxSteed مكتبة الصور لإرفاق الصور بالأعمال والرسائل.";
-"NSSiriUsageDescription" = "يستخدم OxSteed ‏Siri حتى تتمكن من نشر الأعمال والتحقق من Pulse ومراسلة المساعدين بصوتك.";
-"NSSpeechRecognitionUsageDescription" = "يستخدم OxSteed التعرف على الكلام لتحويل صوتك إلى نص للأعمال والرسائل.";
-"NSTranslationUsageDescription" = "يستخدم OxSteed الترجمة لمساعدة العملاء والمساعدين على التواصل عبر اللغات.";

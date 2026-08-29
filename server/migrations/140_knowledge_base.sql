@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_base_articles_slug ON knowledge_base_ar
 -- Canned responses (pre-written response templates)
 CREATE TABLE IF NOT EXISTS canned_responses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   category VARCHAR(100),
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
@@ -89,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_base_feedback_helpful ON knowledge_base
 CREATE TABLE IF NOT EXISTS knowledge_base_search_index (
   id BIGSERIAL PRIMARY KEY,
   article_id UUID NOT NULL REFERENCES knowledge_base_articles(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   search_text TEXT, -- concatenated title + content + keywords for full-text search
   last_indexed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(article_id)

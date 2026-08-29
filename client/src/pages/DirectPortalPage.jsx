@@ -1,0 +1,1530 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, ChevronRight, Clock3, FileText, MapPin, MessageSquare, Package, PenLine, Plus, RefreshCw, Send, ShieldCheck, Sparkles, UploadCloud, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import PageShell from '../components/PageShell';
+import PageMeta from '../components/PageMeta';
+import { useAuth } from '../context/AuthContext';
+import {
+  acceptDirectRequest,
+  changeDirectRequest,
+  confirmDirectProof,
+  deleteDirectLocation,
+  getDirectAccount,
+  getDirectHistory,
+  getDirectProfile,
+  getDirectRequest,
+  getDirectRequestMessages,
+  saveDirectLocation,
+  scheduleDirectRequest,
+  sendDirectMessage,
+  submitDirectProof,
+  submitDirectRequest,
+  uploadDirectAsset,
+} from '../api/direct';
+
+const DEFAULT_PROFILE = {
+  companyName: 'OxSteed',
+  headline: 'Food, tools, and local service work under one company.',
+  minimumPriceCents: 10000,
+  availabilityText: 'Monday through Thursday',
+  baseCity: 'Springfield, OH',
+  publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
+  serviceAreas: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
+  tools: [
+    'Truck and hauling gear',
+    'Power drill and bit set',
+    'Ladders and step stools',
+    'Pressure washer',
+    'Hand tools and repair kit',
+    'Measuring and layout tools',
+    'Cleanup and janitorial supplies',
+    'Phone and photo inspection kit',
+  ],
+  travelDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+  travelCities: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
+};
+
+const EMPTY_FORM = {
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  company_name: '',
+  service_category: 'Home services',
+  service_location: '',
+  budget_range: '',
+  timeline: '',
+  preferred_contact_method: 'email',
+  preferred_date: '',
+  preferred_time_window: '',
+  urgency: 'normal',
+  access_notes: '',
+  details: '',
+  service_city: '',
+  photos: [],
+};
+
+const STATUS_FLOW = [
+  'new',
+  'reviewing',
+  'quoted',
+  'accepted',
+  'scheduled',
+  'en_route',
+  'started',
+  'waiting_customer',
+  'completed',
+  'closed',
+  'cancelled',
+];
+
+function currencyLabel(amountCents, currencyCode = 'USD') {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: String(currencyCode || 'USD').toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(amountCents || 0) / 100);
+  } catch {
+    return `$${(Number(amountCents || 0) / 100).toFixed(2)}`;
+  }
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function statusLabel(status) {
+  const labels = {
+    new: 'Requested',
+    reviewing: 'Reviewing',
+    quoted: 'Quoted',
+    contacted: 'Contacted',
+    accepted: 'Accepted',
+    scheduled: 'Scheduled',
+    en_route: 'En route',
+    started: 'Started',
+    waiting_customer: 'Waiting on customer',
+    completed: 'Completed',
+    closed: 'Closed',
+    cancelled: 'Cancelled',
+  };
+  return labels[String(status || 'new').toLowerCase()] || status || 'Requested';
+}
+
+function statusTone(status) {
+  const key = String(status || 'new').toLowerCase();
+  if (['completed', 'closed'].includes(key)) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25';
+  if (['scheduled', 'accepted'].includes(key)) return 'bg-orange-500/15 text-orange-300 border-orange-500/25';
+  if (['en_route', 'started'].includes(key)) return 'bg-sky-500/15 text-sky-300 border-sky-500/25';
+  if (['waiting_customer', 'reviewing'].includes(key)) return 'bg-violet-500/15 text-violet-300 border-violet-500/25';
+  if (key === 'cancelled') return 'bg-gray-500/15 text-gray-300 border-gray-500/20';
+  return 'bg-blue-500/15 text-blue-300 border-blue-500/25';
+}
+
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+}
+
+function EmptyState({ icon: Icon = Package, title, body, action }) {
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-6 text-center shadow-sm">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-300">
+        <Icon size={24} />
+      </div>
+      <h3 className="text-xl font-semibold text-white">{title}</h3>
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">{body}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+function SectionCard({ title, eyebrow, children, className = '' }) {
+  return (
+    <section className={`rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-sm ${className}`}>
+      {eyebrow && (
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-300">{eyebrow}</div>
+      )}
+      <h2 className="mt-2 text-2xl font-semibold text-white">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, hint, children, required = false }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-semibold text-slate-200">
+        {label}{required ? ' *' : ''}
+      </span>
+      {children}
+      {hint && <span className="text-xs leading-5 text-slate-500">{hint}</span>}
+    </label>
+  );
+}
+
+function Input(props) {
+  return <input {...props} className={`w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-orange-500/50 ${props.className || ''}`} />;
+}
+
+function Select(props) {
+  return <select {...props} className={`w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50 ${props.className || ''}`} />;
+}
+
+function Textarea(props) {
+  return <textarea {...props} className={`w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-orange-500/50 ${props.className || ''}`} />;
+}
+
+function Chip({ children, tone = 'default' }) {
+  const tones = {
+    default: 'bg-white/5 text-slate-200 border-white/10',
+    blue: 'bg-sky-500/10 text-sky-200 border-sky-500/20',
+    orange: 'bg-orange-500/10 text-orange-200 border-orange-500/20',
+    emerald: 'bg-emerald-500/10 text-emerald-200 border-emerald-500/20',
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${tones[tone] || tones.default}`}>
+      {children}
+    </span>
+  );
+}
+
+function DirectShell({ profile, title, subtitle, children, heroRight }) {
+  return (
+    <PageShell>
+      <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}/direct`} />
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-[36px] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 shadow-[0_28px_80px_rgba(15,23,42,0.45)]">
+          <div className="grid gap-6 px-5 py-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-8">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-200">
+                OxSteed Direct
+              </div>
+              <div className="space-y-3">
+                <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                  {title || profile.companyName}
+                </h1>
+                <p className="max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">
+                  {subtitle || profile.headline}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Chip tone="orange">${Math.round(profile.minimumPriceCents / 100)} minimum</Chip>
+                <Chip tone="blue">{profile.availabilityText}</Chip>
+                <Chip tone="emerald">{profile.baseCity}</Chip>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+              {heroRight}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">{children}</div>
+      </div>
+    </PageShell>
+  );
+}
+
+async function loadProfile() {
+  try {
+    const data = await getDirectProfile();
+    return data?.profile || DEFAULT_PROFILE;
+  } catch {
+    return DEFAULT_PROFILE;
+  }
+}
+
+export function DirectLandingPage() {
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+
+  useEffect(() => {
+    let active = true;
+    loadProfile().then((next) => {
+      if (active) setProfile(next);
+    });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <DirectShell
+      profile={profile}
+      title={`${profile.companyName} Direct`}
+      subtitle={profile.publicNote}
+      heroRight={(
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">How it works</div>
+            <div className="mt-3 grid gap-2 text-sm text-slate-300">
+              <p>1. Request a quote with a few details and photos.</p>
+              <p>2. Review the estimate and pick a schedule window.</p>
+              <p>3. Upload proof, keep the receipt, and track the whole job history.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/direct/request-quote" className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
+              Request a quote <ChevronRight size={16} />
+            </Link>
+            <Link to="/direct/history" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              View history
+            </Link>
+          </div>
+        </div>
+      )}
+    >
+      <div className="grid gap-6 lg:grid-cols-3">
+        <SectionCard title="Services" eyebrow="OxSteed as a company">
+          <div className="flex flex-wrap gap-2">
+            {(profile.serviceAreas || DEFAULT_PROFILE.serviceAreas).map((city) => <Chip key={city}>{city}</Chip>)}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Chip tone="orange">Home help</Chip>
+            <Chip tone="blue">Tool-based jobs</Chip>
+            <Chip tone="emerald">Delivery and hauling</Chip>
+            <Chip tone="default">Cleanup and setup</Chip>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Tools" eyebrow="What we bring">
+          <div className="flex flex-wrap gap-2">
+            {(profile.tools || DEFAULT_PROFILE.tools).map((tool) => <Chip key={tool}>{tool}</Chip>)}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Travel area" eyebrow="Monday to Thursday">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <MapPin size={16} className="text-orange-300" />
+              Base city: <strong className="text-white">{profile.baseCity}</strong>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(profile.travelCities || DEFAULT_PROFILE.travelCities).map((city) => <Chip key={city} tone="blue">{city}</Chip>)}
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <SectionCard title="Why Direct" eyebrow="Company-owned service flow">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Sparkles size={16} className="text-orange-300" /> Simple quote intake</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Public customers can request a quote without wading through marketplace browsing.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={16} className="text-emerald-300" /> Clear proof and history</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Every receipt, proof upload, and status change stays attached to the job record.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 size={16} className="text-sky-300" /> Schedule by window</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Jobs can be quoted, scheduled, and updated without restarting the request from scratch.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><FileText size={16} className="text-violet-300" /> Long-term records</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Request history, locations, and customer notes are kept in one portal for future work.</p>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Next step" eyebrow="Start here">
+          <div className="space-y-4">
+            <p className="text-sm leading-6 text-slate-300">Tell us what you need, where the work is, and whether you want to move fast or keep things flexible.</p>
+            <Link to="/direct/request-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
+              Request a quote <ChevronRight size={16} />
+            </Link>
+          </div>
+        </SectionCard>
+      </div>
+    </DirectShell>
+  );
+}
+
+export function DirectQuoteRequestPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [loading, setLoading] = useState(false);
+  const [draftId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+  });
+
+  useEffect(() => {
+    let active = true;
+    loadProfile().then((next) => {
+      if (active) setProfile(next);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      first_name: user?.first_name || current.first_name,
+      last_name: user?.last_name || current.last_name,
+      email: user?.email || current.email,
+      phone: user?.phone || current.phone,
+    }));
+  }, [user]);
+
+  const canSubmit = useMemo(() => (
+    form.first_name.trim() &&
+    form.last_name.trim() &&
+    form.email.trim() &&
+    form.service_category.trim() &&
+    form.service_location.trim() &&
+    form.details.trim()
+  ), [form]);
+
+  const update = (key) => (event) => {
+    const value = event.target.value;
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+
+    setUploading(true);
+    try {
+      for (const file of files.slice(0, 6)) {
+        const response = await uploadDirectAsset(file, { purpose: 'quote-photo', draftId });
+        setAttachments((current) => [...current, response.attachment]);
+      }
+      toast.success('Photo attachment uploaded.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not upload photo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAttachment = (key) => {
+    setAttachments((current) => current.filter((attachment) => attachment.key !== key));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!canSubmit) {
+      toast.error('Please fill in the required fields.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        phone: form.phone,
+        company_name: form.company_name,
+        service_category: form.service_category,
+        service_location: form.service_location,
+        budget_range: form.budget_range,
+        timeline: form.timeline,
+        preferred_contact_method: form.preferred_contact_method,
+        details: form.details,
+        metadata: {
+          flow: 'direct',
+          draftId,
+          serviceType: form.service_category,
+          serviceCity: form.service_city,
+          preferredDate: form.preferred_date,
+          preferredTimeWindow: form.preferred_time_window,
+          urgency: form.urgency,
+          accessNotes: form.access_notes,
+          photoAttachments: attachments,
+        },
+      };
+
+      const response = await submitDirectRequest(payload);
+      toast.success('Quote request sent.');
+      navigate(`/direct/request-quote/thanks?requestId=${response.requestId}`, {
+        replace: true,
+        state: { requestId: response.requestId },
+      });
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not submit your request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <DirectShell
+      profile={profile}
+      title="Request a Direct quote"
+      subtitle="Keep it simple. Tell us what you need, where the work is, and when you want it done."
+      heroRight={(
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">What to include</div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+              <li>• Contact info and preferred contact method</li>
+              <li>• Service type, city, and any access notes</li>
+              <li>• Budget range, preferred date, and urgency</li>
+            </ul>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+            <UploadCloud size={18} className="text-orange-300" />
+            You can attach photos before you hit submit.
+          </div>
+        </div>
+      )}
+    >
+      <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <SectionCard title="Your details" eyebrow="Customer">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="First name" required><Input value={form.first_name} onChange={update('first_name')} /></Field>
+              <Field label="Last name" required><Input value={form.last_name} onChange={update('last_name')} /></Field>
+              <Field label="Email" required><Input type="email" value={form.email} onChange={update('email')} /></Field>
+              <Field label="Phone"><Input value={form.phone} onChange={update('phone')} /></Field>
+              <Field label="Business or company name"><Input value={form.company_name} onChange={update('company_name')} placeholder="Optional" /></Field>
+              <Field label="Preferred contact method">
+                <Select value={form.preferred_contact_method} onChange={update('preferred_contact_method')}>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone call</option>
+                  <option value="text">Text message</option>
+                  <option value="either">Either is fine</option>
+                </Select>
+              </Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Work details" eyebrow="Quote request">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Service type" required>
+                <Select value={form.service_category} onChange={update('service_category')}>
+                  <option>Home services</option>
+                  <option>Restaurant services</option>
+                  <option>Business setup</option>
+                  <option>Business support</option>
+                  <option>Maintenance or repair</option>
+                  <option>Other</option>
+                </Select>
+              </Field>
+              <Field label="Where is the work?" required hint="City, neighborhood, or full address.">
+                <Input value={form.service_location} onChange={update('service_location')} placeholder="Springfield, OH" />
+              </Field>
+              <Field label="Service city"><Input value={form.service_city} onChange={update('service_city')} placeholder="Optional" /></Field>
+              <Field label="Budget range"><Input value={form.budget_range} onChange={update('budget_range')} placeholder="$100-$250 or flexible" /></Field>
+              <Field label="Preferred date"><Input type="date" value={form.preferred_date} onChange={update('preferred_date')} /></Field>
+              <Field label="Time window"><Input value={form.preferred_time_window} onChange={update('preferred_time_window')} placeholder="Morning, afternoon, after 5pm..." /></Field>
+              <Field label="Urgency">
+                <Select value={form.urgency} onChange={update('urgency')}>
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Select>
+              </Field>
+              <Field label="Timeline notes"><Input value={form.timeline} onChange={update('timeline')} placeholder="This week, next month, etc." /></Field>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Access notes" hint="Gate code, parking, pets, stairs, or anything helpful."><Textarea rows={4} value={form.access_notes} onChange={update('access_notes')} /></Field>
+              <Field label="What should we know?" required hint="A short description is enough to start."><Textarea rows={4} value={form.details} onChange={update('details')} /></Field>
+            </div>
+          </SectionCard>
+        </div>
+
+        <aside className="space-y-6">
+          <SectionCard title="Photos" eyebrow="Attachments">
+            <div className="space-y-4">
+              <label className="block rounded-2xl border border-dashed border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
+                <div className="flex items-center gap-2 font-semibold text-white">
+                  <UploadCloud size={16} className="text-orange-300" /> Upload photos
+                </div>
+                <div className="mt-2 text-xs leading-5 text-slate-500">Add up to 6 photos. We keep the uploads tied to this quote draft.</div>
+                <input type="file" accept="image/*" multiple onChange={handleUpload} className="mt-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-orange-600" />
+              </label>
+              {uploading && <div className="text-sm text-slate-400">Uploading photos…</div>}
+              {attachments.length > 0 ? (
+                <div className="grid gap-2">
+                  {attachments.map((attachment) => (
+                    <div key={attachment.key || attachment.url} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-300">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-white">{attachment.name || 'Photo attachment'}</div>
+                        <div className="text-xs text-slate-500">{attachment.type || 'image'}</div>
+                      </div>
+                      <button type="button" onClick={() => removeAttachment(attachment.key)} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-500">No photos attached yet.</div>
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Summary" eyebrow="Launch-ready">
+            <div className="space-y-3 text-sm leading-6 text-slate-300">
+              <p>We’ll send the request to the Direct ops queue.</p>
+              <p>Once the quote is ready, you can accept it, schedule the visit, and follow the case history here.</p>
+              <p>Proof uploads, receipts, and support messages stay attached to the same record.</p>
+            </div>
+            <button type="submit" disabled={loading || !canSubmit} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? 'Sending...' : 'Request a quote'}
+            </button>
+          </SectionCard>
+        </aside>
+      </form>
+    </DirectShell>
+  );
+}
+
+export function DirectQuoteThanksPage() {
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [params] = useSearchParams();
+  const requestId = params.get('requestId') || '—';
+
+  useEffect(() => {
+    let active = true;
+    loadProfile().then((next) => {
+      if (active) setProfile(next);
+    });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <DirectShell
+      profile={profile}
+      title="Request received"
+      subtitle="Thanks. Your Direct quote request is in the queue."
+      heroRight={(
+        <div className="space-y-3 text-sm leading-6 text-slate-300">
+          <p>We’ve got your request and we’ll review it soon.</p>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Reference</div>
+            <div className="mt-2 font-semibold text-white">{requestId}</div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/direct/history" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">View history</Link>
+            <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Open support</Link>
+          </div>
+        </div>
+      )}
+    >
+      <SectionCard title="What happens next" eyebrow="Direct workflow">
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            ['1. Review', 'We review the quote request and decide the next step.'],
+            ['2. Schedule', 'You can accept the quote and lock in a schedule window.'],
+            ['3. Proof & receipt', 'Upload proof or confirm receipt so history stays attached.'],
+          ].map(([title, body]) => (
+            <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="font-semibold text-white">{title}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{body}</p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </DirectShell>
+  );
+}
+
+function RequestSnapshot({ request }) {
+  if (!request) return null;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Chip tone="orange">{statusLabel(request.status)}</Chip>
+        <Chip tone="blue">{request.paymentStatus || 'unpaid'}</Chip>
+        {request.quoteAmountCents !== null && request.quoteAmountCents !== undefined && (
+          <Chip tone="emerald">{currencyLabel(request.quoteAmountCents, request.quoteCurrencyCode)}</Chip>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <InfoRow label="Service" value={request.serviceCategory} />
+        <InfoRow label="Location" value={request.serviceLocation} />
+        <InfoRow label="Preferred date" value={formatDate(request.preferredDate)} />
+        <InfoRow label="Time window" value={request.preferredTimeWindow || '—'} />
+        <InfoRow label="Scheduled start" value={formatDateTime(request.scheduledStartAt)} />
+        <InfoRow label="Scheduled end" value={formatDateTime(request.scheduledEndAt)} />
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className="mt-2 text-sm font-medium text-white">{value || '—'}</div>
+    </div>
+  );
+}
+
+function useDirectRequestData(id) {
+  const [request, setRequest] = useState(null);
+  const [loading, setLoading] = useState(Boolean(id));
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getDirectRequest(id);
+      setRequest(data?.request || null);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to load request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  return { request, setRequest, loading, error, refresh: load };
+}
+
+export function DirectQuoteDetailPage() {
+  return <DirectCasePage mode="quote" />;
+}
+
+export function DirectBookingPage() {
+  return <DirectCasePage mode="book" />;
+}
+
+export function DirectJobPage() {
+  return <DirectCasePage mode="job" />;
+}
+
+export function DirectPaymentProofPage() {
+  return <DirectCasePage mode="proof" />;
+}
+
+export function DirectPaymentReceiptPage() {
+  return <DirectCasePage mode="receipt" />;
+}
+
+export function DirectChangePage() {
+  return <DirectCasePage mode="change" />;
+}
+
+export function DirectHistoryPage() {
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([loadProfile(), getDirectHistory()])
+      .then(([nextProfile, data]) => {
+        if (!active) return;
+        setProfile(nextProfile);
+        setHistory(Array.isArray(data?.requests) ? data.requests : []);
+      })
+      .catch(() => {
+        if (active) toast.error('Could not load history.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <DirectShell profile={profile} title="Service history" subtitle="All of your Direct quote requests, jobs, and receipts in one place.">
+      {loading ? (
+        <EmptyState icon={RefreshCw} title="Loading history…" body="We’re pulling your Direct records now." />
+      ) : history.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No Direct history yet"
+          body="Once you request a quote or schedule a job, the record will show up here."
+          action={<Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Request a quote</Link>}
+        />
+      ) : (
+        <div className="grid gap-4">
+          {history.map((item) => (
+            <Link key={item.id} to={`/direct/jobs/${item.id}`} className="rounded-[24px] border border-white/10 bg-slate-950/80 p-5 text-left transition hover:border-orange-500/30 hover:bg-slate-950">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-lg font-semibold text-white">{item.serviceCategory || item.companyName || 'Direct request'}</div>
+                  <div className="mt-1 text-sm text-slate-400">{item.serviceLocation || item.serviceCity || '—'}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Chip tone="blue">{statusLabel(item.status)}</Chip>
+                  <Chip tone="emerald">{currencyLabel(item.quoteAmountCents || 0, item.quoteCurrencyCode)}</Chip>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <InfoRow label="Requested" value={formatDateTime(item.createdAt)} />
+                <InfoRow label="Scheduled" value={formatDateTime(item.scheduledStartAt)} />
+                <InfoRow label="Payment" value={item.paymentStatus || 'unpaid'} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </DirectShell>
+  );
+}
+
+export function DirectSupportPage() {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [history, setHistory] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [request, setRequest] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [profileData, historyData] = await Promise.all([loadProfile(), getDirectHistory()]);
+      setProfile(profileData);
+      const requests = Array.isArray(historyData?.requests) ? historyData.requests : [];
+      setHistory(requests);
+      const chosen = selectedId || requests.find((item) => ['new', 'reviewing', 'quoted', 'accepted', 'scheduled', 'started', 'waiting_customer'].includes(String(item.status || '').toLowerCase()))?.id || requests[0]?.id || null;
+      setSelectedId(chosen);
+      if (chosen) {
+        const detail = await getDirectRequest(chosen);
+        setRequest(detail?.request || null);
+        setMessages(detail?.request?.messages || []);
+      } else {
+        setRequest(null);
+        setMessages([]);
+      }
+    } catch {
+      toast.error('Could not load support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let active = true;
+    getDirectRequest(selectedId)
+      .then((detail) => {
+        if (!active) return;
+        setRequest(detail?.request || null);
+        setMessages(detail?.request?.messages || []);
+      })
+      .catch(() => {})
+      .finally(() => {});
+    return () => { active = false; };
+  }, [selectedId]);
+
+  const handleSend = async () => {
+    const next = message.trim();
+    if (!next || !selectedId) return;
+    setSending(true);
+    try {
+      await sendDirectMessage(selectedId, next);
+      setMessage('');
+      await load();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not send message.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <DirectShell profile={profile} title="Support and messages" subtitle="Keep support attached to the Direct request instead of a separate inbox.">
+      <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
+        <SectionCard title="Your Direct requests" eyebrow="Support" className="min-h-[28rem]">
+          {loading ? (
+            <div className="text-sm text-slate-400">Loading…</div>
+          ) : history.length === 0 ? (
+            <EmptyState icon={MessageSquare} title="Nothing here yet" body="Create a quote request first and the support thread will appear here." />
+          ) : (
+            <div className="space-y-2">
+              {history.map((item) => (
+                <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-left transition ${String(selectedId) === String(item.id) ? 'border-orange-500/40 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-white">{item.serviceCategory || 'Direct request'}</div>
+                      <div className="mt-1 text-xs text-slate-500">{item.serviceLocation || item.serviceCity || '—'}</div>
+                    </div>
+                    <Chip tone="blue">{statusLabel(item.status)}</Chip>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title={request ? `Request #${request.id}` : 'Choose a request'} eyebrow="Conversation" className="min-h-[28rem]">
+          {!request ? (
+            <EmptyState icon={MessageSquare} title="Select a request" body="Pick a Direct job on the left to open the support thread." />
+          ) : (
+            <div className="space-y-4">
+              <RequestSnapshot request={request} />
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white"><MessageSquare size={15} className="text-orange-300" /> Messages</div>
+                <div className="mt-4 max-h-[22rem] space-y-3 overflow-auto pr-1">
+                  {messages.length === 0 ? (
+                    <div className="text-sm text-slate-500">No messages yet.</div>
+                  ) : (
+                    messages.map((item) => (
+                      <div key={item.id} className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${item.senderRole === 'customer' ? 'ml-auto bg-orange-500 text-white' : 'bg-white/5 text-slate-200'}`}>
+                        <div>{item.message}</div>
+                        <div className={`mt-2 text-[11px] ${item.senderRole === 'customer' ? 'text-orange-100/80' : 'text-slate-500'}`}>{formatDateTime(item.createdAt)}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-3">
+                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type your message to the OxSteed team..." />
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                    <Send size={15} /> {sending ? 'Sending…' : 'Send'}
+                  </button>
+                  <Link to="/support/escalation" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
+                    Open live escalation
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+    </DirectShell>
+  );
+}
+
+export function DirectAccountPage() {
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [data, setData] = useState({ locations: [] });
+  const [form, setForm] = useState({
+    label: '',
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    region: '',
+    postal_code: '',
+    country_code: 'US',
+    notes: '',
+    is_default: true,
+  });
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [profileData, accountData] = await Promise.all([loadProfile(), getDirectAccount()]);
+      setProfile(profileData);
+      setData(accountData || { locations: [] });
+    } catch {
+      toast.error('Could not load account data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const save = async () => {
+    if (!form.label.trim() || !form.address_line1.trim() || !form.city.trim()) {
+      toast.error('Label, address, and city are required.');
+      return;
+    }
+    try {
+      await saveDirectLocation(editingId, form);
+      toast.success('Location saved.');
+      setEditingId(null);
+      setForm({
+        label: '',
+        address_line1: '',
+        address_line2: '',
+        city: '',
+        region: '',
+        postal_code: '',
+        country_code: 'US',
+        notes: '',
+        is_default: true,
+      });
+      await load();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save location.');
+    }
+  };
+
+  const editLocation = (location) => {
+    setEditingId(location.id);
+    setForm({
+      label: location.label || '',
+      address_line1: location.addressLine1 || '',
+      address_line2: location.addressLine2 || '',
+      city: location.city || '',
+      region: location.region || '',
+      postal_code: location.postalCode || '',
+      country_code: location.countryCode || 'US',
+      notes: location.notes || '',
+      is_default: !!location.isDefault,
+    });
+  };
+
+  return (
+    <DirectShell profile={profile} title="Customer profile and locations" subtitle="Save addresses, notes, and preferred city so future Direct jobs are easier to schedule.">
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <SectionCard title="Saved locations" eyebrow="Account">
+          {loading ? (
+            <div className="text-sm text-slate-400">Loading…</div>
+          ) : (data.locations || []).length === 0 ? (
+            <EmptyState icon={MapPin} title="No saved locations" body="Add your first service address here." />
+          ) : (
+            <div className="space-y-2">
+              {data.locations.map((location) => (
+                <div key={location.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-white">{location.label}{location.isDefault ? ' · default' : ''}</div>
+                      <div className="mt-1 text-sm text-slate-400">{location.addressLine1}{location.addressLine2 ? `, ${location.addressLine2}` : ''}</div>
+                      <div className="text-sm text-slate-400">{location.city}{location.region ? `, ${location.region}` : ''} {location.postalCode}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => editLocation(location)} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">Edit</button>
+                      <button type="button" onClick={async () => { await deleteDirectLocation(location.id); toast.success('Location deleted.'); await load(); }} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title={editingId ? 'Edit location' : 'Add a location'} eyebrow="Profile">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Label" required><Input value={form.label} onChange={(e) => setForm((current) => ({ ...current, label: e.target.value }))} placeholder="Home, shop, office..." /></Field>
+            <Field label="Country code"><Input value={form.country_code} onChange={(e) => setForm((current) => ({ ...current, country_code: e.target.value }))} placeholder="US" /></Field>
+            <Field label="Address" required><Input value={form.address_line1} onChange={(e) => setForm((current) => ({ ...current, address_line1: e.target.value }))} /></Field>
+            <Field label="Address line 2"><Input value={form.address_line2} onChange={(e) => setForm((current) => ({ ...current, address_line2: e.target.value }))} /></Field>
+            <Field label="City" required><Input value={form.city} onChange={(e) => setForm((current) => ({ ...current, city: e.target.value }))} /></Field>
+            <Field label="Region / state"><Input value={form.region} onChange={(e) => setForm((current) => ({ ...current, region: e.target.value }))} /></Field>
+            <Field label="Postal code"><Input value={form.postal_code} onChange={(e) => setForm((current) => ({ ...current, postal_code: e.target.value }))} /></Field>
+            <Field label="Default location">
+              <Select value={form.is_default ? 'true' : 'false'} onChange={(e) => setForm((current) => ({ ...current, is_default: e.target.value === 'true' }))}>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </Select>
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field label="Notes"><Textarea rows={4} value={form.notes} onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))} placeholder="Gate code, parking, service instructions..." /></Field>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button type="button" onClick={save} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Save location</button>
+            {editingId && (
+              <button type="button" onClick={() => { setEditingId(null); setForm({ ...form, label: '', address_line1: '', address_line2: '', city: '', region: '', postal_code: '', notes: '' }); }} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
+                Cancel edit
+              </button>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </DirectShell>
+  );
+}
+
+function Timeline({ request }) {
+  const events = [
+    ['new', 'Requested'],
+    ['reviewing', 'Reviewing'],
+    ['quoted', 'Quoted'],
+    ['accepted', 'Accepted'],
+    ['scheduled', 'Scheduled'],
+    ['en_route', 'En route'],
+    ['started', 'Started'],
+    ['waiting_customer', 'Waiting on customer'],
+    ['completed', 'Completed'],
+    ['closed', 'Closed'],
+  ];
+  const currentIndex = Math.max(events.findIndex(([key]) => key === String(request?.status || 'new').toLowerCase()), 0);
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      {events.map(([key, label], index) => (
+        <div key={key} className={`rounded-2xl border p-3 text-center text-xs font-semibold uppercase tracking-[0.16em] ${index <= currentIndex ? 'border-orange-500/30 bg-orange-500/10 text-orange-200' : 'border-white/10 bg-white/5 text-slate-500'}`}>
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DirectCasePage({ mode }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [request, setRequest] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [proofForm, setProofForm] = useState({
+    paymentMethod: 'cash',
+    paymentReference: '',
+    proofLink: '',
+    note: '',
+  });
+  const [scheduleForm, setScheduleForm] = useState({
+    preferredDate: '',
+    preferredTimeWindow: '',
+    serviceAddress: '',
+    serviceCity: '',
+    onSiteContactName: '',
+    onSiteContactPhone: '',
+    accessNotes: '',
+  });
+  const [locationData, setLocationData] = useState({ locations: [] });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const profileData = await loadProfile();
+      setProfile(profileData);
+      if (mode === 'account') {
+        const accountData = await getDirectAccount();
+        setLocationData(accountData || { locations: [] });
+        setLoading(false);
+        return;
+      }
+
+      if (!id && mode !== 'history') {
+        setLoading(false);
+        return;
+      }
+
+      if (id) {
+        const detail = await getDirectRequest(id);
+        const nextRequest = detail?.request || null;
+        setRequest(nextRequest);
+        setMessages(nextRequest?.messages || []);
+        setAttachments(Array.isArray(nextRequest?.photoAttachments) ? nextRequest.photoAttachments : []);
+        setScheduleForm({
+          preferredDate: nextRequest?.preferredDate ? String(nextRequest.preferredDate).slice(0, 10) : '',
+          preferredTimeWindow: nextRequest?.preferredTimeWindow || '',
+          serviceAddress: nextRequest?.serviceAddress || '',
+          serviceCity: nextRequest?.serviceCity || '',
+          onSiteContactName: nextRequest?.onSiteContactName || '',
+          onSiteContactPhone: nextRequest?.onSiteContactPhone || '',
+          accessNotes: nextRequest?.accessNotes || '',
+        });
+        setProofForm({
+          paymentMethod: nextRequest?.paymentMethod || 'cash',
+          paymentReference: nextRequest?.paymentReference || '',
+          proofLink: nextRequest?.proofLink || '',
+          note: '',
+        });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not load the Direct record.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id, mode]);
+
+  const header = useMemo(() => {
+    switch (mode) {
+      case 'quote': return { title: 'Quote review', subtitle: 'Review the estimate and decide whether to accept it.' };
+      case 'book': return { title: 'Schedule your visit', subtitle: 'Pick a time window and confirm the service address.' };
+      case 'job': return { title: 'Job status', subtitle: 'Track the request from quote to completion.' };
+      case 'proof': return { title: 'Payment proof', subtitle: 'Upload a receipt or reference so the payment stays attached.' };
+      case 'receipt': return { title: 'Receipt confirmation', subtitle: 'Confirm that the proof has been received and tied to history.' };
+      case 'history': return { title: 'Service history', subtitle: 'See every Direct request, quote, job, and receipt.' };
+      case 'support': return { title: 'Direct support', subtitle: 'Message the OxSteed team about this work.' };
+      case 'account': return { title: 'Saved locations', subtitle: 'Keep service addresses and notes ready for the next visit.' };
+      case 'change': return { title: 'Cancel or reschedule', subtitle: 'Adjust the plan without restarting the entire flow.' };
+      default: return { title: 'Direct request', subtitle: 'Review and manage this case.' };
+    }
+  }, [mode]);
+
+  const saveSchedule = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const { request: updated } = await scheduleDirectRequest(id, scheduleForm);
+      setRequest(updated);
+      toast.success('Schedule saved.');
+      navigate(`/direct/jobs/${id}`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save schedule.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const saveChange = async (action = 'reschedule') => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const { request: updated } = await changeDirectRequest(id, { ...scheduleForm, action });
+      setRequest(updated);
+      toast.success(action === 'cancel' ? 'Request cancelled.' : 'Request updated.');
+      if (action === 'cancel') navigate('/direct/history');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not update the request.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const accept = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const { request: updated } = await acceptDirectRequest(id);
+      setRequest(updated);
+      toast.success('Quote accepted.');
+      navigate(`/direct/book/${id}`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not accept the quote.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    if (!id) return;
+    const reason = window.prompt('Why are you declining this quote?') || '';
+    setActionBusy(true);
+    try {
+      const { request: updated } = await changeDirectRequest(id, { action: 'cancel', reason });
+      setRequest(updated);
+      toast.success('Request declined.');
+      navigate('/direct/history');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not decline the quote.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const submitMessage = async () => {
+    if (!id || !message.trim()) return;
+    setActionBusy(true);
+    try {
+      await sendDirectMessage(id, message.trim());
+      setMessage('');
+      await load();
+      toast.success('Message sent.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not send message.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleProofUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !id) return;
+    try {
+      const response = await uploadDirectAsset(file, { purpose: 'payment-proof', requestId: id });
+      setAttachments((current) => [...current, response.attachment]);
+      setProofForm((current) => ({ ...current, proofLink: response.attachment?.url || current.proofLink }));
+      toast.success('Proof attachment uploaded.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not upload proof.');
+    }
+  };
+
+  const submitProof = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const { request: updated } = await submitDirectProof(id, {
+        ...proofForm,
+        proofAttachment: attachments[0] || null,
+      });
+      setRequest(updated);
+      toast.success('Payment proof saved.');
+      navigate(`/direct/payments/${id}`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save proof.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const confirmProof = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const { request: updated } = await confirmDirectProof(id, { note: 'Confirmed from Direct portal.' });
+      setRequest(updated);
+      toast.success('Receipt confirmed.');
+      navigate(`/direct/history`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not confirm receipt.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const locationOptions = Array.isArray(locationData.locations) ? locationData.locations : [];
+
+  const title = header.title;
+  const subtitle = header.subtitle;
+
+  return (
+    <DirectShell profile={profile} title={title} subtitle={subtitle}>
+      {loading ? (
+        <EmptyState icon={RefreshCw} title="Loading…" body="Fetching the Direct record now." />
+      ) : mode === 'history' ? (
+        <DirectHistoryPage />
+      ) : mode === 'account' ? (
+        <DirectAccountPage />
+      ) : !request ? (
+        <EmptyState icon={Package} title="No record found" body="This Direct record is not available yet." action={<Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Request a quote</Link>} />
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <SectionCard title={quoteTitle(request)} eyebrow={`Case #${request.id}`}>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Chip tone="orange">{statusLabel(request.status)}</Chip>
+                <Chip tone="blue">{request.paymentStatus || 'unpaid'}</Chip>
+                {request.quoteAmountCents !== null && request.quoteAmountCents !== undefined && (
+                  <Chip tone="emerald">{currencyLabel(request.quoteAmountCents, request.quoteCurrencyCode)}</Chip>
+                )}
+              </div>
+              <RequestSnapshot request={request} />
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Details</div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{request.details || 'No description yet.'}</p>
+              </div>
+              {request.accessNotes && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Access notes</div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{request.accessNotes}</p>
+                </div>
+              )}
+              {Array.isArray(request.photoAttachments) && request.photoAttachments.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Photos</div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {request.photoAttachments.map((attachment) => (
+                      <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                        <div className="font-medium text-white">{attachment.name || 'Photo'}</div>
+                        <div className="mt-1 text-xs text-slate-500">{attachment.type || 'attachment'}</div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Timeline request={request} />
+
+              <div className="flex flex-wrap gap-3">
+                {mode === 'quote' && (
+                  <>
+                    <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Accept quote</button>
+                    <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Decline</button>
+                    <Link to={`/direct/jobs/${id}/change`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Request changes</Link>
+                  </>
+                )}
+                {mode === 'book' && (
+                  <button type="button" onClick={saveSchedule} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Save schedule</button>
+                )}
+                {mode === 'proof' && (
+                  <button type="button" onClick={submitProof} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Submit proof</button>
+                )}
+                {mode === 'receipt' && (
+                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Confirm receipt</button>
+                )}
+                {mode === 'change' && (
+                  <>
+                    <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Reschedule</button>
+                    <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Cancel request</button>
+                  </>
+                )}
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title={mode === 'support' ? 'Conversation' : 'Actions'} eyebrow="Manage the case">
+            {mode === 'book' && (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Preferred date" required><Input type="date" value={scheduleForm.preferredDate} onChange={(e) => setScheduleForm((current) => ({ ...current, preferredDate: e.target.value }))} /></Field>
+                  <Field label="Time window" required><Input value={scheduleForm.preferredTimeWindow} onChange={(e) => setScheduleForm((current) => ({ ...current, preferredTimeWindow: e.target.value }))} placeholder="Morning, afternoon, etc." /></Field>
+                  <Field label="Service address" required><Input value={scheduleForm.serviceAddress} onChange={(e) => setScheduleForm((current) => ({ ...current, serviceAddress: e.target.value }))} /></Field>
+                  <Field label="Service city"><Input value={scheduleForm.serviceCity} onChange={(e) => setScheduleForm((current) => ({ ...current, serviceCity: e.target.value }))} /></Field>
+                  <Field label="On-site contact"><Input value={scheduleForm.onSiteContactName} onChange={(e) => setScheduleForm((current) => ({ ...current, onSiteContactName: e.target.value }))} /></Field>
+                  <Field label="Contact phone"><Input value={scheduleForm.onSiteContactPhone} onChange={(e) => setScheduleForm((current) => ({ ...current, onSiteContactPhone: e.target.value }))} /></Field>
+                </div>
+                <Field label="Access notes"><Textarea rows={4} value={scheduleForm.accessNotes} onChange={(e) => setScheduleForm((current) => ({ ...current, accessNotes: e.target.value }))} /></Field>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+                  Use one of your saved locations if the address is already in your account.
+                  {locationOptions.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {locationOptions.map((location) => (
+                        <button key={location.id} type="button" onClick={() => setScheduleForm((current) => ({ ...current, serviceAddress: location.addressLine1, serviceCity: location.city, accessNotes: location.notes || current.accessNotes }))} className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-white">
+                          {location.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {mode === 'proof' && (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Payment method"><Select value={proofForm.paymentMethod} onChange={(e) => setProofForm((current) => ({ ...current, paymentMethod: e.target.value }))}><option value="cash">Cash</option><option value="cash_app">Cash App</option><option value="venmo">Venmo</option><option value="zelle">Zelle</option><option value="bank_transfer">Bank transfer</option><option value="other">Other</option></Select></Field>
+                  <Field label="Reference / receipt number"><Input value={proofForm.paymentReference} onChange={(e) => setProofForm((current) => ({ ...current, paymentReference: e.target.value }))} /></Field>
+                </div>
+                <Field label="Proof link"><Input value={proofForm.proofLink} onChange={(e) => setProofForm((current) => ({ ...current, proofLink: e.target.value }))} placeholder="Shared receipt, screenshot, or file link" /></Field>
+                <Field label="Upload receipt"><Input type="file" accept="image/*,application/pdf" onChange={handleProofUpload} /></Field>
+                <Field label="Note"><Textarea rows={4} value={proofForm.note} onChange={(e) => setProofForm((current) => ({ ...current, note: e.target.value }))} /></Field>
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {attachments.map((attachment) => (
+                      <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                        {attachment.name || 'Receipt attachment'}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {mode === 'receipt' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  Payment status: <strong className="text-white">{request.paymentStatus || 'unpaid'}</strong>
+                  <br />
+                  Proof received: <strong className="text-white">{request.proofReceivedAt ? formatDateTime(request.proofReceivedAt) : 'Not yet'}</strong>
+                  <br />
+                  Reference: <strong className="text-white">{request.paymentReference || '—'}</strong>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link to={`/direct/payments/${id}/proof`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Open proof upload</Link>
+                  <button type="button" onClick={confirmProof} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Confirm receipt</button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'change' && (
+              <div className="space-y-4">
+                <Field label="Reason for change"><Textarea rows={4} value={scheduleForm.accessNotes} onChange={(e) => setScheduleForm((current) => ({ ...current, accessNotes: e.target.value }))} placeholder="Tell us what needs to change..." /></Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="New date"><Input type="date" value={scheduleForm.preferredDate} onChange={(e) => setScheduleForm((current) => ({ ...current, preferredDate: e.target.value }))} /></Field>
+                  <Field label="New window"><Input value={scheduleForm.preferredTimeWindow} onChange={(e) => setScheduleForm((current) => ({ ...current, preferredTimeWindow: e.target.value }))} /></Field>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={() => saveChange('reschedule')} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Reschedule</button>
+                  <button type="button" onClick={() => saveChange('cancel')} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'quote' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  Review the quote and choose whether to accept it, decline it, or ask for changes.
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={accept} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Accept quote</button>
+                  <button type="button" onClick={reject} disabled={actionBusy} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Decline</button>
+                  <Link to={`/direct/jobs/${id}/change`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Ask for changes</Link>
+                </div>
+              </div>
+            )}
+
+            {mode === 'job' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  The current status is <strong className="text-white">{statusLabel(request.status)}</strong>. We’ll keep the record in history as it moves through the workflow.
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link to={`/direct/jobs/${id}/change`} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Request change</Link>
+                  <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Open support</Link>
+                  <Link to={`/direct/payments/${id}/proof`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Upload proof</Link>
+                </div>
+                <Timeline request={request} />
+              </div>
+            )}
+
+            {mode === 'support' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  {request?.messages?.length || messages.length ? 'Your conversation is attached to this request.' : 'No messages yet.'}
+                </div>
+                <div className="space-y-2">
+                  {(request?.messages || messages || []).map((item) => (
+                    <div key={item.id} className={`rounded-2xl px-4 py-3 text-sm leading-6 ${item.senderRole === 'customer' ? 'bg-orange-500 text-white' : 'border border-white/10 bg-white/5 text-slate-200'}`}>
+                      <div>{item.message}</div>
+                      <div className={`mt-2 text-[11px] ${item.senderRole === 'customer' ? 'text-orange-100/80' : 'text-slate-500'}`}>{formatDateTime(item.createdAt)}</div>
+                    </div>
+                  ))}
+                </div>
+                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Send a message to OxSteed support…" />
+                <button type="button" onClick={submitMessage} disabled={actionBusy || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  <Send size={15} /> Send
+                </button>
+              </div>
+            )}
+
+            {mode === 'account' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+                  Manage your saved service locations from the account page.
+                </div>
+                <Link to="/direct/account" className="inline-flex rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">Open locations</Link>
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      )}
+    </DirectShell>
+  );
+}
+
+export default function DirectPortalPage({ view }) {
+  if (view === 'landing') return <DirectLandingPage />;
+  if (view === 'request') return <DirectQuoteRequestPage />;
+  if (view === 'thanks') return <DirectQuoteThanksPage />;
+  if (view === 'quote') return <DirectQuoteDetailPage />;
+  if (view === 'book') return <DirectBookingPage />;
+  if (view === 'job') return <DirectJobPage />;
+  if (view === 'proof') return <DirectPaymentProofPage />;
+  if (view === 'receipt') return <DirectPaymentReceiptPage />;
+  if (view === 'history') return <DirectHistoryPage />;
+  if (view === 'support') return <DirectSupportPage />;
+  if (view === 'account') return <DirectAccountPage />;
+  if (view === 'change') return <DirectChangePage />;
+  return <DirectLandingPage />;
+}

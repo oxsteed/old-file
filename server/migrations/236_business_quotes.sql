@@ -16,7 +16,7 @@ DO $$ BEGIN
       valid_until          DATE,
       notes                TEXT,
       invoice_id           BIGINT,
-      token                VARCHAR(64)  UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+      token                VARCHAR(64)  UNIQUE DEFAULT (replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')),
       created_by           UUID         REFERENCES users(id) ON DELETE SET NULL,
       created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),
       updated_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),

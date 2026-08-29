@@ -483,6 +483,176 @@
 }
 .hp-section-sub { font-size: .9375rem; color: var(--hp-text-muted); max-width: 46ch; margin-inline: auto; }
 
+/* ── Company / Services showcase ───────────────────────────── */
+.hp-company-section {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(249, 115, 22, 0.10) 0%, transparent 32%),
+    radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0));
+  border-top: 1px solid var(--hp-divider);
+  border-bottom: 1px solid var(--hp-divider);
+}
+
+.hp-company-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--hp-surface-2);
+  border: 1px solid var(--hp-border);
+  border-radius: var(--hp-radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--hp-shadow-lg);
+}
+
+.hp-company-hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+
+.hp-company-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #16213e 0%, #f97316 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: var(--hp-font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  box-shadow: 0 12px 28px rgba(22, 33, 62, .22);
+}
+
+.hp-company-copy { min-width: 0; }
+.hp-company-kicker {
+  margin: 0 0 .35rem;
+  color: var(--hp-primary);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.hp-company-title {
+  margin: 0 0 .55rem;
+  font-family: var(--hp-font-display);
+  font-size: clamp(1.9rem, 1.5rem + 1.6vw, 3rem);
+  font-weight: 400;
+  letter-spacing: -.02em;
+  color: var(--hp-text);
+}
+.hp-company-subcopy {
+  margin: 0 0 .9rem;
+  color: var(--hp-text-muted);
+  line-height: 1.7;
+  max-width: 62ch;
+}
+.hp-company-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  color: var(--hp-primary);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.hp-company-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.hp-company-panel {
+  background: var(--hp-surface);
+  border: 1px solid var(--hp-divider);
+  border-radius: var(--hp-radius-lg);
+  padding: 1rem;
+  min-width: 0;
+}
+.hp-company-panel--wide {
+  grid-column: 1 / -1;
+}
+.hp-company-panel h3 {
+  margin: 0 0 .85rem;
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--hp-text);
+}
+
+.hp-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+}
+.hp-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: .5rem .8rem;
+  border-radius: var(--hp-radius-full);
+  border: 1px solid transparent;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.hp-chip--warm {
+  background: rgba(249, 115, 22, .12);
+  color: var(--hp-primary);
+  border-color: rgba(249, 115, 22, .16);
+}
+.hp-chip--cool {
+  background: rgba(22, 33, 62, .06);
+  color: var(--hp-text);
+  border-color: rgba(22, 33, 62, .10);
+}
+.hp-chip--blue {
+  background: rgba(59, 130, 246, .10);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, .16);
+}
+
+.hp-company-note {
+  margin: 1rem 0 1.25rem;
+  color: var(--hp-text-faint);
+  font-size: .875rem;
+  line-height: 1.6;
+}
+
+.hp-company-actions {
+  display: flex;
+  gap: .875rem;
+  flex-wrap: wrap;
+}
+.hp-company-btn,
+.hp-company-btn-secondary {
+  flex: 1 1 220px;
+  justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .hp-company-hero {
+    grid-template-columns: 1fr;
+  }
+  .hp-company-badge {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+  }
+  .hp-company-grid {
+    grid-template-columns: 1fr;
+  }
+  .hp-company-panel--wide {
+    grid-column: auto;
+  }
+  .hp-company-btn,
+  .hp-company-btn-secondary {
+    flex-basis: 100%;
+  }
+}
+
 /* ── Tiers ───────────────────────────────────────────────── */
 .hp-tiers { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
 @media (max-width: 720px) { .hp-tiers { grid-template-columns: 1fr; } }

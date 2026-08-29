@@ -24,6 +24,8 @@ const REGULAR_NAV = [
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
+  { to: '/admin/quote-requests',   icon: FileText,        label: 'Quote Requests'   },
+  { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops'       },
   { to: '/admin/messages',         icon: MessageSquare,   label: 'Messages'         },
   { to: '/admin/search',           icon: Search,          label: 'Search'           },
   { to: '/admin/businesses',       icon: Building2,       label: 'Businesses'       },

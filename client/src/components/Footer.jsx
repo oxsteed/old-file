@@ -259,7 +259,7 @@ export default function Footer() {
             )}
             <button
               type="button"
-              onClick={() => navigate('/consulting-intake')}
+              onClick={() => navigate('/direct/request-quote')}
               style={utilityPillStyle}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.14)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(148,163,184,0.08)'}

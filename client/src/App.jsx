@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
 import './i18n'; // initialise i18next before any component renders
 import ProtectedRoute from './components/ProtectedRoute';
@@ -160,6 +160,8 @@ import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
 import FeatureGuidePage from './pages/FeatureGuidePage';
 import LearnModePage from './pages/LearnModePage';
 import PromotePage from './pages/PromotePage';
+import DirectPortalPage from './pages/DirectPortalPage';
+import DirectAdminPortalPage from './pages/DirectAdminPortalPage';
 import MaintenanceRequestPage from './pages/MaintenanceRequestPage';
 import TradesDiagnosticRequestPage from './pages/TradesDiagnosticRequestPage';
 import BeautyIntakeRequestPage from './pages/BeautyIntakeRequestPage';
@@ -201,6 +203,14 @@ function LaunchScopeRouteGate({ children }) {
   const redirect = getLaunchRedirect(location.pathname);
   if (redirect && redirect !== location.pathname) {
     return <Navigate to={redirect} replace />;
+  }
+  return children;
+}
+
+function DirectAdminRouteGate({ children }) {
+  const { user } = useAuth();
+  if (user && !['admin', 'super_admin'].includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -270,6 +280,31 @@ export default function App() {
                     <Route path="/helpers/public/:helperId" element={<HelperPublicProfilePage />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
+                    <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
+                    <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
+                    <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
+                    <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/book/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="book" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/jobs/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="job" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/payments/:id/proof" element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="proof" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/payments/:id"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="receipt" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/history"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="history" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/support"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="support" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/account"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="account" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/jobs/:id/change"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="change" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin"           element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="dashboard" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/dashboard" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="dashboard" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/inbox"     element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="inbox" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/quotes/:id" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="quote" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/calendar"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="calendar" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/jobs/:id"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="job" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/payments/:id" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="payment" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/customers/:userId" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="customer" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/settings"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="settings" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/reports"    element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="reports" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/team"       element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="team" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/request-quote"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
+                    <Route path="/quote-request"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
