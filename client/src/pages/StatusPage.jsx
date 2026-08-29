@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, Clock3, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 
@@ -98,6 +99,7 @@ function StatusBadge({ status }) {
 }
 
 export default function StatusPage() {
+  const { t } = useTranslation();
   const [checks, setChecks] = useState(() => CHECKS.map((check) => ({
     ...check,
     status: 'checking',
@@ -169,8 +171,8 @@ export default function StatusPage() {
   return (
     <PageShell hideNav hideFooter>
       <PageMeta
-        title="OxSteed Status"
-        description="Live public status for OxSteed core services, APIs, and infrastructure."
+        title={t('statusPage.metaTitle', { defaultValue: 'OxSteed Status' })}
+        description={t('statusPage.metaDescription', { defaultValue: 'Live public status for OxSteed core services, APIs, and infrastructure.' })}
         url="https://status.oxsteed.com/"
       />
 
@@ -211,7 +213,7 @@ export default function StatusPage() {
             }}>
               Ox
             </span>
-            OxSteed Status
+            {t('statusPage.brand', { defaultValue: 'OxSteed Status' })}
           </a>
 
           <button
@@ -232,7 +234,7 @@ export default function StatusPage() {
             }}
           >
             <RefreshCw size={16} style={{ animation: refreshing ? 'ox-status-spin 1s linear infinite' : 'none' }} />
-            Refresh
+            {t('statusPage.refresh', { defaultValue: 'Refresh' })}
           </button>
         </header>
 
@@ -286,15 +288,15 @@ export default function StatusPage() {
               }}>
                 <span style={metricPillStyle}>
                   <Clock3 size={16} />
-                  Last updated {formatTimestamp(lastUpdated)}
+                  {t('statusPage.lastUpdated', { defaultValue: 'Last updated' })} {formatTimestamp(lastUpdated)}
                 </span>
                 <span style={metricPillStyle}>
                   <Activity size={16} />
-                  Auto-refreshes every 60 seconds
+                  {t('statusPage.autoRefresh', { defaultValue: 'Auto-refreshes every 60 seconds' })}
                 </span>
                 <span style={metricPillStyle}>
                   <ShieldCheck size={16} />
-                  Public health checks only
+                  {t('statusPage.publicOnly', { defaultValue: 'Public health checks only' })}
                 </span>
               </div>
             </div>
@@ -349,15 +351,15 @@ export default function StatusPage() {
                     fontSize: 14,
                   }}>
                     <div style={detailRowStyle}>
-                      <dt>Endpoint</dt>
+                      <dt>{t('statusPage.endpoint', { defaultValue: 'Endpoint' })}</dt>
                       <dd>{check.url}</dd>
                     </div>
                     <div style={detailRowStyle}>
-                      <dt>Latency</dt>
+                      <dt>{t('statusPage.latency', { defaultValue: 'Latency' })}</dt>
                       <dd>{check.latencyMs === null ? 'Checking...' : `${check.latencyMs} ms`}</dd>
                     </div>
                     <div style={detailRowStyle}>
-                      <dt>Detail</dt>
+                      <dt>{t('statusPage.detail', { defaultValue: 'Detail' })}</dt>
                       <dd>{check.detail}</dd>
                     </div>
                   </dl>
@@ -375,8 +377,8 @@ export default function StatusPage() {
             color: '#94a3b8',
             fontSize: 14,
           }}>
-            <span>Need help? <a href="mailto:support@oxsteed.com" style={{ color: '#fb923c' }}>support@oxsteed.com</a></span>
-            <span>Powered by OxSteed Network</span>
+            <span>{t('statusPage.needHelp', { defaultValue: 'Need help?' })} <a href="mailto:support@oxsteed.com" style={{ color: '#fb923c' }}>support@oxsteed.com</a></span>
+            <span>{t('statusPage.poweredBy', { defaultValue: 'Powered by OxSteed Network' })}</span>
           </footer>
         </main>
       </div>

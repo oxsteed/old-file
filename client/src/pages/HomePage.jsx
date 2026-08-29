@@ -126,11 +126,11 @@ function HomeCompanySection() {
                 {t('homePage.company.subcopy', { defaultValue: profile.headline })}
               </p>
               <div className="hp-company-meta">
-                <span>{profile.startingPrice}</span>
+                <span>{t('homePage.company.price', { defaultValue: profile.startingPrice })}</span>
                 <span>•</span>
-                <span>{profile.availability}</span>
+                <span>{t('homePage.company.availability', { defaultValue: profile.availability })}</span>
                 <span>•</span>
-                <span>{profile.baseCity}</span>
+                <span>{t('homePage.company.baseCity', { defaultValue: profile.baseCity })}</span>
               </div>
             </div>
           </div>
@@ -139,8 +139,10 @@ function HomeCompanySection() {
             <div className="hp-company-panel">
               <h3>{t('homePage.company.services', { defaultValue: 'Services' })}</h3>
               <div className="hp-chip-grid">
-                {profile.serviceTypes.map((item) => (
-                  <span key={item} className="hp-chip hp-chip--warm">{item}</span>
+                {profile.serviceTypes.map((item, index) => (
+                  <span key={item} className="hp-chip hp-chip--warm">
+                    {index === 0 ? t('homePage.company.serviceTypes.homeHelp', { defaultValue: item }) : index === 1 ? t('homePage.company.serviceTypes.toolBased', { defaultValue: item }) : index === 2 ? t('homePage.company.serviceTypes.delivery', { defaultValue: item }) : t('homePage.company.serviceTypes.cleanup', { defaultValue: item })}
+                  </span>
                 ))}
               </div>
             </div>
@@ -171,7 +173,7 @@ function HomeCompanySection() {
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </Link>
-            <Link to="/direct#services" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
+            <Link to="/direct/services" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
               {t('homePage.company.viewServices', { defaultValue: 'View services' })}
             </Link>
           </div>

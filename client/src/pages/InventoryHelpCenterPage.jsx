@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   ArrowRight,
@@ -337,6 +338,7 @@ function WorkflowCard({ item }) {
 }
 
 export default function InventoryHelpCenterPage({ appKey }) {
+  const { t } = useTranslation();
   const params = useParams();
   const resolvedKey = appKey || params.restaurantAppHelpSlug || 'inventory';
   const guide = getGuide(resolvedKey);
@@ -344,8 +346,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
   return (
     <PageShell>
       <PageMeta
-        title={`${guide.name} Help Center`}
-        description={`Setup guides and workflow instructions for ${guide.name}.`}
+        title={t('inventoryHelpCenter.metaTitle', { defaultValue: `${guide.name} Help Center` })}
+        description={t('inventoryHelpCenter.metaDescription', { defaultValue: `Setup guides and workflow instructions for ${guide.name}.` })}
         url={`https://oxsteed.com/help/${resolvedKey}`}
       />
 
@@ -408,8 +410,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
                   {guide.description}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 26 }}>
-                  <a href="#setup" style={primaryCtaStyle}>Start setup <ArrowRight size={18} /></a>
-                  <a href="#workflows" style={secondaryCtaStyle}>View workflows</a>
+                  <a href="#setup" style={primaryCtaStyle}>{t('inventoryHelpCenter.startSetup', { defaultValue: 'Start setup' })} <ArrowRight size={18} /></a>
+                  <a href="#workflows" style={secondaryCtaStyle}>{t('inventoryHelpCenter.viewWorkflows', { defaultValue: 'View workflows' })}</a>
                 </div>
               </div>
             </div>
@@ -424,7 +426,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
 	              width: '100%',
 	              boxSizing: 'border-box',
 	            }}>
-              <h2 style={{ margin: '0 0 16px', fontSize: 24, letterSpacing: '-.04em', color: '#0f172a' }}>What this guide covers</h2>
+              <h2 style={{ margin: '0 0 16px', fontSize: 24, letterSpacing: '-.04em', color: '#0f172a' }}>{t('inventoryHelpCenter.whatThisGuideCovers', { defaultValue: 'What this guide covers' })}</h2>
               <div style={{ display: 'grid', gap: 12 }}>
                 {guide.coverage.map((item) => (
                   <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center', color: '#334155' }}>
@@ -438,8 +440,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
         </section>
 
         <section id="setup" style={sectionStyle}>
-          <span style={sectionKickerStyle}>First-time setup</span>
-          <h2 style={sectionTitleStyle}>Before the app goes live</h2>
+          <span style={sectionKickerStyle}>{t('inventoryHelpCenter.firstTimeSetup', { defaultValue: 'First-time setup' })}</span>
+          <h2 style={sectionTitleStyle}>{t('inventoryHelpCenter.beforeAppGoesLive', { defaultValue: 'Before the app goes live' })}</h2>
           <p style={sectionIntroStyle}>
             Start with the correct OxSteed account, restaurant workspace, app role, and sync state.
             Most app issues come from being in the wrong workspace or using a role that does not match the task.
@@ -450,8 +452,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
         </section>
 
         <section id="workflows" style={sectionStyle}>
-          <span style={sectionKickerStyle}>Daily workflows</span>
-          <h2 style={sectionTitleStyle}>How {guide.name} should be used</h2>
+          <span style={sectionKickerStyle}>{t('inventoryHelpCenter.dailyWorkflows', { defaultValue: 'Daily workflows' })}</span>
+          <h2 style={sectionTitleStyle}>{t('inventoryHelpCenter.howUsed', { defaultValue: 'How {{name}} should be used', name: guide.name })}</h2>
           <p style={sectionIntroStyle}>
             These flows match the job this app is meant to do inside the restaurant stack.
             Use the right action so orders, team activity, inventory, display state, and support history stay accurate.
@@ -462,8 +464,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
         </section>
 
         <section style={sectionStyle}>
-          <span style={sectionKickerStyle}>Roles and access</span>
-          <h2 style={sectionTitleStyle}>Who should do what?</h2>
+          <span style={sectionKickerStyle}>{t('inventoryHelpCenter.rolesAndAccess', { defaultValue: 'Roles and access' })}</span>
+          <h2 style={sectionTitleStyle}>{t('inventoryHelpCenter.whoShouldDoWhat', { defaultValue: 'Who should do what?' })}</h2>
           <div style={{ display: 'grid', gap: 12 }}>
             {guide.roles.map(([role, detail]) => (
               <div key={role} style={{
@@ -483,8 +485,8 @@ export default function InventoryHelpCenterPage({ appKey }) {
         </section>
 
         <section style={sectionStyle}>
-          <span style={sectionKickerStyle}>Sync and troubleshooting</span>
-          <h2 style={sectionTitleStyle}>When something does not look right</h2>
+          <span style={sectionKickerStyle}>{t('inventoryHelpCenter.syncAndTroubleshooting', { defaultValue: 'Sync and troubleshooting' })}</span>
+          <h2 style={sectionTitleStyle}>{t('inventoryHelpCenter.whenSomethingIsWrong', { defaultValue: 'When something does not look right' })}</h2>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
@@ -498,7 +500,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
               padding: 24,
             }}>
               <LifeBuoy size={34} color="#f97316" />
-              <h3 style={{ margin: '14px 0 8px', fontSize: 26, letterSpacing: '-.05em' }}>Need help?</h3>
+              <h3 style={{ margin: '14px 0 8px', fontSize: 26, letterSpacing: '-.05em' }}>{t('inventoryHelpCenter.needHelp', { defaultValue: 'Need help?' })}</h3>
               <p style={{ margin: 0, color: '#9a3412', lineHeight: 1.6 }}>
                 If the guide does not solve it, open a support request from the app or email support with
                 your restaurant name, account email, app name, workspace, and what you expected to happen.
@@ -515,7 +517,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
                 fontWeight: 900,
                 textDecoration: 'none',
               }}>
-                Contact support <ArrowRight size={18} />
+                {t('inventoryHelpCenter.contactSupport', { defaultValue: 'Contact support' })} <ArrowRight size={18} />
               </a>
             </div>
             <div style={{

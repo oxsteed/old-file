@@ -281,6 +281,7 @@ export default function App() {
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/direct"                  element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
+                    <Route path="/direct/services"         element={<Guarded><DirectPortalPage view="landing" /></Guarded>} />
                     <Route path="/direct/request-quote"    element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/direct/request-quote/thanks" element={<Guarded><DirectPortalPage view="thanks" /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

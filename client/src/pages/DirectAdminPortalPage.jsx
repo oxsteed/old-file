@@ -20,6 +20,7 @@ import {
   Clock3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
@@ -313,6 +314,7 @@ function useDirectRequestList({ status = '', search = '', page = 1 } = {}) {
 }
 
 function DirectAdminDashboardView() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -335,24 +337,24 @@ function DirectAdminDashboardView() {
 
   return (
     <AdminShell
-      title="Direct dashboard"
-      subtitle="Track the Direct intake pipeline, upcoming work, unpaid items, and urgent issues from one staff view."
+      title={t('directAdminPortal.dashboardTitle', { defaultValue: 'Direct dashboard' })}
+      subtitle={t('directAdminPortal.dashboardSubtitle', { defaultValue: 'Track the Direct intake pipeline, upcoming work, unpaid items, and urgent issues from one staff view.' })}
       profile={profile}
       right={(
         <div className="space-y-4">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm leading-6 text-slate-300">
-            Use this console to quote work, schedule visits, review payment proof, and keep the customer record current.
+            {t('directAdminPortal.dashboardRight', { defaultValue: 'Use this console to quote work, schedule visits, review payment proof, and keep the customer record current.' })}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link to="/direct/admin/inbox" className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white text-center">Open inbox</Link>
-            <Link to="/direct/admin/settings" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white text-center">Settings</Link>
+            <Link to="/direct/admin/inbox" className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white text-center">{t('directAdminPortal.openInbox', { defaultValue: 'Open inbox' })}</Link>
+            <Link to="/direct/admin/settings" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white text-center">{t('directAdminPortal.settings', { defaultValue: 'Settings' })}</Link>
           </div>
         </div>
       )}
     >
       {loading ? (
-        <SectionCard title="Loading…" eyebrow="Dashboard">
-          <div className="text-sm text-slate-400">Fetching Direct operations data…</div>
+        <SectionCard title={t('directAdminPortal.loading', { defaultValue: 'Loading…' })} eyebrow={t('directAdminPortal.dashboardEyebrow', { defaultValue: 'Dashboard' })}>
+          <div className="text-sm text-slate-400">{t('directAdminPortal.fetchingData', { defaultValue: 'Fetching Direct operations data…' })}</div>
         </SectionCard>
       ) : (
         <div className="grid gap-4">
@@ -366,10 +368,10 @@ function DirectAdminDashboardView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <SectionCard title="Upcoming work" eyebrow="Dispatch">
+            <SectionCard title={t('directAdminPortal.upcomingWork', { defaultValue: 'Upcoming work' })} eyebrow={t('directAdminPortal.dispatchEyebrow', { defaultValue: 'Dispatch' })}>
               <div className="space-y-2">
                 {(data?.upcoming || []).length === 0 ? (
-                  <div className="text-sm text-slate-500">No upcoming jobs yet.</div>
+                  <div className="text-sm text-slate-500">{t('directAdminPortal.noUpcomingJobs', { defaultValue: 'No upcoming jobs yet.' })}</div>
                 ) : data.upcoming.map((item) => (
                   <Link key={item.id} to={`/direct/admin/jobs/${item.id}`} className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-orange-500/30">
                     <div className="flex items-center justify-between gap-3">
@@ -384,10 +386,10 @@ function DirectAdminDashboardView() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Unpaid items" eyebrow="Payment proof">
+            <SectionCard title={t('directAdminPortal.unpaidItems', { defaultValue: 'Unpaid items' })} eyebrow={t('directAdminPortal.paymentProofEyebrow', { defaultValue: 'Payment proof' })}>
               <div className="space-y-2">
                 {(data?.unpaid || []).length === 0 ? (
-                  <div className="text-sm text-slate-500">No payment issues right now.</div>
+                  <div className="text-sm text-slate-500">{t('directAdminPortal.noPaymentIssues', { defaultValue: 'No payment issues right now.' })}</div>
                 ) : data.unpaid.map((item) => (
                   <Link key={item.id} to={`/direct/admin/payments/${item.id}`} className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-orange-500/30">
                     <div className="flex items-center justify-between gap-3">
@@ -409,6 +411,7 @@ function DirectAdminDashboardView() {
 }
 
 function DirectAdminInboxView() {
+  const { t } = useTranslation();
   const [profile] = useDirectAdminProfile();
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') || '';
@@ -482,46 +485,46 @@ function DirectAdminInboxView() {
 
   return (
     <AdminShell
-      title="Direct inbox"
-      subtitle="Queue all new quote requests, filter by status, and open any request for the estimate and next-step details."
+      title={t('directAdminPortal.inboxTitle', { defaultValue: 'Direct inbox' })}
+      subtitle={t('directAdminPortal.inboxSubtitle', { defaultValue: 'Queue all new quote requests, filter by status, and open any request for the estimate and next-step details.' })}
       profile={profile}
       right={(
         <div className="space-y-3">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
-            Public intake should be short. This is where staff shape it into a real job record.
+            {t('directAdminPortal.inboxRight', { defaultValue: 'Public intake should be short. This is where staff shape it into a real job record.' })}
           </div>
           <Link to="/direct/admin/calendar" className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white">
-            Open calendar <ChevronRight size={16} />
+            {t('directAdminPortal.openCalendar', { defaultValue: 'Open calendar' })} <ChevronRight size={16} />
           </Link>
         </div>
       )}
     >
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Filters" eyebrow="Inbox">
+        <SectionCard title={t('directAdminPortal.filters', { defaultValue: 'Filters' })} eyebrow={t('directAdminPortal.inboxEyebrow', { defaultValue: 'Inbox' })}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">Search</span>
-              <Input value={query} onChange={(e) => updateSearch({ q: e.target.value, page: 1 })} placeholder="Name, email, city, company..." />
+              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.search', { defaultValue: 'Search' })}</span>
+              <Input value={query} onChange={(e) => updateSearch({ q: e.target.value, page: 1 })} placeholder={t('directAdminPortal.searchPlaceholder', { defaultValue: 'Name, email, city, company...' })} />
             </div>
             <div className="grid gap-2">
-              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">Status</span>
+              <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.status', { defaultValue: 'Status' })}</span>
               <Select value={status} onChange={(e) => updateSearch({ status: e.target.value, page: 1 })}>
-                <option value="">All statuses</option>
+                <option value="">{t('directAdminPortal.allStatuses', { defaultValue: 'All statuses' })}</option>
                 {STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
               </Select>
             </div>
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <button type="button" onClick={() => list.load({ status, search: query, page })} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Refresh</button>
+            <button type="button" onClick={() => list.load({ status, search: query, page })} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.refresh', { defaultValue: 'Refresh' })}</button>
             <div className="text-sm text-slate-500">{list.total || 0} request(s)</div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Request queue" eyebrow="Direct intake">
+        <SectionCard title={t('directAdminPortal.requestQueue', { defaultValue: 'Request queue' })} eyebrow={t('directAdminPortal.directIntake', { defaultValue: 'Direct intake' })}>
           {list.loading ? (
-            <div className="text-sm text-slate-400">Loading requests…</div>
+            <div className="text-sm text-slate-400">{t('directAdminPortal.loadingRequests', { defaultValue: 'Loading requests…' })}</div>
           ) : list.requests.length === 0 ? (
-            <div className="text-sm text-slate-500">No requests found.</div>
+            <div className="text-sm text-slate-500">{t('directAdminPortal.noRequestsFound', { defaultValue: 'No requests found.' })}</div>
           ) : (
             <div className="space-y-2">
               {list.requests.map((item) => (
@@ -548,7 +551,7 @@ function DirectAdminInboxView() {
           <SectionCard title={`${selected.firstName} ${selected.lastName}`} eyebrow={`Request #${selected.id}`}>
             <RequestSnapshot request={selected} />
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Notes</div>
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directAdminPortal.notes', { defaultValue: 'Notes' })}</div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-300">{selected.details || 'No details provided.'}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -557,28 +560,28 @@ function DirectAdminInboxView() {
               ))}
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link to={`/direct/jobs/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Open public job view</Link>
-              <Link to={`/direct/admin/jobs/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Work order</Link>
+              <Link to={`/direct/jobs/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.publicJobView', { defaultValue: 'Open public job view' })}</Link>
+              <Link to={`/direct/admin/jobs/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.workOrder', { defaultValue: 'Work order' })}</Link>
             </div>
           </SectionCard>
 
-          <SectionCard title="Edit request" eyebrow="Quote builder">
+          <SectionCard title={t('directAdminPortal.editRequest', { defaultValue: 'Edit request' })} eyebrow={t('directAdminPortal.quoteBuilder', { defaultValue: 'Quote builder' })}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Status"><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
-              <Field label="Payment status"><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
-              <Field label="Quote amount (cents)"><Input type="number" value={draft.quote_amount_cents} onChange={(e) => setDraft((current) => ({ ...current, quote_amount_cents: e.target.value }))} /></Field>
-              <Field label="Preferred date"><Input type="date" value={selected.preferredDate || ''} readOnly /></Field>
+              <Field label={t('directAdminPortal.statusLabel', { defaultValue: 'Status' })}><Select value={draft.status} onChange={(e) => setDraft((current) => ({ ...current, status: e.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
+              <Field label={t('directAdminPortal.paymentStatus', { defaultValue: 'Payment status' })}><Select value={draft.payment_status} onChange={(e) => setDraft((current) => ({ ...current, payment_status: e.target.value }))}>{PAYMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
+              <Field label={t('directAdminPortal.quoteAmount', { defaultValue: 'Quote amount (cents)' })}><Input type="number" value={draft.quote_amount_cents} onChange={(e) => setDraft((current) => ({ ...current, quote_amount_cents: e.target.value }))} /></Field>
+              <Field label={t('directAdminPortal.preferredDate', { defaultValue: 'Preferred date' })}><Input type="date" value={selected.preferredDate || ''} readOnly /></Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Scheduled start"><Input type="datetime-local" value={selected.scheduledStartAt ? String(selected.scheduledStartAt).slice(0, 16) : ''} readOnly /></Field>
-              <Field label="Scheduled end"><Input type="datetime-local" value={selected.scheduledEndAt ? String(selected.scheduledEndAt).slice(0, 16) : ''} readOnly /></Field>
+              <Field label={t('directAdminPortal.scheduledStart', { defaultValue: 'Scheduled start' })}><Input type="datetime-local" value={selected.scheduledStartAt ? String(selected.scheduledStartAt).slice(0, 16) : ''} readOnly /></Field>
+              <Field label={t('directAdminPortal.scheduledEnd', { defaultValue: 'Scheduled end' })}><Input type="datetime-local" value={selected.scheduledEndAt ? String(selected.scheduledEndAt).slice(0, 16) : ''} readOnly /></Field>
             </div>
             <div className="mt-4">
-              <Field label="Admin notes"><Textarea rows={5} value={draft.admin_notes} onChange={(e) => setDraft((current) => ({ ...current, admin_notes: e.target.value }))} /></Field>
+              <Field label={t('directAdminPortal.adminNotes', { defaultValue: 'Admin notes' })}><Textarea rows={5} value={draft.admin_notes} onChange={(e) => setDraft((current) => ({ ...current, admin_notes: e.target.value }))} /></Field>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
-              <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save request'}</button>
-              <Link to={`/direct/admin/payments/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Payment review</Link>
+              <button type="button" onClick={save} disabled={saving} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? t('directAdminPortal.saving', { defaultValue: 'Saving…' }) : t('directAdminPortal.saveRequest', { defaultValue: 'Save request' })}</button>
+              <Link to={`/direct/admin/payments/${selected.id}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directAdminPortal.paymentReview', { defaultValue: 'Payment review' })}</Link>
             </div>
           </SectionCard>
         </div>

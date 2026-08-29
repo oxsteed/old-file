@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Clock3, FileText, MapPin, MessageSquare, Package, PenLine, Plus, RefreshCw, Send, ShieldCheck, Sparkles, UploadCloud, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
@@ -205,10 +206,10 @@ function Chip({ children, tone = 'default' }) {
   );
 }
 
-function DirectShell({ profile, title, subtitle, children, heroRight }) {
+function DirectShell({ profile, title, subtitle, children, heroRight, path = '/direct' }) {
   return (
     <PageShell>
-      <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}/direct`} />
+      <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}${path}`} />
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-[36px] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 shadow-[0_28px_80px_rgba(15,23,42,0.45)]">
           <div className="grid gap-6 px-5 py-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-8">
@@ -253,6 +254,8 @@ async function loadProfile() {
 }
 
 export function DirectLandingPage() {
+  const { t } = useTranslation();
+  const location = useLocation();
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
 
   useEffect(() => {
@@ -263,56 +266,69 @@ export function DirectLandingPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (!location?.pathname?.endsWith('/services')) return;
+    const el = document.getElementById('services');
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [location.pathname]);
+
   return (
     <DirectShell
       profile={profile}
-      title={`${profile.companyName} Direct`}
-      subtitle={profile.publicNote}
+      path={location.pathname}
+      title={t('homePage.company.headingDirect', { defaultValue: `${profile.companyName} Direct` })}
+      subtitle={t('homePage.company.subcopy', { defaultValue: profile.publicNote })}
       heroRight={(
         <div className="space-y-4">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">How it works</div>
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">
+              {t('homePage.company.howItWorks', { defaultValue: 'How it works' })}
+            </div>
             <div className="mt-3 grid gap-2 text-sm text-slate-300">
-              <p>1. Request a quote with a few details and photos.</p>
-              <p>2. Review the estimate and pick a schedule window.</p>
-              <p>3. Upload proof, keep the receipt, and track the whole job history.</p>
+              <p>{t('homePage.company.step1', { defaultValue: '1. Request a quote with a few details and photos.' })}</p>
+              <p>{t('homePage.company.step2', { defaultValue: '2. Review the estimate and pick a schedule window.' })}</p>
+              <p>{t('homePage.company.step3', { defaultValue: '3. Upload proof, keep the receipt, and track the whole job history.' })}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link to="/direct/request-quote" className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
-              Request a quote <ChevronRight size={16} />
+              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
             </Link>
             <Link to="/direct/history" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              View history
+              {t('homePage.company.viewHistory', { defaultValue: 'View history' })}
             </Link>
           </div>
         </div>
       )}
     >
       <div className="grid gap-6 lg:grid-cols-3">
-        <SectionCard id="services" title="Services" eyebrow="OxSteed as a company" className="scroll-mt-28">
+        <SectionCard id="services" title={t('homePage.company.services', { defaultValue: 'Services' })} eyebrow={t('homePage.company.kicker', { defaultValue: 'OxSteed as a company' })} className="scroll-mt-28">
           <div className="flex flex-wrap gap-2">
             {(profile.serviceAreas || DEFAULT_PROFILE.serviceAreas).map((city) => <Chip key={city}>{city}</Chip>)}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Chip tone="orange">Home help</Chip>
-            <Chip tone="blue">Tool-based jobs</Chip>
-            <Chip tone="emerald">Delivery and hauling</Chip>
-            <Chip tone="default">Cleanup and setup</Chip>
+            <Chip tone="orange">{t('homePage.company.serviceTypes.homeHelp', { defaultValue: 'Home help' })}</Chip>
+            <Chip tone="blue">{t('homePage.company.serviceTypes.toolBased', { defaultValue: 'Tool-based jobs' })}</Chip>
+            <Chip tone="emerald">{t('homePage.company.serviceTypes.delivery', { defaultValue: 'Delivery and hauling' })}</Chip>
+            <Chip tone="default">{t('homePage.company.serviceTypes.cleanup', { defaultValue: 'Cleanup and setup' })}</Chip>
           </div>
         </SectionCard>
 
-        <SectionCard title="Tools" eyebrow="What we bring">
+        <SectionCard title={t('homePage.company.tools', { defaultValue: 'Tools' })} eyebrow={t('homePage.company.whatWeBring', { defaultValue: 'What we bring' })}>
           <div className="flex flex-wrap gap-2">
             {(profile.tools || DEFAULT_PROFILE.tools).map((tool) => <Chip key={tool}>{tool}</Chip>)}
           </div>
         </SectionCard>
 
-        <SectionCard title="Travel area" eyebrow="Monday to Thursday">
+        <SectionCard title={t('homePage.company.travelCities', { defaultValue: 'Travel cities' })} eyebrow={t('homePage.company.mondayToThursday', { defaultValue: 'Monday to Thursday' })}>
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <MapPin size={16} className="text-orange-300" />
-              Base city: <strong className="text-white">{profile.baseCity}</strong>
+              {t('homePage.company.baseCity', { defaultValue: 'Base city' })}: <strong className="text-white">{profile.baseCity}</strong>
             </div>
             <div className="flex flex-wrap gap-2">
               {(profile.travelCities || DEFAULT_PROFILE.travelCities).map((city) => <Chip key={city} tone="blue">{city}</Chip>)}
@@ -322,32 +338,32 @@ export function DirectLandingPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard title="Why Direct" eyebrow="Company-owned service flow">
+        <SectionCard title={t('homePage.company.whyDirect', { defaultValue: 'Why Direct' })} eyebrow={t('homePage.company.companyOwned', { defaultValue: 'Company-owned service flow' })}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Sparkles size={16} className="text-orange-300" /> Simple quote intake</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Public customers can request a quote without wading through marketplace browsing.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Sparkles size={16} className="text-orange-300" /> {t('homePage.company.simpleQuote', { defaultValue: 'Simple quote intake' })}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.simpleQuoteBody', { defaultValue: 'Public customers can request a quote without wading through marketplace browsing.' })}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={16} className="text-emerald-300" /> Clear proof and history</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Every receipt, proof upload, and status change stays attached to the job record.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={16} className="text-emerald-300" /> {t('homePage.company.clearProof', { defaultValue: 'Clear proof and history' })}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.clearProofBody', { defaultValue: 'Every receipt, proof upload, and status change stays attached to the job record.' })}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 size={16} className="text-sky-300" /> Schedule by window</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Jobs can be quoted, scheduled, and updated without restarting the request from scratch.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 size={16} className="text-sky-300" /> {t('homePage.company.scheduleWindow', { defaultValue: 'Schedule by window' })}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.scheduleWindowBody', { defaultValue: 'Jobs can be quoted, scheduled, and updated without restarting the request from scratch.' })}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><FileText size={16} className="text-violet-300" /> Long-term records</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Request history, locations, and customer notes are kept in one portal for future work.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><FileText size={16} className="text-violet-300" /> {t('homePage.company.longTermRecords', { defaultValue: 'Long-term records' })}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{t('homePage.company.longTermRecordsBody', { defaultValue: 'Request history, locations, and customer notes are kept in one portal for future work.' })}</p>
             </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Next step" eyebrow="Start here">
+        <SectionCard title={t('homePage.company.nextStep', { defaultValue: 'Next step' })} eyebrow={t('homePage.company.startHere', { defaultValue: 'Start here' })}>
           <div className="space-y-4">
-            <p className="text-sm leading-6 text-slate-300">Tell us what you need, where the work is, and whether you want to move fast or keep things flexible.</p>
+            <p className="text-sm leading-6 text-slate-300">{t('homePage.company.nextStepBody', { defaultValue: 'Tell us what you need, where the work is, and whether you want to move fast or keep things flexible.' })}</p>
             <Link to="/direct/request-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
-              Request a quote <ChevronRight size={16} />
+              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
             </Link>
           </div>
         </SectionCard>

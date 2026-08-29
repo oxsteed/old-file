@@ -67,10 +67,10 @@ function statusBadge(status) {
   return 'border-sky-500/30 bg-sky-500/15 text-sky-200';
 }
 
-function supportSignalLabel(signal) {
-  if (signal === 'published_hiring_profile') return 'Published hiring profile';
-  if (signal === 'support_team') return 'Existing support team';
-  return 'Support ready';
+function supportSignalLabel(signal, t) {
+  if (signal === 'published_hiring_profile') return t('supportAgentPortal.signalPublishedHiringProfile', { defaultValue: 'Published hiring profile' });
+  if (signal === 'support_team') return t('supportAgentPortal.signalExistingTeam', { defaultValue: 'Existing support team' });
+  return t('supportAgentPortal.signalReady', { defaultValue: 'Support ready' });
 }
 
 function defaultFormState() {
@@ -104,7 +104,7 @@ function profileFormFromBusiness(item) {
   };
 }
 
-function OpportunityCard({ item, onApply }) {
+function OpportunityCard({ item, onApply, t }) {
   const location = formatLocation(item.address_city, item.address_state);
   const hasPending = item.my_application_status === 'pending';
   const isApplied = Boolean(item.my_application_status);
@@ -119,7 +119,7 @@ function OpportunityCard({ item, onApply }) {
             {item.is_business_verified && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
                 <ShieldCheck size={12} />
-                Verified
+                {t('supportAgentPortal.verified', { defaultValue: 'Verified' })}
               </span>
             )}
           </div>
@@ -137,7 +137,7 @@ function OpportunityCard({ item, onApply }) {
               </span>
             )}
             <span className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-100">
-              {supportSignalLabel(item.support_signal)}
+              {supportSignalLabel(item.support_signal, t)}
             </span>
           </div>
         </div>
@@ -145,7 +145,7 @@ function OpportunityCard({ item, onApply }) {
           {isAlreadyAgent ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
               <CheckCircle2 size={14} />
-              Active role
+              {t('supportAgentPortal.activeRole', { defaultValue: 'Active role' })}
             </span>
           ) : isApplied ? (
             <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(item.my_application_status)}`}>
@@ -155,44 +155,44 @@ function OpportunityCard({ item, onApply }) {
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-100">
               <BadgeCheck size={14} />
-              Accepting applicants
+              {t('supportAgentPortal.acceptingApplicants', { defaultValue: 'Accepting applicants' })}
             </span>
           )}
         </div>
       </div>
 
       <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-300">
-        {item.hiring_description || item.description || 'This business has published a support-agent opening on OxSteed and is actively reviewing applications.'}
+        {item.hiring_description || item.description || t('supportAgentPortal.openingDescription', { defaultValue: 'This business has published a support-agent opening on OxSteed and is actively reviewing applications.' })}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-200">
         {item.hiring_title && (
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-            Role: {item.hiring_title}
+            {t('supportAgentPortal.roleLabel', { defaultValue: 'Role:' })} {item.hiring_title}
           </span>
         )}
         {item.remote_allowed && (
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-            Remote-friendly
+            {t('supportAgentPortal.remoteFriendly', { defaultValue: 'Remote-friendly' })}
           </span>
         )}
         {item.desired_languages?.length > 0 && (
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-            Languages: {item.desired_languages.join(', ')}
+            {t('supportAgentPortal.languagesLabel', { defaultValue: 'Languages:' })} {item.desired_languages.join(', ')}
           </span>
         )}
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">30-day support volume</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{t('supportAgentPortal.supportVolume', { defaultValue: '30-day support volume' })}</p>
           <p className="mt-2 text-2xl font-semibold text-white">{item.conversation_count_30d || 0}</p>
-          <p className="mt-1 text-xs text-slate-400">Support conversations handled in the last 30 days</p>
+          <p className="mt-1 text-xs text-slate-400">{t('supportAgentPortal.supportVolumeBody', { defaultValue: 'Support conversations handled in the last 30 days' })}</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Current support team</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{t('supportAgentPortal.currentTeam', { defaultValue: 'Current support team' })}</p>
           <p className="mt-2 text-2xl font-semibold text-white">{item.active_agents_count || 0}</p>
-          <p className="mt-1 text-xs text-slate-400">Active agents already staffing this business</p>
+          <p className="mt-1 text-xs text-slate-400">{t('supportAgentPortal.currentTeamBody', { defaultValue: 'Active agents already staffing this business' })}</p>
         </div>
       </div>
 
@@ -200,17 +200,17 @@ function OpportunityCard({ item, onApply }) {
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
           {item.desired_shift_coverage && (
             <p className="leading-6">
-              <span className="font-medium text-white">Shift coverage:</span> {item.desired_shift_coverage}
+              <span className="font-medium text-white">{t('supportAgentPortal.shiftCoverage', { defaultValue: 'Shift coverage:' })}</span> {item.desired_shift_coverage}
             </p>
           )}
           {item.compensation_summary && (
             <p className="mt-2 leading-6">
-              <span className="font-medium text-white">Compensation:</span> {item.compensation_summary}
+              <span className="font-medium text-white">{t('supportAgentPortal.compensation', { defaultValue: 'Compensation:' })}</span> {item.compensation_summary}
             </p>
           )}
           {item.response_time_expectation && (
             <p className="mt-2 leading-6">
-              <span className="font-medium text-white">Expected response:</span> {item.response_time_expectation}
+              <span className="font-medium text-white">{t('supportAgentPortal.expectedResponse', { defaultValue: 'Expected response:' })}</span> {item.response_time_expectation}
             </p>
           )}
         </div>
@@ -225,7 +225,7 @@ function OpportunityCard({ item, onApply }) {
             className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 hover:border-orange-400/50 hover:text-white"
           >
             <Globe2 size={14} />
-            Website
+            {t('supportAgentPortal.website', { defaultValue: 'Website' })}
             <ExternalLink size={13} />
           </a>
         )}
@@ -243,10 +243,10 @@ function OpportunityCard({ item, onApply }) {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
         <div className="text-xs text-slate-400">
           {hasPending
-            ? `Applied ${formatDate(item.my_application_created_at) || 'recently'}`
+            ? `${t('supportAgentPortal.applied', { defaultValue: 'Applied' })} ${formatDate(item.my_application_created_at) || t('supportAgentPortal.recently', { defaultValue: 'recently' })}`
             : isApplied
-              ? `Last application ${formatDate(item.my_application_created_at) || 'recently'}`
-              : 'Submit your support profile and availability for review.'}
+              ? `${t('supportAgentPortal.lastApplication', { defaultValue: 'Last application' })} ${formatDate(item.my_application_created_at) || t('supportAgentPortal.recently', { defaultValue: 'recently' })}`
+              : t('supportAgentPortal.submitProfile', { defaultValue: 'Submit your support profile and availability for review.' })}
         </div>
         <button
           type="button"
@@ -255,7 +255,7 @@ function OpportunityCard({ item, onApply }) {
           className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
         >
           <SendHorizonal size={15} />
-          {isAlreadyAgent ? 'Already on team' : hasPending ? 'Application pending' : 'Apply now'}
+          {isAlreadyAgent ? t('supportAgentPortal.alreadyOnTeam', { defaultValue: 'Already on team' }) : hasPending ? t('supportAgentPortal.applicationPending', { defaultValue: 'Application pending' }) : t('supportAgentPortal.applyNow', { defaultValue: 'Apply now' })}
         </button>
       </div>
     </article>
@@ -318,7 +318,7 @@ export default function SupportAgentPortalPage() {
     setError(null);
     try {
       await api.patch('/support/agent/me/availability', { is_available: isAvailable });
-      toast.success(isAvailable ? 'You are live for support work.' : 'You are offline for support work.');
+      toast.success(isAvailable ? t('supportAgentPortal.online', { defaultValue: 'You are live for support work.' }) : t('supportAgentPortal.offline', { defaultValue: 'You are offline for support work.' }));
       await load();
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || 'Error');
@@ -354,7 +354,7 @@ export default function SupportAgentPortalPage() {
         compensation_summary: business.compensation_summary,
         response_time_expectation: business.response_time_expectation,
       });
-      toast.success(`${business.business_name} hiring profile updated.`);
+      toast.success(t('supportAgentPortal.profileUpdated', { defaultValue: '{business_name} hiring profile updated.' }).replace('{business_name}', business.business_name));
       await load();
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || 'Error');
@@ -367,7 +367,7 @@ export default function SupportAgentPortalPage() {
     setApplyTarget(business);
     setForm({
       ...defaultFormState(),
-      coverLetter: `I’d like to support ${business.business_name} on OxSteed. I can help with customer communication, triage, follow-up, and keeping the support queue moving.`,
+      coverLetter: t('supportAgentPortal.defaultCoverLetter', { defaultValue: 'I’d like to support {business_name} on OxSteed. I can help with customer communication, triage, follow-up, and keeping the support queue moving.' }).replace('{business_name}', business.business_name),
     });
   };
 
@@ -396,7 +396,7 @@ export default function SupportAgentPortalPage() {
         resumeUrl: form.resumeUrl.trim() || null,
         coverLetter: form.coverLetter.trim() || null,
       });
-      toast.success(`Application sent to ${applyTarget.business_name}.`);
+      toast.success(t('supportAgentPortal.applicationSent', { defaultValue: 'Application sent to {business_name}.' }).replace('{business_name}', applyTarget.business_name));
       setApplyTarget(null);
       setForm(defaultFormState());
       await load();
@@ -442,13 +442,13 @@ export default function SupportAgentPortalPage() {
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-100">
                   <Headphones size={14} />
-                  Support Agent Network
+                  {t('supportAgentPortal.badge', { defaultValue: 'Support Agent Network' })}
                 </div>
                 <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
                   {t('supportAgentPortal.title')}
                 </h1>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">
-                  Find OxSteed businesses already running support, apply directly from one workspace, and keep your active support roles and availability in sync.
+                  {t('supportAgentPortal.subtitle', { defaultValue: 'Find OxSteed businesses already running support, apply directly from one workspace, and keep your active support roles and availability in sync.' })}
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -482,26 +482,26 @@ export default function SupportAgentPortalPage() {
                     className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-orange-400/40 disabled:opacity-50"
                   >
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                    Refresh
+                    {t('supportAgentPortal.refresh', { defaultValue: 'Refresh' })}
                   </button>
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
                 <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Active roles</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{t('supportAgentPortal.activeRoles', { defaultValue: 'Active roles' })}</p>
                   <p className="mt-3 text-4xl font-semibold text-white">{activeRolesCount}</p>
-                  <p className="mt-2 text-sm text-slate-400">Businesses or organizations you currently support.</p>
+                  <p className="mt-2 text-sm text-slate-400">{t('supportAgentPortal.activeRolesBody', { defaultValue: 'Businesses or organizations you currently support.' })}</p>
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Pending applications</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{t('supportAgentPortal.pendingApplications', { defaultValue: 'Pending applications' })}</p>
                   <p className="mt-3 text-4xl font-semibold text-white">{pendingApplicationsCount}</p>
-                  <p className="mt-2 text-sm text-slate-400">Applications waiting for a business review.</p>
+                  <p className="mt-2 text-sm text-slate-400">{t('supportAgentPortal.pendingApplicationsBody', { defaultValue: 'Applications waiting for a business review.' })}</p>
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Open opportunities</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{t('supportAgentPortal.openOpportunities', { defaultValue: 'Open opportunities' })}</p>
                   <p className="mt-3 text-4xl font-semibold text-white">{openOpportunitiesCount}</p>
-                  <p className="mt-2 text-sm text-slate-400">Businesses already showing support signals on OxSteed.</p>
+                  <p className="mt-2 text-sm text-slate-400">{t('supportAgentPortal.openOpportunitiesBody', { defaultValue: 'Businesses already showing support signals on OxSteed.' })}</p>
                 </div>
               </div>
             </div>
@@ -516,16 +516,16 @@ export default function SupportAgentPortalPage() {
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {[
               {
-                title: '1. Get discovered',
-                body: 'Keep your availability live, maintain a strong support profile, and show the languages and shift windows you can cover.',
+                title: t('supportAgentPortal.step1Title', { defaultValue: '1. Get discovered' }),
+                body: t('supportAgentPortal.step1Body', { defaultValue: 'Keep your availability live, maintain a strong support profile, and show the languages and shift windows you can cover.' }),
               },
               {
-                title: '2. Apply to live businesses',
-                body: 'Target businesses already showing support demand on OxSteed instead of sending cold applications into the void.',
+                title: t('supportAgentPortal.step2Title', { defaultValue: '2. Apply to live businesses' }),
+                body: t('supportAgentPortal.step2Body', { defaultValue: 'Target businesses already showing support demand on OxSteed instead of sending cold applications into the void.' }),
               },
               {
-                title: '3. Move into active support',
-                body: 'Once a business hires you, the role appears here and your support workspace becomes your day-to-day operating surface.',
+                title: t('supportAgentPortal.step3Title', { defaultValue: '3. Move into active support' }),
+                body: t('supportAgentPortal.step3Body', { defaultValue: 'Once a business hires you, the role appears here and your support workspace becomes your day-to-day operating surface.' }),
               },
             ].map((step) => (
               <div key={step.title} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -540,14 +540,12 @@ export default function SupportAgentPortalPage() {
               <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">Active support roles</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      The businesses and organizations where you already operate as a support agent.
-                    </p>
+                    <p className="text-sm font-semibold text-white">{t('supportAgentPortal.activeSupportRoles', { defaultValue: 'Active support roles' })}</p>
+                    <p className="mt-1 text-sm text-slate-400">{t('supportAgentPortal.activeSupportRolesBody', { defaultValue: 'The businesses and organizations where you already operate as a support agent.' })}</p>
                   </div>
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
                     <Users size={14} />
-                    {activeRolesCount} roles
+                    {activeRolesCount} {t('supportAgentPortal.roles', { defaultValue: 'roles' })}
                   </span>
                 </div>
 
@@ -557,7 +555,7 @@ export default function SupportAgentPortalPage() {
                   <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-6">
                     <p className="text-base font-medium text-white">{t('supportAgentPortal.emptyTitle')}</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      {t('supportAgentPortal.emptyBody')} This page now also lets you browse businesses that are already showing support demand and submit applications directly.
+                      {t('supportAgentPortal.emptyBody')} {t('supportAgentPortal.emptyBodyMore', { defaultValue: 'This page now also lets you browse businesses that are already showing support demand and submit applications directly.' })}
                     </p>
                   </div>
                 ) : (
@@ -589,9 +587,9 @@ export default function SupportAgentPortalPage() {
                           </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-400">
-                          <span>Role: {titleCase(row.role)}</span>
-                          <span>Hired: {formatDate(row.hire_date) || '-'}</span>
-                          <span>Max chats: {row.max_concurrent_chats ?? '-'}</span>
+                          <span>{t('supportAgentPortal.role', { defaultValue: 'Role:' })} {titleCase(row.role)}</span>
+                          <span>{t('supportAgentPortal.hired', { defaultValue: 'Hired:' })} {formatDate(row.hire_date) || '-'}</span>
+                          <span>{t('supportAgentPortal.maxChats', { defaultValue: 'Max chats:' })} {row.max_concurrent_chats ?? '-'}</span>
                         </div>
                         {row.status === 'active' && (
                           <Link
@@ -599,7 +597,7 @@ export default function SupportAgentPortalPage() {
                             className="mt-4 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
                           >
                             <Headphones size={15} />
-                            Open customer queue
+                            {t('supportAgentPortal.openCustomerQueue', { defaultValue: 'Open customer queue' })}
                           </Link>
                         )}
                       </div>
@@ -611,29 +609,25 @@ export default function SupportAgentPortalPage() {
               <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">My applications</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      Track which businesses are reviewing your support profile and where follow-up may be needed.
-                    </p>
+                    <p className="text-sm font-semibold text-white">{t('supportAgentPortal.myApplications', { defaultValue: 'My applications' })}</p>
+                    <p className="mt-1 text-sm text-slate-400">{t('supportAgentPortal.myApplicationsBody', { defaultValue: 'Track which businesses are reviewing your support profile and where follow-up may be needed.' })}</p>
                   </div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
                     <Briefcase size={14} />
-                    {applications.length} total
+                    {applications.length} {t('supportAgentPortal.total', { defaultValue: 'total' })}
                   </span>
                 </div>
 
                 {loading ? (
-                  <p className="mt-6 text-sm text-slate-400">Loading applications…</p>
+                  <p className="mt-6 text-sm text-slate-400">{t('supportAgentPortal.loadingApplications', { defaultValue: 'Loading applications…' })}</p>
                 ) : applications.length === 0 ? (
                   <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-6">
-                    <p className="text-base font-medium text-white">No applications yet</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Once you apply to a business, the status will show up here so you can see who is pending, hired, or asking for a stronger fit.
-                    </p>
+                    <p className="text-base font-medium text-white">{t('supportAgentPortal.noApplicationsYet', { defaultValue: 'No applications yet' })}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{t('supportAgentPortal.noApplicationsYetBody', { defaultValue: 'Once you apply to a business, the status will show up here so you can see who is pending, hired, or asking for a stronger fit.' })}</p>
                   </div>
-                ) : (
-                  <div className="mt-6 space-y-4">
-                    {applications.map((item) => (
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {applications.map((item) => (
                       <div key={item.id} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
@@ -651,16 +645,16 @@ export default function SupportAgentPortalPage() {
                           {formatLocation(item.address_city, item.address_state) && (
                             <span>{formatLocation(item.address_city, item.address_state)}</span>
                           )}
-                          <span>Applied {formatDate(item.created_at) || '-'}</span>
+                          <span>{t('supportAgentPortal.appliedOn', { defaultValue: 'Applied' })} {formatDate(item.created_at) || '-'}</span>
                         </div>
                         {item.availability && (
                           <p className="mt-4 text-sm leading-6 text-slate-300">
-                            Availability: {item.availability}
+                            {t('supportAgentPortal.availability', { defaultValue: 'Availability:' })} {item.availability}
                           </p>
                         )}
                         {item.review_notes && (
                           <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
-                            <p className="font-medium text-white">Review note</p>
+                            <p className="font-medium text-white">{t('supportAgentPortal.reviewNote', { defaultValue: 'Review note' })}</p>
                             <p className="mt-2 leading-6">{item.review_notes}</p>
                           </div>
                         )}
@@ -674,17 +668,15 @@ export default function SupportAgentPortalPage() {
             <section className="rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-white">Businesses hiring through support signals</p>
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-                    This board now shows only businesses that explicitly published a support-agent hiring profile. It is no longer inference-based, which means every card here represents a real employer-controlled opening.
-                  </p>
+                  <p className="text-sm font-semibold text-white">{t('supportAgentPortal.hiringBoard', { defaultValue: 'Businesses hiring through support signals' })}</p>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">{t('supportAgentPortal.hiringBoardBody', { defaultValue: 'This board now shows only businesses that explicitly published a support-agent hiring profile. It is no longer inference-based, which means every card here represents a real employer-controlled opening.' })}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    ['all', 'All'],
-                    ['remote', 'Remote-friendly'],
-                    ['verified', 'Verified'],
-                    ['applied', 'My applications'],
+                    ['all', t('supportAgentPortal.filterAll', { defaultValue: 'All' })],
+                    ['remote', t('supportAgentPortal.filterRemote', { defaultValue: 'Remote-friendly' })],
+                    ['verified', t('supportAgentPortal.filterVerified', { defaultValue: 'Verified' })],
+                    ['applied', t('supportAgentPortal.filterApplied', { defaultValue: 'My applications' })],
                   ].map(([value, label]) => (
                     <button
                       key={value}
@@ -708,19 +700,17 @@ export default function SupportAgentPortalPage() {
                   type="search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by business name, type, city, or state"
+                  placeholder={t('supportAgentPortal.searchPlaceholder', { defaultValue: 'Search by business name, type, city, or state' })}
                   className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
                 />
               </label>
 
               {loading ? (
-                <p className="mt-6 text-sm text-slate-400">Loading businesses…</p>
+                <p className="mt-6 text-sm text-slate-400">{t('supportAgentPortal.loadingBusinesses', { defaultValue: 'Loading businesses…' })}</p>
               ) : visibleOpportunities.length === 0 ? (
                 <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-6">
-                  <p className="text-base font-medium text-white">No businesses match this view</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Try a broader search or switch filters. This board only shows businesses that explicitly turned on support-agent hiring, so it stays focused on real openings rather than a generic directory.
-                  </p>
+                  <p className="text-base font-medium text-white">{t('supportAgentPortal.noBusinessesMatch', { defaultValue: 'No businesses match this view' })}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{t('supportAgentPortal.noBusinessesMatchBody', { defaultValue: 'Try a broader search or switch filters. This board only shows businesses that explicitly turned on support-agent hiring, so it stays focused on real openings rather than a generic directory.' })}</p>
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
@@ -736,14 +726,12 @@ export default function SupportAgentPortalPage() {
             <section className="mt-10 rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-white">Publish business hiring profiles</p>
-                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
-                    If you manage a business on OxSteed, this is where you explicitly opt in to support-agent applications. When you turn hiring on here, your business can appear in the public agent board above.
-                  </p>
+                  <p className="text-sm font-semibold text-white">{t('supportAgentPortal.publishHiring', { defaultValue: 'Publish business hiring profiles' })}</p>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">{t('supportAgentPortal.publishHiringBody', { defaultValue: 'If you manage a business on OxSteed, this is where you explicitly opt in to support-agent applications. When you turn hiring on here, your business can appear in the public agent board above.' })}</p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">
                   <Building2 size={14} />
-                  {managedBusinesses.length} manageable businesses
+                  {managedBusinesses.length} {t('supportAgentPortal.manageableBusinesses', { defaultValue: 'manageable businesses' })}
                 </span>
               </div>
 
@@ -754,7 +742,7 @@ export default function SupportAgentPortalPage() {
                       <div>
                         <h3 className="text-lg font-semibold text-white">{business.business_name}</h3>
                         <p className="mt-1 text-sm text-slate-400">
-                          {[business.business_type, formatLocation(business.address_city, business.address_state)].filter(Boolean).join(' · ') || 'Business workspace'}
+                          {[business.business_type, formatLocation(business.address_city, business.address_state)].filter(Boolean).join(' · ') || t('supportAgentPortal.businessWorkspace', { defaultValue: 'Business workspace' })}
                         </p>
                       </div>
                       <label className="inline-flex items-center gap-3 rounded-full border border-white/10 px-3 py-2 text-sm text-white">
@@ -763,70 +751,70 @@ export default function SupportAgentPortalPage() {
                           checked={business.is_accepting_applications}
                           onChange={(event) => updateManagedBusinessField(business.business_id, 'is_accepting_applications', event.target.checked)}
                         />
-                        Accepting applications
+                        {t('supportAgentPortal.acceptingApplications', { defaultValue: 'Accepting applications' })}
                       </label>
                     </div>
 
                     <div className="mt-5 space-y-4">
                       <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-white">Hiring title</span>
+                        <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.hiringTitle', { defaultValue: 'Hiring title' })}</span>
                         <input
                           value={business.hiring_title}
                           onChange={(event) => updateManagedBusinessField(business.business_id, 'hiring_title', event.target.value)}
                           className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                          placeholder="Support Agent"
+                          placeholder={t('supportAgentPortal.supportAgentPlaceholder', { defaultValue: 'Support Agent' })}
                         />
                       </label>
 
                       <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-white">Hiring description</span>
+                        <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.hiringDescription', { defaultValue: 'Hiring description' })}</span>
                         <textarea
                           rows={4}
                           value={business.hiring_description}
                           onChange={(event) => updateManagedBusinessField(business.business_id, 'hiring_description', event.target.value)}
                           className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                          placeholder="Describe the support workload, customer tone, and what success looks like."
+                          placeholder={t('supportAgentPortal.hiringDescriptionPlaceholder', { defaultValue: 'Describe the support workload, customer tone, and what success looks like.' })}
                         />
                       </label>
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-white">Desired languages</span>
+                          <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.desiredLanguages', { defaultValue: 'Desired languages' })}</span>
                           <input
                             value={business.desired_languages}
                             onChange={(event) => updateManagedBusinessField(business.business_id, 'desired_languages', event.target.value)}
                             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                            placeholder="English, Spanish"
+                            placeholder={t('supportAgentPortal.languagesPlaceholder', { defaultValue: 'English, Spanish' })}
                           />
                         </label>
                         <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-white">Shift coverage</span>
+                          <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.shiftCoverageLabel', { defaultValue: 'Shift coverage' })}</span>
                           <input
                             value={business.desired_shift_coverage}
                             onChange={(event) => updateManagedBusinessField(business.business_id, 'desired_shift_coverage', event.target.value)}
                             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                            placeholder="Weekdays 8am-6pm EST"
+                            placeholder={t('supportAgentPortal.shiftCoveragePlaceholder', { defaultValue: 'Weekdays 8am-6pm EST' })}
                           />
                         </label>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-white">Compensation summary</span>
+                          <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.compensationSummary', { defaultValue: 'Compensation summary' })}</span>
                           <input
                             value={business.compensation_summary}
                             onChange={(event) => updateManagedBusinessField(business.business_id, 'compensation_summary', event.target.value)}
                             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                            placeholder="$20/hr + bonus, contract, per shift"
+                            placeholder={t('supportAgentPortal.compensationPlaceholder', { defaultValue: '$20/hr + bonus, contract, per shift' })}
                           />
                         </label>
                         <label className="block">
-                          <span className="mb-2 block text-sm font-medium text-white">Response expectation</span>
+                          <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.responseExpectation', { defaultValue: 'Response expectation' })}</span>
                           <input
                             value={business.response_time_expectation}
                             onChange={(event) => updateManagedBusinessField(business.business_id, 'response_time_expectation', event.target.value)}
                             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
-                            placeholder="Reply to customers within 5 minutes"
+                            placeholder={t('supportAgentPortal.responseExpectationPlaceholder', { defaultValue: 'Reply to customers within 5 minutes' })}
                           />
                         </label>
                       </div>
@@ -837,13 +825,13 @@ export default function SupportAgentPortalPage() {
                           checked={business.remote_allowed}
                           onChange={(event) => updateManagedBusinessField(business.business_id, 'remote_allowed', event.target.checked)}
                         />
-                        Remote-friendly role
+                        {t('supportAgentPortal.remoteFriendlyRole', { defaultValue: 'Remote-friendly role' })}
                       </label>
                     </div>
 
                     <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
                       <p className="text-xs text-slate-400">
-                        {business.updated_at ? `Last updated ${formatDate(business.updated_at)}` : 'No hiring profile saved yet.'}
+                        {business.updated_at ? `${t('supportAgentPortal.lastUpdated', { defaultValue: 'Last updated' })} ${formatDate(business.updated_at)}` : t('supportAgentPortal.noHiringProfile', { defaultValue: 'No hiring profile saved yet.' })}
                       </p>
                       <button
                         type="button"
@@ -852,7 +840,7 @@ export default function SupportAgentPortalPage() {
                         className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                       >
                         <SendHorizonal size={15} />
-                        {savingBusinessId === business.business_id ? 'Saving…' : 'Save hiring profile'}
+                        {savingBusinessId === business.business_id ? t('supportAgentPortal.savingProfile', { defaultValue: 'Saving…' }) : t('supportAgentPortal.saveHiringProfile', { defaultValue: 'Save hiring profile' })}
                       </button>
                     </div>
                   </article>
@@ -868,10 +856,10 @@ export default function SupportAgentPortalPage() {
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-[#07111e] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-200">Apply to business</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-200">{t('supportAgentPortal.applyToBusiness', { defaultValue: 'Apply to business' })}</p>
                 <h2 className="mt-3 text-2xl font-semibold text-white">{applyTarget.business_name}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Submit a focused support-agent application. This should explain what kinds of queues, customers, and communication workflows you can confidently handle.
+                  {t('supportAgentPortal.applyBody', { defaultValue: 'Submit a focused support-agent application. This should explain what kinds of queues, customers, and communication workflows you can confidently handle.' })}
                 </p>
               </div>
               <button
@@ -879,14 +867,14 @@ export default function SupportAgentPortalPage() {
                 onClick={closeApply}
                 className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:border-orange-400/40 hover:text-white"
               >
-                Close
+                {t('supportAgentPortal.close', { defaultValue: 'Close' })}
               </button>
             </div>
 
             <form className="mt-6 space-y-4" onSubmit={submitApplication}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-white">Job title</span>
+                  <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.jobTitle', { defaultValue: 'Job title' })}</span>
                   <input
                     required
                     value={form.jobTitle}
@@ -895,41 +883,41 @@ export default function SupportAgentPortalPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-white">Experience level</span>
+                  <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.experienceLevel', { defaultValue: 'Experience level' })}</span>
                   <select
                     value={form.experienceLevel}
                     onChange={(event) => setForm((current) => ({ ...current, experienceLevel: event.target.value }))}
                     className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white focus:border-orange-400/50 focus:outline-none"
                   >
-                    <option value="entry">Entry</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="expert">Expert</option>
+                    <option value="entry">{t('supportAgentPortal.entry', { defaultValue: 'Entry' })}</option>
+                    <option value="intermediate">{t('supportAgentPortal.intermediate', { defaultValue: 'Intermediate' })}</option>
+                    <option value="expert">{t('supportAgentPortal.expert', { defaultValue: 'Expert' })}</option>
                   </select>
                 </label>
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-white">Languages</span>
+                <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.languages', { defaultValue: 'Languages' })}</span>
                 <input
                   value={form.languages}
                   onChange={(event) => setForm((current) => ({ ...current, languages: event.target.value }))}
-                  placeholder="English, Spanish, Haitian Creole"
+                  placeholder={t('supportAgentPortal.languagesExample', { defaultValue: 'English, Spanish, Haitian Creole' })}
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-white">Availability</span>
+                <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.availabilityLabel', { defaultValue: 'Availability' })}</span>
                 <input
                   value={form.availability}
                   onChange={(event) => setForm((current) => ({ ...current, availability: event.target.value }))}
-                  placeholder="Weekdays 8am-6pm EST, part-time evenings, weekends"
+                  placeholder={t('supportAgentPortal.availabilityPlaceholder', { defaultValue: 'Weekdays 8am-6pm EST, part-time evenings, weekends' })}
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-orange-400/50 focus:outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-white">Resume URL</span>
+                <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.resumeUrl', { defaultValue: 'Resume URL' })}</span>
                 <input
                   type="url"
                   value={form.resumeUrl}
@@ -940,7 +928,7 @@ export default function SupportAgentPortalPage() {
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-white">Cover letter</span>
+                <span className="mb-2 block text-sm font-medium text-white">{t('supportAgentPortal.coverLetter', { defaultValue: 'Cover letter' })}</span>
                 <textarea
                   rows={7}
                   value={form.coverLetter}
@@ -951,9 +939,9 @@ export default function SupportAgentPortalPage() {
               </label>
 
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-                <p className="font-medium text-white">Recommended process</p>
+                <p className="font-medium text-white">{t('supportAgentPortal.recommendedProcess', { defaultValue: 'Recommended process' })}</p>
                 <p className="mt-2 leading-6">
-                  Businesses should review for queue-handling fit, communication quality, language coverage, and schedule overlap. Once approved, the agent should move straight into the active support roster and see the role in this portal.
+                  {t('supportAgentPortal.recommendedProcessBody', { defaultValue: 'Businesses should review for queue-handling fit, communication quality, language coverage, and schedule overlap. Once approved, the agent should move straight into the active support roster and see the role in this portal.' })}
                 </p>
               </div>
 
@@ -963,7 +951,7 @@ export default function SupportAgentPortalPage() {
                   onClick={closeApply}
                   className="rounded-full border border-white/10 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:border-orange-400/40 hover:text-white"
                 >
-                  Cancel
+                  {t('supportAgentPortal.cancel', { defaultValue: 'Cancel' })}
                 </button>
                 <button
                   type="submit"
@@ -971,7 +959,7 @@ export default function SupportAgentPortalPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
                   <SendHorizonal size={15} />
-                  {submittingApplication ? 'Sending…' : 'Submit application'}
+                  {submittingApplication ? t('supportAgentPortal.sending', { defaultValue: 'Sending…' }) : t('supportAgentPortal.submitApplication', { defaultValue: 'Submit application' })}
                 </button>
               </div>
             </form>
