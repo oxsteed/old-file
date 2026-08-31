@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: oxsteed-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oxsteed
+      POSTGRES_PASSWORD: dev-password-change-in-production
+      POSTGRES_DB: oxsteed_db
+    volumes:
+      # Preserve the existing production data when Coolify normalizes volume names.
+      - /var/lib/docker/volumes/6_postgres_data/_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oxsteed"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: oxsteed-redis
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/volumes/a3979938f4bce1468e270fa55583f5a680a31bad83e647d4cfb5553a90adf921/_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: /Users/oxsteed/Documents/GitHub/6
+      dockerfile: Dockerfile
+    container_name: oxsteed-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://oxsteed:dev-password-change-in-production@postgres:5432/oxsteed_db?sslmode=disable
+      PORT: 5000
+      NODE_ENV: production
+      LOG_LEVEL: info
+      JWT_SECRET: dev-jwt-secret-min-32-characters-long
+      ENCRYPTION_KEY: dev-encryption-key-32-bytes
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_test_placeholder
+      STRIPE_CONNECT_CLIENT_ID: ""
+      REDIS_URL: redis://redis:6379/0
+      RESEND_API_KEY: ""
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_PHONE_NUMBER: ""
+      DIDIT_API_KEY: ""
+      DIDIT_WEBHOOK_SECRET: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET: ""
+      AWS_S3_ENDPOINT: ""
+      S3_PUBLIC_BASE_URL: ""
+      S3_FORCE_PATH_STYLE: "false"
+      CLIENT_URL: https://oxsteed.com
+      APP_URL: https://oxsteed.com
+      VITE_GA_MEASUREMENT_ID: ""
+      VITE_META_PIXEL_ID: ""
+    expose:
+      - "5000"
+    volumes:
+      - /Users/oxsteed/Documents/GitHub/6/server/runtime/uploads:/app/server/runtime/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/ready"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 5

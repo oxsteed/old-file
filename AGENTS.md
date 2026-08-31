@@ -26,6 +26,7 @@
 - **Coolify connection:** Coolify's localhost server targets the Colima Docker gateway (`10.0.1.1`) and validates as reachable and usable with Docker 29.5.2 and Compose 5.1.4.
 - **Traffic and rollback:** Cloudflare continues to use Mac port 80, which is forwarded to the Colima app; the previous Docker Desktop containers remain stopped with restart disabled as rollback artifacts.
 - **Recovery:** Migration backups are stored under `/Users/oxsteed/server-backups/colima-migration-20260831-042515`, and `com.oxsteed.colima.plist` starts the VM at Mac login.
+- **Coolify handoff:** `docker-compose.coolify.yml` is the Coolify-owned production definition. It builds from the local source tree while reusing the existing PostgreSQL and Redis volumes and persistent local upload directory.
 
 ## Session progress — Production runtime consolidation (2026-08-02)
 
