@@ -11,6 +11,22 @@
 
 ---
 
+## Session progress — MacBook-local storage + server hardening (2026-08-31)
+
+- **Local upload fallback:** `server/utils/storage.js` now falls back to the MacBook filesystem when S3 credentials are absent, and `server/routes/storage.js` serves local public/signed upload URLs.
+- **Business image fix:** `server/controllers/businessProfileImageController.js` now calls the storage helper with the correct signature and stores a usable public image URL instead of throwing on upload.
+- **Startup guardrail:** `server/utils/validateEnv.js` now warns on placeholder/test-style secrets without breaking the current environment.
+- **Runtime follow-through:** the Mac keep-awake LaunchAgent is running, and the live OxSteed Docker containers were set to `unless-stopped` so they survive normal restarts.
+- **Verified:** `node --check` passes for the touched server files.
+
+## Session progress — Colima production migration (2026-08-31)
+
+- **Supported Linux host:** OxSteed and the self-hosted Coolify control plane now run inside a 4 CPU, 4 GiB, 100 GiB Colima Ubuntu VM instead of targeting macOS directly.
+- **Production data:** PostgreSQL was restored from a final checksum-verified cutover dump; all 556 public tables and 379 application migrations were verified before traffic moved.
+- **Coolify connection:** Coolify's localhost server targets the Colima Docker gateway (`10.0.1.1`) and validates as reachable and usable with Docker 29.5.2 and Compose 5.1.4.
+- **Traffic and rollback:** Cloudflare continues to use Mac port 80, which is forwarded to the Colima app; the previous Docker Desktop containers remain stopped with restart disabled as rollback artifacts.
+- **Recovery:** Migration backups are stored under `/Users/oxsteed/server-backups/colima-migration-20260831-042515`, and `com.oxsteed.colima.plist` starts the VM at Mac login.
+
 ## Session progress — Production runtime consolidation (2026-08-02)
 
 - **One realtime transport:** one Socket.IO `Server` now owns HTTP upgrades through `server/bootstrap/realtime.js`; authenticated messaging, support, and public PII-free restaurant display traffic use `/chat`, `/support`, and `/restaurant-display` namespaces.

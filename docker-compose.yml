@@ -1,15 +1,12 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgis/postgis:16-3.4-alpine
     container_name: oxsteed-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: oxsteed
       POSTGRES_PASSWORD: dev-password-change-in-production
       POSTGRES_DB: oxsteed_db
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: oxsteed-redis
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -32,6 +28,7 @@ services:
   app:
     build: .
     container_name: oxsteed-app
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +79,7 @@ services:
       VITE_META_PIXEL_ID: ${VITE_META_PIXEL_ID:-}
       
     ports:
-      - "80:5000"
+      - "127.0.0.1:80:5000"
     volumes:
       - ./server:/app/server
     healthcheck:

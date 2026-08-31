@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { AppError, sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
-const { uploadFile } = require('../utils/storage');
+const { uploadFile, getPublicUrl } = require('../utils/storage');
 const {
   generateBusinessProfileQRCode,
   generateBusinessQRCodeSizes,
@@ -57,9 +57,14 @@ exports.uploadCoverImage = async (req, res) => {
       mime: file.mimetype
     });
 
-    // Upload to S3
-    const key = `business-covers/${businessId}-${Date.now()}-${file.originalname}`;
-    const imageUrl = await uploadFile(key, file.buffer, file.mimetype);
+    // Upload to storage and persist a public URL for the business profile
+    const storageKey = await uploadFile(
+      file.buffer,
+      'business-covers',
+      `business-${businessId}-${Date.now()}-${file.originalname}`,
+      file.mimetype
+    );
+    const imageUrl = storageKey ? getPublicUrl(storageKey) : null;
 
     if (!imageUrl) {
       return sendError(res, 500, 'Failed to upload image to storage');

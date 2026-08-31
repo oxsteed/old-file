@@ -25,6 +25,36 @@ const OPTIONAL = [
   ['STRIPE_CONNECT_CLIENT_ID', 'Stripe Connect onboarding disabled'],
 ];
 
+function looksLikePlaceholder(value) {
+  if (!value) return false;
+  const lowered = String(value).toLowerCase();
+  return [
+    'placeholder',
+    'change-me',
+    'change_this',
+    'replace-me',
+    'replace_this',
+    'todo',
+    'test_only',
+    'dev-',
+  ].some((token) => lowered.includes(token));
+}
+
+function warnIfSuspicious(key, note) {
+  const value = process.env[key];
+  if (!value) return;
+
+  const lowered = String(value).toLowerCase();
+  if (
+    looksLikePlaceholder(lowered) ||
+    (key === 'STRIPE_SECRET_KEY' && lowered.startsWith('sk_test_')) ||
+    (key === 'STRIPE_WEBHOOK_SECRET' && lowered.startsWith('whsec_test_')) ||
+    (key === 'JWT_SECRET' && lowered.length < 32)
+  ) {
+    logger.warn('Suspicious environment variable value detected', { key, impact: note });
+  }
+}
+
 module.exports = function validateEnv() {
   const missing = REQUIRED.filter(k => !process.env[k]);
 
@@ -56,6 +86,11 @@ module.exports = function validateEnv() {
       logger.warn('Optional environment variable not set', { key, impact: note });
     }
   });
+
+  warnIfSuspicious('JWT_SECRET', 'Auth tokens may be easy to guess');
+  warnIfSuspicious('ENCRYPTION_KEY', 'Stored secrets may not be protected');
+  warnIfSuspicious('STRIPE_SECRET_KEY', 'Payments may be using test or placeholder credentials');
+  warnIfSuspicious('STRIPE_WEBHOOK_SECRET', 'Webhook verification may be using test or placeholder credentials');
 
   logger.info('All required environment variables present');
 };
