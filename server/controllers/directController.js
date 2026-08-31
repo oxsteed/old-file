@@ -12,6 +12,7 @@ const DEFAULT_PROFILE = {
   minimumPriceCents: 10000,
   availabilityText: 'Monday through Thursday',
   baseCity: 'Springfield, OH',
+  serviceAreaText: 'Need help within 60 miles of Springfield, Ohio? Request a quote.',
   publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
   serviceAreas: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
   tools: [
@@ -138,6 +139,7 @@ function serializeProfile(row) {
     minimumPriceCents: Number(row.minimum_price_cents ?? DEFAULT_PROFILE.minimumPriceCents),
     availabilityText: row.availability_text || DEFAULT_PROFILE.availabilityText,
     baseCity: row.base_city || DEFAULT_PROFILE.baseCity,
+    serviceAreaText: DEFAULT_PROFILE.serviceAreaText,
     publicNote: row.public_note || DEFAULT_PROFILE.publicNote,
     serviceAreas: normalizeArray(row.service_areas),
     tools: normalizeArray(row.tools),

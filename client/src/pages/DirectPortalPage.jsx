@@ -24,12 +24,15 @@ import {
   uploadDirectAsset,
 } from '../api/direct';
 
+const DIRECT_SERVICE_AREA_COPY = 'Need help within 60 miles of Springfield, Ohio? Request a quote.';
+
 const DEFAULT_PROFILE = {
   companyName: 'OxSteed',
   headline: 'Food, tools, and local service work under one company.',
   minimumPriceCents: 10000,
   availabilityText: 'Monday through Thursday',
   baseCity: 'Springfield, OH',
+  serviceAreaText: DIRECT_SERVICE_AREA_COPY,
   publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
   serviceAreas: ['Springfield', 'Dayton', 'Columbus', 'Beavercreek', 'Fairborn', 'Urbana'],
   tools: [
@@ -206,7 +209,7 @@ function Chip({ children, tone = 'default' }) {
   );
 }
 
-function DirectShell({ profile, title, subtitle, children, heroRight, path = '/direct' }) {
+function DirectShell({ profile, title, subtitle, children, heroRight, path = '/direct', showServiceArea = false }) {
   return (
     <PageShell>
       <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}${path}`} />
@@ -230,6 +233,12 @@ function DirectShell({ profile, title, subtitle, children, heroRight, path = '/d
                 <Chip tone="blue">{profile.availabilityText}</Chip>
                 <Chip tone="emerald">{profile.baseCity}</Chip>
               </div>
+              {showServiceArea && (
+                <div className="flex max-w-3xl items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                  <MapPin size={17} className="shrink-0 text-emerald-300" />
+                  {profile.serviceAreaText || DIRECT_SERVICE_AREA_COPY}
+                </div>
+              )}
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
@@ -280,6 +289,7 @@ export function DirectLandingPage() {
     <DirectShell
       profile={profile}
       path={location.pathname}
+      showServiceArea
       title={t('homePage.company.headingDirect', { defaultValue: `${profile.companyName} Direct` })}
       subtitle={t('homePage.company.subcopy', { defaultValue: profile.publicNote })}
       heroRight={(
@@ -324,14 +334,11 @@ export function DirectLandingPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title={t('homePage.company.travelCities', { defaultValue: 'Travel cities' })} eyebrow={t('homePage.company.mondayToThursday', { defaultValue: 'Monday to Thursday' })}>
+        <SectionCard title={profile.serviceAreaText || DIRECT_SERVICE_AREA_COPY} eyebrow={t('homePage.company.mondayToThursday', { defaultValue: 'Monday to Thursday' })}>
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <MapPin size={16} className="text-orange-300" />
               {t('homePage.company.baseCity', { defaultValue: 'Base city' })}: <strong className="text-white">{profile.baseCity}</strong>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(profile.travelCities || DEFAULT_PROFILE.travelCities).map((city) => <Chip key={city} tone="blue">{city}</Chip>)}
             </div>
           </div>
         </SectionCard>
@@ -493,6 +500,7 @@ export function DirectQuoteRequestPage() {
   return (
     <DirectShell
       profile={profile}
+      showServiceArea
       title="Request a Direct quote"
       subtitle="Keep it simple. Tell us what you need, where the work is, and when you want it done."
       heroRight={(

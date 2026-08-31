@@ -7,7 +7,8 @@ const directPage = await readFile(new URL('../src/pages/DirectPortalPage.jsx', i
 const directController = await readFile(new URL('../../server/controllers/directController.js', import.meta.url), 'utf8');
 
 test('OxSteed Direct presents the approved 60-mile service area', () => {
-  assert.ok(directPage.split(approvedCopy).length >= 3, 'Direct landing and quote pages must include the approved copy');
+  assert.match(directPage, new RegExp(approvedCopy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.ok(directPage.split('showServiceArea').length >= 4, 'Direct shell, landing, and quote pages must enable the service-area message');
   assert.match(directController, new RegExp(approvedCopy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.doesNotMatch(directPage, /profile\.travelCities\s*\|\|/);
 });

@@ -11,6 +11,12 @@
 
 ---
 
+## Session progress — OxSteed Direct 60-mile service area (2026-08-31)
+
+- **Customer-facing scope:** OxSteed Direct landing and quote-request pages now invite requests anywhere within 60 miles of Springfield, Ohio, without changing pricing, scheduling, or request acceptance.
+- **Fallback consistency:** the Direct backend profile exposes the same service-area message when no customized profile is available.
+- **Verification:** focused copy regression check and client build pending.
+
 ## Restaurants Issue-Resolution Backend
 
 - Customer app issue links should connect to the dedicated case system, not generic support links.
