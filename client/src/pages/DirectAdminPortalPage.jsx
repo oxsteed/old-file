@@ -6,6 +6,7 @@ import {
   ClipboardList,
   DollarSign,
   FileText,
+  Mail,
   MapPin,
   MessageSquare,
   RefreshCw,
@@ -35,6 +36,7 @@ import {
   getDirectAdminTeam,
   updateDirectAdminRequest,
   updateDirectAdminSettings,
+  sendDirectAdminTestEmail,
 } from '../api/direct';
 
 const DEFAULT_PROFILE = {
@@ -1022,6 +1024,159 @@ function DirectAdminTeamView() {
   );
 }
 
+function DirectAdminEmailTestView() {
+  const [profile] = useDirectAdminProfile();
+  const { user, loading, isStaff } = useAdminAccess();
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [subject, setSubject] = useState('OxSteed email test');
+  const [message, setMessage] = useState('If you received this, the OxSteed email system is working.');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    if (user?.email) setRecipientEmail((current) => current || user.email);
+  }, [user?.email]);
+
+  if (loading) {
+    return (
+      <PageShell>
+        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-300">Loading…</div>
+      </PageShell>
+    );
+  }
+
+  if (!isStaff) return <NoAccess />;
+
+  const handleSend = async () => {
+    const nextRecipient = recipientEmail.trim() || user?.email || '';
+    if (!nextRecipient) {
+      toast.error('Recipient email is required.');
+      return;
+    }
+
+    setSending(true);
+    setResult(null);
+    try {
+      const data = await sendDirectAdminTestEmail({
+        recipientEmail: nextRecipient,
+        subject: subject.trim() || 'OxSteed email test',
+        message: message.trim() || 'If you received this, the OxSteed email system is working.',
+      });
+      setResult({ status: 'success', ...data });
+      toast.success(`Test email sent to ${data.recipientEmail || nextRecipient}.`);
+    } catch (error) {
+      const errorMessage = error?.response?.data?.error || 'Could not send test email.';
+      setResult({ status: 'error', error: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <AdminShell
+      title="Email test"
+      subtitle="Send a real email through the live Direct mail configuration and confirm delivery before using it in production flows."
+      profile={profile}
+      right={(
+        <div className="space-y-3 text-sm leading-6 text-slate-300">
+          <div>This page uses the same mail transport Direct requests rely on.</div>
+          <div>Default recipient: your signed-in admin email.</div>
+          <div>If it fails, check the provider keys and from-address settings in Coolify.</div>
+        </div>
+      )}
+    >
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <SectionCard title="Send a test email" eyebrow="Email">
+          <div className="grid gap-4">
+            <Field label="Recipient email" required hint="Defaults to your signed-in admin email.">
+              <Input
+                type="email"
+                value={recipientEmail}
+                onChange={(event) => setRecipientEmail(event.target.value)}
+                placeholder={user?.email || 'name@example.com'}
+              />
+            </Field>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Subject" required>
+                <Input value={subject} onChange={(event) => setSubject(event.target.value)} />
+              </Field>
+              <Field label="Quick actions">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRecipientEmail(user?.email || '')}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Use my email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSubject('OxSteed email test')}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Reset subject
+                  </button>
+                </div>
+              </Field>
+            </div>
+
+            <Field label="Message" required hint="This becomes the body of the email.">
+              <Textarea rows={7} value={message} onChange={(event) => setMessage(event.target.value)} />
+            </Field>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={sending}
+                className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Mail size={15} />
+                {sending ? 'Sending…' : 'Send test email'}
+              </button>
+            </div>
+          </div>
+        </SectionCard>
+
+        <div className="space-y-6">
+          <SectionCard title="What this checks" eyebrow="Verification">
+            <div className="space-y-3 text-sm leading-6 text-slate-300">
+              <p>It sends a real transactional email using the live Direct mail configuration.</p>
+              <p>It confirms the sender, recipient, subject, and HTML rendering all work together.</p>
+              <p>Use it after changing API keys, from-address settings, or deployment env vars.</p>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Latest result" eyebrow="Status">
+            {result ? (
+              result.status === 'success' ? (
+                <div className="space-y-3 text-sm leading-6 text-slate-300">
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-100">
+                    Test email sent successfully.
+                  </div>
+                  <InfoRow label="Recipient" value={result.recipientEmail} />
+                  <InfoRow label="Subject" value={result.subject} />
+                  <InfoRow label="Provider message ID" value={result.providerMessageId || '—'} />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+                  {result.error || 'The email test failed.'}
+                </div>
+              )
+            ) : (
+              <div className="text-sm leading-6 text-slate-400">
+                No test has been sent yet. Use the button above to confirm the mail stack.
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </AdminShell>
+  );
+}
+
 function DirectAdminLanding() {
   const [profile] = useDirectAdminProfile();
   const [isStaff, setIsStaff] = useState(true);
@@ -1065,6 +1220,11 @@ function DirectAdminLanding() {
           <div className="mt-2 text-xl font-semibold text-white">Service area and tools</div>
           <p className="mt-2 text-sm leading-6 text-slate-400">Update minimums, cities, travel days, and tools.</p>
         </Link>
+        <Link to="/direct/admin/email-test" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+          <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Email</div>
+          <div className="mt-2 text-xl font-semibold text-white">Send a test message</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Confirm the live mail provider is sending customer emails correctly.</p>
+        </Link>
       </div>
     </AdminShell>
   );
@@ -1082,5 +1242,6 @@ export default function DirectAdminPortalPage({ view = 'dashboard' }) {
   if (view === 'settings') return <DirectAdminSettingsView />;
   if (view === 'reports') return <DirectAdminReportsView />;
   if (view === 'team') return <DirectAdminTeamView />;
+  if (view === 'email-test') return <DirectAdminEmailTestView />;
   return <DirectAdminDashboardView />;
 }

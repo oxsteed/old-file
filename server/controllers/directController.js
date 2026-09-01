@@ -1181,3 +1181,67 @@ exports.getAdminInbox = async (req, res) => {
     return res.status(500).json({ error: 'Failed to load inbox' });
   }
 };
+
+function isValidEmailAddress(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+exports.sendAdminTestEmail = async (req, res) => {
+  try {
+    const recipientEmail = cleanText(req.body?.recipientEmail || req.user?.email || '', 255);
+    const subject = cleanText(req.body?.subject || 'OxSteed email test', 180) || 'OxSteed email test';
+    const message = cleanText(
+      req.body?.message || 'If you received this message, the OxSteed email system is working.',
+      4000
+    ) || 'If you received this message, the OxSteed email system is working.';
+    const senderName = [cleanText(req.user?.first_name || '', 120), cleanText(req.user?.last_name || '', 120)]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || req.user?.email || 'OxSteed staff';
+
+    if (!isValidEmailAddress(recipientEmail)) {
+      return res.status(400).json({ error: 'A valid recipient email is required.' });
+    }
+
+    const timestamp = new Date().toISOString();
+    const result = await sendEmail({
+      to: recipientEmail,
+      subject,
+      text: `${message}\n\nSent by ${senderName} at ${timestamp}.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #f97316;">OxSteed email test</div>
+          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2; color: #0f172a;">${subject}</h1>
+          <p style="margin: 20px 0 0; font-size: 16px; line-height: 1.7; color: #334155;">${message}</p>
+          <div style="margin-top: 24px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc;">
+            <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Sent by</div>
+            <div style="margin-top: 6px; font-size: 15px; color: #0f172a;">${senderName}</div>
+            <div style="margin-top: 8px; font-size: 13px; color: #64748b;">${timestamp}</div>
+          </div>
+        </div>
+      `,
+      fromName: 'OxSteed Direct',
+    });
+
+    if (!result?.success) {
+      const statusCode = result?.error === 'Email not configured' ? 503 : 502;
+      return res.status(statusCode).json({
+        error: result?.error || 'Email send failed',
+      });
+    }
+
+    return res.json({
+      success: true,
+      recipientEmail,
+      subject,
+      providerMessageId: result.id || null,
+    });
+  } catch (err) {
+    logger.error('sendAdminTestEmail error', {
+      error: err.message,
+      adminId: req.user?.id,
+      recipientEmail: req.body?.recipientEmail,
+    });
+    return res.status(500).json({ error: 'Failed to send test email' });
+  }
+};

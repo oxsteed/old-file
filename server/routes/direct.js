@@ -39,5 +39,6 @@ router.get('/admin/settings', authenticate, requireAdmin, ctrl.getSettings);
 router.put('/admin/settings', authenticate, requireAdmin, ctrl.updateSettings);
 router.get('/admin/reports', authenticate, requireAdmin, ctrl.getReports);
 router.get('/admin/team', authenticate, requireAdmin, ctrl.getTeam);
+router.post('/admin/email-test', authenticate, requireAdmin, ctrl.sendAdminTestEmail);
 
 module.exports = router;

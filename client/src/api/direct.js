@@ -135,3 +135,8 @@ export async function getDirectAdminTeam() {
   const response = await api.get('/direct/admin/team');
   return response.data;
 }
+
+export async function sendDirectAdminTestEmail(payload) {
+  const response = await api.post('/direct/admin/email-test', payload);
+  return response.data;
+}

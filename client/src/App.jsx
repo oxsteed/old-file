@@ -304,6 +304,7 @@ export default function App() {
                     <Route path="/direct/admin/settings"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="settings" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/reports"    element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="reports" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/team"       element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="team" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/email-test" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="email-test" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/request-quote"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/quote-request"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
