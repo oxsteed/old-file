@@ -5850,6 +5850,137 @@
         "delivery": "Livraison et transport",
         "cleanup": "Nettoyage et préparation"
       }
+    },
+    "search": {
+      "searchMode": "Search mode",
+      "findHelper": "Find a Helper",
+      "browseJobs": "Browse Jobs",
+      "discoverAll": "Discover Everything",
+      "helperLabel": "Search for a service or skill",
+      "helperPh": "Search for a service or skill",
+      "jobsLabel": "Search for a job",
+      "jobsPh": "Search jobs by keyword",
+      "discoverLabel": "Search the entire network",
+      "discoverPh": "Search by skill, service, or business",
+      "discoverSearch": "Search everything",
+      "locationLabel": "Location",
+      "locationPh": "City, ZIP code, or address",
+      "locationSuggestions": "Location suggestions",
+      "skillSuggestions": "Skill suggestions",
+      "nearYou": "Near you",
+      "clearSearch": "Clear search",
+      "clearLocation": "Clear location",
+      "availToday": "Today",
+      "availTodayTitle": "Show only helpers available today",
+      "search": "Search"
+    },
+    "skills": {
+      "sectionTitle": "Browse by Skill",
+      "sectionSubtitle": "Find a local helper for the exact job you need done.",
+      "dontSeeSkill": "Don’t see the skill you need?",
+      "postJobLink": "Post a Job",
+      "dontSeeEnd": "We’ll connect you with the right help.",
+      "showMore": "Show more skills",
+      "showFewer": "Show fewer skills",
+      "tiles": {
+        "electrical": {
+          "name": "Electrical",
+          "desc": "Outlets, panels, EV chargers"
+        },
+        "plumbing": {
+          "name": "Plumbing",
+          "desc": "Leaks, drains, water heaters"
+        },
+        "hvac": {
+          "name": "HVAC",
+          "desc": "AC, heating, duct work"
+        },
+        "carpentry": {
+          "name": "Carpentry",
+          "desc": "Decks, trim, custom builds"
+        },
+        "painting": {
+          "name": "Painting",
+          "desc": "Interior & exterior"
+        },
+        "roofing": {
+          "name": "Roofing",
+          "desc": "Repairs, replacement, sealing"
+        },
+        "flooring": {
+          "name": "Flooring",
+          "desc": "Install, repair, refinish"
+        },
+        "landscaping": {
+          "name": "Landscaping",
+          "desc": "Yard work, trimming, cleanup"
+        },
+        "moving": {
+          "name": "Moving",
+          "desc": "Packing, hauling, unload help"
+        },
+        "cleaning": {
+          "name": "Cleaning",
+          "desc": "Deep clean, routine clean, reset"
+        },
+        "pest-control": {
+          "name": "Pest control",
+          "desc": "Inspection, treatment, prevention"
+        },
+        "auto": {
+          "name": "Auto",
+          "desc": "Light repairs, diagnostics, detailing"
+        },
+        "appliance": {
+          "name": "Appliance",
+          "desc": "Install, repair, haul away"
+        },
+        "concrete": {
+          "name": "Concrete",
+          "desc": "Pads, patching, resurfacing"
+        },
+        "welding": {
+          "name": "Welding",
+          "desc": "Fabrication, repair, custom metalwork"
+        },
+        "home-repair": {
+          "name": "Home repair",
+          "desc": "General fixes, small projects"
+        },
+        "security": {
+          "name": "Security",
+          "desc": "Locks, cameras, access control"
+        },
+        "pet-care": {
+          "name": "Pet care",
+          "desc": "Walking, sitting, basic care"
+        },
+        "tutoring": {
+          "name": "Tutoring",
+          "desc": "Homework help, study support"
+        }
+      }
+    },
+    "consulting": {
+      "heading": "OxSteed Direct",
+      "subcopy": "Need a company-run service quote? OxSteed Direct handles the full job from request to receipt.",
+      "subtitle1": "Service-first intake",
+      "desc1": "Tell us what you need, add photos, and get a direct quote.",
+      "subtitle2": "Built for real work",
+      "desc2": "Best for scheduled service calls, deliveries, hauling, cleanup, and setup.",
+      "ctaButton": "Request a quote",
+      "ctaPrice": "$100 minimum",
+      "ctaSubtext": "You can review the quote before booking."
+    },
+    "cta": {
+      "title": "Post your skills.",
+      "titleEm": "Run your own business.",
+      "desc": "List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.",
+      "goToDashboard": "Go to dashboard",
+      "viewDashboard": "View dashboard",
+      "listSkills": "List your skills",
+      "postJob": "Post a job",
+      "postJobInstead": "Post a job instead"
     }
   },
   "preferredHelper": {
