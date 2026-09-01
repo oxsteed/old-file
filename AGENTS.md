@@ -19,6 +19,14 @@
 - **Runtime follow-through:** the Mac keep-awake LaunchAgent is running, and the live OxSteed Docker containers were set to `unless-stopped` so they survive normal restarts.
 - **Verified:** `node --check` passes for the touched server files.
 
+## Session progress — OxSteed Direct public quote lookup (2026-09-01)
+
+- **Public quote access:** added `/direct/view-quote` plus public lookup APIs that use a long random `public_reference`, ZIP match, and email verification codes before unlocking full quote details.
+- **Homepage / request flow:** added `View quote` CTAs on the Direct homepage and quote thank-you page; quote requests now capture `service_zip_code` and confirmation emails include the new public reference.
+- **Localization:** added the new CTA and lookup copy to the supported website locales (`en`, `es`, `fr`, `ht`, `ar`) and kept the mobile lookup layout responsive.
+- **Schema + deployment:** migration `376_direct_public_quote_lookup.sql` added the public lookup columns/table and was applied successfully during the MacBook/Colima rebuild.
+- **Verified:** `npm run build` passes in `client/`; `node --check` passes for the touched server files; `docker compose -f docker-compose.coolify.yml up -d --build app` rebuilt the live stack; `GET https://oxsteed.com/direct/view-quote` returns HTTP 200 and `/ready` reports all checks healthy.
+
 ## Session progress — Colima production migration (2026-08-31)
 
 - **Supported Linux host:** OxSteed and the self-hosted Coolify control plane now run inside a 4 CPU, 4 GiB, 100 GiB Colima Ubuntu VM instead of targeting macOS directly.
