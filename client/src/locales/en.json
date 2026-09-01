@@ -13991,5 +13991,127 @@
     "whenSomethingIsWrong": "When something does not look right",
     "needHelp": "Need help?",
     "contactSupport": "Contact support"
+  },
+  "directPortal": {
+    "request": {
+      "title": "Request a Direct quote",
+      "subtitle": "Keep it simple. Tell us what you need, where the work is, and when you want it done.",
+      "whatToInclude": "What to include",
+      "include": {
+        "contact": "Contact info and preferred contact method",
+        "work": "Service type, city, and any access notes",
+        "timeline": "Budget range, preferred date, and urgency"
+      },
+      "photoHint": "You can attach photos before you hit submit.",
+      "sections": {
+        "yourDetails": "Your details",
+        "workDetails": "Work details",
+        "photos": "Photos",
+        "summary": "Summary"
+      },
+      "eyebrows": {
+        "customer": "Customer",
+        "quoteRequest": "Quote request",
+        "attachments": "Attachments",
+        "launchReady": "Launch-ready"
+      },
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "companyName": "Business or company name",
+        "contactMethod": "Preferred contact method",
+        "serviceType": "Service type",
+        "workLocation": "Where is the work?",
+        "serviceCity": "Service city",
+        "budgetRange": "Budget range",
+        "preferredDate": "Preferred date",
+        "timeWindow": "Time window",
+        "urgency": "Urgency",
+        "timelineNotes": "Timeline notes",
+        "accessNotes": "Access notes",
+        "details": "What should we know?"
+      },
+      "hints": {
+        "workLocation": "City, neighborhood, or full address.",
+        "accessNotes": "Gate code, parking, pets, stairs, or anything helpful.",
+        "details": "A short description is enough to start."
+      },
+      "placeholders": {
+        "optional": "Optional",
+        "workLocation": "Springfield, OH",
+        "budgetRange": "$100-$250 or flexible",
+        "timeWindow": "Morning, afternoon, after 5pm...",
+        "timelineNotes": "This week, next month, etc."
+      },
+      "contactMethods": {
+        "email": "Email",
+        "phone": "Phone call",
+        "text": "Text message",
+        "either": "Either is fine"
+      },
+      "serviceCategories": {
+        "homeServices": "Home services",
+        "restaurantServices": "Restaurant services",
+        "businessSetup": "Business setup",
+        "businessSupport": "Business support",
+        "maintenance": "Maintenance or repair",
+        "other": "Other"
+      },
+      "urgency": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "uploadPhotos": "Upload photos",
+      "photoUploadHelp": "Add up to 6 photos. We keep the uploads tied to this quote draft.",
+      "uploadingPhotos": "Uploading photos…",
+      "photoAttachment": "Photo attachment",
+      "attachmentType": "image",
+      "noPhotos": "No photos attached yet.",
+      "summary": {
+        "queue": "We’ll send the request to the Direct ops queue.",
+        "workflow": "Once the quote is ready, you can accept it, schedule the visit, and follow the case history here.",
+        "history": "Proof uploads, receipts, and support messages stay attached to the same record."
+      },
+      "actions": {
+        "sending": "Sending...",
+        "submit": "Request a quote"
+      },
+      "messages": {
+        "photoUploaded": "Photo attachment uploaded."
+      },
+      "errors": {
+        "uploadPhoto": "Could not upload photo.",
+        "requiredFields": "Please fill in the required fields.",
+        "submit": "Could not submit your request."
+      }
+    },
+    "thanks": {
+      "title": "Request received",
+      "subtitle": "Thanks. Your Direct quote request is in the queue.",
+      "body": "We’ve got your request and we’ll review it soon.",
+      "referenceLabel": "Reference",
+      "viewHistory": "View history",
+      "openSupport": "Open support",
+      "nextTitle": "What happens next",
+      "workflow": "Direct workflow",
+      "steps": {
+        "review": {
+          "title": "1. Review",
+          "body": "We review the quote request and decide the next step."
+        },
+        "schedule": {
+          "title": "2. Schedule",
+          "body": "You can accept the quote and lock in a schedule window."
+        },
+        "proof": {
+          "title": "3. Proof & receipt",
+          "body": "Upload proof or confirm receipt so history stays attached."
+        }
+      }
+    }
   }
 }

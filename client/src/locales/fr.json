@@ -14075,5 +14075,127 @@
     "whenSomethingIsWrong": "Quand quelque chose ne va pas",
     "needHelp": "Besoin d'aide ?",
     "contactSupport": "Contacter le support"
+  },
+  "directPortal": {
+    "request": {
+      "title": "Demander un devis Direct",
+      "subtitle": "Restez simple. Dites-nous ce dont vous avez besoin, où se trouve le travail et quand vous voulez que ce soit fait.",
+      "whatToInclude": "À inclure",
+      "include": {
+        "contact": "Coordonnées et moyen de contact préféré",
+        "work": "Type de service, ville et notes d’accès",
+        "timeline": "Budget, date souhaitée et urgence"
+      },
+      "photoHint": "Vous pouvez joindre des photos avant d’envoyer.",
+      "sections": {
+        "yourDetails": "Vos informations",
+        "workDetails": "Détails du travail",
+        "photos": "Photos",
+        "summary": "Résumé"
+      },
+      "eyebrows": {
+        "customer": "Client",
+        "quoteRequest": "Demande de devis",
+        "attachments": "Pièces jointes",
+        "launchReady": "Prêt à lancer"
+      },
+      "fields": {
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "companyName": "Nom de l’entreprise",
+        "contactMethod": "Moyen de contact préféré",
+        "serviceType": "Type de service",
+        "workLocation": "Où se trouve le travail ?",
+        "serviceCity": "Ville du service",
+        "budgetRange": "Budget",
+        "preferredDate": "Date souhaitée",
+        "timeWindow": "Plage horaire",
+        "urgency": "Urgence",
+        "timelineNotes": "Notes de calendrier",
+        "accessNotes": "Notes d’accès",
+        "details": "Que devons-nous savoir ?"
+      },
+      "hints": {
+        "workLocation": "Ville, quartier ou adresse complète.",
+        "accessNotes": "Code portail, stationnement, animaux, escaliers, ou tout autre détail utile.",
+        "details": "Une courte description suffit pour commencer."
+      },
+      "placeholders": {
+        "optional": "Facultatif",
+        "workLocation": "Springfield, OH",
+        "budgetRange": "100 $-250 $ ou flexible",
+        "timeWindow": "Matin, après-midi, après 17 h…",
+        "timelineNotes": "Cette semaine, le mois prochain, etc."
+      },
+      "contactMethods": {
+        "email": "E-mail",
+        "phone": "Appel téléphonique",
+        "text": "SMS",
+        "either": "Peu importe"
+      },
+      "serviceCategories": {
+        "homeServices": "Services à domicile",
+        "restaurantServices": "Services pour restaurants",
+        "businessSetup": "Mise en place d’entreprise",
+        "businessSupport": "Assistance commerciale",
+        "maintenance": "Entretien ou réparation",
+        "other": "Autre"
+      },
+      "urgency": {
+        "low": "Faible",
+        "normal": "Normale",
+        "high": "Élevée",
+        "urgent": "Urgente"
+      },
+      "uploadPhotos": "Téléverser des photos",
+      "photoUploadHelp": "Ajoutez jusqu’à 6 photos. Les fichiers restent liés à ce brouillon de devis.",
+      "uploadingPhotos": "Téléversement des photos…",
+      "photoAttachment": "Pièce jointe photo",
+      "attachmentType": "image",
+      "noPhotos": "Aucune photo jointe pour le moment.",
+      "summary": {
+        "queue": "Nous enverrons la demande dans la file d’opérations Direct.",
+        "workflow": "Une fois le devis prêt, vous pourrez l’accepter, planifier la visite et suivre l’historique ici.",
+        "history": "Les preuves, reçus et messages d’assistance restent liés au même dossier."
+      },
+      "actions": {
+        "sending": "Envoi…",
+        "submit": "Demander un devis"
+      },
+      "messages": {
+        "photoUploaded": "Photo jointe téléversée."
+      },
+      "errors": {
+        "uploadPhoto": "Impossible de téléverser la photo.",
+        "requiredFields": "Veuillez remplir les champs obligatoires.",
+        "submit": "Impossible d’envoyer votre demande."
+      }
+    },
+    "thanks": {
+      "title": "Demande reçue",
+      "subtitle": "Merci. Votre demande de devis Direct est en file d’attente.",
+      "body": "Nous avons bien reçu votre demande et nous la reverrons bientôt.",
+      "referenceLabel": "Référence",
+      "viewHistory": "Voir l’historique",
+      "openSupport": "Ouvrir l’assistance",
+      "nextTitle": "Et ensuite ?",
+      "workflow": "Flux Direct",
+      "steps": {
+        "review": {
+          "title": "1. Revue",
+          "body": "Nous examinons la demande de devis et décidons de la suite."
+        },
+        "schedule": {
+          "title": "2. Planification",
+          "body": "Vous pouvez accepter le devis et réserver une plage horaire."
+        },
+        "proof": {
+          "title": "3. Preuve et reçu",
+          "body": "Ajoutez une preuve ou confirmez le reçu afin que l’historique reste associé."
+        }
+      }
+    }
   }
 }

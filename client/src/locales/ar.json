@@ -14078,5 +14078,127 @@
     "whenSomethingIsWrong": "عندما لا يبدو الأمر صحيحًا",
     "needHelp": "هل تحتاج مساعدة؟",
     "contactSupport": "اتصل بالدعم"
+  },
+  "directPortal": {
+    "request": {
+      "title": "طلب عرض سعر مباشر",
+      "subtitle": "ببساطة: أخبرنا بما تحتاجه، وأين العمل، ومتى تريد إنجازه.",
+      "whatToInclude": "ما الذي يجب تضمينه",
+      "include": {
+        "contact": "معلومات الاتصال وطريقة التواصل المفضلة",
+        "work": "نوع الخدمة، المدينة، وأي ملاحظات عن الوصول",
+        "timeline": "نطاق الميزانية، التاريخ المفضل، ودرجة الاستعجال"
+      },
+      "photoHint": "يمكنك إرفاق صور قبل الإرسال.",
+      "sections": {
+        "yourDetails": "بياناتك",
+        "workDetails": "تفاصيل العمل",
+        "photos": "الصور",
+        "summary": "الملخص"
+      },
+      "eyebrows": {
+        "customer": "العميل",
+        "quoteRequest": "طلب عرض سعر",
+        "attachments": "المرفقات",
+        "launchReady": "جاهز للإطلاق"
+      },
+      "fields": {
+        "firstName": "الاسم الأول",
+        "lastName": "اسم العائلة",
+        "email": "البريد الإلكتروني",
+        "phone": "الهاتف",
+        "companyName": "اسم النشاط التجاري أو الشركة",
+        "contactMethod": "طريقة التواصل المفضلة",
+        "serviceType": "نوع الخدمة",
+        "workLocation": "أين يقع العمل؟",
+        "serviceCity": "مدينة الخدمة",
+        "budgetRange": "نطاق الميزانية",
+        "preferredDate": "التاريخ المفضل",
+        "timeWindow": "الوقت المفضل",
+        "urgency": "الاستعجال",
+        "timelineNotes": "ملاحظات الجدول الزمني",
+        "accessNotes": "ملاحظات الوصول",
+        "details": "ماذا يجب أن نعرف؟"
+      },
+      "hints": {
+        "workLocation": "المدينة أو الحي أو العنوان الكامل.",
+        "accessNotes": "رمز البوابة أو الموقف أو الحيوانات الأليفة أو السلالم أو أي شيء مفيد.",
+        "details": "يكفي وصف قصير للبدء."
+      },
+      "placeholders": {
+        "optional": "اختياري",
+        "workLocation": "Springfield, OH",
+        "budgetRange": "$100-$250 أو مرن",
+        "timeWindow": "صباحًا، بعد الظهر، بعد 5 مساءً...",
+        "timelineNotes": "هذا الأسبوع، الشهر القادم، إلخ."
+      },
+      "contactMethods": {
+        "email": "البريد الإلكتروني",
+        "phone": "مكالمة هاتفية",
+        "text": "رسالة نصية",
+        "either": "أيّهما مناسب"
+      },
+      "serviceCategories": {
+        "homeServices": "خدمات منزلية",
+        "restaurantServices": "خدمات المطاعم",
+        "businessSetup": "إعداد الأعمال",
+        "businessSupport": "دعم الأعمال",
+        "maintenance": "صيانة أو إصلاح",
+        "other": "أخرى"
+      },
+      "urgency": {
+        "low": "منخفض",
+        "normal": "عادي",
+        "high": "مرتفع",
+        "urgent": "عاجل"
+      },
+      "uploadPhotos": "رفع الصور",
+      "photoUploadHelp": "أضف حتى 6 صور. نبقي الملفات مرتبطة بمسودة عرض السعر هذه.",
+      "uploadingPhotos": "جارٍ رفع الصور…",
+      "photoAttachment": "مرفق صورة",
+      "attachmentType": "صورة",
+      "noPhotos": "لا توجد صور مرفقة حتى الآن.",
+      "summary": {
+        "queue": "سنرسل الطلب إلى طابور عمليات Direct.",
+        "workflow": "بمجرد أن يصبح عرض السعر جاهزًا، يمكنك قبوله وتحديد موعد ومتابعة سجل الحالة هنا.",
+        "history": "تبقى الإثباتات والإيصالات ورسائل الدعم مرتبطة بالسجل نفسه."
+      },
+      "actions": {
+        "sending": "جارٍ الإرسال…",
+        "submit": "طلب عرض سعر"
+      },
+      "messages": {
+        "photoUploaded": "تم رفع مرفق الصورة."
+      },
+      "errors": {
+        "uploadPhoto": "تعذر رفع الصورة.",
+        "requiredFields": "يرجى تعبئة الحقول المطلوبة.",
+        "submit": "تعذر إرسال طلبك."
+      }
+    },
+    "thanks": {
+      "title": "تم استلام الطلب",
+      "subtitle": "شكرًا. تم إدراج طلب عرض السعر المباشر في قائمة الانتظار.",
+      "body": "استلمنا طلبك وسنراجعه قريبًا.",
+      "referenceLabel": "المرجع",
+      "viewHistory": "عرض السجل",
+      "openSupport": "فتح الدعم",
+      "nextTitle": "ما الذي سيحدث بعد ذلك",
+      "workflow": "سير العمل المباشر",
+      "steps": {
+        "review": {
+          "title": "1. المراجعة",
+          "body": "نراجع طلب عرض السعر ونحدد الخطوة التالية."
+        },
+        "schedule": {
+          "title": "2. الجدولة",
+          "body": "يمكنك قبول العرض وتثبيت نافذة للموعد."
+        },
+        "proof": {
+          "title": "3. الإثبات والإيصال",
+          "body": "ارفع إثباتًا أو أكد الاستلام ليبقى السجل مرتبطًا."
+        }
+      }
+    }
   }
 }

@@ -14075,5 +14075,127 @@
     "whenSomethingIsWrong": "Cuando algo no se ve bien",
     "needHelp": "¿Necesitas ayuda?",
     "contactSupport": "Contactar soporte"
+  },
+  "directPortal": {
+    "request": {
+      "title": "Solicitar una cotización Direct",
+      "subtitle": "Manténgalo simple. Díganos lo que necesita, dónde está el trabajo y cuándo lo quiere hacer.",
+      "whatToInclude": "Qué incluir",
+      "include": {
+        "contact": "Información de contacto y método preferido",
+        "work": "Tipo de servicio, ciudad y notas de acceso",
+        "timeline": "Rango de presupuesto, fecha preferida y urgencia"
+      },
+      "photoHint": "Puede adjuntar fotos antes de enviar.",
+      "sections": {
+        "yourDetails": "Sus datos",
+        "workDetails": "Detalles del trabajo",
+        "photos": "Fotos",
+        "summary": "Resumen"
+      },
+      "eyebrows": {
+        "customer": "Cliente",
+        "quoteRequest": "Solicitud de cotización",
+        "attachments": "Adjuntos",
+        "launchReady": "Listo para lanzar"
+      },
+      "fields": {
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "companyName": "Nombre del negocio o empresa",
+        "contactMethod": "Método de contacto preferido",
+        "serviceType": "Tipo de servicio",
+        "workLocation": "¿Dónde es el trabajo?",
+        "serviceCity": "Ciudad del servicio",
+        "budgetRange": "Rango de presupuesto",
+        "preferredDate": "Fecha preferida",
+        "timeWindow": "Franja horaria",
+        "urgency": "Urgencia",
+        "timelineNotes": "Notas de cronograma",
+        "accessNotes": "Notas de acceso",
+        "details": "¿Qué debemos saber?"
+      },
+      "hints": {
+        "workLocation": "Ciudad, vecindario o dirección completa.",
+        "accessNotes": "Código de puerta, estacionamiento, mascotas, escaleras o cualquier detalle útil.",
+        "details": "Una breve descripción basta para empezar."
+      },
+      "placeholders": {
+        "optional": "Opcional",
+        "workLocation": "Springfield, OH",
+        "budgetRange": "$100-$250 o flexible",
+        "timeWindow": "Mañana, tarde, después de las 5pm...",
+        "timelineNotes": "Esta semana, el próximo mes, etc."
+      },
+      "contactMethods": {
+        "email": "Correo electrónico",
+        "phone": "Llamada telefónica",
+        "text": "Mensaje de texto",
+        "either": "Cualquiera está bien"
+      },
+      "serviceCategories": {
+        "homeServices": "Servicios del hogar",
+        "restaurantServices": "Servicios para restaurantes",
+        "businessSetup": "Configuración del negocio",
+        "businessSupport": "Soporte empresarial",
+        "maintenance": "Mantenimiento o reparación",
+        "other": "Otro"
+      },
+      "urgency": {
+        "low": "Baja",
+        "normal": "Normal",
+        "high": "Alta",
+        "urgent": "Urgente"
+      },
+      "uploadPhotos": "Subir fotos",
+      "photoUploadHelp": "Añada hasta 6 fotos. Mantenemos las cargas vinculadas a este borrador de cotización.",
+      "uploadingPhotos": "Subiendo fotos…",
+      "photoAttachment": "Adjunto de foto",
+      "attachmentType": "imagen",
+      "noPhotos": "Aún no hay fotos adjuntas.",
+      "summary": {
+        "queue": "Enviaremos la solicitud a la cola de operaciones Direct.",
+        "workflow": "Cuando la cotización esté lista, podrá aceptarla, programar la visita y seguir el historial aquí.",
+        "history": "Las pruebas, recibos y mensajes de soporte permanecen vinculados al mismo registro."
+      },
+      "actions": {
+        "sending": "Enviando...",
+        "submit": "Solicitar una cotización"
+      },
+      "messages": {
+        "photoUploaded": "Foto adjunta cargada."
+      },
+      "errors": {
+        "uploadPhoto": "No se pudo cargar la foto.",
+        "requiredFields": "Complete los campos obligatorios.",
+        "submit": "No se pudo enviar su solicitud."
+      }
+    },
+    "thanks": {
+      "title": "Solicitud recibida",
+      "subtitle": "Gracias. Su solicitud de cotización Direct está en la cola.",
+      "body": "Hemos recibido su solicitud y la revisaremos pronto.",
+      "referenceLabel": "Referencia",
+      "viewHistory": "Ver historial",
+      "openSupport": "Abrir soporte",
+      "nextTitle": "Qué sigue",
+      "workflow": "Flujo Direct",
+      "steps": {
+        "review": {
+          "title": "1. Revisión",
+          "body": "Revisamos la solicitud de cotización y decidimos el siguiente paso."
+        },
+        "schedule": {
+          "title": "2. Programación",
+          "body": "Puede aceptar la cotización y fijar una ventana de horario."
+        },
+        "proof": {
+          "title": "3. Prueba y recibo",
+          "body": "Suba comprobantes o confirme el recibo para que el historial quede adjunto."
+        }
+      }
+    }
   }
 }

@@ -373,6 +373,7 @@ export function DirectLandingPage() {
 }
 
 export function DirectQuoteRequestPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
@@ -431,9 +432,9 @@ export function DirectQuoteRequestPage() {
         const response = await uploadDirectAsset(file, { purpose: 'quote-photo', draftId });
         setAttachments((current) => [...current, response.attachment]);
       }
-      toast.success('Photo attachment uploaded.');
+      toast.success(t('directPortal.request.messages.photoUploaded', { defaultValue: 'Photo attachment uploaded.' }));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not upload photo.');
+      toast.error(error?.response?.data?.error || t('directPortal.request.errors.uploadPhoto', { defaultValue: 'Could not upload photo.' }));
     } finally {
       setUploading(false);
     }
@@ -446,7 +447,7 @@ export function DirectQuoteRequestPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSubmit) {
-      toast.error('Please fill in the required fields.');
+      toast.error(t('directPortal.request.errors.requiredFields', { defaultValue: 'Please fill in the required fields.' }));
       return;
     }
 
@@ -478,13 +479,13 @@ export function DirectQuoteRequestPage() {
       };
 
       const response = await submitDirectRequest(payload);
-      toast.success('Quote request sent.');
+      toast.success(t('directPortal.request.messages.sent', { defaultValue: 'Quote request sent.' }));
       navigate(`/direct/request-quote/thanks?requestId=${response.requestId}`, {
         replace: true,
         state: { requestId: response.requestId },
       });
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not submit your request.');
+      toast.error(error?.response?.data?.error || t('directPortal.request.errors.submit', { defaultValue: 'Could not submit your request.' }));
     } finally {
       setLoading(false);
     }
@@ -493,99 +494,99 @@ export function DirectQuoteRequestPage() {
   return (
     <DirectShell
       profile={profile}
-      title="Request a Direct quote"
-      subtitle="Keep it simple. Tell us what you need, where the work is, and when you want it done."
+      title={t('directPortal.request.title', { defaultValue: 'Request a Direct quote' })}
+      subtitle={t('directPortal.request.subtitle', { defaultValue: 'Keep it simple. Tell us what you need, where the work is, and when you want it done.' })}
       heroRight={(
         <div className="space-y-4">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">What to include</div>
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('directPortal.request.whatToInclude', { defaultValue: 'What to include' })}</div>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-              <li>• Contact info and preferred contact method</li>
-              <li>• Service type, city, and any access notes</li>
-              <li>• Budget range, preferred date, and urgency</li>
+              <li>{t('directPortal.request.include.contact', { defaultValue: 'Contact info and preferred contact method' })}</li>
+              <li>{t('directPortal.request.include.work', { defaultValue: 'Service type, city, and any access notes' })}</li>
+              <li>{t('directPortal.request.include.timeline', { defaultValue: 'Budget range, preferred date, and urgency' })}</li>
             </ul>
           </div>
           <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             <UploadCloud size={18} className="text-orange-300" />
-            You can attach photos before you hit submit.
+            {t('directPortal.request.photoHint', { defaultValue: 'You can attach photos before you hit submit.' })}
           </div>
         </div>
       )}
     >
       <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
-          <SectionCard title="Your details" eyebrow="Customer">
+          <SectionCard title={t('directPortal.request.sections.yourDetails', { defaultValue: 'Your details' })} eyebrow={t('directPortal.request.eyebrows.customer', { defaultValue: 'Customer' })}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="First name" required><Input value={form.first_name} onChange={update('first_name')} /></Field>
-              <Field label="Last name" required><Input value={form.last_name} onChange={update('last_name')} /></Field>
-              <Field label="Email" required><Input type="email" value={form.email} onChange={update('email')} /></Field>
-              <Field label="Phone"><Input value={form.phone} onChange={update('phone')} /></Field>
-              <Field label="Business or company name"><Input value={form.company_name} onChange={update('company_name')} placeholder="Optional" /></Field>
-              <Field label="Preferred contact method">
+              <Field label={t('directPortal.request.fields.firstName')} required><Input value={form.first_name} onChange={update('first_name')} /></Field>
+              <Field label={t('directPortal.request.fields.lastName')} required><Input value={form.last_name} onChange={update('last_name')} /></Field>
+              <Field label={t('directPortal.request.fields.email')} required><Input type="email" value={form.email} onChange={update('email')} /></Field>
+              <Field label={t('directPortal.request.fields.phone')}><Input value={form.phone} onChange={update('phone')} /></Field>
+              <Field label={t('directPortal.request.fields.companyName')}><Input value={form.company_name} onChange={update('company_name')} placeholder={t('directPortal.request.placeholders.optional')} /></Field>
+              <Field label={t('directPortal.request.fields.contactMethod')}>
                 <Select value={form.preferred_contact_method} onChange={update('preferred_contact_method')}>
-                  <option value="email">Email</option>
-                  <option value="phone">Phone call</option>
-                  <option value="text">Text message</option>
-                  <option value="either">Either is fine</option>
+                  <option value="email">{t('directPortal.request.contactMethods.email')}</option>
+                  <option value="phone">{t('directPortal.request.contactMethods.phone')}</option>
+                  <option value="text">{t('directPortal.request.contactMethods.text')}</option>
+                  <option value="either">{t('directPortal.request.contactMethods.either')}</option>
                 </Select>
               </Field>
             </div>
           </SectionCard>
 
-          <SectionCard title="Work details" eyebrow="Quote request">
+          <SectionCard title={t('directPortal.request.sections.workDetails', { defaultValue: 'Work details' })} eyebrow={t('directPortal.request.eyebrows.quoteRequest', { defaultValue: 'Quote request' })}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Service type" required>
+              <Field label={t('directPortal.request.fields.serviceType')} required>
                 <Select value={form.service_category} onChange={update('service_category')}>
-                  <option>Home services</option>
-                  <option>Restaurant services</option>
-                  <option>Business setup</option>
-                  <option>Business support</option>
-                  <option>Maintenance or repair</option>
-                  <option>Other</option>
+                  <option>{t('directPortal.request.serviceCategories.homeServices')}</option>
+                  <option>{t('directPortal.request.serviceCategories.restaurantServices')}</option>
+                  <option>{t('directPortal.request.serviceCategories.businessSetup')}</option>
+                  <option>{t('directPortal.request.serviceCategories.businessSupport')}</option>
+                  <option>{t('directPortal.request.serviceCategories.maintenance')}</option>
+                  <option>{t('directPortal.request.serviceCategories.other')}</option>
                 </Select>
               </Field>
-              <Field label="Where is the work?" required hint="City, neighborhood, or full address.">
-                <Input value={form.service_location} onChange={update('service_location')} placeholder="Springfield, OH" />
+              <Field label={t('directPortal.request.fields.workLocation')} required hint={t('directPortal.request.hints.workLocation')}>
+                <Input value={form.service_location} onChange={update('service_location')} placeholder={t('directPortal.request.placeholders.workLocation')} />
               </Field>
-              <Field label="Service city"><Input value={form.service_city} onChange={update('service_city')} placeholder="Optional" /></Field>
-              <Field label="Budget range"><Input value={form.budget_range} onChange={update('budget_range')} placeholder="$100-$250 or flexible" /></Field>
-              <Field label="Preferred date"><Input type="date" value={form.preferred_date} onChange={update('preferred_date')} /></Field>
-              <Field label="Time window"><Input value={form.preferred_time_window} onChange={update('preferred_time_window')} placeholder="Morning, afternoon, after 5pm..." /></Field>
-              <Field label="Urgency">
+              <Field label={t('directPortal.request.fields.serviceCity')}><Input value={form.service_city} onChange={update('service_city')} placeholder={t('directPortal.request.placeholders.optional')} /></Field>
+              <Field label={t('directPortal.request.fields.budgetRange')}><Input value={form.budget_range} onChange={update('budget_range')} placeholder={t('directPortal.request.placeholders.budgetRange')} /></Field>
+              <Field label={t('directPortal.request.fields.preferredDate')}><Input type="date" value={form.preferred_date} onChange={update('preferred_date')} /></Field>
+              <Field label={t('directPortal.request.fields.timeWindow')}><Input value={form.preferred_time_window} onChange={update('preferred_time_window')} placeholder={t('directPortal.request.placeholders.timeWindow')} /></Field>
+              <Field label={t('directPortal.request.fields.urgency')}>
                 <Select value={form.urgency} onChange={update('urgency')}>
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="low">{t('directPortal.request.urgency.low')}</option>
+                  <option value="normal">{t('directPortal.request.urgency.normal')}</option>
+                  <option value="high">{t('directPortal.request.urgency.high')}</option>
+                  <option value="urgent">{t('directPortal.request.urgency.urgent')}</option>
                 </Select>
               </Field>
-              <Field label="Timeline notes"><Input value={form.timeline} onChange={update('timeline')} placeholder="This week, next month, etc." /></Field>
+              <Field label={t('directPortal.request.fields.timelineNotes')}><Input value={form.timeline} onChange={update('timeline')} placeholder={t('directPortal.request.placeholders.timelineNotes')} /></Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Access notes" hint="Gate code, parking, pets, stairs, or anything helpful."><Textarea rows={4} value={form.access_notes} onChange={update('access_notes')} /></Field>
-              <Field label="What should we know?" required hint="A short description is enough to start."><Textarea rows={4} value={form.details} onChange={update('details')} /></Field>
+              <Field label={t('directPortal.request.fields.accessNotes')} hint={t('directPortal.request.hints.accessNotes')}><Textarea rows={4} value={form.access_notes} onChange={update('access_notes')} /></Field>
+              <Field label={t('directPortal.request.fields.details')} required hint={t('directPortal.request.hints.details')}><Textarea rows={4} value={form.details} onChange={update('details')} /></Field>
             </div>
           </SectionCard>
         </div>
 
         <aside className="space-y-6">
-          <SectionCard title="Photos" eyebrow="Attachments">
+          <SectionCard title={t('directPortal.request.sections.photos', { defaultValue: 'Photos' })} eyebrow={t('directPortal.request.eyebrows.attachments', { defaultValue: 'Attachments' })}>
             <div className="space-y-4">
               <label className="block rounded-2xl border border-dashed border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
                 <div className="flex items-center gap-2 font-semibold text-white">
-                  <UploadCloud size={16} className="text-orange-300" /> Upload photos
+                  <UploadCloud size={16} className="text-orange-300" /> {t('directPortal.request.uploadPhotos', { defaultValue: 'Upload photos' })}
                 </div>
-                <div className="mt-2 text-xs leading-5 text-slate-500">Add up to 6 photos. We keep the uploads tied to this quote draft.</div>
+                <div className="mt-2 text-xs leading-5 text-slate-500">{t('directPortal.request.photoUploadHelp', { defaultValue: 'Add up to 6 photos. We keep the uploads tied to this quote draft.' })}</div>
                 <input type="file" accept="image/*" multiple onChange={handleUpload} className="mt-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-orange-600" />
               </label>
-              {uploading && <div className="text-sm text-slate-400">Uploading photos…</div>}
+              {uploading && <div className="text-sm text-slate-400">{t('directPortal.request.uploadingPhotos', { defaultValue: 'Uploading photos…' })}</div>}
               {attachments.length > 0 ? (
                 <div className="grid gap-2">
                   {attachments.map((attachment) => (
                     <div key={attachment.key || attachment.url} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-300">
                       <div className="min-w-0">
-                        <div className="truncate font-medium text-white">{attachment.name || 'Photo attachment'}</div>
-                        <div className="text-xs text-slate-500">{attachment.type || 'image'}</div>
+                        <div className="truncate font-medium text-white">{attachment.name || t('directPortal.request.photoAttachment', { defaultValue: 'Photo attachment' })}</div>
+                        <div className="text-xs text-slate-500">{attachment.type || t('directPortal.request.attachmentType', { defaultValue: 'image' })}</div>
                       </div>
                       <button type="button" onClick={() => removeAttachment(attachment.key)} className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
                         <X size={14} />
@@ -594,19 +595,19 @@ export function DirectQuoteRequestPage() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-500">No photos attached yet.</div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-500">{t('directPortal.request.noPhotos', { defaultValue: 'No photos attached yet.' })}</div>
               )}
             </div>
           </SectionCard>
 
-          <SectionCard title="Summary" eyebrow="Launch-ready">
+          <SectionCard title={t('directPortal.request.sections.summary', { defaultValue: 'Summary' })} eyebrow={t('directPortal.request.eyebrows.launchReady', { defaultValue: 'Launch-ready' })}>
             <div className="space-y-3 text-sm leading-6 text-slate-300">
-              <p>We’ll send the request to the Direct ops queue.</p>
-              <p>Once the quote is ready, you can accept it, schedule the visit, and follow the case history here.</p>
-              <p>Proof uploads, receipts, and support messages stay attached to the same record.</p>
+              <p>{t('directPortal.request.summary.queue', { defaultValue: 'We’ll send the request to the Direct ops queue.' })}</p>
+              <p>{t('directPortal.request.summary.workflow', { defaultValue: 'Once the quote is ready, you can accept it, schedule the visit, and follow the case history here.' })}</p>
+              <p>{t('directPortal.request.summary.history', { defaultValue: 'Proof uploads, receipts, and support messages stay attached to the same record.' })}</p>
             </div>
             <button type="submit" disabled={loading || !canSubmit} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60">
-              {loading ? 'Sending...' : 'Request a quote'}
+              {loading ? t('directPortal.request.actions.sending', { defaultValue: 'Sending...' }) : t('directPortal.request.actions.submit', { defaultValue: 'Request a quote' })}
             </button>
           </SectionCard>
         </aside>
@@ -616,6 +617,7 @@ export function DirectQuoteRequestPage() {
 }
 
 export function DirectQuoteThanksPage() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [params] = useSearchParams();
   const requestId = params.get('requestId') || '—';
@@ -631,28 +633,28 @@ export function DirectQuoteThanksPage() {
   return (
     <DirectShell
       profile={profile}
-      title="Request received"
-      subtitle="Thanks. Your Direct quote request is in the queue."
+      title={t('directPortal.thanks.title', { defaultValue: 'Request received' })}
+      subtitle={t('directPortal.thanks.subtitle', { defaultValue: 'Thanks. Your Direct quote request is in the queue.' })}
       heroRight={(
         <div className="space-y-3 text-sm leading-6 text-slate-300">
-          <p>We’ve got your request and we’ll review it soon.</p>
+          <p>{t('directPortal.thanks.body', { defaultValue: 'We’ve got your request and we’ll review it soon.' })}</p>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Reference</div>
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('directPortal.thanks.referenceLabel', { defaultValue: 'Reference' })}</div>
             <div className="mt-2 font-semibold text-white">{requestId}</div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link to="/direct/history" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">View history</Link>
-            <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">Open support</Link>
+            <Link to="/direct/history" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.viewHistory', { defaultValue: 'View history' })}</Link>
+            <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.openSupport', { defaultValue: 'Open support' })}</Link>
           </div>
         </div>
       )}
     >
-      <SectionCard title="What happens next" eyebrow="Direct workflow">
+      <SectionCard title={t('directPortal.thanks.nextTitle', { defaultValue: 'What happens next' })} eyebrow={t('directPortal.thanks.workflow', { defaultValue: 'Direct workflow' })}>
         <div className="grid gap-3 md:grid-cols-3">
           {[
-            ['1. Review', 'We review the quote request and decide the next step.'],
-            ['2. Schedule', 'You can accept the quote and lock in a schedule window.'],
-            ['3. Proof & receipt', 'Upload proof or confirm receipt so history stays attached.'],
+            [t('directPortal.thanks.steps.review.title', { defaultValue: '1. Review' }), t('directPortal.thanks.steps.review.body', { defaultValue: 'We review the quote request and decide the next step.' })],
+            [t('directPortal.thanks.steps.schedule.title', { defaultValue: '2. Schedule' }), t('directPortal.thanks.steps.schedule.body', { defaultValue: 'You can accept the quote and lock in a schedule window.' })],
+            [t('directPortal.thanks.steps.proof.title', { defaultValue: '3. Proof & receipt' }), t('directPortal.thanks.steps.proof.body', { defaultValue: 'Upload proof or confirm receipt so history stays attached.' })],
           ].map(([title, body]) => (
             <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="font-semibold text-white">{title}</div>

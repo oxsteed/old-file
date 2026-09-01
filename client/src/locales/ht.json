@@ -14075,5 +14075,127 @@
     "whenSomethingIsWrong": "Lè yon bagay pa sanble nòmal",
     "needHelp": "Bezwen èd?",
     "contactSupport": "Kontakte sipò"
+  },
+  "directPortal": {
+    "request": {
+      "title": "Mande yon quote Direct",
+      "subtitle": "Fè li senp. Di nou sa ou bezwen, kote travay la ye, epi kilè ou vle li fèt.",
+      "whatToInclude": "Sa pou mete",
+      "include": {
+        "contact": "Enfòmasyon kontak ak mwayen kontak ou prefere a",
+        "work": "Kalite sèvis, vil, ak nòt sou aksè",
+        "timeline": "Bidjè, dat ou prefere a, ak ijans"
+      },
+      "photoHint": "Ou ka atache foto avan ou voye a.",
+      "sections": {
+        "yourDetails": "Detay ou yo",
+        "workDetails": "Detay travay la",
+        "photos": "Foto",
+        "summary": "Rezime"
+      },
+      "eyebrows": {
+        "customer": "Kliyan",
+        "quoteRequest": "Demann quote",
+        "attachments": "Fichye atache",
+        "launchReady": "Pare pou lanse"
+      },
+      "fields": {
+        "firstName": "Prenon",
+        "lastName": "Siyati",
+        "email": "Imèl",
+        "phone": "Telefòn",
+        "companyName": "Non biznis oswa konpayi an",
+        "contactMethod": "Mwayen kontak ou prefere a",
+        "serviceType": "Kalite sèvis",
+        "workLocation": "Ki kote travay la ye?",
+        "serviceCity": "Vil sèvis la",
+        "budgetRange": "Bidjè",
+        "preferredDate": "Dat ou prefere a",
+        "timeWindow": "Fenèt tan",
+        "urgency": "Ijans",
+        "timelineNotes": "Nòt sou delè",
+        "accessNotes": "Nòt sou aksè",
+        "details": "Kisa nou ta dwe konnen?"
+      },
+      "hints": {
+        "workLocation": "Vil, katye, oswa adrès konplè.",
+        "accessNotes": "Kòd pòtay, pakin, bèt, mach eskalye, oswa nenpòt detay ki ka ede.",
+        "details": "Yon ti deskripsyon sifi pou kòmanse."
+      },
+      "placeholders": {
+        "optional": "Opsyonèl",
+        "workLocation": "Springfield, OH",
+        "budgetRange": "$100-$250 oswa fleksib",
+        "timeWindow": "Maten, apremidi, apre 5pm...",
+        "timelineNotes": "Semèn sa a, pwochen mwa a, elatriye."
+      },
+      "contactMethods": {
+        "email": "Imèl",
+        "phone": "Apèl telefòn",
+        "text": "Mesaj tèks",
+        "either": "Nenpòt la bon"
+      },
+      "serviceCategories": {
+        "homeServices": "Sèvis lakay",
+        "restaurantServices": "Sèvis restoran",
+        "businessSetup": "Enstalasyon biznis",
+        "businessSupport": "Sipò biznis",
+        "maintenance": "Antretyen oswa reparasyon",
+        "other": "Lòt"
+      },
+      "urgency": {
+        "low": "Ba",
+        "normal": "Nòmal",
+        "high": "Wo",
+        "urgent": "Ijan"
+      },
+      "uploadPhotos": "Telechaje foto",
+      "photoUploadHelp": "Ajoute jiska 6 foto. Nou kenbe fichye yo tache ak bouyon quote sa a.",
+      "uploadingPhotos": "Ap telechaje foto yo…",
+      "photoAttachment": "Foto tache",
+      "attachmentType": "imaj",
+      "noPhotos": "Pa gen foto tache ankò.",
+      "summary": {
+        "queue": "Nou pral voye demann lan nan ke ops Direct la.",
+        "workflow": "Lè quote a pare, ou ka aksepte li, pran yon randevou, epi swiv istwa ka a isit la.",
+        "history": "Prèv yo, resi yo, ak mesaj sipò yo rete tache ak menm dosye a."
+      },
+      "actions": {
+        "sending": "Ap voye…",
+        "submit": "Mande yon quote"
+      },
+      "messages": {
+        "photoUploaded": "Foto tache a telechaje."
+      },
+      "errors": {
+        "uploadPhoto": "Pa t ka telechaje foto a.",
+        "requiredFields": "Tanpri ranpli chan obligatwa yo.",
+        "submit": "Pa t ka voye demann ou an."
+      }
+    },
+    "thanks": {
+      "title": "Demann lan resevwa",
+      "subtitle": "Mèsi. Demann quote Direct ou a nan ke a.",
+      "body": "Nou resevwa demann ou an epi nou pral revize l byento.",
+      "referenceLabel": "Referans",
+      "viewHistory": "Gade istwa a",
+      "openSupport": "Louvri sipò",
+      "nextTitle": "Sa k ap pase apre",
+      "workflow": "Flou travay Direct la",
+      "steps": {
+        "review": {
+          "title": "1. Revizyon",
+          "body": "Nou revize demann quote a epi deside pwochen etap la."
+        },
+        "schedule": {
+          "title": "2. Pwograme",
+          "body": "Ou ka aksepte quote a epi fikse yon fenèt pou randevou."
+        },
+        "proof": {
+          "title": "3. Prèv ak resi",
+          "body": "Telechaje prèv oswa konfime resi a pou istwa a rete atache."
+        }
+      }
+    }
   }
 }
