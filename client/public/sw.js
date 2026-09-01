@@ -1,7 +1,8 @@
 /* OxSteed Service Worker */
 
 // Bump on every change so old clients fetch the new SW.
-const CACHE_VERSION = 'v3-webpush';
+// Bump this whenever we need browsers to drop stale cached bundles.
+const CACHE_VERSION = 'v4-homepage-i18n';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
 const API_CACHE     = `oxsteed-api-${CACHE_VERSION}`;
 
