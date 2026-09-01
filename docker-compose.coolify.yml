@@ -65,6 +65,7 @@ services:
       S3_FORCE_PATH_STYLE: "false"
       CLIENT_URL: https://oxsteed.com
       APP_URL: https://oxsteed.com
+      RESEND_FROM: "OxSteed <no-reply@oxsteed.com>"
       VITE_GA_MEASUREMENT_ID: ""
       VITE_META_PIXEL_ID: ""
     expose:
