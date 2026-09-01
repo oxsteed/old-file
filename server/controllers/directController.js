@@ -4,6 +4,13 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const {
+  generateLookupCode,
+  hashLookupCode,
+  maskEmail,
+  normalizeZipCode,
+} = require('../utils/directQuote');
+const crypto = require('crypto');
 
 const DEFAULT_PROFILE = {
   id: '1',
@@ -82,6 +89,14 @@ function normalizeDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
 }
 
+function generateChallengeToken() {
+  return crypto.randomBytes(24).toString('hex');
+}
+
+function generatePublicReference() {
+  return `DQ-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+}
+
 function isAdmin(user) {
   return user?.role === 'admin' || user?.role === 'super_admin';
 }
@@ -89,6 +104,57 @@ function isAdmin(user) {
 function actorRoleFromUser(user) {
   if (isAdmin(user)) return user.role;
   return 'customer';
+}
+
+function publicReferenceFromRow(row) {
+  return row?.public_reference || row?.metadata?.publicReference || row?.metadata?.public_reference || null;
+}
+
+function safePublicRequest(row, { verified = false, emailMasked = null } = {}) {
+  if (!row) return null;
+  const metadata = normalizeObject(row.metadata);
+  const publicReference = publicReferenceFromRow(row) || `DQ-${String(row.id).padStart(8, '0')}`;
+  const payload = {
+    id: String(row.id),
+    referenceId: publicReference,
+    status: row.status || 'new',
+    statusLabel: caseStatusLabel(row.status),
+    serviceCategory: row.service_category || '',
+    serviceLocation: row.service_location || '',
+    serviceZipCode: row.service_zip_code || metadata.serviceZipCode || metadata.service_zip_code || '',
+    serviceCity: row.service_city || '',
+    quoteAmountCents: row.quote_amount_cents === null || row.quote_amount_cents === undefined ? null : Number(row.quote_amount_cents),
+    quoteCurrencyCode: row.quote_currency_code || 'USD',
+    preferredDate: row.preferred_date || metadata.preferredDate || metadata.preferred_date || null,
+    preferredTimeWindow: row.preferred_time_window || metadata.preferredTimeWindow || metadata.preferred_time_window || null,
+    scheduledStartAt: row.scheduled_start_at || metadata.scheduledStartAt || metadata.scheduled_start_at || null,
+    scheduledEndAt: row.scheduled_end_at || metadata.scheduledEndAt || metadata.scheduled_end_at || null,
+    paymentStatus: row.payment_status || 'unpaid',
+    proofReceivedAt: row.proof_received_at || metadata.proofReceivedAt || metadata.proof_received_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    emailMasked,
+    verificationRequired: !verified,
+    verified,
+  };
+
+  if (verified) {
+    payload.firstName = row.first_name || '';
+    payload.lastName = row.last_name || '';
+    payload.email = row.email || '';
+    payload.phone = row.phone || '';
+    payload.companyName = row.company_name || '';
+    payload.details = row.details || '';
+    payload.budgetRange = row.budget_range || '';
+    payload.timeline = row.timeline || '';
+    payload.preferredContactMethod = row.preferred_contact_method || 'email';
+    payload.serviceAddress = row.service_address || metadata.serviceAddress || metadata.service_address || null;
+    payload.accessNotes = row.access_notes || metadata.accessNotes || metadata.access_notes || null;
+    payload.onSiteContactName = row.on_site_contact_name || metadata.onSiteContactName || metadata.on_site_contact_name || null;
+    payload.onSiteContactPhone = row.on_site_contact_phone || metadata.onSiteContactPhone || metadata.on_site_contact_phone || null;
+  }
+
+  return payload;
 }
 
 function attachmentFromJson(value) {
@@ -174,10 +240,12 @@ function caseStatusLabel(status) {
 async function presentRequest(row, { includeMessages = false, includeEvents = false } = {}) {
   if (!row) return null;
   const metadata = normalizeObject(row.metadata);
+  const publicReference = publicReferenceFromRow(row);
   const proofAttachment = await signAttachment(attachmentFromJson(row.proof_attachment || metadata.proofAttachment || metadata.proof_attachment));
   const photoAttachments = await signAttachmentList(metadata.photoAttachments || metadata.photo_attachments || []);
   const result = {
     id: String(row.id),
+    publicReference,
     userId: row.user_id ? String(row.user_id) : null,
     firstName: row.first_name || '',
     lastName: row.last_name || '',
@@ -186,6 +254,7 @@ async function presentRequest(row, { includeMessages = false, includeEvents = fa
     companyName: row.company_name || '',
     serviceCategory: row.service_category || '',
     serviceLocation: row.service_location || '',
+    serviceZipCode: row.service_zip_code || metadata.serviceZipCode || metadata.service_zip_code || '',
     budgetRange: row.budget_range || '',
     timeline: row.timeline || '',
     preferredContactMethod: row.preferred_contact_method || 'email',
@@ -273,6 +342,98 @@ async function appendEvent({ quoteRequestId, actorUserId = null, actorRole = 'sy
 async function loadRequestOr404(id) {
   const result = await db.query('SELECT * FROM quote_requests WHERE id = $1', [id]);
   return result.rows[0] || null;
+}
+
+async function loadRequestByPublicReference(referenceId) {
+  const ref = cleanText(referenceId || '', 40).toUpperCase();
+  if (!ref) return null;
+  const result = await db.query(
+    `SELECT *
+       FROM quote_requests
+      WHERE public_reference = $1
+      LIMIT 1`,
+    [ref]
+  );
+  return result.rows[0] || null;
+}
+
+async function loadLookupChallengeByToken(challengeToken) {
+  const token = cleanText(challengeToken || '', 120);
+  if (!token) return null;
+  const { rows } = await db.query(
+    `SELECT *
+       FROM direct_quote_lookup_challenges
+      WHERE challenge_token = $1
+      LIMIT 1`,
+    [token]
+  );
+  return rows[0] || null;
+}
+
+async function createLookupChallenge(request, zipCode) {
+  const challengeToken = generateChallengeToken();
+  const code = generateLookupCode();
+  const codeHash = hashLookupCode(challengeToken, code);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  await db.query(
+    `UPDATE direct_quote_lookup_challenges
+        SET code_expires_at = NOW() - INTERVAL '1 second',
+            updated_at = NOW()
+      WHERE quote_request_id = $1
+        AND verified_at IS NULL
+        AND code_expires_at > NOW()`,
+    [request.id]
+  ).catch(() => {});
+
+  const result = await db.query(
+    `INSERT INTO direct_quote_lookup_challenges
+       (quote_request_id, challenge_token, code_hash, zip_code, email_address, code_expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      request.id,
+      challengeToken,
+      codeHash,
+      zipCode,
+      request.email,
+      expiresAt,
+    ]
+  );
+
+  return {
+    challenge: result.rows[0] || null,
+    code,
+  };
+}
+
+async function sendPublicLookupCodeEmail(request, challenge, code) {
+  await sendEmail({
+    to: request.email,
+    subject: `Your OxSteed Direct quote code for ${request.public_reference || request.id}`,
+    html: `
+      <h2>Your OxSteed Direct verification code</h2>
+      <p>Use this code to open your quote details.</p>
+      <p><strong>Reference:</strong> ${request.public_reference || request.id}</p>
+      <p><strong>ZIP code:</strong> ${request.service_zip_code || '-'}</p>
+      <p><strong>Verification code:</strong> <code>${code}</code></p>
+      <p>This code expires at ${challenge.code_expires_at}.</p>
+      <p>If you did not request this code, you can ignore this message.</p>
+    `,
+  });
+}
+
+function assertPublicQuoteAccess(request, zipCode) {
+  const requestZip = normalizeZipCode(request?.service_zip_code || '');
+  const lookupZip = normalizeZipCode(zipCode || '');
+  if (!requestZip || !lookupZip || requestZip !== lookupZip) {
+    return false;
+  }
+  return true;
+}
+
+function publicQuotePayload(request, { verified = false, emailMasked = null } = {}) {
+  return safePublicRequest(request, { verified, emailMasked });
 }
 
 function canAccessRequest(request, user) {
@@ -552,6 +713,142 @@ exports.deleteLocation = async (req, res) => {
   }
 };
 
+exports.lookupPublicQuote = async (req, res) => {
+  try {
+    const referenceId = cleanText(req.body.referenceId || req.body.reference_id || req.query.referenceId || req.query.reference_id, 40).toUpperCase();
+    const zipCode = normalizeZipCode(req.body.zipCode || req.body.zip_code || req.query.zipCode || req.query.zip_code);
+    if (!referenceId || !zipCode) {
+      return res.status(400).json({ error: 'Reference ID and ZIP code are required' });
+    }
+
+    const request = await loadRequestByPublicReference(referenceId);
+    if (!request) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    if (!assertPublicQuoteAccess(request, zipCode)) {
+      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+    }
+
+    return res.json({
+      quote: publicQuotePayload(request, {
+        verified: false,
+        emailMasked: maskEmail(request.email),
+      }),
+    });
+  } catch (err) {
+    logger.error('lookupPublicQuote error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to look up quote' });
+  }
+};
+
+exports.sendPublicLookupCode = async (req, res) => {
+  try {
+    const referenceId = cleanText(req.body.referenceId || req.body.reference_id || req.query.referenceId || req.query.reference_id, 40).toUpperCase();
+    const zipCode = normalizeZipCode(req.body.zipCode || req.body.zip_code || req.query.zipCode || req.query.zip_code);
+    if (!referenceId || !zipCode) {
+      return res.status(400).json({ error: 'Reference ID and ZIP code are required' });
+    }
+
+    const request = await loadRequestByPublicReference(referenceId);
+    if (!request) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    if (!assertPublicQuoteAccess(request, zipCode)) {
+      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+    }
+
+    const { challenge, code } = await createLookupChallenge(request, zipCode);
+    if (!challenge) {
+      return res.status(500).json({ error: 'Failed to create verification code' });
+    }
+
+    await sendPublicLookupCodeEmail(request, challenge, code);
+
+    return res.json({
+      success: true,
+      challengeToken: challenge.challenge_token,
+      maskedEmail: maskEmail(request.email),
+      expiresAt: challenge.code_expires_at,
+    });
+  } catch (err) {
+    logger.error('sendPublicLookupCode error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to send verification code' });
+  }
+};
+
+exports.verifyPublicLookupCode = async (req, res) => {
+  try {
+    const referenceId = cleanText(req.body.referenceId || req.body.reference_id || req.query.referenceId || req.query.reference_id, 40).toUpperCase();
+    const zipCode = normalizeZipCode(req.body.zipCode || req.body.zip_code || req.query.zipCode || req.query.zip_code);
+    const challengeToken = cleanText(req.body.challengeToken || req.body.challenge_token || req.query.challengeToken || req.query.challenge_token, 120);
+    const code = cleanText(req.body.code || req.body.verificationCode || req.body.verification_code || req.query.code, 20);
+
+    if (!referenceId || !zipCode || !challengeToken || !code) {
+      return res.status(400).json({ error: 'Reference ID, ZIP code, verification code, and challenge token are required' });
+    }
+
+    const request = await loadRequestByPublicReference(referenceId);
+    if (!request) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    if (!assertPublicQuoteAccess(request, zipCode)) {
+      return res.status(403).json({ error: 'ZIP code did not match this quote' });
+    }
+
+    const challenge = await loadLookupChallengeByToken(challengeToken);
+    if (!challenge || String(challenge.quote_request_id) !== String(request.id)) {
+      return res.status(404).json({ error: 'Verification code expired or was not found' });
+    }
+
+    if (challenge.verified_at) {
+      return res.status(400).json({ error: 'Verification code has already been used' });
+    }
+
+    if (new Date(challenge.code_expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Verification code expired' });
+    }
+
+    if ((challenge.attempts || 0) >= 5) {
+      return res.status(429).json({ error: 'Too many verification attempts' });
+    }
+
+    const codeHash = hashLookupCode(challenge.challenge_token, code);
+    if (codeHash !== challenge.code_hash) {
+      await db.query(
+        `UPDATE direct_quote_lookup_challenges
+            SET attempts = attempts + 1,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [challenge.id]
+      );
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    await db.query(
+      `UPDATE direct_quote_lookup_challenges
+          SET verified_at = NOW(),
+              attempts = attempts + 1,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [challenge.id]
+    );
+
+    const verifiedRequest = await loadRequestOr404(request.id);
+    return res.json({
+      quote: publicQuotePayload(verifiedRequest, {
+        verified: true,
+        emailMasked: maskEmail(verifiedRequest.email),
+      }),
+    });
+  } catch (err) {
+    logger.error('verifyPublicLookupCode error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to verify code' });
+  }
+};
+
 exports.getRequestDetail = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
@@ -672,6 +969,7 @@ async function updateRequestRecord(requestId, updates, event, actor) {
   if (updates.preferredTimeWindow !== undefined) setClauses.push(`preferred_time_window = ${add(updates.preferredTimeWindow)}`);
   if (updates.serviceAddress !== undefined) setClauses.push(`service_address = ${add(updates.serviceAddress)}`);
   if (updates.serviceCity !== undefined) setClauses.push(`service_city = ${add(updates.serviceCity)}`);
+  if (updates.serviceZipCode !== undefined) setClauses.push(`service_zip_code = ${add(updates.serviceZipCode)}`);
   if (updates.onSiteContactName !== undefined) setClauses.push(`on_site_contact_name = ${add(updates.onSiteContactName)}`);
   if (updates.onSiteContactPhone !== undefined) setClauses.push(`on_site_contact_phone = ${add(updates.onSiteContactPhone)}`);
   if (updates.accessNotes !== undefined) setClauses.push(`access_notes = ${add(updates.accessNotes)}`);

@@ -23,6 +23,21 @@ export async function submitDirectRequest(payload) {
   return response.data;
 }
 
+export async function lookupPublicDirectQuote(payload) {
+  const response = await api.post('/direct/public/lookup', payload);
+  return response.data;
+}
+
+export async function sendPublicDirectQuoteCode(payload) {
+  const response = await api.post('/direct/public/lookup/send-code', payload);
+  return response.data;
+}
+
+export async function verifyPublicDirectQuoteCode(payload) {
+  const response = await api.post('/direct/public/lookup/verify-code', payload);
+  return response.data;
+}
+
 export async function getDirectHistory() {
   const response = await api.get('/direct/history');
   return response.data;

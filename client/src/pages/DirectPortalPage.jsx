@@ -16,11 +16,14 @@ import {
   getDirectProfile,
   getDirectRequest,
   getDirectRequestMessages,
+  lookupPublicDirectQuote,
+  sendPublicDirectQuoteCode,
   saveDirectLocation,
   scheduleDirectRequest,
   sendDirectMessage,
   submitDirectProof,
   submitDirectRequest,
+  verifyPublicDirectQuoteCode,
   uploadDirectAsset,
 } from '../api/direct';
 
@@ -54,6 +57,7 @@ const EMPTY_FORM = {
   company_name: '',
   service_category: 'Home services',
   service_location: '',
+  service_zip_code: '',
   budget_range: '',
   timeline: '',
   preferred_contact_method: 'email',
@@ -298,6 +302,9 @@ export function DirectLandingPage() {
             <Link to="/direct/request-quote" className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
               {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
             </Link>
+            <Link to="/direct/view-quote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
+            </Link>
             <Link to="/direct/history" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
               {t('homePage.company.viewHistory', { defaultValue: 'View history' })}
             </Link>
@@ -365,6 +372,9 @@ export function DirectLandingPage() {
             <Link to="/direct/request-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
               {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })} <ChevronRight size={16} />
             </Link>
+            <Link to="/direct/view-quote" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
+            </Link>
           </div>
         </SectionCard>
       </div>
@@ -413,6 +423,7 @@ export function DirectQuoteRequestPage() {
     form.email.trim() &&
     form.service_category.trim() &&
     form.service_location.trim() &&
+    form.service_zip_code.trim() &&
     form.details.trim()
   ), [form]);
 
@@ -461,6 +472,7 @@ export function DirectQuoteRequestPage() {
         company_name: form.company_name,
         service_category: form.service_category,
         service_location: form.service_location,
+        service_zip_code: form.service_zip_code,
         budget_range: form.budget_range,
         timeline: form.timeline,
         preferred_contact_method: form.preferred_contact_method,
@@ -470,6 +482,7 @@ export function DirectQuoteRequestPage() {
           draftId,
           serviceType: form.service_category,
           serviceCity: form.service_city,
+          serviceZipCode: form.service_zip_code,
           preferredDate: form.preferred_date,
           preferredTimeWindow: form.preferred_time_window,
           urgency: form.urgency,
@@ -480,9 +493,9 @@ export function DirectQuoteRequestPage() {
 
       const response = await submitDirectRequest(payload);
       toast.success(t('directPortal.request.messages.sent', { defaultValue: 'Quote request sent.' }));
-      navigate(`/direct/request-quote/thanks?requestId=${response.requestId}`, {
+      navigate(`/direct/request-quote/thanks?referenceId=${response.referenceId || response.requestId}`, {
         replace: true,
-        state: { requestId: response.requestId },
+        state: { referenceId: response.referenceId || response.requestId },
       });
     } catch (error) {
       toast.error(error?.response?.data?.error || t('directPortal.request.errors.submit', { defaultValue: 'Could not submit your request.' }));
@@ -547,6 +560,9 @@ export function DirectQuoteRequestPage() {
               </Field>
               <Field label={t('directPortal.request.fields.workLocation')} required hint={t('directPortal.request.hints.workLocation')}>
                 <Input value={form.service_location} onChange={update('service_location')} placeholder={t('directPortal.request.placeholders.workLocation')} />
+              </Field>
+              <Field label={t('directPortal.request.fields.serviceZipCode')} required hint={t('directPortal.request.hints.serviceZipCode', { defaultValue: 'Used to match your quote later.' })}>
+                <Input inputMode="numeric" value={form.service_zip_code} onChange={update('service_zip_code')} placeholder={t('directPortal.request.placeholders.serviceZipCode')} maxLength={5} />
               </Field>
               <Field label={t('directPortal.request.fields.serviceCity')}><Input value={form.service_city} onChange={update('service_city')} placeholder={t('directPortal.request.placeholders.optional')} /></Field>
               <Field label={t('directPortal.request.fields.budgetRange')}><Input value={form.budget_range} onChange={update('budget_range')} placeholder={t('directPortal.request.placeholders.budgetRange')} /></Field>
@@ -620,7 +636,7 @@ export function DirectQuoteThanksPage() {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [params] = useSearchParams();
-  const requestId = params.get('requestId') || '—';
+  const referenceId = params.get('referenceId') || params.get('requestId') || '—';
 
   useEffect(() => {
     let active = true;
@@ -640,10 +656,11 @@ export function DirectQuoteThanksPage() {
           <p>{t('directPortal.thanks.body', { defaultValue: 'We’ve got your request and we’ll review it soon.' })}</p>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('directPortal.thanks.referenceLabel', { defaultValue: 'Reference' })}</div>
-            <div className="mt-2 font-semibold text-white">{requestId}</div>
+            <div className="mt-2 font-semibold text-white">{referenceId}</div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link to="/direct/history" className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.viewHistory', { defaultValue: 'View history' })}</Link>
+            <Link to={`/direct/view-quote?referenceId=${encodeURIComponent(referenceId)}`} className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
             <Link to="/direct/support" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">{t('directPortal.thanks.openSupport', { defaultValue: 'Open support' })}</Link>
           </div>
         </div>
@@ -663,6 +680,278 @@ export function DirectQuoteThanksPage() {
           ))}
         </div>
       </SectionCard>
+    </DirectShell>
+  );
+}
+
+export function DirectPublicQuoteLookupPage() {
+  const { t } = useTranslation();
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [params] = useSearchParams();
+  const [referenceId, setReferenceId] = useState(params.get('referenceId') || '');
+  const [zipCode, setZipCode] = useState(params.get('zipCode') || '');
+  const [lookup, setLookup] = useState(null);
+  const [verifiedQuote, setVerifiedQuote] = useState(null);
+  const [challengeToken, setChallengeToken] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    loadProfile().then((next) => {
+      if (active) setProfile(next);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (params.get('referenceId')) {
+      setReferenceId(params.get('referenceId') || '');
+    }
+    if (params.get('zipCode')) {
+      setZipCode(params.get('zipCode') || '');
+    }
+  }, [params]);
+
+  const clearVerification = () => {
+    setLookup(null);
+    setVerifiedQuote(null);
+    setChallengeToken('');
+    setVerificationCode('');
+    setMaskedEmail('');
+    setExpiresAt('');
+  };
+
+  const handleLookup = async (event) => {
+    event.preventDefault();
+    const ref = referenceId.trim().toUpperCase();
+    const zip = zipCode.trim();
+    if (!ref || zip.replace(/\D/g, '').length !== 5) {
+      toast.error(t('directPortal.lookup.errors.missing', { defaultValue: 'Enter a reference ID and a 5-digit ZIP code.' }));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await lookupPublicDirectQuote({ referenceId: ref, zipCode: zip });
+      const nextQuote = data?.quote || null;
+      setLookup(nextQuote);
+      setVerifiedQuote(null);
+      setChallengeToken('');
+      setVerificationCode('');
+      setMaskedEmail(nextQuote?.emailMasked || '');
+      setExpiresAt('');
+      toast.success(t('directPortal.lookup.messages.found', { defaultValue: 'Quote found.' }));
+    } catch (error) {
+      clearVerification();
+      toast.error(error?.response?.data?.error || t('directPortal.lookup.errors.lookup', { defaultValue: 'Could not find that quote.' }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    const ref = referenceId.trim().toUpperCase();
+    const zip = zipCode.trim();
+    if (!ref || zip.replace(/\D/g, '').length !== 5) return;
+
+    setSending(true);
+    try {
+      const data = await sendPublicDirectQuoteCode({ referenceId: ref, zipCode: zip });
+      setChallengeToken(data?.challengeToken || '');
+      setMaskedEmail(data?.maskedEmail || lookup?.emailMasked || '');
+      setExpiresAt(data?.expiresAt || '');
+      toast.success(t('directPortal.lookup.messages.codeSent', { defaultValue: 'Verification code sent.' }));
+    } catch (error) {
+      toast.error(error?.response?.data?.error || t('directPortal.lookup.errors.sendCode', { defaultValue: 'Could not send the verification code.' }));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    const ref = referenceId.trim().toUpperCase();
+    const zip = zipCode.trim();
+    const code = verificationCode.trim();
+    if (!challengeToken || !code) {
+      toast.error(t('directPortal.lookup.errors.missingCode', { defaultValue: 'Enter the code from your email.' }));
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const data = await verifyPublicDirectQuoteCode({
+        referenceId: ref,
+        zipCode: zip,
+        challengeToken,
+        code,
+      });
+      setVerifiedQuote(data?.quote || null);
+      toast.success(t('directPortal.lookup.messages.verified', { defaultValue: 'Code verified.' }));
+    } catch (error) {
+      toast.error(error?.response?.data?.error || t('directPortal.lookup.errors.verify', { defaultValue: 'Could not verify the code.' }));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <DirectShell
+      profile={profile}
+      title={t('directPortal.lookup.title', { defaultValue: 'View your quote' })}
+      subtitle={t('directPortal.lookup.subtitle', { defaultValue: 'Look up your OxSteed Direct quote with your reference ID and ZIP code, then verify by email for full details.' })}
+      heroRight={(
+        <div className="space-y-4 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('directPortal.lookup.stepsTitle', { defaultValue: 'How it works' })}</div>
+            <ol className="mt-3 space-y-2">
+              <li>{t('directPortal.lookup.steps.one', { defaultValue: '1. Enter your reference ID and ZIP code.' })}</li>
+              <li>{t('directPortal.lookup.steps.two', { defaultValue: '2. Ask us to send a verification code to your email.' })}</li>
+              <li>{t('directPortal.lookup.steps.three', { defaultValue: '3. Enter the code to unlock the quote details.' })}</li>
+            </ol>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('directPortal.lookup.securityTitle', { defaultValue: 'Security' })}</div>
+            <p className="mt-2">{t('directPortal.lookup.securityBody', { defaultValue: 'We use a long public reference, ZIP match, and email verification so your quote stays private.' })}</p>
+          </div>
+        </div>
+      )}
+    >
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionCard title={t('directPortal.lookup.formTitle', { defaultValue: 'Find your quote' })} eyebrow={t('directPortal.lookup.formEyebrow', { defaultValue: 'Public lookup' })}>
+          <form onSubmit={handleLookup} className="space-y-4">
+            <Field label={t('directPortal.lookup.fields.referenceId', { defaultValue: 'Reference ID' })} required>
+              <Input
+                value={referenceId}
+                onChange={(event) => setReferenceId(event.target.value.toUpperCase())}
+                placeholder={t('directPortal.lookup.placeholders.referenceId', { defaultValue: 'DQ-XXXXXXXXXXXX' })}
+                autoComplete="off"
+                spellCheck="false"
+              />
+            </Field>
+            <Field label={t('directPortal.lookup.fields.zipCode', { defaultValue: 'ZIP code' })} required>
+              <Input
+                inputMode="numeric"
+                value={zipCode}
+                onChange={(event) => setZipCode(event.target.value.replace(/\D/g, '').slice(0, 5))}
+                placeholder={t('directPortal.lookup.placeholders.zipCode', { defaultValue: '45501' })}
+                maxLength={5}
+              />
+            </Field>
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" disabled={loading} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                {loading ? t('directPortal.lookup.actions.searching', { defaultValue: 'Looking up…' }) : t('directPortal.lookup.actions.find', { defaultValue: 'Find quote' })}
+              </button>
+              <Link to="/direct/request-quote" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
+                {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}
+              </Link>
+            </div>
+          </form>
+
+          {lookup && (
+            <div className="mt-6 rounded-[24px] border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Chip tone="orange">{statusLabel(lookup.status)}</Chip>
+                <Chip tone="blue">{lookup.paymentStatus || 'unpaid'}</Chip>
+                {lookup.quoteAmountCents !== null && lookup.quoteAmountCents !== undefined && (
+                  <Chip tone="emerald">{currencyLabel(lookup.quoteAmountCents, lookup.quoteCurrencyCode)}</Chip>
+                )}
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <InfoRow label={t('directPortal.lookup.labels.service', { defaultValue: 'Service' })} value={lookup.serviceCategory || '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.location', { defaultValue: 'Location' })} value={lookup.serviceLocation || '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.zipCode', { defaultValue: 'ZIP code' })} value={lookup.serviceZipCode || zipCode || '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.estimate', { defaultValue: 'Estimate' })} value={lookup.quoteAmountCents !== null && lookup.quoteAmountCents !== undefined ? currencyLabel(lookup.quoteAmountCents, lookup.quoteCurrencyCode) : '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.preferredDate', { defaultValue: 'Preferred date' })} value={formatDate(lookup.preferredDate)} />
+                <InfoRow label={t('directPortal.lookup.labels.window', { defaultValue: 'Time window' })} value={lookup.preferredTimeWindow || '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.scheduled', { defaultValue: 'Scheduled' })} value={lookup.scheduledStartAt ? `${formatDateTime(lookup.scheduledStartAt)}${lookup.scheduledEndAt ? ` → ${formatDateTime(lookup.scheduledEndAt)}` : ''}` : '—'} />
+                <InfoRow label={t('directPortal.lookup.labels.payment', { defaultValue: 'Payment' })} value={lookup.paymentStatus || 'unpaid'} />
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title={t('directPortal.lookup.detailTitle', { defaultValue: 'Unlock full quote details' })} eyebrow={t('directPortal.lookup.detailEyebrow', { defaultValue: 'Email verification' })}>
+          {!lookup ? (
+            <EmptyState
+              icon={ShieldCheck}
+              title={t('directPortal.lookup.emptyTitle', { defaultValue: 'Search for your quote first' })}
+              body={t('directPortal.lookup.emptyBody', { defaultValue: 'Enter your reference ID and ZIP code to get started.' })}
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-sm leading-6 text-slate-300">
+                <p>{t('directPortal.lookup.emailHelp', { defaultValue: 'We will send a verification code to the email on file before showing the full quote record.' })}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{t('directPortal.lookup.emailLabel', { defaultValue: 'Email on file' })}: <span className="text-white normal-case tracking-normal">{maskedEmail || lookup.emailMasked || t('directPortal.lookup.emailHidden', { defaultValue: 'hidden' })}</span></p>
+                {expiresAt && (
+                  <p className="mt-2 text-xs text-slate-500">{t('directPortal.lookup.expiresAt', { defaultValue: 'Code expires' })}: <span className="text-white">{formatDateTime(expiresAt)}</span></p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={handleSendCode} disabled={sending} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  {sending ? t('directPortal.lookup.actions.sendingCode', { defaultValue: 'Sending code…' }) : t('directPortal.lookup.actions.sendCode', { defaultValue: 'Send verification code' })}
+                </button>
+                <Link to="/direct/request-quote" className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white">
+                  {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}
+                </Link>
+              </div>
+
+              <Field label={t('directPortal.lookup.fields.code', { defaultValue: 'Verification code' })}>
+                <Input
+                  inputMode="numeric"
+                  value={verificationCode}
+                  onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('directPortal.lookup.placeholders.code', { defaultValue: '6-digit code' })}
+                  maxLength={6}
+                />
+              </Field>
+
+              <button type="button" onClick={handleVerifyCode} disabled={verifying || !challengeToken} className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-60">
+                {verifying ? t('directPortal.lookup.actions.verifying', { defaultValue: 'Verifying…' }) : t('directPortal.lookup.actions.unlock', { defaultValue: 'Unlock details' })}
+              </button>
+
+              {verifiedQuote ? (
+                <div className="space-y-4 rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Chip tone="emerald">{t('directPortal.lookup.verifiedLabel', { defaultValue: 'Verified' })}</Chip>
+                    <Chip tone="orange">{verifiedQuote.referenceId}</Chip>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <InfoRow label={t('directPortal.lookup.labels.customerName', { defaultValue: 'Customer' })} value={`${verifiedQuote.firstName || ''} ${verifiedQuote.lastName || ''}`.trim() || '—'} />
+                    <InfoRow label={t('directPortal.lookup.labels.email', { defaultValue: 'Email' })} value={verifiedQuote.email || '—'} />
+                    <InfoRow label={t('directPortal.lookup.labels.phone', { defaultValue: 'Phone' })} value={verifiedQuote.phone || '—'} />
+                    <InfoRow label={t('directPortal.lookup.labels.contact', { defaultValue: 'Preferred contact' })} value={verifiedQuote.preferredContactMethod || '—'} />
+                    <InfoRow label={t('directPortal.lookup.labels.serviceAddress', { defaultValue: 'Service address' })} value={verifiedQuote.serviceAddress || '—'} />
+                    <InfoRow label={t('directPortal.lookup.labels.details', { defaultValue: 'Details' })} value={verifiedQuote.details || '—'} />
+                  </div>
+                  {verifiedQuote.photoAttachments?.length > 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('directPortal.lookup.labels.attachments', { defaultValue: 'Attachments' })}</div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {verifiedQuote.photoAttachments.map((attachment) => (
+                          <a key={attachment.key || attachment.url} href={attachment.url || '#'} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-slate-950/80 p-3 text-sm text-slate-200 hover:border-orange-500/30">
+                            <div className="font-medium text-white">{attachment.name || t('directPortal.lookup.labels.attachment', { defaultValue: 'Attachment' })}</div>
+                            <div className="mt-1 text-xs text-slate-500">{attachment.type || 'file'}</div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-400">
+                  {t('directPortal.lookup.lockedBody', { defaultValue: 'After you verify the code, we will show the full quote details here.' })}
+                </div>
+              )}
+            </div>
+          )}
+        </SectionCard>
+      </div>
     </DirectShell>
   );
 }
@@ -1535,6 +1824,7 @@ export default function DirectPortalPage({ view }) {
   if (view === 'landing') return <DirectLandingPage />;
   if (view === 'request') return <DirectQuoteRequestPage />;
   if (view === 'thanks') return <DirectQuoteThanksPage />;
+  if (view === 'lookup') return <DirectPublicQuoteLookupPage />;
   if (view === 'quote') return <DirectQuoteDetailPage />;
   if (view === 'book') return <DirectBookingPage />;
   if (view === 'job') return <DirectJobPage />;

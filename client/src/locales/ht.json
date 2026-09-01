@@ -5823,6 +5823,7 @@
       "tools": "Zouti",
       "travelCities": "Vil nou deplase ale",
       "requestQuote": "Mande yon pri",
+      "viewQuote": "Wè quote a",
       "viewServices": "Wè sèvis yo",
       "howItWorks": "Kijan li mache",
       "step1": "1. Mande yon pri ak kèk detay ak foto.",
@@ -14108,6 +14109,7 @@
         "contactMethod": "Mwayen kontak ou prefere a",
         "serviceType": "Kalite sèvis",
         "workLocation": "Ki kote travay la ye?",
+        "serviceZipCode": "Kòd postal",
         "serviceCity": "Vil sèvis la",
         "budgetRange": "Bidjè",
         "preferredDate": "Dat ou prefere a",
@@ -14119,12 +14121,14 @@
       },
       "hints": {
         "workLocation": "Vil, katye, oswa adrès konplè.",
+        "serviceZipCode": "Yo itilize l pou fè matche ak quote ou a pita.",
         "accessNotes": "Kòd pòtay, pakin, bèt, mach eskalye, oswa nenpòt detay ki ka ede.",
         "details": "Yon ti deskripsyon sifi pou kòmanse."
       },
       "placeholders": {
         "optional": "Opsyonèl",
         "workLocation": "Springfield, OH",
+        "serviceZipCode": "45501",
         "budgetRange": "$100-$250 oswa fleksib",
         "timeWindow": "Maten, apremidi, apre 5pm...",
         "timelineNotes": "Semèn sa a, pwochen mwa a, elatriye."
@@ -14196,6 +14200,78 @@
           "body": "Telechaje prèv oswa konfime resi a pou istwa a rete atache."
         }
       }
+    },
+    "lookup": {
+      "title": "Wè quote ou a",
+      "subtitle": "Chèche quote OxSteed Direct ou a ak ID referans ou ak kòd postal ou, epi verifye pa imel pou w wè tout detay yo.",
+      "stepsTitle": "Kijan li mache",
+      "steps": {
+        "one": "1. Mete ID referans ou a ak kòd postal la.",
+        "two": "2. Mande nou voye yon kòd verifikasyon nan imel ou.",
+        "three": "3. Mete kòd la pou ouvri detay quote a."
+      },
+      "securityTitle": "Sekirite",
+      "securityBody": "Nou sèvi ak yon referans piblik long, matche ZIP, ak verifikasyon imel pou quote ou a rete prive.",
+      "formTitle": "Jwenn quote ou a",
+      "formEyebrow": "Chèche piblik",
+      "fields": {
+        "referenceId": "ID referans",
+        "zipCode": "Kòd postal",
+        "code": "Kòd verifikasyon"
+      },
+      "placeholders": {
+        "referenceId": "DQ-XXXXXXXXXXXX",
+        "zipCode": "45501",
+        "code": "Kòd 6 chif"
+      },
+      "actions": {
+        "find": "Jwenn quote a",
+        "searching": "Ap chèche…",
+        "sendCode": "Voye kòd verifikasyon an",
+        "sendingCode": "Ap voye kòd la…",
+        "unlock": "Ouvri detay yo",
+        "verifying": "Ap verifye…"
+      },
+      "messages": {
+        "found": "Quote a jwenn.",
+        "codeSent": "Kòd verifikasyon an voye.",
+        "verified": "Kòd la verifye."
+      },
+      "errors": {
+        "missing": "Mete yon ID referans ak yon kòd postal 5 chif.",
+        "lookup": "Nou pa t ka jwenn quote sa a.",
+        "sendCode": "Nou pa t ka voye kòd verifikasyon an.",
+        "missingCode": "Mete kòd ki nan imel ou a.",
+        "verify": "Nou pa t ka verifye kòd la."
+      },
+      "labels": {
+        "service": "Sèvis",
+        "location": "Kote",
+        "zipCode": "Kòd postal",
+        "estimate": "Estimasyon",
+        "preferredDate": "Dat ou prefere",
+        "window": "Fenèt tan",
+        "scheduled": "Pwograme",
+        "payment": "Peman",
+        "customerName": "Kliyan",
+        "email": "Imèl",
+        "phone": "Telefòn",
+        "contact": "Kontak ou prefere",
+        "serviceAddress": "Adrès sèvis la",
+        "details": "Detay",
+        "attachments": "Atachman",
+        "attachment": "Atachman"
+      },
+      "detailTitle": "Debloke tout detay quote a",
+      "detailEyebrow": "Verifikasyon imel",
+      "emptyTitle": "Chèche quote ou a an premye",
+      "emptyBody": "Mete ID referans ou ak kòd postal ou pou kòmanse.",
+      "emailHelp": "Nou pral voye yon kòd verifikasyon nan imel ki sou dosye a anvan nou montre tout quote la.",
+      "emailLabel": "Imèl ki sou dosye a",
+      "emailHidden": "kache",
+      "expiresAt": "Kòd la ekspire",
+      "verifiedLabel": "Verifye",
+      "lockedBody": "Apre ou verifye kòd la, nou pral montre tout detay quote a isit la."
     }
   }
 }

@@ -5823,6 +5823,7 @@
       "tools": "Tools",
       "travelCities": "Travel cities",
       "requestQuote": "Request a quote",
+      "viewQuote": "View quote",
       "viewServices": "View services",
       "howItWorks": "How it works",
       "step1": "1. Request a quote with a few details and photos.",
@@ -14024,6 +14025,7 @@
         "contactMethod": "Preferred contact method",
         "serviceType": "Service type",
         "workLocation": "Where is the work?",
+        "serviceZipCode": "ZIP code",
         "serviceCity": "Service city",
         "budgetRange": "Budget range",
         "preferredDate": "Preferred date",
@@ -14035,12 +14037,14 @@
       },
       "hints": {
         "workLocation": "City, neighborhood, or full address.",
+        "serviceZipCode": "Used to match your quote later.",
         "accessNotes": "Gate code, parking, pets, stairs, or anything helpful.",
         "details": "A short description is enough to start."
       },
       "placeholders": {
         "optional": "Optional",
         "workLocation": "Springfield, OH",
+        "serviceZipCode": "45501",
         "budgetRange": "$100-$250 or flexible",
         "timeWindow": "Morning, afternoon, after 5pm...",
         "timelineNotes": "This week, next month, etc."
@@ -14112,6 +14116,78 @@
           "body": "Upload proof or confirm receipt so history stays attached."
         }
       }
+    },
+    "lookup": {
+      "title": "View your quote",
+      "subtitle": "Look up your OxSteed Direct quote with your reference ID and ZIP code, then verify by email for full details.",
+      "stepsTitle": "How it works",
+      "steps": {
+        "one": "1. Enter your reference ID and ZIP code.",
+        "two": "2. Ask us to send a verification code to your email.",
+        "three": "3. Enter the code to unlock the quote details."
+      },
+      "securityTitle": "Security",
+      "securityBody": "We use a long public reference, ZIP match, and email verification so your quote stays private.",
+      "formTitle": "Find your quote",
+      "formEyebrow": "Public lookup",
+      "fields": {
+        "referenceId": "Reference ID",
+        "zipCode": "ZIP code",
+        "code": "Verification code"
+      },
+      "placeholders": {
+        "referenceId": "DQ-XXXXXXXXXXXX",
+        "zipCode": "45501",
+        "code": "6-digit code"
+      },
+      "actions": {
+        "find": "Find quote",
+        "searching": "Looking up…",
+        "sendCode": "Send verification code",
+        "sendingCode": "Sending code…",
+        "unlock": "Unlock details",
+        "verifying": "Verifying…"
+      },
+      "messages": {
+        "found": "Quote found.",
+        "codeSent": "Verification code sent.",
+        "verified": "Code verified."
+      },
+      "errors": {
+        "missing": "Enter a reference ID and a 5-digit ZIP code.",
+        "lookup": "Could not find that quote.",
+        "sendCode": "Could not send the verification code.",
+        "missingCode": "Enter the code from your email.",
+        "verify": "Could not verify the code."
+      },
+      "labels": {
+        "service": "Service",
+        "location": "Location",
+        "zipCode": "ZIP code",
+        "estimate": "Estimate",
+        "preferredDate": "Preferred date",
+        "window": "Time window",
+        "scheduled": "Scheduled",
+        "payment": "Payment",
+        "customerName": "Customer",
+        "email": "Email",
+        "phone": "Phone",
+        "contact": "Preferred contact",
+        "serviceAddress": "Service address",
+        "details": "Details",
+        "attachments": "Attachments",
+        "attachment": "Attachment"
+      },
+      "detailTitle": "Unlock full quote details",
+      "detailEyebrow": "Email verification",
+      "emptyTitle": "Search for your quote first",
+      "emptyBody": "Enter your reference ID and ZIP code to get started.",
+      "emailHelp": "We will send a verification code to the email on file before showing the full quote record.",
+      "emailLabel": "Email on file",
+      "emailHidden": "hidden",
+      "expiresAt": "Code expires",
+      "verifiedLabel": "Verified",
+      "lockedBody": "After you verify the code, we will show the full quote details here."
     }
   }
 }

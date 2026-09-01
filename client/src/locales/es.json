@@ -5823,6 +5823,7 @@
       "tools": "Herramientas",
       "travelCities": "Ciudades de viaje",
       "requestQuote": "Solicitar una cotización",
+      "viewQuote": "Ver cotización",
       "viewServices": "Ver servicios",
       "howItWorks": "Cómo funciona",
       "step1": "1. Solicita una cotización con algunos detalles y fotos.",
@@ -14108,6 +14109,7 @@
         "contactMethod": "Método de contacto preferido",
         "serviceType": "Tipo de servicio",
         "workLocation": "¿Dónde es el trabajo?",
+        "serviceZipCode": "Código postal",
         "serviceCity": "Ciudad del servicio",
         "budgetRange": "Rango de presupuesto",
         "preferredDate": "Fecha preferida",
@@ -14119,12 +14121,14 @@
       },
       "hints": {
         "workLocation": "Ciudad, vecindario o dirección completa.",
+        "serviceZipCode": "Se usa para coincidir con su cotización más tarde.",
         "accessNotes": "Código de puerta, estacionamiento, mascotas, escaleras o cualquier detalle útil.",
         "details": "Una breve descripción basta para empezar."
       },
       "placeholders": {
         "optional": "Opcional",
         "workLocation": "Springfield, OH",
+        "serviceZipCode": "45501",
         "budgetRange": "$100-$250 o flexible",
         "timeWindow": "Mañana, tarde, después de las 5pm...",
         "timelineNotes": "Esta semana, el próximo mes, etc."
@@ -14196,6 +14200,78 @@
           "body": "Suba comprobantes o confirme el recibo para que el historial quede adjunto."
         }
       }
+    },
+    "lookup": {
+      "title": "Ver tu cotización",
+      "subtitle": "Consulta tu cotización de OxSteed Direct con tu ID de referencia y código postal, y verifica por correo para ver todos los detalles.",
+      "stepsTitle": "Cómo funciona",
+      "steps": {
+        "one": "1. Ingresa tu ID de referencia y código postal.",
+        "two": "2. Pide que enviemos un código de verificación a tu correo.",
+        "three": "3. Ingresa el código para desbloquear los detalles."
+      },
+      "securityTitle": "Seguridad",
+      "securityBody": "Usamos una referencia pública larga, coincidencia de ZIP y verificación por correo para mantener tu cotización privada.",
+      "formTitle": "Encuentra tu cotización",
+      "formEyebrow": "Consulta pública",
+      "fields": {
+        "referenceId": "ID de referencia",
+        "zipCode": "Código postal",
+        "code": "Código de verificación"
+      },
+      "placeholders": {
+        "referenceId": "DQ-XXXXXXXXXXXX",
+        "zipCode": "45501",
+        "code": "Código de 6 dígitos"
+      },
+      "actions": {
+        "find": "Buscar cotización",
+        "searching": "Buscando…",
+        "sendCode": "Enviar código de verificación",
+        "sendingCode": "Enviando código…",
+        "unlock": "Desbloquear detalles",
+        "verifying": "Verificando…"
+      },
+      "messages": {
+        "found": "Cotización encontrada.",
+        "codeSent": "Código de verificación enviado.",
+        "verified": "Código verificado."
+      },
+      "errors": {
+        "missing": "Ingresa un ID de referencia y un código postal de 5 dígitos.",
+        "lookup": "No pudimos encontrar esa cotización.",
+        "sendCode": "No se pudo enviar el código de verificación.",
+        "missingCode": "Ingresa el código de tu correo.",
+        "verify": "No se pudo verificar el código."
+      },
+      "labels": {
+        "service": "Servicio",
+        "location": "Ubicación",
+        "zipCode": "Código postal",
+        "estimate": "Estimado",
+        "preferredDate": "Fecha preferida",
+        "window": "Franja horaria",
+        "scheduled": "Programado",
+        "payment": "Pago",
+        "customerName": "Cliente",
+        "email": "Correo",
+        "phone": "Teléfono",
+        "contact": "Contacto preferido",
+        "serviceAddress": "Dirección del servicio",
+        "details": "Detalles",
+        "attachments": "Adjuntos",
+        "attachment": "Adjunto"
+      },
+      "detailTitle": "Desbloquear detalles completos",
+      "detailEyebrow": "Verificación por correo",
+      "emptyTitle": "Busca primero tu cotización",
+      "emptyBody": "Ingresa tu ID de referencia y código postal para comenzar.",
+      "emailHelp": "Enviaremos un código de verificación al correo registrado antes de mostrar la cotización completa.",
+      "emailLabel": "Correo registrado",
+      "emailHidden": "oculto",
+      "expiresAt": "El código expira",
+      "verifiedLabel": "Verificado",
+      "lockedBody": "Después de verificar el código, mostraremos aquí los detalles completos."
     }
   }
 }

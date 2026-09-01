@@ -5823,6 +5823,7 @@
       "tools": "Outils",
       "travelCities": "Villes de déplacement",
       "requestQuote": "Demander un devis",
+      "viewQuote": "Voir le devis",
       "viewServices": "Voir les services",
       "howItWorks": "Comment ça marche",
       "step1": "1. Demandez un devis avec quelques détails et des photos.",
@@ -14108,6 +14109,7 @@
         "contactMethod": "Moyen de contact préféré",
         "serviceType": "Type de service",
         "workLocation": "Où se trouve le travail ?",
+        "serviceZipCode": "Code postal",
         "serviceCity": "Ville du service",
         "budgetRange": "Budget",
         "preferredDate": "Date souhaitée",
@@ -14119,12 +14121,14 @@
       },
       "hints": {
         "workLocation": "Ville, quartier ou adresse complète.",
+        "serviceZipCode": "Utilisé pour retrouver votre devis plus tard.",
         "accessNotes": "Code portail, stationnement, animaux, escaliers, ou tout autre détail utile.",
         "details": "Une courte description suffit pour commencer."
       },
       "placeholders": {
         "optional": "Facultatif",
         "workLocation": "Springfield, OH",
+        "serviceZipCode": "45501",
         "budgetRange": "100 $-250 $ ou flexible",
         "timeWindow": "Matin, après-midi, après 17 h…",
         "timelineNotes": "Cette semaine, le mois prochain, etc."
@@ -14196,6 +14200,78 @@
           "body": "Ajoutez une preuve ou confirmez le reçu afin que l’historique reste associé."
         }
       }
+    },
+    "lookup": {
+      "title": "Voir votre devis",
+      "subtitle": "Retrouvez votre devis OxSteed Direct avec votre identifiant de référence et votre code postal, puis vérifiez par e-mail pour voir tous les détails.",
+      "stepsTitle": "Comment ça marche",
+      "steps": {
+        "one": "1. Saisissez votre identifiant de référence et votre code postal.",
+        "two": "2. Demandez l’envoi d’un code de vérification à votre e-mail.",
+        "three": "3. Saisissez le code pour déverrouiller les détails."
+      },
+      "securityTitle": "Sécurité",
+      "securityBody": "Nous utilisons une longue référence publique, une correspondance ZIP et une vérification par e-mail pour garder votre devis privé.",
+      "formTitle": "Retrouver votre devis",
+      "formEyebrow": "Recherche publique",
+      "fields": {
+        "referenceId": "Identifiant de référence",
+        "zipCode": "Code postal",
+        "code": "Code de vérification"
+      },
+      "placeholders": {
+        "referenceId": "DQ-XXXXXXXXXXXX",
+        "zipCode": "45501",
+        "code": "Code à 6 chiffres"
+      },
+      "actions": {
+        "find": "Trouver le devis",
+        "searching": "Recherche…",
+        "sendCode": "Envoyer le code de vérification",
+        "sendingCode": "Envoi du code…",
+        "unlock": "Déverrouiller les détails",
+        "verifying": "Vérification…"
+      },
+      "messages": {
+        "found": "Devis trouvé.",
+        "codeSent": "Code de vérification envoyé.",
+        "verified": "Code vérifié."
+      },
+      "errors": {
+        "missing": "Saisissez un identifiant de référence et un code postal à 5 chiffres.",
+        "lookup": "Impossible de trouver ce devis.",
+        "sendCode": "Impossible d’envoyer le code de vérification.",
+        "missingCode": "Saisissez le code reçu par e-mail.",
+        "verify": "Impossible de vérifier le code."
+      },
+      "labels": {
+        "service": "Service",
+        "location": "Emplacement",
+        "zipCode": "Code postal",
+        "estimate": "Estimation",
+        "preferredDate": "Date souhaitée",
+        "window": "Plage horaire",
+        "scheduled": "Planifié",
+        "payment": "Paiement",
+        "customerName": "Client",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "contact": "Contact préféré",
+        "serviceAddress": "Adresse du service",
+        "details": "Détails",
+        "attachments": "Pièces jointes",
+        "attachment": "Pièce jointe"
+      },
+      "detailTitle": "Déverrouiller tous les détails du devis",
+      "detailEyebrow": "Vérification par e-mail",
+      "emptyTitle": "Recherchez d’abord votre devis",
+      "emptyBody": "Saisissez votre identifiant de référence et votre code postal pour commencer.",
+      "emailHelp": "Nous enverrons un code de vérification à l’adresse e-mail enregistrée avant d’afficher le devis complet.",
+      "emailLabel": "E-mail enregistré",
+      "emailHidden": "masqué",
+      "expiresAt": "Le code expire",
+      "verifiedLabel": "Vérifié",
+      "lockedBody": "Après vérification du code, nous afficherons ici les détails complets."
     }
   }
 }

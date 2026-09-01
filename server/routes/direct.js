@@ -12,6 +12,9 @@ const ctrl = require('../controllers/directController');
 
 router.get('/profile', optionalAuth, ctrl.getProfile);
 router.post('/uploads', generalLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
+router.post('/public/lookup', generalLimiter, ctrl.lookupPublicQuote);
+router.post('/public/lookup/send-code', generalLimiter, ctrl.sendPublicLookupCode);
+router.post('/public/lookup/verify-code', generalLimiter, ctrl.verifyPublicLookupCode);
 
 router.get('/history', authenticate, ctrl.getHistory);
 router.get('/account', authenticate, ctrl.getAccount);

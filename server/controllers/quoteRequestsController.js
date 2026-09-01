@@ -1,6 +1,10 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
+const {
+  generatePublicReference,
+  normalizeZipCode,
+} = require('../utils/directQuote');
 
 const VALID_CONTACT_METHODS = new Set(['email', 'phone', 'text', 'either']);
 const VALID_STATUSES = new Set([
@@ -88,9 +92,10 @@ async function sendConfirmationEmail(request) {
       <p>We received your quote request for <strong>${request.service_category}</strong>.</p>
       <p>Our team will review it and follow up soon.</p>
       <p><strong>Location:</strong> ${request.service_location}</p>
+      <p><strong>ZIP code:</strong> ${request.service_zip_code || '-'}</p>
       <p><strong>Budget:</strong> ${request.budget_range || '-'}</p>
       <p><strong>Timeline:</strong> ${request.timeline || '-'}</p>
-      <p>Reference ID: <code>${request.id}</code></p>
+      <p>Reference ID: <code>${request.public_reference || request.id}</code></p>
     `,
   });
 }
@@ -103,6 +108,7 @@ exports.createQuoteRequest = async (req, res) => {
   const companyName = cleanText(req.body.company_name, 200);
   const serviceCategory = cleanText(req.body.service_category, 120);
   const serviceLocation = cleanText(req.body.service_location, 200);
+  const serviceZipCode = normalizeZipCode(req.body.service_zip_code || req.body.serviceZipCode);
   const budgetRange = cleanText(req.body.budget_range, 80);
   const timeline = cleanText(req.body.timeline, 120);
   const preferredContactMethod = cleanText(req.body.preferred_contact_method, 20).toLowerCase() || 'email';
@@ -146,6 +152,10 @@ exports.createQuoteRequest = async (req, res) => {
     return res.status(400).json({ error: 'A valid email address is required' });
   }
 
+  if (!/^\d{5}$/.test(serviceZipCode)) {
+    return res.status(400).json({ error: 'A valid 5-digit ZIP code is required' });
+  }
+
   if (phone && phone.length > 40) {
     return res.status(400).json({ error: 'Phone number is too long' });
   }
@@ -163,21 +173,23 @@ exports.createQuoteRequest = async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    const publicReference = generatePublicReference();
     const result = await client.query(
       `INSERT INTO quote_requests
-       (user_id, first_name, last_name, email, phone, company_name, service_category,
-        service_location, budget_range, timeline, preferred_contact_method, details,
+       (user_id, public_reference, first_name, last_name, email, phone, company_name, service_category,
+        service_location, service_zip_code, budget_range, timeline, preferred_contact_method, details,
         status, metadata, quote_amount_cents, quote_currency_code, preferred_date,
         preferred_time_window, service_address, service_city, on_site_contact_name,
         on_site_contact_phone, access_notes, scheduled_start_at, scheduled_end_at,
         payment_status, payment_method, payment_reference, proof_attachment,
         proof_link, proof_received_at, accepted_at, completed_at, closed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-               'new', $13::jsonb, $14, $15, $16, $17, $18, $19, $20,
-               $21, $22, $23, $24, $25, $26, $27::jsonb, $28, $29, $30, $31, $32, $33)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+               'new', $15::jsonb, $16, $17, $18, $19, $20, $21, $22, $23,
+               $24, $25, $26, $27::jsonb, $28, $29, $30, $31, $32, $33, $34, $35)
        RETURNING *`,
       [
         req.user?.id || null,
+        publicReference,
         firstName,
         lastName,
         email,
@@ -185,6 +197,7 @@ exports.createQuoteRequest = async (req, res) => {
         companyName || null,
         serviceCategory,
         serviceLocation,
+        serviceZipCode,
         budgetRange || null,
         timeline || null,
         preferredContactMethod,
@@ -238,6 +251,7 @@ exports.createQuoteRequest = async (req, res) => {
     return res.status(201).json({
       success: true,
       requestId: request.id,
+      referenceId: request.public_reference || publicReference,
       message: 'Your quote request has been submitted. We will reach out soon.',
     });
   } catch (err) {
