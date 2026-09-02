@@ -80,11 +80,10 @@ function verifyI18nIndex() {
   console.log(`ok i18n index declares ${languages.join('/')}`);
 }
 
-function verifyDirectPortalHasNoHardcodedUiText() {
-  const relativePath = 'src/pages/DirectPortalPage.jsx';
+function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], allowedAttributes = [] } = {}) {
   const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
-  const allowedJsxText = new Set(['Cash App', 'Venmo', 'Zelle']);
-  const allowedAttributes = new Set(['US']);
+  const allowedText = new Set(allowedJsxText);
+  const allowedAttributeValues = new Set(allowedAttributes);
   const failures = [];
 
   const addFailure = (match, value) => {
@@ -94,12 +93,12 @@ function verifyDirectPortalHasNoHardcodedUiText() {
 
   for (const match of source.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)) {
     const value = match[1].trim();
-    if (value && !allowedJsxText.has(value)) addFailure(match, value);
+    if (value && !allowedText.has(value)) addFailure(match, value);
   }
 
   for (const match of source.matchAll(/\b(?:title|subtitle|label|placeholder|body|eyebrow|aria-label)="([^"]*[A-Za-z][^"]*)"/g)) {
     const value = match[1].trim();
-    if (value && !allowedAttributes.has(value)) addFailure(match, value);
+    if (value && !allowedAttributeValues.has(value)) addFailure(match, value);
   }
 
   for (const match of source.matchAll(/(?:toast\.(?:error|success)|window\.prompt)\(\s*(['"])([^'"]*[A-Za-z][^'"]*)\1/g)) {
@@ -107,10 +106,10 @@ function verifyDirectPortalHasNoHardcodedUiText() {
   }
 
   if (failures.length) {
-    throw new Error(`Hard-coded customer-facing Direct portal text found:\n${failures.join('\n')}`);
+    throw new Error(`Hard-coded customer-facing text found:\n${failures.join('\n')}`);
   }
 
-  console.log('ok Direct customer portal has no unapproved hard-coded UI text');
+  console.log(`ok ${relativePath} has no unapproved hard-coded UI text`);
 }
 
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);
@@ -119,4 +118,10 @@ compareKeySets('translator namespace', (language) => `src/i18n/locales/${languag
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
-verifyDirectPortalHasNoHardcodedUiText();
+verifyPageHasNoHardcodedUiText('src/pages/DirectPortalPage.jsx', {
+  allowedJsxText: ['Cash App', 'Venmo', 'Zelle'],
+  allowedAttributes: ['US'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
+  allowedJsxText: ['OxS'],
+});

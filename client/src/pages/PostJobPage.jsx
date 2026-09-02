@@ -264,7 +264,7 @@ function CategorySelect({ value, onChange, error, t }) {
       </button>
 
       {open && (
-        <div className="pjw-cat-dropdown" role="dialog" aria-label="Select category">
+        <div className="pjw-cat-dropdown" role="dialog" aria-label={t('postJob.selectCategoryAria')}>
           {/* Search input */}
           <div className="pjw-cat-search-wrap">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -278,7 +278,7 @@ function CategorySelect({ value, onChange, error, t }) {
               value={search}
               onChange={e => { setSearch(e.target.value); setActiveIdx(-1); }}
               onKeyDown={handleKeyDown}
-              aria-label="Filter categories"
+              aria-label={t('postJob.filterCategories')}
               aria-controls="pjw-cat-list"
               aria-autocomplete="list"
             />
@@ -287,7 +287,7 @@ function CategorySelect({ value, onChange, error, t }) {
                 type="button"
                 className="pjw-cat-search-clear"
                 onClick={() => { setSearch(''); setActiveIdx(-1); inputRef.current?.focus(); }}
-                aria-label="Clear search"
+                aria-label={t('postJob.clearSearch')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -297,10 +297,10 @@ function CategorySelect({ value, onChange, error, t }) {
           </div>
 
           {/* Options list */}
-          <ul id="pjw-cat-list" role="listbox" ref={listRef} className="pjw-cat-list" aria-label="Job categories">
+          <ul id="pjw-cat-list" role="listbox" ref={listRef} className="pjw-cat-list" aria-label={t('postJob.jobCategories')}>
             {filteredFlat.length === 0 ? (
               <li className="pjw-cat-empty" role="option" aria-disabled="true">
-                No categories match "{search}"
+                {t('postJob.noCategoryMatches', { search })}
               </li>
             ) : (
               filtered.map(g => (
@@ -351,6 +351,7 @@ const REQ_META = {
 // ─── Live Capture Modal ──────────────────────────────────────────────────────
 // Uses MediaDevices API for real camera/mic capture (desktop + mobile).
 function LiveCaptureModal({ mode, onCapture, onClose }) {
+  const { t } = useTranslation();
   const videoRef    = React.useRef(null);
   const canvasRef   = React.useRef(null);
   const streamRef   = React.useRef(null);
@@ -384,10 +385,10 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
       } catch (err) {
         if (cancelled) return;
         const msg = err.name === 'NotAllowedError'
-          ? 'Camera/microphone access denied. Allow it in your browser settings and try again.'
+          ? t('postJob.capture.accessDenied')
           : err.name === 'NotFoundError'
-            ? 'No camera or microphone found on this device.'
-            : `Could not start capture: ${err.message}`;
+            ? t('postJob.capture.deviceNotFound')
+            : t('postJob.capture.startError', { error: err.message });
         setErrMsg(msg);
         setPhase('error');
       }
@@ -398,7 +399,7 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
       clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
-  }, [mode]);
+  }, [mode, t]);
 
   function stopStream() {
     clearInterval(timerRef.current);
@@ -453,9 +454,9 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
     return `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
   }
 
-  const title = mode === 'photo' ? '📷 Take a Live Photo'
-              : mode === 'video' ? '🎥 Record a Video'
-              :                    '🎙 Record Audio';
+  const title = mode === 'photo' ? t('postJob.capture.takePhoto')
+              : mode === 'video' ? t('postJob.capture.recordVideo')
+              :                    t('postJob.capture.recordAudio');
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
@@ -474,19 +475,19 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
             <p style={{ color:'#f87171', marginBottom:'1.25rem', fontSize:'0.875rem', lineHeight:1.5 }}>{errMsg}</p>
             <button onClick={() => { stopStream(); onClose(); }}
               style={{ background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.625rem 1.5rem', cursor:'pointer', fontSize:'0.875rem' }}>
-              Close
+              {t('postJob.capture.close')}
             </button>
           </div>
         )}
 
         {/* Initialising */}
         {phase === 'init' && (
-          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>Starting…</div>
+          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>{t('postJob.capture.starting')}</div>
         )}
 
         {/* Processing */}
         {phase === 'processing' && (
-          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>Processing…</div>
+          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>{t('postJob.capture.processing')}</div>
         )}
 
         {/* Photo: live viewfinder */}
@@ -498,11 +499,11 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
             <div style={{ display:'flex', gap:'0.75rem', padding:'1rem 1.25rem' }}>
               <button onClick={capturePhoto}
                 style={{ flex:1, background:'#f97316', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
-                📷 Snap Photo
+                {t('postJob.capture.snapPhoto')}
               </button>
               <button onClick={() => { stopStream(); onClose(); }}
                 style={{ background:'#3f3f46', color:'#e4e4e7', border:'none', borderRadius:'0.5rem', padding:'0.75rem 1.25rem', cursor:'pointer', fontSize:'0.875rem' }}>
-                Cancel
+                {t('postJob.cancel')}
               </button>
             </div>
           </>
@@ -517,7 +518,7 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
               {phase === 'preview' && (
                 <button onClick={startRecording}
                   style={{ flex:1, background:'#dc2626', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
-                  ⏺ Start Recording
+                  {t('postJob.capture.startRecording')}
                 </button>
               )}
               {phase === 'recording' && (
@@ -525,13 +526,13 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
                   <span style={{ color:'#f87171', fontVariantNumeric:'tabular-nums', fontWeight:600, minWidth:'3.5rem' }}>⏺ {fmt(elapsed)}</span>
                   <button onClick={stopRecording}
                     style={{ flex:1, background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
-                    ⏹ Stop
+                    {t('postJob.capture.stop')}
                   </button>
                 </>
               )}
               <button onClick={() => { stopStream(); onClose(); }}
                 style={{ background:'#27272a', color:'#a1a1aa', border:'none', borderRadius:'0.5rem', padding:'0.75rem 1.25rem', cursor:'pointer', fontSize:'0.875rem' }}>
-                Cancel
+                {t('postJob.cancel')}
               </button>
             </div>
           </>
@@ -543,10 +544,10 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
             <div style={{ fontSize:'3.5rem', marginBottom:'0.75rem' }}>🎙</div>
             {phase === 'preview' && (
               <>
-                <p style={{ color:'#a1a1aa', fontSize:'0.875rem', marginBottom:'1.5rem' }}>Microphone ready</p>
+                <p style={{ color:'#a1a1aa', fontSize:'0.875rem', marginBottom:'1.5rem' }}>{t('postJob.capture.microphoneReady')}</p>
                 <button onClick={startRecording}
                   style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem 2rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer', display:'inline-block' }}>
-                  ⏺ Start Recording
+                  {t('postJob.capture.startRecording')}
                 </button>
               </>
             )}
@@ -555,14 +556,14 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
                 <p style={{ color:'#f87171', fontSize:'2rem', fontVariantNumeric:'tabular-nums', fontWeight:700, margin:'0 0 1.5rem' }}>⏺ {fmt(elapsed)}</p>
                 <button onClick={stopRecording}
                   style={{ background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem 2rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer', display:'inline-block' }}>
-                  ⏹ Stop
+                  {t('postJob.capture.stop')}
                 </button>
               </>
             )}
             <br />
             <button onClick={() => { stopStream(); onClose(); }}
               style={{ marginTop:'1.25rem', background:'none', color:'#71717a', border:'none', cursor:'pointer', fontSize:'0.875rem' }}>
-              Cancel
+              {t('postJob.cancel')}
             </button>
           </div>
         )}
@@ -1096,7 +1097,7 @@ export default function PostJobPage() {
         setErrors(err.response.data.fields);
       } else {
         // Fallback to error message
-        const msg = err?.response?.data?.error || err?.message || 'Failed to post job. Please try again.';
+        const msg = err?.response?.data?.error || err?.message || t('postJob.errorToast');
         setErrors({ submit: msg });
       }
       // Log error details for debugging
@@ -1117,24 +1118,24 @@ export default function PostJobPage() {
   const activeReqs = activeRequirements(form.requirements);
   const stepMeta = {
     1: {
-      eyebrow: 'Scope the work',
-      title: 'Tell OxSteed what needs to get done.',
-      body: 'A stronger title, clearer location, and useful media help the right helpers self-select faster.',
+      eyebrow: t('postJob.stepIntro.details.eyebrow'),
+      title: t('postJob.stepIntro.details.title'),
+      body: t('postJob.stepIntro.details.body'),
     },
     2: {
-      eyebrow: 'Set the bar',
-      title: 'Define who is qualified to bid.',
-      body: 'Use requirements to filter for the kind of helper, team, tools, and trust signals this job really needs.',
+      eyebrow: t('postJob.stepIntro.requirements.eyebrow'),
+      title: t('postJob.stepIntro.requirements.title'),
+      body: t('postJob.stepIntro.requirements.body'),
     },
     3: {
-      eyebrow: 'Budget and timing',
-      title: 'Make the timeline feel real.',
-      body: 'Set a budget style, urgency, schedule preferences, and private notes so bids arrive with better context.',
+      eyebrow: t('postJob.stepIntro.budget.eyebrow'),
+      title: t('postJob.stepIntro.budget.title'),
+      body: t('postJob.stepIntro.budget.body'),
     },
     4: {
-      eyebrow: 'Final review',
-      title: 'Check the post before it goes live.',
-      body: 'This is the last pass before your job starts attracting bids from helpers who match the request.',
+      eyebrow: t('postJob.stepIntro.review.eyebrow'),
+      title: t('postJob.stepIntro.review.title'),
+      body: t('postJob.stepIntro.review.body'),
     },
   }[form.step];
   const helperFitCount = activeReqs.length + (form.requiredSkills.length ? 1 : 0);
@@ -1145,7 +1146,7 @@ export default function PostJobPage() {
       <div className="pjw-root">
         <PageMeta
           title={t('postJob.title')}
-          description="Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post."
+          description={t('postJob.metaDescription')}
           url="https://oxsteed.com/post-job"
           noIndex={true}
         />
@@ -1153,31 +1154,31 @@ export default function PostJobPage() {
 
           {/* ── Page header ────────────────────────────────────────────────── */}
           <header className="pjw-hero">
-            <nav className="pjw-breadcrumb" aria-label="Breadcrumb">
-              <Link to="/">Home</Link><span>›</span>
-              <Link to="/jobs">Jobs</Link><span>›</span>
-              <span aria-current="page">Post a Job</span>
+            <nav className="pjw-breadcrumb" aria-label={t('postJob.breadcrumb')}>
+              <Link to="/">{t('postJob.home')}</Link><span>›</span>
+              <Link to="/jobs">{t('postJob.jobs')}</Link><span>›</span>
+              <span aria-current="page">{t('postJob.title')}</span>
             </nav>
             <div className="pjw-hero-grid">
               <div className="pjw-hero-copy">
-                <div className="pjw-hero-kicker">Customer job post</div>
+                <div className="pjw-hero-kicker">{t('postJob.hero.kicker')}</div>
                 <h1 className="pjw-page-title">{t('postJob.title')}</h1>
-                <p className="pjw-page-sub">Describe what needs doing, set the bar for who can bid, and turn one messy task into a clear request helpers can price quickly.</p>
+                <p className="pjw-page-sub">{t('postJob.hero.subtitle')}</p>
 
                 <div className="pjw-hero-trust">
-                  <span className="pjw-hero-pill">Free to post</span>
-                  <span className="pjw-hero-pill">Set your own requirements</span>
-                  <span className="pjw-hero-pill">Invite competitive bids</span>
+                  <span className="pjw-hero-pill">{t('postJob.hero.free')}</span>
+                  <span className="pjw-hero-pill">{t('postJob.hero.requirements')}</span>
+                  <span className="pjw-hero-pill">{t('postJob.hero.bids')}</span>
                 </div>
               </div>
 
               <div className="pjw-hero-panel">
                 <div className="pjw-hero-panel-card">
-                  <div className="pjw-hero-panel-label">What makes bids better</div>
+                  <div className="pjw-hero-panel-label">{t('postJob.hero.betterBidsTitle')}</div>
                   <ul className="pjw-hero-panel-list">
-                    <li>Specific scope beats broad descriptions.</li>
-                    <li>Photos or video reduce back-and-forth questions.</li>
-                    <li>Requirements prevent low-fit helpers from wasting your time.</li>
+                    <li>{t('postJob.hero.tipScope')}</li>
+                    <li>{t('postJob.hero.tipMedia')}</li>
+                    <li>{t('postJob.hero.tipRequirements')}</li>
                   </ul>
                 </div>
               </div>
@@ -1185,8 +1186,8 @@ export default function PostJobPage() {
             {directHelperId && (
               <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
                 <span>⚡</span>
-                <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> - they'll be notified when your job is posted.</span>
-                <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
+                <span>{t('postJob.directHelperNotice', { name: directHelperName || t('postJob.thisHelper') })}</span>
+                <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>{t('postJob.viewProfile')}</a>
               </div>
             )}
             {fromBookingId && (
@@ -1196,13 +1197,13 @@ export default function PostJobPage() {
             )}
             {isMaintenanceRequestMode && (
               <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.25)', borderRadius:'12px', fontSize:'13px', color:'#6ee7b7' }}>
-                Maintenance request mode is on. Add photos, access notes, urgency, and preferred repair windows so the property manager can accept, schedule, or assign the work.
+                {t('postJob.maintenanceMode')}
               </div>
             )}
           </header>
 
         {/* ── Step bar ───────────────────────────────────────────────────── */}
-        <div className="pjw-step-bar" role="list" aria-label="Progress steps">
+        <div className="pjw-step-bar" role="list" aria-label={t('postJob.progressSteps')}>
           {STEP_LABELS.map((label, i) => {
             const n = i + 1;
             const cls = n === form.step ? 'is-active' : n < form.step ? 'is-done' : '';
@@ -1228,15 +1229,15 @@ export default function PostJobPage() {
           </div>
           <div className="pjw-step-intro-stats">
             <div className="pjw-step-stat">
-              <span className="pjw-step-stat-label">Current step</span>
+              <span className="pjw-step-stat-label">{t('postJob.currentStep')}</span>
               <strong>{form.step} / 4</strong>
             </div>
             <div className="pjw-step-stat">
-              <span className="pjw-step-stat-label">Helper filters</span>
+              <span className="pjw-step-stat-label">{t('postJob.helperFilters')}</span>
               <strong>{helperFitCount}</strong>
             </div>
             <div className="pjw-step-stat">
-              <span className="pjw-step-stat-label">Media added</span>
+              <span className="pjw-step-stat-label">{t('postJob.mediaAdded')}</span>
               <strong>{form.mediaFiles.length}</strong>
             </div>
           </div>
@@ -1269,7 +1270,7 @@ export default function PostJobPage() {
 
                 {/* Category */}
                 <div className="pjw-field">
-                  <label id="pjw-category-label">Category <span className="req">*</span></label>
+                  <label id="pjw-category-label">{t('postJob.category')} <span className="req">*</span></label>
                   <CategorySelect
                     value={form.categoryId}
                     onChange={handleCategoryChange}
@@ -1389,8 +1390,8 @@ export default function PostJobPage() {
 
                 {/* Media Upload */}
                 <div className="pjw-field">
-                  <label>{t('postJob.addPhotosVideoAudio')} <span className="hint">Optional</span></label>
-                  <div className="pjw-media-tabs" role="group" aria-label="Media type">
+                  <label>{t('postJob.addPhotosVideoAudio')} <span className="hint">{t('postJob.optional')}</span></label>
+                  <div className="pjw-media-tabs" role="group" aria-label={t('postJob.mediaType')}>
                     {['photos','video','audio'].map(tab => (
                       <button
                         key={tab} type="button"
@@ -1398,7 +1399,7 @@ export default function PostJobPage() {
                         onClick={() => { setForm(f => ({ ...f, mediaTab: tab, mediaFiles: [], mediaPreviews: [] })); }}
                       >
                         {tab === 'photos' ? '📷' : tab === 'video' ? '🎬' : '🎙'}
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        {t(`postJob.mediaTabs.${tab}`)}
                       </button>
                     ))}
                   </div>
@@ -1412,12 +1413,12 @@ export default function PostJobPage() {
                     onDragLeave={e => e.currentTarget.classList.remove('is-dragover')}
                     role="button" tabIndex={0}
                     onKeyDown={e => e.key === 'Enter' && photoInputRef.current?.click()}
-                    aria-label={`Click to upload ${form.mediaTab}`}
+                    aria-label={t('postJob.clickToUpload', { type: t(`postJob.mediaTabs.${form.mediaTab}`) })}
                   >
                     <div className="pjw-drop-icon">{form.mediaTab === 'photos' ? '📷' : form.mediaTab === 'video' ? '🎬' : '🎙'}</div>
-                    <p><strong>Click to upload {form.mediaTab}</strong> or drag and drop</p>
+                    <p><strong>{t('postJob.clickToUpload', { type: t(`postJob.mediaTabs.${form.mediaTab}`) })}</strong> {t('postJob.orDragDrop')}</p>
                     <span className="pjw-drop-hint">
-                      {form.mediaTab === 'photos' ? 'JPG, PNG, WEBP · up to 5 photos · 10 MB each' : form.mediaTab === 'video' ? 'MP4, MOV · up to 1 video · 100 MB' : 'MP3, WAV · up to 1 file · 20 MB'}
+                      {form.mediaTab === 'photos' ? t('postJob.mediaLimits.photos') : form.mediaTab === 'video' ? t('postJob.mediaLimits.video') : t('postJob.mediaLimits.audio')}
                     </span>
                   </div>
 
@@ -1429,17 +1430,17 @@ export default function PostJobPage() {
                   {/* Live capture buttons - use real getUserMedia */}
                   {form.mediaTab === 'photos' && (
                     <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('photo')}>
-                      📷 Take a Live Photo
+                      {t('postJob.capture.takePhoto')}
                     </button>
                   )}
                   {form.mediaTab === 'video' && form.mediaFiles.length === 0 && (
                     <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('video')}>
-                      🎥 Record a Video
+                      {t('postJob.capture.recordVideo')}
                     </button>
                   )}
                   {form.mediaTab === 'audio' && form.mediaFiles.length === 0 && (
                     <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('audio')}>
-                      🎙 Record Audio
+                      {t('postJob.capture.recordAudio')}
                     </button>
                   )}
 
@@ -1448,10 +1449,10 @@ export default function PostJobPage() {
                     <div className={`pjw-preview-grid${form.mediaTab !== 'photos' ? ' pjw-preview-grid--media' : ''}`}>
                       {form.mediaPreviews.map((src, i) => (
                         <div key={i} className={`pjw-preview-item${form.mediaTab === 'video' ? ' pjw-preview-item--video' : form.mediaTab === 'audio' ? ' pjw-preview-item--audio' : ''}`}>
-                          {form.mediaTab === 'photos' && <img src={src} alt={`Preview ${i + 1}`} />}
+                          {form.mediaTab === 'photos' && <img src={src} alt={t('postJob.previewNumber', { number: i + 1 })} />}
                           {form.mediaTab === 'video'  && <video src={src} controls playsInline />}
                           {form.mediaTab === 'audio'  && <audio src={src} controls />}
-                          <button className="pjw-preview-remove" type="button" onClick={() => removeMedia(i)} aria-label="Remove">✕</button>
+                          <button className="pjw-preview-remove" type="button" onClick={() => removeMedia(i)} aria-label={t('postJob.remove')}>✕</button>
                         </div>
                       ))}
                     </div>
@@ -1472,7 +1473,7 @@ export default function PostJobPage() {
                 {/* Info callout */}
                 <div className="pjw-callout" role="note">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <p><strong>License &amp; insurance</strong> - when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
+                  <p>{t('postJob.credentialNotice')}</p>
                 </div>
 
                 {/* Category suggestion callout */}
@@ -1480,12 +1481,12 @@ export default function PostJobPage() {
                   <div className="pjw-callout is-suggestion" role="note">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     <p>{form.categorySuggestion}</p>
-                    <button className="pjw-callout-dismiss" type="button" onClick={() => set({ categorySuggestion: null })} aria-label="Dismiss">✕</button>
+                    <button className="pjw-callout-dismiss" type="button" onClick={() => set({ categorySuggestion: null })} aria-label={t('postJob.dismiss')}>✕</button>
                   </div>
                 )}
 
                 {/* Requirement toggles */}
-                <div className="pjw-req-grid" role="group" aria-label="Job requirements">
+                <div className="pjw-req-grid" role="group" aria-label={t('postJob.jobRequirements')}>
 
                   {/* License */}
                   <div className={`pjw-req-toggle${form.requirements.license.enabled?' is-selected':''}`} onClick={() => setReq('license',{ enabled:!form.requirements.license.enabled })} role="checkbox" aria-checked={form.requirements.license.enabled} tabIndex={0} onKeyDown={e=>e.key===' '&&setReq('license',{enabled:!form.requirements.license.enabled})}>
@@ -1499,12 +1500,12 @@ export default function PostJobPage() {
                     <div className={`pjw-req-detail${form.requirements.license.enabled?' is-open':''}`} aria-hidden={!form.requirements.license.enabled}>
                       <label>{t('postJob.licenseTypeRequired')}</label>
                       <select className="pjw-select" value={form.requirements.license.licenseType} onClick={e=>e.stopPropagation()} onChange={e=>setReq('license',{licenseType:e.target.value})}>
-                        <option value="">Specify license type…</option>
-                        <option value="oh-electrician">OH Electrician (OCILB)</option>
-                        <option value="oh-plumber">OH Plumber</option>
-                        <option value="oh-hvac">OH HVAC Contractor</option>
-                        <option value="contractor">General Contractor</option>
-                        <option value="other">Other / Specify in description</option>
+                        <option value="">{t('postJob.licenseTypes.select')}</option>
+                        <option value="oh-electrician">{t('postJob.licenseTypes.ohElectrician')}</option>
+                        <option value="oh-plumber">{t('postJob.licenseTypes.ohPlumber')}</option>
+                        <option value="oh-hvac">{t('postJob.licenseTypes.ohHvac')}</option>
+                        <option value="contractor">{t('postJob.licenseTypes.generalContractor')}</option>
+                        <option value="other">{t('postJob.licenseTypes.other')}</option>
                       </select>
                     </div>
                   </div>
@@ -1541,10 +1542,10 @@ export default function PostJobPage() {
                     <div className={`pjw-req-detail${form.requirements.skillLevel.enabled?' is-open':''}`} aria-hidden={!form.requirements.skillLevel.enabled}>
                       <label>{t('postJob.minimumSkillLevel')}</label>
                       <select className="pjw-select" value={form.requirements.skillLevel.minLevel} onClick={e=>e.stopPropagation()} onChange={e=>setReq('skillLevel',{minLevel:e.target.value})}>
-                        <option value="beginner">Beginner - basic tasks</option>
-                        <option value="intermediate">Intermediate - 2+ years</option>
-                        <option value="advanced">Advanced - 5+ years</option>
-                        <option value="expert">Expert / Master level</option>
+                        <option value="beginner">{t('postJob.skillLevels.beginner')}</option>
+                        <option value="intermediate">{t('postJob.skillLevels.intermediate')}</option>
+                        <option value="advanced">{t('postJob.skillLevels.advanced')}</option>
+                        <option value="expert">{t('postJob.skillLevels.expert')}</option>
                       </select>
                     </div>
                   </div>
@@ -1576,10 +1577,10 @@ export default function PostJobPage() {
                     <div className={`pjw-req-detail${form.requirements.crewSize.enabled?' is-open':''}`} aria-hidden={!form.requirements.crewSize.enabled}>
                       <label>{t('postJob.minimumCrewSize')}</label>
                       <select className="pjw-select" value={form.requirements.crewSize.minCrew} onClick={e=>e.stopPropagation()} onChange={e=>setReq('crewSize',{minCrew:Number(e.target.value)})}>
-                        <option value={1}>Solo (1 person)</option>
-                        <option value={2}>2 people</option>
-                        <option value={3}>3 people</option>
-                        <option value={4}>4+ people</option>
+                        <option value={1}>{t('postJob.crewOptions.solo')}</option>
+                        <option value={2}>{t('postJob.crewOptions.two')}</option>
+                        <option value={3}>{t('postJob.crewOptions.three')}</option>
+                        <option value={4}>{t('postJob.crewOptions.fourPlus')}</option>
                       </select>
                     </div>
                   </div>
@@ -1635,7 +1636,7 @@ export default function PostJobPage() {
                             type="button"
                             onClick={() => set({ requiredSkills: form.requiredSkills.filter(s => s.id !== skill.id) })}
                             style={{ background: 'none', border: 'none', color: 'var(--muted-text)', cursor: 'pointer', padding: 0, fontSize: '1rem', lineHeight: 1 }}
-                            aria-label={`Remove ${skill.name}`}
+                            aria-label={t('postJob.removeSkill', { name: skill.name })}
                           >
                             ✕
                           </button>
@@ -1649,7 +1650,7 @@ export default function PostJobPage() {
                 {activeReqs.length >= 3 && (
                   <div className="pjw-req-warning" role="note">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    <span>Strict requirements may limit the number of helpers who can bid. You can still adjust after posting.</span>
+                    <span>{t('postJob.strictRequirementsWarning')}</span>
                   </div>
                 )}
               </div>
@@ -1706,7 +1707,7 @@ export default function PostJobPage() {
                 {form.budgetType === 'open' && (
                   <div className="pjw-callout" role="note">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    <p>Helpers will submit their own price. You'll see all bids and choose the one that fits your budget.</p>
+                    <p>{t('postJob.openBidHelp')}</p>
                   </div>
                 )}
 
@@ -1715,7 +1716,7 @@ export default function PostJobPage() {
                 {/* Urgency */}
                 <div className="pjw-field">
                   <label>{t('postJob.urgency')}</label>
-                  <div className="pjw-pill-group" role="group" aria-label="Job urgency">
+                  <div className="pjw-pill-group" role="group" aria-label={t('postJob.urgency')}>
                     {[['asap','urgencyASAP'],['this_week','urgencyThisWeek'],['next_week','urgencyNextWeek'],['flexible','urgencyFlexible']].map(([val,key]) => (
                       <button key={val} type="button"
                         className={`pjw-pill${form.urgency===val?' is-active':''}`}
@@ -1729,7 +1730,7 @@ export default function PostJobPage() {
 
                 {/* Additional notes */}
                 <div className="pjw-field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="pjw-notes">{t('postJob.additionalNotes')} <span className="hint">Optional</span></label>
+                  <label htmlFor="pjw-notes">{t('postJob.additionalNotes')} <span className="hint">{t('postJob.optional')}</span></label>
                   <textarea id="pjw-notes" className="pjw-textarea" rows={3}
                     placeholder={t('postJob.notesPlaceholder')}
                     value={form.notes} onChange={e => set({ notes: e.target.value })} />
@@ -1737,7 +1738,7 @@ export default function PostJobPage() {
 
                 {/* Scheduling (future date) */}
             <div className="pjw-field">
-              <label>{t('postJob.scheduleForLater')} <span className="hint">Optional</span></label>
+              <label>{t('postJob.scheduleForLater')} <span className="hint">{t('postJob.optional')}</span></label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input type="date" className="pjw-input" value={form.scheduledDate}
                   onChange={e => set({ scheduledDate: e.target.value })} />
@@ -1749,7 +1750,7 @@ export default function PostJobPage() {
             {/* Recurrence */}
             <div className="pjw-field">
               <label>{t('postJob.recurrence')}</label>
-              <div className="pjw-pill-group" role="group" aria-label="Recurrence">
+              <div className="pjw-pill-group" role="group" aria-label={t('postJob.recurrence')}>
                 {[['none','recurrenceOneTime'],['weekly','recurrenceWeekly'],['biweekly','recurrenceBiWeekly'],['monthly','recurrenceMonthly']].map(([val,key]) =>
                   <button key={val} type="button"
                     className={`pjw-pill${form.recurrence===val?' is-active':''}`}
@@ -1763,7 +1764,7 @@ export default function PostJobPage() {
 
             {/* Preferred helper */}
             <div className="pjw-field" style={{ position: 'relative' }}>
-              <label htmlFor="pjw-preferred-helper">{t('postJob.preferredHelper')} <span className="hint">Optional</span></label>
+              <label htmlFor="pjw-preferred-helper">{t('postJob.preferredHelper')} <span className="hint">{t('postJob.optional')}</span></label>
               <input id="pjw-preferred-helper" className="pjw-input"
                 placeholder={t('postJob.preferredHelperPlaceholder')}
                 value={form.preferredHelperName}
@@ -1806,20 +1807,20 @@ export default function PostJobPage() {
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Step 4 of 4 - Review &amp; Post
+                  {t('postJob.stepReviewPostLabel')}
                 </div>
-                <p className="pjw-section-desc">Check everything looks right before going live.</p>
+                <p className="pjw-section-desc">{t('postJob.reviewHelp')}</p>
 
                 {/* Job Details review */}
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.jobDetailsTitle')}</span>
                   <span className={`pjw-review-value${!form.title?' is-empty':''}`}>{form.title || t('postJob.notSet')}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.category')}</span>
                   <span className={`pjw-review-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || t('postJob.notSelected')}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.location')}</span>
@@ -1828,22 +1829,22 @@ export default function PostJobPage() {
                       ? [form.locationCity, form.locationState, form.locationZip, form.locationCountry].filter(Boolean).join(', ')
                       : t('postJob.notSet')}
                   </span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.siteAccess')}</span>
                   <span className="pjw-review-value">{{ easy: t('postJob.siteAccessEasy'), lockbox: t('postJob.siteAccessLockbox'), schedule: t('postJob.siteAccessSchedule') }[form.siteAccess]}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.jobType')}</span>
                   <span className="pjw-review-value">{{ one_time: t('postJob.jobTypeOneTime'), recurring: t('postJob.jobTypeRecurring') }[form.jobType]}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.description')}</span>
                   <span className="pjw-review-value" style={{ maxWidth:'360px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{form.description || <em style={{color:'var(--pjw-text-faint)'}}>{t('postJob.notSet')}</em>}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>{t('postJob.edit')}</button>
                 </div>
 
                 <div className="pjw-hr" />
@@ -1854,7 +1855,7 @@ export default function PostJobPage() {
                   <div className="pjw-review-value">
                     {activeReqs.length === 0
                       ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>{t('postJob.notSelected')}</span>
-                      : <div className="pjw-req-badges">{activeReqs.map(k => <span key={k} className="pjw-req-badge">{REQ_META[k].label}</span>)}</div>
+                      : <div className="pjw-req-badges">{activeReqs.map(k => <span key={k} className="pjw-req-badge">{t(`postJob.${REQ_META[k].key}`)}</span>)}</div>
                     }
                   </div>
                   <button
@@ -1863,7 +1864,7 @@ export default function PostJobPage() {
                     onClick={() => set({ step:2 })}
                     aria-label={t('postJob.editRequirements')}
                   >
-                    Edit
+                    {t('postJob.edit')}
                   </button>
                 </div>
 
@@ -1875,7 +1876,7 @@ export default function PostJobPage() {
                       ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>{t('postJob.notSelected')}</span>
                       : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                           {form.requiredSkills.map((skill) => (
-                            <span key={skill.id} className="pjw-req-badge" aria-label={`${skill.name}, read-only`}>
+                            <span key={skill.id} className="pjw-req-badge" aria-label={t('postJob.readOnlySkill', { name: skill.name })}>
                               {skill.name}
                             </span>
                           ))}
@@ -1888,7 +1889,7 @@ export default function PostJobPage() {
                     onClick={() => set({ step:2 })}
                     aria-label={t('postJob.editRequiredSkills')}
                   >
-                    Edit
+                    {t('postJob.edit')}
                   </button>
                 </div>
 
@@ -1904,7 +1905,7 @@ export default function PostJobPage() {
                     onClick={() => set({ step:3 })}
                     aria-label={t('postJob.editBudget')}
                   >
-                    Edit
+                    {t('postJob.edit')}
                   </button>
                 </div>
                 <div className="pjw-review-row">
@@ -1916,7 +1917,7 @@ export default function PostJobPage() {
                     onClick={() => set({ step:3 })}
                     aria-label={t('postJob.editUrgency')}
                   >
-                    Edit
+                    {t('postJob.edit')}
                   </button>
                 </div>
                 {form.notes && (
@@ -1929,7 +1930,7 @@ export default function PostJobPage() {
                       onClick={() => set({ step:3 })}
                       aria-label={t('postJob.editNotes')}
                     >
-                      Edit
+                      {t('postJob.edit')}
                     </button>
                   </div>
                 )}
@@ -1942,7 +1943,7 @@ export default function PostJobPage() {
                       <div className={`pjw-preview-grid${form.mediaTab !== 'photos' ? ' pjw-preview-grid--media' : ''}`} style={{ maxWidth:'300px' }}>
                         {form.mediaPreviews.map((src,i) => (
                           <div key={i} className={`pjw-preview-item${form.mediaTab === 'video' ? ' pjw-preview-item--video' : form.mediaTab === 'audio' ? ' pjw-preview-item--audio' : ''}`}>
-                            {form.mediaTab === 'photos' && <img src={src} alt={`Media ${i+1}`} />}
+                            {form.mediaTab === 'photos' && <img src={src} alt={t('postJob.mediaNumber', { number: i + 1 })} />}
                             {form.mediaTab === 'video'  && <video src={src} controls playsInline />}
                             {form.mediaTab === 'audio'  && <audio src={src} controls />}
                           </div>
@@ -1955,7 +1956,7 @@ export default function PostJobPage() {
                       onClick={() => set({ step:1 })}
                       aria-label={t('postJob.editMedia')}
                     >
-                      Edit
+                      {t('postJob.edit')}
                     </button>
                   </div>
                 )}
@@ -1986,11 +1987,11 @@ export default function PostJobPage() {
                 </button>
                 {form.step < 4
                   ? <button type="button" className="pjw-btn pjw-btn-primary" onClick={nextStep}>
-                      Next Step
+                      {t('postJob.nextStep')}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                   : <button type="button" className="pjw-btn pjw-btn-primary" disabled={form.submitting || !form.termsAccepted} onClick={handleSubmit}>
-                      {form.submitting ? t('postJob.submitting') : 'Post Job & Invite Bids'}
+                      {form.submitting ? t('postJob.submitting') : t('postJob.postAndInvite')}
                       {!form.submitting && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>}
                     </button>
                 }
@@ -2000,10 +2001,10 @@ export default function PostJobPage() {
           </div>{/* /steps column */}
 
           {/* ── Sidebar ───────────────────────────────────────────────── */}
-          <aside className="pjw-sidebar" aria-label="Job posting summary">
+          <aside className="pjw-sidebar" aria-label={t('postJob.jobPostingSummary')}>
             <div className="pjw-summary-card">
               <div className="pjw-summary-header">
-                <h3>Job Summary</h3>
+                <h3>{t('postJob.jobSummary')}</h3>
                 <span className={`pjw-summary-status ${isReady ? 'pjw-status-ready' : 'pjw-status-draft'}`}>
                   {isReady ? t('postJob.ready') : t('postJob.draft')}
                 </span>
@@ -2037,7 +2038,7 @@ export default function PostJobPage() {
               </div>
               <div className="pjw-summary-footer">
                 <p className="pjw-summary-note">
-                  Helpers must confirm <strong>{activeReqs.length}</strong> requirement{activeReqs.length !== 1 ? 's' : ''} before they can bid on this job.
+                  {t('postJob.requirementsToConfirm', { count: activeReqs.length })}
                 </p>
                 <button type="button" className="pjw-btn pjw-btn-primary pjw-btn-full"
                   onClick={form.step === 4 ? handleSubmit : () => { setErrors({}); set({ step: 4 }); }}
@@ -2055,19 +2056,19 @@ export default function PostJobPage() {
             </div>
 
             <div className="pjw-side-note-card">
-              <div className="pjw-side-note-kicker">Before you post</div>
-              <h4>Make the job easier to price.</h4>
+              <div className="pjw-side-note-kicker">{t('postJob.beforePost')}</div>
+              <h4>{t('postJob.easierToPrice')}</h4>
               <ul className="pjw-side-note-list">
-                <li>Include exact problem details, not just the category.</li>
-                <li>Add preferred dates if access depends on your schedule.</li>
-                <li>List any special tools, permits, or materials helpers should expect.</li>
+                <li>{t('postJob.beforePostTips.details')}</li>
+                <li>{t('postJob.beforePostTips.dates')}</li>
+                <li>{t('postJob.beforePostTips.tools')}</li>
               </ul>
             </div>
 
             <div className="pjw-side-note-card">
-              <div className="pjw-side-note-kicker">What happens next</div>
+              <div className="pjw-side-note-kicker">{t('postJob.whatHappensNext')}</div>
               <p className="pjw-side-note-copy">
-                Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready.
+                {t('postJob.whatHappensNextBody')}
               </p>
             </div>
           </aside>

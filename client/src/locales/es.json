@@ -3368,7 +3368,36 @@
     "stepJobDetails": "Detalles del Trabajo",
     "stepRequirements": "Requisitos",
     "stepReviewPost": "Revisar y Publicar",
-    "prefillFromBooking": "Prellenado desde tu solicitud de reserva. Revísalo todo antes de publicar para todos."
+    "prefillFromBooking": "Prellenado desde tu solicitud de reserva. Revísalo todo antes de publicar para todos.",
+    "home": "Inicio",
+    "jobs": "Trabajos",
+    "noCategoryMatches": "Ninguna categoría coincide con \"{{search}}\"",
+    "capture": {
+      "accessDenied": "Se denegó el acceso a la cámara o al micrófono. Permítelo en la configuración del navegador e inténtalo de nuevo.", "deviceNotFound": "No se encontró cámara ni micrófono en este dispositivo.", "startError": "No se pudo iniciar la captura: {{error}}", "takePhoto": "📷 Tomar una foto en vivo", "recordVideo": "🎥 Grabar un video", "recordAudio": "🎙 Grabar audio", "close": "Cerrar", "starting": "Iniciando…", "processing": "Procesando…", "snapPhoto": "📷 Tomar foto", "startRecording": "⏺ Iniciar grabación", "stop": "⏹ Detener", "microphoneReady": "Micrófono listo"
+    },
+    "stepIntro": {
+      "details": { "eyebrow": "Define el trabajo", "title": "Dile a OxSteed qué necesitas hacer.", "body": "Un título claro, una ubicación precisa y contenido útil ayudan a que los ayudantes adecuados se identifiquen más rápido." },
+      "requirements": { "eyebrow": "Define los requisitos", "title": "Indica quién está calificado para ofertar.", "body": "Usa requisitos para filtrar por el ayudante, equipo, herramientas y señales de confianza que necesita el trabajo." },
+      "budget": { "eyebrow": "Presupuesto y tiempo", "title": "Haz que el plazo sea realista.", "body": "Define el presupuesto, la urgencia, las preferencias de horario y notas privadas para recibir mejores ofertas." },
+      "review": { "eyebrow": "Revisión final", "title": "Revisa la publicación antes de activarla.", "body": "Esta es la última revisión antes de recibir ofertas de ayudantes que coincidan con la solicitud." }
+    },
+    "metaDescription": "Describe lo que necesitas y recibe ofertas competitivas de ayudantes locales de confianza. Publicar es gratis.",
+    "hero": { "kicker": "Publicación de trabajo del cliente", "subtitle": "Describe lo que necesitas, define quién puede ofertar y convierte una tarea confusa en una solicitud clara que los ayudantes puedan cotizar rápidamente.", "free": "Publicación gratuita", "requirements": "Define tus propios requisitos", "bids": "Invita ofertas competitivas", "betterBidsTitle": "Cómo obtener mejores ofertas", "tipScope": "Un alcance específico supera una descripción general.", "tipMedia": "Las fotos o videos reducen las preguntas repetidas.", "tipRequirements": "Los requisitos evitan perder tiempo con ayudantes poco adecuados." },
+    "directHelperNotice": "Solicitud directa para {{name}}. Recibirá una notificación cuando publiques el trabajo.", "thisHelper": "este ayudante", "viewProfile": "Ver perfil",
+    "maintenanceMode": "El modo de solicitud de mantenimiento está activo. Añade fotos, notas de acceso, urgencia y horarios preferidos para que el administrador pueda aceptar, programar o asignar el trabajo.",
+    "currentStep": "Paso actual", "helperFilters": "Filtros de ayudantes", "mediaAdded": "Contenido añadido", "optional": "Opcional",
+    "mediaTabs": { "photos": "Fotos", "video": "Video", "audio": "Audio" }, "clickToUpload": "Haz clic para subir {{type}}", "orDragDrop": "o arrastra y suelta",
+    "mediaLimits": { "photos": "JPG, PNG, WEBP · hasta 5 fotos · 10 MB cada una", "video": "MP4, MOV · hasta 1 video · 100 MB", "audio": "MP3, WAV · hasta 1 archivo · 20 MB" },
+    "previewNumber": "Vista previa {{number}}", "remove": "Eliminar",
+    "credentialNotice": "Cuando un ayudante proporciona credenciales de licencia o seguro, OxSteed intentará verificarlas. Los demás requisitos son confirmados por el ayudante antes de ofertar.", "dismiss": "Descartar",
+    "licenseTypes": { "select": "Especifica el tipo de licencia…", "ohElectrician": "Electricista de Ohio (OCILB)", "ohPlumber": "Plomero de Ohio", "ohHvac": "Contratista HVAC de Ohio", "generalContractor": "Contratista general", "other": "Otro / Especificar en la descripción" },
+    "skillLevels": { "beginner": "Principiante - tareas básicas", "intermediate": "Intermedio - más de 2 años", "advanced": "Avanzado - más de 5 años", "expert": "Experto / Maestro" },
+    "crewOptions": { "solo": "Solo (1 persona)", "two": "2 personas", "three": "3 personas", "fourPlus": "4 o más personas" },
+    "removeSkill": "Eliminar {{name}}", "strictRequirementsWarning": "Los requisitos estrictos pueden limitar la cantidad de ayudantes que pueden ofertar. Puedes ajustarlos después de publicar.", "openBidHelp": "Los ayudantes enviarán su propio precio. Verás todas las ofertas y elegirás la que se ajuste a tu presupuesto.",
+    "stepReviewPostLabel": "Paso 4 de 4 - Revisar y publicar", "reviewHelp": "Comprueba que todo esté correcto antes de publicar.", "edit": "Editar", "readOnlySkill": "{{name}}, solo lectura", "mediaNumber": "Contenido {{number}}", "nextStep": "Siguiente paso", "postAndInvite": "Publicar trabajo e invitar ofertas", "jobPostingSummary": "Resumen de la publicación", "jobSummary": "Resumen del trabajo", "requirementsToConfirm": "Los ayudantes deben confirmar {{count}} requisito(s) antes de ofertar en este trabajo.",
+    "beforePost": "Antes de publicar", "easierToPrice": "Facilita la cotización del trabajo.",
+    "beforePostTips": { "details": "Incluye detalles exactos del problema, no solo la categoría.", "dates": "Añade fechas preferidas si el acceso depende de tu horario.", "tools": "Indica las herramientas, permisos o materiales especiales que deben considerar." },
+    "whatHappensNext": "Qué sucede después", "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
     "bidNow": "Hacer oferta",

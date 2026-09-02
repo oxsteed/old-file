@@ -3368,7 +3368,36 @@
     "stepJobDetails": "Détails de l'Emploi",
     "stepRequirements": "Exigences",
     "stepReviewPost": "Réviser et Publier",
-    "prefillFromBooking": "Prérempli depuis votre demande de réservation. Vérifiez tout avant de publier pour tous."
+    "prefillFromBooking": "Prérempli depuis votre demande de réservation. Vérifiez tout avant de publier pour tous.",
+    "home": "Accueil",
+    "jobs": "Travaux",
+    "noCategoryMatches": "Aucune catégorie ne correspond à « {{search}} »",
+    "capture": {
+      "accessDenied": "L’accès à la caméra ou au microphone a été refusé. Autorisez-le dans les paramètres du navigateur et réessayez.", "deviceNotFound": "Aucune caméra ni aucun microphone n’a été trouvé sur cet appareil.", "startError": "Impossible de démarrer la capture : {{error}}", "takePhoto": "📷 Prendre une photo en direct", "recordVideo": "🎥 Enregistrer une vidéo", "recordAudio": "🎙 Enregistrer un audio", "close": "Fermer", "starting": "Démarrage…", "processing": "Traitement…", "snapPhoto": "📷 Prendre la photo", "startRecording": "⏺ Démarrer l’enregistrement", "stop": "⏹ Arrêter", "microphoneReady": "Microphone prêt"
+    },
+    "stepIntro": {
+      "details": { "eyebrow": "Définir les travaux", "title": "Indiquez à OxSteed ce qui doit être fait.", "body": "Un titre précis, une adresse claire et des médias utiles permettent aux bons prestataires de se reconnaître plus vite." },
+      "requirements": { "eyebrow": "Fixer les critères", "title": "Définissez qui peut soumissionner.", "body": "Utilisez les exigences pour filtrer le prestataire, l’équipe, les outils et les garanties nécessaires." },
+      "budget": { "eyebrow": "Budget et calendrier", "title": "Rendez le calendrier concret.", "body": "Définissez le budget, l’urgence, les préférences de calendrier et les notes privées pour recevoir des offres mieux adaptées." },
+      "review": { "eyebrow": "Vérification finale", "title": "Vérifiez l’annonce avant sa publication.", "body": "C’est la dernière vérification avant de recevoir les offres de prestataires correspondant à la demande." }
+    },
+    "metaDescription": "Décrivez les travaux et recevez des offres compétitives de prestataires locaux de confiance. Publication gratuite.",
+    "hero": { "kicker": "Annonce de travaux du client", "subtitle": "Décrivez les travaux, définissez qui peut soumissionner et transformez une tâche imprécise en demande claire et facile à chiffrer.", "free": "Publication gratuite", "requirements": "Définissez vos exigences", "bids": "Invitez des offres compétitives", "betterBidsTitle": "Comment obtenir de meilleures offres", "tipScope": "Un périmètre précis vaut mieux qu’une description générale.", "tipMedia": "Les photos ou vidéos réduisent les questions répétées.", "tipRequirements": "Les exigences évitent de perdre du temps avec des prestataires inadaptés." },
+    "directHelperNotice": "Demande directe à {{name}}. Cette personne sera avertie lorsque votre annonce sera publiée.", "thisHelper": "ce prestataire", "viewProfile": "Voir le profil",
+    "maintenanceMode": "Le mode demande de maintenance est actif. Ajoutez des photos, des notes d’accès, le degré d’urgence et les créneaux souhaités afin que le gestionnaire puisse accepter, planifier ou attribuer les travaux.",
+    "currentStep": "Étape actuelle", "helperFilters": "Filtres des prestataires", "mediaAdded": "Médias ajoutés", "optional": "Facultatif",
+    "mediaTabs": { "photos": "Photos", "video": "Vidéo", "audio": "Audio" }, "clickToUpload": "Cliquer pour téléverser : {{type}}", "orDragDrop": "ou glisser-déposer",
+    "mediaLimits": { "photos": "JPG, PNG, WEBP · jusqu’à 5 photos · 10 Mo chacune", "video": "MP4, MOV · jusqu’à 1 vidéo · 100 Mo", "audio": "MP3, WAV · jusqu’à 1 fichier · 20 Mo" },
+    "previewNumber": "Aperçu {{number}}", "remove": "Supprimer",
+    "credentialNotice": "Lorsqu’un prestataire fournit une licence ou une assurance, OxSteed tente de les vérifier. Toutes les autres exigences sont confirmées par le prestataire avant l’offre.", "dismiss": "Masquer",
+    "licenseTypes": { "select": "Préciser le type de licence…", "ohElectrician": "Électricien de l’Ohio (OCILB)", "ohPlumber": "Plombier de l’Ohio", "ohHvac": "Entrepreneur CVC de l’Ohio", "generalContractor": "Entrepreneur général", "other": "Autre / Préciser dans la description" },
+    "skillLevels": { "beginner": "Débutant - tâches simples", "intermediate": "Intermédiaire - 2 ans et plus", "advanced": "Avancé - 5 ans et plus", "expert": "Expert / Maître" },
+    "crewOptions": { "solo": "Seul (1 personne)", "two": "2 personnes", "three": "3 personnes", "fourPlus": "4 personnes ou plus" },
+    "removeSkill": "Supprimer {{name}}", "strictRequirementsWarning": "Des exigences strictes peuvent limiter le nombre de prestataires pouvant soumissionner. Vous pourrez encore les modifier après publication.", "openBidHelp": "Les prestataires proposeront leur propre prix. Vous verrez toutes les offres et choisirez celle qui correspond à votre budget.",
+    "stepReviewPostLabel": "Étape 4 sur 4 - Vérifier et publier", "reviewHelp": "Vérifiez que tout est correct avant la publication.", "edit": "Modifier", "readOnlySkill": "{{name}}, lecture seule", "mediaNumber": "Média {{number}}", "nextStep": "Étape suivante", "postAndInvite": "Publier et inviter des offres", "jobPostingSummary": "Résumé de l’annonce", "jobSummary": "Résumé des travaux", "requirementsToConfirm": "Les prestataires doivent confirmer {{count}} exigence(s) avant de pouvoir soumissionner.",
+    "beforePost": "Avant de publier", "easierToPrice": "Facilitez le chiffrage des travaux.",
+    "beforePostTips": { "details": "Précisez le problème, pas seulement la catégorie.", "dates": "Ajoutez les dates souhaitées si l’accès dépend de votre disponibilité.", "tools": "Indiquez les outils, permis ou matériaux particuliers à prévoir." },
+    "whatHappensNext": "Prochaine étape", "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
     "bidNow": "Faire une offre",

@@ -3368,7 +3368,92 @@
     "stepBudgetTimeline": "Budget & Timeline",
     "stepJobDetails": "Job Details",
     "stepRequirements": "Requirements",
-    "stepReviewPost": "Review & Post"
+    "stepReviewPost": "Review & Post",
+    "home": "Home",
+    "jobs": "Jobs",
+    "noCategoryMatches": "No categories match \"{{search}}\"",
+    "capture": {
+      "accessDenied": "Camera or microphone access was denied. Allow it in your browser settings and try again.",
+      "deviceNotFound": "No camera or microphone was found on this device.",
+      "startError": "Could not start capture: {{error}}",
+      "takePhoto": "📷 Take a Live Photo",
+      "recordVideo": "🎥 Record a Video",
+      "recordAudio": "🎙 Record Audio",
+      "close": "Close",
+      "starting": "Starting…",
+      "processing": "Processing…",
+      "snapPhoto": "📷 Snap Photo",
+      "startRecording": "⏺ Start Recording",
+      "stop": "⏹ Stop",
+      "microphoneReady": "Microphone ready"
+    },
+    "stepIntro": {
+      "details": { "eyebrow": "Scope the work", "title": "Tell OxSteed what needs to get done.", "body": "A stronger title, clearer location, and useful media help the right helpers self-select faster." },
+      "requirements": { "eyebrow": "Set the bar", "title": "Define who is qualified to bid.", "body": "Use requirements to filter for the helper, team, tools, and trust signals this job really needs." },
+      "budget": { "eyebrow": "Budget and timing", "title": "Make the timeline feel real.", "body": "Set a budget style, urgency, schedule preferences, and private notes so bids arrive with better context." },
+      "review": { "eyebrow": "Final review", "title": "Check the post before it goes live.", "body": "This is the last pass before your job starts attracting bids from helpers who match the request." }
+    },
+    "metaDescription": "Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post.",
+    "hero": {
+      "kicker": "Customer job post",
+      "subtitle": "Describe what needs doing, set the bar for who can bid, and turn one messy task into a clear request helpers can price quickly.",
+      "free": "Free to post",
+      "requirements": "Set your own requirements",
+      "bids": "Invite competitive bids",
+      "betterBidsTitle": "What makes bids better",
+      "tipScope": "Specific scope beats broad descriptions.",
+      "tipMedia": "Photos or video reduce back-and-forth questions.",
+      "tipRequirements": "Requirements prevent low-fit helpers from wasting your time."
+    },
+    "directHelperNotice": "Direct request to {{name}}. They will be notified when your job is posted.",
+    "thisHelper": "this helper",
+    "viewProfile": "View profile",
+    "maintenanceMode": "Maintenance request mode is on. Add photos, access notes, urgency, and preferred repair windows so the property manager can accept, schedule, or assign the work.",
+    "currentStep": "Current step",
+    "helperFilters": "Helper filters",
+    "mediaAdded": "Media added",
+    "optional": "Optional",
+    "mediaTabs": { "photos": "Photos", "video": "Video", "audio": "Audio" },
+    "clickToUpload": "Click to upload {{type}}",
+    "orDragDrop": "or drag and drop",
+    "mediaLimits": {
+      "photos": "JPG, PNG, WEBP · up to 5 photos · 10 MB each",
+      "video": "MP4, MOV · up to 1 video · 100 MB",
+      "audio": "MP3, WAV · up to 1 file · 20 MB"
+    },
+    "previewNumber": "Preview {{number}}",
+    "remove": "Remove",
+    "credentialNotice": "When a helper provides license or insurance credentials, OxSteed will attempt to verify them. All other requirements are self-confirmed by the helper before bidding.",
+    "dismiss": "Dismiss",
+    "licenseTypes": {
+      "select": "Specify license type…", "ohElectrician": "OH Electrician (OCILB)", "ohPlumber": "OH Plumber", "ohHvac": "OH HVAC Contractor", "generalContractor": "General Contractor", "other": "Other / Specify in description"
+    },
+    "skillLevels": {
+      "beginner": "Beginner - basic tasks", "intermediate": "Intermediate - 2+ years", "advanced": "Advanced - 5+ years", "expert": "Expert / Master level"
+    },
+    "crewOptions": { "solo": "Solo (1 person)", "two": "2 people", "three": "3 people", "fourPlus": "4+ people" },
+    "removeSkill": "Remove {{name}}",
+    "strictRequirementsWarning": "Strict requirements may limit the number of helpers who can bid. You can still adjust them after posting.",
+    "openBidHelp": "Helpers will submit their own price. You will see all bids and choose the one that fits your budget.",
+    "stepReviewPostLabel": "Step 4 of 4 - Review & Post",
+    "reviewHelp": "Check that everything looks right before going live.",
+    "edit": "Edit",
+    "readOnlySkill": "{{name}}, read-only",
+    "mediaNumber": "Media {{number}}",
+    "nextStep": "Next Step",
+    "postAndInvite": "Post Job & Invite Bids",
+    "jobPostingSummary": "Job posting summary",
+    "jobSummary": "Job Summary",
+    "requirementsToConfirm": "Helpers must confirm {{count}} requirement(s) before they can bid on this job.",
+    "beforePost": "Before you post",
+    "easierToPrice": "Make the job easier to price.",
+    "beforePostTips": {
+      "details": "Include exact problem details, not just the category.",
+      "dates": "Add preferred dates if access depends on your schedule.",
+      "tools": "List any special tools, permits, or materials helpers should expect."
+    },
+    "whatHappensNext": "What happens next",
+    "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
     "bidNow": "Bid on This Job",

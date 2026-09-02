@@ -3453,7 +3453,36 @@
     "stepJobDetails": "Detay Travay",
     "stepRequirements": "Egzijans",
     "stepReviewPost": "Revize ak Afiche",
-    "prefillFromBooking": "Ranpli otomatikman ak demand rezèvasyon ou. Revize tout anvan ou pibliye pou tout moun."
+    "prefillFromBooking": "Ranpli otomatikman ak demand rezèvasyon ou. Revize tout anvan ou pibliye pou tout moun.",
+    "home": "Akèy",
+    "jobs": "Travay",
+    "noCategoryMatches": "Pa gen kategori ki mache ak \"{{search}}\"",
+    "capture": {
+      "accessDenied": "Aksè kamera oswa mikwofòn refize. Bay pèmisyon nan paramèt navigatè a epi eseye ankò.", "deviceNotFound": "Nou pa jwenn kamera oswa mikwofòn sou aparèy sa a.", "startError": "Nou pa t kapab kòmanse anrejistreman an: {{error}}", "takePhoto": "📷 Pran yon foto an dirèk", "recordVideo": "🎥 Anrejistre yon videyo", "recordAudio": "🎙 Anrejistre odyo", "close": "Fèmen", "starting": "Ap kòmanse…", "processing": "Ap trete…", "snapPhoto": "📷 Pran foto", "startRecording": "⏺ Kòmanse anrejistre", "stop": "⏹ Kanpe", "microphoneReady": "Mikwofòn pare"
+    },
+    "stepIntro": {
+      "details": { "eyebrow": "Defini travay la", "title": "Di OxSteed sa ki bezwen fèt.", "body": "Yon tit klè, yon kote presi, ak bon medya ede bon moun yo rekonèt travay la pi vit." },
+      "requirements": { "eyebrow": "Mete kondisyon yo", "title": "Defini kiyès ki kalifye pou fè òf.", "body": "Sèvi ak kondisyon pou filtre moun, ekip, zouti, ak siy konfyans travay sa a bezwen." },
+      "budget": { "eyebrow": "Bidjè ak tan", "title": "Fè delè a reyalis.", "body": "Mete kalite bidjè, ijans, preferans orè, ak nòt prive pou resevwa pi bon òf." },
+      "review": { "eyebrow": "Dènye revizyon", "title": "Tcheke anons la anvan li ale an dirèk.", "body": "Sa a se dènye verifikasyon anvan moun ki kalifye yo kòmanse voye òf." }
+    },
+    "metaDescription": "Dekri travay ou bezwen an epi resevwa òf nan men moun lokal ou ka fè konfyans. Li gratis pou poste.",
+    "hero": { "kicker": "Anons travay kliyan", "subtitle": "Dekri sa ki bezwen fèt, defini kiyès ki ka fè òf, epi fè yon travay ki pa klè tounen yon demann moun ka evalye fasil.", "free": "Gratis pou poste", "requirements": "Mete pwòp kondisyon ou", "bids": "Envite òf konpetitif", "betterBidsTitle": "Sa ki fè òf yo pi bon", "tipScope": "Detay presi pi bon pase yon deskripsyon jeneral.", "tipMedia": "Foto oswa videyo diminye kesyon ale-vini.", "tipRequirements": "Kondisyon yo evite pèdi tan ak moun ki pa adapte." },
+    "directHelperNotice": "Demann dirèk pou {{name}}. Y ap resevwa yon notifikasyon lè ou poste travay la.", "thisHelper": "moun sa a", "viewProfile": "Gade pwofil",
+    "maintenanceMode": "Mòd demann antretyen aktive. Ajoute foto, nòt aksè, ijans, ak lè reparasyon ou prefere pou responsab la ka aksepte, pwograme, oswa bay travay la.",
+    "currentStep": "Etap aktyèl", "helperFilters": "Filtè moun", "mediaAdded": "Medya ajoute", "optional": "Opsyonèl",
+    "mediaTabs": { "photos": "Foto", "video": "Videyo", "audio": "Odyo" }, "clickToUpload": "Klike pou telechaje {{type}}", "orDragDrop": "oswa trennen epi depoze",
+    "mediaLimits": { "photos": "JPG, PNG, WEBP · jiska 5 foto · 10 MB chak", "video": "MP4, MOV · jiska 1 videyo · 100 MB", "audio": "MP3, WAV · jiska 1 fichye · 20 MB" },
+    "previewNumber": "Apèsi {{number}}", "remove": "Retire",
+    "credentialNotice": "Lè yon moun bay lisans oswa asirans, OxSteed ap eseye verifye yo. Moun nan konfime tout lòt kondisyon yo anvan li fè òf.", "dismiss": "Fèmen",
+    "licenseTypes": { "select": "Chwazi kalite lisans…", "ohElectrician": "Elektrisyen Ohio (OCILB)", "ohPlumber": "Plonbye Ohio", "ohHvac": "Kontraktè HVAC Ohio", "generalContractor": "Kontraktè jeneral", "other": "Lòt / Presize nan deskripsyon" },
+    "skillLevels": { "beginner": "Debitan - travay senp", "intermediate": "Entèmedyè - 2 ane oswa plis", "advanced": "Avanse - 5 ane oswa plis", "expert": "Ekspè / Mèt" },
+    "crewOptions": { "solo": "Pou kont li (1 moun)", "two": "2 moun", "three": "3 moun", "fourPlus": "4 moun oswa plis" },
+    "removeSkill": "Retire {{name}}", "strictRequirementsWarning": "Kondisyon strik ka limite kantite moun ki ka fè òf. Ou ka ajiste yo apre ou poste.", "openBidHelp": "Moun yo ap voye pwòp pri yo. Ou ap wè tout òf yo epi chwazi sa ki mache ak bidjè ou.",
+    "stepReviewPostLabel": "Etap 4 sou 4 - Revize epi poste", "reviewHelp": "Tcheke tout bagay kòrèk anvan ou poste.", "edit": "Modifye", "readOnlySkill": "{{name}}, sèlman pou li", "mediaNumber": "Medya {{number}}", "nextStep": "Pwochen etap", "postAndInvite": "Poste travay epi envite òf", "jobPostingSummary": "Rezime anons travay la", "jobSummary": "Rezime travay la", "requirementsToConfirm": "Moun yo dwe konfime {{count}} kondisyon anvan yo ka fè òf sou travay sa a.",
+    "beforePost": "Anvan ou poste", "easierToPrice": "Fè travay la pi fasil pou bay pri.",
+    "beforePostTips": { "details": "Bay detay egzak sou pwoblèm nan, pa sèlman kategori a.", "dates": "Ajoute dat ou prefere si aksè a depann de orè ou.", "tools": "Ekri zouti, pèmi, oswa materyèl espesyal moun yo dwe prevwa." },
+    "whatHappensNext": "Sa k ap pase apre", "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
     "bidNow": "Fè Òf sou Travay sa",
