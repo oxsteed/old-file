@@ -34,7 +34,7 @@ function normalizeSupportMessages(messages = []) {
 }
 
 export default function SupportEscalationPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState('checking'); // 'checking' | 'live-chat' | 'ticket' | 'success'
   const [agentsOnline, setAgentsOnline] = useState(0);
@@ -82,7 +82,7 @@ export default function SupportEscalationPage() {
 
     const handleAssignment = (data) => {
       if (data.ticketId !== ticketIdRef.current) return;
-      setAssignedAgent({ id: data.agentId, name: data.agentName || 'Support specialist' });
+      setAssignedAgent({ id: data.agentId, name: data.agentName || t('support.escalation.specialistFallback') });
       setConnectionState('connected');
     };
 
@@ -168,7 +168,7 @@ export default function SupportEscalationPage() {
         if (conversation.agent_id) {
           setAssignedAgent({
             id: conversation.agent_id,
-            name: conversation.agent_name || 'Support specialist',
+            name: conversation.agent_name || t('support.escalation.specialistFallback'),
           });
           setConnectionState('connected');
         } else if (conversation.status === 'waiting_for_agent') {
@@ -337,7 +337,7 @@ export default function SupportEscalationPage() {
         {phase === 'checking' && (
           <PageFrame>
             <Hero
-              eyebrow="Support escalation"
+              eyebrow={t('support.escalation.eyebrow')}
               title={t('support.escalation.checking', { defaultValue: 'Checking specialist availability' })}
               body={t('support.escalation.checkingDesc', { defaultValue: 'We are checking whether a live support specialist is available right now or whether we should route this into a priority support ticket.' })}
               right={(
@@ -345,18 +345,18 @@ export default function SupportEscalationPage() {
                   <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
                     <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
                   </div>
-                  <p className="text-white font-semibold">Routing your escalation</p>
+                  <p className="text-white font-semibold">{t('support.escalation.routingTitle')}</p>
                   <p className="text-slate-400 text-sm mt-2 leading-6">
-                    We prioritize fast human help for safety, payment, and time-sensitive support issues.
+                    {t('support.escalation.routingBody')}
                   </p>
                 </div>
               )}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatPill icon={Users} label="Agents online" value={agentsOnline} />
-              <StatPill icon={Clock} label="Escalation mode" value="Auto-route" />
-              <StatPill icon={ShieldCheck} label="Coverage" value="Live or ticket" />
+              <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+              <StatPill icon={Clock} label={t('support.escalation.escalationMode')} value={t('support.escalation.autoRoute')} />
+              <StatPill icon={ShieldCheck} label={t('support.escalation.coverage')} value={t('support.escalation.liveOrTicket')} />
             </div>
           </PageFrame>
         )}
@@ -364,14 +364,14 @@ export default function SupportEscalationPage() {
         {phase === 'live-chat' && (
           <PageFrame>
             <Hero
-              eyebrow="Live escalation"
-              title="Talk to a support specialist now."
-              body="A live support specialist is available. Stay on this page to continue the escalation conversation and keep the issue attached to your support history."
+              eyebrow={t('support.escalation.liveEyebrow')}
+              title={t('support.escalation.liveTitle')}
+              body={t('support.escalation.liveBody')}
               right={(
                 <div className="grid gap-3">
-                  <StatPill icon={Users} label="Agents online" value={agentsOnline} />
-                  <StatPill icon={MessageSquare} label="Conversation type" value="Live chat" />
-                  <StatPill icon={ShieldCheck} label="Support mode" value={supportModeLabel} />
+                  <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+                  <StatPill icon={MessageSquare} label={t('support.escalation.conversationType')} value={t('support.escalation.liveChat')} />
+                  <StatPill icon={ShieldCheck} label={t('support.escalation.supportMode')} value={supportModeLabel} />
                 </div>
               )}
             />
@@ -393,7 +393,7 @@ export default function SupportEscalationPage() {
                   <button
                     onClick={handleClose}
                     className="p-2 text-slate-500 hover:text-white rounded-xl hover:bg-slate-800 transition"
-                    aria-label="Close"
+                    aria-label={t('common.close')}
                   >
                     <X size={20} />
                   </button>
@@ -425,7 +425,7 @@ export default function SupportEscalationPage() {
                           <p className="break-words leading-6">{msg.content}</p>
                           {msg.timestamp && (
                             <span className="text-xs opacity-70 mt-2 block">
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
+                              {new Date(msg.timestamp).toLocaleTimeString(i18n.language || 'en', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
@@ -457,7 +457,7 @@ export default function SupportEscalationPage() {
                     type="submit"
                     disabled={liveSending || !ticketId || !liveInput.trim()}
                     className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition disabled:opacity-50 flex-shrink-0"
-                    aria-label="Send"
+                    aria-label={t('common.send')}
                   >
                     <Send size={20} />
                   </button>
@@ -465,19 +465,19 @@ export default function SupportEscalationPage() {
               </section>
 
               <div className="grid gap-4">
-                <SideCard icon={ShieldCheck} title="Best use of escalation" tint="text-orange-300">
+                <SideCard icon={ShieldCheck} title={t('support.escalation.bestUseTitle')} tint="text-orange-300">
                   <ul className="text-slate-300 text-sm leading-7 pl-5 list-disc">
-                    <li>Payment or refund problems that need a human decision.</li>
-                    <li>Safety or trust issues that should not wait in a normal queue.</li>
-                    <li>Urgent booking or support failures where normal chat was not enough.</li>
+                    <li>{t('support.escalation.bestUsePayment')}</li>
+                    <li>{t('support.escalation.bestUseSafety')}</li>
+                    <li>{t('support.escalation.bestUseUrgent')}</li>
                   </ul>
                 </SideCard>
 
-                <SideCard icon={FileText} title="How to get a faster answer" tint="text-sky-300">
+                <SideCard icon={FileText} title={t('support.escalation.fasterTitle')} tint="text-sky-300">
                   <ul className="text-slate-400 text-sm leading-7 pl-5 list-disc">
-                    <li>State the issue clearly in the first message.</li>
-                    <li>Include order, booking, or job identifiers when possible.</li>
-                    <li>Mention what already happened before you escalated.</li>
+                    <li>{t('support.escalation.fasterIssue')}</li>
+                    <li>{t('support.escalation.fasterIdentifiers')}</li>
+                    <li>{t('support.escalation.fasterHistory')}</li>
                   </ul>
                 </SideCard>
               </div>
@@ -488,14 +488,14 @@ export default function SupportEscalationPage() {
         {phase === 'ticket' && (
           <PageFrame>
             <Hero
-              eyebrow="Escalation ticket"
+              eyebrow={t('support.escalation.ticketEyebrow')}
               title={t('support.escalation.noAgentsTitle')}
               body={t('support.escalation.noAgentsMessage')}
               right={(
                 <div className="grid gap-3">
-                  <StatPill icon={Users} label="Agents online" value={agentsOnline} />
-                  <StatPill icon={Clock} label="Routing mode" value="Ticket fallback" />
-                  <StatPill icon={Mail} label="Response channel" value="Email updates" />
+                  <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+                  <StatPill icon={Clock} label={t('support.escalation.routingMode')} value={t('support.escalation.ticketFallback')} />
+                  <StatPill icon={Mail} label={t('support.escalation.responseChannel')} value={t('support.escalation.emailUpdates')} />
                 </div>
               )}
             />
@@ -587,19 +587,19 @@ export default function SupportEscalationPage() {
               </section>
 
               <div className="grid gap-4">
-                <SideCard icon={ShieldCheck} title="What happens after you submit" tint="text-orange-300">
+                <SideCard icon={ShieldCheck} title={t('support.escalation.afterSubmitTitle')} tint="text-orange-300">
                   <ul className="text-slate-300 text-sm leading-7 pl-5 list-disc">
-                    <li>Your escalation is converted into a tracked support ticket.</li>
-                    <li>The support team can follow up with you by email if they need more detail.</li>
-                    <li>You get a ticket identifier to reference if the issue continues.</li>
+                    <li>{t('support.escalation.afterSubmitTracked')}</li>
+                    <li>{t('support.escalation.afterSubmitEmail')}</li>
+                    <li>{t('support.escalation.afterSubmitIdentifier')}</li>
                   </ul>
                 </SideCard>
 
-                <SideCard icon={FileText} title="What to include" tint="text-sky-300">
+                <SideCard icon={FileText} title={t('support.escalation.includeTitle')} tint="text-sky-300">
                   <ul className="text-slate-400 text-sm leading-7 pl-5 list-disc">
-                    <li>What happened, when it happened, and what you expected instead.</li>
-                    <li>Any booking, order, invoice, or conversation IDs involved.</li>
-                    <li>Why this issue needs escalation instead of normal support handling.</li>
+                    <li>{t('support.escalation.includeWhat')}</li>
+                    <li>{t('support.escalation.includeIds')}</li>
+                    <li>{t('support.escalation.includeWhy')}</li>
                   </ul>
                 </SideCard>
               </div>
@@ -632,9 +632,9 @@ export default function SupportEscalationPage() {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 text-left">
-                  <StatPill icon={FileText} label="Ticket ID" value={successTicketId || '—'} />
-                  <StatPill icon={Mail} label="Follow-up" value="Email" />
-                  <StatPill icon={ShieldCheck} label="Status" value="Escalated" />
+                  <StatPill icon={FileText} label={t('support.escalation.ticketIdLabel')} value={successTicketId || '—'} />
+                  <StatPill icon={Mail} label={t('support.escalation.followUp')} value={t('support.escalation.email')} />
+                  <StatPill icon={ShieldCheck} label={t('support.escalation.statusLabel')} value={t('support.escalation.escalated')} />
                 </div>
 
                 <button

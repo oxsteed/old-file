@@ -183,3 +183,8 @@ verifyPageHasNoHardcodedUiText('src/pages/BookHelperPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/BookBusinessPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/BookServicePage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/MyBookingsPage.tsx');
+verifyPageHasNoHardcodedUiText('src/pages/food/FoodOrderConfirmation.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/OrderHistoryPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/OrderDetailsPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/SupportEscalationPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/SupportTicketDetailPage.jsx');
