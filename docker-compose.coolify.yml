@@ -30,7 +30,7 @@ services:
 
   app:
     build:
-      context: /Users/oxsteed/Documents/GitHub/6
+      context: .
       dockerfile: Dockerfile
     container_name: oxsteed-app
     restart: unless-stopped
