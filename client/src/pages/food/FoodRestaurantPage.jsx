@@ -149,11 +149,6 @@ function emojiForCuisine(tags) {
   return hit ? hit[1] : '🍽️';
 }
 
-const FULFILLMENT_LABELS = { pickup: 'Takeout', dine_in: 'Dine-in', delivery: 'Delivery', kiosk: 'Kiosk' };
-const TAG_LABELS = {
-  vegetarian: 'Vegetarian', vegan: 'Vegan', gf: 'GF', 'gluten-free': 'GF',
-  spicy: '🌶 Spicy', veg: 'Vegetarian', halal: 'Halal', keto: 'Keto', dairy_free: 'Dairy-free',
-};
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // ─── Main page component ─────────────────────────────────────────────────────
@@ -161,7 +156,7 @@ export default function FoodRestaurantPage() {
   const { restaurantId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
 
   // Data
@@ -413,10 +408,11 @@ export default function FoodRestaurantPage() {
   const minimumOrderCents = Number(settings.minimumOrderCents ?? settings.minimum_order_cents ?? 0) || 0;
   const externalPaymentEnabled = Boolean(settings.externalPaymentEnabled ?? settings.external_payment_enabled ?? false);
   const requireExternalPaymentProof = Boolean(settings.requireExternalPaymentProof ?? settings.require_external_payment_proof ?? false);
-  const externalPaymentLabel = String(settings.externalPaymentLabel ?? settings.external_payment_label ?? 'Payment app / QR').trim() || 'Payment app / QR';
+  const defaultExternalPaymentLabel = t('food.restaurant.paymentApp');
+  const externalPaymentLabel = String(settings.externalPaymentLabel ?? settings.external_payment_label ?? defaultExternalPaymentLabel).trim() || defaultExternalPaymentLabel;
   const externalPaymentHandle = String(settings.externalPaymentHandle ?? settings.external_payment_handle ?? '').trim();
   const externalPaymentInstructions = String(settings.externalPaymentInstructions ?? settings.external_payment_instructions ?? '').trim();
-  const externalPaymentReferenceHint = String(settings.externalPaymentReferenceHint ?? settings.external_payment_reference_hint ?? 'Include your order number or name in the payment note.').trim();
+  const externalPaymentReferenceHint = String(settings.externalPaymentReferenceHint ?? settings.external_payment_reference_hint ?? t('food.restaurant.paymentReferenceHint')).trim();
   const externalPaymentQrUrl = String(settings.externalPaymentQrUrl ?? settings.external_payment_qr_url ?? '').trim();
 
   useEffect(() => {
@@ -453,9 +449,9 @@ export default function FoodRestaurantPage() {
         type: uploaded?.content_type || file.type || '',
         sizeBytes: uploaded?.size_bytes || file.size || null,
       });
-      toast.success('Receipt uploaded');
+      toast.success(t('food.restaurant.receiptUploaded'));
     } catch (err) {
-      toast.error(err?.response?.data?.error?.message || 'Unable to upload proof of payment.');
+      toast.error(err?.response?.data?.error?.message || t('food.restaurant.proofUploadError'));
     } finally {
       setProofUploading(false);
       event.target.value = '';
@@ -474,7 +470,7 @@ export default function FoodRestaurantPage() {
     const externalPaymentSubmission = paymentMode === 'direct_payment'
       ? {
         method: externalPaymentLabel || 'external_payment',
-        label: externalPaymentLabel || 'Payment app / QR',
+        label: externalPaymentLabel || defaultExternalPaymentLabel,
         handle: externalPaymentHandle || undefined,
         instructions: externalPaymentInstructions || undefined,
         referenceHint: externalPaymentReferenceHint || undefined,
@@ -493,7 +489,7 @@ export default function FoodRestaurantPage() {
     if (paymentMode === 'direct_payment' && requireExternalPaymentProof && !(
       paymentProof?.url || paymentReference.trim()
     )) {
-      toast.error('Please upload proof of payment or add a confirmation number.');
+      toast.error(t('food.restaurant.proofRequiredError'));
       return;
     }
     setPlacing(true);
@@ -555,7 +551,7 @@ export default function FoodRestaurantPage() {
       }
     } catch (err) {
       const message = err?.response?.data?.error?.message || err?.response?.data?.message;
-      toast.error(typeof message === 'string' ? message : 'Unable to place order. Please try again.');
+      toast.error(typeof message === 'string' ? message : t('food.order.placeError'));
     } finally {
       setPlacing(false);
     }
@@ -569,7 +565,7 @@ export default function FoodRestaurantPage() {
         <div className="rp-root">
           <div className="rp-loading-screen">
             <div className="rp-loading-spinner" />
-            <p>Loading menu…</p>
+            <p>{t('food.restaurant.loadingMenu')}</p>
           </div>
         </div>
         <Footer />
@@ -584,12 +580,12 @@ export default function FoodRestaurantPage() {
         <div className="rp-root">
           <div className="rp-not-found">
             <div style={{ fontSize: 48 }}>🍽️</div>
-            <p style={{ fontWeight: 600 }}>Restaurant not found</p>
+            <p style={{ fontWeight: 600 }}>{t('food.restaurant.notFoundTitle')}</p>
             <Link
               to="/restaurants"
               style={{ textDecoration: 'none', padding: '12px 28px', background: '#ff8c00', color: '#fff', borderRadius: 12, fontWeight: 600 }}
             >
-              Browse Restaurants
+              {t('food.restaurant.browseRestaurants')}
             </Link>
           </div>
         </div>
@@ -615,25 +611,33 @@ export default function FoodRestaurantPage() {
 
   const emoji = emojiForCuisine(restaurant.cuisine_tags);
   const cuisineLabel = Array.isArray(restaurant.cuisine_tags) && restaurant.cuisine_tags.length
-    ? cap(restaurant.cuisine_tags[0]) : 'Restaurant';
+    ? cap(restaurant.cuisine_tags[0]) : t('food.home.restaurant');
+  const fulfillmentLabels = {
+    pickup: t('food.restaurant.takeout'),
+    dine_in: t('food.order.dineIn'),
+    delivery: t('food.fulfillment.delivery'),
+    kiosk: t('food.fulfillment.kiosk'),
+  };
   const modeLabels = (restaurant.fulfillment_modes || [])
-    .map((m) => FULFILLMENT_LABELS[m]).filter(Boolean);
+    .map((m) => fulfillmentLabels[m]).filter(Boolean);
   const meta = [cuisineLabel, ...modeLabels].filter(Boolean).join(' · ');
 
   const rating = parseFloat(restaurant.avg_rating || 0) || 0;
-  const ratingDisplay = rating > 0 ? rating.toFixed(1) : 'New';
+  const ratingDisplay = rating > 0 ? rating.toFixed(1) : t('food.restaurant.new');
   const reviewCount = Number(restaurant.review_count || 0) || 0;
   const isOpen = restaurant.is_open !== false;
-  const openStatus = restaurant.hours_message || (isOpen ? 'Open now' : 'Closed');
-  const todayHours = restaurant.hours_message || (isOpen ? 'Open now' : 'Closed');
+  const openStatus = restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
+  const todayHours = restaurant.hours_message || (isOpen ? t('food.restaurant.openNow') : t('food.home.closed'));
   const priceRange = settings.priceRange || settings.price_range || '$$';
   const prepMin = Number(restaurant.prep_time_min || 20) || 20;
-  const delivTime = `${prepMin}–${prepMin + 10} min`;
+  const delivTime = t('food.restaurant.minuteRange', { start: prepMin, end: prepMin + 10 });
   const isPickup = deliveryMode !== 'delivery';
   const delivFee = isPickup
-    ? 'Free pickup'
-    : (deliveryFeeCents === 0 ? 'Free delivery' : `${formatFoodMoney(deliveryFeeCents, currency)} delivery`);
-  const delivMin = minimumOrderCents > 0 ? `${formatFoodMoney(minimumOrderCents, currency)} min. order` : 'No minimum';
+    ? t('food.restaurant.freePickup')
+    : (deliveryFeeCents === 0 ? t('food.restaurant.freeDelivery') : t('food.restaurant.deliveryPrice', { price: formatFoodMoney(deliveryFeeCents, currency) }));
+  const delivMin = minimumOrderCents > 0
+    ? t('food.restaurant.minimumOrder', { price: formatFoodMoney(minimumOrderCents, currency) })
+    : t('food.restaurant.noMinimum');
   const website = restaurant.website || '';
   const address = [restaurant.address_street, restaurant.address_city, restaurant.address_state, restaurant.address_country]
     .filter(Boolean).join(', ');
@@ -642,24 +646,23 @@ export default function FoodRestaurantPage() {
   const weekly = restaurant.operating_hours && typeof restaurant.operating_hours === 'object'
     ? (restaurant.operating_hours.weekly || restaurant.operating_hours) : null;
   const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const DAY_SHORT = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
   const fmtRange = (v) => {
-    if (!v) return 'Closed';
+    if (!v) return t('food.home.closed');
     if (typeof v === 'string') return v;
-    if (v.closed) return 'Closed';
+    if (v.closed) return t('food.home.closed');
     if (v.open && v.close) return `${v.open} – ${v.close}`;
     if (Array.isArray(v) && v.length) return v.map((r) => `${r.open}–${r.close}`).join(', ');
-    return 'Closed';
+    return t('food.home.closed');
   };
   const hours = weekly
-    ? DAY_KEYS.filter((d) => weekly[d] !== undefined).map((d) => ({ day: DAY_SHORT[d], time: fmtRange(weekly[d]) }))
+    ? DAY_KEYS.filter((d) => weekly[d] !== undefined).map((d) => ({ day: t(`food.restaurant.days.${d}`), time: fmtRange(weekly[d]) }))
     : [];
 
   // Menu sections
   const { menu = [], uncategorizedItems = [] } = data;
   const sections = [
     ...menu,
-    ...(uncategorizedItems.length ? [{ id: 'other', name: 'Other Items', items: uncategorizedItems }] : []),
+    ...(uncategorizedItems.length ? [{ id: 'other', name: t('food.restaurant.otherItems'), items: uncategorizedItems }] : []),
   ].filter((s) => (s.items || []).length > 0);
 
   const validCatId = activeCategory && sections.some((s) => String(s.id) === String(activeCategory))
@@ -691,7 +694,7 @@ export default function FoodRestaurantPage() {
       priceStr: formatFoodMoney(item.price_cents, currency),
       photoGrad: gradFor(sectionName),
       hasTag: !!firstTag,
-      tagLabel: firstTag ? (TAG_LABELS[firstTag] || cap(firstTag)) : '',
+      tagLabel: firstTag ? t(`food.restaurant.tags.${firstTag}`, { defaultValue: cap(firstTag) }) : '',
       canOrder: item.is_available !== false && restaurant.accepts_online_orders !== false,
     };
   };
@@ -707,19 +710,21 @@ export default function FoodRestaurantPage() {
   const showGrid = !hasSearch && isFirstCat && filteredMenu.length > 0;
   const showList = !showGrid;
   const isEmpty = showList && filteredMenu.length === 0;
-  const gridLabel = dietaryFilter !== 'all' ? `Filtered — ${cap(dietaryFilter)}` : 'Popular Items';
+  const gridLabel = dietaryFilter !== 'all'
+    ? t('food.restaurant.filteredBy', { filter: t(`food.restaurant.filters.${dietaryFilter}`) })
+    : t('food.restaurant.popularItems');
 
   // Reviews
   const reviewsRaw = restaurant.recent_reviews || restaurant.reviews || [];
   const reviewsList = reviewsRaw.map((r) => {
-    const name = r.reviewer_name || r.customer_name || r.author || 'Guest';
+    const name = r.reviewer_name || r.customer_name || r.author || t('food.restaurant.guest');
     const stars = Math.round(r.rating || 5);
     return {
       name,
       initial: name.charAt(0).toUpperCase(),
       stars: '★'.repeat(stars) + '☆'.repeat(5 - stars),
       text: r.comment || r.body || r.text || '',
-      time: r.created_at ? new Date(r.created_at).toLocaleDateString() : (r.time || ''),
+      time: r.created_at ? new Date(r.created_at).toLocaleDateString(i18n.resolvedLanguage) : (r.time || ''),
     };
   });
   const ratingBars = [5, 4, 3, 2, 1].map((star) => {
@@ -730,10 +735,10 @@ export default function FoodRestaurantPage() {
 
   // Promotions → deal cards
   const promos = promotions.map((p) => ({
-    title: p.title || p.name || 'Special offer',
-    badge: p.code || (p.discount_percent ? `${p.discount_percent}% off` : 'Deal'),
+    title: p.title || p.name || t('food.restaurant.specialOffer'),
+    badge: p.code || (p.discount_percent ? t('food.restaurant.percentOff', { percent: p.discount_percent }) : t('food.restaurant.deal')),
     desc: p.description || p.summary || '',
-    sub: p.fine_print || p.terms || (p.ends_at ? `Ends ${new Date(p.ends_at).toLocaleDateString()}` : ''),
+    sub: p.fine_print || p.terms || (p.ends_at ? t('food.restaurant.endsOn', { date: new Date(p.ends_at).toLocaleDateString(i18n.resolvedLanguage) }) : ''),
   }));
 
   // Past orders for this restaurant
@@ -743,11 +748,11 @@ export default function FoodRestaurantPage() {
     .map((o) => {
       const items = Array.isArray(o.items) ? o.items : [];
       const first = items[0];
-      const firstName = first?.item_name || first?.name || 'Your order';
-      const more = items.length > 1 ? ` + ${items.length - 1} more` : '';
+      const firstName = first?.item_name || first?.name || t('food.order.yourOrder');
+      const more = items.length > 1 ? t('food.restaurant.moreItems', { count: items.length - 1 }) : '';
       return {
         summary: `${firstName}${more}`,
-        date: o.created_at ? new Date(o.created_at).toLocaleDateString() : '',
+        date: o.created_at ? new Date(o.created_at).toLocaleDateString(i18n.resolvedLanguage) : '',
         total: formatFoodMoney(o.total_cents || 0, currency),
         thumbGrad: gradFor(firstName),
         items,
@@ -775,7 +780,7 @@ export default function FoodRestaurantPage() {
       modifierIds: [],
       modifierNames: [],
     });
-    toast.success(`${item.name} added`);
+    toast.success(t('food.restaurant.itemAdded', { item: item.name }));
   };
   const incLine = (id) => setCartItems((prev) => prev.map((x) => x.id === id ? { ...x, qty: x.qty + 1 } : x));
   const decLine = (id) => setCartItems((prev) => prev.map((x) => x.id === id ? { ...x, qty: x.qty - 1 } : x).filter((x) => x.qty > 0));
@@ -866,7 +871,7 @@ export default function FoodRestaurantPage() {
       modifierIds: ids,
       modifierNames: names,
     });
-    toast.success(`${modalItem.name} added`);
+    toast.success(t('food.restaurant.itemAdded', { item: modalItem.name }));
     setModalItem(null);
   };
 
@@ -876,14 +881,14 @@ export default function FoodRestaurantPage() {
       return {
         id: `${mid}::reorder`,
         menuItemId: mid,
-        name: it.item_name || it.name || 'Item',
+        name: it.item_name || it.name || t('food.restaurant.item'),
         unitCents: Number(it.unit_price_cents ?? it.unitPriceCents ?? it.price_cents) || 0,
         qty: Number(it.quantity || 1) || 1,
         photoGrad: gradFor(it.item_name || it.name),
         image: null, notes: '', modifierIds: [], modifierNames: [],
       };
     }).filter((l) => l.menuItemId != null);
-    if (!lines.length) { toast.error('This order can’t be re-added right now.'); return; }
+    if (!lines.length) { toast.error(t('food.restaurant.reorderError')); return; }
     setCartItems(lines);
     setCartOpen(true);
     setCartStep('cart');
@@ -894,7 +899,7 @@ export default function FoodRestaurantPage() {
       navigator.share({ title: restaurant.display_name, url: window.location.href }).catch(() => {});
     } else if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied!');
+      toast.success(t('food.restaurant.linkCopied'));
     }
   };
 
@@ -903,25 +908,25 @@ export default function FoodRestaurantPage() {
   const closeBtn = { width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 };
 
   const tabs = [
-    { key: 'menu', label: 'Menu' },
-    { key: 'info', label: 'Info' },
-    { key: 'reviews', label: 'Reviews' },
-    { key: 'deals', label: 'Deals' },
+    { key: 'menu', label: t('food.restaurant.tabs.menu') },
+    { key: 'info', label: t('food.restaurant.tabs.info') },
+    { key: 'reviews', label: t('food.restaurant.tabs.reviews') },
+    { key: 'deals', label: t('food.restaurant.tabs.deals') },
   ];
 
   const dietaryChips = [
-    { key: 'all', label: 'All' },
-    { key: 'vegetarian', label: '🌿 Vegetarian' },
-    { key: 'vegan', label: '🌱 Vegan' },
+    { key: 'all', label: t('food.restaurant.filters.all') },
+    { key: 'vegetarian', label: `🌿 ${t('food.restaurant.filters.vegetarian')}` },
+    { key: 'vegan', label: `🌱 ${t('food.restaurant.filters.vegan')}` },
     { key: 'gf', label: 'GF' },
-    { key: 'spicy', label: '🌶 Spicy' },
+    { key: 'spicy', label: `🌶 ${t('food.restaurant.filters.spicy')}` },
   ];
 
   const timeSlots = [
-    { id: 'asap', label: 'ASAP', sub: `Est. ${delivTime}` },
-    { id: '+15', label: 'In 15 minutes', sub: 'Adds 15 min to estimate' },
-    { id: '+30', label: 'In 30 minutes', sub: 'Scheduled ahead' },
-    { id: 'later', label: 'Schedule for later', sub: 'Choose a specific time' },
+    { id: 'asap', label: t('food.restaurant.timeSlots.asap'), sub: t('food.restaurant.estimated', { time: delivTime }) },
+    { id: '+15', label: t('food.restaurant.timeSlots.in15'), sub: t('food.restaurant.timeSlots.adds15') },
+    { id: '+30', label: t('food.restaurant.timeSlots.in30'), sub: t('food.restaurant.timeSlots.scheduled') },
+    { id: 'later', label: t('food.restaurant.timeSlots.later'), sub: t('food.restaurant.timeSlots.chooseTime') },
   ];
   // Payment options mirror the launch contract (`pay_at_restaurant`,
   // `restaurant_credit`, `direct_payment`). Card checkout remains dormant
@@ -936,31 +941,31 @@ export default function FoodRestaurantPage() {
     {
       id: 'pay_at_restaurant',
       icon: '🏪',
-      label: isPickup ? 'Pay at the restaurant' : 'Pay on delivery',
-      sub: 'Card or cash, settled with the restaurant',
+      label: isPickup ? t('food.restaurant.payAtRestaurant') : t('food.restaurant.payOnDelivery'),
+      sub: t('food.restaurant.cardOrCash'),
     },
     ...(wallet ? [{
       id: 'restaurant_credit',
       icon: '💠',
-      label: 'Restaurant credit',
+      label: t('food.restaurant.restaurantCredit'),
       sub: walletCoversOrder
-        ? `${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available`
-        : `Insufficient balance — ${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available`,
+        ? t('food.restaurant.creditAvailable', { amount: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency) })
+        : t('food.restaurant.insufficientCredit', { amount: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency) }),
       disabled: !walletCoversOrder,
     }] : []),
     ...(externalPaymentEnabled ? [{
       id: 'direct_payment',
       icon: '📲',
-      label: externalPaymentLabel || 'Pay with restaurant payment app',
+      label: externalPaymentLabel || t('food.restaurant.payWithApp'),
       sub: externalPaymentHandle
-        ? `Send to ${externalPaymentHandle}`
-        : 'Use the restaurant’s payment instructions and upload proof',
+        ? t('food.restaurant.sendTo', { handle: externalPaymentHandle })
+        : t('food.restaurant.usePaymentInstructions'),
     }] : []),
   ];
 
-  const detailsTitle = isPickup ? 'Pickup Details' : 'Delivery Details';
-  const delivFeeLabel = isPickup ? 'Pickup' : 'Delivery fee';
-  const delivFeeStr = isPickup ? 'Free' : (feeCents === 0 ? 'Free' : formatFoodMoney(feeCents, currency));
+  const detailsTitle = isPickup ? t('food.restaurant.pickupDetails') : t('food.restaurant.deliveryDetails');
+  const delivFeeLabel = isPickup ? t('food.order.pickup') : t('food.restaurant.deliveryFee');
+  const delivFeeStr = isPickup || feeCents === 0 ? t('food.restaurant.free') : formatFoodMoney(feeCents, currency);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -978,14 +983,14 @@ export default function FoodRestaurantPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, marginBottom: 12, background: isReady ? '#dcfce7' : accentBg, border: `1.5px solid ${isReady ? '#86efac' : accent}` }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isReady ? '#166534' : '#0f172a' }}>
-                  {queueNumber != null ? `Your order #${queueNumber}` : 'Your order'}
+                  {queueNumber != null ? t('food.restaurant.orderNumber', { number: queueNumber }) : t('food.order.yourOrder')}
                   {' — '}
-                  {isReady ? 'ready for pickup!' : t(FOOD_STATUS_KEYS[status] || FOOD_STATUS_KEYS.received)}
+                  {isReady ? t('food.restaurant.readyForPickupShort') : t(FOOD_STATUS_KEYS[status] || FOOD_STATUS_KEYS.received)}
                 </span>
-                <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>Watch queue</Link>
+                <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('food.order.watchQueue')}</Link>
                 <button
                   type="button"
-                  aria-label="Dismiss order status"
+                  aria-label={t('food.restaurant.dismissOrderStatus')}
                   onClick={() => { clearActiveOrder(restaurantId); setRecoveredOrder(null); }}
                   style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(15,23,42,0.08)', color: '#334155', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
                 >
@@ -1033,9 +1038,9 @@ export default function FoodRestaurantPage() {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setSaved((s) => !s)} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  {saved ? '♥ Saved' : '♡ Save'}
+                  {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
-                <button onClick={onShare} aria-label="Share" style={{ height: 36, width: 36, borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
+                <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, width: 36, borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
               </div>
             </div>
             <div style={{ display: 'inline-flex', background: accentBg, color: accent, padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{cuisineLabel}</div>
@@ -1058,9 +1063,9 @@ export default function FoodRestaurantPage() {
             {/* Fulfillment toggle */}
             <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 10, padding: 3, marginBottom: 12 }}>
               {supportsDelivery && (
-                <button onClick={() => setDeliveryMode('delivery')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: !isPickup ? '#fff' : 'transparent', color: !isPickup ? '#0f172a' : '#94a3b8', boxShadow: !isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🛵 Delivery</button>
+                <button onClick={() => setDeliveryMode('delivery')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: !isPickup ? '#fff' : 'transparent', color: !isPickup ? '#0f172a' : '#94a3b8', boxShadow: !isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🛵 {t('food.fulfillment.delivery')}</button>
               )}
-              <button onClick={() => setDeliveryMode('pickup')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: isPickup ? '#fff' : 'transparent', color: isPickup ? '#0f172a' : '#94a3b8', boxShadow: isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🏪 Pickup</button>
+              <button onClick={() => setDeliveryMode('pickup')} style={{ flex: 1, height: 36, borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: isPickup ? '#fff' : 'transparent', color: isPickup ? '#0f172a' : '#94a3b8', boxShadow: isPickup ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>🏪 {t('food.order.pickup')}</button>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 14 }}>
               {[['🕐', delivTime], ['💳', delivFee], ['📦', delivMin]].map(([ic, label]) => (
@@ -1079,17 +1084,17 @@ export default function FoodRestaurantPage() {
             <div className="rp-sidebar">
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 14, marginBottom: 14 }}>
                 <button onClick={() => (hasCart ? setCartOpen(true) : null)} style={{ width: '100%', height: 48, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}>
-                  {hasCart ? `Order · ${cartCount} item${cartCount > 1 ? 's' : ''}` : 'Start Order'}
+                  {hasCart ? t('food.restaurant.orderItems', { count: cartCount }) : t('food.restaurant.startOrder')}
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? '♥ Saved' : '♡ Save'}</button>
-                  <button onClick={onShare} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
+                  <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
+                  <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>↗</button>
                 </div>
               </div>
               {hours.length > 0 && (
                 <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
                   <div style={{ padding: '14px 16px' }}>
-                    <p style={sectionLabel}>Hours</p>
+                    <p style={sectionLabel}>{t('food.restaurant.hours')}</p>
                     {hours.map((h) => (
                       <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f8fafc' }}>
                         <span style={{ color: '#64748b' }}>{h.day}</span><span style={{ fontWeight: 500, color: '#0f172a' }}>{h.time}</span>
@@ -1101,7 +1106,7 @@ export default function FoodRestaurantPage() {
               {address && (
                 <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
                   <div style={{ padding: '14px 16px' }}>
-                    <p style={sectionLabel}>Location</p>
+                    <p style={sectionLabel}>{t('food.restaurant.location')}</p>
                     <MapMini accent={accent} accentFade={accentFade} />
                     <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.5, marginTop: 8 }}>{address}</p>
                   </div>
@@ -1109,7 +1114,7 @@ export default function FoodRestaurantPage() {
               )}
               {(restaurant.phone || website) && (
                 <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '14px 16px' }}>
-                  <p style={sectionLabel}>Contact</p>
+                  <p style={sectionLabel}>{t('food.restaurant.contact')}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {restaurant.phone && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1138,7 +1143,8 @@ export default function FoodRestaurantPage() {
                     <input
                       value={searchQuery}
                       onChange={(e) => { setSearchQuery(e.target.value); setActiveCategory(null); }}
-                      placeholder={`Search ${restaurant.display_name}…`}
+                      placeholder={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
+                      aria-label={t('food.restaurant.searchMenu', { restaurant: restaurant.display_name })}
                       style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: '#0f172a' }}
                     />
                     {hasSearch && (
@@ -1183,7 +1189,7 @@ export default function FoodRestaurantPage() {
                   {/* Reorder */}
                   {pastOrders.length > 0 && !hasSearch && (
                     <div style={{ padding: '14px 16px 2px', borderBottom: '1px solid #f1f5f9' }}>
-                      <p style={{ ...sectionLabel, marginBottom: 10 }}>Order again</p>
+                      <p style={{ ...sectionLabel, marginBottom: 10 }}>{t('food.home.orderAgainTitle')}</p>
                       {pastOrders.map((po, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f8fafc' }}>
                           <div style={{ width: 44, height: 44, borderRadius: 10, background: po.thumbGrad, flexShrink: 0 }} />
@@ -1191,7 +1197,7 @@ export default function FoodRestaurantPage() {
                             <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{po.summary}</p>
                             <p style={{ fontSize: 13, color: '#94a3b8' }}>{po.date} · {po.total}</p>
                           </div>
-                          <button onClick={() => reorder(po)} style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: accentBg, border: `1.5px solid ${accent}`, color: accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>Reorder</button>
+                          <button onClick={() => reorder(po)} style={{ height: 36, padding: '0 16px', borderRadius: 9999, background: accentBg, border: `1.5px solid ${accent}`, color: accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('food.restaurant.reorder')}</button>
                         </div>
                       ))}
                     </div>
@@ -1200,7 +1206,7 @@ export default function FoodRestaurantPage() {
                   {sections.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '48px 16px' }}>
                       <div style={{ fontSize: 36, marginBottom: 10 }}>🍽️</div>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>No menu items yet</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{t('food.restaurant.noMenuItems')}</p>
                     </div>
                   )}
 
@@ -1238,7 +1244,7 @@ export default function FoodRestaurantPage() {
                   {showList && (
                     <div style={{ padding: '4px 16px 8px' }}>
                       {hasSearch && (
-                        <p style={{ ...sectionLabel, fontSize: 12, margin: '10px 0' }}>{filteredMenu.length} result{filteredMenu.length !== 1 ? 's' : ''} for "{searchQuery}"</p>
+                        <p style={{ ...sectionLabel, fontSize: 12, margin: '10px 0' }}>{t('food.restaurant.searchResults', { count: filteredMenu.length, query: searchQuery })}</p>
                       )}
                       {filteredMenu.map((item) => (
                         <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 68px', gap: 12, padding: '13px 0', borderBottom: '1px solid #f8fafc', alignItems: 'start', opacity: item.is_available === false ? 0.55 : 1 }}>
@@ -1248,7 +1254,7 @@ export default function FoodRestaurantPage() {
                               <span style={{ fontSize: 14, fontWeight: 700, color: accent, whiteSpace: 'nowrap', flexShrink: 0 }}>{item.priceStr}</span>
                             </div>
                             {item.description && <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.45 }}>{item.description}</p>}
-                            {item.is_available === false && <p style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginTop: 4 }}>Sold out</p>}
+                            {item.is_available === false && <p style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginTop: 4 }}>{t('food.restaurant.soldOut')}</p>}
                             {item.hasTag && (
                               <span style={{ display: 'inline-flex', marginTop: 5, background: accentBg, color: accent, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 9999 }}>{item.tagLabel}</span>
                             )}
@@ -1264,8 +1270,8 @@ export default function FoodRestaurantPage() {
                       {isEmpty && (
                         <div style={{ textAlign: 'center', padding: '40px 16px' }}>
                           <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
-                          <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>{hasSearch ? `No results for "${searchQuery}"` : 'No items here yet'}</p>
-                          <p style={{ fontSize: 14, color: '#64748b' }}>Try a different {hasSearch ? 'search term' : 'category'}</p>
+                          <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>{hasSearch ? t('food.restaurant.noResults', { query: searchQuery }) : t('food.restaurant.noItemsHere')}</p>
+                          <p style={{ fontSize: 14, color: '#64748b' }}>{hasSearch ? t('food.restaurant.tryDifferentSearch') : t('food.restaurant.tryDifferentCategory')}</p>
                         </div>
                       )}
                     </div>
@@ -1277,22 +1283,22 @@ export default function FoodRestaurantPage() {
               {activeTab === 'info' && (
                 <div className="rp-panel rp-panel-wrap">
                   <div style={{ padding: 16, borderBottom: '1px solid #f1f5f9' }}>
-                    <p style={sectionLabel}>Hours</p>
+                    <p style={sectionLabel}>{t('food.restaurant.hours')}</p>
                     {hours.length ? hours.map((h) => (
                       <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 14, borderBottom: '1px solid #f8fafc' }}>
                         <span style={{ color: '#64748b' }}>{h.day}</span><span style={{ fontWeight: 500, color: '#0f172a' }}>{h.time}</span>
                       </div>
-                    )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>Hours not available</p>}
+                    )) : <p style={{ fontSize: 13, color: '#94a3b8' }}>{t('food.restaurant.hoursUnavailable')}</p>}
                   </div>
                   {address && (
                     <div style={{ padding: 16, borderBottom: '1px solid #f1f5f9' }}>
-                      <p style={sectionLabel}>Location</p>
+                      <p style={sectionLabel}>{t('food.restaurant.location')}</p>
                       <MapMini accent={accent} accentFade={accentFade} big />
                       <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.5, marginTop: 10 }}>{address}</p>
                     </div>
                   )}
                   <div style={{ padding: 16 }}>
-                    <p style={sectionLabel}>Contact</p>
+                    <p style={sectionLabel}>{t('food.restaurant.contact')}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {restaurant.phone && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1306,7 +1312,7 @@ export default function FoodRestaurantPage() {
                           <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: accent, textDecoration: 'none' }}>{website.replace(/^https?:\/\//, '')}</a>
                         </div>
                       )}
-                      {!restaurant.phone && !website && <p style={{ fontSize: 13, color: '#94a3b8' }}>No contact details yet</p>}
+                      {!restaurant.phone && !website && <p style={{ fontSize: 13, color: '#94a3b8' }}>{t('food.restaurant.noContact')}</p>}
                     </div>
                   </div>
                 </div>
@@ -1321,7 +1327,7 @@ export default function FoodRestaurantPage() {
                         <div style={{ textAlign: 'center', flexShrink: 0 }}>
                           <div style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 400, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.03em' }}>{rating > 0 ? rating.toFixed(1) : '—'}</div>
                           <div style={{ fontSize: 16, color: '#fbbf24', margin: '5px 0', letterSpacing: 2 }}>{'★'.repeat(Math.round(rating)) || '☆☆☆☆☆'}</div>
-                          <div style={{ fontSize: 12, color: '#94a3b8' }}>{reviewCount} reviews</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('food.restaurant.reviewCount', { count: reviewCount })}</div>
                         </div>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {ratingBars.map((bar) => (
@@ -1350,8 +1356,8 @@ export default function FoodRestaurantPage() {
                   ) : (
                     <div style={{ textAlign: 'center', padding: '40px 16px' }}>
                       <div style={{ fontSize: 36, marginBottom: 10 }}>⭐</div>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>No reviews yet</p>
-                      <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>Be the first to review after your order.</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{t('food.restaurant.noReviews')}</p>
+                      <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{t('food.restaurant.firstReview')}</p>
                     </div>
                   )}
                 </div>
@@ -1372,8 +1378,8 @@ export default function FoodRestaurantPage() {
                   )) : (
                     <div style={{ textAlign: 'center', padding: '40px 16px' }}>
                       <div style={{ fontSize: 36, marginBottom: 10 }}>🏷️</div>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>No active deals right now</p>
-                      <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>Check back later for promotions.</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{t('food.restaurant.noDeals')}</p>
+                      <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{t('food.restaurant.checkDealsLater')}</p>
                     </div>
                   )}
                 </div>
@@ -1387,7 +1393,7 @@ export default function FoodRestaurantPage() {
           <div className="rp-float-cart">
             <button onClick={() => { setCartOpen(true); setCartStep('cart'); }} style={{ display: 'flex', alignItems: 'center', gap: 14, background: accent, color: '#fff', border: 'none', borderRadius: 16, padding: '14px 22px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: `0 8px 28px ${accentShadow}`, minWidth: 240, justifyContent: 'space-between' }}>
               <span style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700 }}>{cartCount}</span>
-              <span>View Cart</span>
+              <span>{t('food.restaurant.viewCart')}</span>
               <span>{formatFoodMoney(subtotalCents, currency)}</span>
             </button>
           </div>
@@ -1397,7 +1403,7 @@ export default function FoodRestaurantPage() {
         {cartOpen && (
           <>
             <div className="rp-sheet-backdrop" onClick={() => { setCartOpen(false); setCartStep('cart'); }} />
-            <div className="rp-sheet" role="dialog" aria-modal="true" aria-label="Your order">
+            <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={t('food.order.yourOrder')}>
               <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
                 <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
               </div>
@@ -1405,21 +1411,21 @@ export default function FoodRestaurantPage() {
               {/* Headers */}
               {cartStep === 'cart' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 20px 12px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
-                  <div><h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>Your Order</h2><p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{restaurant.display_name}</p></div>
-                  <button onClick={() => setCartOpen(false)} style={closeBtn}>×</button>
+                  <div><h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{t('food.order.yourOrder')}</h2><p style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{restaurant.display_name}</p></div>
+                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn}>×</button>
                 </div>
               )}
               {(cartStep === 'details' || cartStep === 'payment') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 20px 12px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
-                  <button onClick={() => setCartStep(cartStep === 'payment' ? 'details' : 'cart')} style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', flexShrink: 0 }}>←</button>
+                  <button onClick={() => setCartStep(cartStep === 'payment' ? 'details' : 'cart')} aria-label={t('food.common.back')} style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f172a', flexShrink: 0 }}>←</button>
                   <div style={{ flex: 1 }}>
-                    <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{cartStep === 'payment' ? 'Payment' : detailsTitle}</h2>
+                    <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{cartStep === 'payment' ? t('food.restaurant.payment') : detailsTitle}</h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                       <div style={{ width: 20, height: 3, borderRadius: 2, background: accent }} />
                       <div style={{ width: 20, height: 3, borderRadius: 2, background: cartStep === 'payment' ? accent : '#e2e8f0' }} />
                     </div>
                   </div>
-                  <button onClick={() => setCartOpen(false)} style={closeBtn}>×</button>
+                  <button onClick={() => setCartOpen(false)} aria-label={t('food.common.close')} style={closeBtn}>×</button>
                 </div>
               )}
 
@@ -1427,9 +1433,9 @@ export default function FoodRestaurantPage() {
               {cartStep === 'cart' && cartItems.length === 0 && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
                   <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 14 }}>🛒</div>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>Your cart is empty</p>
-                  <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.5 }}>Add items from the menu to get started</p>
-                  <button onClick={() => setCartOpen(false)} style={{ marginTop: 20, height: 44, padding: '0 28px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Browse Menu</button>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>{t('food.restaurant.emptyCart')}</p>
+                  <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.5 }}>{t('food.restaurant.emptyCartHelp')}</p>
+                  <button onClick={() => setCartOpen(false)} style={{ marginTop: 20, height: 44, padding: '0 28px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.browseMenu')}</button>
                 </div>
               )}
 
@@ -1456,9 +1462,9 @@ export default function FoodRestaurantPage() {
                     ))}
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>Subtotal</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>{t('food.restaurant.subtotal')}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 14 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
-                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Checkout · {formatFoodMoney(orderTotalCents, currency)}</button>
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('food.restaurant.checkoutTotal', { total: formatFoodMoney(orderTotalCents, currency) })}</button>
                   </div>
                 </>
               )}
@@ -1470,26 +1476,26 @@ export default function FoodRestaurantPage() {
                     {checkoutRequiresLogin ? (
                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, marginBottom: 20 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
-                          Sign in required
+                          {t('food.restaurant.signInRequired')}
                         </p>
                         <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
-                          Sign in to continue checkout
+                          {t('food.restaurant.signInCheckoutTitle')}
                         </h3>
                         <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
-                          Browsing stays open to everyone, but final checkout is tied to an OxSteed account so your order can be tracked, updated, and recovered later.
+                          {t('food.restaurant.signInCheckoutBody')}
                         </p>
                       </div>
                     ) : (
                       <>
                         {!isPickup && (
                           <>
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Street Address</p>
-                            <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Street and number…" style={inputStyle} />
-                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Apt / Suite <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
-                            <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="Apt 4B…" style={{ ...inputStyle, marginBottom: 20 }} />
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.streetAddress')}</p>
+                            <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder={t('food.restaurant.streetPlaceholder')} style={inputStyle} />
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.aptSuite')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                            <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder={t('food.restaurant.aptPlaceholder')} style={{ ...inputStyle, marginBottom: 20 }} />
                           </>
                         )}
-                        <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? 'Pickup Time' : 'Delivery Time'}</p>
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? t('food.restaurant.pickupTime') : t('food.restaurant.deliveryTime')}</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
                           {timeSlots.map((slot) => {
                             const on = deliverySlot === slot.id;
@@ -1523,7 +1529,7 @@ export default function FoodRestaurantPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        Sign in to Checkout
+                        {t('food.restaurant.signInToCheckout')}
                       </button>
                     ) : (
                       <button
@@ -1540,7 +1546,7 @@ export default function FoodRestaurantPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        Continue to Payment →
+                        {t('food.restaurant.continueToPayment')}
                       </button>
                     )}
                   </div>
@@ -1553,13 +1559,13 @@ export default function FoodRestaurantPage() {
                   <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 0' }}>
                     <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
-                        Sign in required
+                        {t('food.restaurant.signInRequired')}
                       </p>
                       <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
-                        Sign in to place this order
+                        {t('food.restaurant.signInOrderTitle')}
                       </h3>
                       <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
-                        You can browse menus without an account, but checkout is tied to an OxSteed login so your order, status updates, and history stay connected to your profile.
+                        {t('food.restaurant.signInOrderBody')}
                       </p>
                     </div>
                   </div>
@@ -1579,7 +1585,7 @@ export default function FoodRestaurantPage() {
                         marginBottom: 10,
                       }}
                     >
-                      Sign in to Continue
+                      {t('food.restaurant.signInContinue')}
                     </button>
                     <button
                       onClick={() => setCartStep('cart')}
@@ -1595,7 +1601,7 @@ export default function FoodRestaurantPage() {
                         cursor: 'pointer',
                       }}
                     >
-                      Back to Cart
+                      {t('food.restaurant.backToCart')}
                     </button>
                   </div>
                 </>
@@ -1605,7 +1611,7 @@ export default function FoodRestaurantPage() {
               {cartStep === 'payment' && !checkoutRequiresLogin && (
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
-                    <p style={{ ...sectionLabel, color: '#64748b' }}>Payment Method</p>
+                    <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.paymentMethod')}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
                       {paymentMethods.map((pm) => {
                         const on = paymentMethod === pm.id;
@@ -1625,47 +1631,50 @@ export default function FoodRestaurantPage() {
                     {user && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, margin: '-8px 2px 18px', padding: '11px 13px', borderRadius: 12, background: '#fff8ed', border: '1px solid #fed7aa' }}>
                         <div style={{ minWidth: 0 }}>
-                          <strong style={{ display: 'block', color: '#9a4b0c', fontSize: 12 }}>Restaurant credit</strong>
+                          <strong style={{ display: 'block', color: '#9a4b0c', fontSize: 12 }}>{t('food.restaurant.restaurantCredit')}</strong>
                           <span style={{ color: '#9a6a3c', fontSize: 11 }}>
                             {wallet
-                              ? `${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available${walletReservedCents > 0 ? ` · ${formatFoodMoney(walletReservedCents, wallet.currencyCode || currency)} reserved` : ''}`
-                              : 'Add credit or view your balance'}
+                              ? t('food.restaurant.creditSummary', {
+                                available: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency),
+                                reserved: walletReservedCents > 0 ? t('food.restaurant.creditReserved', { amount: formatFoodMoney(walletReservedCents, wallet.currencyCode || currency) }) : '',
+                              })
+                              : t('food.restaurant.addCredit')}
                           </span>
                         </div>
                         <Link
                           to={`/restaurant-credit?restaurantId=${restaurantId}`}
                           style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, textDecoration: 'none' }}
                         >
-                          Manage credit →
+                          {t('food.restaurant.manageCredit')}
                         </Link>
                       </div>
                     )}
                     {paymentMethod === 'direct_payment' && (
                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>
-                          Pay the restaurant directly
+                          {t('food.restaurant.payDirectly')}
                         </p>
                         <h4 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
-                          {externalPaymentLabel || 'Payment app / QR'}
+                          {externalPaymentLabel || defaultExternalPaymentLabel}
                         </h4>
                         {externalPaymentHandle && (
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#fff', border: '1px solid #e2e8f0', marginBottom: 10 }}>
                             <p style={{ fontSize: 14, color: '#475569', margin: 0 }}>
-                              Send payment to <strong style={{ color: '#0f172a' }}>{externalPaymentHandle}</strong>
+                              {t('food.restaurant.sendPaymentTo')} <strong style={{ color: '#0f172a' }}>{externalPaymentHandle}</strong>
                             </p>
                             <button
                               type="button"
                               onClick={async () => {
                                 try {
                                   await navigator.clipboard.writeText(externalPaymentHandle);
-                                  toast.success('Payment account copied');
+                                  toast.success(t('food.restaurant.paymentAccountCopied'));
                                 } catch {
-                                  toast.error('Unable to copy the payment account.');
+                                  toast.error(t('food.restaurant.paymentAccountCopyError'));
                                 }
                               }}
                               style={{ border: 0, borderRadius: 9, padding: '7px 10px', color: accent, background: accentBg, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
                             >
-                              Copy
+                              {t('food.restaurant.copy')}
                             </button>
                           </div>
                         )}
@@ -1677,12 +1686,12 @@ export default function FoodRestaurantPage() {
                         {externalPaymentQrUrl && (
                           <img
                             src={externalPaymentQrUrl}
-                            alt="Restaurant payment QR"
+                            alt={t('food.restaurant.paymentQrAlt')}
                             style={{ width: 156, height: 156, objectFit: 'cover', borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff', marginBottom: 12 }}
                           />
                         )}
                         <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '4px 0 8px' }}>
-                          How do you want to confirm payment?
+                          {t('food.restaurant.confirmPaymentQuestion')}
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
                           <button
@@ -1690,14 +1699,14 @@ export default function FoodRestaurantPage() {
                             onClick={() => { setProofMethod('upload'); setPaymentReference(''); }}
                             style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'upload' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'upload' ? accent : '#475569', background: proofMethod === 'upload' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
                           >
-                            Upload receipt
+                            {t('food.restaurant.uploadReceipt')}
                           </button>
                           <button
                             type="button"
                             onClick={() => { setProofMethod('reference'); setPaymentProof(null); }}
                             style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'reference' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'reference' ? accent : '#475569', background: proofMethod === 'reference' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
                           >
-                            Enter confirmation
+                            {t('food.restaurant.enterConfirmation')}
                           </button>
                         </div>
                         {proofMethod === 'upload' ? (
@@ -1705,32 +1714,32 @@ export default function FoodRestaurantPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
                               <span style={{ fontSize: 18 }}>✓</span>
                               <div style={{ minWidth: 0, flex: 1 }}>
-                                <strong style={{ display: 'block', fontSize: 13, color: '#166534' }}>{paymentProof.name || 'Receipt attached'}</strong>
-                                <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#15803d', textDecoration: 'none' }}>View receipt</a>
+                                <strong style={{ display: 'block', fontSize: 13, color: '#166534' }}>{paymentProof.name || t('food.restaurant.receiptAttached')}</strong>
+                                <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#15803d', textDecoration: 'none' }}>{t('food.restaurant.viewReceipt')}</a>
                               </div>
-                              <button type="button" onClick={() => setPaymentProof(null)} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Remove</button>
+                              <button type="button" onClick={() => setPaymentProof(null)} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{t('food.common.remove')}</button>
                             </div>
                           ) : (
                             <label style={{ display: 'grid', placeItems: 'center', minHeight: 82, border: '1.5px dashed #cbd5e1', borderRadius: 12, background: '#fff', color: '#475569', fontSize: 13, fontWeight: 800, cursor: proofUploading ? 'wait' : 'pointer' }}>
                               <input type="file" accept="image/*,application/pdf" onChange={handlePaymentProofUpload} disabled={proofUploading} style={{ display: 'none' }} />
-                              {proofUploading ? 'Uploading receipt…' : 'Choose screenshot, receipt, or PDF'}
+                              {proofUploading ? t('food.restaurant.uploadingReceipt') : t('food.restaurant.chooseReceipt')}
                             </label>
                           )
                         ) : (
                           <input
                             value={paymentReference}
                             onChange={(e) => setPaymentReference(e.target.value)}
-                            placeholder={externalPaymentReferenceHint || 'Confirmation number or sender name'}
+                            placeholder={externalPaymentReferenceHint || t('food.restaurant.confirmationPlaceholder')}
                             maxLength={120}
                             style={inputStyle}
                           />
                         )}
                         <details style={{ marginTop: 12 }}>
-                          <summary style={{ color: '#64748b', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Add a note (optional)</summary>
+                          <summary style={{ color: '#64748b', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{t('food.restaurant.addNote')}</summary>
                           <textarea
                             value={paymentNote}
                             onChange={(e) => setPaymentNote(e.target.value)}
-                            placeholder="Anything that helps the restaurant match the payment"
+                            placeholder={t('food.restaurant.paymentNotePlaceholder')}
                             maxLength={1000}
                             rows={3}
                             style={{ ...inputStyle, minHeight: 80, resize: 'vertical', marginTop: 8 }}
@@ -1738,35 +1747,35 @@ export default function FoodRestaurantPage() {
                         </details>
                         <p style={{ fontSize: 12, color: requireExternalPaymentProof ? '#b45309' : '#64748b', marginTop: 10, lineHeight: 1.5 }}>
                           {requireExternalPaymentProof
-                            ? 'Add a receipt or confirmation number before placing the order.'
-                            : 'Proof is optional. The restaurant will confirm payment before completing the order.'}
+                            ? t('food.restaurant.proofRequiredHelp')
+                            : t('food.restaurant.proofOptionalHelp')}
                         </p>
                       </div>
                     )}
                     {paymentMethod === 'restaurant_credit' && (
                       <>
-                        <p style={{ ...sectionLabel, color: '#64748b' }}>Promo Code <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.promoCode')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
                         <input
                           value={promoCode}
                           onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                          placeholder="e.g. SUMMER10"
+                          placeholder={t('food.restaurant.promoPlaceholder')}
                           maxLength={40}
                           style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
                         />
                       </>
                     )}
-                    <p style={{ ...sectionLabel, color: '#64748b' }}>Order Summary</p>
+                    <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.orderSummary')}</p>
                     <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #f1f5f9' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>Subtotal</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>{t('food.restaurant.subtotal')}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 10 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>Total</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(orderTotalCents, currency)}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>{t('food.order.total')}</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(orderTotalCents, currency)}</span></div>
                     </div>
                     <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
                       {paymentMethod === 'restaurant_credit'
-                        ? '💠 Your restaurant credit is charged when the order is placed.'
+                        ? t('food.restaurant.creditChargeNote')
                         : paymentMethod === 'direct_payment'
-                          ? '📲 Submit your proof of payment with the order so the restaurant can match it quickly.'
-                        : `🏪 Payment is settled with the restaurant ${isPickup ? 'at the counter' : 'on delivery'} when your order is ready. No card is charged online.`}
+                          ? t('food.restaurant.directPaymentNote')
+                          : t(isPickup ? 'food.restaurant.counterPaymentNote' : 'food.restaurant.deliveryPaymentNote')}
                     </p>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
@@ -1775,7 +1784,7 @@ export default function FoodRestaurantPage() {
                       disabled={placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
                       style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }}
                     >
-                      {placing ? 'Placing order…' : `Place Order · ${formatFoodMoney(orderTotalCents, currency)}`}
+                      {placing ? t('food.restaurant.placingOrder') : t('food.restaurant.placeOrderTotal', { total: formatFoodMoney(orderTotalCents, currency) })}
                     </button>
                   </div>
                 </>
@@ -1790,28 +1799,28 @@ export default function FoodRestaurantPage() {
                 return (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
                     <div style={{ width: 72, height: 72, borderRadius: '50%', background: accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 16, color: accent }}>✓</div>
-                    <h2 style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 400, color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>Order Placed!</h2>
+                    <h2 style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 400, color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>{t('food.order.confirmedTitle')}</h2>
                     <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.65, marginBottom: 12 }}>
                       {shownOrder?.queue_number != null
-                        ? <>Your order number is <strong style={{ color: '#0f172a' }}>#{shownOrder.queue_number}</strong>.<br />We’ll have it ready shortly.</>
-                        : <>Your order is confirmed and being prepared.<br />We’ll notify you when it’s ready.</>}
+                        ? <>{t('food.restaurant.confirmedNumber', { number: shownOrder.queue_number })}<br />{t('food.restaurant.readyShortly')}</>
+                        : <>{t('food.restaurant.confirmedPreparing')}<br />{t('food.restaurant.readyNotification')}</>}
                     </p>
                     {/* Live status (socket + poll via the public tracking token) */}
                     {placedTrackingToken && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 9999, background: isReady ? '#dcfce7' : '#f1f5f9', border: `1px solid ${isReady ? '#86efac' : '#e2e8f0'}`, marginBottom: 18 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
                         <span style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : '#334155' }}>
-                          {isReady ? 'Ready for pickup!' : `Live status: ${statusLabel}`}
+                          {isReady ? t('food.restaurant.readyForPickupShort') : t('food.restaurant.liveStatus', { status: statusLabel })}
                         </span>
                       </div>
                     )}
                     <div style={{ background: '#f8fafc', borderRadius: 14, padding: '18px 24px', width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                      <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>Estimated time</p>
+                      <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>{t('food.restaurant.estimatedTime')}</p>
                       <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{delivTime}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-                      <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Watch Queue</Link>
-                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
+                      <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>{t('food.order.watchQueue')}</Link>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.backToMenu')}</button>
                     </div>
                   </div>
                 );
@@ -1828,7 +1837,7 @@ export default function FoodRestaurantPage() {
               <div style={{ height: 190, background: modalItem.image_url ? `center/cover url(${modalItem.image_url})` : (modalItem.photoGrad || gradFor(modalItem.sectionName)), position: 'relative', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
                 <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)' }} />
-                <button onClick={() => setModalItem(null)} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}>×</button>
+                <button onClick={() => setModalItem(null)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}>×</button>
                 <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
                   <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>{modalItem.name}</h2>
                   <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{formatFoodMoney(modalItem.price_cents, currency)}</span>
@@ -1843,7 +1852,7 @@ export default function FoodRestaurantPage() {
                 )}
                 {modalGroups.map((group) => (
                   <div key={group.id} style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9' }}>
-                    <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{group.name}{group.isRequired && <span style={{ color: accent, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>Required</span>}</p>
+                    <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 10 }}>{group.name}{group.isRequired && <span style={{ color: accent, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>{t('food.restaurant.required')}</span>}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {group.isRadio && group.radioOptions.map((opt) => (
                         <button key={opt.id} onClick={opt.onSelect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${opt.isSelected ? accent : '#e2e8f0'}`, background: opt.isSelected ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
@@ -1863,8 +1872,8 @@ export default function FoodRestaurantPage() {
                   </div>
                 ))}
                 <div style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9' }}>
-                  <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 8 }}>Special Instructions <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
-                  <textarea value={modalInstructions} onChange={(e) => setModalInstructions(e.target.value)} maxLength={500} placeholder="E.g. no onions, sauce on the side, extra napkins…" style={{ width: '100%', height: 80, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', resize: 'none', outline: 'none', background: '#f8fafc', lineHeight: 1.5 }} />
+                  <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 8 }}>{t('food.restaurant.specialInstructions')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
+                  <textarea value={modalInstructions} onChange={(e) => setModalInstructions(e.target.value)} maxLength={500} placeholder={t('food.restaurant.specialInstructionsPlaceholder')} style={{ width: '100%', height: 80, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', resize: 'none', outline: 'none', background: '#f8fafc', lineHeight: 1.5 }} />
                 </div>
                 <div style={{ height: 16 }} />
               </div>
@@ -1876,7 +1885,7 @@ export default function FoodRestaurantPage() {
                     <span style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', minWidth: 26, textAlign: 'center' }}>{modalQty}</span>
                     <button onClick={() => setModalQty((q) => Math.min(99, q + 1))} style={{ width: 38, height: 38, borderRadius: 9, border: 'none', background: accent, fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', lineHeight: 1 }}>+</button>
                   </div>
-                  <button onClick={modalAddToCart} disabled={modalMissingRequired} style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: modalMissingRequired ? 'not-allowed' : 'pointer', opacity: modalMissingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }}>Add {modalQty} · {modalLineTotal}</button>
+                  <button onClick={modalAddToCart} disabled={modalMissingRequired} style={{ flex: 1, height: 50, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: modalMissingRequired ? 'not-allowed' : 'pointer', opacity: modalMissingRequired ? 0.5 : 1, whiteSpace: 'nowrap' }}>{t('food.restaurant.addQuantity', { count: modalQty, total: modalLineTotal })}</button>
                 </div>
               </div>
             </div>
@@ -1945,7 +1954,7 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
       <div className="rp-sheet" role="dialog" aria-modal="true" aria-label={item.name}>
         <div style={{ height: 170, background: item.image_url ? `center/cover url(${item.image_url})` : 'linear-gradient(135deg,#92400e,#d97706)', position: 'relative', flexShrink: 0 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
-          <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} aria-label={tr('food.common.close', { defaultValue: 'Close' })} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
           <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
             <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', marginBottom: 2 }}>{item.name}</h2>
             <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{formatFoodMoney(item.price_cents, currency)}</span>
@@ -1957,7 +1966,7 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
           )}
           {groups.map((group) => (
             <div key={group.id} style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9' }}>
-              <p style={label}>{group.name}{group.isRequired && <span style={{ color: accent, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>Required</span>}</p>
+              <p style={label}>{group.name}{group.isRequired && <span style={{ color: accent, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>{tr('food.restaurant.required', { defaultValue: 'Required' })}</span>}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {(group.options || []).filter((o) => o.isAvailable !== false).map((option) => {
                   const radio = (group.maxSelect || group.max_select) === 1;
@@ -1976,8 +1985,8 @@ export function ItemModal({ item, currency = 'USD', onClose, onAdd, t }) {
             </div>
           ))}
           <div style={{ padding: '16px 20px', borderTop: '1px solid #f1f5f9' }}>
-            <p style={label}>{tr('food.order.specialInstructions', { defaultValue: 'Special instructions' })} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
-            <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={500} rows={2} placeholder="Allergies, substitutions…" style={{ width: '100%', minHeight: 70, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', resize: 'none', outline: 'none', background: '#f8fafc', lineHeight: 1.5 }} />
+            <p style={label}>{tr('food.restaurant.specialInstructions', { defaultValue: 'Special instructions' })} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({tr('food.restaurant.optional', { defaultValue: 'optional' })})</span></p>
+            <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={500} rows={2} placeholder={tr('food.restaurant.allergyPlaceholder', { defaultValue: 'Allergies, substitutions…' })} style={{ width: '100%', minHeight: 70, border: '1.5px solid #e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', resize: 'none', outline: 'none', background: '#f8fafc', lineHeight: 1.5 }} />
           </div>
           <div style={{ height: 12 }} />
         </div>

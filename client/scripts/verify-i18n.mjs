@@ -91,7 +91,7 @@ function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], all
     failures.push(`${relativePath}:${line}: ${value}`);
   };
 
-  for (const match of source.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)) {
+  for (const match of source.matchAll(/(?<!=)>([^<>{}\n]*[A-Za-z][^<>{}\n]*)<(?![=])/g)) {
     const value = match[1].trim();
     if (value && !allowedText.has(value)) addFailure(match, value);
   }
@@ -125,3 +125,4 @@ verifyPageHasNoHardcodedUiText('src/pages/DirectPortalPage.jsx', {
 verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
   allowedJsxText: ['OxS'],
 });
+verifyPageHasNoHardcodedUiText('src/pages/food/FoodRestaurantPage.jsx');
