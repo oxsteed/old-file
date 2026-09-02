@@ -80,9 +80,43 @@ function verifyI18nIndex() {
   console.log(`ok i18n index declares ${languages.join('/')}`);
 }
 
+function verifyDirectPortalHasNoHardcodedUiText() {
+  const relativePath = 'src/pages/DirectPortalPage.jsx';
+  const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+  const allowedJsxText = new Set(['Cash App', 'Venmo', 'Zelle']);
+  const allowedAttributes = new Set(['US']);
+  const failures = [];
+
+  const addFailure = (match, value) => {
+    const line = source.slice(0, match.index).split('\n').length;
+    failures.push(`${relativePath}:${line}: ${value}`);
+  };
+
+  for (const match of source.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)) {
+    const value = match[1].trim();
+    if (value && !allowedJsxText.has(value)) addFailure(match, value);
+  }
+
+  for (const match of source.matchAll(/\b(?:title|subtitle|label|placeholder|body|eyebrow|aria-label)="([^"]*[A-Za-z][^"]*)"/g)) {
+    const value = match[1].trim();
+    if (value && !allowedAttributes.has(value)) addFailure(match, value);
+  }
+
+  for (const match of source.matchAll(/(?:toast\.(?:error|success)|window\.prompt)\(\s*(['"])([^'"]*[A-Za-z][^'"]*)\1/g)) {
+    addFailure(match, match[2].trim());
+  }
+
+  if (failures.length) {
+    throw new Error(`Hard-coded customer-facing Direct portal text found:\n${failures.join('\n')}`);
+  }
+
+  console.log('ok Direct customer portal has no unapproved hard-coded UI text');
+}
+
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);
 compareKeySets('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
 compareKeySets('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
+verifyDirectPortalHasNoHardcodedUiText();

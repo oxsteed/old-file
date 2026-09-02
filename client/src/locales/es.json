@@ -14272,6 +14272,130 @@
       "expiresAt": "El código expira",
       "verifiedLabel": "Verificado",
       "lockedBody": "Después de verificar el código, mostraremos aquí los detalles completos."
+    },
+    "common": {
+      "minimum": "Mínimo de {{amount}}",
+      "loading": "Cargando…",
+      "directRequest": "Solicitud Direct",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "status": {
+      "requested": "Solicitado",
+      "reviewing": "En revisión",
+      "quoted": "Cotizado",
+      "contacted": "Contactado",
+      "accepted": "Aceptado",
+      "scheduled": "Programado",
+      "enRoute": "En camino",
+      "started": "Iniciado",
+      "waitingCustomer": "Esperando al cliente",
+      "completed": "Completado",
+      "closed": "Cerrado",
+      "cancelled": "Cancelado"
+    },
+    "paymentStatus": {
+      "unpaid": "No pagado",
+      "pending": "Pendiente",
+      "submitted": "Enviado",
+      "partiallyPaid": "Pagado parcialmente",
+      "paid": "Pagado",
+      "disputed": "En disputa",
+      "refunded": "Reembolsado"
+    },
+    "history": {
+      "title": "Historial de servicios",
+      "subtitle": "Todas tus solicitudes, trabajos y recibos de Direct en un solo lugar.",
+      "loadingTitle": "Cargando historial…",
+      "loadingBody": "Estamos obteniendo tus registros de Direct.",
+      "emptyTitle": "Aún no hay historial de Direct",
+      "emptyBody": "Cuando solicites una cotización o programes un trabajo, aparecerá aquí.",
+      "errors": { "load": "No se pudo cargar el historial." }
+    },
+    "support": {
+      "title": "Soporte y mensajes",
+      "subtitle": "Mantén el soporte vinculado a la solicitud Direct en lugar de usar una bandeja separada.",
+      "requestsTitle": "Tus solicitudes Direct",
+      "eyebrow": "Soporte",
+      "emptyTitle": "Todavía no hay nada aquí",
+      "emptyBody": "Primero crea una solicitud de cotización y el hilo de soporte aparecerá aquí.",
+      "requestNumber": "Solicitud n.º {{id}}",
+      "chooseRequest": "Elige una solicitud",
+      "conversation": "Conversación",
+      "selectTitle": "Selecciona una solicitud",
+      "selectBody": "Elige un trabajo Direct a la izquierda para abrir el hilo de soporte.",
+      "messages": "Mensajes",
+      "noMessages": "Aún no hay mensajes.",
+      "messagePlaceholder": "Escribe tu mensaje al equipo de OxSteed...",
+      "supportPlaceholder": "Envía un mensaje al soporte de OxSteed…",
+      "sending": "Enviando…",
+      "send": "Enviar",
+      "openEscalation": "Abrir escalamiento en vivo",
+      "attachedConversation": "Tu conversación está vinculada a esta solicitud.",
+      "errors": { "load": "No se pudo cargar el soporte.", "send": "No se pudo enviar el mensaje." }
+    },
+    "account": {
+      "title": "Perfil del cliente y ubicaciones",
+      "subtitle": "Guarda direcciones, notas y tu ciudad preferida para programar trabajos Direct más fácilmente.",
+      "savedLocations": "Ubicaciones guardadas",
+      "eyebrow": "Cuenta",
+      "emptyTitle": "No hay ubicaciones guardadas",
+      "emptyBody": "Añade aquí tu primera dirección de servicio.",
+      "defaultLabel": "predeterminada",
+      "editLocation": "Editar ubicación",
+      "addLocation": "Añadir una ubicación",
+      "profileEyebrow": "Perfil",
+      "fields": {
+        "label": "Etiqueta", "countryCode": "Código de país", "address": "Dirección", "addressLine2": "Dirección, línea 2", "city": "Ciudad", "region": "Región / estado", "postalCode": "Código postal", "defaultLocation": "Ubicación predeterminada", "notes": "Notas"
+      },
+      "placeholders": { "label": "Casa, tienda, oficina...", "notes": "Código de acceso, estacionamiento, instrucciones..." },
+      "actions": { "edit": "Editar", "delete": "Eliminar", "save": "Guardar ubicación", "cancelEdit": "Cancelar edición" },
+      "messages": { "saved": "Ubicación guardada.", "deleted": "Ubicación eliminada." },
+      "errors": { "load": "No se pudieron cargar los datos de la cuenta.", "required": "La etiqueta, la dirección y la ciudad son obligatorias.", "save": "No se pudo guardar la ubicación." }
+    },
+    "case": {
+      "headers": {
+        "quote": { "title": "Revisión de la cotización", "subtitle": "Revisa el estimado y decide si deseas aceptarlo." },
+        "book": { "title": "Programa tu visita", "subtitle": "Elige un horario y confirma la dirección del servicio." },
+        "job": { "title": "Estado del trabajo", "subtitle": "Sigue la solicitud desde la cotización hasta su finalización." },
+        "proof": { "title": "Comprobante de pago", "subtitle": "Sube un recibo o referencia para mantener el pago vinculado." },
+        "receipt": { "title": "Confirmación del recibo", "subtitle": "Confirma que el comprobante fue recibido y vinculado al historial." },
+        "history": { "subtitle": "Consulta cada solicitud, cotización, trabajo y recibo de Direct." },
+        "support": { "title": "Soporte Direct", "subtitle": "Escribe al equipo de OxSteed sobre este trabajo." },
+        "account": { "subtitle": "Mantén las direcciones y notas listas para la próxima visita." },
+        "change": { "title": "Cancelar o reprogramar", "subtitle": "Ajusta el plan sin reiniciar todo el proceso." },
+        "default": { "subtitle": "Revisa y administra este caso." }
+      },
+      "loadingBody": "Obteniendo el registro Direct.",
+      "emptyTitle": "No se encontró el registro",
+      "emptyBody": "Este registro Direct aún no está disponible.",
+      "caseNumber": "Caso n.º {{id}}",
+      "noDescription": "Aún no hay descripción.",
+      "photo": "Foto",
+      "actionsTitle": "Acciones",
+      "manageEyebrow": "Administrar el caso",
+      "savedLocationHelp": "Usa una ubicación guardada si la dirección ya está en tu cuenta.",
+      "receiptAttachment": "Adjunto del recibo",
+      "notYet": "Todavía no",
+      "quoteReviewBody": "Revisa la cotización y elige si deseas aceptarla, rechazarla o pedir cambios.",
+      "currentStatusPrefix": "El estado actual es",
+      "currentStatusSuffix": "Mantendremos el registro en el historial mientras avanza el proceso.",
+      "accountHelp": "Administra tus ubicaciones de servicio guardadas desde la página de la cuenta.",
+      "fields": {
+        "scheduledStart": "Inicio programado", "scheduledEnd": "Fin programado", "onSiteContact": "Contacto en el lugar", "contactPhone": "Teléfono de contacto", "accessNotes": "Notas de acceso", "paymentMethod": "Método de pago", "receiptNumber": "Referencia / número de recibo", "proofLink": "Enlace del comprobante", "uploadReceipt": "Subir recibo", "note": "Nota", "paymentStatus": "Estado del pago", "proofReceived": "Comprobante recibido", "changeReason": "Motivo del cambio", "newDate": "Nueva fecha", "newWindow": "Nuevo horario"
+      },
+      "placeholders": { "timeWindow": "Mañana, tarde, etc.", "proofLink": "Recibo compartido, captura o enlace de archivo", "changeReason": "Cuéntanos qué debe cambiar..." },
+      "paymentMethods": { "cash": "Efectivo", "bankTransfer": "Transferencia bancaria" },
+      "actions": {
+        "acceptQuote": "Aceptar cotización", "decline": "Rechazar", "requestChanges": "Solicitar cambios", "saveSchedule": "Guardar horario", "submitProof": "Enviar comprobante", "confirmReceipt": "Confirmar recibo", "reschedule": "Reprogramar", "cancelRequest": "Cancelar solicitud", "openProofUpload": "Abrir carga de comprobante", "cancel": "Cancelar", "askForChanges": "Pedir cambios", "requestChange": "Solicitar cambio", "uploadProof": "Subir comprobante", "openLocations": "Abrir ubicaciones"
+      },
+      "messages": {
+        "scheduleSaved": "Horario guardado.", "cancelled": "Solicitud cancelada.", "updated": "Solicitud actualizada.", "quoteAccepted": "Cotización aceptada.", "declined": "Solicitud rechazada.", "messageSent": "Mensaje enviado.", "proofUploaded": "Comprobante adjuntado.", "proofSaved": "Comprobante de pago guardado.", "receiptConfirmed": "Recibo confirmado."
+      },
+      "prompts": { "declineReason": "¿Por qué rechazas esta cotización?" },
+      "errors": {
+        "loadRequest": "No se pudo cargar la solicitud", "load": "No se pudo cargar el registro Direct.", "saveSchedule": "No se pudo guardar el horario.", "update": "No se pudo actualizar la solicitud.", "acceptQuote": "No se pudo aceptar la cotización.", "declineQuote": "No se pudo rechazar la cotización.", "uploadProof": "No se pudo subir el comprobante.", "saveProof": "No se pudo guardar el comprobante.", "confirmReceipt": "No se pudo confirmar el recibo."
+      }
     }
   }
 }

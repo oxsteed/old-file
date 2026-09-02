@@ -14272,6 +14272,113 @@
       "expiresAt": "Le code expire",
       "verifiedLabel": "Vérifié",
       "lockedBody": "Après vérification du code, nous afficherons ici les détails complets."
+    },
+    "common": {
+      "minimum": "Minimum de {{amount}}",
+      "loading": "Chargement…",
+      "directRequest": "Demande Direct",
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "status": {
+      "requested": "Demandé", "reviewing": "En cours d’examen", "quoted": "Devis établi", "contacted": "Contacté", "accepted": "Accepté", "scheduled": "Planifié", "enRoute": "En route", "started": "Commencé", "waitingCustomer": "En attente du client", "completed": "Terminé", "closed": "Clôturé", "cancelled": "Annulé"
+    },
+    "paymentStatus": {
+      "unpaid": "Non payé", "pending": "En attente", "submitted": "Soumis", "partiallyPaid": "Partiellement payé", "paid": "Payé", "disputed": "Contesté", "refunded": "Remboursé"
+    },
+    "history": {
+      "title": "Historique des services",
+      "subtitle": "Toutes vos demandes de devis, interventions et reçus Direct au même endroit.",
+      "loadingTitle": "Chargement de l’historique…",
+      "loadingBody": "Nous récupérons vos dossiers Direct.",
+      "emptyTitle": "Aucun historique Direct pour le moment",
+      "emptyBody": "Après une demande de devis ou la planification d’une intervention, le dossier apparaîtra ici.",
+      "errors": { "load": "Impossible de charger l’historique." }
+    },
+    "support": {
+      "title": "Assistance et messages",
+      "subtitle": "Conservez l’assistance liée à la demande Direct plutôt que dans une boîte de réception séparée.",
+      "requestsTitle": "Vos demandes Direct",
+      "eyebrow": "Assistance",
+      "emptyTitle": "Rien ici pour le moment",
+      "emptyBody": "Créez d’abord une demande de devis et la conversation d’assistance apparaîtra ici.",
+      "requestNumber": "Demande n° {{id}}",
+      "chooseRequest": "Choisir une demande",
+      "conversation": "Conversation",
+      "selectTitle": "Sélectionner une demande",
+      "selectBody": "Choisissez une intervention Direct à gauche pour ouvrir la conversation d’assistance.",
+      "messages": "Messages",
+      "noMessages": "Aucun message pour le moment.",
+      "messagePlaceholder": "Écrivez votre message à l’équipe OxSteed...",
+      "supportPlaceholder": "Envoyez un message à l’assistance OxSteed…",
+      "sending": "Envoi…",
+      "send": "Envoyer",
+      "openEscalation": "Ouvrir l’assistance en direct",
+      "attachedConversation": "Votre conversation est liée à cette demande.",
+      "errors": { "load": "Impossible de charger l’assistance.", "send": "Impossible d’envoyer le message." }
+    },
+    "account": {
+      "title": "Profil client et adresses",
+      "subtitle": "Enregistrez vos adresses, notes et ville préférée pour faciliter la planification des prochaines interventions Direct.",
+      "savedLocations": "Adresses enregistrées",
+      "eyebrow": "Compte",
+      "emptyTitle": "Aucune adresse enregistrée",
+      "emptyBody": "Ajoutez ici votre première adresse de service.",
+      "defaultLabel": "par défaut",
+      "editLocation": "Modifier l’adresse",
+      "addLocation": "Ajouter une adresse",
+      "profileEyebrow": "Profil",
+      "fields": {
+        "label": "Libellé", "countryCode": "Code pays", "address": "Adresse", "addressLine2": "Complément d’adresse", "city": "Ville", "region": "Région / État", "postalCode": "Code postal", "defaultLocation": "Adresse par défaut", "notes": "Notes"
+      },
+      "placeholders": { "label": "Domicile, boutique, bureau...", "notes": "Code d’accès, stationnement, consignes..." },
+      "actions": { "edit": "Modifier", "delete": "Supprimer", "save": "Enregistrer l’adresse", "cancelEdit": "Annuler la modification" },
+      "messages": { "saved": "Adresse enregistrée.", "deleted": "Adresse supprimée." },
+      "errors": { "load": "Impossible de charger les données du compte.", "required": "Le libellé, l’adresse et la ville sont obligatoires.", "save": "Impossible d’enregistrer l’adresse." }
+    },
+    "case": {
+      "headers": {
+        "quote": { "title": "Examen du devis", "subtitle": "Examinez l’estimation et décidez si vous souhaitez l’accepter." },
+        "book": { "title": "Planifier votre visite", "subtitle": "Choisissez un créneau et confirmez l’adresse du service." },
+        "job": { "title": "État de l’intervention", "subtitle": "Suivez la demande du devis jusqu’à la fin des travaux." },
+        "proof": { "title": "Preuve de paiement", "subtitle": "Téléversez un reçu ou une référence pour conserver le paiement dans le dossier." },
+        "receipt": { "title": "Confirmation du reçu", "subtitle": "Confirmez que la preuve a été reçue et liée à l’historique." },
+        "history": { "subtitle": "Consultez chaque demande, devis, intervention et reçu Direct." },
+        "support": { "title": "Assistance Direct", "subtitle": "Écrivez à l’équipe OxSteed au sujet de cette intervention." },
+        "account": { "subtitle": "Gardez les adresses de service et les notes prêtes pour la prochaine visite." },
+        "change": { "title": "Annuler ou replanifier", "subtitle": "Modifiez le plan sans recommencer tout le processus." },
+        "default": { "subtitle": "Consultez et gérez ce dossier." }
+      },
+      "loadingBody": "Récupération du dossier Direct.",
+      "emptyTitle": "Aucun dossier trouvé",
+      "emptyBody": "Ce dossier Direct n’est pas encore disponible.",
+      "caseNumber": "Dossier n° {{id}}",
+      "noDescription": "Aucune description pour le moment.",
+      "photo": "Photo",
+      "actionsTitle": "Actions",
+      "manageEyebrow": "Gérer le dossier",
+      "savedLocationHelp": "Utilisez une adresse enregistrée si elle figure déjà dans votre compte.",
+      "receiptAttachment": "Pièce jointe du reçu",
+      "notYet": "Pas encore",
+      "quoteReviewBody": "Examinez le devis et choisissez de l’accepter, de le refuser ou de demander des modifications.",
+      "currentStatusPrefix": "L’état actuel est",
+      "currentStatusSuffix": "Le dossier restera dans l’historique pendant toute son évolution.",
+      "accountHelp": "Gérez vos adresses de service enregistrées depuis la page du compte.",
+      "fields": {
+        "scheduledStart": "Début prévu", "scheduledEnd": "Fin prévue", "onSiteContact": "Contact sur place", "contactPhone": "Téléphone du contact", "accessNotes": "Notes d’accès", "paymentMethod": "Mode de paiement", "receiptNumber": "Référence / numéro de reçu", "proofLink": "Lien de la preuve", "uploadReceipt": "Téléverser le reçu", "note": "Note", "paymentStatus": "État du paiement", "proofReceived": "Preuve reçue", "changeReason": "Motif de la modification", "newDate": "Nouvelle date", "newWindow": "Nouveau créneau"
+      },
+      "placeholders": { "timeWindow": "Matin, après-midi, etc.", "proofLink": "Reçu partagé, capture d’écran ou lien de fichier", "changeReason": "Indiquez-nous ce qui doit changer..." },
+      "paymentMethods": { "cash": "Espèces", "bankTransfer": "Virement bancaire" },
+      "actions": {
+        "acceptQuote": "Accepter le devis", "decline": "Refuser", "requestChanges": "Demander des modifications", "saveSchedule": "Enregistrer le créneau", "submitProof": "Envoyer la preuve", "confirmReceipt": "Confirmer le reçu", "reschedule": "Replanifier", "cancelRequest": "Annuler la demande", "openProofUpload": "Ouvrir le téléversement de preuve", "cancel": "Annuler", "askForChanges": "Demander des modifications", "requestChange": "Demander une modification", "uploadProof": "Téléverser une preuve", "openLocations": "Ouvrir les adresses"
+      },
+      "messages": {
+        "scheduleSaved": "Créneau enregistré.", "cancelled": "Demande annulée.", "updated": "Demande mise à jour.", "quoteAccepted": "Devis accepté.", "declined": "Demande refusée.", "messageSent": "Message envoyé.", "proofUploaded": "Preuve jointe.", "proofSaved": "Preuve de paiement enregistrée.", "receiptConfirmed": "Reçu confirmé."
+      },
+      "prompts": { "declineReason": "Pourquoi refusez-vous ce devis ?" },
+      "errors": {
+        "loadRequest": "Impossible de charger la demande", "load": "Impossible de charger le dossier Direct.", "saveSchedule": "Impossible d’enregistrer le créneau.", "update": "Impossible de mettre à jour la demande.", "acceptQuote": "Impossible d’accepter le devis.", "declineQuote": "Impossible de refuser le devis.", "uploadProof": "Impossible de téléverser la preuve.", "saveProof": "Impossible d’enregistrer la preuve.", "confirmReceipt": "Impossible de confirmer le reçu."
+      }
     }
   }
 }

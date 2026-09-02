@@ -14188,6 +14188,210 @@
       "expiresAt": "Code expires",
       "verifiedLabel": "Verified",
       "lockedBody": "After you verify the code, we will show the full quote details here."
+    },
+    "common": {
+      "minimum": "{{amount}} minimum",
+      "loading": "Loading…",
+      "directRequest": "Direct request",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "status": {
+      "requested": "Requested",
+      "reviewing": "Reviewing",
+      "quoted": "Quoted",
+      "contacted": "Contacted",
+      "accepted": "Accepted",
+      "scheduled": "Scheduled",
+      "enRoute": "En route",
+      "started": "Started",
+      "waitingCustomer": "Waiting on customer",
+      "completed": "Completed",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "paymentStatus": {
+      "unpaid": "Unpaid",
+      "pending": "Pending",
+      "submitted": "Submitted",
+      "partiallyPaid": "Partially paid",
+      "paid": "Paid",
+      "disputed": "Disputed",
+      "refunded": "Refunded"
+    },
+    "history": {
+      "title": "Service history",
+      "subtitle": "All of your Direct quote requests, jobs, and receipts in one place.",
+      "loadingTitle": "Loading history…",
+      "loadingBody": "We’re pulling your Direct records now.",
+      "emptyTitle": "No Direct history yet",
+      "emptyBody": "Once you request a quote or schedule a job, the record will show up here.",
+      "errors": {
+        "load": "Could not load history."
+      }
+    },
+    "support": {
+      "title": "Support and messages",
+      "subtitle": "Keep support attached to the Direct request instead of a separate inbox.",
+      "requestsTitle": "Your Direct requests",
+      "eyebrow": "Support",
+      "emptyTitle": "Nothing here yet",
+      "emptyBody": "Create a quote request first and the support thread will appear here.",
+      "requestNumber": "Request #{{id}}",
+      "chooseRequest": "Choose a request",
+      "conversation": "Conversation",
+      "selectTitle": "Select a request",
+      "selectBody": "Pick a Direct job on the left to open the support thread.",
+      "messages": "Messages",
+      "noMessages": "No messages yet.",
+      "messagePlaceholder": "Type your message to the OxSteed team...",
+      "supportPlaceholder": "Send a message to OxSteed support…",
+      "sending": "Sending…",
+      "send": "Send",
+      "openEscalation": "Open live escalation",
+      "attachedConversation": "Your conversation is attached to this request.",
+      "errors": {
+        "load": "Could not load support.",
+        "send": "Could not send message."
+      }
+    },
+    "account": {
+      "title": "Customer profile and locations",
+      "subtitle": "Save addresses, notes, and preferred city so future Direct jobs are easier to schedule.",
+      "savedLocations": "Saved locations",
+      "eyebrow": "Account",
+      "emptyTitle": "No saved locations",
+      "emptyBody": "Add your first service address here.",
+      "defaultLabel": "default",
+      "editLocation": "Edit location",
+      "addLocation": "Add a location",
+      "profileEyebrow": "Profile",
+      "fields": {
+        "label": "Label",
+        "countryCode": "Country code",
+        "address": "Address",
+        "addressLine2": "Address line 2",
+        "city": "City",
+        "region": "Region / state",
+        "postalCode": "Postal code",
+        "defaultLocation": "Default location",
+        "notes": "Notes"
+      },
+      "placeholders": {
+        "label": "Home, shop, office...",
+        "notes": "Gate code, parking, service instructions..."
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "save": "Save location",
+        "cancelEdit": "Cancel edit"
+      },
+      "messages": {
+        "saved": "Location saved.",
+        "deleted": "Location deleted."
+      },
+      "errors": {
+        "load": "Could not load account data.",
+        "required": "Label, address, and city are required.",
+        "save": "Could not save location."
+      }
+    },
+    "case": {
+      "headers": {
+        "quote": { "title": "Quote review", "subtitle": "Review the estimate and decide whether to accept it." },
+        "book": { "title": "Schedule your visit", "subtitle": "Pick a time window and confirm the service address." },
+        "job": { "title": "Job status", "subtitle": "Track the request from quote to completion." },
+        "proof": { "title": "Payment proof", "subtitle": "Upload a receipt or reference so the payment stays attached." },
+        "receipt": { "title": "Receipt confirmation", "subtitle": "Confirm that the proof has been received and tied to history." },
+        "history": { "subtitle": "See every Direct request, quote, job, and receipt." },
+        "support": { "title": "Direct support", "subtitle": "Message the OxSteed team about this work." },
+        "account": { "subtitle": "Keep service addresses and notes ready for the next visit." },
+        "change": { "title": "Cancel or reschedule", "subtitle": "Adjust the plan without restarting the entire flow." },
+        "default": { "subtitle": "Review and manage this case." }
+      },
+      "loadingBody": "Fetching the Direct record now.",
+      "emptyTitle": "No record found",
+      "emptyBody": "This Direct record is not available yet.",
+      "caseNumber": "Case #{{id}}",
+      "noDescription": "No description yet.",
+      "photo": "Photo",
+      "actionsTitle": "Actions",
+      "manageEyebrow": "Manage the case",
+      "savedLocationHelp": "Use one of your saved locations if the address is already in your account.",
+      "receiptAttachment": "Receipt attachment",
+      "notYet": "Not yet",
+      "quoteReviewBody": "Review the quote and choose whether to accept it, decline it, or ask for changes.",
+      "currentStatusPrefix": "The current status is",
+      "currentStatusSuffix": "We’ll keep the record in history as it moves through the workflow.",
+      "accountHelp": "Manage your saved service locations from the account page.",
+      "fields": {
+        "scheduledStart": "Scheduled start",
+        "scheduledEnd": "Scheduled end",
+        "onSiteContact": "On-site contact",
+        "contactPhone": "Contact phone",
+        "accessNotes": "Access notes",
+        "paymentMethod": "Payment method",
+        "receiptNumber": "Reference / receipt number",
+        "proofLink": "Proof link",
+        "uploadReceipt": "Upload receipt",
+        "note": "Note",
+        "paymentStatus": "Payment status",
+        "proofReceived": "Proof received",
+        "changeReason": "Reason for change",
+        "newDate": "New date",
+        "newWindow": "New window"
+      },
+      "placeholders": {
+        "timeWindow": "Morning, afternoon, etc.",
+        "proofLink": "Shared receipt, screenshot, or file link",
+        "changeReason": "Tell us what needs to change..."
+      },
+      "paymentMethods": {
+        "cash": "Cash",
+        "bankTransfer": "Bank transfer"
+      },
+      "actions": {
+        "acceptQuote": "Accept quote",
+        "decline": "Decline",
+        "requestChanges": "Request changes",
+        "saveSchedule": "Save schedule",
+        "submitProof": "Submit proof",
+        "confirmReceipt": "Confirm receipt",
+        "reschedule": "Reschedule",
+        "cancelRequest": "Cancel request",
+        "openProofUpload": "Open proof upload",
+        "cancel": "Cancel",
+        "askForChanges": "Ask for changes",
+        "requestChange": "Request change",
+        "uploadProof": "Upload proof",
+        "openLocations": "Open locations"
+      },
+      "messages": {
+        "scheduleSaved": "Schedule saved.",
+        "cancelled": "Request cancelled.",
+        "updated": "Request updated.",
+        "quoteAccepted": "Quote accepted.",
+        "declined": "Request declined.",
+        "messageSent": "Message sent.",
+        "proofUploaded": "Proof attachment uploaded.",
+        "proofSaved": "Payment proof saved.",
+        "receiptConfirmed": "Receipt confirmed."
+      },
+      "prompts": {
+        "declineReason": "Why are you declining this quote?"
+      },
+      "errors": {
+        "loadRequest": "Failed to load request",
+        "load": "Could not load the Direct record.",
+        "saveSchedule": "Could not save schedule.",
+        "update": "Could not update the request.",
+        "acceptQuote": "Could not accept the quote.",
+        "declineQuote": "Could not decline the quote.",
+        "uploadProof": "Could not upload proof.",
+        "saveProof": "Could not save proof.",
+        "confirmReceipt": "Could not confirm receipt."
+      }
     }
   }
 }

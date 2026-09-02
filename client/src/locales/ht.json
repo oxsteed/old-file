@@ -14272,6 +14272,113 @@
       "expiresAt": "Kòd la ekspire",
       "verifiedLabel": "Verifye",
       "lockedBody": "Apre ou verifye kòd la, nou pral montre tout detay quote a isit la."
+    },
+    "common": {
+      "minimum": "Minimòm {{amount}}",
+      "loading": "Ap chaje…",
+      "directRequest": "Demann Direct",
+      "yes": "Wi",
+      "no": "Non"
+    },
+    "status": {
+      "requested": "Demann fèt", "reviewing": "An revizyon", "quoted": "Quote pare", "contacted": "Kontakte", "accepted": "Aksepte", "scheduled": "Pwograme", "enRoute": "Sou wout", "started": "Kòmanse", "waitingCustomer": "Ap tann kliyan an", "completed": "Fini", "closed": "Fèmen", "cancelled": "Anile"
+    },
+    "paymentStatus": {
+      "unpaid": "Poko peye", "pending": "An atant", "submitted": "Soumèt", "partiallyPaid": "Peye an pati", "paid": "Peye", "disputed": "An diskisyon", "refunded": "Ranbouse"
+    },
+    "history": {
+      "title": "Istwa sèvis",
+      "subtitle": "Tout demann quote, travay, ak resi Direct ou yo nan yon sèl kote.",
+      "loadingTitle": "Ap chaje istwa a…",
+      "loadingBody": "N ap pran dosye Direct ou yo kounye a.",
+      "emptyTitle": "Pa gen istwa Direct poko",
+      "emptyBody": "Lè ou mande yon quote oswa pwograme yon travay, dosye a ap parèt isit la.",
+      "errors": { "load": "Nou pa t kapab chaje istwa a." }
+    },
+    "support": {
+      "title": "Sipò ak mesaj",
+      "subtitle": "Kenbe sipò a kole ak demann Direct la olye li nan yon bwat mesaj apa.",
+      "requestsTitle": "Demann Direct ou yo",
+      "eyebrow": "Sipò",
+      "emptyTitle": "Pa gen anyen isit la poko",
+      "emptyBody": "Kreye yon demann quote an premye epi konvèsasyon sipò a ap parèt isit la.",
+      "requestNumber": "Demann #{{id}}",
+      "chooseRequest": "Chwazi yon demann",
+      "conversation": "Konvèsasyon",
+      "selectTitle": "Chwazi yon demann",
+      "selectBody": "Chwazi yon travay Direct agoch la pou louvri konvèsasyon sipò a.",
+      "messages": "Mesaj",
+      "noMessages": "Pa gen mesaj poko.",
+      "messagePlaceholder": "Ekri mesaj ou pou ekip OxSteed la...",
+      "supportPlaceholder": "Voye yon mesaj bay sipò OxSteed…",
+      "sending": "Ap voye…",
+      "send": "Voye",
+      "openEscalation": "Louvri sipò an dirèk",
+      "attachedConversation": "Konvèsasyon ou an kole ak demann sa a.",
+      "errors": { "load": "Nou pa t kapab chaje sipò a.", "send": "Nou pa t kapab voye mesaj la." }
+    },
+    "account": {
+      "title": "Pwofil kliyan ak adrès",
+      "subtitle": "Sove adrès, nòt, ak vil ou prefere pou pwochen travay Direct yo pi fasil pou pwograme.",
+      "savedLocations": "Adrès ki sove",
+      "eyebrow": "Kont",
+      "emptyTitle": "Pa gen adrès ki sove",
+      "emptyBody": "Ajoute premye adrès sèvis ou isit la.",
+      "defaultLabel": "pa defo",
+      "editLocation": "Modifye adrès",
+      "addLocation": "Ajoute yon adrès",
+      "profileEyebrow": "Pwofil",
+      "fields": {
+        "label": "Etikèt", "countryCode": "Kòd peyi", "address": "Adrès", "addressLine2": "Dezyèm liy adrès", "city": "Vil", "region": "Rejyon / eta", "postalCode": "Kòd postal", "defaultLocation": "Adrès pa defo", "notes": "Nòt"
+      },
+      "placeholders": { "label": "Kay, boutik, biwo...", "notes": "Kòd pòtay, pakin, enstriksyon sèvis..." },
+      "actions": { "edit": "Modifye", "delete": "Efase", "save": "Sove adrès", "cancelEdit": "Anile modifikasyon" },
+      "messages": { "saved": "Adrès la sove.", "deleted": "Adrès la efase." },
+      "errors": { "load": "Nou pa t kapab chaje done kont lan.", "required": "Etikèt, adrès, ak vil obligatwa.", "save": "Nou pa t kapab sove adrès la." }
+    },
+    "case": {
+      "headers": {
+        "quote": { "title": "Revize quote la", "subtitle": "Revize estimasyon an epi deside si ou vle aksepte li." },
+        "book": { "title": "Pwograme vizit ou", "subtitle": "Chwazi yon lè epi konfime adrès sèvis la." },
+        "job": { "title": "Estati travay la", "subtitle": "Swiv demann lan depi quote la jouk travay la fini." },
+        "proof": { "title": "Prèv peman", "subtitle": "Telechaje yon resi oswa referans pou peman an rete kole ak dosye a." },
+        "receipt": { "title": "Konfimasyon resi", "subtitle": "Konfime prèv la resevwa epi li kole ak istwa a." },
+        "history": { "subtitle": "Gade chak demann Direct, quote, travay, ak resi." },
+        "support": { "title": "Sipò Direct", "subtitle": "Voye mesaj bay ekip OxSteed la sou travay sa a." },
+        "account": { "subtitle": "Kenbe adrès sèvis ak nòt yo pare pou pwochen vizit la." },
+        "change": { "title": "Anile oswa repwograme", "subtitle": "Chanje plan an san ou pa rekòmanse tout pwosesis la." },
+        "default": { "subtitle": "Revize epi jere dosye sa a." }
+      },
+      "loadingBody": "N ap pran dosye Direct la kounye a.",
+      "emptyTitle": "Nou pa jwenn dosye a",
+      "emptyBody": "Dosye Direct sa a poko disponib.",
+      "caseNumber": "Dosye #{{id}}",
+      "noDescription": "Pa gen deskripsyon poko.",
+      "photo": "Foto",
+      "actionsTitle": "Aksyon",
+      "manageEyebrow": "Jere dosye a",
+      "savedLocationHelp": "Sèvi ak youn nan adrès ou sove yo si li deja nan kont ou.",
+      "receiptAttachment": "Atachman resi",
+      "notYet": "Poko",
+      "quoteReviewBody": "Revize quote la epi chwazi si ou vle aksepte li, refize li, oswa mande chanjman.",
+      "currentStatusPrefix": "Estati aktyèl la se",
+      "currentStatusSuffix": "N ap kenbe dosye a nan istwa pandan li ap avanse nan pwosesis la.",
+      "accountHelp": "Jere adrès sèvis ou sove yo nan paj kont lan.",
+      "fields": {
+        "scheduledStart": "Kòmansman pwograme", "scheduledEnd": "Fen pwograme", "onSiteContact": "Kontak sou plas", "contactPhone": "Telefòn kontak", "accessNotes": "Nòt aksè", "paymentMethod": "Metòd peman", "receiptNumber": "Referans / nimewo resi", "proofLink": "Lyen prèv", "uploadReceipt": "Telechaje resi", "note": "Nòt", "paymentStatus": "Estati peman", "proofReceived": "Prèv resevwa", "changeReason": "Rezon chanjman an", "newDate": "Nouvo dat", "newWindow": "Nouvo lè"
+      },
+      "placeholders": { "timeWindow": "Maten, aprèmidi, elatriye.", "proofLink": "Resi pataje, ekran foto, oswa lyen dosye", "changeReason": "Di nou sa ki bezwen chanje..." },
+      "paymentMethods": { "cash": "Lajan kach", "bankTransfer": "Transfè labank" },
+      "actions": {
+        "acceptQuote": "Aksepte quote la", "decline": "Refize", "requestChanges": "Mande chanjman", "saveSchedule": "Sove orè a", "submitProof": "Soumèt prèv", "confirmReceipt": "Konfime resi", "reschedule": "Repwograme", "cancelRequest": "Anile demann", "openProofUpload": "Louvri telechajman prèv", "cancel": "Anile", "askForChanges": "Mande chanjman", "requestChange": "Mande yon chanjman", "uploadProof": "Telechaje prèv", "openLocations": "Louvri adrès yo"
+      },
+      "messages": {
+        "scheduleSaved": "Orè a sove.", "cancelled": "Demann lan anile.", "updated": "Demann lan mete ajou.", "quoteAccepted": "Quote la aksepte.", "declined": "Demann lan refize.", "messageSent": "Mesaj la voye.", "proofUploaded": "Prèv la telechaje.", "proofSaved": "Prèv peman an sove.", "receiptConfirmed": "Resi a konfime."
+      },
+      "prompts": { "declineReason": "Poukisa ou refize quote sa a?" },
+      "errors": {
+        "loadRequest": "Nou pa t kapab chaje demann lan", "load": "Nou pa t kapab chaje dosye Direct la.", "saveSchedule": "Nou pa t kapab sove orè a.", "update": "Nou pa t kapab mete demann lan ajou.", "acceptQuote": "Nou pa t kapab aksepte quote la.", "declineQuote": "Nou pa t kapab refize quote la.", "uploadProof": "Nou pa t kapab telechaje prèv la.", "saveProof": "Nou pa t kapab sove prèv la.", "confirmReceipt": "Nou pa t kapab konfime resi a."
+      }
     }
   }
 }

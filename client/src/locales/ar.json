@@ -14275,6 +14275,113 @@
       "expiresAt": "ينتهي الرمز",
       "verifiedLabel": "تم التحقق",
       "lockedBody": "بعد التحقق من الرمز، سنعرض تفاصيل عرض السعر الكاملة هنا."
+    },
+    "common": {
+      "minimum": "الحد الأدنى {{amount}}",
+      "loading": "جارٍ التحميل…",
+      "directRequest": "طلب Direct",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "status": {
+      "requested": "تم الطلب", "reviewing": "قيد المراجعة", "quoted": "تم التسعير", "contacted": "تم التواصل", "accepted": "مقبول", "scheduled": "مجدول", "enRoute": "في الطريق", "started": "بدأ", "waitingCustomer": "بانتظار العميل", "completed": "مكتمل", "closed": "مغلق", "cancelled": "ملغى"
+    },
+    "paymentStatus": {
+      "unpaid": "غير مدفوع", "pending": "قيد الانتظار", "submitted": "تم الإرسال", "partiallyPaid": "مدفوع جزئيًا", "paid": "مدفوع", "disputed": "متنازع عليه", "refunded": "مسترد"
+    },
+    "history": {
+      "title": "سجل الخدمات",
+      "subtitle": "جميع طلبات عروض الأسعار والأعمال والإيصالات في Direct في مكان واحد.",
+      "loadingTitle": "جارٍ تحميل السجل…",
+      "loadingBody": "نجلب سجلات Direct الخاصة بك الآن.",
+      "emptyTitle": "لا يوجد سجل Direct بعد",
+      "emptyBody": "عندما تطلب عرض سعر أو تجدول عملًا، سيظهر السجل هنا.",
+      "errors": { "load": "تعذر تحميل السجل." }
+    },
+    "support": {
+      "title": "الدعم والرسائل",
+      "subtitle": "احتفظ بالدعم مرتبطًا بطلب Direct بدلًا من صندوق وارد منفصل.",
+      "requestsTitle": "طلبات Direct الخاصة بك",
+      "eyebrow": "الدعم",
+      "emptyTitle": "لا يوجد شيء هنا بعد",
+      "emptyBody": "أنشئ طلب عرض سعر أولًا وستظهر محادثة الدعم هنا.",
+      "requestNumber": "الطلب رقم {{id}}",
+      "chooseRequest": "اختر طلبًا",
+      "conversation": "المحادثة",
+      "selectTitle": "حدد طلبًا",
+      "selectBody": "اختر عمل Direct من اليسار لفتح محادثة الدعم.",
+      "messages": "الرسائل",
+      "noMessages": "لا توجد رسائل بعد.",
+      "messagePlaceholder": "اكتب رسالتك إلى فريق OxSteed...",
+      "supportPlaceholder": "أرسل رسالة إلى دعم OxSteed…",
+      "sending": "جارٍ الإرسال…",
+      "send": "إرسال",
+      "openEscalation": "فتح الدعم المباشر",
+      "attachedConversation": "محادثتك مرتبطة بهذا الطلب.",
+      "errors": { "load": "تعذر تحميل الدعم.", "send": "تعذر إرسال الرسالة." }
+    },
+    "account": {
+      "title": "ملف العميل والمواقع",
+      "subtitle": "احفظ العناوين والملاحظات والمدينة المفضلة لتسهيل جدولة أعمال Direct المستقبلية.",
+      "savedLocations": "المواقع المحفوظة",
+      "eyebrow": "الحساب",
+      "emptyTitle": "لا توجد مواقع محفوظة",
+      "emptyBody": "أضف عنوان خدمتك الأول هنا.",
+      "defaultLabel": "افتراضي",
+      "editLocation": "تعديل الموقع",
+      "addLocation": "إضافة موقع",
+      "profileEyebrow": "الملف الشخصي",
+      "fields": {
+        "label": "التسمية", "countryCode": "رمز الدولة", "address": "العنوان", "addressLine2": "سطر العنوان الثاني", "city": "المدينة", "region": "المنطقة / الولاية", "postalCode": "الرمز البريدي", "defaultLocation": "الموقع الافتراضي", "notes": "ملاحظات"
+      },
+      "placeholders": { "label": "المنزل، المتجر، المكتب...", "notes": "رمز البوابة، مواقف السيارات، تعليمات الخدمة..." },
+      "actions": { "edit": "تعديل", "delete": "حذف", "save": "حفظ الموقع", "cancelEdit": "إلغاء التعديل" },
+      "messages": { "saved": "تم حفظ الموقع.", "deleted": "تم حذف الموقع." },
+      "errors": { "load": "تعذر تحميل بيانات الحساب.", "required": "التسمية والعنوان والمدينة مطلوبة.", "save": "تعذر حفظ الموقع." }
+    },
+    "case": {
+      "headers": {
+        "quote": { "title": "مراجعة عرض السعر", "subtitle": "راجع التقدير وقرر ما إذا كنت تريد قبوله." },
+        "book": { "title": "جدولة زيارتك", "subtitle": "اختر فترة زمنية وأكد عنوان الخدمة." },
+        "job": { "title": "حالة العمل", "subtitle": "تابع الطلب من عرض السعر حتى الاكتمال." },
+        "proof": { "title": "إثبات الدفع", "subtitle": "ارفع إيصالًا أو مرجعًا ليبقى الدفع مرتبطًا بالسجل." },
+        "receipt": { "title": "تأكيد الإيصال", "subtitle": "أكد استلام الإثبات وربطه بالسجل." },
+        "history": { "subtitle": "اطلع على كل طلب وعرض سعر وعمل وإيصال في Direct." },
+        "support": { "title": "دعم Direct", "subtitle": "راسل فريق OxSteed بخصوص هذا العمل." },
+        "account": { "subtitle": "احتفظ بعناوين الخدمة والملاحظات جاهزة للزيارة التالية." },
+        "change": { "title": "الإلغاء أو إعادة الجدولة", "subtitle": "عدّل الخطة دون إعادة بدء العملية بالكامل." },
+        "default": { "subtitle": "راجع هذه الحالة وأدرها." }
+      },
+      "loadingBody": "جارٍ جلب سجل Direct الآن.",
+      "emptyTitle": "لم يتم العثور على سجل",
+      "emptyBody": "سجل Direct هذا غير متاح بعد.",
+      "caseNumber": "الحالة رقم {{id}}",
+      "noDescription": "لا يوجد وصف بعد.",
+      "photo": "صورة",
+      "actionsTitle": "الإجراءات",
+      "manageEyebrow": "إدارة الحالة",
+      "savedLocationHelp": "استخدم أحد مواقعك المحفوظة إذا كان العنوان موجودًا في حسابك.",
+      "receiptAttachment": "مرفق الإيصال",
+      "notYet": "ليس بعد",
+      "quoteReviewBody": "راجع عرض السعر واختر قبوله أو رفضه أو طلب تعديلات.",
+      "currentStatusPrefix": "الحالة الحالية هي",
+      "currentStatusSuffix": "سنحتفظ بالسجل في التاريخ أثناء انتقاله عبر سير العمل.",
+      "accountHelp": "أدر مواقع الخدمة المحفوظة من صفحة الحساب.",
+      "fields": {
+        "scheduledStart": "البداية المجدولة", "scheduledEnd": "النهاية المجدولة", "onSiteContact": "جهة الاتصال في الموقع", "contactPhone": "هاتف جهة الاتصال", "accessNotes": "ملاحظات الدخول", "paymentMethod": "طريقة الدفع", "receiptNumber": "المرجع / رقم الإيصال", "proofLink": "رابط الإثبات", "uploadReceipt": "رفع الإيصال", "note": "ملاحظة", "paymentStatus": "حالة الدفع", "proofReceived": "تم استلام الإثبات", "changeReason": "سبب التغيير", "newDate": "التاريخ الجديد", "newWindow": "الفترة الجديدة"
+      },
+      "placeholders": { "timeWindow": "صباحًا، بعد الظهر، إلخ.", "proofLink": "إيصال مشترك أو لقطة شاشة أو رابط ملف", "changeReason": "أخبرنا بما يجب تغييره..." },
+      "paymentMethods": { "cash": "نقدًا", "bankTransfer": "تحويل مصرفي" },
+      "actions": {
+        "acceptQuote": "قبول عرض السعر", "decline": "رفض", "requestChanges": "طلب تعديلات", "saveSchedule": "حفظ الجدول", "submitProof": "إرسال الإثبات", "confirmReceipt": "تأكيد الإيصال", "reschedule": "إعادة الجدولة", "cancelRequest": "إلغاء الطلب", "openProofUpload": "فتح رفع الإثبات", "cancel": "إلغاء", "askForChanges": "طلب تعديلات", "requestChange": "طلب تغيير", "uploadProof": "رفع الإثبات", "openLocations": "فتح المواقع"
+      },
+      "messages": {
+        "scheduleSaved": "تم حفظ الجدول.", "cancelled": "تم إلغاء الطلب.", "updated": "تم تحديث الطلب.", "quoteAccepted": "تم قبول عرض السعر.", "declined": "تم رفض الطلب.", "messageSent": "تم إرسال الرسالة.", "proofUploaded": "تم رفع مرفق الإثبات.", "proofSaved": "تم حفظ إثبات الدفع.", "receiptConfirmed": "تم تأكيد الإيصال."
+      },
+      "prompts": { "declineReason": "لماذا ترفض عرض السعر هذا؟" },
+      "errors": {
+        "loadRequest": "تعذر تحميل الطلب", "load": "تعذر تحميل سجل Direct.", "saveSchedule": "تعذر حفظ الجدول.", "update": "تعذر تحديث الطلب.", "acceptQuote": "تعذر قبول عرض السعر.", "declineQuote": "تعذر رفض عرض السعر.", "uploadProof": "تعذر رفع الإثبات.", "saveProof": "تعذر حفظ الإثبات.", "confirmReceipt": "تعذر تأكيد الإيصال."
+      }
     }
   }
 }
