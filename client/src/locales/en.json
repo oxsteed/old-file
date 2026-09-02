@@ -3510,7 +3510,13 @@
     "acceptBid": "Accept Bid",
     "helperAssigned": "Helper Assigned",
     "helperAvailability": "Helper Availability",
-    "reviewCount": "{{count}} review"
+    "reviewCount": "{{count}} review",
+    "urgencyMonth": "This Month", "oneTime": "One-Time", "recurring": "Recurring", "standard": "Standard", "escrowProtected": "Escrow Protected", "licensed": "Licensed", "insured": "Insured", "skilled": "Skilled", "backgroundCheck": "Background Check", "ownTools": "Own Tools", "crewRequired": "Crew Required", "acceptingBids": "Accepting Bids", "helperChosen": "Helper Chosen", "inProgress": "In Progress", "completed": "Completed", "closed": "Closed", "cancelled": "Cancelled",
+    "bidFailed": "Failed to submit bid.", "jobStarted": "Job started successfully", "jobCompleted": "Job completed successfully", "jobCancelled": "Job cancelled successfully", "sessionExpired": "Your session has expired. Please log in again.", "sessionRedirect": "Your session has expired. Redirecting to login…", "disputeOpen": "Cannot complete the job while a payment dispute is open. Resolve the dispute first.", "operationFailed": "Operation failed. Please try again.",
+    "notFound": "Job not found", "notFoundHelp": "This job may have expired or been removed.", "browseJobs": "Browse Jobs", "details": "Job Details", "metaDescription": "View job details and submit a bid on OxSteed.", "backToJobs": "Back to Jobs", "bidCount_one": "{{count}} bid", "bidCount_other": "{{count}} bids", "requirements": "Requirements", "requirementsHelp": "The client requires helpers to confirm these qualifications before bidding.", "coverage": "{{amount}} coverage", "skillLevelValue": "{{level}} level", "minimumCrew": "Minimum {{count}} people", "requiredSkills": "Required Skills", "findMatchingHelpers": "Find Matching Helpers →", "photosMedia": "Photos & Media ({{count}})", "viewImage": "View image {{number}}", "jobMedia": "Job media {{number}}",
+    "completeProfileTitle": "Complete your profile to bid", "completeProfileHelp": "Finish setting up your helper profile to start submitting bids.", "completeProfile": "Complete Profile", "bidSubmittedHelp": "Your bid has been submitted. The client will reach out if they choose you.", "chosenTitle": "You've been chosen for this job!", "chosenHelp": "The client selected your bid. Mark the job as started when you are on-site and ready to begin.", "starting": "Starting…", "startJob": "▶ Start Job", "helperCancelHelp": "You can cancel this job if something comes up. A cancellation fee may apply.", "submitYourBid": "Submit Your Bid", "yourPrice": "Your Price ($)", "estimatedHours": "Estimated Hours", "estimatedHoursPlaceholder": "e.g. 4", "bidMessageLabel": "Why you're the right person for this job", "bidMessagePlaceholder": "Describe your relevant experience, availability, and approach…", "bidsCount": "Bids ({{count}})", "noBidsHelp": "No bids yet. Qualified helpers will start bidding soon.", "jobsDone": "{{count}} jobs done", "hoursEstimated": "{{hours}}h est.",
+    "bidStatus": { "pending": "Pending", "accepted": "Accepted", "rejected": "Rejected", "withdrawn": "Withdrawn" },
+    "openBudgetHelp": "The client is open to all bids. Submit a competitive offer.", "hourlyBudgetHelp": "Rate per hour of work on-site.", "scheduled": "Scheduled", "at": "at", "jobType": "Job Type", "expires": "Expires", "today": "Today", "daysLeft_one": "{{count}} day left", "daysLeft_other": "{{count}} days left", "postedBy": "Posted by", "oxsteedClient": "OxSteed Client", "assignedHelper": "Assigned Helper", "acceptedHelper": "Accepted Helper", "reportHelper": "Report Helper", "actions": "Actions", "directPaymentHelp": "Use direct payment for launch. Save the confirmation number, receipt link, or screenshot here so the job has a clear paper trail.", "processing": "Processing…", "recordDirectPayment": "🧾 Record Direct Payment", "openMessages": "Open Messages", "jobCompletedLabel": "Job completed ✓", "yourHelper": "your helper", "reviewSection": "Review", "yourCustomer": "your customer", "cancelTitle": "Cancel this job?", "cancelHelp": "This will remove your job listing. Helpers who bid will be notified.", "cancelPlaceholder": "Reason for cancellation (optional)", "keepJob": "Keep Job", "cancelling": "Cancelling…", "theHelper": "the helper", "recordDirectPaymentTitle": "Record direct payment", "recordDirectPaymentSubtitle": "Capture the payment method, confirmation number, and any proof link so both sides can verify the exchange later.", "jobPaymentFor": "Job payment · {{title}}", "jobPayment": "Job payment"
   },
   "myJobs": {
     "subtitle": "Jobs you have posted",
@@ -5556,6 +5562,7 @@
   "helperProfile": {
     "guestSignInTitle": "Sign in to message {{name}}",
     "guestSignInBody": "This helper only accepts messages from registered accounts.",
+    "skillBadges": "Skills",
     "reviews": {
       "title": "Reviews",
       "verifiedReviews": "{{count}} verified reviews",
@@ -5596,7 +5603,11 @@
       "verifiedTitle": "Identity verified by OxSteed",
       "trustBadgesAria": "Trust and verification badges",
       "qrProfileTitle": "Scan to open this profile on OxSteed",
-      "qrProfileCaption": "QR code linking to this helper profile on OxSteed"
+      "qrProfileCaption": "QR code linking to this helper profile on OxSteed",
+      "cannotSaveSelf": "You cannot save your own profile.",
+      "removedSavedHelper": "{{name}} removed from saved helpers.",
+      "addedSavedHelper": "{{name}} added to saved helpers.",
+      "saveHelperFailed": "Could not update saved helpers."
     },
     "share": {
       "copyLink": "Copy link",
@@ -5710,7 +5721,8 @@
       "sectionFaqs": "FAQs",
       "sectionPolicies": "Policies"
     },
-    "chat": {
+  "chat": {
+    "expandChat": "Expand chat",
       "aiAssistant": "AI Assistant",
       "onlineNow": "Online now",
       "availableToday": "Available today",
@@ -5949,6 +5961,7 @@
       "discoverLabel": "Search the entire network",
       "discoverPh": "Search by skill, service, or business",
       "discoverSearch": "Search everything",
+      "findJobs": "Find jobs",
       "locationLabel": "Location",
       "locationPh": "City, ZIP code, or address",
       "locationSuggestions": "Location suggestions",
@@ -6737,9 +6750,11 @@
     "loadingError": "Failed to load bookings",
     "pending": "Pending",
     "confirmed": "Confirmed",
+    "paymentConfirmed": "Payment confirmed",
     "cancelled": "Cancelled",
     "dateConflict": "Tool is already booked for these dates",
     "completed": "Completed",
+    "markCompleted": "Mark completed",
     "analytics": "Tool Rentals Analytics",
     "analyticsDashboard": "Tool Rentals Analytics Dashboard",
     "analyticsLoadError": "Failed to load analytics",
@@ -8336,8 +8351,67 @@
     "statusPending": "Pending",
     "unknownCustomer": "Unknown Customer"
   },
+  "myBookings": {
+    "unknownTool": "Unknown tool",
+    "daysCount_one": "{{count}} day",
+    "daysCount_other": "{{count}} days",
+    "connectTitle": "How this connects",
+    "connectBody": "Service bookings become calendar events, tool rentals can create invoices, and both keep your work history in one place.",
+    "metaDescription": "Manage your tool rentals and service bookings.",
+    "eyebrow": "Bookings command center",
+    "subtitle": "Track direct helper bookings, tools you rented, and tools customers booked from you. This is where scheduled work turns into calendar plans, invoices, payments, and follow-up.",
+    "bookHelper": "Book a helper",
+    "browseTools": "Browse tools",
+    "activeItems": "Active items",
+    "needAttention": "Need attention",
+    "toolRequests": "Tool requests",
+    "helperEmptyBody": "Use direct booking when you already know the helper you want. If the helper declines or the time expires, OxSteed can help you post it as a public job.",
+    "postPublicJob": "Post a public job",
+    "rentalEmptyBody": "Rent tools when buying one does not make sense. Keep pickup dates, deposits, invoices, and rental history organized with the rest of your life command center.",
+    "plannedNeeds": "View planned needs",
+    "ownerEmptyBody": "List tools you already own so local customers can rent them. Once a request arrives, you can send an invoice and manage the rental status here.",
+    "listTool": "List a tool",
+    "openAnalytics": "Open analytics"
+  },
+  "bookService": {
+    "errors": {
+      "loadServiceDetails": "Could not load service details.",
+      "loadSlots": "Could not load available times.",
+      "calculatePrice": "Could not calculate the price.",
+      "agreeTerms": "Please agree to the booking terms.",
+      "requiredFields": "Please enter your name and email.",
+      "selectDateTime": "Please select a date and time.",
+      "createBooking": "Could not create the booking."
+    },
+    "success": "Booking request sent!",
+    "loading": "Loading service…",
+    "notFound": "Service not found.",
+    "sections": { "details": "Service details", "selectDate": "Select a date", "selectTime": "Select a time" },
+    "durationLabel": "Duration",
+    "durationValue_one": "{{count}} minute",
+    "durationValue_other": "{{count}} minutes",
+    "basePriceLabel": "Base price",
+    "noAvailableSlots": "No available times on this date.",
+    "summary": { "title": "Booking summary", "dateLabel": "Date", "timeLabel": "Time", "basePriceLabel": "Base price", "totalPriceLabel": "Total" },
+    "form": {
+      "title": "Your information",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your full name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "phoneLabel": "Phone",
+      "phonePlaceholder": "Your phone number",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Share any details the business should know…",
+      "termsText": "I agree to the booking terms and cancellation policy."
+    },
+    "buttons": { "booking": "Sending request…", "bookNow": "Book now · {{price}}" }
+  },
   "booking": {
     "pageTitle": "Book a Helper",
+    "invalidBusiness": "Business is missing.",
+    "bookBusinessHeading": "Book this business",
+    "businessIntro": "Choose the service, date, and time you need. The business will confirm your request.",
     "pageDescription": "Request a time directly or post a job for everyone",
     "pageHeading": "Book this professional",
     "pageIntro": "Pick a date and time. The professional must confirm within your chosen window. If it doesn't work out, you can post the job for everyone with the details you already entered.",
@@ -13046,6 +13120,7 @@
       "saving": "Saving...",
       "back": "Back",
       "backToFood": "Back to OxSteed Food",
+      "close": "Close",
       "keepBrowsing": "Keep browsing",
       "remove": "Remove",
       "yes": "Yes",
@@ -14310,7 +14385,8 @@
         "submit": "Request a quote"
       },
       "messages": {
-        "photoUploaded": "Photo attachment uploaded."
+        "photoUploaded": "Photo attachment uploaded.",
+        "sent": "Quote request sent."
       },
       "errors": {
         "uploadPhoto": "Could not upload photo.",

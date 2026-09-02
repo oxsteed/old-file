@@ -180,7 +180,7 @@ export default function BookServicePage() {
                 <Clock size={20} />
                 <div>
                   <div className="label">{t('bookService.durationLabel')}</div>
-                  <div className="value">{service.duration_minutes} minutes</div>
+                  <div className="value">{t('bookService.durationValue', { count: service.duration_minutes })}</div>
                 </div>
               </div>
               <div className="bsp-detail-item">

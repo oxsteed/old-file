@@ -13,11 +13,11 @@ import InvoiceModal from '../components/InvoiceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
 
-function formatTime(hhmm: string | null | undefined): string {
+function formatTime(hhmm: string | null | undefined, locale: string): string {
   if (!hhmm) return '';
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(2000, 0, 1, h, m || 0);
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
 }
 
 interface HelperBooking {
@@ -163,7 +163,7 @@ const MyBookingsPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
+    return new Date(dateString).toLocaleDateString(locale, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -181,7 +181,7 @@ const MyBookingsPage = () => {
     <div key={booking.id} className="booking-card">
       <div className="booking-card-header">
         <div className="booking-card-info">
-          <h3 className="booking-card-title">{booking.name || 'Unknown Tool'}</h3>
+          <h3 className="booking-card-title">{booking.name || t('myBookings.unknownTool')}</h3>
           <span className={`booking-card-status ${getStatusColor(booking.status)}`}>
             {getStatusLabel(booking.status)}
           </span>
@@ -199,7 +199,7 @@ const MyBookingsPage = () => {
             {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
           </span>
           <span className="booking-card-days">
-            ({calculateDays(booking.start_date, booking.end_date)} days)
+            ({t('myBookings.daysCount', { count: calculateDays(booking.start_date, booking.end_date) })})
           </span>
         </div>
 
@@ -301,7 +301,7 @@ const MyBookingsPage = () => {
         <div className="booking-card-header">
           <div className="booking-card-info">
             <h3 className="booking-card-title">{b.serviceName}</h3>
-            <span className="hb-meta">{formattedDate} · {formatTime(b.requestedStartTime)} – {formatTime(b.requestedEndTime)}</span>
+            <span className="hb-meta">{formattedDate} · {formatTime(b.requestedStartTime, locale)} – {formatTime(b.requestedEndTime, locale)}</span>
           </div>
         </div>
         {b.serviceLocation && (
@@ -384,8 +384,8 @@ const MyBookingsPage = () => {
         )}
       </div>
       <div className="my-bookings-empty-guide">
-        <strong>How this connects</strong>
-        <span>Service bookings become calendar events, tool rentals can create invoices, and both keep your work history in one place.</span>
+        <strong>{t('myBookings.connectTitle')}</strong>
+        <span>{t('myBookings.connectBody')}</span>
       </div>
     </div>
   );
@@ -393,42 +393,41 @@ const MyBookingsPage = () => {
   return (
     <PageShell>
       <PageMeta
-        title={t('toolRentals.myBookings') || 'My Bookings'}
-        description="Manage your tool rentals and bookings"
+        title={t('toolRentals.myBookings')}
+        description={t('myBookings.metaDescription')}
       />
 
       <div className="my-bookings-container">
         <div className="my-bookings-hero">
           <div className="my-bookings-header">
-            <p className="my-bookings-eyebrow">Bookings command center</p>
+            <p className="my-bookings-eyebrow">{t('myBookings.eyebrow')}</p>
             <h1 className="my-bookings-title">{t('toolRentals.myBookings')}</h1>
             <p className="my-bookings-subtitle">
-              Track direct helper bookings, tools you rented, and tools customers booked from you.
-              This is where scheduled work turns into calendar plans, invoices, payments, and follow-up.
+              {t('myBookings.subtitle')}
             </p>
             <div className="my-bookings-hero-actions">
               <Link to="/helpers" className="my-bookings-hero-btn primary">
                 <Briefcase size={17} aria-hidden="true" />
-                Book a helper
+                {t('myBookings.bookHelper')}
               </Link>
               <Link to="/tool-rentals" className="my-bookings-hero-btn secondary">
                 <Wrench size={17} aria-hidden="true" />
-                Browse tools
+                {t('myBookings.browseTools')}
               </Link>
             </div>
           </div>
           <div className="my-bookings-summary">
             <div>
               <span>{activeCount}</span>
-              <p>Active items</p>
+              <p>{t('myBookings.activeItems')}</p>
             </div>
             <div>
               <span>{pendingCount}</span>
-              <p>Need attention</p>
+              <p>{t('myBookings.needAttention')}</p>
             </div>
             <div>
               <span>{myToolsCount}</span>
-              <p>Tool requests</p>
+              <p>{t('myBookings.toolRequests')}</p>
             </div>
           </div>
         </div>
@@ -476,10 +475,10 @@ const MyBookingsPage = () => {
               ) : (
                 renderEmptyState(
                   t('booking.noBookingsYet') || 'No service booking requests yet',
-                  'Use direct booking when you already know the helper you want. If the helper declines or the time expires, OxSteed can help you post it as a public job.',
+                  t('myBookings.helperEmptyBody'),
                   t('booking.backToDirectory') || 'Browse helpers',
                   '/helpers',
-                  'Post a public job',
+                  t('myBookings.postPublicJob'),
                   '/post-job'
                 )
               )}
@@ -491,10 +490,10 @@ const MyBookingsPage = () => {
               ) : (
                 renderEmptyState(
                   t('toolRentals.noBookings') || 'You have no bookings yet',
-                  'Rent tools when buying one does not make sense. Keep pickup dates, deposits, invoices, and rental history organized with the rest of your life command center.',
-                  'Browse tools',
+                  t('myBookings.rentalEmptyBody'),
+                  t('myBookings.browseTools'),
                   '/tool-rentals',
-                  'View planned needs',
+                  t('myBookings.plannedNeeds'),
                   '/planned-needs'
                 )
               )}
@@ -506,10 +505,10 @@ const MyBookingsPage = () => {
               ) : (
                 renderEmptyState(
                   t('toolRentals.noPendingBookings') || 'No one has booked your tools yet',
-                  'List tools you already own so local customers can rent them. Once a request arrives, you can send an invoice and manage the rental status here.',
-                  'List a tool',
+                  t('myBookings.ownerEmptyBody'),
+                  t('myBookings.listTool'),
                   '/dashboard?tab=skills',
-                  'Open analytics',
+                  t('myBookings.openAnalytics'),
                   '/tool-rentals/analytics'
                 )
               )}

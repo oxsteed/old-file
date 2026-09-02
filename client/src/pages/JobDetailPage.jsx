@@ -24,35 +24,6 @@ import { analytics } from '../utils/analytics';
 import { detectLocale, formatDate, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const JOB_TYPE_MAP = {
-  one_time:       'One-Time',
-  recurring:      'Recurring',
-  tier1_intro:    'One-Time',
-  tier2_standard: 'Standard',
-  tier3_escrow:   LAUNCH_VISIBILITY.jobEscrowLabels ? 'Escrow Protected' : 'Standard',
-};
-
-// URGENCY_MAP is defined inside the component (see below) because it uses t().
-
-const REQ_META = {
-  license:         { label: 'Licensed',         icon: '🪪' },
-  insurance:       { label: 'Insured',           icon: '🛡️' },
-  skillLevel:      { label: 'Skilled',           icon: '⭐' },
-  backgroundCheck: { label: 'Background Check',  icon: '✅' },
-  ownTools:        { label: 'Own Tools',          icon: '🔧' },
-  crewSize:        { label: 'Crew Required',      icon: '👥' },
-};
-
-const STATUS_MAP = {
-  published:   { label: 'Accepting Bids', color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
-  accepted:    { label: 'Helper Chosen',  color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
-  in_progress: { label: 'In Progress',   color: '#f97316', bg: 'rgba(249,115,22,.15)' },
-  completed:   { label: 'Completed',     color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
-  closed:      { label: 'Closed',        color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
-  cancelled:   { label: 'Cancelled',     color: '#f87171', bg: 'rgba(248,113,113,.12)' },
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatBudget(job, t) {
   if (!job) return '-';
@@ -121,10 +92,33 @@ export default function JobDetailPage() {
   const { t } = useTranslation();
 
   const URGENCY_MAP = {
-    asap:       { label: 'ASAP',       color: '#ef4444', bg: 'rgba(239,68,68,.15)' },
+    asap:       { label: t('jobDetail.urgencyASAP'), color: '#ef4444', bg: 'rgba(239,68,68,.15)' },
     this_week:  { label: t('jobDetail.urgencyWeek'),  color: '#f97316', bg: 'rgba(249,115,22,.15)' },
-    this_month: { label: 'This Month', color: '#eab308', bg: 'rgba(234,179,8,.15)' },
+    this_month: { label: t('jobDetail.urgencyMonth'), color: '#eab308', bg: 'rgba(234,179,8,.15)' },
     flexible:   { label: t('jobDetail.urgencyFlexible'),   color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
+  };
+  const JOB_TYPE_MAP = {
+    one_time: t('jobDetail.oneTime'),
+    recurring: t('jobDetail.recurring'),
+    tier1_intro: t('jobDetail.oneTime'),
+    tier2_standard: t('jobDetail.standard'),
+    tier3_escrow: LAUNCH_VISIBILITY.jobEscrowLabels ? t('jobDetail.escrowProtected') : t('jobDetail.standard'),
+  };
+  const REQ_META = {
+    license: { label: t('jobDetail.licensed'), icon: '🪪' },
+    insurance: { label: t('jobDetail.insured'), icon: '🛡️' },
+    skillLevel: { label: t('jobDetail.skilled'), icon: '⭐' },
+    backgroundCheck: { label: t('jobDetail.backgroundCheck'), icon: '✅' },
+    ownTools: { label: t('jobDetail.ownTools'), icon: '🔧' },
+    crewSize: { label: t('jobDetail.crewRequired'), icon: '👥' },
+  };
+  const STATUS_MAP = {
+    published: { label: t('jobDetail.acceptingBids'), color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
+    accepted: { label: t('jobDetail.helperChosen'), color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
+    in_progress: { label: t('jobDetail.inProgress'), color: '#f97316', bg: 'rgba(249,115,22,.15)' },
+    completed: { label: t('jobDetail.completed'), color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
+    closed: { label: t('jobDetail.closed'), color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
+    cancelled: { label: t('jobDetail.cancelled'), color: '#f87171', bg: 'rgba(248,113,113,.12)' },
   };
   const { id } = useParams();
   const navigate = useNavigate();
@@ -189,7 +183,7 @@ export default function JobDetailPage() {
       loadBids();
       fetchJob(id);
     } catch (err) {
-      setBidError(err.response?.data?.error || 'Failed to submit bid');
+      setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
     } finally {
       setBidLoading(false);
     }
@@ -241,7 +235,7 @@ export default function JobDetailPage() {
     try {
       await startJob(id);
       fetchJob(id);
-      toast.success('Job started successfully');
+      toast.success(t('jobDetail.jobStarted'));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
@@ -259,7 +253,7 @@ export default function JobDetailPage() {
     try {
       await completeJob(id);
       fetchJob(id);
-      toast.success('Job completed successfully');
+      toast.success(t('jobDetail.jobCompleted'));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
@@ -278,7 +272,7 @@ export default function JobDetailPage() {
       await cancelJob(id, cancelReason.trim() || null);
       fetchJob(id);
       setShowCancelModal(false);
-      toast.success('Job cancelled successfully');
+      toast.success(t('jobDetail.jobCancelled'));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
@@ -301,15 +295,15 @@ export default function JobDetailPage() {
   // Helper function to extract error message
   function getErrorMessage(err) {
     if (err.code === 'NO_TOKEN') {
-      return 'Your session has expired. Please log in again.';
+      return t('jobDetail.sessionExpired');
     }
     if (err.code === 'AUTH_EXPIRED') {
-      return 'Your session has expired. Redirecting to login...';
+      return t('jobDetail.sessionRedirect');
     }
     if (err.code === 'DISPUTE_OPEN') {
-      return 'Cannot complete job while a payment dispute is open. Resolve the dispute first.';
+      return t('jobDetail.disputeOpen');
     }
-    return err.message || err.response?.data?.error || 'Operation failed. Please try again.';
+    return err.message || err.response?.data?.error || t('jobDetail.operationFailed');
   }
 
   if (loading) return (
@@ -325,9 +319,9 @@ export default function JobDetailPage() {
     <div className="jdp-page">
       <div className="jdp-not-found">
         <div className="jdp-not-found-icon">📋</div>
-        <h2>Job not found</h2>
-        <p>This job may have expired or been removed.</p>
-        <button onClick={() => navigate('/jobs')} className="jdp-btn-primary">Browse Jobs</button>
+        <h2>{t('jobDetail.notFound')}</h2>
+        <p>{t('jobDetail.notFoundHelp')}</p>
+        <button onClick={() => navigate('/jobs')} className="jdp-btn-primary">{t('jobDetail.browseJobs')}</button>
       </div>
     </div>
   );
@@ -359,7 +353,7 @@ export default function JobDetailPage() {
 
   const urgencyMeta = URGENCY_MAP[job.urgency] || URGENCY_MAP.flexible;
   const statusMeta  = STATUS_MAP[job.status]   || STATUS_MAP.published;
-  const jobTypeLabel = JOB_TYPE_MAP[job.job_type_label] || JOB_TYPE_MAP[job.job_type] || job.job_type_label || 'One-Time';
+  const jobTypeLabel = JOB_TYPE_MAP[job.job_type_label] || JOB_TYPE_MAP[job.job_type] || job.job_type_label || t('jobDetail.oneTime');
   const location = [job.location_city, job.location_state].filter(Boolean).join(', ');
   const daysLeft = daysUntil(job.expires_at);
   const budget   = formatBudget(job, t);
@@ -369,8 +363,8 @@ export default function JobDetailPage() {
     <Navbar />
     <div className="jdp-page">
       <PageMeta
-        title={job.title || 'Job Details'}
-        description={job.description?.slice(0, 155) || 'View job details and submit a bid on OxSteed.'}
+        title={job.title || t('jobDetail.details')}
+        description={job.description?.slice(0, 155) || t('jobDetail.metaDescription')}
         url={`https://oxsteed.com/jobs/${id}`}
         noIndex
       />
@@ -379,7 +373,7 @@ export default function JobDetailPage() {
       <div className="jdp-topbar">
         <button className="jdp-back" onClick={() => navigate('/jobs')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Back to Jobs
+          {t('jobDetail.backToJobs')}
         </button>
         <span className="jdp-id">JOB-{String(id).slice(0,8).toUpperCase()}</span>
       </div>
@@ -400,13 +394,13 @@ export default function JobDetailPage() {
                 </span>
                 {job.is_urgent && (
                   <span className="jdp-chip" style={{ color:'#ef4444', background:'rgba(239,68,68,.15)' }}>
-                    🔥 Urgent
+                    🔥 {t('jobDetail.urgencyASAP')}
                   </span>
                 )}
               </div>
               <div className="jdp-hero-bid-count">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                {job.bid_count} {job.bid_count === 1 ? 'bid' : 'bids'}
+                {t('jobDetail.bidCount', { count: job.bid_count || 0 })}
               </div>
             </div>
 
@@ -442,9 +436,9 @@ export default function JobDetailPage() {
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Requirements
+                {t('jobDetail.requirements')}
               </h2>
-              <p className="jdp-req-note">The client requires helpers to confirm these qualifications before bidding.</p>
+              <p className="jdp-req-note">{t('jobDetail.requirementsHelp')}</p>
               <div className="jdp-req-grid">
                 {visibleRequirements.map((r, i) => {
                   const meta = REQ_META[r.type] || { label: r.type, icon: '📌' };
@@ -454,9 +448,9 @@ export default function JobDetailPage() {
                       <div>
                         <div className="jdp-req-label">{meta.label}</div>
                         {r.detail?.licenseType && <div className="jdp-req-detail">{r.detail.licenseType}</div>}
-                        {r.detail?.minCoverage  && <div className="jdp-req-detail">{r.detail.minCoverage} coverage</div>}
-                        {r.detail?.minLevel     && <div className="jdp-req-detail">{r.detail.minLevel} level</div>}
-                        {r.detail?.minCrew      && <div className="jdp-req-detail">Min {r.detail.minCrew} people</div>}
+                        {r.detail?.minCoverage  && <div className="jdp-req-detail">{t('jobDetail.coverage', { amount: r.detail.minCoverage })}</div>}
+                        {r.detail?.minLevel     && <div className="jdp-req-detail">{t('jobDetail.skillLevelValue', { level: r.detail.minLevel })}</div>}
+                        {r.detail?.minCrew      && <div className="jdp-req-detail">{t('jobDetail.minimumCrew', { count: r.detail.minCrew })}</div>}
                       </div>
                     </div>
                   );
@@ -470,7 +464,7 @@ export default function JobDetailPage() {
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                Required Skills
+                {t('jobDetail.requiredSkills')}
               </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
                 {requiredSkills.map((skill) => (
@@ -503,7 +497,7 @@ export default function JobDetailPage() {
                   fontWeight: 500
                 }}
               >
-                Find Matching Helpers →
+                {t('jobDetail.findMatchingHelpers')}
               </button>
             </div>
           )}
@@ -513,7 +507,7 @@ export default function JobDetailPage() {
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Photos & Media ({mediaUrls.length})
+                {t('jobDetail.photosMedia', { count: mediaUrls.length })}
               </h2>
               <div className="jdp-media-grid">
                 {mediaUrls.map((url, i) => {
@@ -531,8 +525,8 @@ export default function JobDetailPage() {
                     </div>
                   );
                   return (
-                    <div key={i} className="jdp-media-thumb" onClick={() => setMediaIndex(i)} role="button" tabIndex={0} aria-label={`View image ${i+1}`}>
-                      <img src={url} alt={`Job media ${i+1}`} loading="lazy" />
+                    <div key={i} className="jdp-media-thumb" onClick={() => setMediaIndex(i)} role="button" tabIndex={0} aria-label={t('jobDetail.viewImage', { number: i + 1 })}>
+                      <img src={url} alt={t('jobDetail.jobMedia', { number: i + 1 })} loading="lazy" />
                       <div className="jdp-media-overlay">🔍</div>
                     </div>
                   );
@@ -547,10 +541,10 @@ export default function JobDetailPage() {
           {isHelper && job.status === 'published' && !hasAlreadyBid && needsOnboarding && (
             <div className="jdp-card jdp-upgrade-card">
               <div className="jdp-upgrade-icon">🚀</div>
-              <h3>Complete your profile to bid</h3>
-              <p>Finish setting up your helper profile to start submitting bids.</p>
+              <h3>{t('jobDetail.completeProfileTitle')}</h3>
+              <p>{t('jobDetail.completeProfileHelp')}</p>
               <Link to="/dashboard" className="jdp-btn-primary">
-                Complete Profile
+                {t('jobDetail.completeProfile')}
               </Link>
             </div>
           )}
@@ -559,17 +553,17 @@ export default function JobDetailPage() {
           {hasAlreadyBid && job.status === 'published' && (
             <div className="jdp-card jdp-bid-submitted">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>Your bid has been submitted. The client will reach out if they choose you.</span>
+              <span>{t('jobDetail.bidSubmittedHelp')}</span>
             </div>
           )}
 
           {/* Helper: start job */}
           {isHelper && job.status === 'accepted' && job.assigned_helper_id === user?.id && (
             <div className="jdp-card jdp-action-card">
-              <h3>You've been chosen for this job!</h3>
-              <p>The client has selected your bid. Mark it as started when you're on-site and ready to begin.</p>
+              <h3>{t('jobDetail.chosenTitle')}</h3>
+              <p>{t('jobDetail.chosenHelp')}</p>
               <button className="jdp-btn-primary" onClick={handleStart} disabled={actionLoading}>
-                {actionLoading ? 'Starting…' : '▶ Start Job'}
+                {actionLoading ? t('jobDetail.starting') : t('jobDetail.startJob')}
               </button>
               <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem', width: '100%' }}>
                 {t('jobDetail.cancelJob') || 'Cancel Job'}
@@ -580,7 +574,7 @@ export default function JobDetailPage() {
           {/* Helper: cancel in-progress job */}
           {isHelper && job.status === 'in_progress' && job.assigned_helper_id === user?.id && (
             <div className="jdp-card jdp-action-card">
-              <p>You can cancel this job if something comes up. A cancellation fee may apply.</p>
+              <p>{t('jobDetail.helperCancelHelp')}</p>
               <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ width: '100%' }}>
                 {t('jobDetail.cancelJob') || 'Cancel Job'}
               </button>
@@ -592,13 +586,13 @@ export default function JobDetailPage() {
             <div className="jdp-card jdp-bid-form-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Submit Your Bid
+                {t('jobDetail.submitYourBid')}
               </h2>
               {bidError && <div className="jdp-bid-error">{bidError}</div>}
               <form onSubmit={handleBidSubmit} className="jdp-bid-form">
                 <div className="jdp-bid-form-row">
                   <div className="jdp-field">
-                    <label>Your Price ($)</label>
+                    <label>{t('jobDetail.yourPrice')}</label>
                     <div className="jdp-input-prefix">
                       <span>$</span>
                       <input type="number" step="0.01" min="1" required
@@ -608,26 +602,26 @@ export default function JobDetailPage() {
                     </div>
                   </div>
                   <div className="jdp-field">
-                    <label>Estimated Hours</label>
+                    <label>{t('jobDetail.estimatedHours')}</label>
                     <div className="jdp-input-prefix">
                       <span>⏱</span>
                       <input type="number" min="1" required
                         value={bidForm.eta_hours}
                         onChange={e => setBidForm(p => ({ ...p, eta_hours: e.target.value }))}
-                        placeholder="e.g. 4" />
+                        placeholder={t('jobDetail.estimatedHoursPlaceholder')} />
                     </div>
                   </div>
                 </div>
                 <div className="jdp-field">
-                  <label>Why you're the right person for this job</label>
+                  <label>{t('jobDetail.bidMessageLabel')}</label>
                   <textarea rows={4} required
                     value={bidForm.message}
                     onChange={e => setBidForm(p => ({ ...p, message: e.target.value }))}
-                    placeholder="Describe your relevant experience, availability, and approach…" />
+                    placeholder={t('jobDetail.bidMessagePlaceholder')} />
                   <span className="jdp-char-count">{bidForm.message.length} / 500</span>
                 </div>
                 <button type="submit" className="jdp-btn-primary jdp-bid-submit" disabled={bidLoading}>
-                  {bidLoading ? t('jobDetail.submittingBid') : '💼 Submit Bid'}
+                  {bidLoading ? t('jobDetail.submittingBid') : `💼 ${t('jobDetail.submitBid')}`}
                 </button>
               </form>
             </div>
@@ -638,12 +632,12 @@ export default function JobDetailPage() {
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                Bids ({(Array.isArray(bids) ? bids : []).length})
+                {t('jobDetail.bidsCount', { count: (Array.isArray(bids) ? bids : []).length })}
               </h2>
               {(Array.isArray(bids) ? bids : []).length === 0 ? (
                 <div className="jdp-empty-bids">
                   <div className="jdp-empty-bids-icon">📭</div>
-                  <p>No bids yet. Qualified helpers will start bidding soon.</p>
+                  <p>{t('jobDetail.noBidsHelp')}</p>
                 </div>
               ) : (
                 <div className="jdp-bids-list">
@@ -661,14 +655,14 @@ export default function JobDetailPage() {
                               <span>⭐ {Number(bid.helper_rating).toFixed(1)}</span>
                             )}
                             {bid.jobs_completed > 0 && (
-                              <span>✓ {bid.jobs_completed} jobs done</span>
+                              <span>✓ {t('jobDetail.jobsDone', { count: bid.jobs_completed })}</span>
                             )}
                           </div>
                         </div>
                         <div className="jdp-bid-right">
                           <div className="jdp-bid-amount">{formatMoney(bid.amount, { currency: job.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                          <div className="jdp-bid-eta">⏱ {bid.eta_hours}h est.</div>
-                          <span className={`jdp-bid-status ${bid.status}`}>{bid.status}</span>
+                          <div className="jdp-bid-eta">⏱ {t('jobDetail.hoursEstimated', { hours: bid.eta_hours })}</div>
+                          <span className={`jdp-bid-status ${bid.status}`}>{t(`jobDetail.bidStatus.${bid.status}`, { defaultValue: bid.status })}</span>
                         </div>
                       </div>
                       {bid.message && <p className="jdp-bid-message">"{bid.message}"</p>}
@@ -717,16 +711,16 @@ export default function JobDetailPage() {
           <div className="jdp-card jdp-sidebar-card">
             <div className="jdp-sidebar-budget">{budget}</div>
             {job.budget_type === 'open' && (
-              <p className="jdp-sidebar-budget-note">Client is open to all bids. Submit a competitive offer.</p>
+              <p className="jdp-sidebar-budget-note">{t('jobDetail.openBudgetHelp')}</p>
             )}
             {job.budget_type === 'hourly' && (
-              <p className="jdp-sidebar-budget-note">Rate per hour of work on-site.</p>
+              <p className="jdp-sidebar-budget-note">{t('jobDetail.hourlyBudgetHelp')}</p>
             )}
           </div>
 
           {/* Details */}
           <div className="jdp-card jdp-sidebar-card">
-            <h3 className="jdp-sidebar-title">Job Details</h3>
+            <h3 className="jdp-sidebar-title">{t('jobDetail.details')}</h3>
             <div className="jdp-detail-rows">
               {location && (
                 <div className="jdp-detail-row">
@@ -742,10 +736,10 @@ export default function JobDetailPage() {
           <div className="jdp-detail-row">
             <span className="jdp-detail-icon">📅</span>
             <div>
-              <div className="jdp-detail-label">Scheduled</div>
+              <div className="jdp-detail-label">{t('jobDetail.scheduled')}</div>
               <div className="jdp-detail-val">
                 {job.scheduled_date && formatDate(job.scheduled_date, { month: 'long' })}
-                {job.scheduled_date && job.scheduled_time && ' at '}
+                {job.scheduled_date && job.scheduled_time && ` ${t('jobDetail.at')} `}
                 {job.scheduled_time && String(job.scheduled_time).substring(0, 5)}
               </div>
             </div>
@@ -768,7 +762,7 @@ export default function JobDetailPage() {
               <div className="jdp-detail-row">
                 <span className="jdp-detail-icon">🔄</span>
                 <div>
-                  <div className="jdp-detail-label">Job Type</div>
+                  <div className="jdp-detail-label">{t('jobDetail.jobType')}</div>
                   <div className="jdp-detail-val">{jobTypeLabel}</div>
                 </div>
               </div>
@@ -776,9 +770,9 @@ export default function JobDetailPage() {
                 <div className="jdp-detail-row">
                   <span className="jdp-detail-icon">⏳</span>
                   <div>
-                    <div className="jdp-detail-label">Expires</div>
+                    <div className="jdp-detail-label">{t('jobDetail.expires')}</div>
                     <div className="jdp-detail-val" style={{ color: daysLeft < 5 ? '#ef4444' : undefined }}>
-                      {daysLeft === 0 ? 'Today' : `${daysLeft} days left`}
+                      {daysLeft === 0 ? t('jobDetail.today') : t('jobDetail.daysLeft', { count: daysLeft })}
                     </div>
                   </div>
                 </div>
@@ -789,12 +783,12 @@ export default function JobDetailPage() {
           {/* Client info */}
           {job.client_name && (
             <div className="jdp-card jdp-sidebar-card">
-              <h3 className="jdp-sidebar-title">Posted by</h3>
+              <h3 className="jdp-sidebar-title">{t('jobDetail.postedBy')}</h3>
               <div className="jdp-client-row">
                 <div className="jdp-client-avatar">{initials(job.client_name)}</div>
                 <div>
                   <div className="jdp-client-name">{formatNameForPrivacy(job.client_name)}</div>
-                  <div className="jdp-client-label">OxSteed Client</div>
+                  <div className="jdp-client-label">{t('jobDetail.oxsteedClient')}</div>
                 </div>
               </div>
             </div>
@@ -812,12 +806,12 @@ export default function JobDetailPage() {
           {/* Assigned helper */}
           {job.helper_name && job.assigned_helper_id && (
             <div className="jdp-card jdp-sidebar-card">
-              <h3 className="jdp-sidebar-title">Assigned Helper</h3>
+              <h3 className="jdp-sidebar-title">{t('jobDetail.assignedHelper')}</h3>
               <div className="jdp-client-row">
                 <div className="jdp-client-avatar" style={{ background: 'rgba(74,222,128,.2)', color: '#4ade80' }}>{initials(job.helper_name)}</div>
                 <div>
                   <div className="jdp-client-name">{formatNameForPrivacy(job.helper_name)}</div>
-                  <div className="jdp-client-label">Accepted Helper</div>
+                  <div className="jdp-client-label">{t('jobDetail.acceptedHelper')}</div>
                 </div>
               </div>
             </div>
@@ -853,7 +847,7 @@ export default function JobDetailPage() {
                     e.currentTarget.style.backgroundColor = 'rgba(127, 29, 29, 0.1)';
                   }}
                 >
-                  🚩 Report Helper
+                  🚩 {t('jobDetail.reportHelper')}
                 </button>
               )}
             </>
@@ -867,22 +861,22 @@ export default function JobDetailPage() {
           {/* Owner actions */}
           {isOwner && (
             <div className="jdp-card jdp-sidebar-card jdp-owner-actions">
-              <h3 className="jdp-sidebar-title">Actions</h3>
+              <h3 className="jdp-sidebar-title">{t('jobDetail.actions')}</h3>
               {['published', 'matched', 'negotiating'].includes(job.status) && (
                 <button className="jdp-btn-danger" onClick={() => setShowCancelModal(true)}>
-                  Cancel Job
+                  {t('jobDetail.cancelJob')}
                 </button>
               )}
               {job.status === 'accepted' && (
                 <>
                   <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                    Use direct payment for launch. Save the confirmation number, receipt link, or screenshot here so the job has a clear paper trail.
+                    {t('jobDetail.directPaymentHelp')}
                   </p>
                   <button className="jdp-btn-primary" onClick={() => setPaymentRecordOpen(true)} disabled={actionLoading}>
-                    {actionLoading ? 'Processing…' : '🧾 Record Direct Payment'}
+                    {actionLoading ? t('jobDetail.processing') : t('jobDetail.recordDirectPayment')}
                   </button>
                   <button className="jdp-btn-ghost" onClick={() => navigate('/messages')} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
-                    Open Messages
+                    {t('jobDetail.openMessages')}
                   </button>
                   <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
                     {t('jobDetail.cancelJob') || 'Cancel Job'}
@@ -892,7 +886,7 @@ export default function JobDetailPage() {
               {job.status === 'in_progress' && (
                 <>
                   <button className="jdp-btn-primary" onClick={handleComplete} disabled={actionLoading}>
-                    {actionLoading ? 'Processing…' : '✅ Mark as Complete'}
+                    {actionLoading ? t('jobDetail.processing') : `✅ ${t('jobDetail.markComplete')}`}
                   </button>
                   <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
                     {t('jobDetail.cancelJob') || 'Cancel Job'}
@@ -901,11 +895,11 @@ export default function JobDetailPage() {
               )}
               {(job.status === 'completed' || job.status === 'closed') && (
                 <>
-                  <div className="jdp-status-done">Job completed ✓</div>
+                  <div className="jdp-status-done">{t('jobDetail.jobCompletedLabel')}</div>
                   {reviewEligible && (
                     <ReviewModal
                       jobId={id}
-                      revieweeName={job.helper_name ? formatNameForPrivacy(job.helper_name) : 'your helper'}
+                      revieweeName={job.helper_name ? formatNameForPrivacy(job.helper_name) : t('jobDetail.yourHelper')}
                       onComplete={() => setReviewEligible(false)}
                     />
                   )}
@@ -916,10 +910,10 @@ export default function JobDetailPage() {
           {/* Helper "Leave a review" action for the job owner (customer) */}
           {isAssignedHelper && (job.status === 'completed' || job.status === 'closed') && reviewEligible && (
             <div className="jdp-card jdp-sidebar-card jdp-owner-actions">
-              <h3 className="jdp-sidebar-title">Review</h3>
+              <h3 className="jdp-sidebar-title">{t('jobDetail.reviewSection')}</h3>
               <ReviewModal
                 jobId={id}
-                revieweeName={job.client_name ? formatNameForPrivacy(job.client_name) : 'your customer'}
+                revieweeName={job.client_name ? formatNameForPrivacy(job.client_name) : t('jobDetail.yourCustomer')}
                 onComplete={() => setReviewEligible(false)}
               />
             </div>
@@ -934,7 +928,7 @@ export default function JobDetailPage() {
           {mediaIndex > 0 && (
             <button className="jdp-lightbox-prev" onClick={e => { e.stopPropagation(); setMediaIndex(mediaIndex - 1); }}>‹</button>
           )}
-          <img src={mediaUrls[mediaIndex]} alt={`Job media ${mediaIndex + 1}`} onClick={e => e.stopPropagation()} />
+          <img src={mediaUrls[mediaIndex]} alt={t('jobDetail.jobMedia', { number: mediaIndex + 1 })} onClick={e => e.stopPropagation()} />
           {mediaIndex < mediaUrls.length - 1 && (
             <button className="jdp-lightbox-next" onClick={e => { e.stopPropagation(); setMediaIndex(mediaIndex + 1); }}>›</button>
           )}
@@ -946,19 +940,19 @@ export default function JobDetailPage() {
       {showCancelModal && (
         <div className="jdp-modal-overlay" onClick={() => setShowCancelModal(false)}>
           <div className="jdp-modal" onClick={e => e.stopPropagation()}>
-            <h3>Cancel this job?</h3>
-            <p>This will remove your job listing. Helpers who have bid will be notified.</p>
+            <h3>{t('jobDetail.cancelTitle')}</h3>
+            <p>{t('jobDetail.cancelHelp')}</p>
             <textarea
               className="jdp-modal-textarea"
               rows={3}
-              placeholder="Reason for cancellation (optional)"
+              placeholder={t('jobDetail.cancelPlaceholder')}
               value={cancelReason}
               onChange={e => setCancelReason(e.target.value)}
             />
             <div className="jdp-modal-actions">
-              <button className="jdp-btn-ghost" onClick={() => setShowCancelModal(false)}>Keep Job</button>
+              <button className="jdp-btn-ghost" onClick={() => setShowCancelModal(false)}>{t('jobDetail.keepJob')}</button>
               <button className="jdp-btn-danger" onClick={handleCancel} disabled={actionLoading}>
-                {actionLoading ? 'Cancelling…' : 'Cancel Job'}
+                {actionLoading ? t('jobDetail.cancelling') : t('jobDetail.cancelJob')}
               </button>
             </div>
           </div>
@@ -1009,7 +1003,7 @@ export default function JobDetailPage() {
       {reportModalOpen && job?.assigned_helper_id && (
         <ReportModal
           reportedUserId={job.assigned_helper_id}
-          reportedName={job.helper_name ? formatNameForPrivacy(job.helper_name) : 'the helper'}
+          reportedName={job.helper_name ? formatNameForPrivacy(job.helper_name) : t('jobDetail.theHelper')}
           onClose={() => setReportModalOpen(false)}
         />
       )}
@@ -1017,11 +1011,11 @@ export default function JobDetailPage() {
       {/* ── Direct Payment Record Modal ─────────────────────────── */}
       <DirectPaymentRecordModal
         isOpen={paymentRecordOpen}
-        title="Record direct payment"
-        subtitle="Capture the payment method, confirmation number, and any proof link so both sides can verify the exchange later."
+        title={t('jobDetail.recordDirectPaymentTitle')}
+        subtitle={t('jobDetail.recordDirectPaymentSubtitle')}
         sourceType="job"
         sourceId={job?.id}
-        sourceLabel={job?.title ? `Job payment · ${job.title}` : 'Job payment'}
+        sourceLabel={job?.title ? t('jobDetail.jobPaymentFor', { title: job.title }) : t('jobDetail.jobPayment')}
         amountCents={Math.round((acceptedBid?.amount || job?.budget_max || job?.budget_min || 0) * 100)}
         currencyCode={job?.currency || 'USD'}
         payerId={job?.client_id}

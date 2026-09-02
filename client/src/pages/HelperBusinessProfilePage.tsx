@@ -684,7 +684,7 @@ const HelperBusinessProfilePage: React.FC = () => {
           onClick={handleOpenChat}
           className="lg:hidden fixed right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors active:bg-brand-700"
           style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
-          aria-label="Open chat"
+          aria-label={t('businessProfile.openChatAria')}
         >
           <MessageCircle className="w-5 h-5" aria-hidden="true" />
         </button>

@@ -319,7 +319,7 @@ export default function JoinPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="email" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.email')}</label>
+                  <label htmlFor="email" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.emailAddress')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                     <input
@@ -365,7 +365,7 @@ export default function JoinPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="address" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.street')}</label>
+                  <label htmlFor="address" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.streetAddress')}</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                     <input
@@ -407,7 +407,7 @@ export default function JoinPage() {
 
                 {hasPostalCode(form.country) && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.zip')}</label>
+                    <label className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.zipCode')}</label>
                     <PostalCodeInput
                       country={form.country}
                       value={form.zipCode}
@@ -419,7 +419,7 @@ export default function JoinPage() {
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.password')}</label>
+                  <label className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.passwordLabel')}</label>
                   <PasswordField
                     value={form.password}
                     onChange={(v) => set('password', v)}

@@ -29,15 +29,15 @@ export default function HelperPublicProfilePage() {
       const { data } = await api.get(`/helpers/${helperId}/profile`);
       setHelper(data.data);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Helper not found');
+      setError(err.response?.data?.error || err.message || t('publicProfile.notFound'));
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="page-loading">Loading profile...</div>;
+  if (loading) return <div className="page-loading">{t('publicProfile.loading')}</div>;
   if (error) return <div className="page-error">{error}</div>;
-  if (!helper) return <div className="page-error">Helper not found</div>;
+  if (!helper) return <div className="page-error">{t('publicProfile.notFound')}</div>;
 
   return (
     <div className="helper-public-profile">
@@ -63,7 +63,7 @@ export default function HelperPublicProfilePage() {
                 <h1>{helper.firstName} {helper.lastName}</h1>
                 <div className="helper-rating">
                   <Star size={18} fill="gold" color="gold" />
-                  <span>{helper.rating} ({helper.reviewCount} reviews)</span>
+                  <span>{helper.rating} ({t('publicProfile.reviewCount', { count: helper.reviewCount })})</span>
                 </div>
               </div>
             </div>
@@ -100,13 +100,13 @@ export default function HelperPublicProfilePage() {
 
           {/* Services */}
           <div className="profile-card">
-            <h2>Services</h2>
+            <h2>{t('helperProfile.services.title')}</h2>
             <div className="services-list">
               {helper.services && helper.services.map(service => (
                 <div key={service.id} className="service-item">
                   <h4>{service.name}</h4>
                   <p>{service.description}</p>
-                  <span className="service-price">${service.rate}/hr</span>
+                  <span className="service-price">{t('jobDetail.hourlyRate', { amount: `$${service.rate}` })}</span>
                 </div>
               ))}
             </div>
@@ -114,7 +114,7 @@ export default function HelperPublicProfilePage() {
 
           {/* Reviews */}
           <div className="profile-card">
-            <h2>Reviews</h2>
+            <h2>{t('publicProfile.reviews')}</h2>
             {helper.reviews && helper.reviews.map(review => (
               <div key={review.id} className="review-item">
                 <div className="review-header">
@@ -140,18 +140,18 @@ export default function HelperPublicProfilePage() {
 
           {/* Pricing Card */}
           <div className="sidebar-card">
-            <h3>Pricing</h3>
+            <h3>{t('helpersDir.pricePerHour')}</h3>
             <div className="pricing-item">
-              <span>Starting at</span>
-              <span className="price">${helper.startingRate}/hour</span>
+              <span>{t('helpersDir.priceStartingAt')}</span>
+              <span className="price">{t('jobDetail.hourlyRate', { amount: `$${helper.startingRate}` })}</span>
             </div>
           </div>
 
           {/* Availability Badge */}
           <div className="sidebar-card">
-            <h3>Availability</h3>
+            <h3>{t('helperProfile.hours.title')}</h3>
             <div className={`availability-badge ${helper.isAvailable ? 'available' : 'unavailable'}`}>
-              {helper.isAvailable ? 'Available Now' : 'Unavailable'}
+              {helper.isAvailable ? t('helpersDir.available') : t('common.unavailable')}
             </div>
           </div>
         </aside>

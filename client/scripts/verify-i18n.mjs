@@ -109,7 +109,24 @@ function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], all
     throw new Error(`Hard-coded customer-facing text found:\n${failures.join('\n')}`);
   }
 
-  console.log(`ok ${relativePath} has no unapproved hard-coded UI text`);
+  const legacyEnglish = readJson('src/locales/en.json');
+  const missingKeys = [];
+  const hasKey = (key) => {
+    const resolve = (candidate) => candidate.split('.').reduce((value, part) => value?.[part], legacyEnglish);
+    const isLeaf = (value) => value !== undefined && (value === null || typeof value !== 'object');
+    return isLeaf(resolve(key)) || isLeaf(resolve(`${key}_one`)) || isLeaf(resolve(`${key}_other`));
+  };
+  for (const match of source.matchAll(/\bt\(\s*(['"])([A-Za-z0-9_.-]+)\1/g)) {
+    if (!hasKey(match[2])) {
+      const line = source.slice(0, match.index).split('\n').length;
+      missingKeys.push(`${relativePath}:${line}: ${match[2]}`);
+    }
+  }
+  if (missingKeys.length) {
+    throw new Error(`Missing translation keys referenced by customer-facing pages:\n${missingKeys.join('\n')}`);
+  }
+
+  console.log(`ok ${relativePath} has no unapproved hard-coded UI text or missing static keys`);
 }
 
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);
@@ -126,3 +143,43 @@ verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
   allowedJsxText: ['OxS'],
 });
 verifyPageHasNoHardcodedUiText('src/pages/food/FoodRestaurantPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/HomePage.jsx', {
+  allowedJsxText: ['OxS'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/food/FoodHomePage.jsx', {
+  allowedJsxText: ['OpenStreetMap'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/Login.jsx', {
+  allowedJsxText: ['OxSteed', 'OxS'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/JoinPage.jsx', {
+  allowedJsxText: ['OxSteed'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/ForgotPassword.jsx', {
+  allowedJsxText: ['OxSteed'],
+  allowedAttributes: ['you@example.com'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/JobListPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/CustomerRegister.tsx', {
+  allowedJsxText: ['OxSteed'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/HelperRegister.tsx', {
+  allowedJsxText: ['OxSteed'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/ResetPassword.jsx', {
+  allowedJsxText: ['OxSteed'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/JobDetailPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/HelpersDirectoryPage.tsx', {
+  allowedJsxText: ['0 && h.rating'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/JobPublicPage.tsx');
+verifyPageHasNoHardcodedUiText('src/pages/HelperPublicProfilePage.tsx');
+verifyPageHasNoHardcodedUiText('src/pages/HelperBusinessProfilePage.tsx', {
+  allowedJsxText: ['and'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/PublicProfile.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/BookHelperPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/BookBusinessPage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/BookServicePage.jsx');
+verifyPageHasNoHardcodedUiText('src/pages/MyBookingsPage.tsx');
