@@ -132,7 +132,7 @@ function HomeCompanySection() {
                 <span>•</span>
                 <span>{t('homePage.company.availability', { defaultValue: profile.availability })}</span>
                 <span>•</span>
-                <span>{t('homePage.company.baseCity', { defaultValue: profile.baseCity })}</span>
+                <span>{t('homePage.company.serviceArea', { defaultValue: `${profile.baseCity} - service within 60 miles` })}</span>
               </div>
             </div>
           </div>

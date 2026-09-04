@@ -5983,6 +5983,7 @@
       "price": "$100 minimum",
       "availability": "Monday through Thursday",
       "baseCity": "Springfield, OH",
+      "serviceArea": "Springfield, OH - service within 60 miles",
       "services": "Services",
       "tools": "Tools",
       "travelCities": "Travel cities",

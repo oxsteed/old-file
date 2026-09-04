@@ -6022,6 +6022,7 @@
       "price": "100 $ minimum",
       "availability": "Du lundi au jeudi",
       "baseCity": "Springfield, Ohio",
+      "serviceArea": "Springfield, Ohio - service dans un rayon de 60 miles",
       "services": "Services",
       "tools": "Outils",
       "travelCities": "Villes de déplacement",
