@@ -112,16 +112,18 @@ function HomeCompanySection() {
       <div className="hp-container">
         <div className="hp-company-card">
           <div className="hp-company-hero">
-            <div className="hp-company-badge" aria-hidden="true">
-              <span>OxS</span>
-            </div>
             <div className="hp-company-copy">
               <p className="hp-company-kicker">
                 {t('homePage.company.kicker', { defaultValue: 'OxSteed as a company' })}
               </p>
-              <h2 className="hp-company-title">
-                {t('homePage.company.heading', { defaultValue: profile.companyName })}
-              </h2>
+              <div className="hp-company-title-row">
+                <span className="hp-company-logo" aria-hidden="true">
+                  <OxSteedIcon size={54} />
+                </span>
+                <h2 className="hp-company-title">
+                  {t('homePage.company.heading', { defaultValue: profile.companyName })}
+                </h2>
+              </div>
               <p className="hp-company-subcopy">
                 {t('homePage.company.subcopy', { defaultValue: profile.headline })}
               </p>

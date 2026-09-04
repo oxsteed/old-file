@@ -504,27 +504,26 @@
 }
 
 .hp-company-hero {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1.25rem;
-  align-items: start;
   margin-bottom: 1.5rem;
 }
 
-.hp-company-badge {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #16213e 0%, #f97316 100%);
+.hp-company-title-row {
   display: flex;
   align-items: center;
+  gap: 1rem;
+  margin-bottom: .55rem;
+}
+
+.hp-company-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  color: white;
-  font-family: var(--hp-font-display);
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -.03em;
   box-shadow: 0 12px 28px rgba(22, 33, 62, .22);
+  flex: 0 0 auto;
+  overflow: hidden;
 }
 
 .hp-company-copy { min-width: 0; }
@@ -537,7 +536,7 @@
   text-transform: uppercase;
 }
 .hp-company-title {
-  margin: 0 0 .55rem;
+  margin: 0;
   font-family: var(--hp-font-display);
   font-size: clamp(1.9rem, 1.5rem + 1.6vw, 3rem);
   font-weight: 400;
@@ -633,13 +632,13 @@
 }
 
 @media (max-width: 720px) {
-  .hp-company-hero {
-    grid-template-columns: 1fr;
+  .hp-company-title-row {
+    gap: .75rem;
   }
-  .hp-company-badge {
-    width: 60px;
-    height: 60px;
-    border-radius: 18px;
+  .hp-company-logo {
+    width: 54px;
+    height: 54px;
+    border-radius: 17px;
   }
   .hp-company-grid {
     grid-template-columns: 1fr;
