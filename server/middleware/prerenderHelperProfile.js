@@ -98,6 +98,90 @@ function injectJsonLd(html, data) {
   return html.replace('</head>', `${script}\n</head>`);
 }
 
+function addLanguageAlternates(html, url) {
+  const languages = ['en', 'es', 'fr', 'ht', 'ar', 'x-default'];
+  const links = languages.map((language) => {
+    const separator = url.includes('?') ? '&' : '?';
+    return `<link rel="alternate" hreflang="${language}" href="${escapeHtml(`${url}${separator}lang=${language}`)}" />`;
+  }).join('\n');
+  return html.replace('</head>', `${links}\n</head>`);
+}
+
+const MARKETING_PAGES = {
+  '/about': {
+    title: 'About OxSteed | Local Help and Services',
+    description: 'Learn how OxSteed connects customers with trusted local helpers, businesses, tools, and services.',
+  },
+  '/join': {
+    title: 'Join OxSteed | Find Local Work or Post a Job',
+    description: 'Join OxSteed to find local work, offer your skills, or connect with trusted help near you.',
+  },
+  '/jobs': {
+    title: 'Browse Local Jobs | OxSteed',
+    description: 'Browse local service jobs and connect with customers who need dependable help.',
+  },
+  '/how-it-works': {
+    title: 'How OxSteed Works | Local Help Made Simple',
+    description: 'See how OxSteed helps customers post jobs, compare bids, hire local helpers, and pay securely.',
+  },
+  '/learn': {
+    title: 'OxSteed Learn | Practical Home and Business Guides',
+    description: 'Explore practical guides for home maintenance, local services, tools, business, and everyday planning.',
+  },
+  '/restaurants': {
+    title: 'OxSteed Restaurants | Order Local Food',
+    description: 'Browse participating local restaurants and order food through OxSteed.',
+  },
+  '/direct': {
+    title: 'OxSteed Direct | Home Services and Local Help',
+    description: 'Request reliable home help, tool-based work, delivery, hauling, cleanup, and setup from OxSteed Direct.',
+    schemaType: 'Service',
+  },
+  '/direct/services': {
+    title: 'OxSteed Direct Services | Home Help, Hauling, and More',
+    description: 'Explore OxSteed Direct services for home help, tool-based jobs, delivery, hauling, cleanup, and setup.',
+    schemaType: 'Service',
+  },
+  '/direct/request-quote': {
+    title: 'Request a Quote | OxSteed Direct',
+    description: 'Tell OxSteed what you need and request a direct service quote with no account required.',
+    schemaType: 'Service',
+  },
+  '/direct/view-quote': {
+    title: 'View Your Quote | OxSteed Direct',
+    description: 'Check your OxSteed Direct quote status using your reference ID, ZIP code, and email verification.',
+    noIndex: true,
+  },
+  '/terms': { title: 'Terms of Service | OxSteed', description: 'Read the OxSteed Terms of Service.', localized: true },
+  '/privacy': { title: 'Privacy Policy | OxSteed', description: 'Read the OxSteed Privacy Policy.', localized: true },
+  '/security': { title: 'Security | OxSteed', description: 'Learn how OxSteed protects accounts, payments, and personal information.', localized: true },
+  '/accessibility': { title: 'Accessibility | OxSteed', description: 'Learn about accessibility support on OxSteed.', localized: true },
+};
+
+function handleMarketingPage(pagePath, template, res) {
+  const page = MARKETING_PAGES[pagePath];
+  const origin = base();
+  const url = `${origin}${pagePath}`;
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': page.schemaType || 'WebPage',
+    name: page.title,
+    description: page.description,
+    url,
+    isPartOf: { '@id': `${origin}/#website` },
+    ...(page.schemaType === 'Service' ? { provider: { '@id': `${origin}/#organization` }, areaServed: 'Springfield, Ohio' } : {}),
+  };
+  let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/og-default.png` });
+  if (page.noIndex) {
+    html = html.replace('</head>', '<meta name="robots" content="noindex, nofollow" />\n</head>');
+  }
+  if (page.localized) html = addLanguageAlternates(html, url);
+  html = injectJsonLd(html, schema);
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
 const base = () => getPublicSiteUrl();
 
 async function handleHomepage(template, res) {
@@ -471,6 +555,10 @@ function prerenderPublicPages(req, res, next) {
   if (!template) return next();
 
   const p = req.path;
+
+  if (MARKETING_PAGES[p]) {
+    return handleMarketingPage(p, template, res);
+  }
 
   if (p === '/') {
     return handleHomepage(template, res).catch((err) => {

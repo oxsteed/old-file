@@ -7,13 +7,26 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { getPublicSiteUrl } = require('../utils/publicSiteUrl');
 
-function urlEntry({ loc, changefreq, priority, lastmod }) {
+const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar'];
+
+function localizedUrl(path, language) {
+  const separator = path.includes('?') ? '&' : '?';
+  return `${getPublicSiteUrl()}${path}${separator}lang=${language}`;
+}
+
+function urlEntry({ loc, changefreq, priority, lastmod, localized = false }) {
+  const alternates = localized
+    ? [...SUPPORTED_LANGUAGES, 'x-default'].map((language) =>
+        `    <xhtml:link rel="alternate" hreflang="${language}" href="${localizedUrl(loc.replace(getPublicSiteUrl(), ''), language)}" />`,
+      ).join('\n')
+    : '';
   return [
     '  <url>',
     `    <loc>${loc}</loc>`,
     lastmod ? `    <lastmod>${lastmod}</lastmod>` : '',
     `    <changefreq>${changefreq}</changefreq>`,
     `    <priority>${priority}</priority>`,
+    alternates,
     '  </url>',
   ].filter(Boolean).join('\n');
 }
@@ -23,10 +36,21 @@ router.get('/', async (_req, res) => {
     const origin = getPublicSiteUrl();
 
     const STATIC_URLS = [
-      { loc: `${origin}/`, changefreq: 'weekly', priority: '1.0' },
-      { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9' },
-      { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7' },
-      { loc: `${origin}/plans`, changefreq: 'monthly', priority: '0.6' },
+      { loc: `${origin}/`, changefreq: 'weekly', priority: '1.0', localized: true },
+      { loc: `${origin}/about`, changefreq: 'monthly', priority: '0.6', localized: true },
+      { loc: `${origin}/join`, changefreq: 'weekly', priority: '0.7', localized: true },
+      { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9', localized: true },
+      { loc: `${origin}/jobs`, changefreq: 'daily', priority: '0.8', localized: true },
+      { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7', localized: true },
+      { loc: `${origin}/learn`, changefreq: 'weekly', priority: '0.7', localized: true },
+      { loc: `${origin}/direct`, changefreq: 'weekly', priority: '0.8', localized: true },
+      { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
+      { loc: `${origin}/direct/request-quote`, changefreq: 'monthly', priority: '0.7', localized: true },
+      { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
+      { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/security`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/accessibility`, changefreq: 'yearly', priority: '0.2', localized: true },
     ];
 
     const { rows: helpers } = await pool.query(
@@ -76,7 +100,7 @@ router.get('/', async (_req, res) => {
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${entries.join('\n')}
 </urlset>`;
 
