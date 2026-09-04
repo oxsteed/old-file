@@ -7,6 +7,7 @@ import {
   FileText,
   Mail,
   MessageSquare,
+  Phone,
   Send,
   ShieldCheck,
   Sparkles,
@@ -23,6 +24,8 @@ import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { realtimeNamespaceUrl } from '../lib/realtime';
 import './SupportEscalationPage.css';
+
+const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
 
 function normalizeSupportMessages(messages = []) {
   return messages.map((message) => ({
@@ -587,6 +590,30 @@ export default function SupportEscalationPage() {
               </section>
 
               <div className="grid gap-4">
+                <SideCard icon={Phone} title={t('support.escalation.directContactTitle', { defaultValue: 'Need a faster response?' })} tint="text-orange-300">
+                  <p className="text-slate-300 text-sm leading-6">
+                    {t('support.escalation.directContactBody', { defaultValue: 'When no specialist is available, call or text OxSteed Support directly.' })}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <a
+                      href="tel:+19374085169"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700"
+                    >
+                      <Phone size={15} />
+                      {t('support.escalation.callSupport', { defaultValue: 'Call' })}
+                    </a>
+                    <a
+                      href="sms:+19374085169"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:border-orange-500"
+                    >
+                      <MessageSquare size={15} />
+                      {t('support.escalation.textSupport', { defaultValue: 'Text' })}
+                    </a>
+                  </div>
+                  <a href="tel:+19374085169" className="block mt-3 text-center text-orange-300 text-sm font-semibold hover:text-orange-200">
+                    {OXSTEED_SUPPORT_PHONE}
+                  </a>
+                </SideCard>
                 <SideCard icon={ShieldCheck} title={t('support.escalation.afterSubmitTitle')} tint="text-orange-300">
                   <ul className="text-slate-300 text-sm leading-7 pl-5 list-disc">
                     <li>{t('support.escalation.afterSubmitTracked')}</li>
