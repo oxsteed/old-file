@@ -11,6 +11,8 @@ const quoteCtrl = require('../controllers/quoteRequestsController');
 const ctrl = require('../controllers/directController');
 
 router.get('/profile', optionalAuth, ctrl.getProfile);
+router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
+router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', generalLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
 router.post('/public/lookup', generalLimiter, ctrl.lookupPublicQuote);
 router.post('/public/lookup/send-code', generalLimiter, ctrl.sendPublicLookupCode);
@@ -34,6 +36,9 @@ router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
 router.post('/requests/:id/proof-confirm', authenticate, ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, ctrl.getAdminDashboard);
+router.get('/admin/service-areas', authenticate, requireAdmin, ctrl.getAdminServiceAreas);
+router.post('/admin/service-areas', authenticate, requireAdmin, ctrl.createAdminServiceArea);
+router.patch('/admin/service-areas/:id', authenticate, requireAdmin, ctrl.updateAdminServiceArea);
 router.get('/admin/inbox', authenticate, requireAdmin, ctrl.getAdminInbox);
 router.get('/admin/requests/:id', authenticate, requireAdmin, ctrl.getRequestDetail);
 router.patch('/admin/requests/:id', authenticate, requireAdmin, quoteCtrl.updateQuoteRequestAdmin);

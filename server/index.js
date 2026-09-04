@@ -584,6 +584,11 @@ app.get('/api/users/:id/profile', getPublicProfile);
 // Enterprise monitoring - admin only
 app.use('/api/monitoring', monitoringRoutes);
 
+app.use('/direct/service-area-assets', express.static(path.join(__dirname, 'public/direct-service-area')));
+app.get('/direct/service-area', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/direct-service-area/index.html'));
+});
+
 // Sitemap + robots - works in all environments, no auth required
 app.use('/robots.txt', robotsRoutes);
 app.use('/sitemap.xml', sitemapRoutes);

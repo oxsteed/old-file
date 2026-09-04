@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="index, follow" />
+    <title>OxSteed Direct Service Area</title>
+    <link rel="stylesheet" href="/direct/service-area-assets/service-area.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero" aria-labelledby="service-area-title">
+        <div>
+          <p class="eyebrow">OxSteed Direct</p>
+          <h1 id="service-area-title">Check service coverage</h1>
+          <p class="lede">Enter a ZIP code or address to see whether OxSteed Direct can quote work at that location.</p>
+        </div>
+        <a class="quote-link" href="/direct/request-quote">Request a quote</a>
+      </section>
+
+      <section class="checker" aria-label="Service availability checker">
+        <form id="availability-form" class="form">
+          <label for="zip-code">ZIP code</label>
+          <div class="row">
+            <input id="zip-code" name="zipCode" autocomplete="postal-code" inputmode="numeric" placeholder="45503" />
+            <button type="submit">Check</button>
+          </div>
+          <label for="address">Address or city</label>
+          <input id="address" name="address" autocomplete="street-address" placeholder="Springfield, OH" />
+          <p class="hint">ZIP code is fastest. Full addresses are checked through public geocoding and may take a moment.</p>
+        </form>
+
+        <div id="result" class="result" role="status" aria-live="polite">
+          <strong>Coverage starts in Springfield, OH 45503.</strong>
+          <span>Current default radius is 60 miles.</span>
+        </div>
+      </section>
+
+      <section class="map-panel" aria-labelledby="coverage-map-title">
+        <div class="map-heading">
+          <div>
+            <p class="eyebrow">Coverage map</p>
+            <h2 id="coverage-map-title">Active Direct areas</h2>
+          </div>
+          <span id="area-count">Loading areas...</span>
+        </div>
+        <div class="map-wrap">
+          <div id="map" class="map" aria-label="Approximate map of active service coverage"></div>
+        </div>
+        <p class="hint">Coverage is approximate and final service availability is confirmed during quote review.</p>
+      </section>
+    </main>
+    <script src="/direct/service-area-assets/service-area.js"></script>
+  </body>
+</html>

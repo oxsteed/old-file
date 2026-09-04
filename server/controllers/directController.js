@@ -10,6 +10,12 @@ const {
   maskEmail,
   normalizeZipCode,
 } = require('../utils/directQuote');
+const {
+  checkAvailability,
+  createServiceArea,
+  listServiceAreas,
+  updateServiceArea,
+} = require('../services/directServiceAreas');
 const crypto = require('crypto');
 
 const DEFAULT_PROFILE = {
@@ -846,6 +852,86 @@ exports.verifyPublicLookupCode = async (req, res) => {
   } catch (err) {
     logger.error('verifyPublicLookupCode error', { error: err.message });
     return res.status(500).json({ error: 'Failed to verify code' });
+  }
+};
+
+exports.getServiceAreas = async (_req, res) => {
+  try {
+    const serviceAreas = await listServiceAreas({ activeOnly: true });
+    return res.json({
+      contract: {
+        version: 'direct-service-areas-v1',
+        generatedAt: new Date().toISOString(),
+      },
+      serviceAreas,
+    });
+  } catch (err) {
+    logger.error('getServiceAreas error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load Direct service areas' });
+  }
+};
+
+exports.checkServiceAvailability = async (req, res) => {
+  try {
+    const result = await checkAvailability(req.body || {});
+    return res.json({
+      contract: {
+        version: 'direct-service-availability-v1',
+        generatedAt: new Date().toISOString(),
+      },
+      ...result,
+    });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    if (status >= 500) {
+      logger.error('checkServiceAvailability error', { error: err.message });
+    }
+    return res.status(status).json({
+      error: err.message || 'Failed to check Direct service availability',
+      code: err.code || 'service_availability_failed',
+    });
+  }
+};
+
+exports.getAdminServiceAreas = async (_req, res) => {
+  try {
+    const serviceAreas = await listServiceAreas({ activeOnly: false });
+    return res.json({ serviceAreas });
+  } catch (err) {
+    logger.error('getAdminServiceAreas error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load Direct service areas' });
+  }
+};
+
+exports.createAdminServiceArea = async (req, res) => {
+  try {
+    const serviceArea = await createServiceArea(req.body || {});
+    return res.status(201).json({ serviceArea });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    if (status >= 500) {
+      logger.error('createAdminServiceArea error', { error: err.message, userId: req.user?.id });
+    }
+    return res.status(status).json({
+      error: err.message || 'Failed to create Direct service area',
+      code: err.code || 'service_area_create_failed',
+    });
+  }
+};
+
+exports.updateAdminServiceArea = async (req, res) => {
+  try {
+    const serviceArea = await updateServiceArea(req.params.id, req.body || {});
+    return res.json({ serviceArea });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    if (status >= 500) {
+      logger.error('updateAdminServiceArea error', { error: err.message, userId: req.user?.id, serviceAreaId: req.params.id });
+    }
+    return res.status(status).json({
+      error: err.message || 'Failed to update Direct service area',
+      code: err.code || 'service_area_update_failed',
+    });
   }
 };
 
