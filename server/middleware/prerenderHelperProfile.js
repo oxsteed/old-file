@@ -196,6 +196,7 @@ async function handleHomepage(template, res) {
       name: 'OxSteed',
       url: origin,
       logo: `${origin}/icons/icon-192.png`,
+      telephone: '+1-937-408-5169',
     },
     {
       '@context': 'https://schema.org',

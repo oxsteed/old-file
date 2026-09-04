@@ -9,6 +9,7 @@ import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
+const OXSTEED_MAIN_PHONE = '+1 (937) 408-5169';
 
 export default function Footer() {
   const { user } = useAuth();
@@ -291,6 +292,16 @@ export default function Footer() {
               onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
             >
               support@oxsteed.com
+            </a>
+            <span aria-hidden="true">{' · '}</span>
+            <a
+              href="tel:+19374085169"
+              aria-label={t('footer.callOxSteed', { defaultValue: `Call OxSteed at ${OXSTEED_MAIN_PHONE}` })}
+              style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+            >
+              {OXSTEED_MAIN_PHONE}
             </a>
           </p>
         </div>
