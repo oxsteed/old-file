@@ -175,7 +175,7 @@ function handleMarketingPage(pagePath, template, res) {
   if (page.noIndex) {
     html = html.replace('</head>', '<meta name="robots" content="noindex, nofollow" />\n</head>');
   }
-  if (page.localized) html = addLanguageAlternates(html, url);
+  if (page.localized !== false) html = addLanguageAlternates(html, url);
   html = injectJsonLd(html, schema);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -186,6 +186,8 @@ const base = () => getPublicSiteUrl();
 
 async function handleHomepage(template, res) {
   const origin = base();
+  const title = 'OxSteed - Hire Local Help Today';
+  const description = 'Find trusted local help for home services, moving, cleanup, tools, and more on OxSteed.';
   const jsonLd = [
     {
       '@context': 'https://schema.org',
@@ -213,7 +215,9 @@ async function handleHomepage(template, res) {
     },
   ];
 
-  const html = injectJsonLd(template, jsonLd);
+  let html = replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/og-default.png` });
+  html = addLanguageAlternates(html, `${origin}/`);
+  html = injectJsonLd(html, jsonLd);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
   return res.send(html);
