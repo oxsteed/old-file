@@ -4085,6 +4085,7 @@
     "jobCount": "{{count}} trabajo encontrado"
   },
   "support": {
+    "liveWait": {"title":"Esperando a un agente de soporte","body":"Estamos buscando un agente disponible. Puedes agregar detalles abajo mientras esperas, o llamarnos o enviarnos un mensaje de texto.","unavailable":"No hay agentes disponibles en este momento","fallback":"Tu solicitud se ha guardado. Deja un mensaje abajo para recibir seguimiento, o llama o envía un mensaje de texto al +1 (937) 408-5169.","connected":"Un agente de soporte se ha unido","closed":"Esta conversación está cerrada"},
     "helpTitle": "¿Cómo podemos ayudarte?",
     "helpSubtitle": "Haz una pregunta o inicia una conversación con nuestro asistente de IA.",
     "placeholder": "Haz una pregunta…",

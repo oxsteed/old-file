@@ -75,7 +75,7 @@ async function claimConversation(req, res) {
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $2
            AND agent_id IS NULL
-           AND status NOT IN ('resolved', 'closed')
+           AND status NOT IN ('resolved', 'closed', 'pending_verification')
          RETURNING id`,
         [agent.id, conversationId]
       );

@@ -106,7 +106,7 @@ async function listConversations(req, res) {
         sc.id, sc.business_id, sc.customer_id,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
-          u.email
+          u.email, sc.guest_name
         ) as customer_name,
         u.email as customer_email,
         sc.subject, sc.description, sc.category, sc.priority,
@@ -162,9 +162,9 @@ async function getConversation(req, res) {
         sc.*,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
-          u.email
+          u.email, sc.guest_name
         ) as customer_name,
-        u.email as customer_email,
+        COALESCE(u.email, sc.guest_email) as customer_email,
         sa.id as agent_id,
         sa.user_id as agent_user_id,
         COALESCE(

@@ -4046,6 +4046,7 @@
     "jobCount": "{{count}} job found"
   },
   "support": {
+    "liveWait": {"title":"Waiting for a support agent","body":"We are checking for an available agent. You can add details below while you wait, or call or text us directly.","unavailable":"No agent is available right now","fallback":"Your request has been saved. Leave a message below for follow-up, or call or text +1 (937) 408-5169 directly.","connected":"A support agent has joined","closed":"This conversation is closed"},
     "helpTitle": "How can we help?",
     "helpSubtitle": "Ask a question or start a conversation with our AI assistant.",
     "placeholder": "Ask a question…",

@@ -235,13 +235,13 @@ router.get('/conversations', async (req, res, next) => {
       const params = [];
       const where = req.query.business_id || req.query.businessId
         ? `WHERE sc.business_id = $${params.push(businessId)}`
-        : '';
+        : "WHERE sc.status <> 'pending_verification'";
       const { rows } = await db.query(
         `SELECT
            sc.*,
            sa.user_id AS agent_user_id,
-           COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email) AS customer_name,
-           cu.email AS customer_email,
+           COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email, sc.guest_name) AS customer_name,
+           COALESCE(cu.email, sc.guest_email) AS customer_email,
            COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email) AS agent_name,
            COALESCE(
              jsonb_agg(
@@ -267,7 +267,7 @@ router.get('/conversations', async (req, res, next) => {
          LEFT JOIN users au ON au.id = sa.user_id
          LEFT JOIN support_conversation_messages scm ON scm.conversation_id = sc.id
          ${where}
-         GROUP BY sc.id, cu.id, au.id
+         GROUP BY sc.id, cu.id, au.id, sa.id
          ORDER BY sc.updated_at DESC, sc.created_at DESC
          LIMIT 100`,
         params

@@ -4170,6 +4170,7 @@
     "jobCount": "{{count}} travay jwenn"
   },
   "support": {
+    "liveWait": {"title":"N ap tann yon ajan sipò","body":"N ap chèche yon ajan ki disponib. Ou ka ajoute detay anba a pandan w ap tann, oswa rele nou oubyen voye yon mesaj tèks.","unavailable":"Pa gen ajan ki disponib kounye a","fallback":"Nou anrejistre demann ou an. Kite yon mesaj anba a pou swivi, oswa rele oubyen voye yon mesaj tèks nan +1 (937) 408-5169.","connected":"Yon ajan sipò rantre nan konvèsasyon an","closed":"Konvèsasyon sa a fèmen"},
     "helpTitle": "Kijan nou ka ede ou?",
     "helpSubtitle": "Poze yon kesyon oswa kòmanse yon konvèsasyon ak asistan IA nou an.",
     "placeholder": "Poze yon kesyon…",

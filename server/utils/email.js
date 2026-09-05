@@ -254,7 +254,7 @@ if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   logger.warn('Resend API key not set or invalid - email features disabled');
 }
 
-async function sendEmail({ to, subject, text, html, from, fromName }) {
+async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey }) {
   if (!emailConfigured) {
     logger.debug('Email not sent - Resend not configured', { to });
     return { success: false, error: 'Email not configured' };
@@ -269,7 +269,9 @@ async function sendEmail({ to, subject, text, html, from, fromName }) {
       headers: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: `${senderName} <${senderEmail}>`,
         to: [to],

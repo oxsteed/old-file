@@ -55,6 +55,11 @@ class BackgroundWorkers {
       startAcceptedJobExpiryJob();
       startRecurringJobScheduler();
       startCustomerReengagementJob();
+      cron.schedule('*/10 * * * * *', () => {
+        require('../services/supportWaitService').processWaiting().catch((error) => {
+          this.log.error('Support waiting worker failed', { error: error.message });
+        });
+      });
 
       cron.schedule('*/15 * * * *', async () => {
         try {

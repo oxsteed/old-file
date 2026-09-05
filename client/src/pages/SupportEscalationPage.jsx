@@ -39,24 +39,40 @@ function PublicGuestSupport({ t }) {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [waiting, setWaiting] = useState(null);
+  const [now, setNow] = useState(Date.now());
 
   const load = useCallback(async () => {
     if (!conversationId || !token) return;
     const response = await api.get(`/support/public/conversations/${conversationId}`, { headers: { Authorization: `Guest ${token}` } });
     setMessages(normalizeSupportMessages(response.data.data?.messages || []));
+    const state = response.data.data?.waiting;
+    if (state) setWaiting({ ...state, localDeadline: Date.now() + state.remainingSeconds * 1000 });
   }, [conversationId, token]);
 
   useEffect(() => { if (token) { setStep('chat'); load().catch(() => setError(t('support.escalation.sessionExpired', { defaultValue: 'This support session has expired. Please start a new request.' }))); } }, [token, load, t]);
 
   useEffect(() => {
     if (!token || !conversationId) return undefined;
+    const poll = window.setInterval(() => load().catch(() => {}), 5000);
+    const clock = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => { window.clearInterval(poll); window.clearInterval(clock); };
+  }, [token, conversationId, load]);
+
+  useEffect(() => {
+    if (!token || !conversationId) return undefined;
     const socket = io(realtimeNamespaceUrl('support'), { transports: ['websocket', 'polling'], auth: { guestToken: token, conversationId } });
-    socket.on('connect', () => socket.emit('customer:join', { visitorName: name, visitorEmail: email }));
+    socket.on('connect', () => {
+      socket.emit('customer:join', { visitorName: name, visitorEmail: email });
+      socket.emit('ticket:join', { ticketId: conversationId });
+      load().catch(() => {});
+    });
+    socket.on('ticket:assigned', () => load().catch(() => {}));
     socket.on('message:new', (data) => {
-      if (data.ticketId === conversationId && data.sender?.type === 'agent') setMessages((current) => [...current, data]);
+      if (data.ticketId === conversationId) load().catch(() => {});
     });
     return () => socket.disconnect();
-  }, [conversationId, email, name, token]);
+  }, [conversationId, email, name, token, load]);
 
   const start = async (event) => {
     event.preventDefault(); setBusy(true); setError('');
@@ -105,7 +121,29 @@ function PublicGuestSupport({ t }) {
             </p>
           </header>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-            <div className="min-w-0">{children}</div>
+            <div className="min-w-0">
+              {step === 'chat' && waiting && (
+                <section className="guest-support-banner rounded-3xl border p-6 mb-4 text-white">
+                  <h2 className="text-xl font-semibold" role="status">
+                    {waiting.state === 'connected' ? t('support.liveWait.connected')
+                      : waiting.state === 'closed' ? t('support.liveWait.closed')
+                        : waiting.state === 'waiting' && waiting.localDeadline > now
+                          ? t('support.liveWait.title') : t('support.liveWait.unavailable')}
+                  </h2>
+                  {waiting.state === 'waiting' && waiting.localDeadline > now ? (
+                    <>
+                      <div className="text-4xl font-bold tabular-nums text-orange-300 my-3" role="timer" aria-label={t('support.liveWait.title')}>
+                        {Math.floor(Math.max(0, Math.ceil((waiting.localDeadline - now) / 1000)) / 60)}:{String(Math.max(0, Math.ceil((waiting.localDeadline - now) / 1000)) % 60).padStart(2, '0')}
+                      </div>
+                      <p className="text-slate-300">{t('support.liveWait.body')}</p>
+                    </>
+                  ) : waiting.state !== 'connected' && waiting.state !== 'closed' && (
+                    <p className="mt-3 text-slate-300">{t('support.liveWait.fallback')}</p>
+                  )}
+                </section>
+              )}
+              {children}
+            </div>
             <aside className="grid gap-4">
               <section className="guest-support-banner rounded-3xl border p-6">
                 <h2 className="text-white font-semibold text-lg mb-3">

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const emailService = require('../utils/email');
 const logger = require('../utils/logger');
-const SupportRoutingService = require('../services/supportRoutingService');
+const { waitingState } = require('../services/supportWaitService');
 const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
 
@@ -23,134 +23,125 @@ function randomCode() {
   return String(crypto.randomInt(100000, 1000000));
 }
 
-async function defaultBusinessId() {
-  const { rows } = await pool.query(
-    `SELECT id FROM businesses WHERE is_active = TRUE
-     ORDER BY is_primary DESC, created_at ASC LIMIT 1`
-  );
-  return rows[0]?.id || null;
-}
-
-async function sendVerification(conversationId, email, name) {
+async function sendVerification(conversationId, email, name, db = pool) {
   const code = randomCode();
-  await pool.query(
+  await db.query('UPDATE support_guest_verifications SET consumed_at = NOW() WHERE conversation_id = $1 AND consumed_at IS NULL', [conversationId]);
+  await db.query(
     `INSERT INTO support_guest_verifications
        (conversation_id, email, code_hash, expires_at)
      VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes')`,
     [conversationId, email, hash(code)]
   );
-  await emailService.sendEmail({
+  const result = await emailService.sendEmail({
     to: email,
     subject: 'Your OxSteed support verification code',
     text: `Hi ${name},\n\nYour OxSteed support verification code is ${code}. It expires in 15 minutes.\n\nIf you did not request support, you can ignore this email.`,
   });
+  if (!result.success) throw new Error('Verification email could not be delivered');
 }
 
 async function createGuestConversation(req, res) {
+  let client;
   try {
-    const { visitorName, visitorEmail, message, category = 'general', priority = 'normal' } = req.body || {};
+    const { visitorName, visitorEmail, message } = req.body || {};
+    const category = 'general';
+    const priority = 'normal';
     const name = String(visitorName || '').trim();
     const email = normalizeEmail(visitorEmail);
     const content = String(message || '').trim();
-    if (!name || !email || !content || content.length > 5000) {
+    if (!name || name.length > 255 || !email || email.length > 320 || !content || content.length > 5000) {
       return sendValidationError(res, { visitorName: 'Name is required', visitorEmail: 'Valid email is required', message: 'Message is required and must be 5000 characters or fewer' });
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return sendValidationError(res, { visitorEmail: 'Valid email is required' });
     }
-    const businessId = await defaultBusinessId();
-    if (!businessId) return sendError(res, 503, 'Support is temporarily unavailable');
-
-    const { rows } = await pool.query(
+    const businessId = null;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `INSERT INTO support_conversations
         (business_id, customer_id, guest_name, guest_email, subject, description, category, priority, status)
-       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'open')
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'pending_verification')
        RETURNING id`,
       [businessId, name, email, `${category} support request`, content, category, priority]
     );
     const conversationId = rows[0].id;
-    await pool.query(
+    await client.query(
       `INSERT INTO support_conversation_messages
         (conversation_id, sender_id, message_type, content, is_agent)
        VALUES ($1, NULL, 'text', $2, FALSE)`,
       [conversationId, content]
     );
-    await pool.query(
+    await client.query(
       `UPDATE support_conversations
        SET message_count = 1, customer_message_count = 1
        WHERE id = $1`,
       [conversationId]
     );
-    const routing = await SupportRoutingService.routeTicket({
-      customerId: null,
-      businessId,
-      category,
-      message: content,
-      priority,
-    });
-    if (routing.routedTo === 'agent') {
-      await pool.query(
-        `UPDATE support_conversations
-         SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
-         WHERE id = $2`, [routing.agentId, conversationId]
-      );
-      await pool.query(
-        `INSERT INTO conversation_assignments
-          (conversation_id, agent_id, business_id, assignment_type, status)
-         VALUES ($1, $2, $3, 'auto', 'active')
-         ON CONFLICT DO NOTHING`, [conversationId, routing.agentId, businessId]
-      );
-      WebSocketService.notifyAgent(routing.agentId, 'ticket:new-assignment', { ticketId: conversationId, customerName: name, customerEmail: email, category, message: content });
-    } else {
-      await pool.query(
-        `UPDATE support_conversations SET status = 'waiting_for_agent', updated_at = NOW() WHERE id = $1`, [conversationId]
-      );
-      await pool.query(
-        `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
-         VALUES ($1, $2, $3, 'waiting', NOW()) ON CONFLICT DO NOTHING`, [businessId, conversationId, priority]
-      );
-    }
-    WebSocketService.broadcastToAdmins('ticket:created', { ticketId: conversationId, category, priority, routedTo: routing.routedTo });
-    await sendVerification(conversationId, email, name);
-    return res.status(201).json({ success: true, conversationId, routedTo: routing.routedTo, verificationRequired: true, email: email.replace(/^(.{2}).+(@.*)$/, '$1***$2') });
+    await sendVerification(conversationId, email, name, client);
+    await client.query('COMMIT');
+    return res.status(201).json({ success: true, conversationId, verificationRequired: true, email: email.replace(/^(.{2}).+(@.*)$/, '$1***$2') });
   } catch (err) {
+    if (client) await client.query('ROLLBACK');
     logger.error('createGuestConversation error', { error: err.message });
     return sendError(res, 500, 'Failed to start support conversation');
+  } finally {
+    client?.release();
   }
 }
 
 async function verifyGuestConversation(req, res) {
+  let client;
   try {
     const conversationId = req.params.conversationId;
     const email = normalizeEmail(req.body?.visitorEmail);
     const code = String(req.body?.code || '').trim();
     if (!email || !/^\d{6}$/.test(code)) return sendValidationError(res, { code: 'Enter the six-digit code sent by email' });
-    const { rows } = await pool.query(
-      `SELECT id FROM support_guest_verifications
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const session = await client.query(`SELECT id FROM support_conversations
+      WHERE id = $1 AND guest_email = $2 AND guest_verified_at IS NULL FOR UPDATE`, [conversationId, email]);
+    if (!session.rows.length) {
+      await client.query('ROLLBACK');
+      return sendError(res, 401, 'The verification code is invalid or expired');
+    }
+    const { rows } = await client.query(
+      `SELECT id, code_hash FROM support_guest_verifications
        WHERE conversation_id = $1 AND email = $2 AND consumed_at IS NULL
          AND expires_at > NOW() AND attempts < 5
-       ORDER BY created_at DESC LIMIT 1`,
+       ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
       [conversationId, email]
     );
-    if (!rows.length) return sendError(res, 401, 'The verification code is invalid or expired');
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return sendError(res, 401, 'The verification code is invalid or expired');
+    }
     const verificationId = rows[0].id;
-    const match = await pool.query('SELECT code_hash FROM support_guest_verifications WHERE id = $1', [verificationId]);
-    if (hash(code) !== match.rows[0].code_hash) {
-      await pool.query('UPDATE support_guest_verifications SET attempts = attempts + 1 WHERE id = $1', [verificationId]);
+    if (hash(code) !== rows[0].code_hash) {
+      await client.query('UPDATE support_guest_verifications SET attempts = attempts + 1 WHERE id = $1', [verificationId]);
+      await client.query('COMMIT');
       return sendError(res, 401, 'The verification code is invalid or expired');
     }
     const token = crypto.randomBytes(32).toString('hex');
-    await pool.query('UPDATE support_guest_verifications SET consumed_at = NOW() WHERE id = $1', [verificationId]);
-    await pool.query(
+    await client.query('UPDATE support_guest_verifications SET consumed_at = NOW() WHERE id = $1', [verificationId]);
+    await client.query(
       `UPDATE support_conversations
-       SET guest_access_token_hash = $1, guest_token_expires_at = NOW() + INTERVAL '24 hours', guest_verified_at = NOW()
+       SET guest_access_token_hash = $1, guest_token_expires_at = NOW() + INTERVAL '24 hours', guest_verified_at = NOW(),
+           status = 'waiting_for_agent', live_wait_started_at = NOW(), live_wait_expires_at = NOW() + INTERVAL '5 minutes'
        WHERE id = $2 AND guest_email = $3`,
       [hash(token), conversationId, email]
     );
+    await client.query(`INSERT INTO support_queue (business_id, conversation_id, priority, status)
+      VALUES (NULL, $1, 'normal', 'waiting')`, [conversationId]);
+    await client.query('COMMIT');
+    WebSocketService.broadcastToAdmins('ticket:created', { ticketId: conversationId, routedTo: 'queue' });
     return res.json({ success: true, conversationId, guestToken: token, expiresInSeconds: TOKEN_TTL_MS / 1000 });
   } catch (err) {
+    if (client) await client.query('ROLLBACK');
     logger.error('verifyGuestConversation error', { error: err.message });
     return sendError(res, 500, 'Failed to verify support conversation');
+  } finally {
+    client?.release();
   }
 }
 
@@ -182,7 +173,8 @@ async function loadGuestConversation(req, res) {
   const conversationId = req.params.conversationId;
   try {
     const { rows } = await pool.query(
-      `SELECT id, status, category, priority, guest_name, created_at, updated_at, agent_id
+      `SELECT id, status, category, priority, guest_name, created_at, updated_at, agent_id,
+        live_wait_started_at, live_wait_expires_at, live_wait_ended_at
        FROM support_conversations
        WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
       [conversationId, hash(req.guestToken)]
@@ -195,7 +187,7 @@ async function loadGuestConversation(req, res) {
        ORDER BY created_at ASC`,
       [conversationId]
     );
-    return res.json({ success: true, data: { ...rows[0], messages } });
+    return res.json({ success: true, data: { ...rows[0], messages, waiting: waitingState(rows[0]) } });
   } catch (err) {
     logger.error('loadGuestConversation error', { error: err.message });
     return sendError(res, 500, 'Failed to load support conversation');

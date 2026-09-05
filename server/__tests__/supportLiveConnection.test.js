@@ -327,7 +327,7 @@ describe('live support connection lifecycle', () => {
 
     const claimUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE support_conversations/.test(sql));
     expect(claimUpdate[0]).toContain('agent_id IS NULL');
-    expect(claimUpdate[0]).toContain("status NOT IN ('resolved', 'closed')");
+    expect(claimUpdate[0]).toContain("status NOT IN ('resolved', 'closed', 'pending_verification')");
     expect(res.json).toHaveBeenCalledWith({ success: true, data: { id: 'assignment-1' } });
     expect(WebSocketService.broadcastToAdmins).toHaveBeenCalled();
   });
