@@ -90,7 +90,56 @@ function PublicGuestSupport({ t }) {
     finally { setBusy(false); }
   };
 
-  const shell = (children) => <><Navbar /><main className="flex-1 support-escalation-page"><div className="max-w-2xl mx-auto px-4 py-10">{children}</div></main></>;
+  const shell = (children) => (
+    <>
+      <Navbar />
+      <main className="flex-1 support-escalation-page guest-support-page" dir={document.documentElement.dir || 'ltr'}>
+        <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+          <header className="guest-support-banner mb-6 rounded-[28px] border p-6 md:p-8">
+            <div className="flex items-center gap-3 text-orange-300 mb-3">
+              <ShieldCheck size={24} aria-hidden="true" />
+              <span className="text-sm font-bold uppercase tracking-widest">OxSteed Support</span>
+            </div>
+            <p className="text-slate-300 text-lg leading-7">
+              {t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}
+            </p>
+          </header>
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+            <div className="min-w-0">{children}</div>
+            <aside className="grid gap-4">
+              <section className="guest-support-banner rounded-3xl border p-6">
+                <h2 className="text-white font-semibold text-lg mb-3">
+                  {t('support.escalation.directContactTitle', { defaultValue: 'Need a faster response?' })}
+                </h2>
+                <p className="text-slate-300 text-sm leading-6">
+                  {t('support.escalation.directContactBody', { defaultValue: 'When no specialist is available, call or text OxSteed Support directly.' })}
+                </p>
+                <a href="tel:+19374085169" className="block my-4 text-orange-300 text-lg font-semibold" dir="ltr">{OXSTEED_SUPPORT_PHONE}</a>
+                <div className="grid grid-cols-2 gap-3">
+                  <a href="tel:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-3 py-3 text-white font-semibold hover:bg-orange-700">
+                    <Phone size={17} aria-hidden="true" />{t('support.escalation.callSupport', { defaultValue: 'Call' })}
+                  </a>
+                  <a href="sms:+19374085169" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-3 py-3 text-white font-semibold hover:border-orange-500">
+                    <MessageSquare size={17} aria-hidden="true" />{t('support.escalation.textSupport', { defaultValue: 'Text' })}
+                  </a>
+                </div>
+                <a href="mailto:support@oxsteed.com" className="mt-4 flex items-center gap-2 text-slate-300 text-sm break-all"><Mail size={16} aria-hidden="true" />support@oxsteed.com</a>
+              </section>
+              <section className="guest-support-banner rounded-3xl border p-6">
+                <h2 className="text-white font-semibold mb-3">{t('support.escalation.includeTitle')}</h2>
+                <ul className="text-slate-300 text-sm leading-7 list-disc ps-5">
+                  <li>{t('support.escalation.includeWhat')}</li>
+                  <li>{t('support.escalation.includeIds')}</li>
+                  <li>{t('support.escalation.includeWhy')}</li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
   if (step === 'chat') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p><div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">{messages.map((item) => <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${item.sender?.type === 'agent' ? 'bg-slate-800' : 'ml-8 bg-orange-600'}`}>{item.content}</div>)}</div>{error && <p className="mb-3 text-red-300">{error}</p>}<form onSubmit={send} className="flex gap-2"><input value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || !reply.trim()} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form></section>);
   if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
   return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
@@ -106,9 +155,15 @@ function normalizeSupportMessages(messages = []) {
 }
 
 export default function SupportEscalationPage() {
+  const { t } = useTranslation();
+  return localStorage.getItem('accessToken')
+    ? <AuthenticatedSupportEscalationPage />
+    : <PublicGuestSupport t={t} />;
+}
+
+function AuthenticatedSupportEscalationPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  if (!localStorage.getItem('accessToken')) return <PublicGuestSupport t={t} />;
   const [phase, setPhase] = useState('checking'); // 'checking' | 'live-chat' | 'ticket' | 'success'
   const [agentsOnline, setAgentsOnline] = useState(0);
   const [ticketId, setTicketId] = useState(null);

@@ -2,6 +2,23 @@
   color-scheme: dark;
 }
 
+.guest-support-page {
+  min-height: calc(100vh - 140px);
+  background: radial-gradient(circle at top left, rgba(249,115,22,0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 22%),
+    linear-gradient(180deg, #07101c 0%, #040811 100%);
+}
+
+.guest-support-banner {
+  border-color: rgba(148,163,184,0.16);
+  background: linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,23,0.96));
+}
+
+.guest-support-page a:focus-visible {
+  outline: 2px solid #fb923c;
+  outline-offset: 4px;
+}
+
 /* The global light-mode bridge remaps Tailwind dark utility classes across the
    site. This page is intentionally a dark escalation surface, so keep its
    ticket panels readable when the navbar/theme toggle switches to light mode. */
