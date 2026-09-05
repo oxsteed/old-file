@@ -7,7 +7,7 @@ import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'luci
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
-export default function TwoFactorSetup() {
+export default function TwoFactorSetup({ adminSetup = false }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +177,11 @@ export default function TwoFactorSetup() {
 
           {step === 'enabled' && (
             <div className="space-y-6">
+              {adminSetup && (
+                <Link to="/admin/dashboard" className="block text-center rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white">
+                  {t('nav.dashboard')}
+                </Link>
+              )}
               <div className="flex items-center gap-3 p-4 bg-green-900/20 border border-green-800/30 rounded-xl">
                 <ShieldCheck className="text-green-400" size={24} />
                 <div>

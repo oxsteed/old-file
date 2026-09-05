@@ -4,6 +4,11 @@
 
 ## Instructions for Every Session
 
+### Admin reload loop fix (2026-09-05)
+- Legacy admin API now shares the token-refresh client; generic 403 responses no longer reload login.
+- Explicit `admin_2fa_required` challenges navigate once to the new authenticated `/admin/2fa-setup` route using the existing authenticator setup screen. Security enforcement remains unchanged.
+- Regression checks: `node --test client/scripts/admin-challenge.test.mjs`. User must complete authenticator enrollment personally before admin APIs become available.
+
 1. **Read this file first** - It is the authoritative source of truth for what exists and what needs to be done.
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.

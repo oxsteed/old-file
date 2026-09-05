@@ -1,4 +1,5 @@
 import api from './axios';
+import { createAdminChallengeHandler } from './adminChallenge.mjs';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -63,10 +64,12 @@ export function getStoredUser() {
 }
 
 let refreshPromise = null;
+const handleAdminChallenge = createAdminChallengeHandler(window.location);
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    handleAdminChallenge(error);
     const originalRequest = error.config;
 
     if (!originalRequest) {

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
+import TwoFactorSetup from '../pages/Settings/TwoFactorSetup';
 
 const adminQueryClient = new QueryClient({
   defaultOptions: {
@@ -145,6 +146,9 @@ export default function AdminApp() {
       <Routes>
         {/* Public login route */}
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/2fa-setup" element={
+          <AdminGuard><TwoFactorSetup adminSetup /></AdminGuard>
+        } />
 
         {/* Full-width template preview (no sidebar) - still requires admin auth */}
         <Route path="/admin/template-preview" element={
