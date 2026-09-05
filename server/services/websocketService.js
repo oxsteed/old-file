@@ -4,6 +4,7 @@
  */
 
 const logger = require('../utils/logger');
+const pool = require('../db');
 
 class WebSocketService {
   constructor() {
@@ -31,8 +32,9 @@ class WebSocketService {
 
       // Customer joins widget
       socket.on('customer:join', (data) => {
-        const { userId, visitorEmail, visitorName } = data;
-        this.customerConnections.set(userId, socket.id);
+        const { visitorEmail, visitorName } = data || {};
+        const userId = socket.userId;
+        if (userId) this.customerConnections.set(userId, socket.id);
         socket.data.userId = userId;
         socket.data.type = 'customer';
         socket.data.email = visitorEmail;
@@ -41,8 +43,16 @@ class WebSocketService {
       });
 
       // Agent joins dashboard
-      socket.on('agent:join', (data) => {
-        const { agentId } = data;
+      socket.on('agent:join', async () => {
+        if (!['admin', 'super_admin'].includes(socket.userRole)) return;
+        const { rows } = await pool.query(
+          `SELECT id FROM support_agents
+           WHERE user_id = $1 AND status = 'active'
+           ORDER BY created_at ASC LIMIT 1`,
+          [socket.userId]
+        );
+        const agentId = rows[0]?.id;
+        if (!agentId) return;
         this.agentConnections.set(agentId, socket.id);
         socket.data.agentId = agentId;
         socket.data.type = 'agent';
@@ -58,14 +68,28 @@ class WebSocketService {
 
       // Admin joins support dashboard
       socket.on('admin:join', (data) => {
+        if (!['admin', 'super_admin'].includes(socket.userRole)) return;
         socket.join('admins');
         socket.data.type = 'admin';
         logger.info('Admin joined dashboard', { socketId: socket.id });
       });
 
       // Customer joins specific ticket chat
-      socket.on('ticket:join', (data) => {
-        const { ticketId, userId } = data;
+      socket.on('ticket:join', async (data) => {
+        const { ticketId } = data || {};
+        if (!ticketId || (!socket.userId && socket.guestConversationId !== ticketId)) return;
+        const { rows } = await pool.query(
+          `SELECT 1
+           FROM support_conversations sc
+           LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+           WHERE sc.id = $1
+             AND ($2 = sc.customer_id
+               OR sa.user_id = $2
+               OR $3 IN ('admin', 'super_admin')
+               OR $4 = sc.id)`,
+          [ticketId, socket.userId, socket.userRole, socket.guestConversationId]
+        );
+        if (!rows.length) return;
         socket.join(`ticket:${ticketId}`);
 
         if (!this.ticketSockets.has(ticketId)) {
@@ -73,13 +97,15 @@ class WebSocketService {
         }
         this.ticketSockets.get(ticketId).push(socket.id);
 
-        logger.info('Joined ticket room', { ticketId, userId, socketId: socket.id });
+        logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
       });
 
       // Customer sends message
       socket.on('message:send', (data) => {
         const { ticketId, content, timestamp } = data;
         const userId = socket.data.userId;
+
+        if (!userId || !socket.rooms.has(`ticket:${ticketId}`) || !String(content || '').trim() || String(content).length > 5000) return;
 
         // Broadcast to all in ticket room (customer + agent + admins)
         namespace.to(`ticket:${ticketId}`).emit('message:new', {
@@ -101,6 +127,8 @@ class WebSocketService {
       socket.on('agent:message-send', (data) => {
         const { ticketId, content, timestamp } = data;
         const agentId = socket.data.agentId;
+
+        if (!agentId || !socket.rooms.has(`ticket:${ticketId}`) || !String(content || '').trim() || String(content).length > 5000) return;
 
         // Broadcast to all in ticket room
         namespace.to(`ticket:${ticketId}`).emit('message:new', {
@@ -138,6 +166,7 @@ class WebSocketService {
 
       // Assign ticket to agent
       socket.on('ticket:assign', (data) => {
+        if (!['admin', 'super_admin'].includes(socket.userRole)) return;
         const { ticketId, agentId } = data;
 
         // Notify agent of assignment
@@ -163,6 +192,8 @@ class WebSocketService {
       // Close ticket
       socket.on('ticket:close', (data) => {
         const { ticketId } = data;
+
+        if (!socket.rooms.has(`ticket:${ticketId}`)) return;
 
         namespace.to(`ticket:${ticketId}`).emit('ticket:closed', {
           ticketId,
@@ -258,6 +289,10 @@ class WebSocketService {
    */
   getActiveAgentCount() {
     return this.agentConnections.size;
+  }
+
+  isInitialized() {
+    return Boolean(this.io);
   }
 
   /**

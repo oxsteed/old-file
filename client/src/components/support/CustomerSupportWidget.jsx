@@ -42,6 +42,7 @@ export default function CustomerSupportWidget() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5,
+      auth: { token: localStorage.getItem('accessToken') },
     });
 
     socket.on('connect', () => {
@@ -150,7 +151,7 @@ export default function CustomerSupportWidget() {
   const loadTicketMessages = useCallback(async (ticketId) => {
     try {
       const response = await api.get(`/support/conversations/${ticketId}`);
-      setMessages(response.data.messages || []);
+      setMessages(response.data.data?.messages || response.data.messages || []);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -218,17 +219,16 @@ export default function CustomerSupportWidget() {
   };
 
   // Send message
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!formData.message.trim() || !selectedTicket) return;
-
-    socketRef.current.emit('message:send', {
-      ticketId: selectedTicket.id,
-      content: formData.message,
-      timestamp: new Date().toISOString(),
-    });
-
-    setFormData(prev => ({ ...prev, message: '' }));
+    const content = formData.message.trim();
+    try {
+      await api.post(`/support/conversations/${selectedTicket.id}/message`, { message: content });
+      setFormData(prev => ({ ...prev, message: '' }));
+    } catch {
+      toast.error(t('supportWidget.sendMessageFailed', { defaultValue: 'Could not send your message. Please try again.' }));
+    }
   };
 
   // Handle open

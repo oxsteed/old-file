@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
+const supportConversationsController = require('./supportConversationsController');
 const { withTransaction } = require('../utils/transaction');
 
 function assignedAgentFromRow(row) {
@@ -232,7 +233,7 @@ exports.createConversation = async (req, res) => {
     const businessId = req.params.businessId;
 
     // Validate input
-    if (!message?.trim() || !category) {
+    if (!message?.trim() || message.length > 5000 || !category) {
       return sendValidationError(res, { message: 'Message and category required' });
     }
 
@@ -403,80 +404,13 @@ exports.getConversation = async (req, res) => {
 
 // Send message
 exports.sendMessage = async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-    const { senderId, senderType, senderName, content } = req.body;
-
-    if (!content?.trim()) {
-      return sendValidationError(res, { content: 'Message cannot be empty' });
-    }
-
-    // Validate sender type
-    if (!['customer', 'agent', 'system'].includes(senderType)) {
-      return sendValidationError(res, { senderType: 'Invalid sender type' });
-    }
-
-    // Insert message with new schema (includes sender_name, message_type, expires_at for 180-day retention)
-    const messageQuery = `
-      INSERT INTO support_messages
-      (ticket_id, sender_type, sender_id, sender_name, content, message_type, created_at, expires_at)
-      VALUES ($1, $2, $3, $4, $5, 'text', NOW(), NOW() + INTERVAL '180 days')
-      RETURNING id, created_at
-    `;
-
-    const result = await db.query(messageQuery, [
-      ticketId,
-      senderType,
-      senderId,
-      senderName || 'Unknown',
-      content.trim(),
-    ]);
-
-    // Update conversation last_message_at and status if customer responded while waiting
-    if (senderType === 'customer') {
-      const updateQuery = `
-        UPDATE support_conversations
-        SET status = 'in_progress', updated_at = NOW(), last_message_at = NOW()
-        WHERE id = $1 AND status = 'waiting_customer'
-      `;
-      await db.query(updateQuery, [ticketId]);
-    } else {
-      // Update last_message_at for any message
-      const updateQuery = `
-        UPDATE support_conversations
-        SET last_message_at = NOW()
-        WHERE id = $1
-      `;
-      await db.query(updateQuery, [ticketId]);
-    }
-
-    // Broadcast message to ticket room via WebSocket
-    WebSocketService.broadcastToTicket(ticketId, 'message:new', {
-      ticketId,
-      sender: {
-        type: senderType,
-        id: senderId,
-        name: senderName || 'Unknown',
-      },
-      content: content.trim(),
-      timestamp: result.rows[0].created_at,
-    });
-
-    logger.info('Message sent', {
-      ticketId,
-      messageId: result.rows[0].id,
-      senderType,
-    });
-
-    res.json({
-      messageId: result.rows[0].id,
-      timestamp: result.rows[0].created_at,
-      expiresAt: new Date(new Date().getTime() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-  } catch (err) {
-    logger.error('Send message error', { error: err.message });
-    sendError(res, 500, 'Failed to send message');
-  }
+  req.params.conversationId = req.params.ticketId;
+  req.body = {
+    ...req.body,
+    content: req.body.content || req.body.message,
+    isInternal: false,
+  };
+  return supportConversationsController.addMessage(req, res);
 };
 
 // Update conversation status
@@ -584,7 +518,11 @@ exports.getStatus = async (req, res) => {
         AND u.support_available_at > NOW() - INTERVAL '2 minutes'
     `;
     const { rows } = await pool.query(availQuery);
-    const agentsAvailable = parseInt(rows[0]?.count || 0, 10);
+    const databaseAgentsAvailable = parseInt(rows[0]?.count || 0, 10);
+    const connectedAgents = WebSocketService.getActiveAgentCount();
+    const agentsAvailable = connectedAgents
+      ? Math.min(databaseAgentsAvailable, connectedAgents)
+      : 0;
 
     res.json({
       ...status,

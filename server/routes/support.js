@@ -25,10 +25,18 @@ const supportAgentPortalController = require('../controllers/supportAgentPortalC
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
 const { randomUUID } = require('crypto');
+const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
+const publicSupport = require('../controllers/publicSupportController');
+
+router.post('/public/conversations', conversationMessageLimiter, publicSupport.createGuestConversation);
+router.post('/public/conversations/:conversationId/verify', conversationMessageLimiter, publicSupport.verifyGuestConversation);
+router.post('/public/conversations/:conversationId/resend-code', conversationMessageLimiter, publicSupport.resendGuestVerification);
+router.get('/public/conversations/:conversationId', publicSupport.guestToken, publicSupport.loadGuestConversation);
+router.post('/public/conversations/:conversationId/messages', conversationMessageLimiter, publicSupport.guestToken, publicSupport.addGuestMessage);
 
 // Public/customer ticket entry point. Guests can create tickets, and signed-in
 // users are linked automatically when a valid bearer token is present.
-router.post('/request', optionalAuth, supportTicketController.submitSupportRequest);
+router.post('/request', authenticatedLimiter, optionalAuth, supportTicketController.submitSupportRequest);
 
 // All routes require authentication
 router.use(requireAuth);
@@ -288,7 +296,7 @@ router.get('/conversations', async (req, res, next) => {
   }
 });
 
-router.post('/conversations', async (req, res, next) => {
+router.post('/conversations', conversationMessageLimiter, async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });
@@ -306,7 +314,7 @@ router.post('/conversations', async (req, res, next) => {
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
 
-router.post('/conversations/:conversationId/message', (req, res, next) => {
+router.post('/conversations/:conversationId/message', conversationMessageLimiter, (req, res, next) => {
   req.body = {
     ...req.body,
     content: req.body.content || req.body.message,

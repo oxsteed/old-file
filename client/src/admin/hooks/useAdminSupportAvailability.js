@@ -82,10 +82,11 @@ export default function useAdminSupportAvailability({ autoOnline = false } = {})
     const socket = io(realtimeNamespaceUrl('support'), {
       transports: ['websocket', 'polling'],
       reconnection: true,
+      auth: { token: localStorage.getItem('accessToken') },
     });
     socket.on('connect', () => {
-      socket.emit('admin:join', { agentId });
-      socket.emit('agent:join', { agentId });
+      socket.emit('admin:join');
+      socket.emit('agent:join');
     });
     const publishTicketEvent = (payload) => {
       window.dispatchEvent(new CustomEvent('oxs:admin-support-ticket', { detail: payload }));

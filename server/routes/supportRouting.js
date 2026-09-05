@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const supportRoutingController = require('../controllers/supportRoutingController');
 const db = require('../db');
+const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
 
 async function resolveSupportBusinessId(req) {
   if (req.params.businessId) return req.params.businessId;
@@ -21,7 +22,7 @@ async function resolveSupportBusinessId(req) {
 
 router.get('/status', requireAuth, supportRoutingController.getStatus);
 
-router.post('/connect', requireAuth, async (req, res, next) => {
+router.post('/connect', authenticatedLimiter, requireAuth, async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });
@@ -32,7 +33,7 @@ router.post('/connect', requireAuth, async (req, res, next) => {
   }
 });
 
-router.post('/conversations', requireAuth, async (req, res, next) => {
+router.post('/conversations', conversationMessageLimiter, requireAuth, async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });

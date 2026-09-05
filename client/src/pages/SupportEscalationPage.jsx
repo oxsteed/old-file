@@ -27,6 +27,75 @@ import './SupportEscalationPage.css';
 
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
 
+function PublicGuestSupport({ t }) {
+  const [step, setStep] = useState('start');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [code, setCode] = useState('');
+  const [conversationId, setConversationId] = useState(sessionStorage.getItem('oxs:guest-support-id') || '');
+  const [token, setToken] = useState(sessionStorage.getItem('oxs:guest-support-token') || '');
+  const [messages, setMessages] = useState([]);
+  const [reply, setReply] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    if (!conversationId || !token) return;
+    const response = await api.get(`/support/public/conversations/${conversationId}`, { headers: { Authorization: `Guest ${token}` } });
+    setMessages(normalizeSupportMessages(response.data.data?.messages || []));
+  }, [conversationId, token]);
+
+  useEffect(() => { if (token) { setStep('chat'); load().catch(() => setError(t('support.escalation.sessionExpired', { defaultValue: 'This support session has expired. Please start a new request.' }))); } }, [token, load, t]);
+
+  useEffect(() => {
+    if (!token || !conversationId) return undefined;
+    const socket = io(realtimeNamespaceUrl('support'), { transports: ['websocket', 'polling'], auth: { guestToken: token, conversationId } });
+    socket.on('connect', () => socket.emit('customer:join', { visitorName: name, visitorEmail: email }));
+    socket.on('message:new', (data) => {
+      if (data.ticketId === conversationId && data.sender?.type === 'agent') setMessages((current) => [...current, data]);
+    });
+    return () => socket.disconnect();
+  }, [conversationId, email, name, token]);
+
+  const start = async (event) => {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const response = await api.post('/support/public/conversations', { visitorName: name, visitorEmail: email, message });
+      setConversationId(response.data.conversationId); sessionStorage.setItem('oxs:guest-support-id', response.data.conversationId); setStep('verify');
+    } catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not start support.' })); }
+    finally { setBusy(false); }
+  };
+
+  const verify = async (event) => {
+    event.preventDefault(); setBusy(true); setError('');
+    try {
+      const response = await api.post(`/support/public/conversations/${conversationId}/verify`, { visitorEmail: email, code });
+      setToken(response.data.guestToken); sessionStorage.setItem('oxs:guest-support-token', response.data.guestToken); setStep('chat');
+    } catch (err) { setError(err.response?.data?.error || t('support.escalation.invalidCode', { defaultValue: 'That code is invalid or expired.' })); }
+    finally { setBusy(false); }
+  };
+
+  const resend = async () => {
+    setBusy(true); setError('');
+    try { await api.post(`/support/public/conversations/${conversationId}/resend-code`, { visitorEmail: email }); }
+    catch (err) { setError(err.response?.data?.error || t('support.escalation.resendFailed', { defaultValue: 'Could not resend the code yet.' })); }
+    finally { setBusy(false); }
+  };
+
+  const send = async (event) => {
+    event.preventDefault(); const content = reply.trim(); if (!content) return; setBusy(true); setError('');
+    try { await api.post(`/support/public/conversations/${conversationId}/messages`, { message: content }, { headers: { Authorization: `Guest ${token}` } }); setReply(''); await load(); }
+    catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not send your message.' })); }
+    finally { setBusy(false); }
+  };
+
+  const shell = (children) => <><Navbar /><main className="flex-1 support-escalation-page"><div className="max-w-2xl mx-auto px-4 py-10">{children}</div></main></>;
+  if (step === 'chat') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p><div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">{messages.map((item) => <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${item.sender?.type === 'agent' ? 'bg-slate-800' : 'ml-8 bg-orange-600'}`}>{item.content}</div>)}</div>{error && <p className="mb-3 text-red-300">{error}</p>}<form onSubmit={send} className="flex gap-2"><input value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || !reply.trim()} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form></section>);
+  if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
+  return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
+}
+
 function normalizeSupportMessages(messages = []) {
   return messages.map((message) => ({
     id: message.id,
@@ -39,6 +108,7 @@ function normalizeSupportMessages(messages = []) {
 export default function SupportEscalationPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  if (!localStorage.getItem('accessToken')) return <PublicGuestSupport t={t} />;
   const [phase, setPhase] = useState('checking'); // 'checking' | 'live-chat' | 'ticket' | 'success'
   const [agentsOnline, setAgentsOnline] = useState(0);
   const [ticketId, setTicketId] = useState(null);
@@ -66,6 +136,7 @@ export default function SupportEscalationPage() {
     const socket = io(realtimeNamespaceUrl('support'), {
       transports: ['websocket', 'polling'],
       reconnection: true,
+      auth: { token: localStorage.getItem('accessToken') },
     });
     socketRef.current = socket;
 

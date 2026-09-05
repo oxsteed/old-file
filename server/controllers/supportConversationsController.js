@@ -355,7 +355,7 @@ async function addMessage(req, res) {
       isInternal = false,
     } = req.body;
 
-    if (!content) {
+    if (!content || content.length > 5000) {
       return sendValidationError(res, { content: 'Required' });
     }
 

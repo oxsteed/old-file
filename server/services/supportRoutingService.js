@@ -5,6 +5,14 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const WebSocketService = require('./websocketService');
+
+function routableAgents(agents) {
+  if (!WebSocketService.isInitialized()) return agents;
+  const connectedCount = WebSocketService.getActiveAgentCount();
+  if (!connectedCount) return [];
+  return agents.filter((agent) => WebSocketService.isAgentOnline(agent.id));
+}
 
 class SupportRoutingService {
   /**
@@ -121,16 +129,8 @@ class SupportRoutingService {
         priority,
       } = ticketData;
 
-      // Layer 1: AI Analysis
+      // AI can provide context, but an available human always wins for live support.
       const aiAnalysis = await this.analyzeWithAI(message, category);
-
-      if (!aiAnalysis.shouldEscalate) {
-        return {
-          routedTo: 'ai',
-          confidence: aiAnalysis.confidence,
-          agentId: null,
-        };
-      }
 
       // Layer 2: Skill-based search
       const skillsForCategory = this.getSkillsForCategory(category);
@@ -142,7 +142,7 @@ class SupportRoutingService {
       if (skillMatchedAgents.length === 0) {
         // Fallback: find any available agent
         const anyAgent = await this.findAgentsBySkill([], businessId);
-        const available = this.filterByAvailability(anyAgent);
+        const available = routableAgents(this.filterByAvailability(anyAgent));
 
         if (available.length === 0) {
           return {
@@ -161,7 +161,7 @@ class SupportRoutingService {
       }
 
       // Layer 3: Availability filtering
-      const availableAgents = this.filterByAvailability(skillMatchedAgents);
+      const availableAgents = routableAgents(this.filterByAvailability(skillMatchedAgents));
 
       if (availableAgents.length === 0) {
         return {

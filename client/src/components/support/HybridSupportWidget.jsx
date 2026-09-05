@@ -54,6 +54,7 @@ export default function HybridSupportWidget() {
     const socket = io(realtimeNamespaceUrl('support'), {
       transports: ['websocket', 'polling'],
       reconnection: true,
+      auth: { token: localStorage.getItem('accessToken') },
     });
 
     socket.on('connect', () => {
@@ -231,22 +232,19 @@ export default function HybridSupportWidget() {
   };
 
   // Send live message
-  const handleSendLiveMessage = useCallback(() => {
+  const handleSendLiveMessage = useCallback(async () => {
     if (!liveInput.trim() || !ticketId) return;
-
-    socketRef.current.emit('message:send', {
-      ticketId,
-      content: liveInput.trim(),
-      timestamp: new Date().toISOString(),
-    });
-
-    setLiveMessages(prev => [...prev, {
-      id: Date.now(),
-      sender: { type: 'customer' },
-      content: liveInput.trim(),
-    }]);
-    setLiveInput('');
-  }, [liveInput, ticketId]);
+    const content = liveInput.trim();
+    try {
+      setLiveSending(true);
+      await api.post(`/support/conversations/${ticketId}/message`, { message: content });
+      setLiveInput('');
+    } catch {
+      toast.error(t('hybridSupportWidget.messageFailed', { defaultValue: 'Could not send your message. Please try again.' }));
+    } finally {
+      setLiveSending(false);
+    }
+  }, [liveInput, ticketId, t]);
 
   // Submit ticket
   const handleSubmitTicket = async () => {

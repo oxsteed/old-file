@@ -89,12 +89,12 @@ describe('shared realtime server', () => {
     realtime.namespaces.chat.to('user_user-1').emit('notification:test', { ok: true });
     await expect(chatEvent).resolves.toEqual({ ok: true });
 
-    const support = await connect(`${baseUrl}/support`);
+    const support = await connect(`${baseUrl}/support`, { auth: { token } });
     clients.push(support);
-    support.emit('customer:join', { userId: 'guest-1', visitorName: 'Guest' });
+    support.emit('customer:join', { userId: 'spoofed-id', visitorName: 'Guest' });
     await new Promise((resolve) => setTimeout(resolve, 20));
     const supportEvent = once(support, 'support:test');
-    supportService.notifyCustomer('guest-1', 'support:test', { ok: true });
+    supportService.notifyCustomer('user-1', 'support:test', { ok: true });
     await expect(supportEvent).resolves.toEqual({ ok: true });
 
     const display = await connect(`${baseUrl}/restaurant-display`);
@@ -108,6 +108,7 @@ describe('shared realtime server', () => {
 
   test('rejects unauthenticated chat connections without affecting public namespaces', async () => {
     await expect(connect(`${baseUrl}/chat`)).rejects.toThrow('Authentication required');
+    await expect(connect(`${baseUrl}/support`)).rejects.toThrow('Authentication required');
     const display = await connect(`${baseUrl}/restaurant-display`);
     clients.push(display);
     expect(display.connected).toBe(true);

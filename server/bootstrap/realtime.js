@@ -6,6 +6,8 @@ const defaultSocketService = require('../services/socketService');
 const defaultSupportService = require('../services/websocketService');
 const { bindChatNamespace, createChatAuthenticator } = require('../realtime/chatNamespace');
 const { bindRestaurantDisplayNamespace } = require('../realtime/restaurantDisplayNamespace');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
 
@@ -45,6 +47,42 @@ function createRealtimeServer({
     socketService.init(chat);
 
     const support = io.of('/support');
+    support.use(async (socket, next) => {
+      const guestToken = socket.handshake.auth?.guestToken;
+      const guestConversationId = socket.handshake.auth?.conversationId;
+      if (guestToken && guestConversationId) {
+        try {
+          const tokenHash = crypto.createHash('sha256').update(String(guestToken)).digest('hex');
+          const { rows } = await pool.query(
+            `SELECT id FROM support_conversations
+             WHERE id = $1 AND guest_access_token_hash = $2
+               AND guest_token_expires_at > NOW()`,
+            [guestConversationId, tokenHash]
+          );
+          if (!rows.length) return next(new Error('Invalid guest support token'));
+          socket.guestConversationId = guestConversationId;
+          socket.guestToken = guestToken;
+          return next();
+        } catch (err) {
+          return next(new Error('Guest support authentication failed'));
+        }
+      }
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      if (!token) return next(new Error('Authentication required'));
+      try {
+        const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
+        const { rows } = await pool.query(
+          'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
+          [decoded.id]
+        );
+        if (!rows[0]?.is_active) return next(new Error('Account suspended'));
+        socket.userId = decoded.id;
+        socket.userRole = rows[0].role;
+        return next();
+      } catch (err) {
+        return next(new Error(err.name === 'JsonWebTokenError' ? 'Invalid token' : 'Auth check failed'));
+      }
+    });
     supportService.initialize(support);
 
     const restaurantDisplay = io.of('/restaurant-display');
