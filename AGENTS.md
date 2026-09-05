@@ -5,6 +5,7 @@
 ## Instructions for Every Session
 
 ### Admin reload loop fix (2026-09-05)
+- Follow-up: admin root now supplies shared cookie consent and toast UI via `AdminProviders`, including the shared footer used by two-factor setup. Render regression: `node --test client/scripts/admin-providers.test.mjs`.
 - Legacy admin API now shares the token-refresh client; generic 403 responses no longer reload login.
 - Explicit `admin_2fa_required` challenges navigate once to the new authenticated `/admin/2fa-setup` route using the existing authenticator setup screen. Security enforcement remains unchanged.
 - Regression checks: `node --test client/scripts/admin-challenge.test.mjs`. User must complete authenticator enrollment personally before admin APIs become available.

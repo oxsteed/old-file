@@ -2,10 +2,7 @@ import '../instrument.jsx';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
-import { HelmetProvider } from 'react-helmet-async';
-import { AuthProvider } from '../context/AuthContext';
-import { LanguageProvider } from '../context/LanguageContext';
-import { ThemeProvider } from '../context/ThemeContext';
+import AdminProviders from './AdminProviders';
 import AdminApp from './AdminApp';
 import '../i18n'; // Initialize i18next before any component renders
 import '../index.css';
@@ -33,15 +30,9 @@ function sentryAdminFallback({ error, resetError }) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={sentryAdminFallback}>
-      <HelmetProvider>
-        <LanguageProvider>
-          <ThemeProvider>
-            <AuthProvider>
-              <AdminApp />
-            </AuthProvider>
-          </ThemeProvider>
-        </LanguageProvider>
-      </HelmetProvider>
+      <AdminProviders>
+        <AdminApp />
+      </AdminProviders>
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 );

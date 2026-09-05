@@ -64,7 +64,9 @@ export function getStoredUser() {
 }
 
 let refreshPromise = null;
-const handleAdminChallenge = createAdminChallengeHandler(window.location);
+const handleAdminChallenge = typeof window === 'undefined'
+  ? () => {}
+  : createAdminChallengeHandler(window.location);
 
 api.interceptors.response.use(
   (response) => response,
