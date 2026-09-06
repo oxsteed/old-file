@@ -1,9 +1,22 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 export function SupportPageShell({ children }) {
+  const { pathname } = useLocation();
+  const isInbox = pathname === '/admin/support';
+
   return (
     <div className="min-h-full bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.08),transparent_24%),linear-gradient(180deg,#030712_0%,#0b1120_100%)] p-4 md:p-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
+        {!isInbox ? (
+          <Link
+            to="/admin/support"
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm text-gray-400 transition hover:border-orange-500/40 hover:text-white"
+          >
+            <ArrowLeft size={15} />
+            Back to Support Inbox
+          </Link>
+        ) : null}
         {children}
       </div>
     </div>
