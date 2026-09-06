@@ -241,9 +241,9 @@ export default function SupportAgentDashboard() {
         stats={[
           {
             icon: Users,
-            label: 'Online agents',
+            label: 'Live-ready agents',
             value: stats.agents_online || 0,
-            detail: 'Agents currently active in the support system.',
+            detail: `${stats.available_capacity || 0} open chat slot${stats.available_capacity === 1 ? '' : 's'} across live-ready agents.`,
           },
           {
             icon: MessageSquare,
@@ -286,13 +286,13 @@ export default function SupportAgentDashboard() {
                 <div key={agent.id} className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-3 w-3 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.5)]" />
+                      <div className={`h-3 w-3 rounded-full ${agent.live_ready ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.5)]' : 'bg-amber-500'}`} />
                       <div>
                         <div className="text-sm font-semibold text-white">{agent.name}</div>
                         <div className="mt-1 text-xs text-gray-500">{agent.role}</div>
                       </div>
                     </div>
-                    <SupportTag tone="orange">{agent.active_chats || 0} active chats</SupportTag>
+                    <SupportTag tone={agent.live_ready ? 'orange' : 'default'}>{agent.live_ready ? `${agent.active_chats || 0} active chats` : (agent.availability_reason || 'Not live-ready').replaceAll('_', ' ')}</SupportTag>
                   </div>
                 </div>
               ))}

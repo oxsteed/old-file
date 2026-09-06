@@ -301,7 +301,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
       try {
         const statusResponse = await api.get('/support-routing/status');
         if (!active) return;
-        const onlineCount = statusResponse.data.agents || 0;
+        const onlineCount = statusResponse.data.liveAvailableAgents ?? statusResponse.data.agents ?? 0;
         setAgentsOnline(onlineCount);
         if (onlineCount < 1) {
           setPhase('ticket');
@@ -546,7 +546,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+              <StatPill icon={Users} label={t('support.escalation.availableForLiveChat', { defaultValue: 'Available for live chat' })} value={agentsOnline} />
               <StatPill icon={Clock} label={t('support.escalation.escalationMode')} value={t('support.escalation.autoRoute')} />
               <StatPill icon={ShieldCheck} label={t('support.escalation.coverage')} value={t('support.escalation.liveOrTicket')} />
             </div>
@@ -561,7 +561,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
               body={t('support.escalation.liveBody')}
               right={(
                 <div className="grid gap-3">
-                  <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+                  <StatPill icon={Users} label={t('support.escalation.availableForLiveChat', { defaultValue: 'Available for live chat' })} value={agentsOnline} />
                   <StatPill icon={MessageSquare} label={t('support.escalation.conversationType')} value={t('support.escalation.liveChat')} />
                   <StatPill icon={ShieldCheck} label={t('support.escalation.supportMode')} value={supportModeLabel} />
                 </div>
@@ -691,7 +691,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
               body={t('support.escalation.noAgentsMessage')}
               right={(
                 <div className="grid gap-3">
-                  <StatPill icon={Users} label={t('support.escalation.agentsOnline')} value={agentsOnline} />
+                  <StatPill icon={Users} label={t('support.escalation.availableForLiveChat', { defaultValue: 'Available for live chat' })} value={agentsOnline} />
                   <StatPill icon={Clock} label={t('support.escalation.routingMode')} value={t('support.escalation.ticketFallback')} />
                   <StatPill icon={Mail} label={t('support.escalation.responseChannel')} value={t('support.escalation.emailUpdates')} />
                 </div>

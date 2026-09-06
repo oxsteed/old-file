@@ -502,31 +502,16 @@ exports.assignToAgent = async (req, res) => {
 exports.getStatus = async (req, res) => {
   try {
     const status = WebSocketService.getConnectionStatus();
-    // Count only platform agents who are both opted in and actively heartbeating.
-    // This is the same population used by SupportRoutingService, so the status
-    // shown to customers cannot advertise an unroutable admin session.
-    const availQuery = `
-      SELECT COUNT(*) AS count
-      FROM support_agents sa
-      JOIN support_employers se ON se.id = sa.employer_id AND se.kind = 'platform'
-      JOIN users u ON u.id = sa.user_id
-      WHERE sa.status = 'active'
-        AND sa.is_available = true
-        AND u.is_active = true
-        AND u.role IN ('admin', 'super_admin')
-        AND u.is_available_for_support = true
-        AND u.support_available_at > NOW() - INTERVAL '2 minutes'
-    `;
-    const { rows } = await pool.query(availQuery);
-    const databaseAgentsAvailable = parseInt(rows[0]?.count || 0, 10);
-    const connectedAgents = WebSocketService.getActiveAgentCount();
-    const agentsAvailable = connectedAgents
-      ? Math.min(databaseAgentsAvailable, connectedAgents)
-      : 0;
+    const availability = await SupportRoutingService.getLiveAvailability(null);
 
     res.json({
       ...status,
-      agents: agentsAvailable,
+      agents: availability.liveAvailableAgents,
+      liveAvailableAgents: availability.liveAvailableAgents,
+      onlineAgents: availability.onlineAgents,
+      availableCapacity: availability.availableCapacity,
+      markedAvailableAgents: availability.markedAvailableAgents,
+      diagnostics: availability.diagnostics,
       socketAgents: status.agents,
     });
   } catch (err) {

@@ -2,8 +2,13 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 const SupportRoutingService = require('../services/supportRoutingService');
+const WebSocketService = require('../services/websocketService');
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  WebSocketService.io = null;
+  WebSocketService.agentConnections.clear();
+});
 
 describe('SupportRoutingService', () => {
   test('queries only active and available routable agents', async () => {
@@ -52,6 +57,8 @@ describe('SupportRoutingService', () => {
         current_chats: 0,
       }],
     });
+    WebSocketService.io = {};
+    WebSocketService.agentConnections.set('agent-1', 'socket-1');
 
     const result = await SupportRoutingService.routeTicket({
       customerId: 'customer-1',

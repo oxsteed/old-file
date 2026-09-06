@@ -27,6 +27,7 @@ const db = require('../db');
 const { randomUUID } = require('crypto');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
 const publicSupport = require('../controllers/publicSupportController');
+const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -354,7 +355,7 @@ router.get('/agents/dashboard', async (req, res, next) => {
       return res.status(400).json({ error: 'business_id is required' });
     }
     const stats = await supportConversationStats(businessId);
-    const { rows: agents } = await db.query(
+    const { rows: agentRows } = await db.query(
       `SELECT
          sa.id,
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
@@ -374,6 +375,13 @@ router.get('/agents/dashboard', async (req, res, next) => {
        LIMIT 25`,
       [businessId || null]
     );
+    const availability = await SupportRoutingService.getLiveAvailability(businessId || null);
+    const diagnosticsById = new Map(availability.diagnostics.map((item) => [String(item.id), item]));
+    const agents = agentRows.map((agent) => ({
+      ...agent,
+      live_ready: diagnosticsById.get(String(agent.id))?.liveReady || false,
+      availability_reason: diagnosticsById.get(String(agent.id))?.reason || (!agent.is_available ? 'manually_unavailable' : 'not_eligible'),
+    }));
     const conversationParams = [businessId || null];
     const { rows: activeConversations } = await db.query(
       `SELECT
@@ -451,7 +459,9 @@ router.get('/agents/dashboard', async (req, res, next) => {
     );
     res.json({
       stats: {
-        agents_online: agents.filter((agent) => agent.is_available).length,
+        agents_online: availability.liveAvailableAgents,
+        marked_available_agents: availability.markedAvailableAgents,
+        available_capacity: availability.availableCapacity,
         active_conversations: stats.active_conversations || 0,
         avg_response_time_seconds: stats.avg_response_time_seconds || 0,
         resolution_rate: stats.resolution_rate || 0,

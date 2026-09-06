@@ -8,9 +8,9 @@ const logger = require('../utils/logger');
 const WebSocketService = require('./websocketService');
 
 function routableAgents(agents) {
-  if (!WebSocketService.isInitialized()) return agents;
-  const connectedCount = WebSocketService.getActiveAgentCount();
-  if (!connectedCount) return [];
+  // A database availability flag alone must never promise a live reply. The
+  // agent must be connected to this realtime process as well.
+  if (!WebSocketService.isInitialized() || !WebSocketService.getActiveAgentCount()) return [];
   return agents.filter((agent) => WebSocketService.isAgentOnline(agent.id));
 }
 
@@ -113,6 +113,39 @@ class SupportRoutingService {
       logger.error('Availability filtering failed', { error: err.message });
       return [];
     }
+  }
+
+  /** Return the single availability view used by status and live routing. */
+  static async getLiveAvailability(businessId = null) {
+    const databaseEligible = await this.findAgentsBySkill([], businessId);
+    const connectedEligible = databaseEligible.filter((agent) => WebSocketService.isAgentOnline(agent.id));
+    const liveAgents = routableAgents(this.filterByAvailability(databaseEligible));
+    const onlineAgents = connectedEligible.length;
+    const availableCapacity = liveAgents.reduce((total, agent) => (
+      total + Math.max(0, Number(agent.max_concurrent_chats || 3) - Number(agent.current_chats || 0))
+    ), 0);
+
+    return {
+      liveAgents,
+      liveAvailableAgents: liveAgents.length,
+      onlineAgents,
+      availableCapacity,
+      markedAvailableAgents: databaseEligible.length,
+      diagnostics: databaseEligible.map((agent) => {
+        const maxChats = Number(agent.max_concurrent_chats || 3);
+        const currentChats = Number(agent.current_chats || 0);
+        const connected = WebSocketService.isAgentOnline(agent.id);
+        return {
+          id: agent.id,
+          name: [agent.first_name, agent.last_name].filter(Boolean).join(' ').trim() || agent.email,
+          markedAvailable: true,
+          liveReady: connected && currentChats < maxChats,
+          reason: !connected ? 'websocket_disconnected' : currentChats >= maxChats ? 'at_capacity' : 'ready',
+          currentChats,
+          maxConcurrentChats: maxChats,
+        };
+      }),
+    };
   }
 
   /**
