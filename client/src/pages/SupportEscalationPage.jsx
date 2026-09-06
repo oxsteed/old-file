@@ -303,13 +303,6 @@ function AuthenticatedSupportEscalationPage({ user }) {
         if (!active) return;
         const onlineCount = statusResponse.data.liveAvailableAgents ?? statusResponse.data.agents ?? 0;
         setAgentsOnline(onlineCount);
-        if (onlineCount < 1) {
-          setPhase('ticket');
-          setConnectionState('offline');
-          return;
-        }
-
-        setPhase('live-chat');
         setConnectionState('connecting');
         const response = await api.post('/support-routing/connect');
         if (!active) return;
@@ -319,10 +312,13 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setTicketId(nextTicketId);
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
-        setConnectionState(response.data.routedTo === 'agent' ? 'connected' : 'queued');
+        const connected = response.data.routedTo === 'agent';
+        if (!connected) setAgentsOnline(0);
+        setConnectionState(connected ? 'connected' : 'queued');
+        setPhase(connected ? 'live-chat' : 'ticket');
         socket.emit('ticket:join', {
           ticketId: nextTicketId,
-          userId: localStorage.getItem('userId'),
+          userId: user.id,
         });
       } catch (err) {
         console.error('Failed to establish live support session:', err);
@@ -340,6 +336,44 @@ function AuthenticatedSupportEscalationPage({ user }) {
       if (socketRef.current === socket) socketRef.current = null;
     };
   }, [profileEmail, profileName, t, user.id]);
+
+  useEffect(() => {
+    if (phase !== 'ticket') return undefined;
+    let active = true;
+    let connecting = false;
+    const retryLiveRouting = async () => {
+      if (connecting) return;
+      try {
+        const statusResponse = await api.get('/support-routing/status');
+        if (!active) return;
+        const available = statusResponse.data.liveAvailableAgents ?? statusResponse.data.agents ?? 0;
+        setAgentsOnline(available);
+        if (available < 1) return;
+        connecting = true;
+        const response = await api.post('/support-routing/connect');
+        if (!active) return;
+        if (response.data.routedTo !== 'agent') {
+          setAgentsOnline(0);
+          return;
+        }
+        const nextTicketId = response.data.ticketId;
+        ticketIdRef.current = nextTicketId;
+        setTicketId(nextTicketId);
+        setAssignedAgent(response.data.assignedAgent || null);
+        setLiveMessages(normalizeSupportMessages(response.data.messages));
+        setConnectionState('connected');
+        setPhase('live-chat');
+        socketRef.current?.emit('ticket:join', { ticketId: nextTicketId, userId: user.id });
+      } catch (err) {
+        console.error('Live support retry failed:', err);
+      } finally {
+        connecting = false;
+      }
+    };
+    retryLiveRouting();
+    const timer = window.setInterval(retryLiveRouting, 5_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [phase, user.id]);
 
   useEffect(() => {
     if (!ticketId) return undefined;
