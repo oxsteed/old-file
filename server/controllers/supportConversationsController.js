@@ -8,6 +8,7 @@ const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
 // Create a new support conversation/ticket
 async function createConversation(req, res) {
@@ -357,7 +358,8 @@ async function addMessage(req, res) {
       isInternal = false,
     } = req.body;
 
-    if (!content || content.length > 5000) {
+    const normalizedContent = String(content || '').trim();
+    if ((!normalizedContent && !req.file) || normalizedContent.length > 5000) {
       return sendValidationError(res, { content: 'Required' });
     }
 
@@ -391,7 +393,19 @@ async function addMessage(req, res) {
       return sendError(res, 403, 'Only support staff can add internal notes');
     }
 
-    const storedMessageType = isInternal ? 'internal_note' : messageType;
+    if (req.file && (!req.file.mimetype || !req.file.mimetype.startsWith('image/'))) {
+      return sendValidationError(res, { file: 'Only image attachments are allowed' });
+    }
+
+    let storedAttachmentUrl = attachmentUrl || null;
+    let storedAttachmentName = attachmentName || null;
+    if (req.file) {
+      const key = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
+      storedAttachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);
+      storedAttachmentName = req.file.originalname;
+    }
+
+    const storedMessageType = isInternal ? 'internal_note' : (req.file ? 'image' : messageType);
 
     // Add message
     const result = await query(
@@ -399,7 +413,7 @@ async function addMessage(req, res) {
        (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [conversationId, req.user.id, storedMessageType, content, attachmentUrl || null, attachmentName || null, isAgent]
+      [conversationId, req.user.id, storedMessageType, normalizedContent || null, storedAttachmentUrl, storedAttachmentName, isAgent]
     );
 
     // Update conversation message counts
@@ -447,7 +461,10 @@ async function addMessage(req, res) {
           || req.user.email
           || (isAgent ? 'Support specialist' : 'Customer'),
       },
-      content,
+      content: normalizedContent,
+      attachmentUrl: storedAttachmentUrl,
+      attachmentName: storedAttachmentName,
+      messageType: storedMessageType,
       timestamp: result.rows[0].created_at,
       isInternal,
     };

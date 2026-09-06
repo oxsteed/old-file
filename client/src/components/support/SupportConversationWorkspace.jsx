@@ -8,6 +8,7 @@ import {
   Inbox,
   Lock,
   MessageSquare,
+  Paperclip,
   RefreshCw,
   Search,
   Send,
@@ -68,6 +69,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [ownershipFilter, setOwnershipFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
+  const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -241,14 +243,16 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const sendMessage = async (event) => {
     event.preventDefault();
     const content = reply.trim();
-    if (!content || !selected || !canReply) return;
+    if ((!content && !attachment) || !selected || !canReply) return;
     setBusy(true);
     try {
-      await api.post(`/support/conversations/${selected.id}/message`, {
-        message: content,
-        is_internal: internalNote,
-      });
+      const body = new FormData();
+      if (content) body.append('message', content);
+      if (attachment) body.append('file', attachment);
+      body.append('is_internal', String(internalNote));
+      await api.post(`/support/conversations/${selected.id}/message`, body);
       setReply('');
+      setAttachment(null);
       await Promise.all([
         loadConversations({ quiet: true }),
         loadDetail(selected.id, { quiet: true }),
@@ -447,7 +451,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                               <span>{message.sender_name || (fromAgent ? 'Support team' : selected.customer_name || 'Customer')}</span>
                               {isNote && <span className="rounded-full border border-amber-400/30 px-2 py-0.5">Internal note</span>}
                             </div>
-                            <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>
+                            {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+                            {messageBody(message) && <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>}
                             <div className="mt-2 flex items-center gap-1 text-[11px] opacity-60"><Clock3 size={11} /> {formatWhen(message.created_at)}</div>
                           </div>
                         </div>
@@ -467,7 +472,12 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <button type="button" onClick={() => setInternalNote(false)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${!internalNote ? 'bg-orange-600 text-white' : 'bg-slate-900 text-slate-400'}`}><MessageSquare size={12} className="mr-1 inline" /> Customer reply</button>
                   <button type="button" onClick={() => setInternalNote(true)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${internalNote ? 'bg-amber-600 text-white' : 'bg-slate-900 text-slate-400'}`}><Lock size={12} className="mr-1 inline" /> Internal note</button>
                 </div>
+                {attachment && <div className="mb-2 flex items-center gap-2 text-xs text-orange-200">{attachment.name}<button type="button" onClick={() => setAttachment(null)} className="text-slate-400 hover:text-white">Remove</button></div>}
                 <div className="flex gap-3">
+                  <label className="cursor-pointer rounded-2xl border border-slate-700 p-3 text-slate-300 hover:border-orange-500" title="Attach image">
+                    <Paperclip size={18} />
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] || null)} />
+                  </label>
                   <textarea
                     value={reply}
                     onChange={(event) => setReply(event.target.value)}
@@ -479,7 +489,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) sendMessage(event);
                     }}
                   />
-                  <button type="submit" disabled={!canReply || busy || !reply.trim()} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} /></button>
+                  <button type="submit" disabled={!canReply || busy || (!reply.trim() && !attachment)} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} /></button>
                 </div>
               </form>
             </>

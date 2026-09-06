@@ -27,12 +27,14 @@ const db = require('../db');
 const { randomUUID } = require('crypto');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
 const publicSupport = require('../controllers/publicSupportController');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 router.post('/public/conversations', conversationMessageLimiter, publicSupport.createGuestConversation);
 router.post('/public/conversations/:conversationId/verify', conversationMessageLimiter, publicSupport.verifyGuestConversation);
 router.post('/public/conversations/:conversationId/resend-code', conversationMessageLimiter, publicSupport.resendGuestVerification);
 router.get('/public/conversations/:conversationId', publicSupport.guestToken, publicSupport.loadGuestConversation);
-router.post('/public/conversations/:conversationId/messages', conversationMessageLimiter, publicSupport.guestToken, publicSupport.addGuestMessage);
+router.post('/public/conversations/:conversationId/messages', conversationMessageLimiter, upload.single('file'), validateFileUpload, publicSupport.guestToken, publicSupport.addGuestMessage);
 
 // Public/customer ticket entry point. Guests can create tickets, and signed-in
 // users are linked automatically when a valid bearer token is present.
@@ -314,7 +316,7 @@ router.post('/conversations', conversationMessageLimiter, async (req, res, next)
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
 
-router.post('/conversations/:conversationId/message', conversationMessageLimiter, (req, res, next) => {
+router.post('/conversations/:conversationId/message', conversationMessageLimiter, upload.single('file'), validateFileUpload, (req, res, next) => {
   req.body = {
     ...req.body,
     content: req.body.content || req.body.message,

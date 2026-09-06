@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { waitingState } = require('../services/supportWaitService');
 const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -181,7 +182,7 @@ async function loadGuestConversation(req, res) {
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
     const { rows: messages } = await pool.query(
-      `SELECT id, content, is_agent, created_at
+      `SELECT id, content, is_agent, message_type, attachment_url, attachment_name, created_at
        FROM support_conversation_messages
        WHERE conversation_id = $1 AND message_type <> 'internal_note'
        ORDER BY created_at ASC`,
@@ -197,7 +198,10 @@ async function loadGuestConversation(req, res) {
 async function addGuestMessage(req, res) {
   const conversationId = req.params.conversationId;
   const content = String(req.body?.message || req.body?.content || '').trim();
-  if (!content || content.length > 5000) return sendValidationError(res, { message: 'Message is required and must be 5000 characters or fewer' });
+  if ((!content && !req.file) || content.length > 5000) return sendValidationError(res, { message: 'Message or image is required and must be 5000 characters or fewer' });
+  if (req.file && (!req.file.mimetype || !req.file.mimetype.startsWith('image/'))) {
+    return sendValidationError(res, { file: 'Only image attachments are allowed' });
+  }
   try {
     const { rows } = await pool.query(
       `SELECT id FROM support_conversations
@@ -206,18 +210,25 @@ async function addGuestMessage(req, res) {
       [conversationId, hash(req.guestToken)]
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
+    let attachmentUrl = null;
+    let attachmentName = null;
+    if (req.file) {
+      const key = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
+      attachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);
+      attachmentName = req.file.originalname;
+    }
     const { rows: messageRows } = await pool.query(
       `INSERT INTO support_conversation_messages
-        (conversation_id, sender_id, message_type, content, is_agent)
-       VALUES ($1, NULL, 'text', $2, FALSE) RETURNING id, created_at`,
-      [conversationId, content]
+        (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
+       VALUES ($1, NULL, $2, $3, $4, $5, FALSE) RETURNING id, created_at, attachment_url, attachment_name`,
+      [conversationId, req.file ? 'image' : 'text', content || null, attachmentUrl, attachmentName]
     );
     await pool.query(
       `UPDATE support_conversations SET message_count = message_count + 1,
         customer_message_count = customer_message_count + 1, updated_at = NOW()
        WHERE id = $1`, [conversationId]
     );
-    const payload = { ticketId: conversationId, messageId: messageRows[0].id, sender: { type: 'customer' }, content, timestamp: messageRows[0].created_at };
+    const payload = { ticketId: conversationId, messageId: messageRows[0].id, sender: { type: 'customer' }, content, attachmentUrl, attachmentName, messageType: req.file ? 'image' : 'text', timestamp: messageRows[0].created_at };
     WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
     return res.json({ success: true, data: messageRows[0] });
   } catch (err) {

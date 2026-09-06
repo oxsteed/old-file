@@ -7,6 +7,7 @@ import {
   FileText,
   Mail,
   MessageSquare,
+  Paperclip,
   Phone,
   Send,
   ShieldCheck,
@@ -23,6 +24,7 @@ import Footer from '../components/Footer';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { realtimeNamespaceUrl } from '../lib/realtime';
+import { useAuth } from '../hooks/useAuth';
 import './SupportEscalationPage.css';
 
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
@@ -37,6 +39,7 @@ function PublicGuestSupport({ t }) {
   const [token, setToken] = useState(sessionStorage.getItem('oxs:guest-support-token') || '');
   const [messages, setMessages] = useState([]);
   const [reply, setReply] = useState('');
+  const [replyFile, setReplyFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(null);
@@ -100,8 +103,14 @@ function PublicGuestSupport({ t }) {
   };
 
   const send = async (event) => {
-    event.preventDefault(); const content = reply.trim(); if (!content) return; setBusy(true); setError('');
-    try { await api.post(`/support/public/conversations/${conversationId}/messages`, { message: content }, { headers: { Authorization: `Guest ${token}` } }); setReply(''); await load(); }
+    event.preventDefault(); const content = reply.trim(); if (!content && !replyFile) return; setBusy(true); setError('');
+    try {
+      const body = new FormData();
+      if (content) body.append('message', content);
+      if (replyFile) body.append('file', replyFile);
+      await api.post(`/support/public/conversations/${conversationId}/messages`, body, { headers: { Authorization: `Guest ${token}` } });
+      setReply(''); setReplyFile(null); await load();
+    }
     catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not send your message.' })); }
     finally { setBusy(false); }
   };
@@ -178,7 +187,7 @@ function PublicGuestSupport({ t }) {
       <Footer />
     </>
   );
-  if (step === 'chat') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p><div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">{messages.map((item) => <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${item.sender?.type === 'agent' ? 'bg-slate-800' : 'ml-8 bg-orange-600'}`}>{item.content}</div>)}</div>{error && <p className="mb-3 text-red-300">{error}</p>}<form onSubmit={send} className="flex gap-2"><input value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || !reply.trim()} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form></section>);
+  if (step === 'chat') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p><div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">{messages.map((item) => <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${item.sender?.type === 'agent' ? 'bg-slate-800' : 'ml-8 bg-orange-600'}`}>{item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}{item.content}</div>)}</div>{error && <p className="mb-3 text-red-300">{error}</p>}{replyFile && <p className="mb-2 text-sm text-orange-200">{replyFile.name}</p>}<form onSubmit={send} className="flex gap-2"><label className="cursor-pointer rounded-xl border border-slate-700 px-3 py-3 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}><Paperclip size={18} /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} /></label><input value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || (!reply.trim() && !replyFile)} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form></section>);
   if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
   return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
 }
@@ -188,18 +197,22 @@ function normalizeSupportMessages(messages = []) {
     id: message.id,
     sender: { type: message.is_agent ? 'agent' : 'customer' },
     content: message.content,
+    attachmentUrl: message.attachment_url || message.attachmentUrl,
+    attachmentName: message.attachment_name || message.attachmentName,
     timestamp: message.created_at,
   }));
 }
 
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
-  return localStorage.getItem('accessToken')
-    ? <AuthenticatedSupportEscalationPage />
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-slate-950" />;
+  return user
+    ? <AuthenticatedSupportEscalationPage user={user} />
     : <PublicGuestSupport t={t} />;
 }
 
-function AuthenticatedSupportEscalationPage() {
+function AuthenticatedSupportEscalationPage({ user }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState('checking'); // 'checking' | 'live-chat' | 'ticket' | 'success'
@@ -207,11 +220,14 @@ function AuthenticatedSupportEscalationPage() {
   const [ticketId, setTicketId] = useState(null);
   const [liveMessages, setLiveMessages] = useState([]);
   const [liveInput, setLiveInput] = useState('');
+  const [liveFile, setLiveFile] = useState(null);
   const [liveSending, setLiveSending] = useState(false);
   const [assignedAgent, setAssignedAgent] = useState(null);
   const [connectionState, setConnectionState] = useState('checking');
-  const [visitorName, setVisitorName] = useState(localStorage.getItem('oxs:visitorName') || '');
-  const [visitorEmail, setVisitorEmail] = useState(localStorage.getItem('oxs:visitorEmail') || '');
+  const profileName = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || '';
+  const profileEmail = user?.email || '';
+  const [visitorName, setVisitorName] = useState(profileName);
+  const [visitorEmail, setVisitorEmail] = useState(profileEmail);
   const [ticketMessage, setTicketMessage] = useState('');
   const [ticketSubmitting, setTicketSubmitting] = useState(false);
   const [successTicketId, setSuccessTicketId] = useState(null);
@@ -235,9 +251,9 @@ function AuthenticatedSupportEscalationPage() {
 
     socket.on('connect', () => {
       socket.emit('customer:join', {
-        userId: localStorage.getItem('userId'),
-        visitorEmail: localStorage.getItem('oxs:visitorEmail'),
-        visitorName: localStorage.getItem('oxs:visitorName'),
+        userId: user.id,
+        visitorEmail: profileEmail,
+        visitorName: profileName,
       });
       if (ticketIdRef.current) {
         socket.emit('ticket:join', {
@@ -257,7 +273,7 @@ function AuthenticatedSupportEscalationPage() {
     socket.on('agent:assigned', handleAssignment);
     socket.on('agent:joined', handleAssignment);
     socket.on('message:new', (data) => {
-      const { ticketId: messageTicketId, sender, content, timestamp } = data;
+      const { ticketId: messageTicketId, sender, content, timestamp, attachmentUrl, attachmentName, messageType } = data;
       if (messageTicketId !== ticketIdRef.current || sender.type !== 'agent') return;
       setLiveMessages((previous) => {
         const duplicate = previous.some((message) => (
@@ -272,6 +288,9 @@ function AuthenticatedSupportEscalationPage() {
             id: data.messageId || `agent-${Date.now()}`,
             sender,
             content,
+            attachmentUrl,
+            attachmentName,
+            messageType,
             timestamp,
           },
         ];
@@ -320,7 +339,7 @@ function AuthenticatedSupportEscalationPage() {
       socket.disconnect();
       if (socketRef.current === socket) socketRef.current = null;
     };
-  }, []);
+  }, [profileEmail, profileName, t, user.id]);
 
   useEffect(() => {
     if (!ticketId) return undefined;
@@ -359,11 +378,14 @@ function AuthenticatedSupportEscalationPage() {
 
   const handleSendLiveMessage = useCallback(async () => {
     const content = liveInput.trim();
-    if (!content || !ticketId) return;
+    if ((!content && !liveFile) || !ticketId) return;
 
     setLiveSending(true);
     try {
-      const response = await api.post(`/support/conversations/${ticketId}/message`, { message: content });
+      const body = new FormData();
+      if (content) body.append('message', content);
+      if (liveFile) body.append('file', liveFile);
+      const response = await api.post(`/support/conversations/${ticketId}/message`, body);
 
       setLiveMessages((prev) => [
         ...prev,
@@ -371,17 +393,20 @@ function AuthenticatedSupportEscalationPage() {
           id: response.data.data?.id || `customer-${Date.now()}`,
           sender: { type: 'customer' },
           content,
+          attachmentUrl: response.data.data?.attachment_url,
+          attachmentName: response.data.data?.attachment_name,
           timestamp: response.data.data?.created_at || new Date().toISOString(),
         },
       ]);
       setLiveInput('');
+      setLiveFile(null);
     } catch (err) {
       console.error('Live support message failed:', err);
       toast.error(t('support.escalation.ticketError', { defaultValue: 'Could not send your support message.' }));
     } finally {
       setLiveSending(false);
     }
-  }, [liveInput, ticketId, t]);
+  }, [liveFile, liveInput, ticketId, t]);
 
   const handleSubmitTicket = async (event) => {
     event.preventDefault();
@@ -589,7 +614,8 @@ function AuthenticatedSupportEscalationPage() {
                               : 'bg-slate-800 text-slate-100'
                           }`}
                         >
-                          <p className="break-words leading-6">{msg.content}</p>
+                          {msg.attachmentUrl && <img src={msg.attachmentUrl} alt={msg.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+                          {msg.content && <p className="break-words leading-6">{msg.content}</p>}
                           {msg.timestamp && (
                             <span className="text-xs opacity-70 mt-2 block">
                               {new Date(msg.timestamp).toLocaleTimeString(i18n.language || 'en', {
@@ -605,6 +631,7 @@ function AuthenticatedSupportEscalationPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {liveFile && <div className="px-6 pt-3 text-sm text-orange-200">{liveFile.name}</div>}
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -612,6 +639,10 @@ function AuthenticatedSupportEscalationPage() {
                   }}
                   className="px-6 py-4 border-t border-slate-700/70 flex gap-3 bg-slate-900/70"
                 >
+                  <label className="cursor-pointer rounded-2xl border border-slate-700 px-3 py-3 text-slate-300 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}>
+                    <Paperclip size={20} />
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(event) => setLiveFile(event.target.files?.[0] || null)} />
+                  </label>
                   <input
                     type="text"
                     value={liveInput}
@@ -622,7 +653,7 @@ function AuthenticatedSupportEscalationPage() {
                   />
                   <button
                     type="submit"
-                    disabled={liveSending || !ticketId || !liveInput.trim()}
+                    disabled={liveSending || !ticketId || (!liveInput.trim() && !liveFile)}
                     className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition disabled:opacity-50 flex-shrink-0"
                     aria-label={t('common.send')}
                   >
@@ -686,10 +717,7 @@ function AuthenticatedSupportEscalationPage() {
                       type="text"
                       required
                       value={visitorName}
-                      onChange={(event) => {
-                        setVisitorName(event.target.value);
-                        localStorage.setItem('oxs:visitorName', event.target.value);
-                      }}
+                      readOnly
                       placeholder={t('support.escalation.namePlaceholder')}
                       className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition"
                     />
@@ -703,10 +731,7 @@ function AuthenticatedSupportEscalationPage() {
                       type="email"
                       required
                       value={visitorEmail}
-                      onChange={(event) => {
-                        setVisitorEmail(event.target.value);
-                        localStorage.setItem('oxs:visitorEmail', event.target.value);
-                      }}
+                      readOnly
                       placeholder={t('support.escalation.emailPlaceholder')}
                       className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition"
                     />

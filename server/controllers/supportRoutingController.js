@@ -23,7 +23,7 @@ function assignedAgentFromRow(row) {
 
 async function loadConversationMessages(ticketId) {
   const { rows } = await pool.query(
-    `SELECT id, sender_id, content, message_type, is_agent, created_at
+    `SELECT id, sender_id, content, message_type, attachment_url, attachment_name, is_agent, created_at
      FROM support_conversation_messages
      WHERE conversation_id = $1
        AND message_type <> 'internal_note'
