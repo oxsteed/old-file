@@ -5,6 +5,7 @@
 ## Instructions for Every Session
 
 ### Admin reload loop fix (2026-09-05)
+- 2FA setup follow-up: corrected malformed production encryption key in Coolify after confirming zero encrypted TOTP/payment/tax records. Startup now rejects malformed encryption keys. Setup verification now displays the returned recovery codes instead of discarding them.
 - Follow-up: admin root now supplies shared cookie consent and toast UI via `AdminProviders`, including the shared footer used by two-factor setup. Render regression: `node --test client/scripts/admin-providers.test.mjs`.
 - Legacy admin API now shares the token-refresh client; generic 403 responses no longer reload login.
 - Explicit `admin_2fa_required` challenges navigate once to the new authenticated `/admin/2fa-setup` route using the existing authenticator setup screen. Security enforcement remains unchanged.

@@ -45,10 +45,11 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   const handleVerify = async (e) => {
     e.preventDefault();
     try {
-      await twoFactorAPI.verifySetup(verifyCode);
+      const { data } = await twoFactorAPI.verifySetup(verifyCode);
+      setBackupCodes(data.backupCodes);
+      setStatus({ enabled: true });
       toast.success(t('twoFactor.enableSuccess'));
-      setStep('enabled');
-      fetchStatus();
+      setStep('backupCodes');
     } catch (err) {
       toast.error(err.response?.data?.error || t('twoFactor.invalidCode'));
     }

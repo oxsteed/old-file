@@ -81,6 +81,12 @@ module.exports = function validateEnv() {
     process.exit(1);
   }
 
+  if (!/^[a-fA-F0-9]{64}$/.test(process.env.ENCRYPTION_KEY || '')) {
+    logger.error('ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes)');
+    process.exit(1);
+    return;
+  }
+
   OPTIONAL.forEach(([key, note]) => {
     if (!process.env[key]) {
       logger.warn('Optional environment variable not set', { key, impact: note });
