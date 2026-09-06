@@ -6,6 +6,8 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
+const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
+const escapeHtml = require('../utils/escapeHtml');
 
 // Create a new support conversation/ticket
 async function createConversation(req, res) {
@@ -463,6 +465,149 @@ async function addMessage(req, res) {
   }
 }
 
+// Send an audited email follow-up from the support conversation workspace.
+async function sendConversationEmail(req, res) {
+  const conversationId = req.params.conversationId;
+  const subject = String(req.body?.subject || '').trim();
+  const content = String(req.body?.content || '').trim();
+  const requestId = String(req.body?.requestId || '').trim();
+
+  if (!subject || subject.length > 200 || /[\r\n]/.test(subject) ||
+      !content || content.length > 5000 ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+    return sendValidationError(res, {
+      subject: 'Subject is required, must be one line, and must be 200 characters or fewer',
+      content: 'Message is required and must be 5000 characters or fewer',
+      requestId: 'A valid request identifier is required',
+    });
+  }
+
+  try {
+    const { rows } = await query(
+      `SELECT sc.id, sc.business_id, sc.customer_id, sc.agent_id, sc.guest_verified_at,
+              COALESCE(u.email, sc.guest_email) AS customer_email,
+              COALESCE(
+                NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+                u.email, sc.guest_name, 'Customer'
+              ) AS customer_name
+       FROM support_conversations sc
+       LEFT JOIN users u ON u.id = sc.customer_id
+       WHERE sc.id = $1`,
+      [conversationId]
+    );
+    if (!rows.length) return sendError(res, 404, 'Conversation not found');
+
+    const conversation = rows[0];
+    const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
+    let isAssignedAgent = false;
+    if (conversation.agent_id) {
+      const agent = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+      isAssignedAgent = agent.rows[0]?.user_id === req.user.id;
+    }
+    const canManageBusiness = !isPlatformAdmin && !isAssignedAgent
+      ? await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id)
+      : false;
+    if (!isPlatformAdmin && !isAssignedAgent && !canManageBusiness) {
+      return sendError(res, 403, 'Access denied');
+    }
+    if (!conversation.customer_email || (!conversation.customer_id && !conversation.guest_verified_at)) {
+      return sendError(res, 409, 'A verified customer email is not available');
+    }
+
+    const adminName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim()
+      || req.user.email
+      || 'OxSteed Support';
+    const { rows: messageRows } = await query(
+      `INSERT INTO support_conversation_messages
+         (conversation_id, sender_id, message_type, content, email_subject,
+          email_request_id, is_agent, status)
+       VALUES ($1, $2, 'outbound_email', $3, $4, $5, TRUE, 'sending')
+       ON CONFLICT (email_request_id) WHERE email_request_id IS NOT NULL DO NOTHING
+       RETURNING id, created_at`,
+      [conversationId, req.user.id, content, subject, requestId]
+    );
+    if (!messageRows.length) {
+      const existing = await query(
+        `SELECT id, status, created_at FROM support_conversation_messages
+         WHERE email_request_id = $1 AND conversation_id = $2`,
+        [requestId, conversationId]
+      );
+      if (existing.rows[0]?.status === 'sent') {
+        return res.status(200).json({ success: true, duplicate: true, data: existing.rows[0] });
+      }
+      return sendError(
+        res,
+        existing.rows[0]?.status === 'sending' ? 409 : 502,
+        existing.rows[0]?.status === 'sending'
+          ? 'This email is already being sent'
+          : 'The previous email attempt failed; please try again'
+      );
+    }
+    const message = messageRows[0];
+    const safeName = escapeHtml(conversation.customer_name);
+    const safeContent = escapeHtml(content).replace(/\n/g, '<br>');
+    const result = await sendEmail({
+      to: conversation.customer_email,
+      from: EMAIL_ADDRESSES.support,
+      fromName: 'OxSteed Support',
+      subject,
+      text: `Hi ${conversation.customer_name},\n\n${content}\n\nOxSteed Support`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
+        <h2 style="color:#ea580c">OxSteed Support</h2>
+        <p>Hi ${safeName},</p>
+        <p style="line-height:1.7">${safeContent}</p>
+        <p style="margin-top:28px;color:#6b7280">OxSteed Support<br>+1 (937) 408-5169</p>
+      </div>`,
+      idempotencyKey: `support-conversation-email-${requestId}`,
+    });
+
+    await query(
+      `UPDATE support_conversation_messages
+       SET status = $1, email_provider_id = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [result.success ? 'sent' : 'failed', result.id || null, message.id]
+    );
+    if (!result.success) {
+      logger.error('Support follow-up email failed', {
+        conversationId,
+        adminId: req.user.id,
+        error: result.error,
+      });
+      return sendError(res, 502, 'The email provider did not accept this message');
+    }
+
+    await query(
+      `UPDATE support_conversations
+       SET message_count = message_count + 1,
+           agent_message_count = agent_message_count + 1,
+           first_response_at = COALESCE(first_response_at, NOW()),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [conversationId]
+    );
+    const eventPayload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: message.id,
+      sender: { type: 'agent', id: req.user.id, name: adminName },
+      content,
+      messageType: 'outbound_email',
+      subject,
+      timestamp: message.created_at,
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'message:new', eventPayload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);
+    logger.info('Support follow-up email sent', { conversationId, adminId: req.user.id });
+    return res.status(201).json({
+      success: true,
+      data: { id: message.id, status: 'sent', created_at: message.created_at },
+    });
+  } catch (err) {
+    logger.error('sendConversationEmail error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to send support follow-up email');
+  }
+}
+
 // Get conversation stats for a business
 async function getConversationStats(req, res) {
   try {
@@ -500,5 +645,6 @@ module.exports = {
   getConversation,
   updateConversationStatus,
   addMessage,
+  sendConversationEmail,
   getConversationStats
 };

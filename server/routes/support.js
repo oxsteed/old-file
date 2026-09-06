@@ -324,6 +324,7 @@ router.post('/conversations/:conversationId/message', conversationMessageLimiter
   };
   return supportConversationsController.addMessage(req, res, next);
 });
+router.post('/conversations/:conversationId/email', conversationMessageLimiter, supportConversationsController.sendConversationEmail);
 
 router.put('/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
 router.post('/conversations/:conversationId/claim', conversationAssignmentController.claimConversation);
@@ -381,7 +382,17 @@ router.get('/agents/dashboard', async (req, res, next) => {
          sc.status,
          sc.created_at,
          sc.updated_at,
-         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email) AS customer_name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email, sc.guest_name, 'Customer') AS customer_name,
+         CASE
+           WHEN sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL
+             THEN COALESCE(cu.email, sc.guest_email)
+           ELSE NULL
+         END AS customer_email,
+         sc.guest_verified_at,
+         sc.live_wait_started_at,
+         sc.live_wait_expires_at,
+         sc.live_wait_ended_at,
+         sc.first_response_at,
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email, 'Unassigned') AS agent_name,
          COALESCE(
            (SELECT scm.content
@@ -404,6 +415,38 @@ router.get('/agents/dashboard', async (req, res, next) => {
        LIMIT 50`,
       conversationParams
     );
+    const { rows: missedConversations } = await db.query(
+      `SELECT
+         sc.id, sc.subject, sc.status, sc.created_at, sc.updated_at,
+         sc.guest_verified_at, sc.live_wait_started_at, sc.live_wait_ended_at,
+         (SELECT MAX(scm.created_at) FROM support_conversation_messages scm
+          WHERE scm.conversation_id = sc.id AND scm.message_type = 'outbound_email'
+            AND scm.status = 'sent') AS followed_up_at,
+         (SELECT COUNT(*)::int FROM support_conversation_messages scm
+          WHERE scm.conversation_id = sc.id AND scm.message_type = 'outbound_email'
+            AND scm.status = 'sent') AS follow_up_count,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email, sc.guest_name, 'Customer') AS customer_name,
+         CASE
+           WHEN sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL
+             THEN COALESCE(cu.email, sc.guest_email)
+           ELSE NULL
+         END AS customer_email,
+         COALESCE(
+           (SELECT scm.content FROM support_conversation_messages scm
+            WHERE scm.conversation_id = sc.id AND scm.is_agent = FALSE
+              AND scm.message_type <> 'internal_note'
+            ORDER BY scm.created_at DESC LIMIT 1),
+           sc.description, ''
+         ) AS last_message
+       FROM support_conversations sc
+       LEFT JOIN users cu ON cu.id = sc.customer_id
+       WHERE sc.live_wait_ended_at IS NOT NULL
+         AND sc.status <> 'pending_verification'
+         AND ($1::integer IS NULL OR sc.business_id = $1::integer)
+       ORDER BY sc.live_wait_ended_at DESC
+       LIMIT 50`,
+      conversationParams
+    );
     res.json({
       stats: {
         agents_online: agents.filter((agent) => agent.is_available).length,
@@ -413,6 +456,7 @@ router.get('/agents/dashboard', async (req, res, next) => {
       },
       agents,
       active_conversations: activeConversations,
+      missed_conversations: missedConversations,
     });
   } catch (err) {
     next(err);

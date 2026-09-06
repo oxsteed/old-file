@@ -6,6 +6,11 @@
 
 ### Admin reload loop fix (2026-09-05)
 - 2FA setup follow-up: corrected malformed production encryption key in Coolify after confirming zero encrypted TOTP/payment/tax records. Startup now rejects malformed encryption keys. Setup verification now displays the returned recovery codes instead of discarding them.
+
+### Missed live-support follow-up (2026-09-05)
+- Agent dashboard now lists verified guests whose five-minute live-support wait ended, including name, email, request/missed times, status, latest message, and follow-up history.
+- Support staff can compose and send a follow-up email from the same card. Delivery uses the verified address, escaped HTML, request-level Resend idempotency, a support sender, and an auditable sent/failed conversation message with provider metadata (migration 380).
+- Verification: `server/__tests__/supportConversationEmail.test.js`; unverified guest addresses are blocked from the email endpoint.
 - Follow-up: admin root now supplies shared cookie consent and toast UI via `AdminProviders`, including the shared footer used by two-factor setup. Render regression: `node --test client/scripts/admin-providers.test.mjs`.
 - Legacy admin API now shares the token-refresh client; generic 403 responses no longer reload login.
 - Explicit `admin_2fa_required` challenges navigate once to the new authenticated `/admin/2fa-setup` route using the existing authenticator setup screen. Security enforcement remains unchanged.

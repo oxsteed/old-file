@@ -131,7 +131,7 @@ export function SupportTag({ children, tone = 'default' }) {
     red: 'border-red-500/25 bg-red-500/10 text-red-300',
   };
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}>
       {children}
     </span>
   );

@@ -51,7 +51,8 @@ jest.mock('pg', () => {
 jest.mock('../utils/email',  () => ({
   sendOTPEmail: jest.fn().mockResolvedValue(true),
   sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
-  sendEmail: jest.fn().mockResolvedValue(true),
+  sendEmail: jest.fn().mockResolvedValue({ success: true, id: 'email-test' }),
+  EMAIL_ADDRESSES: { support: 'support@oxsteed.com' },
 }));
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
 jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
