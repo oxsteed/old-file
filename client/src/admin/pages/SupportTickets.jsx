@@ -621,8 +621,8 @@ export default function SupportTickets() {
   const activeFilterCount = [search, status, priority, assigned].filter(Boolean).length;
 
   return (
-    <div className="h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.07),transparent_22%),linear-gradient(180deg,#030712_0%,#0b1120_100%)] p-4 md:p-6">
-      <div className="flex h-full flex-col gap-4">
+    <div className="min-h-full overflow-visible bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.07),transparent_22%),linear-gradient(180deg,#030712_0%,#0b1120_100%)] p-4 md:p-6">
+      <div className="flex min-h-full flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.55fr_0.75fr]">
           <div className="rounded-[28px] border border-gray-800 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
