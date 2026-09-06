@@ -12,6 +12,7 @@ function publishAvailability(detail) {
 
 export default function useAdminSupportAvailability({ autoOnline = false } = {}) {
   const [availability, setAvailabilityState] = useState(null);
+  const [liveReady, setLiveReady] = useState(false);
   const [agentId, setAgentId] = useState(null);
   const [busy, setBusy] = useState(false);
   const socketRef = useRef(null);
@@ -19,6 +20,7 @@ export default function useAdminSupportAvailability({ autoOnline = false } = {})
   const applyResponse = useCallback((data) => {
     const next = Boolean(data?.is_available_for_support);
     setAvailabilityState(next);
+    if (!next) setLiveReady(false);
     setAgentId(data?.agent_id || null);
     publishAvailability({ availability: next, agentId: data?.agent_id || null });
     return next;
@@ -102,8 +104,30 @@ export default function useAdminSupportAvailability({ autoOnline = false } = {})
     };
   }, [agentId, availability]);
 
+  useEffect(() => {
+    if (!availability || !agentId) {
+      setLiveReady(false);
+      return undefined;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const { data } = await adminApi.get('/support-routing/status');
+        if (!active) return;
+        const diagnostic = (data?.diagnostics || []).find((item) => String(item.id) === String(agentId));
+        setLiveReady(Boolean(diagnostic?.liveReady));
+      } catch {
+        if (active) setLiveReady(false);
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 5_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [agentId, availability]);
+
   return {
     availability,
+    liveReady,
     agentId,
     busy,
     setAvailability,
