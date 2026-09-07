@@ -103,7 +103,9 @@ exports.respondToQuote = async (req, res, next) => {
     const row = await pool.query(
       `UPDATE business_quotes
           SET status = $1, updated_at = NOW()
-        WHERE token = $2 AND status = 'sent'
+        WHERE token = $2
+          AND status = 'sent'
+          AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
         RETURNING id, client_name, title, description, line_items, subtotal_cents,
                   tax_rate, total_cents, status, valid_until, created_at, updated_at`,
       [response, token]
