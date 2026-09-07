@@ -96,7 +96,6 @@ router.get('/:id/profile', async (req, res, next) => {
          hp.bio_short AS bio,
          hp.service_city AS city,
          hp.service_state AS state,
-         hp.service_zip AS zip_code,
          hp.jobs_completed,
          COALESCE(
            json_agg(DISTINCT hs.skill_name) FILTER (WHERE hs.skill_name IS NOT NULL),
@@ -105,9 +104,15 @@ router.get('/:id/profile', async (req, res, next) => {
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN helper_skills hs ON hs.user_id = u.id
-       WHERE u.id = $1 AND u.deleted_at IS NULL AND u.is_active = TRUE
+       WHERE u.id = $1
+         AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND u.role = ANY($2::text[])
+         AND COALESCE(hp.is_listed, TRUE) = TRUE
        GROUP BY u.id, hp.bio_short, hp.service_city, hp.service_state, hp.service_zip, hp.jobs_completed`,
-      [req.params.id]
+      [req.params.id, ['helper', 'helper_pro', 'broker']]
     );
     if (!rows.length) return res.status(404).json({ error: 'Profile not found' });
     return res.json(rows[0]);
