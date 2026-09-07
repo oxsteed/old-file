@@ -4109,8 +4109,12 @@ exports.recordPosPayment = async (req, res, next) => {
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
     );
-    if (paymentType === 'refund' && !idempotencyKey) {
-      throw new AppError('Idempotency-Key is required for refunds', 400, 'idempotency_key_required');
+    if (['refund', 'wallet_credit'].includes(paymentType) && !idempotencyKey) {
+      throw new AppError(
+        'Idempotency-Key is required for restaurant-credit payments and refunds',
+        400,
+        'idempotency_key_required'
+      );
     }
     const paymentContract = normalizeRestaurantPaymentMode(
       req.body.paymentMode || req.body.payment_mode,
@@ -4305,10 +4309,9 @@ exports.recordPosPayment = async (req, res, next) => {
           });
         }
 
-        // A missing POS idempotency key is still safe to retry, but the
-        // fallback must include the wallet owner. Otherwise two customers
-        // paying the same order amount could collide on the order-wide
-        // payment key after the second wallet had already been debited.
+        // The route requires an idempotency key for wallet-credit payments.
+        // Keep the owner in the defensive fallback for older internal callers
+        // that invoke this controller without passing through the route.
         const walletPaymentIdempotencyKey = idempotencyKey
           || `wallet:${restaurantId}:${orderId}:${customerWallet.customer.id}:${amountCents}`;
 

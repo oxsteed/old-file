@@ -886,6 +886,17 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.code).toBe('idempotency_key_required');
   });
 
+  test('requires an idempotency key for POS restaurant-credit payments', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow()] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payments`)
+      .send({ paymentType: 'wallet_credit', amountCents: 300, customerEmail: 'customer@example.com' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('idempotency_key_required');
+  });
+
   test('rejects direct-payment receipt confirmation when required proof is missing', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
