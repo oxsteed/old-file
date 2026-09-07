@@ -5,8 +5,8 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
-// Public endpoint - submit feedback (anonymous allowed); rate-limited to deter spam.
-router.post('/:sessionId', strictLimiter, feedbackController.submitFeedback);
+// Public endpoint - the emailed, single-use token proves access to this session.
+router.post('/:sessionId/:token', strictLimiter, feedbackController.submitFeedback);
 
 // Get feedback for a specific session - requires auth (feedback may include PII).
 router.get('/sessions/:sessionId', authenticate, feedbackController.getSessionFeedback);

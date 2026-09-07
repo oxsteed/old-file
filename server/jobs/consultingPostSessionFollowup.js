@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const crypto = require('crypto');
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
@@ -42,6 +43,18 @@ const startConsultingPostSessionFollowup = () => {
 
       for (const session of completedSessions) {
         try {
+          const feedbackToken = crypto.randomBytes(32).toString('hex');
+          const feedbackTokenHash = crypto.createHash('sha256').update(feedbackToken).digest('hex');
+          await db.query(
+            `UPDATE consulting_sessions_scheduled
+                SET feedback_token_hash = $1,
+                    feedback_token_expires_at = NOW() + INTERVAL '30 days',
+                    feedback_token_used_at = NULL,
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [feedbackTokenHash, session.id]
+          );
+
           // Fetch action items for this session that are visible to client
           const { rows: actionItems } = await db.query(
             `SELECT id, title, description, due_date, priority, assigned_to_type
@@ -107,7 +120,7 @@ const startConsultingPostSessionFollowup = () => {
                 </a>
               </div>
 
-              <p>We'd love to hear about your experience! <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/consulting/feedback/${session.session_id}">Please provide your feedback here</a> (takes less than 2 minutes).</p>
+              <p>We'd love to hear about your experience! <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/consulting/feedback/${session.session_id}/${feedbackToken}">Please provide your feedback here</a> (takes less than 2 minutes).</p>
               <p>Best regards,<br>The OxSteed Consulting Team</p>
             `,
           });

@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const db = require('../db');
+const crypto = require('crypto');
 
 /**
  * Submit feedback for a consulting session
@@ -7,41 +8,51 @@ const db = require('../db');
  */
 exports.submitFeedback = async (req, res) => {
   const { sessionId } = req.params;
+  const { token } = req.params;
   const { rating, feedbackText, name, email } = req.body;
 
+  if (!/^[a-f0-9]{64}$/i.test(String(token || ''))) {
+    return res.status(404).json({ error: 'Feedback link is invalid or expired' });
+  }
+
+  const feedbackTokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+  let client;
+
   try {
+    client = await db.connect();
+    await client.query('BEGIN');
+
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
     }
 
-    // Validate session exists
-    const sessionCheck = await db.query(
-      'SELECT id, email FROM consulting_sessions WHERE id = $1',
-      [sessionId]
+    // The token is random, expires, and is consumed under a row lock to prevent
+    // guessed session IDs and concurrent replay from changing feedback.
+    const sessionCheck = await client.query(
+      `SELECT css.id AS scheduled_id, cs.id, cs.email
+         FROM consulting_sessions_scheduled css
+         JOIN consulting_sessions cs ON cs.id = css.session_id
+        WHERE css.session_id = $1
+          AND css.feedback_token_hash = $2
+          AND css.feedback_token_expires_at > NOW()
+          AND css.feedback_token_used_at IS NULL
+        FOR UPDATE OF css`,
+      [sessionId, feedbackTokenHash]
     );
 
     if (sessionCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Session not found' });
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Feedback link is invalid or expired' });
     }
 
     const session = sessionCheck.rows[0];
     const feedbackEmail = email || session.email;
-
-    // Find the scheduled session record
-    const scheduledResult = await db.query(
-      'SELECT id FROM consulting_sessions_scheduled WHERE session_id = $1',
-      [sessionId]
-    );
-
-    if (scheduledResult.rows.length === 0) {
-      return res.status(400).json({ error: 'No scheduled session found' });
-    }
-
-    const scheduledId = scheduledResult.rows[0].id;
+    const scheduledId = session.scheduled_id;
 
     // Check if feedback already submitted for this session
-    const existingFeedback = await db.query(
+    const existingFeedback = await client.query(
       'SELECT id FROM consulting_session_followups WHERE session_scheduled_id = $1 AND feedback_rating IS NOT NULL',
       [scheduledId]
     );
@@ -49,22 +60,25 @@ exports.submitFeedback = async (req, res) => {
     // Update or insert feedback
     let result;
     if (existingFeedback.rows.length > 0) {
-      result = await db.query(
-        `UPDATE consulting_session_followups
-         SET feedback_rating = $1, feedback_text = $2, received_at = NOW(), updated_at = NOW()
-         WHERE session_scheduled_id = $3
-         RETURNING *`,
-        [rating, feedbackText?.trim() || null, scheduledId]
-      );
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Feedback has already been submitted' });
     } else {
       // Insert new feedback record
-      result = await db.query(
+      result = await client.query(
         `INSERT INTO consulting_session_followups (session_scheduled_id, followup_type, feedback_rating, feedback_text, sent_at, received_at)
          VALUES ($1, 'feedback', $2, $3, NOW(), NOW())
          RETURNING *`,
         [scheduledId, rating, feedbackText?.trim() || null]
       );
     }
+
+    await client.query(
+      `UPDATE consulting_sessions_scheduled
+          SET feedback_token_used_at = NOW(), updated_at = NOW()
+        WHERE id = $1`,
+      [scheduledId]
+    );
+    await client.query('COMMIT');
 
     logger.info('Consulting feedback submitted', {
       sessionId,
@@ -77,8 +91,11 @@ exports.submitFeedback = async (req, res) => {
       feedback: result.rows[0],
     });
   } catch (err) {
+    await client?.query('ROLLBACK').catch(() => {});
     logger.error('Error submitting consulting feedback', { sessionId, error: err.message });
     return res.status(500).json({ error: 'Failed to submit feedback' });
+  } finally {
+    client?.release();
   }
 };
 

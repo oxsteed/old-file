@@ -7,7 +7,7 @@ import PageMeta from '../components/PageMeta';
 
 export default function ConsultingFeedbackPage() {
   const { t } = useTranslation();
-  const { sessionId } = useParams();
+  const { sessionId, token } = useParams();
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [name, setName] = useState('');
@@ -25,7 +25,7 @@ export default function ConsultingFeedbackPage() {
 
     try {
       setLoading(true);
-      await axios.post(`/consulting/feedback/${sessionId}`, {
+      await axios.post(`/consulting/feedback/${sessionId}/${token}`, {
         rating,
         feedbackText: feedback,
         name,

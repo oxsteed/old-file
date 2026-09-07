@@ -308,7 +308,7 @@ export default function App() {
                     <Route path="/direct/admin/email-test" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="email-test" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/request-quote"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
                     <Route path="/quote-request"          element={<Guarded><DirectPortalPage view="request" /></Guarded>} />
-                    <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
+                    <Route path="/consulting/feedback/:sessionId/:token" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
