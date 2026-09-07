@@ -30,7 +30,7 @@ async function processWaiting() {
     if (!locked) return;
     const { rows } = await client.query(`SELECT id FROM support_conversations
       WHERE live_wait_started_at IS NOT NULL AND agent_id IS NULL
-        AND status = 'waiting_for_agent' AND guest_verified_at IS NOT NULL
+        AND status = 'waiting_for_agent'
         AND (live_wait_ended_at IS NULL OR founder_alert_sent_at IS NULL)
       ORDER BY live_wait_started_at LIMIT 25`);
     for (const { id } of rows) {
@@ -56,9 +56,11 @@ async function processWaiting() {
               AND sc.status NOT IN ('closed','resolved')), a.created_at
             FOR UPDATE OF a SKIP LOCKED`);
           for (const agent of agents) {
+            if (!sockets.isInitialized() || !sockets.isAgentOnline(agent.id)) continue;
             const workload = await client.query(`SELECT COUNT(*)::int AS total FROM support_conversations
               WHERE agent_id = $1 AND status NOT IN ('closed','resolved')`, [agent.id]);
             if (workload.rows[0].total >= Number(agent.max_concurrent_chats || 3)) continue;
+            if (!sockets.isAgentOnline(agent.id)) continue;
             await client.query(`UPDATE support_conversations SET agent_id = $2, status = 'in_progress',
               assigned_at = NOW(), updated_at = NOW() WHERE id = $1`, [id, agent.id]);
             await client.query(`INSERT INTO conversation_assignments (conversation_id, agent_id, business_id, assignment_type)
@@ -74,7 +76,7 @@ async function processWaiting() {
           const result = await email.sendEmail({
             to: 'emilejeanphilippe@oxsteed.com',
             subject: 'OxSteed: a customer is waiting for live support',
-            text: `A verified customer has been waiting at least two minutes without an assigned agent.\n\nConversation: ${id}\nOpen https://oxsteed.com/admin/support/chat and go online in Support to help.\nThe customer is offered message and call/text options after five minutes.`,
+            text: `A customer has been waiting at least two minutes without an assigned agent.\n\nConversation: ${id}\nOpen https://oxsteed.com/admin/support/chat and go online in Support to help.\nThe customer is offered message and call/text options after five minutes.`,
             idempotencyKey: `support-founder-${id}`,
           });
           if (!result.success) throw new Error(result.error || 'Founder alert delivery failed');

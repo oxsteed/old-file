@@ -1,9 +1,16 @@
 jest.mock('../db', () => ({ connect: jest.fn() }));
 jest.mock('../utils/email', () => ({ sendEmail: jest.fn() }));
-jest.mock('../services/websocketService', () => ({ notifyAgent: jest.fn(), broadcastToAdmins: jest.fn(), broadcastToTicket: jest.fn() }));
+jest.mock('../services/websocketService', () => ({
+  notifyAgent: jest.fn(),
+  broadcastToAdmins: jest.fn(),
+  broadcastToTicket: jest.fn(),
+  isInitialized: jest.fn(() => true),
+  isAgentOnline: jest.fn(() => true),
+}));
 jest.mock('../utils/logger', () => ({ error: jest.fn() }));
 const db = require('../db');
 const email = require('../utils/email');
+const sockets = require('../services/websocketService');
 const { processWaiting, waitingState } = require('../services/supportWaitService');
 
 const now = Date.parse('2026-09-05T12:00:00Z');
@@ -25,7 +32,12 @@ function mockClient(c, agents = [], workload = 0) {
   db.connect.mockResolvedValue(client);
   return client;
 }
-beforeEach(() => { jest.clearAllMocks(); email.sendEmail.mockResolvedValue({ success: true }); });
+beforeEach(() => {
+  jest.clearAllMocks();
+  email.sendEmail.mockResolvedValue({ success: true });
+  sockets.isInitialized.mockReturnValue(true);
+  sockets.isAgentOnline.mockReturnValue(true);
+});
 test.each([[0,300,'waiting'],[119,181,'waiting'],[120,180,'waiting'],[299,1,'waiting'],[300,0,'message'],[400,0,'message']])(
   'persistent deadline at %is', (age, seconds, state) => {
     expect(waitingState(conversation(age), now)).toMatchObject({ state, remainingSeconds: seconds });
@@ -59,6 +71,13 @@ test('agent can receive another conversation below capacity; no alert', async ()
 });
 test('full agent is not assigned above capacity', async () => {
   const client = mockClient(conversation(130), [{ id:'agent', max_concurrent_chats:8 }], 8);
+  await processWaiting();
+  expect(client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO conversation_assignments'))).toBe(false);
+  expect(email.sendEmail).toHaveBeenCalledTimes(1);
+});
+test('disconnected agent is not assigned from the waiting queue', async () => {
+  sockets.isAgentOnline.mockReturnValue(false);
+  const client = mockClient(conversation(130), [{ id:'agent', max_concurrent_chats:8 }], 0);
   await processWaiting();
   expect(client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO conversation_assignments'))).toBe(false);
   expect(email.sendEmail).toHaveBeenCalledTimes(1);

@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
+const { waitingState } = require('../services/supportWaitService');
 const supportConversationsController = require('./supportConversationsController');
 const { withTransaction } = require('../utils/transaction');
 
@@ -144,10 +145,14 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
       timestamp: new Date().toISOString(),
     });
   } else {
-    await pool.query(
+    const { rows: waitingRows } = await pool.query(
       `UPDATE support_conversations
-       SET status = 'waiting_for_agent', updated_at = NOW()
-       WHERE id = $1`,
+       SET status = 'waiting_for_agent',
+           live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
+           live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
       [ticketId]
     );
     await pool.query(
@@ -158,6 +163,12 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
     );
     response.routedTo = 'queue';
     response.message = 'Your request is in the support queue. An agent will help you shortly.';
+    const waitingConversation = waitingRows[0] || (await pool.query(
+      `SELECT status, agent_id, live_wait_expires_at, live_wait_ended_at
+       FROM support_conversations WHERE id = $1`,
+      [ticketId]
+    )).rows[0];
+    response.waiting = waitingState(waitingConversation);
   }
 
   WebSocketService.broadcastToAdmins('ticket:created', {
@@ -322,10 +333,14 @@ exports.createConversation = async (req, res) => {
         category,
       });
     } else if (routing.routedTo === 'queue') {
-      await pool.query(
+      const { rows: waitingRows } = await pool.query(
         `UPDATE support_conversations
-         SET status = 'waiting_for_agent', updated_at = NOW()
-         WHERE id = $1`,
+         SET status = 'waiting_for_agent',
+             live_wait_started_at = COALESCE(live_wait_started_at, NOW()),
+             live_wait_expires_at = COALESCE(live_wait_expires_at, NOW() + INTERVAL '5 minutes'),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING status, agent_id, live_wait_expires_at, live_wait_ended_at`,
         [ticketId]
       );
       await pool.query(
@@ -336,6 +351,12 @@ exports.createConversation = async (req, res) => {
       );
 
       response.message = 'Your request has been queued. An agent will help you shortly.';
+      const waitingConversation = waitingRows[0] || (await pool.query(
+        `SELECT status, agent_id, live_wait_expires_at, live_wait_ended_at
+         FROM support_conversations WHERE id = $1`,
+        [ticketId]
+      )).rows[0];
+      response.waiting = waitingState(waitingConversation);
 
       logger.info('Ticket queued', { ticketId, category });
     } else if (routing.routedTo === 'ai') {

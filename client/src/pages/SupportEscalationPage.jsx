@@ -28,6 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import './SupportEscalationPage.css';
 
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
+const OXSTEED_SUPPORT_EMAIL = 'support@oxsteed.com';
 
 function PublicGuestSupport({ t }) {
   const [step, setStep] = useState('start');
@@ -123,7 +124,9 @@ function PublicGuestSupport({ t }) {
           <header className="guest-support-banner mb-6 rounded-[28px] border p-6 md:p-8">
             <div className="flex items-center gap-3 text-orange-300 mb-3">
               <ShieldCheck size={24} aria-hidden="true" />
-              <span className="text-sm font-bold uppercase tracking-widest">OxSteed Support</span>
+              <span className="text-sm font-bold uppercase tracking-widest">
+                {t('support.escalation.brandName', { defaultValue: 'OxSteed Support' })}
+              </span>
             </div>
             <p className="text-slate-300 text-lg leading-7">
               {t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}
@@ -170,7 +173,7 @@ function PublicGuestSupport({ t }) {
                     <MessageSquare size={17} aria-hidden="true" />{t('support.escalation.textSupport', { defaultValue: 'Text' })}
                   </a>
                 </div>
-                <a href="mailto:support@oxsteed.com" className="mt-4 flex items-center gap-2 text-slate-300 text-sm break-all"><Mail size={16} aria-hidden="true" />support@oxsteed.com</a>
+                <a href={`mailto:${OXSTEED_SUPPORT_EMAIL}`} className="mt-4 flex items-center gap-2 text-slate-300 text-sm break-all"><Mail size={16} aria-hidden="true" />{OXSTEED_SUPPORT_EMAIL}</a>
               </section>
               <section className="guest-support-banner rounded-3xl border p-6">
                 <h2 className="text-white font-semibold mb-3">{t('support.escalation.includeTitle')}</h2>
@@ -203,6 +206,14 @@ function normalizeSupportMessages(messages = []) {
   }));
 }
 
+function localizeWaitingState(waiting) {
+  if (!waiting) return null;
+  return {
+    ...waiting,
+    localDeadline: Date.now() + Number(waiting.remainingSeconds || 0) * 1000,
+  };
+}
+
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
@@ -224,6 +235,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [liveSending, setLiveSending] = useState(false);
   const [assignedAgent, setAssignedAgent] = useState(null);
   const [connectionState, setConnectionState] = useState('checking');
+  const [waiting, setWaiting] = useState(null);
+  const [now, setNow] = useState(Date.now());
   const profileName = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || '';
   const profileEmail = user?.email || '';
   const [visitorName, setVisitorName] = useState(profileName);
@@ -313,9 +326,11 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
         const connected = response.data.routedTo === 'agent';
+        const nextWaiting = localizeWaitingState(response.data.waiting);
+        setWaiting(connected ? null : nextWaiting);
         if (!connected) setAgentsOnline(0);
         setConnectionState(connected ? 'connected' : 'queued');
-        setPhase(connected ? 'live-chat' : 'ticket');
+        setPhase(connected || nextWaiting?.state === 'waiting' ? 'live-chat' : 'ticket');
         socket.emit('ticket:join', {
           ticketId: nextTicketId,
           userId: user.id,
@@ -338,7 +353,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   }, [profileEmail, profileName, t, user.id]);
 
   useEffect(() => {
-    if (phase !== 'ticket') return undefined;
+    if (phase !== 'live-chat' || connectionState !== 'queued') return undefined;
     let active = true;
     let connecting = false;
     const retryLiveRouting = async () => {
@@ -361,6 +376,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setTicketId(nextTicketId);
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
+        setWaiting(null);
         setConnectionState('connected');
         setPhase('live-chat');
         socketRef.current?.emit('ticket:join', { ticketId: nextTicketId, userId: user.id });
@@ -373,7 +389,19 @@ function AuthenticatedSupportEscalationPage({ user }) {
     retryLiveRouting();
     const timer = window.setInterval(retryLiveRouting, 5_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [phase, user.id]);
+  }, [connectionState, phase, user.id]);
+
+  useEffect(() => {
+    if (connectionState !== 'queued' || !waiting?.localDeadline) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [connectionState, waiting?.localDeadline]);
+
+  useEffect(() => {
+    if (connectionState !== 'queued' || !waiting?.localDeadline || waiting.localDeadline > now) return;
+    setConnectionState('unavailable');
+    setPhase('ticket');
+  }, [connectionState, now, waiting?.localDeadline]);
 
   useEffect(() => {
     if (!ticketId) return undefined;
@@ -390,8 +418,18 @@ function AuthenticatedSupportEscalationPage({ user }) {
             id: conversation.agent_id,
             name: conversation.agent_name || t('support.escalation.specialistFallback'),
           });
+          setWaiting(null);
           setConnectionState('connected');
         } else if (conversation.status === 'waiting_for_agent') {
+          const expiresAt = conversation.live_wait_expires_at
+            ? new Date(conversation.live_wait_expires_at).getTime()
+            : Date.now();
+          setWaiting({
+            state: conversation.live_wait_ended_at || expiresAt <= Date.now() ? 'message' : 'waiting',
+            remainingSeconds: Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)),
+            expiresAt: conversation.live_wait_expires_at,
+            localDeadline: expiresAt,
+          });
           setConnectionState('queued');
         }
       } catch (err) {
@@ -451,19 +489,21 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
     setTicketSubmitting(true);
     try {
-      const response = await api.post('/support-routing/conversations', {
-        customerId: localStorage.getItem('userId'),
-        visitorEmail,
-        visitorName,
-        message: ticketMessage,
-        category: 'support_request',
-        priority: 'normal',
-      });
+      const response = ticketId
+        ? await api.post(`/support/conversations/${ticketId}/message`, { message: ticketMessage })
+        : await api.post('/support-routing/conversations', {
+          customerId: user.id,
+          visitorEmail,
+          visitorName,
+          message: ticketMessage,
+          category: 'support_request',
+          priority: 'normal',
+        });
 
       localStorage.setItem('oxs:visitorName', visitorName);
       localStorage.setItem('oxs:visitorEmail', visitorEmail);
 
-      setSuccessTicketId(response.data.ticketId);
+      setSuccessTicketId(ticketId || response.data.ticketId);
       setPhase('success');
     } catch (err) {
       console.error('Ticket error:', err);
@@ -472,6 +512,10 @@ function AuthenticatedSupportEscalationPage({ user }) {
       setTicketSubmitting(false);
     }
   };
+
+  const waitRemainingSeconds = waiting?.localDeadline
+    ? Math.max(0, Math.ceil((waiting.localDeadline - now) / 1000))
+    : 0;
 
   const handleClose = () => {
     if (socketRef.current) socketRef.current.disconnect();
@@ -590,9 +634,9 @@ function AuthenticatedSupportEscalationPage({ user }) {
         {phase === 'live-chat' && (
           <PageFrame>
             <Hero
-              eyebrow={t('support.escalation.liveEyebrow')}
-              title={t('support.escalation.liveTitle')}
-              body={t('support.escalation.liveBody')}
+              eyebrow={connectionState === 'queued' ? t('support.liveWait.title') : t('support.escalation.liveEyebrow')}
+              title={connectionState === 'queued' ? t('support.liveWait.title') : t('support.escalation.liveTitle')}
+              body={connectionState === 'queued' ? t('support.liveWait.body') : t('support.escalation.liveBody')}
               right={(
                 <div className="grid gap-3">
                   <StatPill icon={Users} label={t('support.escalation.availableForLiveChat', { defaultValue: 'Available for live chat' })} value={agentsOnline} />
@@ -601,6 +645,20 @@ function AuthenticatedSupportEscalationPage({ user }) {
                 </div>
               )}
             />
+
+            {connectionState === 'queued' && (
+              <section className="mb-6 rounded-3xl border border-orange-500/25 bg-orange-500/10 p-5 text-white" role="status">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">{t('support.liveWait.title')}</h2>
+                    <p className="mt-1 text-sm text-slate-300">{t('support.liveWait.body')}</p>
+                  </div>
+                  <div className="text-3xl font-bold tabular-nums text-orange-300" role="timer" aria-label={t('support.liveWait.title')}>
+                    {Math.floor(waitRemainingSeconds / 60)}:{String(waitRemainingSeconds % 60).padStart(2, '0')}
+                  </div>
+                </div>
+              </section>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
               <section className="rounded-[28px] border overflow-hidden shadow-2xl" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.82)' }}>
@@ -779,12 +837,13 @@ function AuthenticatedSupportEscalationPage({ user }) {
                       required
                       value={ticketMessage}
                       onChange={(event) => setTicketMessage(event.target.value)}
+                      maxLength={5000}
                       placeholder={t('support.escalation.messagePlaceholder')}
                       rows={7}
                       className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition resize-none"
                     />
                     <p className="text-slate-500 text-xs mt-2">
-                      {ticketMessage.length}/2000 {t('common.characters')}
+                      {ticketMessage.length}/5000 {t('common.characters')}
                     </p>
                   </div>
 

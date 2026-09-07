@@ -190,6 +190,49 @@ describe('live support connection lifecycle', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(true);
   });
 
+  test('puts a signed-in customer into the persistent five-minute wait lifecycle', async () => {
+    jest.spyOn(SupportRoutingService, 'routeTicket').mockResolvedValue({
+      routedTo: 'queue',
+      confidence: 0.6,
+      agentId: null,
+    });
+
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-waiting', status: 'open', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          status: 'waiting_for_agent',
+          agent_id: null,
+          live_wait_expires_at: expiresAt,
+          live_wait_ended_at: null,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'customer-1', name: 'Customer One', email: 'customer@example.com' },
+      params: { businessId: 'business-1' },
+      body: {},
+    };
+    const res = responseDouble();
+
+    await supportRoutingController.connectConversation(req, res);
+
+    const waitUpdate = mockQuery.mock.calls.find(([sql]) => /live_wait_started_at/.test(sql));
+    expect(waitUpdate[0]).toContain("INTERVAL '5 minutes'");
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      ticketId: 'ticket-waiting',
+      routedTo: 'queue',
+      waiting: expect.objectContaining({ state: 'waiting' }),
+    }));
+  });
+
   test('stores and broadcasts an assigned agent reply as an agent message', async () => {
     mockQuery
       .mockResolvedValueOnce({
