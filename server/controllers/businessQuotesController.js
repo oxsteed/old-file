@@ -31,7 +31,13 @@ exports.getQuote = async (req, res, next) => {
 exports.getQuoteByToken = async (req, res, next) => {
   const { token } = req.params;
   try {
-    const row = await pool.query('SELECT * FROM business_quotes WHERE token=$1', [token]);
+    const row = await pool.query(
+      `SELECT id, client_name, title, description, line_items, subtotal_cents,
+              tax_rate, total_cents, status, valid_until, created_at, updated_at
+         FROM business_quotes
+        WHERE token = $1`,
+      [token]
+    );
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(row.rows[0]);
   } catch (err) { next(err); }
@@ -95,7 +101,11 @@ exports.respondToQuote = async (req, res, next) => {
   }
   try {
     const row = await pool.query(
-      `UPDATE business_quotes SET status=$1, updated_at=NOW() WHERE token=$2 AND status='sent' RETURNING *`,
+      `UPDATE business_quotes
+          SET status = $1, updated_at = NOW()
+        WHERE token = $2 AND status = 'sent'
+        RETURNING id, client_name, title, description, line_items, subtotal_cents,
+                  tax_rate, total_cents, status, valid_until, created_at, updated_at`,
       [response, token]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Quote not found or already responded' });

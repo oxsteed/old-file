@@ -325,7 +325,32 @@ async function getPublicInvoice(req, res) {
       }
     }
 
-    return res.json({ invoice: inv, business: business || {} });
+    // Public links are bearer credentials. Do not expose internal ownership,
+    // audit, or token fields just because the database record has them.
+    const publicInvoice = {
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      client_name: inv.client_name,
+      client_email: inv.client_email,
+      client_company: inv.client_company,
+      status: inv.status,
+      issue_date: inv.issue_date,
+      due_date: inv.due_date,
+      subtotal: inv.subtotal,
+      invoice_tax_rate: inv.invoice_tax_rate,
+      tax_amount: inv.tax_amount,
+      total: inv.total,
+      amount_paid: inv.amount_paid,
+      currency_code: inv.currency_code,
+      line_items: inv.line_items,
+      notes: inv.notes,
+      sent_at: inv.sent_at,
+      paid_at: inv.paid_at,
+      created_at: inv.created_at,
+      updated_at: inv.updated_at,
+    };
+
+    return res.json({ invoice: publicInvoice, business: business || {} });
   } catch (err) {
     logger.error('getPublicInvoice error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load invoice' });
