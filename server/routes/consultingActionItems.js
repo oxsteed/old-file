@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const consultingActionItemsController = require('../controllers/consultingActionItemsController');
 const { authenticate } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/adminAuth');
 
-// Action items expose consulting plans and change customer deliverables.
-router.use(authenticate, requireAdmin);
+// The controller permits customers to read their own action items while
+// keeping create/update/delete operations admin-only.
+router.use(authenticate);
 
 // Get action items for a session
 router.get('/sessions/:sessionId/action-items', consultingActionItemsController.getSessionActionItems);
