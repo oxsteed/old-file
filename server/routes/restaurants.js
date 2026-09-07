@@ -20,10 +20,11 @@ const appFlow = require('../controllers/restaurantAppFlowController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const { authenticatedLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 // A new appliance has no staff session yet. These routes authenticate with the
 // one-time pairing code or the per-device credential issued after pairing.
-router.post('/:restaurantId/devices/pair', appFlow.pairDevice);
+router.post('/:restaurantId/devices/pair', strictLimiter, appFlow.pairDevice);
 router.get('/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
 router.post('/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
 router.get('/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
@@ -67,7 +68,7 @@ router.post('/:restaurantId/locations', appFlow.createRestaurantLocation);
 router.patch('/:restaurantId/locations/:locationId', appFlow.updateRestaurantLocation);
 
 // Display / kiosk / device pairing
-router.post('/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
+router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, appFlow.createDevicePairingCode);
 router.get('/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
 router.patch('/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
 
