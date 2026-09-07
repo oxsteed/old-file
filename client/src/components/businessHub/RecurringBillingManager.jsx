@@ -11,7 +11,7 @@ export function RecurringBillingManager({ businessId }) {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], customer_id: '', notes: '' });
+  const [form, setForm] = useState({ client_name: '', client_email: '', description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], notes: '' });
   const recurringBillingPath = `/businesses/${businessId}/recurring-billing`;
 
   useEffect(() => { load(); }, [businessId]);
@@ -35,7 +35,7 @@ export function RecurringBillingManager({ businessId }) {
         await api.post(recurringBillingPath, payload);
         toast.success(tRecurring('created'));
       }
-      setShowForm(false); setEditing(null); setForm({ description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], customer_id: '', notes: '' }); load();
+      setShowForm(false); setEditing(null); setForm({ client_name: '', client_email: '', description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], notes: '' }); load();
     } catch { toast.error(tRecurring('saveError')); }
   };
 
@@ -52,7 +52,7 @@ export function RecurringBillingManager({ businessId }) {
     catch { toast.error(tRecurring('deleteError')); }
   };
 
-  const frequencies = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+  const frequencies = ['weekly', 'biweekly', 'monthly', 'quarterly', 'annually'];
   const statusLabel = (status) => {
     if (status === 'active') return tRecurring('statusActive');
     if (status === 'paused') return tRecurring('statusPausedStatus');
@@ -77,6 +77,8 @@ export function RecurringBillingManager({ businessId }) {
           <h4 style={{ margin: '0 0 1rem' }}>{editing ? tRecurring('editRecurring') : tRecurring('createRecurring')}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             {[
+              ['client_name', tRecurring('clientName', { defaultValue: 'Client name' }), 'text'],
+              ['client_email', tRecurring('clientEmail', { defaultValue: 'Client email' }), 'email'],
               ['description', tRecurring('description'), 'text'],
               ['amount_cents', tRecurring('amount'), 'number'],
             ].map(([fieldKey, label, fieldType]) => (
@@ -135,7 +137,7 @@ export function RecurringBillingManager({ businessId }) {
               <button onClick={() => toggle(item)} title={item.status === 'active' ? tRecurring('pause') : tRecurring('resume')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: item.status === 'active' ? '#f59e0b' : '#10b981' }}>
                 {item.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
               </button>
-              <button onClick={() => { setEditing(item); setForm({ description: item.description || '', amount_cents: (item.amount_cents / 100).toFixed(2), frequency: item.frequency, start_date: item.next_billing_date?.split('T')[0] || '', customer_id: item.customer_id || '', notes: item.notes || '' }); setShowForm(true); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><Edit2 size={14} /></button>
+              <button onClick={() => { setEditing(item); setForm({ client_name: item.client_name || '', client_email: item.client_email || '', description: item.description || '', amount_cents: (item.amount_cents / 100).toFixed(2), frequency: item.frequency, start_date: item.next_billing_date?.split('T')[0] || '', notes: item.notes || '' }); setShowForm(true); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }}><Edit2 size={14} /></button>
               <button onClick={() => remove(item.id)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={14} /></button>
             </div>
           ))}

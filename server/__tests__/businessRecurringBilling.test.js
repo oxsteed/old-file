@@ -52,6 +52,8 @@ describe('business recurring billing backend wiring', () => {
 
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls[0][1]).toEqual([
+      null,
+      null,
       'Monthly service',
       12000,
       'monthly',
@@ -61,6 +63,21 @@ describe('business recurring billing backend wiring', () => {
       'rb-1',
       'biz-1',
     ]);
+  });
+
+  test('rejects invalid recurring billing amounts before touching the database', async () => {
+    const res = await request(buildApp())
+      .post('/api/businesses/biz-1/recurring-billing')
+      .send({
+        client_name: 'Client',
+        description: 'Monthly service',
+        amount_cents: -1,
+        frequency: 'monthly',
+        start_date: '2026-07-01',
+      });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   test('keeps the legacy /recurring update route compatible with the same controller', async () => {

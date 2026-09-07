@@ -196,33 +196,75 @@ exports.deleteQuote = async (req, res, next) => {
 
 exports.convertToInvoice = async (req, res, next) => {
   const { businessId, id: quoteId } = req.params;
+  const client = await pool.connect();
   try {
-    const quoteRow = await pool.query(
-      'SELECT * FROM business_quotes WHERE id=$1 AND business_id=$2',
+    await client.query('BEGIN');
+    const quoteRow = await client.query(
+      'SELECT * FROM business_quotes WHERE id=$1 AND business_id=$2 FOR UPDATE',
       [quoteId, businessId]
     );
-    if (!quoteRow.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    if (!quoteRow.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Quote not found' });
+    }
     const quote = quoteRow.rows[0];
     if (!['approved', 'sent'].includes(quote.status)) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Only approved or sent quotes can be converted to invoices' });
     }
+
+    const businessRow = await client.query(
+      `UPDATE businesses SET invoice_seq = invoice_seq + 1
+       WHERE id = $1 RETURNING invoice_seq, user_id`,
+      [businessId]
+    );
+    if (!businessRow.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
-    const invoiceRow = await pool.query(
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(businessRow.rows[0].invoice_seq).padStart(4, '0')}`;
+    const lineItems = (Array.isArray(quote.line_items) ? quote.line_items : []).map((item) => {
+      const quantity = Number(item.quantity) || 1;
+      const unitPrice = item.unit_price !== undefined
+        ? Number(item.unit_price)
+        : Number(item.unit_price_cents || 0) / 100;
+      return {
+        description: String(item.description || quote.title || 'Quoted service').trim(),
+        quantity,
+        unit_price: unitPrice,
+        amount: Math.round(quantity * unitPrice * 100) / 100,
+      };
+    });
+    const subtotal = Number(quote.subtotal_cents || 0) / 100;
+    const total = Number(quote.total_cents || 0) / 100;
+    const taxAmount = Math.round((total - subtotal) * 100) / 100;
+    const publicToken = crypto.randomUUID();
+    const invoiceRow = await client.query(
       `INSERT INTO business_invoices
-         (business_id, client_name, client_email, title, line_items,
-          subtotal_cents, tax_rate, total_cents, due_date, status, quote_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10) RETURNING *`,
+         (user_id, business_id, invoice_number, client_name, client_email,
+          status, due_date, subtotal, invoice_tax_rate, tax_amount, total,
+          line_items, notes, public_token)
+       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [
-        businessId, quote.client_name, quote.client_email, quote.title,
-        quote.line_items, quote.subtotal_cents, quote.tax_rate,
-        quote.total_cents, dueDate, quoteId,
+        businessRow.rows[0].user_id, businessId, invoiceNumber,
+        quote.client_name, quote.client_email, dueDate, subtotal,
+        quote.tax_rate || 0, taxAmount, total, JSON.stringify(lineItems),
+        `Generated from quote ${quoteId}${quote.title ? `: ${quote.title}` : ''}`, publicToken,
       ]
     );
-    await pool.query(
-      "UPDATE business_quotes SET status='converted', updated_at=NOW() WHERE id=$1",
-      [quoteId]
+    await client.query(
+      "UPDATE business_quotes SET status='converted', invoice_id=$2, updated_at=NOW() WHERE id=$1",
+      [quoteId, invoiceRow.rows[0].id]
     );
+    await client.query('COMMIT');
     res.status(201).json(invoiceRow.rows[0]);
-  } catch (err) { next(err); }
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* preserve the original database error */ }
+    next(err);
+  } finally {
+    client.release();
+  }
 };

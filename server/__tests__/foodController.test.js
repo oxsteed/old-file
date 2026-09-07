@@ -187,6 +187,7 @@ describe('food controller', () => {
       .post('/api/food/restaurants/3/orders')
       .send({
         fulfillmentType: 'pickup',
+        discount_cents: 1000,
         items: [{ menuItemId: 11, quantity: 2 }],
       });
 
@@ -195,6 +196,8 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
+    const orderInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_orders/.test(sql));
+    expect(orderInsert[1][16]).toBe(0);
   });
 
   test('rejects online checkout mode until the restaurant connects Stripe', async () => {
@@ -354,6 +357,41 @@ describe('food controller', () => {
     expect(res.body.order.id).toBe(100);
     expect(res.body.trackingToken).toBe('track-xyz');
     expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  test('rechecks the idempotency key after locking the restaurant', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          accepts_online_orders: true,
+          currency_code: 'USD',
+          prep_time_min: 12,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 101,
+          restaurant_id: 3,
+          metadata: { clientOrderId: 'offline-race', trackingToken: 'track-race' },
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        client_order_id: 'offline-race',
+        fulfillmentType: 'pickup',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(res.body.order.id).toBe(101);
+    expect(res.body.trackingToken).toBe('track-race');
+    expect(mockQuery.mock.calls).toHaveLength(3);
   });
 
   test('updates order status through restaurant-scoped access', async () => {

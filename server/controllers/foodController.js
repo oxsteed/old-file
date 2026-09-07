@@ -1685,7 +1685,9 @@ exports.quoteOrder = async (req, res, next) => {
 
     const subtotalCents = lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
     const tipCents = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
-    let discountCents = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
+    // Discounts must come from a server-validated promotion. Never trust a
+    // client-provided amount because it would let a caller reduce the quote.
+    let discountCents = 0;
     const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
     let discount = null;
     if (discountCode) {
@@ -1850,6 +1852,26 @@ exports.createOrder = async (req, res, next) => {
       );
       const restaurant = restaurants[0];
       if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+      // The fast-path check above can race with another request. Recheck after
+      // locking the restaurant row so concurrent offline retries replay cleanly.
+      if (clientOrderId) {
+        const { rows: existingOrders } = await client.query(
+          `SELECT * FROM food_orders
+            WHERE restaurant_id = $1 AND metadata->>'clientOrderId' = $2
+            LIMIT 1`,
+          [restaurantId, clientOrderId]
+        );
+        if (existingOrders[0]) {
+          const existing = existingOrders[0];
+          return {
+            order: existing,
+            restaurant,
+            trackingToken: existing.metadata?.trackingToken || existing.metadata?.tracking_token || null,
+            replayed: true,
+          };
+        }
+      }
       const stripeStatus = getRestaurantStripeStatus(restaurant);
       if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
         throw new AppError(
@@ -2034,7 +2056,9 @@ exports.createOrder = async (req, res, next) => {
       }
 
       const tip = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
-      let discount = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
+      // As with quoteOrder, only a promotion or loyalty redemption may set a
+      // discount. Client-provided discount amounts are not authoritative.
+      let discount = 0;
       const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
       let discountLabel = normalizeString(req.body.discountLabel || req.body.discount_label, 120);
       let promotionId = null;
