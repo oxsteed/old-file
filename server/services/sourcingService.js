@@ -1,5 +1,6 @@
 'use strict';
 const pool = require('../db');
+const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 
 // Reference generator: SR-2026-00001
@@ -122,9 +123,7 @@ async function createQuote(data, createdBy) {
   } = data;
 
   const year = new Date().getFullYear();
-  const countRes = await pool.query(`SELECT COUNT(*) FROM supplier_quotes`);
-  const seq = String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0');
-  const reference = `QT-${year}-${seq}`;
+  const reference = `QT-${year}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
   const result = await pool.query(
     `INSERT INTO supplier_quotes

@@ -1,13 +1,12 @@
 'use strict';
 const pool = require('../db');
+const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
 
 async function generatePooledRef() {
   const year = new Date().getFullYear();
-  const res = await pool.query(`SELECT COUNT(*) FROM pooled_orders`);
-  const seq = String(parseInt(res.rows[0].count) + 1).padStart(5, '0');
-  return `PO-${year}-${seq}`;
+  return `PO-${year}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 }
 
 async function listPooledOrders({

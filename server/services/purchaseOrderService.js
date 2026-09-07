@@ -1,5 +1,6 @@
 'use strict';
 const pool = require('../db');
+const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
 
@@ -29,9 +30,7 @@ function canTransition(from, to) {
 
 async function generatePORef() {
   const year = new Date().getFullYear();
-  const res = await pool.query(`SELECT COUNT(*) FROM purchase_orders`);
-  const seq = String(parseInt(res.rows[0].count) + 1).padStart(5, '0');
-  return `PO-${year}-${seq}`;
+  return `PO-${year}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 }
 
 async function createPurchaseOrder(data, actorUserId) {

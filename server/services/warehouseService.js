@@ -1,5 +1,6 @@
 'use strict';
 const pool = require('../db');
+const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 
 // ─── Warehouses ───────────────────────────────────────────────
@@ -34,9 +35,7 @@ async function createWarehouse(data, createdBy) {
 
 async function createInventoryReceipt(data, actorUserId) {
   const year = new Date().getFullYear();
-  const res = await pool.query(`SELECT COUNT(*) FROM inventory_receipts`);
-  const seq = String(parseInt(res.rows[0].count) + 1).padStart(5, '0');
-  const reference = `IR-${year}-${seq}`;
+  const reference = `IR-${year}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
   const { shipment_id, purchase_order_id, pooled_order_id, warehouse_id, expected_qty, notes } = data;
   const result = await pool.query(
