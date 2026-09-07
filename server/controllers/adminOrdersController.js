@@ -109,6 +109,10 @@ async function getOrder(req, res) {
 
     const order = orderResult.rows[0];
 
+    if (order.status === 'refunded') {
+      return sendError(res, 409, 'Order has already been refunded');
+    }
+
     // Get order items
     const itemsResult = await pool.query(
       `SELECT moi.*, mp.name, mp.image_url
@@ -292,7 +296,17 @@ async function processRefund(req, res) {
     }
 
     const transaction = transactionResult.rows[0];
-    const refundCents = refundAmount || order.total_cents;
+    const refundCents = refundAmount === undefined || refundAmount === null
+      ? Number(transaction.amount_cents)
+      : Number(refundAmount);
+    const transactionCents = Number(transaction.amount_cents);
+    if (!Number.isInteger(refundCents) || refundCents <= 0
+      || !Number.isInteger(transactionCents) || transactionCents <= 0
+      || refundCents > transactionCents) {
+      return sendValidationError(res, {
+        refundAmount: 'Refund amount must be a positive whole-cent amount no greater than the payment.'
+      });
+    }
 
     // Process Stripe refund
     try {
