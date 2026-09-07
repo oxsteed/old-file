@@ -293,9 +293,8 @@ async function processPayout(req, res, next) {
     }
     payout.rows[0] = { ...payout.rows[0], ...claim.rows[0] };
 
+    let payoutReference;
     try {
-      let payoutReference;
-
       const stripePayout = await stripe.payouts.create({
         amount: payout.rows[0].total_commission_cents,
         currency: 'usd',
@@ -307,32 +306,9 @@ async function processPayout(req, res, next) {
         idempotencyKey: `affiliate-payout-${payoutId}`
       });
       payoutReference = stripePayout.id;
-
-      // Update payout record
-      const updated = await pool.query(
-        `UPDATE affiliate_payouts
-         SET status = $1, payout_method = $2, payout_reference = $3, payment_method_id = $4, sent_at = CURRENT_TIMESTAMP
-         WHERE id = $5
-         RETURNING *`,
-        ['processing', payout_method, payoutReference, payment_method_id, payoutId]
-      );
-
-      // Update program pending amount
-      await pool.query(
-        `UPDATE affiliate_programs
-         SET pending_cents = pending_cents - $1
-         WHERE id = (SELECT affiliate_program_id FROM affiliate_payouts WHERE id = $2)`,
-        [payout.rows[0].total_commission_cents, payoutId]
-      );
-
-      logger.info('Payout processed', { payoutId, reference: payoutReference });
-
-      res.json({
-        success: true,
-        data: updated.rows[0]
-      });
     } catch (stripeError) {
-      // Log the error but still update status to failed
+      // Only processor failures are terminal. Persistence failures after a
+      // successful Stripe call must remain processing for reconciliation.
       logger.error('Stripe payout failed', { error: stripeError.message });
 
       await pool.query(
@@ -342,6 +318,31 @@ async function processPayout(req, res, next) {
 
       throw new AppError('Failed to process payout through payment processor', 502, 'stripe_error');
     }
+
+    // Update payout record. If this or the balance update fails, leave the
+    // claimed row processing so an operator/reconciliation job can retry it.
+    const updated = await pool.query(
+      `UPDATE affiliate_payouts
+       SET status = $1, payout_method = $2, payout_reference = $3, payment_method_id = $4, sent_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      ['processing', payout_method, payoutReference, payment_method_id, payoutId]
+    );
+
+    // Update program pending amount
+    await pool.query(
+      `UPDATE affiliate_programs
+       SET pending_cents = pending_cents - $1
+       WHERE id = (SELECT affiliate_program_id FROM affiliate_payouts WHERE id = $2)`,
+      [payout.rows[0].total_commission_cents, payoutId]
+    );
+
+    logger.info('Payout processed', { payoutId, reference: payoutReference });
+
+    res.json({
+      success: true,
+      data: updated.rows[0]
+    });
   } catch (error) {
     next(error);
   }
