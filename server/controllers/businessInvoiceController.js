@@ -10,6 +10,18 @@ const { canManageBusinessFinance } = require('../utils/businessOwnership');
 
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
 
+function resolvePaidAmount(rawAmount, invoiceTotal) {
+  if (rawAmount === undefined || rawAmount === null || String(rawAmount).trim() === '') {
+    return { value: round2(invoiceTotal) };
+  }
+  const amount = Number(rawAmount);
+  const total = Number(invoiceTotal);
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(total) || amount > total + 0.009) {
+    return { error: 'Paid amount must be greater than zero and no greater than the invoice total.' };
+  }
+  return { value: round2(amount) };
+}
+
 // ── Compute totals from line items + tax rate ─────────────────────────────────
 function computeTotals(lineItems, invoiceTaxRate) {
   const subtotal = lineItems.reduce((sum, li) => {
@@ -216,7 +228,6 @@ async function markInvoicePaid(req, res) {
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { amount } = req.body;
-    const paidAmt = amount != null ? parseFloat(amount) : null;
 
     // Fetch current invoice
     const { rows: [existing] } = await pool.query(
@@ -225,9 +236,9 @@ async function markInvoicePaid(req, res) {
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
 
-    const newPaidTotal = paidAmt != null
-      ? round2(paidAmt)
-      : parseFloat(existing.total);
+    const paidAmount = resolvePaidAmount(amount, existing.total);
+    if (paidAmount.error) return res.status(400).json({ error: paidAmount.error });
+    const newPaidTotal = paidAmount.value;
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';
@@ -584,7 +595,6 @@ async function markHelperInvoicePaid(req, res) {
     const userId = req.user.id;
     const invoiceId = req.params.invoiceId;
     const { amount } = req.body;
-    const paidAmt = amount != null ? parseFloat(amount) : null;
 
     // Fetch current invoice
     const { rows: [existing] } = await pool.query(
@@ -593,9 +603,9 @@ async function markHelperInvoicePaid(req, res) {
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
 
-    const newPaidTotal = paidAmt != null
-      ? round2(paidAmt)
-      : parseFloat(existing.total);
+    const paidAmount = resolvePaidAmount(amount, existing.total);
+    if (paidAmount.error) return res.status(400).json({ error: paidAmount.error });
+    const newPaidTotal = paidAmount.value;
 
     const isFullyPaid = newPaidTotal >= parseFloat(existing.total) - 0.01;
     const newStatus   = isFullyPaid ? 'paid' : 'partial';
