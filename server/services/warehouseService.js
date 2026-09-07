@@ -5,13 +5,16 @@ const { logLogisticsAction } = require('./logisticsAuditService');
 
 // ─── Warehouses ───────────────────────────────────────────────
 
-async function listWarehouses({ country, isActive = true } = {}) {
+async function listWarehouses({ country, isActive = true, publicSafe = false } = {}) {
   const conditions = ['1=1'];
   const params = [];
   if (isActive !== null) { conditions.push(`w.is_active = $${params.push(isActive)}`); }
   if (country)           { conditions.push(`w.country = $${params.push(country)}`); }
+  const warehouseFields = publicSafe
+    ? `w.id, w.code, w.name, w.country, w.city, w.is_active, w.is_bonded`
+    : 'w.*';
   const result = await pool.query(
-    `SELECT w.*,
+    `SELECT ${warehouseFields},
             (SELECT COUNT(*) FROM inventory_receipts ir WHERE ir.warehouse_id = w.id AND ir.status NOT IN ('closed')) AS active_receipts
      FROM warehouses w
      WHERE ${conditions.join(' AND ')}

@@ -7,7 +7,10 @@ const crypto = require('crypto');
 
 exports.listWarehouses = async (req, res, next) => {
   try {
-    const warehouses = await warehouseService.listWarehouses({ country: req.query.country });
+    const warehouses = await warehouseService.listWarehouses({
+      country: req.query.country,
+      publicSafe: !req.isAdmin,
+    });
     res.json({ success: true, data: warehouses });
   } catch (err) { next(err); }
 };
