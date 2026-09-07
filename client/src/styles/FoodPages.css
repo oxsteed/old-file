@@ -2354,6 +2354,7 @@ html.dark .fd-pos-pay-modal > div { background: #1e293b; }
 }
 html.dark .fd-pos-pay-method { color: #e2e8f0; border-color: #334155; }
 .fd-pos-pay-method.fd-active { border-color: #f97316; color: #f97316; }
+.fd-pos-pay-hint { margin: 0.25rem 0 0.75rem; color: #94a3b8; font-size: 0.82rem; line-height: 1.4; }
 .fd-pos-change { font-size: 0.9rem; color: #22c55e; font-weight: 600; margin: 0.25rem 0; }
 .fd-pos-discount-line { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 

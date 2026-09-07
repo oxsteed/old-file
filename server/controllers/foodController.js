@@ -619,17 +619,139 @@ async function deductFoodLoyaltyOnOrder(client, { accountId, orderId, pointsRede
   );
 }
 
-function publicQueueGuestLabel(order) {
+function publicQueueGuestLabel(order, { showGuestNames = false } = {}) {
   const tableLabel = normalizeString(order.table_label, 80);
   if (tableLabel) {
     return /^table/i.test(tableLabel) ? tableLabel : `Table ${tableLabel}`;
   }
-  const guestName = normalizeString(order.guest_name, 140);
+  const guestName = showGuestNames ? normalizeString(order.guest_name, 140) : null;
   if (guestName) {
     const first = guestName.split(/\s+/)[0];
     return first ? first.slice(0, 24) : 'Guest';
   }
   return 'Guest';
+}
+
+function publicTrackedOrder(order) {
+  if (!order) return null;
+  return {
+    id: order.id,
+    restaurant_id: order.restaurant_id,
+    status: order.status,
+    payment_status: order.payment_status,
+    order_source: order.order_source,
+    fulfillment_type: order.fulfillment_type,
+    subtotal_cents: order.subtotal_cents,
+    tax_cents: order.tax_cents,
+    service_fee_cents: order.service_fee_cents,
+    delivery_fee_cents: order.delivery_fee_cents,
+    tip_cents: order.tip_cents,
+    discount_cents: order.discount_cents,
+    total_cents: order.total_cents,
+    currency_code: order.currency_code,
+    table_label: order.table_label,
+    queue_number: order.queue_number,
+    promised_at: order.promised_at,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+    accepted_at: order.accepted_at,
+    ready_at: order.ready_at,
+    completed_at: order.completed_at,
+    cancelled_at: order.cancelled_at,
+    restaurant_name: order.restaurant_name,
+    prep_time_min: order.prep_time_min,
+    has_review: order.has_review,
+    items: Array.isArray(order.items)
+      ? order.items.map((item) => ({
+        id: item.id,
+        itemName: item.itemName,
+        quantity: item.quantity,
+        lineTotalCents: item.lineTotalCents,
+      }))
+      : [],
+  };
+}
+
+const PUBLIC_RESTAURANT_SETTING_KEYS = [
+  'deliveryFeeCents',
+  'delivery_fee_cents',
+  'minimumOrderCents',
+  'minimum_order_cents',
+  'externalPaymentEnabled',
+  'external_payment_enabled',
+  'requireExternalPaymentProof',
+  'require_external_payment_proof',
+  'externalPaymentLabel',
+  'external_payment_label',
+  'externalPaymentHandle',
+  'external_payment_handle',
+  'externalPaymentInstructions',
+  'external_payment_instructions',
+  'externalPaymentReferenceHint',
+  'external_payment_reference_hint',
+  'externalPaymentQrUrl',
+  'external_payment_qr_url',
+  'priceRange',
+  'price_range',
+  'requireGuestNameForPickup',
+  'require_guest_name_for_pickup',
+  'requireContactForUpdates',
+  'require_contact_for_updates',
+];
+
+function publicRestaurantPayload(restaurant) {
+  if (!restaurant) return null;
+  const sourceSettings = restaurant.settings && typeof restaurant.settings === 'object'
+    ? restaurant.settings
+    : {};
+  const settings = Object.fromEntries(
+    PUBLIC_RESTAURANT_SETTING_KEYS
+      .filter((key) => sourceSettings[key] !== undefined && sourceSettings[key] !== null)
+      .map((key) => [key, sourceSettings[key]])
+  );
+  return {
+    id: restaurant.id,
+    business_id: restaurant.business_id,
+    display_name: restaurant.display_name,
+    slug: restaurant.slug,
+    description: restaurant.description,
+    cuisine_tags: restaurant.cuisine_tags,
+    cover_photo_url: restaurant.cover_photo_url,
+    logo_url: restaurant.logo_url,
+    address_city: restaurant.address_city,
+    address_state: restaurant.address_state,
+    address_country: restaurant.address_country,
+    latitude: restaurant.latitude,
+    longitude: restaurant.longitude,
+    currency_code: restaurant.currency_code,
+    fulfillment_modes: restaurant.fulfillment_modes,
+    accepts_online_orders: restaurant.accepts_online_orders,
+    accepts_in_store_orders: restaurant.accepts_in_store_orders,
+    kitchen_display_enabled: restaurant.kitchen_display_enabled,
+    prep_time_min: restaurant.prep_time_min,
+    estimated_delivery_minutes: restaurant.estimated_delivery_minutes,
+    price_level: restaurant.price_level,
+    is_accepting_orders_now: restaurant.is_accepting_orders_now,
+    temporarily_closed_until: restaurant.temporarily_closed_until,
+    minimum_order_cents: restaurant.minimum_order_cents,
+    delivery_fee_cents: restaurant.delivery_fee_cents,
+    service_area_radius_meters: restaurant.service_area_radius_meters,
+    order_count: restaurant.order_count,
+    last_ordered_at: restaurant.last_ordered_at,
+    last_reviewed_at: restaurant.last_reviewed_at,
+    brand_accent_hex: restaurant.brand_accent_hex,
+    operating_hours: restaurant.operating_hours,
+    timezone: restaurant.timezone,
+    is_open: restaurant.is_open,
+    hours_message: restaurant.hours_message,
+    opens_at: restaurant.opens_at,
+    closes_at: restaurant.closes_at,
+    is_verified: restaurant.is_verified,
+    dietary_tags: restaurant.dietary_tags,
+    avg_rating: restaurant.avg_rating,
+    review_count: restaurant.review_count,
+    settings,
+  };
 }
 
 function checkoutCompletionHtml({ title, detail, actionLabel, actionHref }) {
@@ -1321,16 +1443,16 @@ exports.getRestaurant = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.*,
-              b.stripe_account_id AS business_stripe_account_id,
-              b.stripe_charges_enabled AS business_stripe_charges_enabled,
-              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-              b.stripe_account_status AS business_stripe_account_status
+      `SELECT fr.*
          FROM food_restaurants fr
-         LEFT JOIN businesses b ON b.id = fr.business_id
+         JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
-          AND fr.status IN ('active', 'paused', 'draft')
+          AND fr.status IN ('active', 'paused')
+          AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
       [restaurantId]
     );
@@ -1355,7 +1477,7 @@ exports.getRestaurant = async (req, res, next) => {
     const menuData = await loadRestaurantMenu(restaurantId);
 
     res.json({
-      restaurant: attachRestaurantHours(restaurant),
+      restaurant: publicRestaurantPayload(attachRestaurantHours(restaurant)),
       ...menuData,
     });
   } catch (err) {
@@ -2115,8 +2237,10 @@ exports.createOrder = async (req, res, next) => {
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
            FROM food_orders
-          WHERE restaurant_id = $1 AND created_at::date = CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
+        [restaurantId, restaurant.timezone || 'UTC']
       );
       const queueNumber = Number(queueRows[0]?.next_queue || 1);
 
@@ -2480,7 +2604,11 @@ exports.listRestaurantOrders = async (req, res, next) => {
     } else if (req.query.active === '1' || req.query.active === 'true') {
       // Kitchen-display polling feed: only today's in-flight orders.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
-      filters.push('fo.created_at::date = CURRENT_DATE');
+      filters.push(`(fo.created_at AT TIME ZONE COALESCE(
+        (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
+      ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
+        (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
+      ))::date`);
     }
     if (source === 'pos' || source === 'in_store') {
       params.push(Array.from(IN_STORE_SOURCES));
@@ -3768,7 +3896,11 @@ exports.getQueueBoard = async (req, res, next) => {
               completed_at, handed_off_at, metadata
          FROM food_orders
         WHERE restaurant_id = $1
-          AND created_at::date = CURRENT_DATE
+          AND (created_at AT TIME ZONE COALESCE(
+            (SELECT timezone FROM food_restaurants WHERE id = $1), 'UTC'
+          ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
+            (SELECT timezone FROM food_restaurants WHERE id = $1), 'UTC'
+          ))::date
           AND status IN ('received','accepted','preparing','ready','completed')
         ORDER BY queue_number ASC`,
       [restaurantId]
@@ -3777,6 +3909,7 @@ exports.getQueueBoard = async (req, res, next) => {
       || restaurants[0].settings?.queue_board
       || restaurants[0].settings?.kitchenPrep
       || {};
+    const showGuestNames = queueSettings.showGuestNames ?? queueSettings.show_guest_names ?? false;
     const handoffDisplaySeconds = Math.max(0, Math.min(120, Number(
       queueSettings.handoffDisplaySeconds ?? queueSettings.handoff_display_seconds ?? 15
     ) || 0));
@@ -3804,7 +3937,7 @@ exports.getQueueBoard = async (req, res, next) => {
         .filter((r) => !['ready', 'completed'].includes(r.status))
         .map((r) => ({
           queueNumber: r.queue_number,
-          guestLabel: publicQueueGuestLabel(r),
+          guestLabel: publicQueueGuestLabel(r, { showGuestNames }),
           fulfillmentType: r.fulfillment_type,
           promisedAt: r.promised_at,
         })),
@@ -3812,7 +3945,7 @@ exports.getQueueBoard = async (req, res, next) => {
         .filter((r) => ['ready', 'completed'].includes(r.status))
         .map((r) => ({
           queueNumber: r.queue_number,
-          guestLabel: publicQueueGuestLabel(r),
+          guestLabel: publicQueueGuestLabel(r, { showGuestNames }),
           fulfillmentType: r.fulfillment_type,
           promisedAt: r.promised_at,
         })),
@@ -3831,7 +3964,14 @@ exports.getTrackedOrder = async (req, res, next) => {
     if (!trackingToken) throw new AppError('Order not found', 404, 'order_not_found');
 
     const { rows } = await pool.query(
-      `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
+      `SELECT fo.id, fo.restaurant_id, fo.status, fo.payment_status,
+              fo.order_source, fo.fulfillment_type, fo.subtotal_cents,
+              fo.tax_cents, fo.service_fee_cents, fo.delivery_fee_cents,
+              fo.tip_cents, fo.discount_cents, fo.total_cents, fo.currency_code,
+              fo.table_label, fo.queue_number, fo.promised_at, fo.created_at,
+              fo.updated_at, fo.accepted_at, fo.ready_at, fo.completed_at,
+              fo.cancelled_at, fo.stripe_payment_intent_id,
+              fr.display_name AS restaurant_name, fr.prep_time_min,
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
@@ -3850,7 +3990,7 @@ exports.getTrackedOrder = async (req, res, next) => {
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     order = await syncFoodOrderPaymentStatus(order);
-    res.json({ order });
+    res.json({ order: publicTrackedOrder(order) });
   } catch (err) {
     next(err);
   }

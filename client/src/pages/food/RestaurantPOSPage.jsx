@@ -145,12 +145,15 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
         </div>
 
         <div className="fd-pos-pay-methods">
-          {['cash', 'card', 'mobile'].map((m) => (
+          {['cash', 'mobile'].map((m) => (
             <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)}>
               {t(`food.pos.method_${m}`)}
             </button>
           ))}
         </div>
+        <p className="fd-pos-pay-hint">
+          {t('food.pos.cardTerminalRequired', { defaultValue: 'Card payments require a connected POS terminal. Use the POS app for card checkout.' })}
+        </p>
 
         {method === 'cash' && (
           <div className="fd-field">

@@ -59,12 +59,52 @@ describe('public restaurant visibility', () => {
     expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
   });
 
+  test('direct restaurant lookup applies the public publication guard', async () => {
+    const res = await request(buildApp()).get('/api/food/restaurants/3');
+
+    expect(res.status).toBe(404);
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
+    expect(sql).toMatch(/b\.is_listed = TRUE/);
+    expect(sql).toMatch(/COALESCE\(b\.business_kind, 'restaurant'\) = 'restaurant'/);
+  });
+
   test('public promotions cannot leak from an inactive business', async () => {
     const res = await request(buildApp()).get('/api/food/restaurants/3/promotions');
 
     expect(res.status).toBe(200);
     expect(res.body.promotions).toEqual([]);
     expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+  });
+
+  test('public queue board keeps guest names hidden unless explicitly enabled', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          display_name: 'Ox Burger Lab',
+          logo_url: null,
+          settings: { queueBoard: { showGuestNames: false } },
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          queue_number: 12,
+          status: 'ready',
+          guest_name: 'Alice Smith',
+          table_label: null,
+          fulfillment_type: 'pickup',
+          promised_at: null,
+          completed_at: null,
+          handed_off_at: null,
+          metadata: {},
+        }],
+      });
+
+    const res = await request(buildApp()).get('/api/food/restaurants/3/queue-board');
+
+    expect(res.status).toBe(200);
+    expect(res.body.readyEntries[0].guestLabel).toBe('Guest');
   });
 
   test('quote and order creation stop at the active-business guard', async () => {

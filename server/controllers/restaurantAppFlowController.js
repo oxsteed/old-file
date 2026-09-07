@@ -3569,8 +3569,10 @@ exports.createPosOrder = async (req, res, next) => {
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
            FROM food_orders
-          WHERE restaurant_id = $1 AND created_at::date = CURRENT_DATE`,
-        [restaurantId]
+          WHERE restaurant_id = $1
+            AND (created_at AT TIME ZONE COALESCE($2, 'UTC'))::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE($2, 'UTC'))::date`,
+        [restaurantId, lockedRestaurant.timezone || 'UTC']
       );
       const requestedPaymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
       if (requestedPaymentStatus && requestedPaymentStatus !== 'unpaid') {
@@ -3856,9 +3858,18 @@ exports.splitPosOrder = async (req, res, next) => {
       const childDiscount = Math.round(Number(source.discount_cents || 0) * splitRatio);
       const childTip = Math.round(Number(source.tip_cents || 0) * splitRatio);
       const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at::date = CURRENT_DATE`,
+        `WITH locked_restaurant AS (
+           SELECT id, timezone
+             FROM food_restaurants
+            WHERE id = $1
+            FOR UPDATE
+         )
+         SELECT COALESCE(MAX(fo.queue_number), 0) + 1 AS next_queue
+           FROM food_orders fo
+           JOIN locked_restaurant lr ON lr.id = fo.restaurant_id
+          WHERE fo.restaurant_id = $1
+            AND (fo.created_at AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(lr.timezone, 'UTC'))::date`,
         [restaurantId]
       );
       const { rows: [child] } = await client.query(

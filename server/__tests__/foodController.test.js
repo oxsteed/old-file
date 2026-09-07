@@ -17,7 +17,9 @@ function buildApp() {
     next();
   });
   app.get('/api/food/restaurants', ctrl.listRestaurants);
+  app.get('/api/food/restaurants/:restaurantId', ctrl.getRestaurant);
   app.get('/api/food/markets', ctrl.listMarkets);
+  app.get('/api/food/orders/track/:trackingToken', ctrl.getTrackedOrder);
   app.post('/api/food/restaurants', ctrl.createRestaurant);
   app.patch('/api/food/restaurants/:restaurantId', ctrl.updateRestaurant);
   app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
@@ -31,6 +33,101 @@ function buildApp() {
 beforeEach(() => resetMocks());
 
 describe('food controller', () => {
+  test('public restaurant lookup exposes storefront fields, not business credentials', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          owner_user_id: '00000000-0000-4000-8000-000000000999',
+          display_name: 'Ox Burger Lab',
+          status: 'active',
+          discovery_status: 'visible',
+          settings: {
+            externalPaymentEnabled: true,
+            externalPaymentHandle: 'oxburger@example.com',
+            privateProcessorSecret: 'do not return',
+          },
+          operating_hours: {},
+          timezone: 'America/New_York',
+          business_stripe_account_id: 'acct_private',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ avg_rating: 4.5, review_count: 8 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/api/food/restaurants/3');
+
+    expect(res.status).toBe(200);
+    expect(res.body.restaurant.display_name).toBe('Ox Burger Lab');
+    expect(res.body.restaurant.settings).toEqual({
+      externalPaymentEnabled: true,
+      externalPaymentHandle: 'oxburger@example.com',
+    });
+    expect(res.body.restaurant).not.toHaveProperty('owner_user_id');
+    expect(res.body.restaurant).not.toHaveProperty('business_stripe_account_id');
+    expect(res.body.restaurant.settings).not.toHaveProperty('privateProcessorSecret');
+  });
+
+  test('public order tracking returns only customer-safe fields', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 100,
+        restaurant_id: 3,
+        status: 'preparing',
+        payment_status: 'paid',
+        order_source: 'web',
+        fulfillment_type: 'pickup',
+        subtotal_cents: 1200,
+        tax_cents: 96,
+        service_fee_cents: 0,
+        delivery_fee_cents: 0,
+        tip_cents: 0,
+        discount_cents: 0,
+        total_cents: 1296,
+        currency_code: 'USD',
+        table_label: null,
+        queue_number: 7,
+        promised_at: null,
+        created_at: '2026-09-07T09:00:00.000Z',
+        updated_at: '2026-09-07T09:05:00.000Z',
+        accepted_at: '2026-09-07T09:02:00.000Z',
+        ready_at: null,
+        completed_at: null,
+        cancelled_at: null,
+        stripe_payment_intent_id: 'pi_private',
+        guest_email: 'guest@example.com',
+        guest_phone: '+15551234567',
+        customer_id: '00000000-0000-4000-8000-000000000999',
+        metadata: { trackingToken: 'track-safe', privateNote: 'do not return' },
+        restaurant_name: 'Ox Burger Lab',
+        prep_time_min: 15,
+        has_review: false,
+        items: [{ id: 1, itemName: 'Burger', quantity: 1, lineTotalCents: 1200, specialInstructions: 'secret' }],
+      }],
+    });
+
+    const res = await request(buildApp()).get('/api/food/orders/track/track-safe');
+
+    expect(res.status).toBe(200);
+    expect(res.body.order).toMatchObject({
+      id: 100,
+      status: 'preparing',
+      queue_number: 7,
+      total_cents: 1296,
+      restaurant_name: 'Ox Burger Lab',
+      items: [{ id: 1, itemName: 'Burger', quantity: 1, lineTotalCents: 1200 }],
+    });
+    expect(res.body.order).not.toHaveProperty('guest_email');
+    expect(res.body.order).not.toHaveProperty('guest_phone');
+    expect(res.body.order).not.toHaveProperty('customer_id');
+    expect(res.body.order).not.toHaveProperty('metadata');
+    expect(res.body.order).not.toHaveProperty('stripe_payment_intent_id');
+    expect(res.body.order.items[0]).not.toHaveProperty('specialInstructions');
+  });
+
   test('lists restaurants with country and search filters', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 7, display_name: 'Ox Burger', address_country: 'US' }],
