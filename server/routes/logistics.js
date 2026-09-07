@@ -20,6 +20,8 @@ const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
 const { requireLogisticsRole, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
 const requireWarehouseOps = requireLogisticsRole('warehouse_operator', 'logistics_coordinator');
+const requireLogisticsOps = requireLogisticsRole('sourcing_operator', 'logistics_coordinator');
+const requireShipmentOps = requireLogisticsRole('logistics_coordinator', 'warehouse_operator', 'sourcing_operator');
 
 function publicReference(prefix) {
   return `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -42,10 +44,10 @@ router.get('/products/:id',            sourcingCtrl.getSupplierProduct);
 router.post('/requests',               requireAuth, sourcingCtrl.createRequest);
 router.get('/requests',                requireAuth, sourcingCtrl.listRequests);
 router.get('/requests/:id',            requireAuth, sourcingCtrl.getRequest);
-router.patch('/requests/:id/status',   requireAuth, sourcingCtrl.updateStatus);
+router.patch('/requests/:id/status',   requireAuth, requireLogisticsOps, sourcingCtrl.updateStatus);
 
 // Quotes (operator / admin posts quotes against a request)
-router.post('/requests/:requestId/quotes', requireAuth, sourcingCtrl.createQuote);
+router.post('/requests/:requestId/quotes', requireAuth, requireLogisticsOps, sourcingCtrl.createQuote);
 
 // ─── Pooled Orders (campaigns) ───────────────────────────────
 
@@ -67,18 +69,18 @@ router.patch('/recurring-programs/:id/status',  requireAuth, recurringCtrl.updat
 
 router.get('/orders',                  requireAuth, poCtrl.listPurchaseOrders);
 router.get('/orders/:id',              requireAuth, poCtrl.getPurchaseOrder);
-router.post('/orders',                 requireAuth, poCtrl.createPurchaseOrder);
-router.patch('/orders/:id/status',     requireAuth, poCtrl.transitionStatus);
+router.post('/orders',                 requireAuth, requireLogisticsOps, poCtrl.createPurchaseOrder);
+router.patch('/orders/:id/status',     requireAuth, requireLogisticsOps, poCtrl.transitionStatus);
 router.post('/pricing/preview',        requireAuth, poCtrl.previewLandedCost);
 
 // ─── Shipments ────────────────────────────────────────────────
 
 router.get('/shipments',                requireAuth, shipCtrl.listShipments);
 router.get('/shipments/:id',            requireAuth, shipCtrl.getShipment);
-router.post('/shipments',               requireAuth, shipCtrl.createShipment);
-router.post('/shipments/:id/milestone', requireAuth, shipCtrl.addMilestone);
-router.patch('/shipments/:id/tracking', requireAuth, shipCtrl.updateTracking);
-router.post('/shipments/:id/documents', requireAuth, upload.single('file'), shipCtrl.uploadDocument);
+router.post('/shipments',               requireAuth, requireShipmentOps, shipCtrl.createShipment);
+router.post('/shipments/:id/milestone', requireAuth, requireShipmentOps, shipCtrl.addMilestone);
+router.patch('/shipments/:id/tracking', requireAuth, requireShipmentOps, shipCtrl.updateTracking);
+router.post('/shipments/:id/documents', requireAuth, requireShipmentOps, upload.single('file'), shipCtrl.uploadDocument);
 
 // ─── Warehouses / Receiving / Allocations / Delivery ─────────
 
