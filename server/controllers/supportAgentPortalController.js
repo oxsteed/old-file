@@ -133,6 +133,19 @@ async function patchMyAvailability(req, res) {
       if (!upd.rows.length) {
         return sendError(res, 404, 'Agent record not found');
       }
+      await query(
+        `UPDATE users u
+         SET is_available_for_support = availability.is_available,
+             support_available_at = CASE WHEN availability.is_available THEN NOW() ELSE NULL END
+         FROM (
+           SELECT EXISTS (
+             SELECT 1 FROM support_agents sa
+             WHERE sa.user_id = $1 AND sa.status = 'active' AND sa.is_available = TRUE
+           ) AS is_available
+         ) availability
+         WHERE u.id = $1`,
+        [req.user.id]
+      );
       return res.json({ success: true, data: upd.rows[0] });
     }
 
@@ -142,6 +155,14 @@ async function patchMyAvailability(req, res) {
        WHERE user_id = $2 AND status = 'active'
        RETURNING id, is_available`,
       [isAvailable, req.user.id]
+    );
+
+    await query(
+      `UPDATE users
+       SET is_available_for_support = $1,
+           support_available_at = CASE WHEN $1 THEN NOW() ELSE NULL END
+       WHERE id = $2`,
+      [isAvailable && upd.rows.length > 0, req.user.id]
     );
 
     res.json({

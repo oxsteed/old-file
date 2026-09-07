@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import io from 'socket.io-client';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
+import { realtimeNamespaceUrl } from '../../lib/realtime';
 
 const STATUS = {
   open: ['Open', 'border-blue-500/30 bg-blue-500/10 text-blue-200'],
@@ -75,6 +77,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [busy, setBusy] = useState(false);
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const agentSocketRef = useRef(null);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -160,6 +163,47 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       window.removeEventListener('oxs:admin-support-ticket', refresh);
     };
   }, [loadConversations, loadDetail, selectedId]);
+
+  useEffect(() => {
+    if (isPlatformAdmin || !agentEmployment?.is_available || !agentEmployment?.agent_id) {
+      agentSocketRef.current?.disconnect();
+      agentSocketRef.current = null;
+      return undefined;
+    }
+
+    let active = true;
+    const heartbeat = async () => {
+      try {
+        await api.patch('/support/agent/me/availability', {
+          agent_id: agentEmployment.agent_id,
+          is_available: true,
+        });
+      } catch {
+        if (active) setAgentEmployment((current) => current ? { ...current, is_available: false } : current);
+      }
+    };
+
+    heartbeat();
+    const heartbeatTimer = window.setInterval(heartbeat, 45_000);
+    const socket = io(realtimeNamespaceUrl('support'), {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      auth: { token: localStorage.getItem('accessToken') },
+    });
+    socket.on('connect', () => socket.emit('agent:join'));
+    const refreshWorkspace = () => loadConversations({ quiet: true });
+    socket.on('ticket:new-assignment', refreshWorkspace);
+    socket.on('ticket:created', refreshWorkspace);
+    socket.on('message:new', refreshWorkspace);
+    agentSocketRef.current = socket;
+
+    return () => {
+      active = false;
+      window.clearInterval(heartbeatTimer);
+      socket.disconnect();
+      if (agentSocketRef.current === socket) agentSocketRef.current = null;
+    };
+  }, [agentEmployment?.agent_id, agentEmployment?.is_available, isPlatformAdmin, loadConversations]);
 
   const selected = detail || conversations.find((row) => row.id === selectedId) || null;
   const isAssignedToMe = selected?.agent_user_id === user?.id;

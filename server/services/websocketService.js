@@ -44,7 +44,7 @@ class WebSocketService {
 
       // Agent joins dashboard
       socket.on('agent:join', async () => {
-        if (!['admin', 'super_admin'].includes(socket.userRole)) return;
+        if (!socket.userId) return;
         const { rows } = await pool.query(
           `SELECT id FROM support_agents
            WHERE user_id = $1 AND status = 'active'

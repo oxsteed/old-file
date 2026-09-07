@@ -69,14 +69,12 @@ class SupportRoutingService {
         FROM support_agents a
         JOIN users u ON u.id = a.user_id
         JOIN support_employers e ON e.id = a.employer_id
-        WHERE (a.business_id = $1 OR e.kind = 'platform')
+        WHERE (a.business_id = $1 OR e.business_id = $1 OR e.kind = 'platform')
         AND a.status = 'active'
         AND a.is_available = true
         AND u.is_active = true
-        AND (
-          e.kind <> 'platform'
-          OR u.support_available_at > NOW() - INTERVAL '2 minutes'
-        )
+        AND u.is_available_for_support = true
+        AND u.support_available_at > NOW() - INTERVAL '2 minutes'
         AND (
           cardinality($2::text[]) = 0
           OR EXISTS (

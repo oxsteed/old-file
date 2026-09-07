@@ -3,6 +3,7 @@
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const { io: createClient } = require('socket.io-client');
+const { mockQuery, resetMocks } = require('./setup');
 const { createRealtimeServer } = require('../bootstrap/realtime');
 const supportService = require('../services/websocketService');
 
@@ -40,6 +41,7 @@ describe('shared realtime server', () => {
   const pool = {
     query: jest.fn(async (sql) => {
       if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'helper' }] };
+      if (sql.includes('FROM support_agents')) return { rows: [{ id: 'agent-1' }] };
       if (sql.includes('FROM conversations')) return { rows: [{ id: 'conversation-1' }] };
       return { rows: [] };
     }),
@@ -57,6 +59,11 @@ describe('shared realtime server', () => {
   };
 
   beforeEach(async () => {
+    resetMocks();
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM support_agents')) return { rows: [{ id: 'agent-1' }] };
+      return { rows: [] };
+    });
     pool.query.mockClear();
     httpServer = http.createServer((req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -112,6 +119,26 @@ describe('shared realtime server', () => {
     const display = await connect(`${baseUrl}/restaurant-display`);
     clients.push(display);
     expect(display.connected).toBe(true);
+  });
+
+  test('keeps an active support agent online until their final workspace disconnects', async () => {
+    const token = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const first = await connect(`${baseUrl}/support`, { auth: { token } });
+    const second = await connect(`${baseUrl}/support`, { auth: { token } });
+    clients.push(first, second);
+
+    first.emit('agent:join');
+    second.emit('agent:join');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(supportService.isAgentOnline('agent-1')).toBe(true);
+
+    first.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(supportService.isAgentOnline('agent-1')).toBe(true);
+
+    second.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(supportService.isAgentOnline('agent-1')).toBe(false);
   });
 
   test('prevents a second Socket.IO server from attaching to the same HTTP server', () => {

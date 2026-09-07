@@ -30,6 +30,7 @@ describe('SupportRoutingService', () => {
     expect(agents).toHaveLength(1);
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/a\.is_available = true/);
+    expect(sql).toMatch(/u\.is_available_for_support = true/);
     expect(sql).toMatch(/support_available_at > NOW\(\) - INTERVAL '2 minutes'/);
     expect(params).toEqual([8, ['technical']]);
   });
