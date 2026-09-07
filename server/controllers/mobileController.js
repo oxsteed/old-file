@@ -191,7 +191,14 @@ async function getPublicMarkets() {
             COALESCE(NULLIF(trim(fr.currency_code), ''), 'USD') AS currency_code,
             COUNT(*)::int AS restaurant_count
        FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
       WHERE fr.status = 'active'
+        AND fr.discovery_status = 'visible'
+        AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') = 'active'
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+        AND b.deleted_at IS NULL
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
         AND NULLIF(trim(fr.address_city), '') IS NOT NULL
         AND NULLIF(trim(fr.address_country), '') IS NOT NULL
@@ -215,7 +222,15 @@ async function getPublicMarkets() {
 
 async function getPublicRestaurants(filters) {
   const params = [];
-  const where = [`fr.status = 'active'`];
+  const where = [
+    `fr.status = 'active'`,
+    `fr.discovery_status = 'visible'`,
+    `b.is_active = TRUE`,
+    `b.is_listed = TRUE`,
+    `COALESCE(b.setup_status, 'active') = 'active'`,
+    `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
+    `b.deleted_at IS NULL`,
+  ];
   if (filters.city) {
     params.push(`%${filters.city}%`);
     where.push(`fr.address_city ILIKE $${params.length}`);
@@ -238,6 +253,7 @@ async function getPublicRestaurants(filters) {
             fr.prep_time_min, fr.brand_accent_hex, fr.operating_hours,
             fr.timezone, fr.is_verified
        FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
       WHERE ${where.join(' AND ')}
       ORDER BY fr.is_verified DESC NULLS LAST, fr.display_name ASC
       LIMIT $${params.length}`,
@@ -247,7 +263,18 @@ async function getPublicRestaurants(filters) {
 
 async function getPublicMenuHighlights(filters) {
   const params = [];
-  const where = [`fr.status = 'active'`, `fmi.is_available = TRUE`];
+  const where = [
+    `fr.status = 'active'`,
+    `fr.discovery_status = 'visible'`,
+    `b.is_active = TRUE`,
+    `b.is_listed = TRUE`,
+    `COALESCE(b.setup_status, 'active') = 'active'`,
+    `COALESCE(b.business_kind, 'restaurant') = 'restaurant'`,
+    `b.deleted_at IS NULL`,
+    `fmi.is_available = TRUE`,
+    `fmi.publication_status = 'published'`,
+    `fmi.archived_at IS NULL`,
+  ];
   if (filters.city) {
     params.push(`%${filters.city}%`);
     where.push(`fr.address_city ILIKE $${params.length}`);
@@ -267,6 +294,7 @@ async function getPublicMenuHighlights(filters) {
             fr.address_country AS restaurant_country
        FROM food_menu_items fmi
        JOIN food_restaurants fr ON fr.id = fmi.restaurant_id
+       JOIN businesses b ON b.id = fr.business_id
       WHERE ${where.join(' AND ')}
       ORDER BY COALESCE(fmi.sort_order, 9999), fmi.name ASC
       LIMIT $${params.length}`,

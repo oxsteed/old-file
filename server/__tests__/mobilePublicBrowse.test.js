@@ -104,6 +104,8 @@ describe('mobile public browse API', () => {
     expect(res.body.data.menuHighlights[0].name).toBe('Griot Bowl');
     expect(res.body.data.jobs[0].title).toBe('Fix sink');
     expect(res.body.data.helpers[0].display_name).toBe('Test Helper');
+    expect(mockQuery.mock.calls.some(([sql]) => /fr\.discovery_status = 'visible'/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /fmi\.publication_status = 'published'/.test(sql))).toBe(true);
   });
 
   test('keeps public nearby usable when optional browse tables are unavailable', async () => {
