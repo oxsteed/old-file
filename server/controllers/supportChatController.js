@@ -235,7 +235,7 @@ async function sendSupportMessage(req, res) {
  */
 async function getAdminStatus(req, res) {
   try {
-    const onlineCount = getOnlineAdminCount();
+    const onlineCount = await getOnlineAdminCount();
     res.json({
       adminsOnline: onlineCount > 0,
       onlineCount,
