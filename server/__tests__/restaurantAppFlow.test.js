@@ -711,8 +711,21 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, currency_code: 'USD', is_available: true }] })
-      .mockResolvedValueOnce({ rows: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 11,
+        name: 'Classic Burger',
+        price_cents: 1000,
+        currency_code: 'USD',
+        is_available: true,
+        modifier_groups: [{
+          id: 7,
+          name: 'Toppings',
+          min_select: 0,
+          max_select: 2,
+          is_required: false,
+          options: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }],
+        }],
+      }] })
       .mockResolvedValueOnce({ rows: [{ next_queue: 14 }] })
       .mockResolvedValueOnce({
         rows: [{

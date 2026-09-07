@@ -367,6 +367,8 @@ function resolveOrderItemModifiers(menuItem, item, index) {
   return selectedModifiers;
 }
 
+exports.resolveOrderItemModifiers = resolveOrderItemModifiers;
+
 function parseMoneyCents(value, field = 'priceCents') {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n > 5000000) {

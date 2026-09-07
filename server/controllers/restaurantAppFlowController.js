@@ -25,6 +25,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { resolveOrderItemModifiers } = require('./foodController');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant']);
@@ -3453,29 +3454,41 @@ exports.createPosOrder = async (req, res, next) => {
       }
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
-        `SELECT id, name, price_cents, currency_code, is_available
-           FROM food_menu_items
-          WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
+        `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                COALESCE((
+                  SELECT jsonb_agg(
+                    jsonb_build_object(
+                      'id', mg.id,
+                      'name', mg.name,
+                      'min_select', mg.min_select,
+                      'max_select', mg.max_select,
+                      'is_required', mg.is_required,
+                      'options', COALESCE((
+                        SELECT jsonb_agg(
+                          jsonb_build_object(
+                            'id', fm.id,
+                            'name', fm.name,
+                            'price_delta_cents', fm.price_delta_cents,
+                            'is_available', fm.is_available
+                          ) ORDER BY fm.sort_order, fm.id
+                        )
+                        FROM food_modifiers fm
+                        WHERE fm.modifier_group_id = mg.id
+                      ), '[]'::jsonb)
+                    ) ORDER BY mg.sort_order, mg.id
+                  )
+                  FROM food_modifier_groups mg
+                  WHERE mg.restaurant_id = fmi.restaurant_id
+                    AND mg.menu_item_id = fmi.id
+                ), '[]'::jsonb) AS modifier_groups
+           FROM food_menu_items fmi
+          WHERE fmi.restaurant_id = $1
+            AND fmi.id = ANY($2::bigint[])
+            AND fmi.publication_status = 'published'
+            AND fmi.archived_at IS NULL`,
         [restaurantId, ids]
       );
       const menu = new Map(menuRows.map((row) => [Number(row.id), row]));
-      const modifierIds = items.flatMap((item) => (
-        Array.isArray(item.modifierIds || item.modifier_ids)
-          ? (item.modifierIds || item.modifier_ids)
-          : []
-      ))
-        .map((id) => parsePositiveInt(id))
-        .filter(Boolean);
-      const { rows: modifierRows } = modifierIds.length
-        ? await client.query(
-          `SELECT fm.id, fm.name, fm.price_delta_cents, fm.is_available
-             FROM food_modifiers fm
-             JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
-            WHERE mg.restaurant_id = $1 AND fm.id = ANY($2::bigint[])`,
-          [restaurantId, modifierIds]
-        )
-        : { rows: [] };
-      const modifierById = new Map(modifierRows.map((row) => [Number(row.id), row]));
       const normalized = items.map((line, index) => {
         const item = menu.get(parsePositiveInt(line.menuItemId || line.menu_item_id));
         if (!item || item.is_available === false) {
@@ -3489,9 +3502,7 @@ exports.createPosOrder = async (req, res, next) => {
           && !MANAGE_ROLES.has(restaurant.effective_role)) {
           throw new AppError('Only a manager can override menu prices', 403, 'price_override_forbidden');
         }
-        const modifiers = (Array.isArray(line.modifierIds || line.modifier_ids) ? (line.modifierIds || line.modifier_ids) : [])
-          .map((id) => modifierById.get(parsePositiveInt(id)))
-          .filter((modifier) => modifier && modifier.is_available !== false);
+        const modifiers = resolveOrderItemModifiers(item, line, index);
         const modifierTotal = Math.max(0, modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0));
         return {
           item,
@@ -7246,7 +7257,7 @@ exports.setMenuItemAvailability = async (req, res, next) => {
     const reason = normalizeString(req.body.reason || req.body.note, 1000);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [current] } = await client.query(
-        `SELECT id, is_available
+        `SELECT id, is_available, manual_available, inventory_available
            FROM food_menu_items
           WHERE id = $1 AND restaurant_id = $2
           FOR UPDATE`,
@@ -7255,7 +7266,8 @@ exports.setMenuItemAvailability = async (req, res, next) => {
       if (!current) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
       const { rows: [item] } = await client.query(
         `UPDATE food_menu_items
-            SET is_available = $1,
+            SET manual_available = $1,
+                is_available = $1 AND inventory_available,
                 updated_at = NOW()
           WHERE id = $2 AND restaurant_id = $3
           RETURNING *`,
@@ -7271,7 +7283,7 @@ exports.setMenuItemAvailability = async (req, res, next) => {
           restaurantId,
           item.id,
           current.is_available,
-          available,
+          item.is_available,
           reason,
           req.user.id,
         ]
