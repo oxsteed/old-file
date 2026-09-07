@@ -1,18 +1,37 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 
+const PUBLIC_EVENT_TYPES = new Set(['view', 'favorite', 'inquire', 'book', 'review']);
+
 const trackEvent = async (req, res) => {
   try {
-    const { toolId, eventType, metadata } = req.body;
+    const { toolId, eventType, metadata } = req.body || {};
     const userId = req.user?.id || null;
     if (!toolId || !eventType) {
       return res.status(400).json({ error: 'toolId and eventType are required' });
     }
+    const parsedToolId = Number(toolId);
+    if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || !PUBLIC_EVENT_TYPES.has(String(eventType))) {
+      return res.status(400).json({ error: 'Invalid analytics event' });
+    }
+    if (metadata !== undefined && metadata !== null && (typeof metadata !== 'object' || Array.isArray(metadata))) {
+      return res.status(400).json({ error: 'metadata must be an object' });
+    }
+    const serializedMetadata = metadata == null ? null : JSON.stringify(metadata);
+    if (serializedMetadata && Buffer.byteLength(serializedMetadata, 'utf8') > 4096) {
+      return res.status(400).json({ error: 'metadata is too large' });
+    }
+
+    const tool = await db.query(
+      'SELECT 1 FROM tool_rentals WHERE id = $1 AND is_available = TRUE',
+      [parsedToolId]
+    );
+    if (!tool.rows.length) return res.status(404).json({ error: 'Tool not found' });
 
     await db.query(
       `INSERT INTO tool_rentals_analytics (user_id, tool_id, event_type, metadata)
        VALUES ($1, $2, $3, $4)`,
-      [userId, toolId, eventType, metadata ? JSON.stringify(metadata) : null]
+      [userId, parsedToolId, eventType, serializedMetadata]
     );
 
     res.json({ success: true });

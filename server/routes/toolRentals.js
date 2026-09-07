@@ -12,7 +12,7 @@ const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -603,7 +603,7 @@ router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
 
 // ANALYTICS
-router.post('/analytics/track', toolAnalyticsController.trackEvent);
+router.post('/analytics/track', generalLimiter, toolAnalyticsController.trackEvent);
 router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
 router.get('/analytics/top', toolAnalyticsController.getTopTools);
 router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwnerDashboard);
