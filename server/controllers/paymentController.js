@@ -573,7 +573,25 @@ exports.refundPayment = async (req, res, next) => {
     }
 
     const paymentData = payment.rows[0];
-    const refundAmount = amount || paymentData.amount;
+    const hasRequestedAmount = amount !== undefined && amount !== null && String(amount).trim() !== '';
+    const originalAmountCents = Math.round(Number(paymentData.amount) * 100);
+    const refundAmountCents = hasRequestedAmount
+      ? Math.round(Number(amount) * 100)
+      : originalAmountCents;
+
+    if (!Number.isInteger(originalAmountCents) || originalAmountCents <= 0) {
+      throw new AppError('Payment has an invalid amount and cannot be refunded.', 400, 'invalid_payment_amount');
+    }
+    if (!Number.isFinite(Number(amount)) && hasRequestedAmount) {
+      throw new AppError('Refund amount must be a valid number.', 400, 'invalid_refund_amount');
+    }
+    if (refundAmountCents <= 0 || refundAmountCents > originalAmountCents) {
+      throw new AppError('Refund amount must be greater than zero and no greater than the original payment.', 400, 'invalid_refund_amount');
+    }
+    if (!paymentData.stripe_payment_intent_id) {
+      throw new AppError('Payment has no payment-processor reference and cannot be refunded automatically.', 409, 'missing_payment_reference');
+    }
+    const refundAmount = refundAmountCents / 100;
 
     // ── VALIDATE PAYMENT STATUS ──────────────────────────────────────────
     // Only authorized and captured payments can be refunded
@@ -596,14 +614,13 @@ exports.refundPayment = async (req, res, next) => {
     const refundParams = {
       payment_intent: paymentData.stripe_payment_intent_id,
     };
-    if (amount) refundParams.amount = Math.round(amount * 100);
+    if (hasRequestedAmount) refundParams.amount = refundAmountCents;
     if (reverse_application_fee) {
       refundParams.refund_application_fee = true;
     }
 
     let refundId;
     try {
-      const refundAmountCents = Math.round(refundAmount * 100);
       const refund = await stripe.refunds.create(
         refundParams,
         {
