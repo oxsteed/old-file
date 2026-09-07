@@ -10,7 +10,7 @@ class WebSocketService {
   constructor() {
     this.io = null;
     this.customerConnections = new Map(); // userId -> socketId
-    this.agentConnections = new Map(); // agentId -> socketId
+    this.agentConnections = new Map(); // agentId -> Set<socketId>
     this.ticketSockets = new Map(); // ticketId -> [socketIds]
   }
 
@@ -53,17 +53,21 @@ class WebSocketService {
         );
         const agentId = rows[0]?.id;
         if (!agentId) return;
-        this.agentConnections.set(agentId, socket.id);
+        const agentSocketIds = this.agentConnections.get(agentId) || new Set();
+        const wasOffline = agentSocketIds.size === 0;
+        agentSocketIds.add(socket.id);
+        this.agentConnections.set(agentId, agentSocketIds);
         socket.data.agentId = agentId;
         socket.data.type = 'agent';
         logger.info('Agent joined dashboard', { agentId, socketId: socket.id });
 
-        // Notify all admins that agent is online
-        namespace.to('admins').emit('agent:status-changed', {
-          agentId,
-          status: 'online',
-          timestamp: new Date().toISOString(),
-        });
+        if (wasOffline) {
+          namespace.to('admins').emit('agent:status-changed', {
+            agentId,
+            status: 'online',
+            timestamp: new Date().toISOString(),
+          });
+        }
       });
 
       // Admin joins support dashboard
@@ -170,13 +174,10 @@ class WebSocketService {
         const { ticketId, agentId } = data;
 
         // Notify agent of assignment
-        const agentSocketId = this.agentConnections.get(agentId);
-        if (agentSocketId) {
-          this.io.to(agentSocketId).emit('ticket:assigned-to-you', {
-            ticketId,
-            timestamp: new Date().toISOString(),
-          });
-        }
+        this.notifyAgent(agentId, 'ticket:assigned-to-you', {
+          ticketId,
+          timestamp: new Date().toISOString(),
+        });
 
         // Notify customer that agent joined
         this.io.to(`ticket:${ticketId}`).emit('agent:joined', {
@@ -216,14 +217,23 @@ class WebSocketService {
         }
 
         if (agentId) {
-          this.agentConnections.delete(agentId);
-          // Notify admins agent is offline
-          namespace.to('admins').emit('agent:status-changed', {
+          const agentSocketIds = this.agentConnections.get(agentId);
+          agentSocketIds?.delete(socket.id);
+
+          if (!agentSocketIds?.size) {
+            this.agentConnections.delete(agentId);
+            namespace.to('admins').emit('agent:status-changed', {
+              agentId,
+              status: 'offline',
+              timestamp: new Date().toISOString(),
+            });
+          }
+
+          logger.info('Agent disconnected', {
             agentId,
-            status: 'offline',
-            timestamp: new Date().toISOString(),
+            socketId: socket.id,
+            remainingConnections: agentSocketIds?.size || 0,
           });
-          logger.info('Agent disconnected', { agentId });
         }
       });
     });
@@ -255,9 +265,11 @@ class WebSocketService {
    */
   notifyAgent(agentId, event, data) {
     if (!this.io) return;
-    const socketId = this.agentConnections.get(agentId);
-    if (socketId) {
-      this.io.to(socketId).emit(event, data);
+    const socketIds = this.agentConnections.get(agentId);
+    if (socketIds) {
+      for (const socketId of socketIds) {
+        this.io.to(socketId).emit(event, data);
+      }
     }
   }
 

@@ -58,7 +58,7 @@ describe('SupportRoutingService', () => {
       }],
     });
     WebSocketService.io = {};
-    WebSocketService.agentConnections.set('agent-1', 'socket-1');
+    WebSocketService.agentConnections.set('agent-1', new Set(['socket-1']));
 
     const result = await SupportRoutingService.routeTicket({
       customerId: 'customer-1',
