@@ -148,6 +148,7 @@ exports.listItems = async (req, res, next) => {
            SELECT restaurant_id, inventory_item_id, SUM(quantity) AS quantity
              FROM restaurant_inventory_order_reservations
             WHERE status = 'reserved'
+              AND (expires_at IS NULL OR expires_at > NOW())
             GROUP BY restaurant_id, inventory_item_id
          ) reserved
            ON reserved.inventory_item_id = i.id

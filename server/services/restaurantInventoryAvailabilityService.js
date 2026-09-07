@@ -12,7 +12,9 @@ async function syncMappedMenuAvailability(db, restaurantId, {
     `WITH active_reservations AS (
        SELECT inventory_item_id, SUM(quantity) AS reserved_quantity
          FROM restaurant_inventory_order_reservations
-        WHERE restaurant_id = $1 AND status = 'reserved'
+        WHERE restaurant_id = $1
+          AND status = 'reserved'
+          AND (expires_at IS NULL OR expires_at > NOW())
         GROUP BY inventory_item_id
      )
      SELECT fmi.id AS menu_item_id,

@@ -1,6 +1,7 @@
 'use strict';
 
 const { AppError } = require('../middleware/errorHandler');
+const pool = require('../db');
 const { syncMappedMenuAvailability } = require('./restaurantInventoryAvailabilityService');
 
 function asPositiveNumber(value) {
@@ -61,7 +62,9 @@ async function loadMappings(client, restaurantId, menuItemIds) {
        LEFT JOIN (
          SELECT inventory_item_id, SUM(quantity) AS quantity
            FROM restaurant_inventory_order_reservations
-          WHERE restaurant_id = $1 AND status = 'reserved'
+          WHERE restaurant_id = $1
+            AND status = 'reserved'
+            AND (expires_at IS NULL OR expires_at > NOW())
           GROUP BY inventory_item_id
        ) reserved ON reserved.inventory_item_id = rim.inventory_item_id
       WHERE rim.restaurant_id = $1
@@ -82,7 +85,12 @@ async function refreshMenuAvailability(client, restaurantId, inventoryItemIds) {
   );
 }
 
-async function reserveInventoryForOrder(client, { restaurantId, orderId, orderItems }) {
+async function reserveInventoryForOrder(client, {
+  restaurantId,
+  orderId,
+  orderItems,
+  reservationExpiresAt = null,
+}) {
   const items = (Array.isArray(orderItems) ? orderItems : [])
     .map((item) => ({
       id: Number(item.id),
@@ -140,10 +148,10 @@ async function reserveInventoryForOrder(client, { restaurantId, orderId, orderIt
       if (!quantity) continue;
       const { rows: [reservation] } = await client.query(
         `INSERT INTO restaurant_inventory_order_reservations
-           (restaurant_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity)
-         VALUES ($1,$2,$3,$4,$5,$6)
+           (restaurant_id, food_order_id, food_order_item_id, inventory_item_id, menu_item_id, quantity, expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
-        [restaurantId, orderId, item.id, mapping.inventory_item_id, item.menuItemId, quantity]
+        [restaurantId, orderId, item.id, mapping.inventory_item_id, item.menuItemId, quantity, reservationExpiresAt]
       );
       createdReservations.push(reservation);
     }
@@ -166,7 +174,8 @@ async function releaseInventoryForOrder(client, { restaurantId, orderId }) {
 
 async function consumeInventoryForOrder(client, { restaurantId, orderId, actorUserId = null }) {
   const { rows: reservations } = await client.query(
-    `SELECT r.id, r.inventory_item_id, r.quantity, rii.name AS inventory_item_name,
+    `SELECT r.id, r.inventory_item_id, r.quantity, r.expires_at,
+            rii.name AS inventory_item_name,
             rii.quantity AS on_hand_quantity
        FROM restaurant_inventory_order_reservations r
        JOIN restaurant_inventory_items rii
@@ -177,6 +186,17 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, actorUs
     [restaurantId, orderId]
   );
   if (!reservations.length) return { consumed: 0 };
+
+  const expiredReservation = reservations.find((reservation) => reservation.expires_at
+    && new Date(reservation.expires_at).getTime() <= Date.now());
+  if (expiredReservation) {
+    throw new AppError(
+      'This order inventory hold expired. Please refresh the order before completing it.',
+      409,
+      'inventory_reservation_expired',
+      { orderId: Number(orderId), inventoryItemId: Number(expiredReservation.inventory_item_id) }
+    );
+  }
 
   const consumedInventoryItemIds = [];
   for (const reservation of reservations) {
@@ -225,8 +245,33 @@ async function consumeInventoryForOrder(client, { restaurantId, orderId, actorUs
   return { consumed: reservations.length };
 }
 
+async function releaseExpiredInventoryReservations() {
+  const { rows } = await pool.query(
+    `UPDATE restaurant_inventory_order_reservations
+        SET status = 'released', released_at = COALESCE(released_at, NOW())
+      WHERE status = 'reserved'
+        AND expires_at IS NOT NULL
+        AND expires_at <= NOW()
+      RETURNING restaurant_id, inventory_item_id`,
+  );
+  const inventoryByRestaurant = new Map();
+  for (const row of rows) {
+    const ids = inventoryByRestaurant.get(Number(row.restaurant_id)) || [];
+    ids.push(row.inventory_item_id);
+    inventoryByRestaurant.set(Number(row.restaurant_id), ids);
+  }
+  for (const [restaurantId, inventoryItemIds] of inventoryByRestaurant) {
+    await Promise.all(uniquePositiveIds(inventoryItemIds).map((inventoryItemId) => syncMappedMenuAvailability(pool, restaurantId, {
+      inventoryItemId,
+      apply: true,
+    })));
+  }
+  return { released: rows.length };
+}
+
 module.exports = {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
   consumeInventoryForOrder,
+  releaseExpiredInventoryReservations,
 };

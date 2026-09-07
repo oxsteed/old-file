@@ -2539,6 +2539,9 @@ exports.createOrder = async (req, res, next) => {
         restaurantId,
         orderId: created.id,
         orderItems: createdOrderItems,
+        reservationExpiresAt: paymentContract.canonical === 'pay_now'
+          ? new Date(Date.now() + 30 * 60 * 1000)
+          : null,
       });
 
       let walletPayment = null;
