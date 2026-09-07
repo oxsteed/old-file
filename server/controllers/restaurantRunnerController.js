@@ -299,55 +299,78 @@ exports.updateTaskStatus = async (req, res, next) => {
         'illegal_runner_status_transition'
       );
     }
-    if (status === 'Completed' && currentTask.requires_proof) {
-      const { rows: [proof] } = await pool.query(
-        `SELECT 1 FROM restaurant_runner_proofs WHERE restaurant_id = $1 AND task_id = $2 LIMIT 1`,
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [lockedTask] } = await client.query(
+        `SELECT *
+           FROM restaurant_runner_tasks
+          WHERE restaurant_id = $1 AND id = $2
+          FOR UPDATE`,
         [restaurantId, taskId]
       );
-      if (!proof) throw new AppError('Handoff proof is required before completion', 409, 'runner_proof_required');
-    }
-
-    const { rows: [task] } = await pool.query(
-      `UPDATE restaurant_runner_tasks
-          SET status = $1,
-              picked_up_at = CASE WHEN $1 = 'Picked up' AND picked_up_at IS NULL THEN NOW() ELSE picked_up_at END,
-              completed_at = CASE WHEN $1 = 'Completed' THEN NOW() ELSE completed_at END,
-              handoff_at = CASE WHEN $1 = 'Completed' THEN COALESCE(handoff_at, NOW()) ELSE handoff_at END,
-              updated_at = NOW()
-        WHERE restaurant_id = $2 AND id = $3
-        RETURNING *`,
-      [status, restaurantId, taskId]
-    );
-    if (status === 'Completed' && task.food_order_id) {
-      const { rows: [completedOrder] } = await pool.query(
-        `UPDATE food_orders
-            SET status = 'completed',
-                kitchen_stage = 'handed_off',
-                completed_at = COALESCE(completed_at, NOW()),
-                handed_off_at = COALESCE(handed_off_at, NOW()),
-                handed_off_by = COALESCE(handed_off_by, $3),
-                updated_at = NOW()
-          WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
-            AND status IN ('accepted','preparing','ready')
-          RETURNING *`,
-        [task.food_order_id, restaurantId, req.user.id]
-      );
-      if (completedOrder) {
-        await consumeInventoryForOrder(pool, {
-          restaurantId,
-          orderId: completedOrder.id,
-          actorUserId: req.user.id,
-        });
-        await pool.query(
-          `INSERT INTO restaurant_kitchen_events
-             (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
-           VALUES ($1,$2,'order_delivery_handoff','ready','completed',$3,$4::jsonb,$5)`,
-          [restaurantId, completedOrder.id, normalizeString(req.body.note, 1000), JSON.stringify({ runnerTaskId: task.id }), req.user.id]
+      if (!lockedTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
+      assertTaskActor(restaurant, lockedTask, req.user.id);
+      if (status !== lockedTask.status && !TASK_TRANSITIONS[lockedTask.status]?.has(status)) {
+        throw new AppError(
+          `Runner task cannot move from ${lockedTask.status} to ${status}`,
+          409,
+          'illegal_runner_status_transition'
         );
-        emitDeliveryHandoff(restaurantId, completedOrder);
       }
-    }
-    res.json({ task });
+      if (status === 'Completed' && lockedTask.requires_proof) {
+        const { rows: [proof] } = await client.query(
+          `SELECT 1 FROM restaurant_runner_proofs WHERE restaurant_id = $1 AND task_id = $2 LIMIT 1`,
+          [restaurantId, taskId]
+        );
+        if (!proof) throw new AppError('Handoff proof is required before completion', 409, 'runner_proof_required');
+      }
+
+      const { rows: [task] } = await client.query(
+        `UPDATE restaurant_runner_tasks
+            SET status = $1,
+                picked_up_at = CASE WHEN $1 = 'Picked up' AND picked_up_at IS NULL THEN NOW() ELSE picked_up_at END,
+                completed_at = CASE WHEN $1 = 'Completed' THEN NOW() ELSE completed_at END,
+                handoff_at = CASE WHEN $1 = 'Completed' THEN COALESCE(handoff_at, NOW()) ELSE handoff_at END,
+                updated_at = NOW()
+          WHERE restaurant_id = $2 AND id = $3 AND status = $4
+          RETURNING *`,
+        [status, restaurantId, taskId, lockedTask.status]
+      );
+      if (!task) throw new AppError('Runner task changed before the update completed', 409, 'runner_task_conflict');
+
+      let completedOrder = null;
+      if (status === 'Completed' && task.food_order_id) {
+        const { rows: [updatedOrder] } = await client.query(
+          `UPDATE food_orders
+              SET status = 'completed',
+                  kitchen_stage = 'handed_off',
+                  completed_at = COALESCE(completed_at, NOW()),
+                  handed_off_at = COALESCE(handed_off_at, NOW()),
+                  handed_off_by = COALESCE(handed_off_by, $3),
+                  updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+              AND status IN ('accepted','preparing','ready')
+            RETURNING *`,
+          [task.food_order_id, restaurantId, req.user.id]
+        );
+        completedOrder = updatedOrder || null;
+        if (completedOrder) {
+          await consumeInventoryForOrder(client, {
+            restaurantId,
+            orderId: completedOrder.id,
+            actorUserId: req.user.id,
+          });
+          await client.query(
+            `INSERT INTO restaurant_kitchen_events
+               (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
+             VALUES ($1,$2,'order_delivery_handoff','ready','completed',$3,$4::jsonb,$5)`,
+            [restaurantId, completedOrder.id, normalizeString(req.body.note, 1000), JSON.stringify({ runnerTaskId: task.id }), req.user.id]
+          );
+        }
+      }
+      return { task, completedOrder };
+    }, 'restaurant_runner_status_update');
+    emitDeliveryHandoff(restaurantId, result.completedOrder);
+    res.json({ task: result.task });
   } catch (err) {
     next(err);
   }

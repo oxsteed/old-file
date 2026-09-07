@@ -109,6 +109,44 @@ test('rejects a task update when the task belongs to another runner', async () =
   expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_id = \$1 AND id = \$2/);
 });
 
+test('rechecks the locked task before completing a delivery', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'Ready' }] });
+
+  const res = await request(buildApp())
+    .patch('/api/restaurants/7/runner/tasks/81/status')
+    .send({ status: 'Completed' });
+
+  expect(res.status).toBe(409);
+  expect(res.body.code).toBe('illegal_runner_status_transition');
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
+});
+
+test('completes the runner task, order, inventory, and kitchen event in one flow', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 40, effective_role: 'employee' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
+    .mockResolvedValueOnce({ rows: [{ id: 81, restaurant_id: 7, assigned_to: USER_ID, status: 'En route', food_order_id: 501, requires_proof: false }] })
+    .mockResolvedValueOnce({ rows: [{ id: 81, status: 'Completed', food_order_id: 501 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 501, restaurant_id: 7, status: 'completed', fulfillment_type: 'delivery', business_id: 40 }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp())
+    .patch('/api/restaurants/7/runner/tasks/81/status')
+    .send({ status: 'Completed', note: 'Delivered to customer' });
+
+  expect(res.status).toBe(200);
+  expect(res.body.task).toMatchObject({ id: 81, status: 'Completed' });
+  expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
+  expect(mockQuery.mock.calls[3][0]).toMatch(/UPDATE restaurant_runner_tasks/);
+  expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE food_orders/);
+  expect(mockQuery.mock.calls[6][0]).toMatch(/restaurant_kitchen_events/);
+});
+
 test('returns restaurant-labelled offers and assigned tasks across workspaces', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [
