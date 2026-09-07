@@ -482,9 +482,11 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
     }
 
     const amountCents = parseOptionalMoneyCents(req.body);
-    if (amountCents && amountCents > Number(wallet.balanceCents || 0)) {
-      throw new AppError('Insufficient restaurant wallet balance', 409, 'wallet_insufficient_funds', {
+    if (amountCents && amountCents > Number(wallet.availableBalanceCents || 0)) {
+      throw new AppError('Insufficient available restaurant wallet balance', 409, 'wallet_insufficient_available_funds', {
         balanceCents: String(wallet.balanceCents || 0),
+        reservedCents: String(wallet.reservedCents || 0),
+        availableBalanceCents: String(wallet.availableBalanceCents || 0),
         requestedCents: String(amountCents),
       });
     }

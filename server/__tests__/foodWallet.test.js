@@ -184,6 +184,18 @@ describe('food wallet security wiring', () => {
           }],
         };
       }
+      if (/INSERT INTO restaurant_pos_payments/.test(sql)) {
+        return {
+          rows: [{
+            id: 8101,
+            food_order_id: 200,
+            payment_type: 'wallet_credit',
+            amount_cents: 899,
+            provider: 'food_wallet',
+            metadata: { source: 'food_wallet', currencyCode: 'USD' },
+          }],
+        };
+      }
       return { rows: [], rowCount: 0 };
     });
 
@@ -454,6 +466,18 @@ describe('food wallet security wiring', () => {
             entry_hash: 'hash-2',
             posted_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
+          }],
+        };
+      }
+      if (/INSERT INTO restaurant_pos_payments/.test(sql)) {
+        return {
+          rows: [{
+            id: 8102,
+            food_order_id: 200,
+            payment_type: 'refund',
+            amount_cents: 899,
+            provider: 'food_wallet',
+            metadata: { source: 'food_wallet', currencyCode: 'USD' },
           }],
         };
       }

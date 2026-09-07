@@ -119,6 +119,17 @@ function formatTransfer(row) {
 }
 
 async function expireWalletHoldsForAccount(client, accountId) {
+  // Keep wallet-account locking ahead of hold locking everywhere. QR creation
+  // and POS capture both mutate the account reservation, so reversing this
+  // order can deadlock when expiry cleanup runs concurrently.
+  const { rows: [account] } = await client.query(
+    `SELECT id
+       FROM food_customer_wallet_accounts
+      WHERE id = $1
+      FOR UPDATE`,
+    [accountId]
+  );
+  if (!account) return 0;
   const { rows } = await client.query(
     `SELECT *
        FROM food_customer_wallet_holds
@@ -181,13 +192,11 @@ async function cleanupExpiredWalletOperations({ limit = 500 } = {}) {
     }
 
     const { rows: expiredHoldRows } = await client.query(
-      `SELECT id, account_id
+      `SELECT DISTINCT account_id
          FROM food_customer_wallet_holds
         WHERE status = 'active'
           AND expires_at <= NOW()
-        ORDER BY expires_at ASC, id ASC
-        LIMIT $1
-        FOR UPDATE SKIP LOCKED`,
+        LIMIT $1`,
       [batchLimit]
     );
     const accountIds = [...new Set(expiredHoldRows.map((row) => String(row.account_id)))];
@@ -300,6 +309,22 @@ async function captureWalletHold(client, {
   description,
   metadata = {},
 }) {
+  const { rows: initialRows } = await client.query(
+    `SELECT * FROM food_customer_wallet_holds
+      WHERE id = $1
+        AND restaurant_id = $2
+        AND ($3::uuid IS NULL OR customer_id = $3::uuid)`,
+    [holdId, restaurantId, customerId]
+  );
+  const initialHold = initialRows[0];
+  if (!initialHold) throw new AppError('Wallet hold not found', 404, 'wallet_hold_not_found');
+  await client.query(
+    `SELECT id
+       FROM food_customer_wallet_accounts
+      WHERE id = $1
+      FOR UPDATE`,
+    [initialHold.account_id]
+  );
   const { rows } = await client.query(
     `SELECT * FROM food_customer_wallet_holds
       WHERE id = $1
@@ -354,6 +379,22 @@ async function releaseWalletHold(client, {
   customerId = null,
   nextStatus = 'released',
 }) {
+  const { rows: initialRows } = await client.query(
+    `SELECT * FROM food_customer_wallet_holds
+      WHERE id = $1
+        AND restaurant_id = $2
+        AND ($3::uuid IS NULL OR customer_id = $3::uuid)`,
+    [holdId, restaurantId, customerId]
+  );
+  const initialHold = initialRows[0];
+  if (!initialHold) throw new AppError('Wallet hold not found', 404, 'wallet_hold_not_found');
+  await client.query(
+    `SELECT id
+       FROM food_customer_wallet_accounts
+      WHERE id = $1
+      FOR UPDATE`,
+    [initialHold.account_id]
+  );
   const { rows } = await client.query(
     `SELECT * FROM food_customer_wallet_holds
       WHERE id = $1

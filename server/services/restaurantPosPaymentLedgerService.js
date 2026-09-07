@@ -1,9 +1,126 @@
 'use strict';
 
+const { AppError } = require('../middleware/errorHandler');
+
 function normalizeString(value, max = 255) {
   if (value === undefined || value === null) return null;
   const trimmed = String(value).trim();
   return trimmed ? trimmed.slice(0, max) : null;
+}
+
+function assertPosPaymentReplayMatches(existing, {
+  orderId,
+  amountCents,
+  paymentType,
+  provider,
+  shiftId = null,
+  currencyCode = 'USD',
+  walletAccountId = null,
+  walletLedgerEntryId = null,
+  walletRefundLedgerEntryId = null,
+  walletOriginalLedgerEntryId = null,
+  metadata = {},
+}) {
+  const existingMetadata = existing.metadata && typeof existing.metadata === 'object'
+    ? existing.metadata
+    : {};
+  const mismatches = {};
+  const expectedFields = [
+    ['foodOrderId', Number(existing.food_order_id), Number(orderId)],
+    ['amountCents', Number(existing.amount_cents || 0), Number(amountCents || 0)],
+    ['paymentType', existing.payment_type, paymentType],
+    ['provider', existing.provider, provider],
+  ];
+  if (shiftId !== null && shiftId !== undefined) {
+    expectedFields.push(['shiftId', existing.shift_id === null ? null : Number(existing.shift_id), Number(shiftId)]);
+  }
+  const existingCurrency = normalizeString(existingMetadata.currencyCode, 3)?.toUpperCase() || 'USD';
+  const requestedCurrency = normalizeString(currencyCode, 3)?.toUpperCase() || 'USD';
+  expectedFields.push(['currencyCode', existingCurrency, requestedCurrency]);
+
+  const walletFields = [
+    ['walletAccountId', walletAccountId],
+    ['walletLedgerEntryId', walletLedgerEntryId],
+    ['walletRefundLedgerEntryId', walletRefundLedgerEntryId],
+    ['walletOriginalLedgerEntryId', walletOriginalLedgerEntryId],
+    ['customerId', metadata.customerId],
+    ['originalPaymentId', metadata.originalPaymentId],
+  ];
+  for (const [field, requested] of walletFields) {
+    if (requested === null || requested === undefined || requested === '') continue;
+    const existingValue = existingMetadata[field] === null || existingMetadata[field] === undefined
+      ? null
+      : String(existingMetadata[field]);
+    if (existingValue !== String(requested)) {
+      mismatches[field] = { existing: existingValue, requested: String(requested) };
+    }
+  }
+  for (const [field, existingValue, requestedValue] of expectedFields) {
+    if (existingValue !== requestedValue) {
+      mismatches[field] = { existing: existingValue, requested: requestedValue };
+    }
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError(
+      'POS payment idempotency conflict',
+      409,
+      'pos_payment_idempotency_conflict',
+      { paymentId: existing.id ? String(existing.id) : null, mismatches }
+    );
+  }
+}
+
+async function insertOrReplayWalletPosPayment(client, {
+  restaurantId,
+  orderId,
+  shiftId = null,
+  paymentType,
+  amountCents,
+  idempotencyKey,
+  reference,
+  note,
+  metadata,
+  createdByUserId = null,
+  replayArgs,
+}) {
+  const { rows: insertedRows } = await client.query(
+    `INSERT INTO restaurant_pos_payments
+       (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+        provider, idempotency_key, reference, note, metadata, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,'food_wallet',$7,$8,$9,$10::jsonb,$11)
+     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+     DO NOTHING
+     RETURNING *`,
+    [
+      restaurantId,
+      orderId,
+      shiftId,
+      paymentType,
+      amountCents,
+      paymentType === 'refund' ? 'refunded' : 'captured',
+      idempotencyKey,
+      reference,
+      note,
+      JSON.stringify(metadata),
+      createdByUserId,
+    ]
+  );
+  if (insertedRows[0]) return { payment: insertedRows[0], replayed: false };
+
+  const { rows: existingRows } = await client.query(
+    `SELECT *
+       FROM restaurant_pos_payments
+      WHERE restaurant_id = $1
+        AND idempotency_key = $2
+      FOR UPDATE`,
+    [restaurantId, idempotencyKey]
+  );
+  const existing = existingRows[0];
+  if (!existing) {
+    throw new AppError('POS payment replay could not be resolved', 409, 'pos_payment_replay_unavailable');
+  }
+  assertPosPaymentReplayMatches(existing, replayArgs);
+  return { payment: existing, replayed: true };
 }
 
 async function reconcilePosOrderPayment(client, orderId) {
@@ -91,37 +208,39 @@ async function recordWalletCreditPaymentForOrder(client, {
   }
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 200)
     || `wallet-credit:${restaurantId}:${orderId}`;
-  const { rows: [payment] } = await client.query(
-    `INSERT INTO restaurant_pos_payments
-       (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
-        provider, idempotency_key, reference, note, metadata, created_by)
-     VALUES ($1,$2,$3,'wallet_credit',$4,'captured','food_wallet',$5,$6,$7,$8::jsonb,$9)
-     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
-     DO UPDATE SET
-       metadata = restaurant_pos_payments.metadata || EXCLUDED.metadata,
-       updated_at = NOW()
-     RETURNING *`,
-    [
-      restaurantId,
+  const paymentMetadata = {
+    source: 'food_wallet',
+    currencyCode,
+    walletAccountId: walletAccountId ? String(walletAccountId) : null,
+    walletLedgerEntryId: walletLedgerEntryId ? String(walletLedgerEntryId) : null,
+    walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
+      ? null
+      : Number(walletBalanceAfterCents),
+    ...metadata,
+  };
+  const { payment } = await insertOrReplayWalletPosPayment(client, {
+    restaurantId,
+    orderId,
+    shiftId,
+    paymentType: 'wallet_credit',
+    amountCents: normalizedAmount,
+    idempotencyKey: normalizedIdempotencyKey,
+    reference: walletLedgerEntryId ? `wallet-ledger:${walletLedgerEntryId}` : `food-order:${orderId}`,
+    note: 'Paid with restaurant credit',
+    metadata: paymentMetadata,
+    createdByUserId,
+    replayArgs: {
       orderId,
+      amountCents: normalizedAmount,
+      paymentType: 'wallet_credit',
+      provider: 'food_wallet',
       shiftId,
-      normalizedAmount,
-      normalizedIdempotencyKey,
-      walletLedgerEntryId ? `wallet-ledger:${walletLedgerEntryId}` : `food-order:${orderId}`,
-      'Paid with restaurant credit',
-      JSON.stringify({
-        source: 'food_wallet',
-        currencyCode,
-        walletAccountId: walletAccountId ? String(walletAccountId) : null,
-        walletLedgerEntryId: walletLedgerEntryId ? String(walletLedgerEntryId) : null,
-        walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
-          ? null
-          : Number(walletBalanceAfterCents),
-        ...metadata,
-      }),
-      createdByUserId,
-    ]
-  );
+      currencyCode,
+      walletAccountId,
+      walletLedgerEntryId,
+      metadata: paymentMetadata,
+    },
+  });
   const reconciliation = await reconcilePosOrderPayment(client, orderId);
   return { payment: payment || null, ...reconciliation, skipped: false };
 }
@@ -145,41 +264,39 @@ async function recordWalletCreditRefundForOrder(client, {
   }
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 200)
     || `wallet-credit-refund:${restaurantId}:${orderId}`;
-  const { rows: [payment] } = await client.query(
-    `INSERT INTO restaurant_pos_payments
-       (restaurant_id, food_order_id, payment_type, amount_cents, status,
-        provider, idempotency_key, reference, note, metadata, created_by)
-     VALUES ($1,$2,'refund',$3,'refunded','food_wallet',$4,$5,$6,$7::jsonb,$8)
-     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
-     DO UPDATE SET
-       metadata = restaurant_pos_payments.metadata || EXCLUDED.metadata,
-       status = CASE
-         WHEN restaurant_pos_payments.status IN ('recorded','captured','refunded') THEN restaurant_pos_payments.status
-         ELSE EXCLUDED.status
-       END,
-       updated_at = NOW()
-     RETURNING *`,
-    [
-      restaurantId,
+  const paymentMetadata = {
+    source: 'food_wallet',
+    currencyCode,
+    walletAccountId: walletAccountId ? String(walletAccountId) : null,
+    walletRefundLedgerEntryId: walletRefundLedgerEntryId ? String(walletRefundLedgerEntryId) : null,
+    walletOriginalLedgerEntryId: walletOriginalLedgerEntryId ? String(walletOriginalLedgerEntryId) : null,
+    walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
+      ? null
+      : Number(walletBalanceAfterCents),
+    ...metadata,
+  };
+  const { payment } = await insertOrReplayWalletPosPayment(client, {
+    restaurantId,
+    orderId,
+    paymentType: 'refund',
+    amountCents: normalizedAmount,
+    idempotencyKey: normalizedIdempotencyKey,
+    reference: walletRefundLedgerEntryId ? `wallet-refund-ledger:${walletRefundLedgerEntryId}` : `food-order-refund:${orderId}`,
+    note: 'Refunded to restaurant credit',
+    metadata: paymentMetadata,
+    createdByUserId,
+    replayArgs: {
       orderId,
-      normalizedAmount,
-      normalizedIdempotencyKey,
-      walletRefundLedgerEntryId ? `wallet-refund-ledger:${walletRefundLedgerEntryId}` : `food-order-refund:${orderId}`,
-      'Refunded to restaurant credit',
-      JSON.stringify({
-        source: 'food_wallet',
-        currencyCode,
-        walletAccountId: walletAccountId ? String(walletAccountId) : null,
-        walletRefundLedgerEntryId: walletRefundLedgerEntryId ? String(walletRefundLedgerEntryId) : null,
-        walletOriginalLedgerEntryId: walletOriginalLedgerEntryId ? String(walletOriginalLedgerEntryId) : null,
-        walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
-          ? null
-          : Number(walletBalanceAfterCents),
-        ...metadata,
-      }),
-      createdByUserId,
-    ]
-  );
+      amountCents: normalizedAmount,
+      paymentType: 'refund',
+      provider: 'food_wallet',
+      currencyCode,
+      walletAccountId,
+      walletRefundLedgerEntryId,
+      walletOriginalLedgerEntryId,
+      metadata: paymentMetadata,
+    },
+  });
   const reconciliation = await reconcilePosOrderPayment(client, orderId);
   return { payment: payment || null, ...reconciliation, skipped: false };
 }
