@@ -149,4 +149,27 @@ describe('restaurant support case backend', () => {
     expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO restaurant_support_case_messages/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/first_response_at = COALESCE/);
   });
+
+  test('does not attach a guest order to a support case without its tracking token', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 88,
+        restaurant_id: 5,
+        customer_id: null,
+        metadata: { trackingToken: 'private-guest-token' },
+      }],
+    });
+
+    const res = await request(buildCustomerApp())
+      .post('/api/restaurants/support/cases')
+      .send({
+        orderId: 88,
+        issueType: 'missing_item',
+        description: 'This must not be linked by order ID alone.',
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('order_not_found');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
 });

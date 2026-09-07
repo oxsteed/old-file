@@ -1055,6 +1055,8 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.cursor).toBe(991);
     expect(res.body.events[0].event_type).toBe('item_ready');
     expect(mockQuery.mock.calls[1][0]).toMatch(/foi.station_label/);
+    expect(mockQuery.mock.calls[1][0]).not.toMatch(/SELECT fo\.\*,/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/fo\.queue_number/);
   });
 
   test('acknowledges kitchen tickets and records audit history', async () => {

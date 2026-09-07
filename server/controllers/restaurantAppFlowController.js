@@ -5384,7 +5384,12 @@ exports.getKitchenFeed = async (req, res, next) => {
       itemHaving = 'HAVING COUNT(foi.id) > 0';
     }
     const { rows: orders } = await pool.query(
-      `SELECT fo.*,
+      `SELECT fo.id, fo.restaurant_id, fo.business_id, fo.order_source,
+              fo.fulfillment_type, fo.status, fo.payment_status,
+              fo.currency_code, fo.table_label, fo.queue_number,
+              fo.promised_at, fo.created_at, fo.updated_at,
+              fo.accepted_at, fo.ready_at, fo.completed_at,
+              fo.kitchen_stage, fo.preparation_started_at,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'menuItemId', foi.menu_item_id,

@@ -351,7 +351,7 @@ async function getCaseDetails(client, supportCase, view = 'customer') {
   return { case: supportCase, messages, attachments, events };
 }
 
-async function getOrderForCase(client, orderId, userId) {
+async function getOrderForCase(client, orderId, userId, trackingToken = null) {
   if (!orderId) return null;
   const { rows } = await client.query(
     `SELECT fo.*, fr.address_country, fr.currency_code AS restaurant_currency_code, fr.display_name AS restaurant_name
@@ -362,7 +362,16 @@ async function getOrderForCase(client, orderId, userId) {
   );
   const order = rows[0];
   if (!order) throw new AppError('Order not found', 404, 'order_not_found');
-  if (order.customer_id && order.customer_id !== userId) {
+  const orderTrackingToken = normalizeString(
+    order.metadata?.trackingToken || order.metadata?.tracking_token,
+    255
+  );
+  const isOwnedOrder = order.customer_id && order.customer_id === userId;
+  const isVerifiedGuestOrder = !order.customer_id
+    && orderTrackingToken
+    && trackingToken
+    && orderTrackingToken === trackingToken;
+  if (!isOwnedOrder && !isVerifiedGuestOrder) {
     throw new AppError('Order not found', 404, 'order_not_found');
   }
   return order;
@@ -389,7 +398,8 @@ exports.createCase = async (req, res, next) => {
 
     const result = await withTransaction(pool, async (client) => {
       const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
-      const order = await getOrderForCase(client, orderId, req.user.id);
+      const trackingToken = normalizeString(req.body.trackingToken || req.body.tracking_token, 255);
+      const order = await getOrderForCase(client, orderId, req.user.id, trackingToken);
       const restaurantId = order?.restaurant_id || parsePositiveInt(req.body.restaurantId || req.body.restaurant_id);
       if (!restaurantId) throw new AppError('Validation failed', 400, 'validation_failed', { restaurantId: 'Restaurant or order is required' });
 
