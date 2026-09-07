@@ -135,7 +135,7 @@ exports.confirmPayment = async (req, res) => {
 
     // Authorization: verify the payment belongs to a session the user owns (or admin).
     const { rows: ownership } = await db.query(
-      `SELECT cs.user_id
+      `SELECT cs.user_id, cp.amount_cents
        FROM consulting_payments cp
        JOIN consulting_sessions_scheduled css ON cp.session_scheduled_id = css.id
        JOIN consulting_sessions cs ON css.session_id = cs.id
@@ -156,6 +156,20 @@ exports.confirmPayment = async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment not completed' });
+    }
+    const expectedAmountCents = Number(ownership[0].amount_cents);
+    const paidAmountCents = Number(paymentIntent.amount_received ?? paymentIntent.amount);
+    const paidCurrency = String(paymentIntent.currency || '').toLowerCase();
+    if (!Number.isInteger(expectedAmountCents) || expectedAmountCents <= 0
+      || paidAmountCents !== expectedAmountCents || paidCurrency !== 'usd') {
+      logger.warn('Consulting payment amount or currency mismatch', {
+        paymentId,
+        stripePaymentIntentId,
+        expectedAmountCents,
+        paidAmountCents,
+        paidCurrency,
+      });
+      return res.status(409).json({ error: 'Payment amount or currency does not match this consulting payment.' });
     }
 
     // Conditional UPDATE: only transition processing → completed.
