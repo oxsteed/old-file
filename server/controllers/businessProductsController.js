@@ -123,6 +123,7 @@ async function getProduct(req, res, next) {
     if (!productResult.rows.length) throw new AppError('Product not found', 404, 'not_found');
 
     const product = productResult.rows[0];
+    const canViewPrivateInventory = ['owner', 'manager'].includes(req.businessRole);
 
     const [variantsResult, imagesResult, reviewsResult] = await Promise.all([
       pool.query(
@@ -156,7 +157,7 @@ async function getProduct(req, res, next) {
         description:  product.description,
         category:     product.category,
         price:        product.price_cents / 100,
-        cost:         product.cost_cents / 100,
+        ...(canViewPrivateInventory ? { cost: product.cost_cents / 100 } : {}),
         sku:          product.sku,
         thumbnailUrl: product.thumbnail_url,
         isActive:     product.is_active,
@@ -170,8 +171,10 @@ async function getProduct(req, res, next) {
           name:           v.variant_name,
           priceAdjustment: v.price_adjustment_cents / 100,
           stock:          parseInt(v.stock),
-          reorderLevel:   v.reorder_level,
-          lastRestocked:  v.last_restocked,
+          ...(canViewPrivateInventory ? {
+            reorderLevel: v.reorder_level,
+            lastRestocked: v.last_restocked,
+          } : {}),
         })),
         images:  imagesResult.rows,
         reviews: reviewsResult.rows,
