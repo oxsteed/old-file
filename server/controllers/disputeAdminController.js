@@ -4,6 +4,7 @@ const { logAdminAction }    = require('../services/auditService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 const { mapResolutionToEscrowStatus } = require('../utils/disputeResolution');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 
 const DISPUTE_RESOLUTIONS = Object.freeze({
   REFUND_CUSTOMER: 'refund_customer',
@@ -90,11 +91,66 @@ exports.resolveDispute = async (req, res) => {
   try {
     const { disputeId } = req.params;
     const { resolution, admin_notes, resolution_notes } = req.body;
+    const requestedRefundAmount = req.body.refund_amount ?? req.body.refundAmount;
     const notes = admin_notes || resolution_notes || null; // accept both field names
     const adminId = req.user.id;
 
     if (!resolution) {
       return res.status(400).json({ error: 'Resolution is required.' });
+    }
+    if (!Object.values(DISPUTE_RESOLUTIONS).includes(resolution)) {
+      return res.status(400).json({ error: 'Unsupported dispute resolution.' });
+    }
+
+    const refundResolution = [DISPUTE_RESOLUTIONS.REFUND_CUSTOMER, DISPUTE_RESOLUTIONS.CUSTOMER_WINS,
+      DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION].includes(resolution);
+    let processorRefundId = null;
+    let processorRefundAmount = null;
+
+    // Do not mark a dispute refunded until the processor accepts the refund.
+    // The idempotency key makes retries safe if the DB transaction later fails.
+    if (refundResolution) {
+      if (!stripe) return res.status(503).json({ error: 'Refund processing is not configured.' });
+
+      const { rows: paymentRows } = await db.query(`
+        SELECT d.status, p.amount, p.status AS payment_status,
+               p.stripe_payment_intent_id, p.stripe_account_id
+        FROM disputes d
+        LEFT JOIN payments p ON p.id = COALESCE(
+          d.payment_id,
+          (SELECT id FROM payments WHERE job_id = d.job_id AND escrow_status = 'disputed'
+           ORDER BY id DESC LIMIT 1)
+        )
+        WHERE d.id = $1
+      `, [disputeId]);
+      const payment = paymentRows[0];
+      if (!payment) return res.status(409).json({ error: 'No disputed payment is attached to this dispute.' });
+      if (payment.status === DISPUTE_STATUSES.RESOLVED) return res.status(409).json({ error: 'Dispute has already been resolved.' });
+      if (payment.payment_status !== 'captured') return res.status(409).json({ error: 'Only captured payments can be refunded through dispute resolution.' });
+      if (!payment.stripe_payment_intent_id) return res.status(409).json({ error: 'Disputed payment has no payment-processor reference.' });
+
+      const originalCents = Math.round(Number(payment.amount) * 100);
+      const fullRefund = resolution !== DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION;
+      const refundCents = fullRefund ? originalCents : Math.round(Number(requestedRefundAmount) * 100);
+      if (!Number.isInteger(originalCents) || originalCents <= 0 || !Number.isInteger(refundCents)
+        || refundCents <= 0 || refundCents > originalCents) {
+        return res.status(400).json({ error: 'Refund amount must be positive and no greater than the payment.' });
+      }
+
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: payment.stripe_payment_intent_id,
+          ...(fullRefund ? {} : { amount: refundCents }),
+        }, {
+          idempotencyKey: `dispute-refund-${disputeId}-${refundCents}`,
+          ...(payment.stripe_account_id ? { stripeAccount: payment.stripe_account_id } : {}),
+        });
+        processorRefundId = refund.id;
+        processorRefundAmount = refundCents / 100;
+      } catch (stripeError) {
+        logger.error('Dispute refund failed at payment processor', { disputeId, error: stripeError.message });
+        return res.status(502).json({ error: 'Refund failed with payment processor. The dispute was not resolved.' });
+      }
     }
 
     // Resolve dispute atomically with escrow updates
@@ -127,10 +183,12 @@ exports.resolveDispute = async (req, res) => {
             resolution = $2,
             admin_notes = $3,
             resolved_by = $4,
+            resolution_type = $2,
+            refund_amount = COALESCE($6, refund_amount),
             resolved_at = NOW()
         WHERE id = $5 AND status != $1
         RETURNING *
-      `, [DISPUTE_STATUSES.RESOLVED, resolution, notes, adminId, disputeId]);
+      `, [DISPUTE_STATUSES.RESOLVED, resolution, notes, adminId, disputeId, processorRefundAmount]);
 
       if (!updateRows.length) {
         throw new Error('Dispute state changed during resolution');
@@ -154,8 +212,15 @@ exports.resolveDispute = async (req, res) => {
 
         // Update escrow with safeguard
         const { rows: escrowUpdateRows } = await client.query(
-          `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2 AND escrow_status = 'disputed' RETURNING id`,
-          [newEscrowStatus, payment.id]
+          `UPDATE payments
+           SET escrow_status = $1,
+               status = CASE WHEN $3 IN ('refund_customer', 'customer_wins') THEN 'refunded' ELSE status END,
+               refunded_at = CASE WHEN $3 IN ('refund_customer', 'customer_wins') THEN NOW() ELSE refunded_at END,
+               refund_amount = COALESCE($4, refund_amount),
+               stripe_refund_id = COALESCE($5, stripe_refund_id),
+               updated_at = NOW()
+           WHERE id = $2 AND escrow_status = 'disputed' RETURNING id`,
+          [newEscrowStatus, payment.id, resolution, processorRefundAmount, processorRefundId]
         );
 
         if (escrowUpdateRows.length > 0) {
@@ -165,7 +230,8 @@ exports.resolveDispute = async (req, res) => {
             VALUES (NULL, 'dispute_escrow_release', 0, $1, $2)
           `, [
             `Dispute #${dispute.id} resolved - escrow released as ${newEscrowStatus}`,
-            JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id })
+            JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id,
+              stripe_refund_id: processorRefundId, refund_amount: processorRefundAmount })
           ]).catch(err => logger.error('Failed to log escrow release', { err }));
         }
       }
