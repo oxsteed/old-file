@@ -99,14 +99,56 @@ router.post('/claims', requireAuth, async (req, res, next) => {
   try {
     const pool = require('../db');
     const { claim_type, description, purchase_order_id, shipment_id, pooled_order_id, claimed_amount_usd } = req.body;
-    if (!claim_type || !description) {
+    const referenceIds = [purchase_order_id, shipment_id, pooled_order_id].filter(
+      value => value !== undefined && value !== null && String(value).trim() !== ''
+    );
+    const claimedAmount = claimed_amount_usd === undefined || claimed_amount_usd === null || claimed_amount_usd === ''
+      ? null
+      : Number(claimed_amount_usd);
+    if (!claim_type || !description || !referenceIds.length
+      || (claimedAmount !== null && (!Number.isFinite(claimedAmount) || claimedAmount <= 0))) {
       return next(new (require('../utils/appError'))('claim_type and description required', 400, 'validation_failed'));
+    }
+
+    if (purchase_order_id !== undefined && purchase_order_id !== null) {
+      const result = await pool.query(
+        `SELECT 1 FROM purchase_orders po
+         WHERE po.id = $1 AND (po.buyer_user_id = $2 OR EXISTS (
+           SELECT 1 FROM pooled_order_participants pp
+           WHERE pp.pooled_order_id = po.pooled_order_id AND pp.user_id = $2
+         ))`,
+        [purchase_order_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Purchase order not found', 404, 'not_found'));
+    }
+    if (shipment_id !== undefined && shipment_id !== null) {
+      const result = await pool.query(
+        `SELECT 1 FROM shipment_records sr
+         LEFT JOIN purchase_orders po ON po.id = sr.purchase_order_id
+         WHERE sr.id = $1 AND (
+           po.buyer_user_id = $2
+           OR EXISTS (SELECT 1 FROM pooled_order_participants pp WHERE pp.pooled_order_id = COALESCE(sr.pooled_order_id, po.pooled_order_id) AND pp.user_id = $2)
+         )`,
+        [shipment_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Shipment not found', 404, 'not_found'));
+    }
+    if (pooled_order_id !== undefined && pooled_order_id !== null) {
+      const result = await pool.query(
+        `SELECT 1 FROM pooled_orders po
+         WHERE po.id = $1 AND (po.organizer_user_id = $2 OR EXISTS (
+           SELECT 1 FROM pooled_order_participants pp
+           WHERE pp.pooled_order_id = po.id AND pp.user_id = $2
+         ))`,
+        [pooled_order_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Pooled order not found', 404, 'not_found'));
     }
     const reference = publicReference('CLM');
     const result = await pool.query(
       `INSERT INTO logistics_claims (reference,claim_type,purchase_order_id,shipment_id,pooled_order_id,claimant_user_id,description,claimed_amount_usd)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [reference,claim_type,purchase_order_id,shipment_id,pooled_order_id,req.user.id,description,claimed_amount_usd]
+      [reference,claim_type,purchase_order_id,shipment_id,pooled_order_id,req.user.id,description,claimedAmount]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
