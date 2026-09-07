@@ -3,12 +3,13 @@ const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
+const { generalLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/tradesOperationsController');
 
 const router = express.Router();
 
 router.get('/public/:businessId', controller.getPublicWorkspace);
-router.post('/public/:businessId/requests', upload.array('photos', 5), validateFileUpload, controller.createDiagnosticRequest);
+router.post('/public/:businessId/requests', generalLimiter, upload.array('photos', 5), validateFileUpload, controller.createDiagnosticRequest);
 
 router.get('/business/:businessId', authenticate, requireBusinessAccess.member(), controller.getBusinessWorkspace);
 router.put('/business/:businessId/settings', authenticate, requireBusinessAccess.manager(), controller.updateSettings);
