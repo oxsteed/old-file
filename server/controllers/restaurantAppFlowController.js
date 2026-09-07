@@ -3777,60 +3777,63 @@ exports.updatePosTicket = async (req, res, next) => {
     }
     const status = ticketState === 'voided' ? 'cancelled' : ticketState === 'refunded' ? 'refunded' : null;
     const paymentStatus = ticketState === 'refunded' ? 'refunded' : null;
-    const { rows: [order] } = await pool.query(
-      `UPDATE food_orders
-          SET pos_ticket_state = $1,
-              pos_hold_reason = CASE WHEN $1 = 'held' THEN $2 ELSE NULL END,
-              status = COALESCE($3, status),
-              payment_status = COALESCE($4, payment_status),
-              voided_at = CASE WHEN $1 = 'voided' THEN NOW() ELSE voided_at END,
-              refunded_at = CASE WHEN $1 = 'refunded' THEN NOW() ELSE refunded_at END,
-              updated_at = NOW()
-        WHERE id = $5 AND restaurant_id = $6
-          AND pos_ticket_state = ANY($7::varchar[])
-          AND ($1 <> 'voided' OR NOT EXISTS (
-            SELECT 1 FROM restaurant_pos_payments p
-             WHERE p.food_order_id = food_orders.id
-               AND p.payment_type <> 'refund'
-               AND p.status IN ('pending','recorded','captured')
-          ))
-        RETURNING *`,
-      [
-        ticketState,
-        normalizeString(req.body.reason || req.body.holdReason || req.body.hold_reason, 1000),
-        status,
-        paymentStatus,
-        orderId,
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [order] } = await client.query(
+        `UPDATE food_orders
+            SET pos_ticket_state = $1,
+                pos_hold_reason = CASE WHEN $1 = 'held' THEN $2 ELSE NULL END,
+                status = COALESCE($3, status),
+                payment_status = COALESCE($4, payment_status),
+                voided_at = CASE WHEN $1 = 'voided' THEN NOW() ELSE voided_at END,
+                refunded_at = CASE WHEN $1 = 'refunded' THEN NOW() ELSE refunded_at END,
+                updated_at = NOW()
+          WHERE id = $5 AND restaurant_id = $6
+            AND pos_ticket_state = ANY($7::varchar[])
+            AND ($1 <> 'voided' OR NOT EXISTS (
+              SELECT 1 FROM restaurant_pos_payments p
+               WHERE p.food_order_id = food_orders.id
+                 AND p.payment_type <> 'refund'
+                 AND p.status IN ('pending','recorded','captured')
+            ))
+          RETURNING *`,
+        [
+          ticketState,
+          normalizeString(req.body.reason || req.body.holdReason || req.body.hold_reason, 1000),
+          status,
+          paymentStatus,
+          orderId,
+          restaurantId,
+          allowedCurrentStates,
+        ]
+      );
+      if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
+      if (order.status === 'cancelled') {
+        await releaseInventoryForOrder(client, { restaurantId, orderId: order.id });
+      }
+      const event = await insertPosReceiptAudit(client, {
         restaurantId,
-        allowedCurrentStates,
-      ]
-    );
-    if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
-    if (order.status === 'cancelled') {
-      await releaseInventoryForOrder(pool, { restaurantId, orderId: order.id });
-    }
-    await insertPosReceiptAudit(pool, {
-      restaurantId,
-      order,
-      eventType: ticketState === 'voided'
-        ? 'ticket_voided'
-        : ticketState === 'held'
-          ? 'ticket_held'
-          : 'ticket_reopened',
-      channel: 'Payment update',
-      createdBy: req.user.id,
-      reason: normalizeString(req.body.reason || req.body.holdReason || req.body.hold_reason, 1000),
-      metadata: {
-        ticketState,
-        previousAllowedStates: allowedCurrentStates,
-      },
-      idempotencyKey: normalizeString(
-        req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
-        200
-      ),
-    });
-    broadcastRestaurant(restaurant, 'food:pos:ticket:updated', { order });
-    res.json({ order });
+        order,
+        eventType: ticketState === 'voided'
+          ? 'ticket_voided'
+          : ticketState === 'held'
+            ? 'ticket_held'
+            : 'ticket_reopened',
+        channel: 'Payment update',
+        createdBy: req.user.id,
+        reason: normalizeString(req.body.reason || req.body.holdReason || req.body.hold_reason, 1000),
+        metadata: {
+          ticketState,
+          previousAllowedStates: allowedCurrentStates,
+        },
+        idempotencyKey: normalizeString(
+          req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+          200
+        ),
+      });
+      return { order, event };
+    }, 'restaurant_pos_ticket_update');
+    broadcastRestaurant(restaurant, 'food:pos:ticket:updated', result);
+    res.json({ order: result.order });
   } catch (err) {
     next(err);
   }
