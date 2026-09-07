@@ -2,23 +2,26 @@ const express = require('express');
 const router = express.Router();
 const consultingController = require('../controllers/allPhasesConsultingController');
 const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 
+const adminAuth = [authenticate, requireAdmin];
+
 // PHASE 1: Consultant Management (admin only)
-router.post('/consultants', authenticate, consultingController.createConsultant);
-router.get('/consultants', authenticate, consultingController.getConsultants);
-router.put('/consultants/:id', authenticate, consultingController.updateConsultant);
-router.post('/consultants/:id/availability', authenticate, consultingController.setConsultantAvailability);
-router.post('/sessions/assign', authenticate, consultingController.assignConsultant);
+router.post('/consultants', ...adminAuth, consultingController.createConsultant);
+router.get('/consultants', ...adminAuth, consultingController.getConsultants);
+router.put('/consultants/:id', ...adminAuth, consultingController.updateConsultant);
+router.post('/consultants/:id/availability', ...adminAuth, consultingController.setConsultantAvailability);
+router.post('/sessions/assign', ...adminAuth, consultingController.assignConsultant);
 
 // PHASE 2: Scheduling
-router.post('/sessions/:sessionId/schedule', authenticate, consultingController.scheduleSession);
-router.post('/sessions/:sessionId/notes', authenticate, consultingController.addSessionNote);
+router.post('/sessions/:sessionId/schedule', ...adminAuth, consultingController.scheduleSession);
+router.post('/sessions/:sessionId/notes', ...adminAuth, consultingController.addSessionNote);
 
 // PHASE 3: Session Delivery & Progress
-router.patch('/sessions/:sessionId/phase', authenticate, consultingController.updateSessionPhase);
-router.post('/sessions/:sessionId/deliverables', authenticate, consultingController.addDeliverable);
-router.post('/sessions/:sessionId/action-items', authenticate, consultingController.addActionItem);
+router.patch('/sessions/:sessionId/phase', ...adminAuth, consultingController.updateSessionPhase);
+router.post('/sessions/:sessionId/deliverables', ...adminAuth, consultingController.addDeliverable);
+router.post('/sessions/:sessionId/action-items', ...adminAuth, consultingController.addActionItem);
 
 // PHASE 4: Pricing & Packages
 router.get('/packages', generalLimiter, consultingController.getPackages);
@@ -32,6 +35,6 @@ router.post('/sessions/:sessionId/feedback', authenticate, consultingController.
 
 // PHASE 7: Referrals & Analytics
 router.post('/referral', authenticate, consultingController.createReferralLink);
-router.get('/analytics', authenticate, consultingController.getAnalytics);
+router.get('/analytics', ...adminAuth, consultingController.getAnalytics);
 
 module.exports = router;
