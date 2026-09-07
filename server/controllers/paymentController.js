@@ -286,14 +286,29 @@ exports.createPaymentIntent = async (req, res, next) => {
           status: existingPi.status,
         });
       } catch (retrieveErr) {
-        logger.warn('Failed to retrieve existing PaymentIntent during idempotency check; creating a new one', {
+        logger.error('Failed to retrieve existing PaymentIntent during idempotency check', {
           jobId: job_id, paymentIntentId: existingPayment.rows[0].stripe_payment_intent_id, error: retrieveErr.message,
         });
-        // Fall through and create a new PI — orphan rows can be cleaned up by a job
+        throw new AppError(
+          'We could not verify the existing payment attempt. Please try again shortly.',
+          503,
+          'payment_verification_unavailable'
+        );
       }
     }
 
+    // A new attempt gets a new idempotency key, while concurrent requests that
+    // observed the same count still collapse into one Stripe request.
+    const attemptResult = await pool.query(
+      'SELECT COUNT(*)::int AS attempt_count FROM payments WHERE job_id = $1',
+      [job_id]
+    );
+    const paymentAttempt = Number(attemptResult.rows[0]?.attempt_count || 0) + 1;
+    const paymentIdempotencyKey = `job-payment:${job_id}:${paymentAttempt}`;
+
     // Direct charge on helper's connected account
+    // Retries and concurrent browser requests for one job must resolve to the
+    // same Stripe intent rather than creating multiple authorizations.
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount: jobValueCents,
@@ -309,25 +324,47 @@ exports.createPaymentIntent = async (req, res, next) => {
           platform_fee_cents: fees.platform_fee_cents.toString(),
         },
       },
-      { stripeAccount: freshConnect.stripe_account_id }
+      {
+        stripeAccount: freshConnect.stripe_account_id,
+        idempotencyKey: paymentIdempotencyKey,
+      }
     );
 
-    const { rows: insertRows } = await pool.query(
-      `INSERT INTO payments
-        (job_id, payer_id, payee_id, stripe_payment_intent_id,
-         amount, platform_fee, status, payment_hold_status, stripe_account_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)
-       RETURNING id`,
-      [
-        job_id,
-        req.user.id,
-        job.rows[0].assigned_helper_id,
-        paymentIntent.id,
-        job.rows[0].job_value,
-        fees.platform_fee_cents / 100,
-        freshConnect.stripe_account_id,
-      ]
-    );
+    let insertRows;
+    try {
+      ({ rows: insertRows } = await pool.query(
+        `INSERT INTO payments
+          (job_id, payer_id, payee_id, stripe_payment_intent_id,
+           amount, platform_fee, status, payment_hold_status, stripe_account_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)
+         RETURNING id`,
+        [
+          job_id,
+          req.user.id,
+          job.rows[0].assigned_helper_id,
+          paymentIntent.id,
+          job.rows[0].job_value,
+          fees.platform_fee_cents / 100,
+          freshConnect.stripe_account_id,
+        ]
+      ));
+    } catch (insertErr) {
+      // A concurrent request may have inserted the same idempotent Stripe
+      // intent first. Return it rather than retrying the external charge.
+      if (insertErr.code !== '23505') throw insertErr;
+      const existingIntent = await pool.query(
+        `SELECT id FROM payments
+          WHERE stripe_payment_intent_id = $1
+          LIMIT 1`,
+        [paymentIntent.id]
+      );
+      if (!existingIntent.rows[0]) throw insertErr;
+      return res.json({
+        client_secret: paymentIntent.client_secret,
+        payment_intent_id: paymentIntent.id,
+        message: 'Existing payment intent returned',
+      });
+    }
 
     if (insertRows.length === 0) {
       throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');

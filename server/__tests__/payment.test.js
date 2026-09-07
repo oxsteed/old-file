@@ -106,6 +106,7 @@ describe('POST /api/payments/intent', () => {
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true }] },                         // connect
       { rows: [{ balance_cents: 0 }] },                                                           // customer credit balance
       { rows: [] },                                                                                // existing payment check
+      { rows: [{ attempt_count: 0 }] },                                                           // payment attempt count
       { rows: [{ id: 1 }] }                                                                          // INSERT payment RETURNING id
     );
     const res = await auth(
