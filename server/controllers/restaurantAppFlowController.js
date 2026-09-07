@@ -75,6 +75,11 @@ const POS_PAYMENT_TYPE_ALIASES = {
   comp: 'comp',
   refund: 'refund',
 };
+const STANDARD_POS_DISCOUNTS = new Map([
+  ['WELCOME10', 1000],
+  ['LUNCH15', 1500],
+  ['VIP20', 2000],
+]);
 const PRINTER_JOB_TYPES = new Set(['kitchen_ticket', 'receipt', 'expo_label', 'runner_handoff']);
 const PRINTER_JOB_STATUSES = new Set(['queued', 'sent', 'printed', 'failed', 'cancelled']);
 const RUNNER_SETTLEMENT_STATUSES = new Set(['pending', 'approved', 'paid', 'disputed', 'voided']);
@@ -193,7 +198,7 @@ function paymentContractMetadata(contract, overrides = {}) {
   };
 }
 
-function normalizeDiscountLines(body, subtotalCents) {
+function normalizeDiscountLines(body, subtotalCents, { allowManual = false } = {}) {
   const lines = Array.isArray(body.discountLines || body.discount_lines || body.discounts)
     ? (body.discountLines || body.discount_lines || body.discounts)
     : [];
@@ -201,6 +206,15 @@ function normalizeDiscountLines(body, subtotalCents) {
   let total = parseCents(body.discountCents ?? body.discount_cents, 'discountCents');
   const rootCode = normalizeString(body.discountCode || body.discount_code, 80);
   const rootLabel = normalizeString(body.discountLabel || body.discount_label, 160);
+  if (!allowManual && (total > 0 || rootCode || rootLabel)) {
+    const expectedBps = rootCode ? STANDARD_POS_DISCOUNTS.get(rootCode.toUpperCase()) : null;
+    const expectedAmount = expectedBps === null || expectedBps === undefined
+      ? 0
+      : Math.round(subtotalCents * expectedBps / 10000);
+    if (!expectedBps || total !== expectedAmount) {
+      throw new AppError('Only approved POS discounts may be applied by this role', 403, 'pos_discount_approval_required');
+    }
+  }
   if (total > 0 || rootCode || rootLabel) {
     normalized.push({
       code: rootCode,
@@ -217,6 +231,23 @@ function normalizeDiscountLines(body, subtotalCents) {
     const percentBps = line.percentBps ?? line.percent_bps;
     const percentOff = line.percentOff ?? line.percent_off;
     let amount = parseCents(line.amountCents ?? line.amount_cents, `discountLines.${index}.amountCents`);
+    if (!allowManual) {
+      const expectedBps = code ? STANDARD_POS_DISCOUNTS.get(code.toUpperCase()) : null;
+      const expectedAmount = expectedBps === null || expectedBps === undefined
+        ? 0
+        : Math.round(subtotalCents * expectedBps / 10000);
+      const suppliedBps = percentBps === undefined || percentBps === null || percentBps === ''
+        ? null
+        : Number(percentBps);
+      const suppliedRate = percentOff === undefined || percentOff === null || percentOff === ''
+        ? null
+        : Number(percentOff) * 10000;
+      if (!expectedBps || (amount > 0 && amount !== expectedAmount)
+        || (suppliedBps !== null && suppliedBps !== expectedBps)
+        || (suppliedRate !== null && suppliedRate !== expectedBps)) {
+        throw new AppError('Only approved POS discounts may be applied by this role', 403, 'pos_discount_approval_required');
+      }
+    }
     if (amount === 0 && percentBps !== undefined && percentBps !== null && percentBps !== '') {
       const bps = parseOptionalInteger(percentBps, `discountLines.${index}.percentBps`, 0, 10000) || 0;
       amount = Math.round(subtotalCents * bps / 10000);
@@ -3208,6 +3239,7 @@ exports.listShifts = async (req, res, next) => {
     const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
     const { rows: shifts } = await pool.query(
       `SELECT s.*,
+              (s.staff_user_id = $3) AS is_mine,
               COALESCE((
                 SELECT SUM(p.amount_cents)
                   FROM restaurant_pos_payments p
@@ -3246,7 +3278,7 @@ exports.listShifts = async (req, res, next) => {
         WHERE s.restaurant_id = $1
         ORDER BY s.opened_at DESC
         LIMIT $2`,
-      [restaurantId, limit]
+      [restaurantId, limit, req.user.id]
     );
     res.json({ shifts });
   } catch (err) {
@@ -3467,7 +3499,9 @@ exports.createPosOrder = async (req, res, next) => {
       });
       const subtotal = normalized.reduce((sum, line) => sum + line.lineTotal, 0);
       const tip = parseCents(req.body.tipCents ?? req.body.tip_cents, 'tipCents');
-      const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal);
+      const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {
+        allowManual: MANAGE_ROLES.has(restaurant.effective_role),
+      });
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.service_fee_bps || 0)));

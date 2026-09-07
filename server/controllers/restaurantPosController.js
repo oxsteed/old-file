@@ -28,9 +28,9 @@ const RECEIPT_EVENT_TYPES = new Set([
 ]);
 
 const DEFAULT_POS_DISCOUNTS = [
-  { code: 'WELCOME10', title: 'Welcome 10%', percentOff: 0.10 },
-  { code: 'LUNCH15', title: 'Lunch 15%', percentOff: 0.15 },
-  { code: 'VIP20', title: 'VIP 20%', percentOff: 0.20 },
+  { id: 'WELCOME10', code: 'WELCOME10', name: 'Welcome 10%', title: 'Welcome 10%', discount_type: 'percent', value: 10, percentOff: 0.10 },
+  { id: 'LUNCH15', code: 'LUNCH15', name: 'Lunch 15%', title: 'Lunch 15%', discount_type: 'percent', value: 15, percentOff: 0.15 },
+  { id: 'VIP20', code: 'VIP20', name: 'VIP 20%', title: 'VIP 20%', discount_type: 'percent', value: 20, percentOff: 0.20 },
 ];
 
 async function requireRestaurantAccess(userId, restaurantId) {

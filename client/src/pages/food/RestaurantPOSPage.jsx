@@ -11,7 +11,11 @@ import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
-const FULFILLMENT_TYPES = ['dine_in', 'takeout', 'delivery'];
+const FULFILLMENT_TYPES = [
+  { value: 'dine_in', label: 'dine_in' },
+  { value: 'pickup', label: 'takeout' },
+  { value: 'delivery', label: 'delivery' },
+];
 
 function ModifierModal({ item, currency, onConfirm, onClose }) {
   const { t } = useTranslation();
@@ -181,6 +185,7 @@ export default function RestaurantPOSPage() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [discounts, setDiscounts] = useState([]);
+  const [activeShift, setActiveShift] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [activeCat, setActiveCat] = useState(null);
@@ -198,9 +203,16 @@ export default function RestaurantPOSPage() {
 
   const load = useCallback(async () => {
     try {
-      const r = await getFoodRestaurant(restaurantId);
+      const [r, shiftsResponse] = await Promise.all([
+        getFoodRestaurant(restaurantId),
+        api.get(`/restaurants/${restaurantId}/pos/shifts?limit=50`).catch(() => ({ data: { shifts: [] } })),
+      ]);
       const rest = r?.restaurant || r;
       setRestaurant(rest);
+      const openShifts = (shiftsResponse.data?.shifts || [])
+        .filter((shift) => shift.status === 'open')
+        .sort((a, b) => Number(Boolean(b.is_mine)) - Number(Boolean(a.is_mine)));
+      setActiveShift(openShifts[0] || null);
       const cats = r?.categories || [];
       const its = r?.items || [];
       // attach modifier groups to items
@@ -274,23 +286,38 @@ export default function RestaurantPOSPage() {
   const totalCents = ticket.reduce((s, l) => s + l.unitCents * l.qty, 0);
   const currency = restaurant?.currency_code || 'USD';
   const visibleItems = items.filter((i) => i.category_id === activeCat);
+  const serializeTicket = () => ticket.map((l) => ({
+    menuItemId: l.item.id,
+    quantity: l.qty,
+    modifierIds: l.mods.map((modifier) => modifier.modifier_id),
+    specialInstructions: l.note || undefined,
+  }));
+  const requireOpenShift = () => {
+    if (activeShift) return true;
+    toast.error(t('food.pos.openShiftRequired', { defaultValue: 'Open a POS shift before taking orders.' }));
+    return false;
+  };
 
   const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal }) => {
+    if (!requireOpenShift()) return;
     setSubmitting(true);
     try {
       const payload = {
-        items: ticket.map((l) => ({
-          menuItemId: l.item.id,
-          quantity: l.qty,
-          note: l.note || undefined,
-          modifiers: l.mods,
-        })),
+        items: serializeTicket(),
+        order_source: 'counter',
+        shift_id: activeShift.id,
         fulfillment_type: fulfillment,
         table_name: tableName || undefined,
         guest_name: guestName || undefined,
-        payment_mode: 'pay_now',
+        payment_mode: 'pay_at_restaurant',
         payment_method: method,
-        discount_cents: discountCents || undefined,
+        discount_lines: discountId
+          ? [{
+              code: discounts.find((discount) => String(discount.id) === String(discountId))?.code,
+              label: discounts.find((discount) => String(discount.id) === String(discountId))?.name,
+              percent_bps: Math.round((discounts.find((discount) => String(discount.id) === String(discountId))?.percentOff || 0) * 10000),
+            }]
+          : undefined,
         tip_cents: tipCents || undefined,
         total_cents: finalTotal,
       };
@@ -299,11 +326,12 @@ export default function RestaurantPOSPage() {
       if (order) {
         // record payment
         await api.post(`/restaurants/${restaurantId}/pos/orders/${order.id}/payments`, {
-          method,
-          amount_cents: finalTotal,
-          discount_cents: discountCents || 0,
-          tip_cents: tipCents || 0,
-        }).catch(() => {});
+          paymentType: method === 'mobile' ? 'external' : method,
+          paymentMode: method === 'mobile' ? 'direct_payment' : 'pay_at_restaurant',
+          amountCents: Number(order.total_cents ?? finalTotal),
+          shiftId: activeShift.id,
+          idempotencyKey: crypto.randomUUID(),
+        });
         setCompletedOrder(order);
         setTicket([]);
         setTableName('');
@@ -319,19 +347,17 @@ export default function RestaurantPOSPage() {
   };
 
   const handleSendToKitchen = async () => {
+    if (!requireOpenShift()) return;
     setSubmitting(true);
     try {
       const payload = {
-        items: ticket.map((l) => ({
-          menuItemId: l.item.id,
-          quantity: l.qty,
-          note: l.note || undefined,
-          modifiers: l.mods,
-        })),
+        items: serializeTicket(),
+        order_source: 'counter',
+        shift_id: activeShift.id,
         fulfillment_type: fulfillment,
         table_name: tableName || undefined,
         guest_name: guestName || undefined,
-        payment_mode: 'pay_at_counter',
+        payment_mode: 'pay_at_restaurant',
       };
       const res = await api.post(`/restaurants/${restaurantId}/pos/orders`, payload);
       const order = res.data?.order;
@@ -371,12 +397,17 @@ export default function RestaurantPOSPage() {
           </div>
           <div className="fd-pos-fulfillment">
             {FULFILLMENT_TYPES.map((f) => (
-              <button key={f} className={`fd-pos-ftype${fulfillment === f ? ' fd-active' : ''}`} onClick={() => setFulfillment(f)}>
-                {t(`food.pos.fulfillment_${f}`)}
+              <button key={f.value} className={`fd-pos-ftype${fulfillment === f.value ? ' fd-active' : ''}`} onClick={() => setFulfillment(f.value)}>
+                {t(`food.pos.fulfillment_${f.label}`)}
               </button>
             ))}
           </div>
           <div className="fd-pos-header-meta">
+            <span className="fd-tag">
+              {activeShift
+                ? t('food.pos.shiftOpen', { defaultValue: 'POS shift open' })
+                : t('food.pos.shiftRequired', { defaultValue: 'Open POS shift required' })}
+            </span>
             <input className="fd-pos-meta-input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t('food.pos.table')} />
             <input className="fd-pos-meta-input" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={t('food.pos.guestName')} />
           </div>
