@@ -192,13 +192,15 @@ async function createProduct(req, res, next) {
     const { businessId } = req.params;
     const { name, description, category, price, cost, sku, isActive = true } = req.body;
 
-    if (!name || name.length > 255)
+    if (typeof name !== 'string' || !name.trim() || name.length > 255)
       throw new AppError('Product name required (1-255 chars)', 400, 'validation_failed');
-    if (!category)
+    if (typeof category !== 'string' || !category.trim())
       throw new AppError('Category required', 400, 'validation_failed');
-    if (typeof price !== 'number' || price < 0 || price > 1000000)
+    if (typeof price !== 'number' || !Number.isFinite(price) || price < 0 || price > 1000000)
       throw new AppError('Valid price required (0–1,000,000)', 400, 'validation_failed');
-    if (!sku || sku.length > 100)
+    if (cost !== undefined && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0 || cost > 1000000))
+      throw new AppError('Cost must be between 0 and 1,000,000', 400, 'validation_failed');
+    if (typeof sku !== 'string' || !sku.trim() || sku.length > 100)
       throw new AppError('SKU required (1-100 chars)', 400, 'validation_failed');
 
     const skuCheck = await pool.query(
@@ -233,6 +235,19 @@ async function updateProduct(req, res, next) {
   try {
     const { businessId, productId } = req.params;
     const { name, description, category, price, cost, isActive } = req.body;
+
+    if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.length > 255))
+      throw new AppError('Product name must be 1-255 characters', 400, 'validation_failed');
+    if (description !== undefined && typeof description !== 'string')
+      throw new AppError('Description must be text', 400, 'validation_failed');
+    if (category !== undefined && (typeof category !== 'string' || !category.trim()))
+      throw new AppError('Category must be text', 400, 'validation_failed');
+    if (price !== undefined && (typeof price !== 'number' || !Number.isFinite(price) || price < 0 || price > 1000000))
+      throw new AppError('Valid price required (0-1,000,000)', 400, 'validation_failed');
+    if (cost !== undefined && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0 || cost > 1000000))
+      throw new AppError('Cost must be between 0 and 1,000,000', 400, 'validation_failed');
+    if (isActive !== undefined && typeof isActive !== 'boolean')
+      throw new AppError('isActive must be boolean', 400, 'validation_failed');
 
     const sets = [];
     const params = [productId, businessId];
