@@ -99,6 +99,12 @@ exports.issueClientPackage = async (req, res, next) => {
   const { businessId } = req.params;
   const { customer_id, package_id, paid_cents } = req.body;
   if (!customer_id || !package_id) return res.status(400).json({ error: 'customer_id and package_id are required' });
+  const paidCents = paid_cents === undefined || paid_cents === null || paid_cents === ''
+    ? null
+    : Number(paid_cents);
+  if (paidCents !== null && (!Number.isInteger(paidCents) || paidCents < 0 || paidCents > 100000000)) {
+    return res.status(400).json({ error: 'paid_cents must be a whole number between 0 and 100000000' });
+  }
   try {
     const pkg = await pool.query('SELECT * FROM business_service_packages WHERE id=$1 AND business_id=$2', [package_id, businessId]);
     if (!pkg.rows.length) return res.status(404).json({ error: 'Package not found' });
@@ -107,7 +113,7 @@ exports.issueClientPackage = async (req, res, next) => {
     const row = await pool.query(
       `INSERT INTO business_client_packages (business_id, customer_id, package_id, sessions_remaining, expires_at, paid_cents)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [businessId, customer_id, package_id, p.total_sessions, expires_at, paid_cents || p.price_cents]
+      [businessId, customer_id, package_id, p.total_sessions, expires_at, paidCents === null ? p.price_cents : paidCents]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
