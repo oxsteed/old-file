@@ -3,6 +3,7 @@
 
 const logger = require('../utils/logger');
 const metricsService = require('./metricsService');
+const { sendSecurityAlertEmail } = require('../utils/email');
 
 class IncidentAlertService {
   constructor() {
@@ -18,7 +19,7 @@ class IncidentAlertService {
     this.alertChannels = [
       this._logAlert.bind(this),
       this._metricsAlert.bind(this),
-      // Add email/Slack/PagerDuty here: this._emailAlert, this._slackAlert
+      this._emailAlert.bind(this),
     ];
 
     // Check alerts periodically
@@ -63,11 +64,11 @@ class IncidentAlertService {
 
     // Send to all channels
     this.alertChannels.forEach(channel => {
-      try {
-        channel(incident);
-      } catch (err) {
-        logger.error('Alert channel failed', { channel: channel.name, error: err.message });
-      }
+      Promise.resolve()
+        .then(() => channel(incident))
+        .catch((err) => {
+          logger.error('Alert channel failed', { channel: channel.name, error: err.message });
+        });
     });
   }
 
@@ -97,12 +98,12 @@ class IncidentAlertService {
   /**
    * Email alert (stub - integrate with Resend/SendGrid)
    */
-  _emailAlert(incident) {
+  async _emailAlert(incident) {
     if (incident.severity !== 'critical') return;
 
     const adminEmail = process.env.SECURITY_ALERT_EMAIL || 'security@oxsteed.com';
-    // TODO: Send email via notificationService
-    logger.info('Email alert queued', { incident, recipient: adminEmail });
+    await sendSecurityAlertEmail(adminEmail, incident.type, incident.message);
+    logger.info('Security incident email sent', { type: incident.type, recipient: adminEmail });
   }
 
   /**
