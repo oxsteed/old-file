@@ -1,6 +1,7 @@
 'use strict';
 const AppError = require('../utils/appError');
 const warehouseService = require('../services/warehouseService');
+const crypto = require('crypto');
 
 // ─── Warehouses ───────────────────────────────────────────────
 
@@ -136,10 +137,7 @@ exports.listDeliveryOrders = async (req, res, next) => {
 exports.createDeliveryOrder = async (req, res, next) => {
   try {
     const pool = require('../db');
-    const year = new Date().getFullYear();
-    const countRes = await pool.query('SELECT COUNT(*) FROM delivery_orders');
-    const seq = String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0');
-    const reference = `DO-${year}-${seq}`;
+    const reference = `DO-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
     const { allocation_id, shipment_id, recipient_user_id, recipient_name, recipient_phone,
             delivery_address, delivery_country, delivery_city, method, scheduled_date, delivery_notes } = req.body;

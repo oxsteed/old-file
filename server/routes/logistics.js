@@ -4,6 +4,7 @@
  * Mounted at /api/logistics in server/index.js
  */
 const router = require('express').Router();
+const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -18,6 +19,10 @@ const recurringCtrl = require('../controllers/logisticsRecurringProcurementContr
 const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
 const { requireLogisticsRole, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
+
+function publicReference(prefix) {
+  return `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+}
 
 // ─── Lanes (public read, admin write) ────────────────────────
 
@@ -96,10 +101,7 @@ router.post('/claims', requireAuth, async (req, res, next) => {
     if (!claim_type || !description) {
       return next(new (require('../utils/appError'))('claim_type and description required', 400, 'validation_failed'));
     }
-    const year = new Date().getFullYear();
-    const countRes = await pool.query('SELECT COUNT(*) FROM logistics_claims');
-    const seq = String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0');
-    const reference = `CLM-${year}-${seq}`;
+    const reference = publicReference('CLM');
     const result = await pool.query(
       `INSERT INTO logistics_claims (reference,claim_type,purchase_order_id,shipment_id,pooled_order_id,claimant_user_id,description,claimed_amount_usd)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -169,10 +171,7 @@ router.post('/refund-cases', requireAuth, async (req, res, next) => {
       );
       if (!result.rows.length) return next(new (require('../utils/appError'))('Participation not found', 404, 'not_found'));
     }
-    const year = new Date().getFullYear();
-    const countRes = await pool.query('SELECT COUNT(*) FROM logistics_refund_cases');
-    const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(5, '0');
-    const reference = `RFC-${year}-${seq}`;
+    const reference = publicReference('RFC');
     const result = await pool.query(
       `INSERT INTO logistics_refund_cases
          (reference,claim_id,purchase_order_id,pooled_order_id,participant_id,user_id,refund_reason,requested_amount_usd,notes)
