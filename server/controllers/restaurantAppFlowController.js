@@ -7,6 +7,11 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const {
+  reserveInventoryForOrder,
+  releaseInventoryForOrder,
+  consumeInventoryForOrder,
+} = require('../services/restaurantInventoryOrderService');
 const posTerminal = require('../services/restaurantPosTerminalService');
 const {
   reconcilePosOrderPayment,
@@ -987,7 +992,7 @@ async function assertMutablePosOrders(client, restaurantId, orders) {
   }
 }
 
-async function syncKitchenOrderStatus(client, orderId, preferredStatus = null) {
+async function syncKitchenOrderStatus(client, restaurantId, orderId, preferredStatus = null) {
   const { rows: [totals] } = await client.query(
     `SELECT COUNT(*)::int AS total_items,
             COUNT(*) FILTER (WHERE kitchen_status IN ('ready','bumped'))::int AS ready_items,
@@ -1039,6 +1044,9 @@ async function syncKitchenOrderStatus(client, orderId, preferredStatus = null) {
       RETURNING *`,
     [orderId, nextStatus]
   );
+  if (order?.status === 'cancelled') {
+    await releaseInventoryForOrder(client, { restaurantId, orderId });
+  }
   return order;
 }
 
@@ -3652,6 +3660,7 @@ exports.createPosOrder = async (req, res, next) => {
           metadata,
         ]
       );
+      const createdOrderItems = [];
       for (const line of normalized) {
         const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
@@ -3670,6 +3679,11 @@ exports.createPosOrder = async (req, res, next) => {
             normalizeString(line.stationLabel, 80),
           ]
         );
+        createdOrderItems.push({
+          id: orderItem.id,
+          menuItemId: line.item.id,
+          quantity: line.quantity,
+        });
         for (const modifier of line.modifiers) {
           await client.query(
             `INSERT INTO food_order_item_modifiers
@@ -3679,6 +3693,11 @@ exports.createPosOrder = async (req, res, next) => {
           );
         }
       }
+      await reserveInventoryForOrder(client, {
+        restaurantId,
+        orderId: order.id,
+        orderItems: createdOrderItems,
+      });
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
         restaurantId,
         orderId: order.id,
@@ -3787,6 +3806,9 @@ exports.updatePosTicket = async (req, res, next) => {
       ]
     );
     if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
+    if (order.status === 'cancelled') {
+      await releaseInventoryForOrder(pool, { restaurantId, orderId: order.id });
+    }
     await insertPosReceiptAudit(pool, {
       restaurantId,
       order,
@@ -3932,8 +3954,13 @@ exports.splitPosOrder = async (req, res, next) => {
         [childTip, childDiscount, sourceOrderId]
       );
       await client.query(
-        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2 AND id = ANY($3::bigint[])`,
-        [child.id, sourceOrderId, itemIds]
+        `UPDATE food_order_items
+            SET order_id = $1
+          WHERE order_id = $2 AND id = ANY($3::bigint[]);
+         UPDATE restaurant_inventory_order_reservations
+            SET food_order_id = $1
+          WHERE restaurant_id = $4 AND food_order_item_id = ANY($3::bigint[])`,
+        [child.id, sourceOrderId, itemIds, restaurantId]
       );
       const updatedSource = await recalcOrderTotals(client, sourceOrderId);
       const updatedChild = await recalcOrderTotals(client, child.id);
@@ -3983,8 +4010,11 @@ exports.mergePosOrders = async (req, res, next) => {
         [source.tip_cents, source.discount_cents, source.delivery_fee_cents, targetOrderId]
       );
       await client.query(
-        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2`,
-        [targetOrderId, sourceOrderId]
+        `UPDATE food_order_items SET order_id = $1 WHERE order_id = $2;
+         UPDATE restaurant_inventory_order_reservations
+            SET food_order_id = $1
+          WHERE restaurant_id = $3 AND food_order_id = $2`,
+        [targetOrderId, sourceOrderId, restaurantId]
       );
       await client.query(
         `UPDATE food_orders
@@ -5597,7 +5627,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
           RETURNING *`,
         [toStatus, stationLabel, reason, targetPrepSeconds, orderItemId]
       );
-      const order = await syncKitchenOrderStatus(client, existing.order_id, toStatus === 'ready' || toStatus === 'bumped' ? null : 'preparing');
+      const order = await syncKitchenOrderStatus(client, restaurantId, existing.order_id, toStatus === 'ready' || toStatus === 'bumped' ? null : 'preparing');
       const { rows: [event] } = await client.query(
         `INSERT INTO restaurant_kitchen_events
            (restaurant_id, food_order_id, food_order_item_id, event_type, from_status, to_status,
@@ -6833,6 +6863,11 @@ exports.completeRunnerHandoff = async (req, res, next) => {
         );
         order = completedOrder || null;
         if (order) {
+          await consumeInventoryForOrder(client, {
+            restaurantId,
+            orderId: order.id,
+            actorUserId: req.user.id,
+          });
           await client.query(
             `INSERT INTO restaurant_kitchen_events
                (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)

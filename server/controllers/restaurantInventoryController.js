@@ -126,9 +126,13 @@ exports.listItems = async (req, res, next) => {
     const lowOnly = req.query.lowStock === '1' || req.query.lowStock === 'true';
 
     const { rows } = await pool.query(
-      `SELECT i.*, a.name AS area_name,
+      `SELECT i.*,
+              COALESCE(reserved.quantity, 0) AS reserved_quantity,
+              GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) AS available_quantity,
+              a.name AS area_name,
               COALESCE(s.name, i.supplier_name) AS supplier_display_name,
-              (i.quantity <= i.reorder_point AND i.reorder_point > 0) AS is_low,
+              (GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) <= i.reorder_point
+                AND i.reorder_point > 0) AS is_low,
               COALESCE(
                 jsonb_agg(DISTINCT jsonb_build_object('id', fmi.id, 'name', fmi.name))
                   FILTER (WHERE fmi.id IS NOT NULL), '[]'::jsonb
@@ -140,6 +144,14 @@ exports.listItems = async (req, res, next) => {
          LEFT JOIN restaurant_inventory_suppliers s
            ON s.id = i.supplier_id
           AND s.restaurant_id = i.restaurant_id
+         LEFT JOIN (
+           SELECT restaurant_id, inventory_item_id, SUM(quantity) AS quantity
+             FROM restaurant_inventory_order_reservations
+            WHERE status = 'reserved'
+            GROUP BY restaurant_id, inventory_item_id
+         ) reserved
+           ON reserved.inventory_item_id = i.id
+          AND reserved.restaurant_id = i.restaurant_id
          LEFT JOIN restaurant_inventory_item_mappings m
            ON m.inventory_item_id = i.id
           AND m.restaurant_id = i.restaurant_id
@@ -147,7 +159,7 @@ exports.listItems = async (req, res, next) => {
            ON fmi.id = m.menu_item_id
           AND fmi.restaurant_id = i.restaurant_id
         WHERE i.restaurant_id = $1 AND i.is_active = TRUE
-          ${lowOnly ? 'AND i.quantity <= i.reorder_point AND i.reorder_point > 0' : ''}
+          ${lowOnly ? 'AND GREATEST(0, i.quantity - COALESCE(reserved.quantity, 0)) <= i.reorder_point AND i.reorder_point > 0' : ''}
         GROUP BY i.id, a.name, s.name
         ORDER BY i.name ASC`,
       [restaurantId]

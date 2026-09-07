@@ -9,7 +9,13 @@ async function syncMappedMenuAvailability(db, restaurantId, {
   const params = [restaurantId, inventoryItemId, menuItemId];
 
   const { rows } = await db.query(
-    `SELECT fmi.id AS menu_item_id,
+    `WITH active_reservations AS (
+       SELECT inventory_item_id, SUM(quantity) AS reserved_quantity
+         FROM restaurant_inventory_order_reservations
+        WHERE restaurant_id = $1 AND status = 'reserved'
+        GROUP BY inventory_item_id
+     )
+     SELECT fmi.id AS menu_item_id,
             fmi.name AS menu_item_name,
             fmi.is_available AS current_available,
             fmi.manual_available,
@@ -17,29 +23,33 @@ async function syncMappedMenuAvailability(db, restaurantId, {
             fmi.inventory_availability_state AS current_inventory_state,
             COALESCE(BOOL_OR(
               rim.auto_manage = TRUE
-              AND (rii.id IS NULL OR rii.quantity < rim.required_quantity)
+              AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity)
             ), FALSE) AS blocked_by_stock,
             COALESCE(BOOL_OR(
               rim.auto_manage = TRUE
               AND rii.quantity >= rim.required_quantity
-              AND rii.quantity <= GREATEST(rii.low_stock_threshold, rim.required_quantity)
+              AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0))
+                <= GREATEST(rii.low_stock_threshold, rim.required_quantity)
             ), FALSE) AS limited_by_stock,
             ARRAY_AGG(rii.name ORDER BY rii.name)
               FILTER (WHERE rim.auto_manage = TRUE
-                        AND (rii.id IS NULL OR rii.quantity < rim.required_quantity)) AS blocking_items,
+                        AND (rii.id IS NULL OR GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity)) AS blocking_items,
             ARRAY_AGG(rii.name ORDER BY rii.name)
               FILTER (WHERE rim.auto_manage = TRUE
                         AND rii.quantity >= rim.required_quantity
-                        AND rii.quantity <= GREATEST(rii.low_stock_threshold, rim.required_quantity)) AS limited_items,
-            MIN(rii.id) FILTER (WHERE rim.auto_manage = TRUE AND rii.quantity < rim.required_quantity) AS blocking_inventory_item_id
+                        AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0))
+                          <= GREATEST(rii.low_stock_threshold, rim.required_quantity)) AS limited_items,
+            MIN(rii.id) FILTER (WHERE rim.auto_manage = TRUE
+                                  AND GREATEST(0, rii.quantity - COALESCE(ar.reserved_quantity, 0)) < rim.required_quantity) AS blocking_inventory_item_id
        FROM food_menu_items fmi
        LEFT JOIN restaurant_inventory_item_mappings rim
          ON rim.menu_item_id = fmi.id
         AND rim.restaurant_id = fmi.restaurant_id
-       LEFT JOIN restaurant_inventory_items rii
+      LEFT JOIN restaurant_inventory_items rii
          ON rii.id = rim.inventory_item_id
         AND rii.restaurant_id = rim.restaurant_id
         AND rii.is_active = TRUE
+      LEFT JOIN active_reservations ar ON ar.inventory_item_id = rii.id
       WHERE fmi.restaurant_id = $1
         AND (
           ($3::bigint IS NOT NULL AND fmi.id = $3)

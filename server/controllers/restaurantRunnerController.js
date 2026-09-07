@@ -4,6 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const { consumeInventoryForOrder } = require('../services/restaurantInventoryOrderService');
 
 function emitDeliveryHandoff(restaurantId, order) {
   if (!order) return;
@@ -332,6 +333,11 @@ exports.updateTaskStatus = async (req, res, next) => {
         [task.food_order_id, restaurantId, req.user.id]
       );
       if (completedOrder) {
+        await consumeInventoryForOrder(pool, {
+          restaurantId,
+          orderId: completedOrder.id,
+          actorUserId: req.user.id,
+        });
         await pool.query(
           `INSERT INTO restaurant_kitchen_events
              (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
@@ -389,6 +395,11 @@ exports.logProof = async (req, res, next) => {
           [updatedTask.food_order_id, restaurantId, req.user.id]
         );
         if (completedOrder) {
+          await consumeInventoryForOrder(client, {
+            restaurantId,
+            orderId: completedOrder.id,
+            actorUserId: req.user.id,
+          });
           await client.query(
             `INSERT INTO restaurant_kitchen_events
                (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)

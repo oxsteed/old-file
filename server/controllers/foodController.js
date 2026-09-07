@@ -14,6 +14,11 @@ const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const {
+  reserveInventoryForOrder,
+  releaseInventoryForOrder,
+  consumeInventoryForOrder,
+} = require('../services/restaurantInventoryOrderService');
 const permissionsService = require('../services/permissionsService');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const {
@@ -2497,6 +2502,7 @@ exports.createOrder = async (req, res, next) => {
         ]
       );
 
+      const createdOrderItems = [];
       for (const normalized of normalizedItems) {
         const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
@@ -2515,6 +2521,11 @@ exports.createOrder = async (req, res, next) => {
             normalized.specialInstructions,
           ]
         );
+        createdOrderItems.push({
+          id: orderItem.id,
+          menuItemId: normalized.menuItem.id,
+          quantity: normalized.quantity,
+        });
         for (const modifier of normalized.modifiers) {
           await client.query(
             `INSERT INTO food_order_item_modifiers
@@ -2524,6 +2535,11 @@ exports.createOrder = async (req, res, next) => {
           );
         }
       }
+      await reserveInventoryForOrder(client, {
+        restaurantId,
+        orderId: created.id,
+        orderItems: createdOrderItems,
+      });
 
       let walletPayment = null;
       if (paymentContract.canonical === 'restaurant_credit') {
@@ -3105,6 +3121,19 @@ exports.updateOrderStatus = async (req, res, next) => {
           posPayment: posRefundPayment,
           refunded: Boolean(refundResult.refunded),
           reason: refundResult.reason || null,
+        });
+      }
+
+      if (status === 'completed') {
+        await consumeInventoryForOrder(client, {
+          restaurantId,
+          orderId: order.id,
+          actorUserId: req.user?.id || null,
+        });
+      } else if (['cancelled', 'refunded'].includes(status)) {
+        await releaseInventoryForOrder(client, {
+          restaurantId,
+          orderId: order.id,
         });
       }
 
