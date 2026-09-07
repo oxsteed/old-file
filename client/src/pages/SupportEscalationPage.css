@@ -1,92 +1,43 @@
 .support-escalation-page {
-  color-scheme: dark;
+  color-scheme: inherit;
+  color: var(--color-text);
 }
 
 .guest-support-page {
   min-height: calc(100vh - 140px);
-  background: radial-gradient(circle at top left, rgba(249,115,22,0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 22%),
-    linear-gradient(180deg, #07101c 0%, #040811 100%);
+  background:
+    radial-gradient(circle at top left, var(--color-primary-bg), transparent 24%),
+    radial-gradient(circle at top right, var(--color-info-bg), transparent 22%),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 100%);
 }
 
 .guest-support-banner {
-  border-color: rgba(148,163,184,0.16);
-  background: linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,23,0.96));
+  border-color: var(--color-card-border);
+  background: var(--color-card-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
 }
 
 .guest-support-page a:focus-visible {
-  outline: 2px solid #fb923c;
+  outline: 2px solid var(--color-primary);
   outline-offset: 4px;
 }
 
-/* The global light-mode bridge remaps Tailwind dark utility classes across the
-   site. This page is intentionally a dark escalation surface, so keep its
-   ticket panels readable when the navbar/theme toggle switches to light mode. */
-html:not(.dark) .support-escalation-page .text-white,
-[data-theme="light"] .support-escalation-page .text-white {
-  color: #ffffff !important;
+/* Keep compact support states on the same semantic surfaces as the page. */
+html:not(.dark) .support-escalation-page .bg-slate-900 {
+  background-color: var(--color-surface) !important;
 }
 
-html:not(.dark) .support-escalation-page .text-slate-100,
-[data-theme="light"] .support-escalation-page .text-slate-100 {
-  color: #f1f5f9 !important;
+html:not(.dark) .support-escalation-page .bg-slate-800 {
+  background-color: var(--color-surface-2) !important;
 }
 
-html:not(.dark) .support-escalation-page .text-slate-200,
-[data-theme="light"] .support-escalation-page .text-slate-200 {
-  color: #e2e8f0 !important;
-}
-
-html:not(.dark) .support-escalation-page .text-slate-300,
-[data-theme="light"] .support-escalation-page .text-slate-300 {
-  color: #cbd5e1 !important;
-}
-
-html:not(.dark) .support-escalation-page .text-slate-400,
-[data-theme="light"] .support-escalation-page .text-slate-400 {
-  color: #94a3b8 !important;
-}
-
-html:not(.dark) .support-escalation-page .text-slate-500,
-[data-theme="light"] .support-escalation-page .text-slate-500 {
-  color: #64748b !important;
-}
-
-html:not(.dark) .support-escalation-page .bg-slate-950,
-html:not(.dark) .support-escalation-page .bg-slate-950\/30,
-[data-theme="light"] .support-escalation-page .bg-slate-950,
-[data-theme="light"] .support-escalation-page .bg-slate-950\/30 {
-  background-color: rgba(2, 6, 23, 0.3) !important;
-}
-
-html:not(.dark) .support-escalation-page .bg-slate-900,
-html:not(.dark) .support-escalation-page .bg-slate-900\/70,
-[data-theme="light"] .support-escalation-page .bg-slate-900,
-[data-theme="light"] .support-escalation-page .bg-slate-900\/70 {
-  background-color: rgba(15, 23, 42, 0.7) !important;
-}
-
-html:not(.dark) .support-escalation-page .bg-slate-800,
-[data-theme="light"] .support-escalation-page .bg-slate-800 {
-  background-color: #1e293b !important;
-}
-
-html:not(.dark) .support-escalation-page .border-slate-700,
-html:not(.dark) .support-escalation-page .border-slate-700\/70,
-[data-theme="light"] .support-escalation-page .border-slate-700,
-[data-theme="light"] .support-escalation-page .border-slate-700\/70 {
-  border-color: rgba(51, 65, 85, 0.7) !important;
+html:not(.dark) .support-escalation-page .border-slate-700 {
+  border-color: var(--color-border-strong) !important;
 }
 
 html:not(.dark) .support-escalation-page input,
-html:not(.dark) .support-escalation-page textarea,
-[data-theme="light"] .support-escalation-page input,
-[data-theme="light"] .support-escalation-page textarea {
-  color: #ffffff !important;
-  color-scheme: dark;
-}
-
-html:not(.dark) .support-escalation-page ::placeholder,
-[data-theme="light"] .support-escalation-page ::placeholder {
-  color: #64748b !important;
+html:not(.dark) .support-escalation-page textarea {
+  color: var(--color-text) !important;
+  color-scheme: light;
 }

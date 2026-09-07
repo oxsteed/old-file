@@ -27,12 +27,26 @@ export function ThemeProvider({ children }) {
     if (isDark) {
       root.classList.add('dark');
       root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
     } else {
       root.classList.remove('dark');
       root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
     }
     writeTheme(isDark ? 'dark' : 'light');
   }, [isDark]);
+
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key !== 'theme' || !event.newValue) return;
+      if (event.newValue === 'dark' || event.newValue === 'light') {
+        setIsDark(event.newValue === 'dark');
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const toggleTheme = () => setIsDark((prev) => !prev);
 

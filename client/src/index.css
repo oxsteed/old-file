@@ -12,6 +12,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
+  color-scheme: dark;
   /* ── Surfaces ── */
   --color-bg:            #0a0f1a;
   --color-surface:       #111827;
@@ -49,6 +50,13 @@
   --color-nav-border:    rgba(55, 65, 81, 0.5);
   --color-nav-link:      #cbd5e1;
   --color-nav-link-hover:#ffffff;
+
+  /* Cross-page helpers for legacy inline layouts. */
+  --color-text-subtle:   rgba(255, 255, 255, 0.55);
+  --color-text-soft:     rgba(255, 255, 255, 0.75);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-faint:  rgba(255, 255, 255, 0.05);
+  --color-surface-translucent: rgba(255, 255, 255, 0.05);
 
   /* ── Cards ── */
   --color-card-bg:       rgba(17, 24, 39, 0.7);
@@ -137,6 +145,7 @@
 /* ── Light Mode ── */
 html:not(.dark),
 [data-theme="light"] {
+  color-scheme: light;
   --color-bg:            #f8fafc;
   --color-surface:       #ffffff;
   --color-surface-2:     #f1f5f9;
@@ -168,6 +177,12 @@ html:not(.dark),
   --color-nav-border:    rgba(203, 213, 225, 0.7);
   --color-nav-link:      #475569;
   --color-nav-link-hover:#0f172a;
+
+  --color-text-subtle:   #475569;
+  --color-text-soft:     #334155;
+  --color-border-subtle: rgba(148, 163, 184, 0.5);
+  --color-border-faint:  rgba(148, 163, 184, 0.35);
+  --color-surface-translucent: rgba(15, 23, 42, 0.04);
 
   --color-card-bg:       #ffffff;
   --color-card-border:   rgba(203, 213, 225, 0.6);

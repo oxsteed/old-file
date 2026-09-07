@@ -102,7 +102,7 @@ function ProgressRing({ pct }) {
 
 function MiniMetric({ icon: Icon, label, value, accent = '#93c5fd' }) {
   return (
-    <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(255,255,255,0.03)' }}>
+    <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
         <Icon size={13} style={{ color: accent }} />
         {label}
@@ -145,7 +145,7 @@ export default function FranchiseApplicantDashboard() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#020617' }}>
+      <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
@@ -157,11 +157,11 @@ export default function FranchiseApplicantDashboard() {
 
   if (!primary) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#020617', color: 'var(--color-text, #f8fafc)' }}>
+      <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
         <Navbar />
         <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-16">
-          <section className="rounded-[28px] border p-8 text-center" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.86))' }}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: 'rgba(249,115,22,0.14)', color: '#fdba74' }}>
+          <section className="rounded-[28px] border p-8 text-center" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)' }}>
               <Flag size={15} />
               Franchise mode
             </div>
@@ -175,7 +175,7 @@ export default function FranchiseApplicantDashboard() {
               <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
                 {t('dashboards.franchise.startApp', { defaultValue: 'Start franchise intake' })} <ArrowRight size={16} />
               </Link>
-              <Link to="/consulting" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
+              <Link to="/consulting" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'var(--color-border)' }}>
                 {t('dashboards.franchise.bookCall', { defaultValue: 'Book a strategy call' })}
               </Link>
             </div>
@@ -193,10 +193,10 @@ export default function FranchiseApplicantDashboard() {
     .join(', ');
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle at top left, rgba(249,115,22,0.14), transparent 30%), #020617', color: 'var(--color-text, #f8fafc)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle at top left, var(--color-primary-bg), transparent 30%), var(--color-bg)', color: 'var(--color-text)' }}>
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
-        <section className="rounded-[30px] border p-6 lg:p-8" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.88))' }}>
+        <section className="rounded-[30px] border p-6 lg:p-8" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.2em]" style={{ background: 'rgba(59,130,246,0.12)', color: '#93c5fd' }}>
@@ -218,7 +218,7 @@ export default function FranchiseApplicantDashboard() {
                 <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
                   Submit another territory <ArrowRight size={15} />
                 </Link>
-                <Link to="/support/escalation" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
+                <Link to="/support/escalation" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'var(--color-border)' }}>
                   Contact support
                 </Link>
               </div>
@@ -228,7 +228,7 @@ export default function FranchiseApplicantDashboard() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.3fr,0.7fr] gap-4">
-          <article className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+          <article className="rounded-[28px] border p-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: '#fdba74' }}>
               Current application
             </div>
@@ -247,7 +247,7 @@ export default function FranchiseApplicantDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+              <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <Briefcase size={15} className="text-orange-400" />
                   Capital profile
@@ -263,7 +263,7 @@ export default function FranchiseApplicantDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+              <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <Compass size={15} className="text-orange-400" />
                   Next milestone
@@ -283,7 +283,7 @@ export default function FranchiseApplicantDashboard() {
             </div>
           </article>
 
-          <aside className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+          <aside className="rounded-[28px] border p-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="text-sm font-semibold flex items-center gap-2">
               <Clock3 size={15} className="text-orange-400" />
               Timeline
@@ -295,7 +295,7 @@ export default function FranchiseApplicantDashboard() {
                 ['Launch target', primary.timeline_window || 'Not specified'],
                 ['Training', READINESS_LABELS[primary.training_status] || primary.training_status || 'Pending'],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl border p-3" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+                <div key={label} className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                   <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
                   <div className="text-sm font-semibold mt-1">{value}</div>
                 </div>
@@ -305,8 +305,8 @@ export default function FranchiseApplicantDashboard() {
         </section>
 
         {sortedApplications.length > 1 && (
-          <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
-            <header className="px-6 py-4 border-b" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>
+          <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
+            <header className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
               <h2 className="text-lg font-semibold">All franchise applications</h2>
             </header>
             <div className="divide-y" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>

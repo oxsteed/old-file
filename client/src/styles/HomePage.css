@@ -54,7 +54,7 @@
 /* ── Nav ─────────────────────────────────────────────────── */
 .hp-nav {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(247,246,242,.88);
+  background: var(--color-nav-bg);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--hp-divider);
   padding: .875rem 1.5rem;
@@ -89,7 +89,7 @@
 .hp-btn-primary { background: var(--hp-primary); color: var(--hp-text-inv); }
 .hp-btn-primary:hover { background: var(--hp-primary-h); box-shadow: var(--hp-shadow-md); }
 .hp-btn-ghost { background: var(--hp-bg-alt); color: var(--hp-text); border: 1px solid var(--hp-border); }
-.hp-btn-ghost:hover { background: #e8e5df; }
+.hp-btn-ghost:hover { background: var(--hp-bg-alt); }
 .hp-btn-outline { background: transparent; color: var(--hp-primary); border: 1.5px solid var(--hp-primary); }
 .hp-btn-outline:hover { background: var(--hp-primary-bg); }
 .hp-btn-lg { padding: .875rem 1.75rem; font-size: 1rem; border-radius: var(--hp-radius-lg); min-height: 52px; }

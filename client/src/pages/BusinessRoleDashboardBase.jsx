@@ -108,7 +108,7 @@ function WorkspaceCard({ business, config, tx }) {
   return (
     <article
       className="rounded-[24px] border overflow-hidden flex flex-col"
-      style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}
     >
       <header className="px-5 pt-4 pb-3 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.12)' }}>
         <div className="min-w-0">
@@ -157,7 +157,7 @@ function WorkspaceCard({ business, config, tx }) {
 
       <footer
         className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap"
-        style={{ borderTop: '1px solid rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}
+        style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-translucent)' }}
       >
         <Link to={primaryHref} className="inline-flex items-center gap-1.5 text-sm font-semibold hover:opacity-90" style={{ color: config.accent }}>
           {tx(`${config.translationKey}.primaryCta`, config.primaryCta)} <ArrowRight size={14} />
@@ -243,7 +243,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#020617' }}>
+      <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
@@ -254,10 +254,10 @@ export default function BusinessRoleDashboardBase({ mode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle at top left, rgba(249,115,22,0.12), transparent 30%), #020617', color: 'var(--color-text, #f8fafc)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle at top left, var(--color-primary-bg), transparent 30%), var(--color-bg)', color: 'var(--color-text)' }}>
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
-        <section className="rounded-[30px] border p-6 lg:p-8" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.88))' }}>
+        <section className="rounded-[30px] border p-6 lg:p-8" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
           <div className="flex items-start justify-between gap-5 flex-wrap">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.18em]" style={{ background: `${config.accent}22`, color: config.accent }}>
@@ -272,7 +272,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
             <Link
                   to="/vortex"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5"
-              style={{ borderColor: 'rgba(148,163,184,0.16)' }}
+              style={{ borderColor: 'var(--color-border)' }}
             >
               <Building2 size={15} />
               {tx('businessRoleDashboard.viewAllWorkspaces')}
@@ -290,7 +290,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
         <section className="grid grid-cols-1 lg:grid-cols-[1.25fr,0.75fr] gap-4">
           <div className="grid gap-4">
             {businesses.length === 0 ? (
-              <div className="rounded-[28px] border p-8" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+              <div className="rounded-[28px] border p-8" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full" style={{ background: `${config.accent}22`, color: config.accent }}>
                   <config.icon size={28} />
                 </div>
@@ -319,14 +319,14 @@ export default function BusinessRoleDashboardBase({ mode }) {
             )}
           </div>
 
-          <aside className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+          <aside className="rounded-[28px] border p-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="text-sm font-semibold flex items-center gap-2">
               <CalendarRange size={16} style={{ color: config.accent }} />
               {tx(`${config.translationKey}.checklistTitle`)}
             </div>
             <ol className="mt-4 grid gap-3 text-sm">
               {config.checklist.map((_, index) => (
-                <li key={`${config.translationKey}.checklist.${index}`} className="rounded-2xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+                <li key={`${config.translationKey}.checklist.${index}`} className="rounded-2xl border p-3 flex items-start gap-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                     style={{ background: `${config.accent}22`, color: config.accent }}
@@ -340,7 +340,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
               ))}
             </ol>
 
-            <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+            <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
               <div className="text-sm font-semibold flex items-center gap-2">
                 <UserCheck size={15} style={{ color: config.accent }} />
                 {tx('businessRoleDashboard.roleContextTitle')}
@@ -358,7 +358,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
             </div>
 
             {businesses.length > 0 && (
-              <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+              <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 size={15} style={{ color: config.accent }} />
                   {tx('businessRoleDashboard.quickJump')}

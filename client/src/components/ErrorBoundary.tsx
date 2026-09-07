@@ -126,7 +126,7 @@ export function RouterAwareErrorBoundary({ children }: { children: React.ReactNo
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
-    background: '#0b0e18',
+    background: 'var(--color-bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -135,11 +135,11 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     maxWidth: 500,
     width: '100%',
-    background: '#111827',
+    background: 'var(--color-surface)',
     borderRadius: 12,
     padding: 40,
     textAlign: 'center',
-    border: '1px solid #1f2937',
+    border: '1px solid var(--color-border)',
   },
   icon: { fontSize: 48, marginBottom: 16 },
   title: {
@@ -149,14 +149,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
   },
   message: {
-    color: '#9ca3af',
+    color: 'var(--color-text-muted)',
     fontSize: 14,
     lineHeight: 1.6,
     marginBottom: 24,
   },
   errorDetail: {
-    background: '#1a1a2e',
-    color: '#ef4444',
+    background: 'var(--color-surface-2)',
+    color: 'var(--color-error)',
     padding: 16,
     borderRadius: 8,
     fontSize: 11,

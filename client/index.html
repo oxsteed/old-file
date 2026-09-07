@@ -22,6 +22,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300..700&display=swap" rel="stylesheet" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem('theme');
+          const isDark = saved ? saved === 'dark' : true;
+          const root = document.documentElement;
+          root.classList.toggle('dark', isDark);
+          root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+          root.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (_) {
+          // Keep the dark default when storage is unavailable.
+        }
+      })();
+    </script>
     <title>OxSteed - Hire Local Help Today</title>
   </head>
   <body>

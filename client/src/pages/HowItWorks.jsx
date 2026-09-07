@@ -30,18 +30,17 @@ export default function HowItWorks() {
 
   return (
     <div
-      className="min-h-screen text-white flex flex-col"
-      data-theme="dark"
-      style={{ background: '#080c14' }}
+      className="how-it-works-page min-h-screen flex flex-col"
+      style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
     >
       {/* ── Navbar ── */}
       <nav
         role="navigation"
         aria-label={t('mainNavigation')}
         style={{
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border-faint)',
           backdropFilter: 'blur(12px)',
-          background: 'rgba(8,12,20,0.85)',
+          background: 'var(--color-nav-bg)',
           position: 'sticky',
           top: 0,
           zIndex: 50,
@@ -53,30 +52,30 @@ export default function HowItWorks() {
           </Link>
           <div className="flex items-center gap-3 sm:gap-6">
             <Link to="/register/customer" className="hidden sm:inline"
-              style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+              style={{ fontSize: '0.875rem', color: 'var(--color-text-subtle)', textDecoration: 'none', transition: 'color 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-nav-link-hover)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-subtle)'}
             >{t('howItWorks.postJob')}</Link>
             <Link to="/register/helper" className="hidden sm:inline"
-              style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+              style={{ fontSize: '0.875rem', color: 'var(--color-text-subtle)', textDecoration: 'none', transition: 'color 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-nav-link-hover)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-subtle)'}
             >{t('howItWorks.becomeHelper')}</Link>
             <Link
               to="/login"
               style={{
                 fontSize: '0.875rem',
                 fontWeight: 600,
-                color: '#fff',
-                background: '#f97316',
+                color: 'var(--color-primary-text)',
+                background: 'var(--color-primary)',
                 padding: '0.45rem 1.1rem',
                 borderRadius: '999px',
                 textDecoration: 'none',
                 transition: 'background 150ms',
                 whiteSpace: 'nowrap',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#ea580c'}
-              onMouseLeave={e => e.currentTarget.style.background = '#f97316'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--color-primary-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--color-primary)'}
             >{t('howItWorks.signIn')}</Link>
           </div>
         </div>
@@ -91,7 +90,7 @@ export default function HowItWorks() {
             textAlign: 'center',
             position: 'relative',
             overflow: 'hidden',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            borderBottom: '1px solid var(--color-border-faint)',
           }}
         >
           <div style={{
@@ -100,20 +99,20 @@ export default function HowItWorks() {
           }} />
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(var(--color-border-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px)',
             backgroundSize: '48px 48px',
           }} />
 
           <div style={{ position: 'relative', maxWidth: '720px', margin: '0 auto' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              background: 'rgba(249,115,22,0.1)',
-              border: '1px solid rgba(249,115,22,0.25)',
+              background: 'var(--color-primary-bg)',
+              border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
               borderRadius: '999px',
               padding: '0.3rem 0.9rem',
               fontSize: '0.75rem',
               fontWeight: 700,
-              color: '#fb923c',
+              color: 'var(--color-primary)',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               marginBottom: '1.25rem',
@@ -126,14 +125,14 @@ export default function HowItWorks() {
               fontWeight: 800,
               lineHeight: 1.1,
               letterSpacing: '-0.03em',
-              color: '#fff',
+              color: 'var(--color-text)',
               marginBottom: '1.25rem',
             }}>
               {t('howItWorks.title')}
             </h1>
             <p style={{
               fontSize: '1.0625rem',
-              color: 'rgba(255,255,255,0.5)',
+              color: 'var(--color-text-subtle)',
               lineHeight: 1.65,
               maxWidth: '540px',
               margin: '0 auto 1.75rem',
@@ -162,9 +161,9 @@ export default function HowItWorks() {
               <Link
                 to="/register/helper"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.75)',
+                  background: 'var(--color-surface-translucent)',
+                  border: '1px solid var(--color-border-subtle)',
+                  color: 'var(--color-text-soft)',
                   fontWeight: 600,
                   fontSize: '0.9375rem',
                   padding: '0.75rem 1.75rem',
@@ -173,7 +172,7 @@ export default function HowItWorks() {
                   transition: 'border-color 150ms, color 150ms, background 150ms',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(249,115,22,0.06)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border-subtle)'; e.currentTarget.style.color = 'var(--color-text-soft)'; e.currentTarget.style.background = 'var(--color-surface-translucent)'; }}
               >
                 {t('howItWorks.becomeHelper')}
               </Link>
@@ -196,8 +195,8 @@ export default function HowItWorks() {
               <div
                 key={col.eyebrow}
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: 'var(--color-card-bg)',
+                  border: '1px solid var(--color-border-subtle)',
                   borderRadius: '20px',
                   padding: '1.75rem 1.6rem 1.5rem',
                   display: 'flex',
@@ -205,7 +204,7 @@ export default function HowItWorks() {
                   transition: 'border-color 200ms, box-shadow 200ms',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.28)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.3)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border-subtle)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <span style={{
                   display: 'inline-block',
@@ -224,7 +223,7 @@ export default function HowItWorks() {
                 <h2 style={{
                   fontSize: 'clamp(1.375rem, 2.25vw, 1.625rem)',
                   fontWeight: 800,
-                  color: '#fff',
+                  color: 'var(--color-text)',
                   letterSpacing: '-0.025em',
                   lineHeight: 1.2,
                   margin: '0 0 1.25rem',
@@ -244,13 +243,13 @@ export default function HowItWorks() {
                         background: 'linear-gradient(135deg, #f97316, #ea580c)',
                         boxShadow: '0 3px 10px rgba(249,115,22,0.35)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: '0.8125rem', color: '#fff',
+                        fontWeight: 800, fontSize: '0.8125rem', color: 'var(--color-primary-text)',
                         letterSpacing: '-0.01em',
                         marginTop: '0.1rem',
                       }}>{item.step}</div>
                       <div style={{ minWidth: 0 }}>
-                        <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '0.9375rem', margin: '0 0 0.2rem', lineHeight: 1.35 }}>{item.title}</h3>
-                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8125rem', lineHeight: 1.55, margin: 0 }}>{item.desc}</p>
+                        <h3 style={{ color: 'var(--color-text)', fontWeight: 700, fontSize: '0.9375rem', margin: '0 0 0.2rem', lineHeight: 1.35 }}>{item.title}</h3>
+                        <p style={{ color: 'var(--color-text-subtle)', fontSize: '0.8125rem', lineHeight: 1.55, margin: 0 }}>{item.desc}</p>
                       </div>
                     </li>
                   ))}
@@ -271,7 +270,7 @@ export default function HowItWorks() {
                     display: 'inline-block', textAlign: 'center',
                     background: 'transparent',
                     border: '1.5px solid #f97316',
-                    color: '#fb923c',
+                    color: 'var(--color-primary)',
                     fontWeight: 700, fontSize: '0.9rem',
                     padding: '0.55rem 1.5rem',
                     borderRadius: '999px',
@@ -298,8 +297,8 @@ export default function HowItWorks() {
         <section style={{
           padding: '3rem 1.5rem 3.5rem',
           background: 'linear-gradient(180deg, rgba(249,115,22,0.03) 0%, transparent 100%)',
-          borderTop: '1px solid rgba(255,255,255,0.05)',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          borderTop: '1px solid var(--color-border-faint)',
+          borderBottom: '1px solid var(--color-border-faint)',
         }}>
           <div style={{ maxWidth: '1120px', margin: '0 auto' }}>
             <div style={{
@@ -314,7 +313,7 @@ export default function HowItWorks() {
                 <h2 style={{
                   fontSize: 'clamp(1.5rem, 2.75vw, 2rem)',
                   fontWeight: 800,
-                  color: '#fff',
+                  color: 'var(--color-text)',
                   letterSpacing: '-0.025em',
                   margin: '0 0 0.6rem',
                   lineHeight: 1.15,
@@ -323,17 +322,17 @@ export default function HowItWorks() {
                     <span key={i}>{line}{i < a.length - 1 ? <br /> : null}</span>
                   ))}
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0, maxWidth: '280px' }}>
+                <p style={{ color: 'var(--color-text-subtle)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0, maxWidth: '280px' }}>
                   {t('howItWorks.faqSubtitle')}
                 </p>
               </div>
 
               {/* Right column - accordion */}
               <div style={{
-                border: '1px solid rgba(255,255,255,0.08)',
+                border: '1px solid var(--color-border-subtle)',
                 borderRadius: '16px',
                 overflow: 'hidden',
-                background: 'rgba(255,255,255,0.02)',
+                background: 'var(--color-surface-translucent)',
               }}>
                 {FAQS.map((faq, i) => {
                   const isOpen = openFaq === i;
@@ -341,7 +340,7 @@ export default function HowItWorks() {
                     <div
                       key={i}
                       style={{
-                        borderBottom: i < FAQS.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                        borderBottom: i < FAQS.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
                         background: isOpen ? 'rgba(249,115,22,0.04)' : 'transparent',
                         transition: 'background 200ms',
                       }}
@@ -363,7 +362,7 @@ export default function HowItWorks() {
                         }}
                       >
                         <span style={{
-                          color: isOpen ? '#fff' : 'rgba(255,255,255,0.85)',
+                          color: isOpen ? 'var(--color-text)' : 'var(--color-text-soft)',
                           fontWeight: 700,
                           fontSize: '0.9375rem',
                           lineHeight: 1.35,
@@ -375,7 +374,7 @@ export default function HowItWorks() {
                           width="18" height="18"
                           viewBox="0 0 24 24"
                           fill="none"
-                          stroke={isOpen ? '#f97316' : 'rgba(255,255,255,0.35)'}
+                          stroke={isOpen ? 'var(--color-primary)' : 'var(--color-text-subtle)'}
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -397,7 +396,7 @@ export default function HowItWorks() {
                       }}>
                         <div style={{ overflow: 'hidden' }}>
                           <p style={{
-                            color: 'rgba(255,255,255,0.55)',
+                            color: 'var(--color-text-subtle)',
                             fontSize: '0.875rem',
                             lineHeight: 1.7,
                             margin: 0,
@@ -426,12 +425,12 @@ export default function HowItWorks() {
             <h2 style={{
               fontSize: 'clamp(1.75rem, 3vw, 2.125rem)',
               fontWeight: 800,
-              color: '#fff',
+              color: 'var(--color-text)',
               letterSpacing: '-0.03em',
               marginBottom: '0.75rem',
               lineHeight: 1.15,
             }}>{t('howItWorks.readyTitle')}</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.65, maxWidth: '400px', margin: '0 auto 1.75rem' }}>
+            <p style={{ color: 'var(--color-text-subtle)', fontSize: '1rem', lineHeight: 1.65, maxWidth: '400px', margin: '0 auto 1.75rem' }}>
               {t('howItWorks.readySubtitle')}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
@@ -456,9 +455,9 @@ export default function HowItWorks() {
               <Link
                 to="/register/helper"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.75)',
+                  background: 'var(--color-surface-translucent)',
+                  border: '1px solid var(--color-border-subtle)',
+                  color: 'var(--color-text-soft)',
                   fontWeight: 600,
                   fontSize: '0.9375rem',
                   padding: '0.8rem 2rem',
@@ -467,7 +466,7 @@ export default function HowItWorks() {
                   transition: 'border-color 150ms, color 150ms, background 150ms',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(249,115,22,0.06)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border-subtle)'; e.currentTarget.style.color = 'var(--color-text-soft)'; e.currentTarget.style.background = 'var(--color-surface-translucent)'; }}
               >
                 {t('howItWorks.becomeHelper')}
               </Link>

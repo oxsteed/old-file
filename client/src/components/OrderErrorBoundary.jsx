@@ -50,11 +50,11 @@ class OrderErrorBoundary extends Component {
 
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+          <div className="max-w-md w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg p-8">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-red-600 mb-2">{t('orderErrorBoundary.title')}</h1>
-              <p className="text-gray-600">
+              <p className="text-[var(--color-text-muted)]">
                 {t('orderErrorBoundary.unexpectedMessage', {
                   componentName,
                 })}
@@ -62,7 +62,7 @@ class OrderErrorBoundary extends Component {
             </div>
 
             {import.meta.env.DEV && this.state.error && (
-              <details className="mb-6 bg-gray-100 p-4 rounded text-xs font-mono text-red-700 overflow-auto max-h-40">
+              <details className="mb-6 bg-[var(--color-surface-2)] p-4 rounded text-xs font-mono text-red-700 overflow-auto max-h-40">
                 <summary className="cursor-pointer font-semibold mb-2">
                   {t('orderErrorBoundary.errorDetails')}
                 </summary>
@@ -84,7 +84,7 @@ class OrderErrorBoundary extends Component {
               </button>
               <a
                 href="/orders"
-                className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 font-medium text-center"
+                className="flex-1 bg-[var(--color-surface-2)] text-[var(--color-text)] py-2 rounded-lg hover:bg-[var(--color-surface-3)] font-medium text-center"
               >
                 {t('orderErrorBoundary.backToOrders')}
               </a>
