@@ -6,10 +6,12 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
+const { authenticatedLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
 router.use(authenticate);
+router.use(authenticatedLimiter);
 
 function cleanPurpose(value) {
   const raw = String(value || 'general').toLowerCase();
