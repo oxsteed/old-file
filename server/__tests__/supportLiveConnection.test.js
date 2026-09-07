@@ -403,6 +403,30 @@ describe('live support connection lifecycle', () => {
     expect(WebSocketService.broadcastToAdmins).not.toHaveBeenCalled();
   });
 
+  test('starts a fresh wait window when an active conversation is released', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', business_id: 1, agent_id: 'agent-1', status: 'in_progress' }] })
+      .mockResolvedValueOnce({ rows: [{ 1: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'agent-user-1', role: 'helper' },
+      params: { conversationId: 'ticket-1' },
+      body: { reason: 'End of shift' },
+    };
+    const res = responseDouble();
+
+    await conversationAssignmentController.releaseConversation(req, res);
+
+    const requeueUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE support_conversations/.test(sql));
+    expect(requeueUpdate[0]).toContain("INTERVAL '5 minutes'");
+    expect(requeueUpdate[0]).toContain('founder_alert_sent_at = NULL');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
   test('keeps internal notes out of the customer conversation query', async () => {
     mockQuery
       .mockResolvedValueOnce({

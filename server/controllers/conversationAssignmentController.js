@@ -404,7 +404,13 @@ async function releaseConversation(req, res) {
     if (conversation.status !== 'resolved' && conversation.status !== 'closed') {
       await query(
         `UPDATE support_conversations
-         SET agent_id = NULL, status = 'waiting_for_agent', updated_at = CURRENT_TIMESTAMP
+         SET agent_id = NULL,
+             status = 'waiting_for_agent',
+             live_wait_started_at = CURRENT_TIMESTAMP,
+             live_wait_expires_at = CURRENT_TIMESTAMP + INTERVAL '5 minutes',
+             live_wait_ended_at = NULL,
+             founder_alert_sent_at = NULL,
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [conversationId]
       );
