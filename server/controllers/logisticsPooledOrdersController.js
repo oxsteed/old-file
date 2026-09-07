@@ -10,6 +10,7 @@ exports.listPooledOrders = async (req, res, next) => {
       status,
       laneId:       lane_id,
       open:         open === 'true' ? true : null,
+      publicSafe:   !req.isAdmin,
       limit:        Math.min(parseInt(limit)||20, 100),
       offset:       parseInt(offset)||0,
     });

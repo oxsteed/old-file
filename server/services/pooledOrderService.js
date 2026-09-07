@@ -11,7 +11,7 @@ async function generatePooledRef() {
 }
 
 async function listPooledOrders({
-  status, laneId, organizerUserId, open = null, limit = 50, offset = 0
+  status, laneId, organizerUserId, open = null, limit = 50, offset = 0, publicSafe = true
 } = {}) {
   const conditions = ['1=1'];
   const params = [];
@@ -23,8 +23,15 @@ async function listPooledOrders({
   const countRes = await pool.query(
     `SELECT COUNT(*) FROM pooled_orders po WHERE ${conditions.join(' AND ')}`, params
   );
+  const orderFields = publicSafe
+    ? `po.id, po.reference, po.title, po.description, po.lane_id, po.supplier_product_id,
+       po.organizer_user_id, po.status, po.target_moq, po.current_committed_qty,
+       po.unit_landed_cost_usd, po.deposit_pct, po.final_payment_pct,
+       po.open_date, po.close_date, po.lock_date, po.expected_ship_date,
+       po.expected_arrival_date, po.cancellation_policy, po.max_participants`
+    : 'po.*';
   const rows = await pool.query(
-    `SELECT po.*,
+    `SELECT ${orderFields},
             ll.name AS lane_name, ll.origin_country, ll.destination_country,
             u.first_name || ' ' || u.last_name AS organizer_name,
             sp.title AS product_title, sp.category AS product_category,
@@ -43,8 +50,15 @@ async function listPooledOrders({
 }
 
 async function getPooledOrder(id, { viewerUserId = null, includePrivate = false } = {}) {
+  const orderFields = includePrivate
+    ? 'po.*'
+    : `po.id, po.reference, po.title, po.description, po.lane_id, po.supplier_product_id,
+       po.organizer_user_id, po.status, po.target_moq, po.current_committed_qty,
+       po.unit_landed_cost_usd, po.deposit_pct, po.final_payment_pct,
+       po.open_date, po.close_date, po.lock_date, po.expected_ship_date,
+       po.expected_arrival_date, po.cancellation_policy, po.max_participants`;
   const result = await pool.query(
-    `SELECT po.*,
+    `SELECT ${orderFields},
             ll.name AS lane_name, ll.origin_country, ll.destination_country,
             ll.risk_tier, ll.customs_complexity, ll.freight_options,
             ll.requires_business_verification, ll.requires_manual_approval, ll.requires_reseller_approval,
