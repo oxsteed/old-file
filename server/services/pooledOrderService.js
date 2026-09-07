@@ -42,7 +42,7 @@ async function listPooledOrders({
   return { orders: rows.rows, total: parseInt(countRes.rows[0].count) };
 }
 
-async function getPooledOrder(id) {
+async function getPooledOrder(id, { viewerUserId = null, includePrivate = false } = {}) {
   const result = await pool.query(
     `SELECT po.*,
             ll.name AS lane_name, ll.origin_country, ll.destination_country,
@@ -51,17 +51,40 @@ async function getPooledOrder(id) {
             u.first_name || ' ' || u.last_name AS organizer_name,
             sp.title AS product_title, sp.category AS product_category,
             sp.specs AS product_specs, sp.image_urls AS product_images,
-            COALESCE(json_agg(DISTINCT pp.*) FILTER (WHERE pp.id IS NOT NULL), '[]') AS participants
+            (SELECT COUNT(*) FROM pooled_order_participants pp
+             WHERE pp.pooled_order_id = po.id AND pp.status NOT IN ('refunded','disputed')) AS participant_count
      FROM pooled_orders po
      LEFT JOIN logistics_lanes ll ON ll.id = po.lane_id
      LEFT JOIN users u ON u.id = po.organizer_user_id
      LEFT JOIN supplier_products sp ON sp.id = po.supplier_product_id
-     LEFT JOIN pooled_order_participants pp ON pp.pooled_order_id = po.id
      WHERE po.id = $1
      GROUP BY po.id, ll.id, u.id, sp.id`,
     [id]
   );
-  return result.rows[0] || null;
+  const order = result.rows[0];
+  if (!order) return null;
+
+  const participants = await pool.query(
+    includePrivate
+      ? `SELECT * FROM pooled_order_participants WHERE pooled_order_id = $1 ORDER BY created_at`
+      : `SELECT id, committed_qty, status, delivery_preference
+           FROM pooled_order_participants
+          WHERE pooled_order_id = $1 AND status NOT IN ('refunded','disputed')
+          ORDER BY created_at`,
+    [id]
+  );
+  order.participants = participants.rows;
+
+  if (viewerUserId) {
+    const mine = await pool.query(
+      `SELECT * FROM pooled_order_participants WHERE pooled_order_id = $1 AND user_id = $2 LIMIT 1`,
+      [id, viewerUserId]
+    );
+    order.my_participation = mine.rows[0] || null;
+  } else {
+    order.my_participation = null;
+  }
+  return order;
 }
 
 async function createPooledOrder(data, organizerUserId) {

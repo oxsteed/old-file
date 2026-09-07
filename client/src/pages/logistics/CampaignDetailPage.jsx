@@ -67,7 +67,7 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const myParticipation = campaign?.participants?.find(p => p.user_id === user?.id);
+  const myParticipation = campaign?.my_participation || null;
   const moqPct = campaign ? Math.min(
     Math.round((campaign.current_committed_qty / campaign.target_moq) * 100), 100
   ) : 0;
@@ -249,14 +249,14 @@ export default function CampaignDetailPage() {
               <tbody>
                 {campaign.participants.map(p => (
                   <tr key={p.id}>
-                    <td>{p.user_id?.slice(0,8)}…</td>
+                    <td>{t('logistics.campaigns.participant','Participant')}</td>
                     <td>{p.committed_qty}</td>
                     <td>
                       <span className="lx-status-pill" style={{ background: PARTICIPANT_STATUS_COLOR[p.status]||'#64748b' }}>
                         {p.status}
                       </span>
                     </td>
-                    <td>{p.deposit_amount_usd ? `$${parseFloat(p.deposit_amount_usd).toFixed(2)}` : '—'}</td>
+                    <td>—</td>
                     <td>{p.delivery_preference?.replace(/_/g,' ')}</td>
                   </tr>
                 ))}

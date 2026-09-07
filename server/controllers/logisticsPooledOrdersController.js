@@ -19,7 +19,10 @@ exports.listPooledOrders = async (req, res, next) => {
 
 exports.getPooledOrder = async (req, res, next) => {
   try {
-    const order = await pooledOrderService.getPooledOrder(req.params.id);
+    const order = await pooledOrderService.getPooledOrder(req.params.id, {
+      viewerUserId: req.user?.id || null,
+      includePrivate: Boolean(req.isAdmin),
+    });
     if (!order) return next(new AppError('Pooled order not found', 404, 'not_found'));
     res.json({ success: true, data: order });
   } catch (err) { next(err); }
