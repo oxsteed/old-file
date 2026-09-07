@@ -555,6 +555,31 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
       });
     }
 
+    // Keep an active intent stable so retries cannot replace the amount or
+    // leave an older client holding a second payable intent.
+    if (booking.stripe_payment_intent_id && ['requires_payment', 'processing'].includes(booking.payment_status)) {
+      const existingIntent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+      const existingAmountCents = Number(existingIntent.amount);
+      if (existingAmountCents === amountCents
+        && String(booking.payment_requirement || 'deposit') === paymentRequirement
+        && !['succeeded', 'canceled'].includes(existingIntent.status)) {
+        return res.json({
+          success: true,
+          data: {
+            bookingId: booking.id,
+            clientSecret: existingIntent.client_secret,
+            paymentIntentId: existingIntent.id,
+            amountCents: existingAmountCents,
+            paymentRequirement,
+            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+          },
+        });
+      }
+      if (!['succeeded', 'canceled'].includes(existingIntent.status)) {
+        throw new AppError('An active payment already exists for this booking', 409, 'payment_already_in_progress');
+      }
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
@@ -616,6 +641,7 @@ exports.confirmBookingPayment = async (req, res, next) => {
     if (
       String(paymentIntent.metadata?.booking_request_id || '') !== String(booking.id) ||
       String(paymentIntent.metadata?.customer_id || '') !== String(req.user.id) ||
+      String(paymentIntentId) !== String(booking.stripe_payment_intent_id || '') ||
       actualAmountCents !== expectedAmountCents ||
       String(paymentIntent.currency || '').toLowerCase() !== 'usd'
     ) {
