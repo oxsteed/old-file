@@ -124,8 +124,50 @@ router.post('/refund-cases', requireAuth, async (req, res, next) => {
   try {
     const pool = require('../db');
     const { claim_id, purchase_order_id, pooled_order_id, participant_id, refund_reason, requested_amount_usd, notes } = req.body;
-    if (!refund_reason || !requested_amount_usd) {
+    const referenceIds = [claim_id, purchase_order_id, pooled_order_id, participant_id].filter(
+      value => value !== undefined && value !== null && String(value).trim() !== ''
+    );
+    const amount = Number(requested_amount_usd);
+    if (!refund_reason || !referenceIds.length || !Number.isFinite(amount) || amount <= 0) {
       return next(new (require('../utils/appError'))('refund_reason and requested_amount_usd required', 400, 'validation_failed'));
+    }
+
+    // A refund case must be tied to an object the requester can actually access.
+    if (claim_id !== undefined && claim_id !== null) {
+      const result = await pool.query(
+        'SELECT 1 FROM logistics_claims WHERE id = $1 AND claimant_user_id = $2',
+        [claim_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Claim not found', 404, 'not_found'));
+    }
+    if (purchase_order_id !== undefined && purchase_order_id !== null) {
+      const result = await pool.query(
+        `SELECT 1 FROM purchase_orders po
+         WHERE po.id = $1 AND (po.buyer_user_id = $2 OR EXISTS (
+           SELECT 1 FROM pooled_order_participants pp
+           WHERE pp.pooled_order_id = po.pooled_order_id AND pp.user_id = $2
+         ))`,
+        [purchase_order_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Purchase order not found', 404, 'not_found'));
+    }
+    if (pooled_order_id !== undefined && pooled_order_id !== null) {
+      const result = await pool.query(
+        `SELECT 1 FROM pooled_orders po
+         WHERE po.id = $1 AND (po.organizer_user_id = $2 OR EXISTS (
+           SELECT 1 FROM pooled_order_participants pp
+           WHERE pp.pooled_order_id = po.id AND pp.user_id = $2
+         ))`,
+        [pooled_order_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Pooled order not found', 404, 'not_found'));
+    }
+    if (participant_id !== undefined && participant_id !== null) {
+      const result = await pool.query(
+        'SELECT 1 FROM pooled_order_participants WHERE id = $1 AND user_id = $2',
+        [participant_id, req.user.id]
+      );
+      if (!result.rows.length) return next(new (require('../utils/appError'))('Participation not found', 404, 'not_found'));
     }
     const year = new Date().getFullYear();
     const countRes = await pool.query('SELECT COUNT(*) FROM logistics_refund_cases');
@@ -136,7 +178,7 @@ router.post('/refund-cases', requireAuth, async (req, res, next) => {
          (reference,claim_id,purchase_order_id,pooled_order_id,participant_id,user_id,refund_reason,requested_amount_usd,notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [reference, claim_id, purchase_order_id, pooled_order_id, participant_id, req.user.id, refund_reason, requested_amount_usd, notes]
+      [reference, claim_id, purchase_order_id, pooled_order_id, participant_id, req.user.id, refund_reason, amount, notes]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
