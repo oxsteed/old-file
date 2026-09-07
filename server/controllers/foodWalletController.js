@@ -1021,6 +1021,9 @@ exports.loadCustomerWallet = async (req, res, next) => {
     );
 
     if (amountCents >= WALLET_LOAD_APPROVAL_THRESHOLD_CENTS) {
+      if (!idempotencyKey) {
+        throw new AppError('Idempotency-Key is required for high-value wallet loads', 400, 'idempotency_key_required');
+      }
       const loadRequest = await withTransaction(pool, async (client) => {
         if (idempotencyKey) {
           await client.query(
