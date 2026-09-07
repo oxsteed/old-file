@@ -473,7 +473,14 @@ exports.confirmInvoicePayment = async (req, res, next) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (paymentIntent.metadata?.invoice_id && String(paymentIntent.metadata.invoice_id) !== String(invoice.id)) {
+    const expectedAmountCents = invoiceBalanceCents(invoice);
+    const actualAmountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
+    if (
+      String(paymentIntent.metadata?.invoice_id || '') !== String(invoice.id) ||
+      String(paymentIntent.metadata?.payer_id || '') !== String(req.user.id) ||
+      actualAmountCents !== expectedAmountCents ||
+      String(paymentIntent.currency || '').toLowerCase() !== 'usd'
+    ) {
       throw new AppError('Payment does not belong to this invoice', 403, 'payment_invoice_mismatch');
     }
     if (paymentIntent.status !== 'succeeded') {
@@ -604,7 +611,14 @@ exports.confirmBookingPayment = async (req, res, next) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (paymentIntent.metadata?.booking_request_id && String(paymentIntent.metadata.booking_request_id) !== String(booking.id)) {
+    const expectedAmountCents = Number(booking.payment_amount_cents || 0);
+    const actualAmountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
+    if (
+      String(paymentIntent.metadata?.booking_request_id || '') !== String(booking.id) ||
+      String(paymentIntent.metadata?.customer_id || '') !== String(req.user.id) ||
+      actualAmountCents !== expectedAmountCents ||
+      String(paymentIntent.currency || '').toLowerCase() !== 'usd'
+    ) {
       throw new AppError('Payment does not belong to this booking', 403, 'payment_booking_mismatch');
     }
     if (paymentIntent.status !== 'succeeded') {
