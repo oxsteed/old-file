@@ -425,24 +425,27 @@ async function findPosWalletCustomer(client, {
     throw new AppError('Customer email, phone, or id is required', 400, 'customer_lookup_required');
   }
 
-  const where = [];
   const params = [restaurantId];
+  const identityFilters = [];
   if (normalizedId) {
     if (!looksLikeUuid(normalizedId)) {
       throw new AppError('Invalid customer id', 400, 'invalid_customer_id');
     }
     params.push(normalizedId);
-    where.push(`u.id = $${params.length}`);
+    identityFilters.push(`u.id = $${params.length}`);
   }
   if (normalizedEmail) {
     params.push(normalizedEmail);
-    where.push(`LOWER(u.email) = $${params.length}`);
+    identityFilters.push(`LOWER(u.email) = $${params.length}`);
   }
   if (normalizedPhone) {
     params.push(normalizedPhone);
-    where.push(`regexp_replace(COALESCE(u.phone_number, u.phone, ''), '[^0-9+]', '', 'g') = $${params.length}`);
+    identityFilters.push(`regexp_replace(COALESCE(u.phone_number, u.phone, ''), '[^0-9+]', '', 'g') = $${params.length}`);
   }
 
+  // When a POS client supplies more than one identity field, every field must
+  // describe the same customer. An OR here can select the wrong wallet when a
+  // mistyped email is paired with a valid customer ID.
   const { rows } = await client.query(
     `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.phone_number,
             a.id AS wallet_account_id,
@@ -456,7 +459,7 @@ async function findPosWalletCustomer(client, {
        LEFT JOIN food_customer_wallet_accounts a
          ON a.customer_id = u.id
         AND a.restaurant_id = $1
-      WHERE (${where.join(' OR ')})
+      WHERE ${identityFilters.join(' AND ')}
       ORDER BY CASE WHEN a.id IS NULL THEN 1 ELSE 0 END, u.created_at DESC
       LIMIT 2`,
     params

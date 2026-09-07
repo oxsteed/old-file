@@ -68,6 +68,7 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/pos/orders', appFlow.createPosOrder);
   app.post('/api/restaurants/:restaurantId/pos/orders/create', appFlow.createPosOrder);
   app.post('/api/restaurants/:restaurantId/pos/tickets', appFlow.createPosOrder);
+  app.get('/api/restaurants/:restaurantId/pos/customer-wallet', appFlow.lookupPosCustomerWallet);
   app.post('/api/restaurants/:restaurantId/orders/quote', food.quoteOrder);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/hold', appFlow.holdPosOrder);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/reopen', appFlow.reopenPosOrder);
@@ -130,6 +131,25 @@ function buildDeviceApp() {
 beforeEach(() => resetMocks());
 
 describe('restaurant app-flow backend', () => {
+  test('requires all supplied POS customer identity fields to match', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/pos/customer-wallet`)
+      .query({
+        customerId: USER_ID,
+        email: 'different-customer@example.com',
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('customer_not_found');
+    const lookupQuery = mockQuery.mock.calls.find(([sql]) => /FROM users u/.test(sql));
+    expect(lookupQuery?.[0]).toMatch(/AND LOWER\(u\.email\) = \$3/);
+    expect(lookupQuery?.[0]).not.toMatch(/u\.id = \$2\s+OR/);
+  });
+
   test('returns unified app bootstrap context for a staff app', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

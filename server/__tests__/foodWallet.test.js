@@ -612,6 +612,7 @@ describe('food wallet security wiring', () => {
           restaurant_logo_url: null,
           currency_code: 'USD',
           balance_cents: 9999,
+          reserved_cents: 10,
           status: 'active',
           ledger_version: 2,
           last_entry_hash: 'bad-hash',
@@ -647,7 +648,13 @@ describe('food wallet security wiring', () => {
     const invalidAudit = await verifyWalletIntegrityForCustomer(RESTAURANT_ID, CUSTOMER_ID);
     expect(invalidAudit.valid).toBe(false);
     expect(invalidAudit.issues.map((issue) => issue.code)).toEqual(
-      expect.arrayContaining(['entry_hash_mismatch', 'account_balance_mismatch', 'ledger_version_mismatch', 'account_last_hash_mismatch'])
+      expect.arrayContaining([
+        'entry_hash_mismatch',
+        'account_balance_mismatch',
+        'reserved_balance_mismatch',
+        'ledger_version_mismatch',
+        'account_last_hash_mismatch',
+      ])
     );
   });
 
@@ -774,6 +781,22 @@ describe('food wallet security wiring', () => {
 
     expect(res.status).toBe(201);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
+
+    const secondRes = await request(buildMerchantApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/customer-wallet-loads`)
+      .send({
+        customerId: CUSTOMER_ID,
+        amountCents: 2500,
+      });
+
+    expect(secondRes.status).toBe(201);
+    const ledgerInsertParams = mockQuery.mock.calls
+      .filter(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))
+      .map(([, params]) => params);
+    expect(ledgerInsertParams).toHaveLength(2);
+    expect(ledgerInsertParams[0][9]).not.toBe(ledgerInsertParams[1][9]);
+    expect(ledgerInsertParams[0][9]).toBe('wallet-load-1');
+    expect(ledgerInsertParams[1][9]).toMatch(/^merchant-load:/);
   });
 
   test('large merchant wallet load request alias requires pending approval before ledger posting', async () => {

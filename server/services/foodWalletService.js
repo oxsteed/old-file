@@ -595,6 +595,14 @@ async function verifyWalletIntegrityForCustomer(restaurantId, customerId) {
       ORDER BY entry_sequence ASC NULLS LAST, created_at ASC, id ASC`,
     [account.id]
   );
+  const { rows: [holdSummary] } = await pool.query(
+    `SELECT COALESCE(SUM(amount_cents), 0)::bigint AS reserved_cents,
+            COUNT(*)::int AS active_hold_count
+       FROM food_customer_wallet_holds
+      WHERE account_id = $1
+        AND status = 'active'`,
+    [account.id]
+  );
 
   const issues = [];
   let runningBalance = 0;
@@ -692,6 +700,16 @@ async function verifyWalletIntegrityForCustomer(restaurantId, customerId) {
       actualBalanceCents: Number(account.balance_cents || 0),
     });
   }
+  const expectedReservedCents = Number(holdSummary?.reserved_cents || 0);
+  const actualReservedCents = Number(account.reserved_cents || 0);
+  if (actualReservedCents !== expectedReservedCents) {
+    issues.push({
+      code: 'reserved_balance_mismatch',
+      expectedReservedCents,
+      actualReservedCents,
+      activeHoldCount: Number(holdSummary?.active_hold_count || 0),
+    });
+  }
   if (Number(account.ledger_version || 0) !== entryRows.length) {
     issues.push({
       code: 'ledger_version_mismatch',
@@ -712,6 +730,8 @@ async function verifyWalletIntegrityForCustomer(restaurantId, customerId) {
     valid: issues.length === 0,
     checkedAt: new Date().toISOString(),
     entryCount: entryRows.length,
+    reservedCents: actualReservedCents,
+    activeHoldCount: Number(holdSummary?.active_hold_count || 0),
     currentHashAlgorithm: CURRENT_WALLET_HASH_ALGORITHM,
     legacyHashAlgorithm: LEGACY_WALLET_HASH_ALGORITHM,
     issues,

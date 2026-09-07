@@ -1014,11 +1014,12 @@ exports.loadCustomerWallet = async (req, res, next) => {
       120
     );
     const note = normalizeString(req.body.note || req.body.description, 255);
+    const generatedLoadReference = `merchant-load:${crypto.randomUUID()}`;
     const referenceId = normalizeString(req.body.referenceId || req.body.reference_id, 120)
       || idempotencyKey
-      || `${restaurantId}:${customer.id}:${amountCents}`;
+      || generatedLoadReference;
     const correlationId = normalizeString(
-      req.body.correlationId || req.body.correlation_id || idempotencyKey || `wallet-load:${restaurantId}:${customer.id}:${amountCents}`,
+      req.body.correlationId || req.body.correlation_id || idempotencyKey || referenceId,
       120
     );
 
