@@ -19,6 +19,7 @@ const recurringCtrl = require('../controllers/logisticsRecurringProcurementContr
 const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
 const { requireLogisticsRole, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
+const requireWarehouseOps = requireLogisticsRole('warehouse_operator', 'logistics_coordinator');
 
 function publicReference(prefix) {
   return `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -82,15 +83,15 @@ router.post('/shipments/:id/documents', requireAuth, upload.single('file'), ship
 // ─── Warehouses / Receiving / Allocations / Delivery ─────────
 
 router.get('/warehouses',                     requireAuth, whCtrl.listWarehouses);
-router.get('/inventory-receipts',             requireAuth, whCtrl.listReceipts);
-router.post('/inventory-receipts',            requireAuth, whCtrl.createReceipt);
-router.post('/inventory-receipts/:id/receive',requireAuth, whCtrl.receiveInventory);
-router.post('/inventory-receipts/:id/reconcile', requireAuth, whCtrl.reconcileReceipt);
-router.get('/allocations',                    requireAuth, whCtrl.listAllocations);
-router.post('/allocations',                   requireAuth, whCtrl.createAllocation);
-router.post('/allocations/:id/release',       requireAuth, whCtrl.releaseAllocation);
-router.get('/deliveries',                     requireAuth, whCtrl.listDeliveryOrders);
-router.post('/deliveries',                    requireAuth, whCtrl.createDeliveryOrder);
+router.get('/inventory-receipts',             requireAuth, requireWarehouseOps, whCtrl.listReceipts);
+router.post('/inventory-receipts',            requireAuth, requireWarehouseOps, whCtrl.createReceipt);
+router.post('/inventory-receipts/:id/receive',requireAuth, requireWarehouseOps, whCtrl.receiveInventory);
+router.post('/inventory-receipts/:id/reconcile', requireAuth, requireWarehouseOps, whCtrl.reconcileReceipt);
+router.get('/allocations',                    requireAuth, requireWarehouseOps, whCtrl.listAllocations);
+router.post('/allocations',                   requireAuth, requireWarehouseOps, whCtrl.createAllocation);
+router.post('/allocations/:id/release',       requireAuth, requireWarehouseOps, whCtrl.releaseAllocation);
+router.get('/deliveries',                     requireAuth, requireWarehouseOps, whCtrl.listDeliveryOrders);
+router.post('/deliveries',                    requireAuth, requireWarehouseOps, whCtrl.createDeliveryOrder);
 
 // ─── Claims ───────────────────────────────────────────────────
 
