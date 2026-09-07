@@ -90,6 +90,19 @@ exports.getSessionFeedback = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
+    const { rows: sessionRows } = await db.query(
+      'SELECT user_id FROM consulting_sessions WHERE id = $1',
+      [sessionId]
+    );
+    if (sessionRows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const isAdmin = ['admin', 'super_admin'].includes(req.user?.role);
+    if (!isAdmin && sessionRows[0].user_id !== req.user?.id) {
+      return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
     const result = await db.query(
       `SELECT csf.feedback_rating, csf.feedback_text, csf.received_at
        FROM consulting_session_followups csf
