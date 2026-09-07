@@ -856,7 +856,11 @@ async function createFoodCheckoutSession({
   const successUrlBase = absoluteUrl(`/api/food/orders/${order.id}/checkout/complete`);
   const successUrl = `${successUrlBase}?session_id={CHECKOUT_SESSION_ID}${returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : ''}`;
   const cancelUrlBase = absoluteUrl(`/api/food/orders/${order.id}/checkout/cancelled`);
-  const cancelUrl = `${cancelUrlBase}${returnUrl ? `?return_url=${encodeURIComponent(returnUrl)}` : ''}`;
+  const trackingToken = normalizeString(
+    order.metadata?.trackingToken || order.metadata?.tracking_token,
+    255
+  );
+  const cancelUrl = `${cancelUrlBase}?tracking_token=${encodeURIComponent(trackingToken || '')}${returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : ''}`;
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -1705,7 +1709,11 @@ exports.quoteOrder = async (req, res, next) => {
          LEFT JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
+          AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
       [restaurantId]
     );
@@ -1967,7 +1975,11 @@ exports.createOrder = async (req, res, next) => {
            LEFT JOIN businesses b ON b.id = fr.business_id
           WHERE fr.id = $1
             AND fr.status = 'active'
+            AND fr.discovery_status = 'visible'
             AND b.is_active = TRUE
+            AND b.is_listed = TRUE
+            AND COALESCE(b.setup_status, 'active') = 'active'
+            AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
           FOR UPDATE`,
         [restaurantId]
@@ -3140,12 +3152,16 @@ exports.completeCheckout = async (req, res, next) => {
 exports.cancelCheckout = async (req, res, next) => {
   try {
     const orderId = parsePositiveInt(req.params.orderId);
+    const trackingToken = normalizeString(req.query.tracking_token || req.query.trackingToken, 255);
     const returnUrl = safeReturnUrl(req.query.return_url);
-    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+    if (!orderId || !trackingToken) throw new AppError('Order not found', 404, 'order_not_found');
 
     const { rows } = await pool.query(
-      `SELECT queue_number FROM food_orders WHERE id = $1`,
-      [orderId]
+      `SELECT queue_number
+         FROM food_orders
+        WHERE id = $1
+          AND metadata->>'trackingToken' = $2`,
+      [orderId, trackingToken]
     );
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
@@ -3885,7 +3901,11 @@ exports.getQueueBoard = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
           AND fr.status IN ('active','paused')
+          AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
       [restaurantId]
     );
@@ -4621,7 +4641,11 @@ exports.listRestaurantPromotions = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
           WHERE p.restaurant_id = $1
             AND fr.status IN ('active', 'paused')
+            AND fr.discovery_status = 'visible'
             AND b.is_active = TRUE
+            AND b.is_listed = TRUE
+            AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+            AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
             AND p.is_active = TRUE
             AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
@@ -4910,7 +4934,11 @@ exports.listRestaurantLocations = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
           WHERE fr.id = $1
             AND fr.status = 'active'
+            AND fr.discovery_status = 'visible'
             AND b.is_active = TRUE
+            AND b.is_listed = TRUE
+            AND COALESCE(b.setup_status, 'active') = 'active'
+            AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL`,
         [restaurantId]
       );

@@ -642,4 +642,27 @@ describe('food controller', () => {
     expect(res.status).toBe(409);
     expect(res.body.error?.code || res.body.code).toBe('order_not_reviewable');
   });
+
+  test('requires the private tracking token for the public checkout cancel page', async () => {
+    const app = express();
+    app.use(express.json());
+    app.get('/api/food/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
+    app.use(errorHandler);
+
+    const missingToken = await request(app)
+      .get('/api/food/orders/100/checkout/cancelled');
+
+    expect(missingToken.status).toBe(404);
+    expect(mockQuery).not.toHaveBeenCalled();
+
+    mockQuery.mockResolvedValueOnce({ rows: [{ queue_number: 12 }] });
+    const validToken = await request(app)
+      .get('/api/food/orders/100/checkout/cancelled')
+      .query({ tracking_token: 'private-random-token' });
+
+    expect(validToken.status).toBe(200);
+    expect(validToken.text).toContain('Checkout cancelled');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/metadata->>'trackingToken'/);
+    expect(mockQuery.mock.calls[0][1]).toEqual([100, 'private-random-token']);
+  });
 });

@@ -31,6 +31,13 @@ function expectActiveBusinessGuard(sql) {
   expect(sql).toMatch(/b\.deleted_at IS NULL/);
 }
 
+function expectPublicPublicationGuard(sql) {
+  expectActiveBusinessGuard(sql);
+  expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
+  expect(sql).toMatch(/b\.is_listed = TRUE/);
+  expect(sql).toMatch(/COALESCE\(b\.business_kind, 'restaurant'\) = 'restaurant'/);
+}
+
 beforeEach(() => resetMocks());
 
 describe('public restaurant visibility', () => {
@@ -56,7 +63,7 @@ describe('public restaurant visibility', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('restaurant_not_found');
-    expectActiveBusinessGuard(mockQuery.mock.calls[0][0]);
+    expectPublicPublicationGuard(mockQuery.mock.calls[0][0]);
   });
 
   test('direct restaurant lookup applies the public publication guard', async () => {
@@ -64,9 +71,23 @@ describe('public restaurant visibility', () => {
 
     expect(res.status).toBe(404);
     const sql = mockQuery.mock.calls[0][0];
-    expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
-    expect(sql).toMatch(/b\.is_listed = TRUE/);
-    expect(sql).toMatch(/COALESCE\(b\.business_kind, 'restaurant'\) = 'restaurant'/);
+    expectPublicPublicationGuard(sql);
+  });
+
+  test.each([
+    ['/api/food/restaurants/3/promotions', 'get', 200],
+    ['/api/food/restaurants/3/locations', 'get', 404],
+    ['/api/food/restaurants/3/kiosk-config', 'get', 404],
+    ['/api/food/restaurants/3/orders/quote', 'post', 404],
+    ['/api/food/restaurants/3/orders', 'post', 404],
+  ])('%s applies the public publication guard', async (path, method, expectedStatus) => {
+    const res = await request(buildApp())[method](path)
+      .send(method === 'post' && path.endsWith('/quote')
+        ? { items: [{ menuItemId: 11, quantity: 1 }] }
+        : method === 'post' ? { fulfillmentType: 'pickup', items: [{ menuItemId: 11, quantity: 1 }] } : undefined);
+
+    expect(res.status).toBe(expectedStatus);
+    expectPublicPublicationGuard(mockQuery.mock.calls[0][0]);
   });
 
   test('public promotions cannot leak from an inactive business', async () => {

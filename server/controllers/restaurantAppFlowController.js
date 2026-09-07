@@ -2534,7 +2534,14 @@ function queueGuestLabel(row) {
   return 'Pickup';
 }
 
-async function buildQueueBoardPayload(restaurantId, device = null) {
+async function buildQueueBoardPayload(restaurantId, device = null, { publicOnly = false } = {}) {
+  const publicGuard = publicOnly
+    ? `
+        AND fr.discovery_status = 'visible'
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'`
+    : '';
   const { rows: restaurants } = await pool.query(
     `SELECT fr.id, fr.display_name, fr.logo_url, fr.timezone, fr.kitchen_display_enabled
        FROM food_restaurants fr
@@ -2542,7 +2549,7 @@ async function buildQueueBoardPayload(restaurantId, device = null) {
       WHERE fr.id = $1
         AND fr.status IN ('active','paused')
         AND b.is_active = TRUE
-        AND b.deleted_at IS NULL`,
+        AND b.deleted_at IS NULL${publicGuard}`,
     [restaurantId]
   );
   const restaurant = restaurants[0];
@@ -2978,7 +2985,7 @@ exports.getDeviceQueueBoard = async (req, res, next) => {
 exports.getPublicDisplayQueueBoard = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const payload = await buildQueueBoardPayload(restaurantId);
+    const payload = await buildQueueBoardPayload(restaurantId, null, { publicOnly: true });
     res.json(payload);
   } catch (err) {
     next(err);
