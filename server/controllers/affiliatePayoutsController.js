@@ -165,7 +165,6 @@ async function calculateAndCreatePayout(req, res, next) {
     if (!userId) {
       throw new AppError('Authentication required', 401, 'no_auth');
     }
-
     const fields = {};
     if (!programId) fields.programId = 'Program ID is required';
     if (!periodStart) fields.periodStart = 'Period start date is required';
@@ -254,6 +253,15 @@ async function processPayout(req, res, next) {
     if (!userId) {
       throw new AppError('Authentication required', 401, 'no_auth');
     }
+    if (payout_method !== 'stripe_direct') {
+      throw new AppError('Unsupported payout method', 400, 'invalid_payout_method');
+    }
+    if (!payment_method_id) {
+      throw new AppError('A payout destination is required', 400, 'missing_payout_destination');
+    }
+    if (!stripe) {
+      throw new AppError('Payout processing is not configured', 503, 'stripe_not_configured');
+    }
 
     // Get payout
     const payout = await pool.query(
@@ -271,21 +279,34 @@ async function processPayout(req, res, next) {
       throw new AppError('Payout already processed or cancelled', 400, 'invalid_payout_state');
     }
 
+    // Claim the row before calling Stripe so concurrent requests cannot send
+    // the same commission twice. The processor key makes a retry safe too.
+    const claim = await pool.query(
+      `UPDATE affiliate_payouts
+       SET status = 'processing', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'pending'
+       RETURNING *`,
+      [payoutId]
+    );
+    if (!claim.rows.length) {
+      throw new AppError('Payout is already being processed', 409, 'payout_in_progress');
+    }
+    payout.rows[0] = { ...payout.rows[0], ...claim.rows[0] };
+
     try {
       let payoutReference;
 
-      // Process via Stripe
-      if (payout_method === 'stripe_direct' && payment_method_id) {
-        const stripePayout = await stripe.payouts.create({
-          amount: payout.rows[0].total_commission_cents,
-          currency: 'usd',
-          destination: payment_method_id,
-          metadata: {
-            payoutId: payoutId.toString()
-          }
-        });
-        payoutReference = stripePayout.id;
-      }
+      const stripePayout = await stripe.payouts.create({
+        amount: payout.rows[0].total_commission_cents,
+        currency: 'usd',
+        destination: payment_method_id,
+        metadata: {
+          payoutId: payoutId.toString()
+        }
+      }, {
+        idempotencyKey: `affiliate-payout-${payoutId}`
+      });
+      payoutReference = stripePayout.id;
 
       // Update payout record
       const updated = await pool.query(
