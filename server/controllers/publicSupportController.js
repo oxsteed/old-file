@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const emailService = require('../utils/email');
 const logger = require('../utils/logger');
-const { waitingState } = require('../services/supportWaitService');
+const { waitingState, processWaiting } = require('../services/supportWaitService');
 const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
@@ -135,8 +135,26 @@ async function verifyGuestConversation(req, res) {
     await client.query(`INSERT INTO support_queue (business_id, conversation_id, priority, status)
       VALUES (NULL, $1, 'normal', 'waiting')`, [conversationId]);
     await client.query('COMMIT');
-    WebSocketService.broadcastToAdmins('ticket:created', { ticketId: conversationId, routedTo: 'queue' });
-    return res.json({ success: true, conversationId, guestToken: token, expiresInSeconds: TOKEN_TTL_MS / 1000 });
+
+    // Run the same strict presence/capacity routing pass used by the worker so
+    // a guest with a verified email is connected immediately when an agent is
+    // genuinely live, instead of waiting for the next worker tick.
+    try {
+      await processWaiting();
+    } catch (routingError) {
+      logger.warn('Immediate guest support routing failed; conversation remains queued', {
+        conversationId,
+        error: routingError.message,
+      });
+    }
+
+    const { rows: routedRows } = await pool.query(
+      'SELECT agent_id FROM support_conversations WHERE id = $1',
+      [conversationId]
+    );
+    const routedTo = routedRows[0]?.agent_id ? 'agent' : 'queue';
+    WebSocketService.broadcastToAdmins('ticket:created', { ticketId: conversationId, routedTo });
+    return res.json({ success: true, conversationId, guestToken: token, routedTo, expiresInSeconds: TOKEN_TTL_MS / 1000 });
   } catch (err) {
     if (client) await client.query('ROLLBACK');
     logger.error('verifyGuestConversation error', { error: err.message });
