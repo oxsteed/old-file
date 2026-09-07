@@ -8,6 +8,10 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { fileTypeFromBuffer } = require('file-type');
 const ctrl = require('../controllers/businessController');
+jest.mock('../utils/storage', () => ({
+  ...jest.requireActual('../utils/storage'),
+  uploadFile: jest.fn().mockRejectedValue(new Error('storage unavailable')),
+}));
 
 function buildApp() {
   const app = express();
