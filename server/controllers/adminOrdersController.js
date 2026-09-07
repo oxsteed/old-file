@@ -296,6 +296,9 @@ async function processRefund(req, res) {
     }
 
     const transaction = transactionResult.rows[0];
+    if (transaction.status !== 'succeeded' || !transaction.payment_intent_id) {
+      return sendError(res, 409, 'Payment is not in a refundable state');
+    }
     const refundCents = refundAmount === undefined || refundAmount === null
       ? Number(transaction.amount_cents)
       : Number(refundAmount);
@@ -387,6 +390,9 @@ async function cancelOrder(req, res) {
       const order = orderResult.rows[0];
       if (['cancelled', 'refunded'].includes(order.status)) {
         throw new Error('Order already cancelled or refunded');
+      }
+      if (['paid', 'processing', 'completed'].includes(order.status)) {
+        throw new Error('Paid orders must use the refund action before cancellation');
       }
 
       // Cancel order
