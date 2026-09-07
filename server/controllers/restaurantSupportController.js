@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 
 const ISSUE_TYPES = new Set([
   'missing_item',
@@ -644,6 +645,58 @@ exports.reopenCase = async (req, res, next) => {
 exports.acceptResolution = async (req, res, next) => {
   try {
     const caseId = parsePositiveInt(req.params.caseId);
+    const { rows: [caseForPayment] } = await pool.query(`
+      SELECT rsc.*, fo.total_cents, fo.payment_status, fo.stripe_payment_intent_id,
+             fr.stripe_account_id
+      FROM restaurant_support_cases rsc
+      LEFT JOIN food_orders fo ON fo.id = rsc.order_id
+      LEFT JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
+      WHERE rsc.id = $1 AND rsc.customer_user_id = $2
+    `, [caseId, req.user.id]);
+    if (!caseForPayment) throw new AppError('Support case not found', 404, 'case_not_found');
+    if (caseForPayment.status !== 'resolution_offered') {
+      throw new AppError('No resolution is currently awaiting acceptance', 409, 'no_resolution_offered');
+    }
+
+    const needsRefund = ['refund', 'partial_refund'].includes(caseForPayment.final_resolution);
+    let processorRefundId = caseForPayment.refund_status === 'processed'
+      ? caseForPayment.payment_transaction_id
+      : null;
+    let refundAmountCents = null;
+    if (needsRefund && !processorRefundId) {
+      if (caseForPayment.refund_status !== 'approved') {
+        throw new AppError('Refund approval is still pending', 409, 'refund_not_approved');
+      }
+      if (!stripe) throw new AppError('Refund processing is not configured', 503, 'stripe_not_configured');
+      if (caseForPayment.payment_status !== 'paid' || !caseForPayment.stripe_payment_intent_id) {
+        throw new AppError('The order payment is not refundable', 409, 'payment_not_refundable');
+      }
+      const originalCents = Number(caseForPayment.total_cents);
+      refundAmountCents = caseForPayment.final_resolution === 'partial_refund'
+        ? Number(caseForPayment.approved_refund_amount_cents)
+        : originalCents;
+      if (!Number.isInteger(originalCents) || originalCents <= 0 || !Number.isInteger(refundAmountCents)
+        || refundAmountCents <= 0 || refundAmountCents > originalCents) {
+        throw new AppError('Refund amount is invalid', 400, 'invalid_refund_amount');
+      }
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: caseForPayment.stripe_payment_intent_id,
+          ...(refundAmountCents === originalCents ? {} : { amount: refundAmountCents }),
+        }, {
+          idempotencyKey: `restaurant-support-refund-${caseId}-${refundAmountCents}`,
+          ...(caseForPayment.stripe_account_id ? { stripeAccount: caseForPayment.stripe_account_id } : {}),
+        });
+        processorRefundId = refund.id;
+      } catch (stripeError) {
+        logger.error('Restaurant support refund failed at payment processor', {
+          caseId,
+          error: stripeError.message,
+        });
+        throw new AppError('Refund failed with payment processor. The resolution was not accepted.', 502, 'stripe_error');
+      }
+    }
+
     const result = await withTransaction(pool, async (client) => {
       const supportCase = await assertCaseCustomer(client, caseId, req.user.id);
       if (supportCase.status !== 'resolution_offered') {
@@ -651,17 +704,29 @@ exports.acceptResolution = async (req, res, next) => {
       }
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_support_cases
-            SET status = 'resolved', resolved_at = NOW()
+            SET status = 'resolved',
+                resolved_at = NOW(),
+                refund_status = CASE WHEN $2 IS NOT NULL THEN 'processed' ELSE refund_status END,
+                payment_transaction_id = COALESCE($2, payment_transaction_id)
           WHERE id = $1
           RETURNING *`,
-        [supportCase.id]
+        [supportCase.id, processorRefundId]
       );
+      if (processorRefundId && supportCase.final_resolution === 'refund' && supportCase.order_id) {
+        await client.query(
+          `UPDATE food_orders
+              SET status = 'refunded', payment_status = 'refunded', updated_at = NOW()
+            WHERE id = $1 AND payment_status = 'paid'`,
+          [supportCase.order_id]
+        );
+      }
       await logEvent(client, supportCase.id, {
         actorUserId: req.user.id,
         actorType: 'customer',
         eventType: 'resolution_accepted',
         oldValue: supportCase.status,
         newValue: 'resolved',
+        metadata: processorRefundId ? { stripeRefundId: processorRefundId, refundAmountCents } : {},
       });
       await enqueueNotification(client, supportCase.id, 'restaurant', 'resolution_accepted', {});
       return updated;
