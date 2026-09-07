@@ -13,16 +13,16 @@ router.put   ('/:businessId/expenses/:expenseId',    requireAuth, requireBusines
 router.delete('/:businessId/expenses/:expenseId',    requireAuth, requireBusinessAccess({ minRole: 'manager' }), expenses.deleteExpense);
 
 // Quotes
-router.get   ('/:businessId/quotes',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.listQuotes);
-router.get   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.getQuote);
-router.post  ('/:businessId/quotes',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.createQuote);
-router.put   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.updateQuote);
-router.post  ('/:businessId/quotes/:quoteId/send',   requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.sendQuote);
-router.post  ('/:businessId/quotes/:quoteId/convert', requireAuth, requireBusinessAccess({ minRole: 'any' }),    (req, res, next) => {
+router.get   ('/:businessId/quotes',                 requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.listQuotes);
+router.get   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.getQuote);
+router.post  ('/:businessId/quotes',                 requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.createQuote);
+router.put   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.updateQuote);
+router.post  ('/:businessId/quotes/:quoteId/send',   requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.sendQuote);
+router.post  ('/:businessId/quotes/:quoteId/convert', requireAuth, requireBusinessAccess({ minRole: 'manager' }), (req, res, next) => {
   req.params.id = req.params.quoteId;
   return quotes.convertToInvoice(req, res, next);
 });
-router.delete('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.deleteQuote);
+router.delete('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'manager' }), quotes.deleteQuote);
 // Public quote response (no auth — client clicks link)
 router.get   ('/quotes/view/:token',                                                                              quotes.getQuoteByToken);
 router.post  ('/quotes/view/:token/respond',                                                                      quotes.respondToQuote);

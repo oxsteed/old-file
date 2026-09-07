@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { requireBusinessAccess } = require('../middleware/businessAccess');
+const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessQuotesController');
 
 const businessManager = requireBusinessAccess({ minRole: 'manager' });
