@@ -2,7 +2,7 @@ const pool = require('../db');
 
 async function checkAccess(businessId, userId) {
   const { rows } = await pool.query(
-    `SELECT role FROM business_members WHERE business_id=$1 AND user_id=$2 AND status='active'
+    `SELECT role FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active' AND role='manager'
      UNION
      SELECT 'owner' AS role FROM businesses WHERE id=$1 AND user_id=$2`,
     [businessId, userId]
@@ -14,6 +14,8 @@ exports.getWeekSchedule = async (req, res, next) => {
   try {
     const { businessId } = req.params;
     const { week_start } = req.query;
+
+    if (!await checkAccess(businessId, req.user.id)) return res.status(403).json({ error: 'Access denied' });
 
     const start = week_start ? new Date(week_start) : (() => {
       const d = new Date();
@@ -71,7 +73,7 @@ exports.createShift = async (req, res, next) => {
 
     // Verify user is a member of this business
     const memberCheck = await pool.query(
-      `SELECT 1 FROM business_members WHERE business_id=$1 AND user_id=$2 AND status='active'
+      `SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active'
        UNION SELECT 1 FROM businesses WHERE id=$1 AND user_id=$2`,
       [businessId, user_id]
     );
@@ -117,6 +119,15 @@ exports.logHours = async (req, res, next) => {
     if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
     if (!user_id || !hours_worked) return res.status(400).json({ error: 'user_id and hours_worked required' });
 
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active'
+       UNION SELECT 1 FROM businesses WHERE id=$1 AND user_id=$2`,
+      [businessId, user_id]
+    );
+    if (!memberCheck.rows.length) {
+      return res.status(400).json({ error: 'User is not a member of this business' });
+    }
+
     const hours = parseFloat(hours_worked);
     if (isNaN(hours) || hours <= 0 || hours > 24) {
       return res.status(400).json({ error: 'hours_worked must be between 0 and 24' });
@@ -137,6 +148,8 @@ exports.getTimeEntries = async (req, res, next) => {
   try {
     const { businessId } = req.params;
     const { user_id, from_date, to_date } = req.query;
+
+    if (!await checkAccess(businessId, req.user.id)) return res.status(403).json({ error: 'Access denied' });
 
     const conditions = ['te.business_id = $1'];
     const params = [businessId];
