@@ -338,6 +338,10 @@ function AuthenticatedSupportEscalationPage({ user }) {
       } catch (err) {
         console.error('Failed to establish live support session:', err);
         if (active) {
+          // The availability check is only a snapshot. If connection fails,
+          // never leave its old count beside the ticket fallback state.
+          setAgentsOnline(0);
+          setWaiting(null);
           setConnectionState('failed');
           setPhase('ticket');
         }
@@ -399,6 +403,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
   useEffect(() => {
     if (connectionState !== 'queued' || !waiting?.localDeadline || waiting.localDeadline > now) return;
+    setAgentsOnline(0);
     setConnectionState('unavailable');
     setPhase('ticket');
   }, [connectionState, now, waiting?.localDeadline]);
