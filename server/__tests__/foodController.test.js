@@ -23,6 +23,7 @@ function buildApp() {
   app.post('/api/food/restaurants', ctrl.createRestaurant);
   app.patch('/api/food/restaurants/:restaurantId', ctrl.updateRestaurant);
   app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
+  app.post('/api/food/restaurants/:restaurantId/orders/quote', ctrl.quoteOrder);
   app.get('/api/food/restaurants/:restaurantId/orders', ctrl.listRestaurantOrders);
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', ctrl.updateOrderStatus);
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/payment', ctrl.updateOrderPayment);
@@ -33,6 +34,80 @@ function buildApp() {
 beforeEach(() => resetMocks());
 
 describe('food controller', () => {
+  const quoteRestaurant = {
+    id: 3,
+    business_id: 42,
+    display_name: 'Ox Burger Lab',
+    status: 'active',
+    discovery_status: 'visible',
+    accepts_online_orders: true,
+    accepts_in_store_orders: true,
+    fulfillment_modes: ['pickup'],
+    settings: {},
+    operating_hours: {},
+    timezone: 'UTC',
+  };
+
+  test('rejects a modifier that belongs to another menu item', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [quoteRestaurant] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          name: 'Burger',
+          price_cents: 1200,
+          currency_code: 'USD',
+          is_available: true,
+          modifier_groups: [{
+            id: 1,
+            name: 'Size',
+            min_select: 0,
+            max_select: 1,
+            is_required: false,
+            options: [{ id: 101, name: 'Large', price_delta_cents: 200, is_available: true }],
+          }],
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({ items: [{ menuItemId: 10, quantity: 1, modifierIds: [999] }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields['items.0.modifierIds']).toMatch(/not available for this menu item/);
+  });
+
+  test('rejects a quote that omits a required modifier selection', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [quoteRestaurant] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          name: 'Burger',
+          price_cents: 1200,
+          currency_code: 'USD',
+          is_available: true,
+          modifier_groups: [{
+            id: 1,
+            name: 'Choose a size',
+            min_select: 0,
+            max_select: 1,
+            is_required: true,
+            options: [{ id: 101, name: 'Large', price_delta_cents: 200, is_available: true }],
+          }],
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders/quote')
+      .send({ items: [{ menuItemId: 10, quantity: 1, modifierIds: [] }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields['items.0.modifierIds']).toMatch(/at least 1 option/);
+  });
+
   test('public restaurant lookup exposes storefront fields, not business credentials', async () => {
     mockQuery
       .mockResolvedValueOnce({

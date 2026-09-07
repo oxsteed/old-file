@@ -294,6 +294,79 @@ function parsePositiveInt(value, fallback = null) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function orderModifierGroupsForMenuItem(menuItem) {
+  if (!Array.isArray(menuItem?.modifier_groups)) return [];
+  return menuItem.modifier_groups.filter((group) => group && group.id);
+}
+
+function resolveOrderItemModifiers(menuItem, item, index) {
+  const rawModifierIds = Array.isArray(item.modifierIds || item.modifier_ids)
+    ? (item.modifierIds || item.modifier_ids)
+    : [];
+  const groups = orderModifierGroupsForMenuItem(menuItem);
+  const groupsById = new Map(groups.map((group) => [Number(group.id), group]));
+  const modifiersById = new Map();
+  for (const group of groups) {
+    for (const modifier of Array.isArray(group.options) ? group.options : []) {
+      if (modifier?.id) modifiersById.set(Number(modifier.id), { ...modifier, groupId: Number(group.id) });
+    }
+  }
+
+  const selectedByGroup = new Map();
+  const selectedModifiers = [];
+  const seenModifierIds = new Set();
+  for (const rawId of rawModifierIds) {
+    const modifierId = parsePositiveInt(rawId);
+    if (!modifierId || seenModifierIds.has(modifierId)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: 'Modifier selections must contain unique valid options',
+      });
+    }
+    seenModifierIds.add(modifierId);
+    const modifier = modifiersById.get(modifierId);
+    if (!modifier || modifier.is_available === false) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: 'One or more selected options are not available for this menu item',
+      });
+    }
+    const group = groupsById.get(modifier.groupId);
+    if (!group) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: 'One or more selected options are not available for this menu item',
+      });
+    }
+    const selected = selectedByGroup.get(modifier.groupId) || [];
+    const maxSelect = Math.max(0, Number(group.max_select ?? group.maxSelect ?? 1));
+    if (selected.length >= maxSelect) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: `Choose no more than ${maxSelect} option${maxSelect === 1 ? '' : 's'} from ${group.name}`,
+      });
+    }
+    selected.push(modifier);
+    selectedByGroup.set(modifier.groupId, selected);
+    selectedModifiers.push(modifier);
+  }
+
+  for (const group of groups) {
+    const selectedCount = (selectedByGroup.get(Number(group.id)) || []).length;
+    const configuredMin = Math.max(0, Number(group.min_select ?? group.minSelect ?? 0));
+    const minSelect = group.is_required ? Math.max(1, configuredMin) : configuredMin;
+    const maxSelect = Math.max(0, Number(group.max_select ?? group.maxSelect ?? 1));
+    if (selectedCount < minSelect) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: `Choose at least ${minSelect} option${minSelect === 1 ? '' : 's'} from ${group.name}`,
+      });
+    }
+    if (selectedCount > maxSelect) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        [`items.${index}.modifierIds`]: `Choose no more than ${maxSelect} option${maxSelect === 1 ? '' : 's'} from ${group.name}`,
+      });
+    }
+  }
+
+  return selectedModifiers;
+}
+
 function parseMoneyCents(value, field = 'priceCents') {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n > 5000000) {
@@ -1754,29 +1827,41 @@ exports.quoteOrder = async (req, res, next) => {
     }
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
     const { rows: menuRows } = await pool.query(
-      `SELECT id, name, price_cents, currency_code, is_available
-         FROM food_menu_items
-        WHERE restaurant_id = $1
-          AND id = ANY($2::bigint[])
-          AND publication_status = 'published'
-          AND archived_at IS NULL`,
+      `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              COALESCE((
+                SELECT jsonb_agg(
+                  jsonb_build_object(
+                    'id', mg.id,
+                    'name', mg.name,
+                    'min_select', mg.min_select,
+                    'max_select', mg.max_select,
+                    'is_required', mg.is_required,
+                    'options', COALESCE((
+                      SELECT jsonb_agg(
+                        jsonb_build_object(
+                          'id', fm.id,
+                          'name', fm.name,
+                          'price_delta_cents', fm.price_delta_cents,
+                          'is_available', fm.is_available
+                        ) ORDER BY fm.sort_order, fm.id
+                      )
+                      FROM food_modifiers fm
+                      WHERE fm.modifier_group_id = mg.id
+                    ), '[]'::jsonb)
+                  ) ORDER BY mg.sort_order, mg.id
+                )
+                FROM food_modifier_groups mg
+                WHERE mg.restaurant_id = fmi.restaurant_id
+                  AND mg.menu_item_id = fmi.id
+              ), '[]'::jsonb) AS modifier_groups
+         FROM food_menu_items fmi
+        WHERE fmi.restaurant_id = $1
+          AND fmi.id = ANY($2::bigint[])
+          AND fmi.publication_status = 'published'
+          AND fmi.archived_at IS NULL`,
       [restaurantId, itemIds]
     );
     const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
-    const modifierIds = items
-      .flatMap((item) => (Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : []))
-      .map((id) => parsePositiveInt(id))
-      .filter(Boolean);
-    const { rows: modifierRows } = modifierIds.length
-      ? await pool.query(
-        `SELECT fm.id, fm.name, fm.price_delta_cents, fm.is_available
-           FROM food_modifiers fm
-           JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
-          WHERE mg.restaurant_id = $1 AND fm.id = ANY($2::bigint[])`,
-        [restaurantId, modifierIds]
-      )
-      : { rows: [] };
-    const modifierById = new Map(modifierRows.map((row) => [Number(row.id), row]));
 
     const lineItems = items.map((item, index) => {
       const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
@@ -1787,9 +1872,7 @@ exports.quoteOrder = async (req, res, next) => {
         });
       }
       const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
-      const modifiers = (Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : [])
-        .map((id) => modifierById.get(parsePositiveInt(id)))
-        .filter((modifier) => modifier && modifier.is_available);
+      const modifiers = resolveOrderItemModifiers(menuItem, item, index);
       const modifierTotalCents = modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0);
       const unitPriceCents = Number(menuItem.price_cents || 0);
       const lineTotalCents = (unitPriceCents + modifierTotalCents) * quantity;
@@ -2039,29 +2122,41 @@ exports.createOrder = async (req, res, next) => {
 
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
-        `SELECT id, name, price_cents, currency_code, is_available
-           FROM food_menu_items
-          WHERE restaurant_id = $1
-            AND id = ANY($2::bigint[])
-            AND publication_status = 'published'
-            AND archived_at IS NULL`,
+        `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                COALESCE((
+                  SELECT jsonb_agg(
+                    jsonb_build_object(
+                      'id', mg.id,
+                      'name', mg.name,
+                      'min_select', mg.min_select,
+                      'max_select', mg.max_select,
+                      'is_required', mg.is_required,
+                      'options', COALESCE((
+                        SELECT jsonb_agg(
+                          jsonb_build_object(
+                            'id', fm.id,
+                            'name', fm.name,
+                            'price_delta_cents', fm.price_delta_cents,
+                            'is_available', fm.is_available
+                          ) ORDER BY fm.sort_order, fm.id
+                        )
+                        FROM food_modifiers fm
+                        WHERE fm.modifier_group_id = mg.id
+                      ), '[]'::jsonb)
+                    ) ORDER BY mg.sort_order, mg.id
+                  )
+                  FROM food_modifier_groups mg
+                  WHERE mg.restaurant_id = fmi.restaurant_id
+                    AND mg.menu_item_id = fmi.id
+                ), '[]'::jsonb) AS modifier_groups
+           FROM food_menu_items fmi
+          WHERE fmi.restaurant_id = $1
+            AND fmi.id = ANY($2::bigint[])
+            AND fmi.publication_status = 'published'
+            AND fmi.archived_at IS NULL`,
         [restaurantId, ids]
       );
       const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
-
-      const modifierIds = items.flatMap((item) => Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : [])
-        .map((id) => parsePositiveInt(id))
-        .filter(Boolean);
-      const { rows: modifierRows } = modifierIds.length
-        ? await client.query(
-          `SELECT fm.id, fm.name, fm.price_delta_cents, fm.is_available
-             FROM food_modifiers fm
-             JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
-            WHERE mg.restaurant_id = $1 AND fm.id = ANY($2::bigint[])`,
-          [restaurantId, modifierIds]
-        )
-        : { rows: [] };
-      const modifierById = new Map(modifierRows.map((row) => [Number(row.id), row]));
 
       const normalizedItems = items.map((item, index) => {
         const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
@@ -2072,9 +2167,7 @@ exports.createOrder = async (req, res, next) => {
           });
         }
         const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
-        const modifiers = (Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : [])
-          .map((id) => modifierById.get(parsePositiveInt(id)))
-          .filter((modifier) => modifier && modifier.is_available);
+        const modifiers = resolveOrderItemModifiers(menuItem, item, index);
         const modifierTotal = modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0);
         const lineTotal = (Number(menuItem.price_cents) + modifierTotal) * quantity;
         return {
