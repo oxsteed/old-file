@@ -239,8 +239,48 @@ async function confirmPayment(req, res) {
 
     if (!order.rows.length) return sendError(res, 404, 'Order not found');
 
-    // Retrieve PaymentIntent from Stripe
+    // Only confirm the PaymentIntent that this order created. Looking up an
+    // arbitrary successful intent by ID would let a customer mark their own
+    // order paid with somebody else's payment.
+    const transaction = await pool.query(
+      `SELECT id, payment_intent_id, amount_cents, currency, status
+         FROM marketplace_transactions
+        WHERE order_id = $1 AND payment_intent_id = $2
+        LIMIT 1`,
+      [orderId, paymentIntentId]
+    );
+    const storedTransaction = transaction.rows[0];
+    if (!storedTransaction) {
+      return sendError(res, 403, 'Payment does not belong to this order');
+    }
+
+    // Retrieve PaymentIntent from Stripe and verify the values used to create
+    // the order transaction before changing local payment state.
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    const expectedAmount = Number(storedTransaction.amount_cents);
+    const paidAmount = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
+    const expectedCurrency = String(storedTransaction.currency || 'usd').toLowerCase();
+    const actualCurrency = String(paymentIntent.currency || '').toLowerCase();
+    const metadataOrderId = String(paymentIntent.metadata?.orderId || '');
+    const metadataUserId = String(paymentIntent.metadata?.userId || '');
+
+    if (
+      paidAmount !== expectedAmount ||
+      actualCurrency !== expectedCurrency ||
+      metadataOrderId !== String(orderId) ||
+      (metadataUserId && metadataUserId !== String(userId))
+    ) {
+      logger.warn('PaymentIntent validation failed during checkout confirmation', {
+        orderId,
+        paymentIntentId,
+        expectedAmount,
+        paidAmount,
+        expectedCurrency,
+        actualCurrency,
+      });
+      return sendError(res, 409, 'Payment does not match this order');
+    }
 
     if (paymentIntent.status === 'succeeded') {
       // Update order status
