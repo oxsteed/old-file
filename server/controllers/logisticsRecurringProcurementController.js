@@ -34,7 +34,9 @@ exports.createProgram = async (req, res, next) => {
     if (!req.body.title) {
       return next(new AppError('title is required', 400, 'validation_failed'));
     }
-    const program = await recurringService.createProgram(req.body, req.user.id);
+    const program = await recurringService.createProgram(req.body, req.user.id, {
+      includeAll: Boolean(req.isAdmin),
+    });
     res.status(201).json({ success: true, data: program });
   } catch (err) { next(err); }
 };

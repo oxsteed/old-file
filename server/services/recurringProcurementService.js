@@ -3,6 +3,54 @@
 const pool = require('../db');
 const { logLogisticsAction } = require('./logisticsAuditService');
 
+function validationError(message, statusCode = 400, code = 'validation_failed') {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  return error;
+}
+
+async function validateReferences({ businessId, sourcingRequestId, actorUserId, includeAll = false } = {}) {
+  if (includeAll) return;
+
+  if (businessId) {
+    const business = await pool.query(
+      `SELECT 1
+       FROM businesses b
+       WHERE b.id = $1
+         AND (b.user_id = $2 OR EXISTS (
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = b.id
+             AND bm.member_id = $2
+             AND bm.status = 'active'
+             AND bm.role = 'manager'
+         ))
+       LIMIT 1`,
+      [businessId, actorUserId]
+    );
+    if (!business.rows.length) {
+      throw validationError('You do not have permission to use this business', 403, 'business_access_denied');
+    }
+  }
+
+  if (sourcingRequestId) {
+    const request = await pool.query(
+      `SELECT business_id
+       FROM sourcing_requests
+       WHERE id = $1
+         AND (user_id = $2 OR ($3::int IS NOT NULL AND business_id = $3))
+       LIMIT 1`,
+      [sourcingRequestId, actorUserId, businessId || null]
+    );
+    if (!request.rows.length) {
+      throw validationError('You do not have permission to use this sourcing request', 403, 'sourcing_request_access_denied');
+    }
+    if (businessId && request.rows[0].business_id && String(request.rows[0].business_id) !== String(businessId)) {
+      throw validationError('sourcing_request_id must belong to business_id', 400, 'reference_mismatch');
+    }
+  }
+}
+
 async function listPrograms({
   userId,
   businessId,
@@ -66,7 +114,7 @@ async function getProgram(id, { userId, includeAll = false } = {}) {
   return rows.find((program) => String(program.id) === String(id)) || null;
 }
 
-async function createProgram(data, ownerUserId) {
+async function createProgram(data, ownerUserId, { includeAll = false } = {}) {
   const {
     business_id,
     lane_id,
@@ -86,6 +134,13 @@ async function createProgram(data, ownerUserId) {
     last_run_date,
     notes,
   } = data;
+
+  await validateReferences({
+    businessId: business_id || null,
+    sourcingRequestId: sourcing_request_id || null,
+    actorUserId: ownerUserId,
+    includeAll,
+  });
 
   const result = await pool.query(
     `INSERT INTO logistics_recurring_procurement_programs
@@ -125,6 +180,19 @@ async function createProgram(data, ownerUserId) {
 async function updateProgram(id, data, actorUserId, { includeAll = false } = {}) {
   const existing = await getProgram(id, { userId: actorUserId, includeAll });
   if (!existing) return null;
+
+  const nextBusinessId = Object.prototype.hasOwnProperty.call(data, 'business_id')
+    ? data.business_id
+    : existing.business_id;
+  const nextSourcingRequestId = Object.prototype.hasOwnProperty.call(data, 'sourcing_request_id')
+    ? data.sourcing_request_id
+    : existing.sourcing_request_id;
+  await validateReferences({
+    businessId: nextBusinessId || null,
+    sourcingRequestId: nextSourcingRequestId || null,
+    actorUserId,
+    includeAll,
+  });
 
   const allowed = [
     'business_id', 'lane_id', 'sourcing_request_id', 'title', 'category', 'description',
