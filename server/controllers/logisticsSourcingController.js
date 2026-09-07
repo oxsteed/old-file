@@ -100,6 +100,7 @@ exports.listSuppliers = async (req, res, next) => {
       category:  req.query.category,
       isActive:  true,
       isApproved:true,
+      publicSafe: !req.isAdmin,
       limit:     Math.min(parseInt(req.query.limit)||50, 200),
       offset:    parseInt(req.query.offset)||0,
     });

@@ -2,7 +2,7 @@
 const pool = require('../db');
 const { logLogisticsAction } = require('./logisticsAuditService');
 
-async function listSuppliers({ country, category, trustRating, isActive = true, isApproved = null, limit = 50, offset = 0 } = {}) {
+async function listSuppliers({ country, category, trustRating, isActive = true, isApproved = null, limit = 50, offset = 0, publicSafe = false } = {}) {
   const conditions = ['1=1'];
   const params = [];
   if (isActive !== null) { conditions.push(`s.is_active = $${params.push(isActive)}`); }
@@ -16,8 +16,13 @@ async function listSuppliers({ country, category, trustRating, isActive = true, 
     `SELECT COUNT(*) FROM supplier_profiles s WHERE ${conditions.join(' AND ')}`,
     params
   );
+  const supplierFields = publicSafe
+    ? `s.id, s.code, s.company_name, s.country, s.city, s.website,
+       s.approved_categories, s.freight_terms, s.quality_score,
+       s.communication_score, s.on_time_rate, s.is_active, s.approved_at`
+    : 's.*';
   const rows = await pool.query(
-    `SELECT s.*,
+    `SELECT ${supplierFields},
             (SELECT COUNT(*) FROM supplier_products sp WHERE sp.supplier_id = s.id AND sp.is_active) AS product_count
      FROM supplier_profiles s
      WHERE ${conditions.join(' AND ')}
@@ -135,14 +140,22 @@ async function listSupplierProducts(supplierId, { category, isApproved, limit = 
   return result.rows;
 }
 
-async function getSupplierProduct(id) {
+async function getSupplierProduct(id, { publicSafe = true } = {}) {
+  const productFields = publicSafe
+    ? `sp.id, sp.supplier_id, sp.title, sp.category, sp.subcategory, sp.description,
+       sp.specs, sp.unit_of_measure, sp.units_per_carton, sp.moq, sp.moq_unit,
+       sp.estimated_production_days, sp.sample_price_usd, sp.private_label_available,
+       sp.custom_manufacturing, sp.image_urls, sp.sample_urls, sp.is_active, sp.is_approved`
+    : 'sp.*';
   const result = await pool.query(
-    `SELECT sp.*, s.company_name AS supplier_name, s.country AS supplier_country,
-            s.quality_score, s.communication_score, s.internal_trust_rating
+    `SELECT ${productFields}, s.company_name AS supplier_name, s.country AS supplier_country,
+            s.quality_score, s.communication_score
      FROM supplier_products sp
      JOIN supplier_profiles s ON s.id = sp.supplier_id
-     WHERE sp.id = $1`,
-    [id]
+     WHERE sp.id = $1
+       AND ($2 = FALSE OR (sp.is_active = TRUE AND sp.is_approved = TRUE
+                           AND s.is_active = TRUE AND s.approved_at IS NOT NULL))`,
+    [id, !publicSafe]
   );
   return result.rows[0] || null;
 }
