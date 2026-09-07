@@ -1253,6 +1253,7 @@ exports.listMarkets = async (req, res, next) => {
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.status = 'active'
+          AND fr.discovery_status = 'visible'
           AND b.is_active = TRUE
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') = 'active'

@@ -27,6 +27,7 @@ function buildApp() {
 
 function expectActiveBusinessGuard(sql) {
   expect(sql).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
+  expect(sql).toMatch(/fr\.discovery_status = 'visible'/);
   expect(sql).toMatch(/b\.is_active = TRUE/);
   expect(sql).toMatch(/b\.deleted_at IS NULL/);
 }
