@@ -146,8 +146,48 @@ describe('restaurant wallet bank-like operations', () => {
     });
 
     expect(result.transfer.status).toBe('completed');
+    expect(mockQuery.mock.calls.some(([sql]) => /pg_advisory_xact_lock/.test(sql))).toBe(true);
     const ledgerInserts = mockQuery.mock.calls.filter(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql));
     expect(ledgerInserts).toHaveLength(2);
     expect(ledgerInserts.map(([, params]) => params[3])).toEqual(['debit', 'credit']);
+  });
+
+  test('rejects a wallet hold replay when the request changes its amount', async () => {
+    const sender = account(11, SENDER_ID, 5000);
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM food_customer_wallet_accounts a/.test(sql) && /FOR UPDATE/.test(sql)) return { rows: [sender] };
+      if (/expires_at <= NOW/.test(sql)) return { rows: [] };
+      if (/FROM food_customer_wallet_holds/.test(sql) && /idempotency_key/.test(sql)) {
+        return { rows: [{ amount_cents: 1500, currency_code: 'USD', purpose: 'customer_payment' }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(createWalletHold({ query: mockQuery }, {
+      restaurantId: RESTAURANT_ID,
+      customerId: SENDER_ID,
+      currencyCode: 'USD',
+      amountCents: 2000,
+      purpose: 'customer_payment',
+      idempotencyKey: 'hold-replay',
+    })).rejects.toMatchObject({ code: 'wallet_hold_idempotency_conflict' });
+  });
+
+  test('rejects a transfer replay when the recipient changes', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM food_customer_wallet_transfers/.test(sql) && /idempotency_key/.test(sql)) {
+        return { rows: [{ recipient_customer_id: RECIPIENT_ID, amount_cents: 1500, currency_code: 'USD' }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(transferWalletCredit({ query: mockQuery }, {
+      restaurantId: RESTAURANT_ID,
+      senderCustomerId: SENDER_ID,
+      recipientCustomerId: '00000000-0000-4000-8000-000000000333',
+      currencyCode: 'USD',
+      amountCents: 1500,
+      idempotencyKey: 'transfer-replay',
+    })).rejects.toMatchObject({ code: 'wallet_transfer_idempotency_conflict' });
   });
 });

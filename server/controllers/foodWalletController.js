@@ -36,6 +36,10 @@ function normalizeCurrency(value) {
   return raw ? raw.toUpperCase() : 'USD';
 }
 
+function looksLikeUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(String(value), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -148,6 +152,30 @@ function formatWalletLoadRequest(row) {
   };
 }
 
+function assertWalletLoadRequestReplayMatches(existing, { customerId, amountCents, currencyCode }) {
+  const mismatches = {};
+  if (String(existing.customer_id) !== String(customerId)) {
+    mismatches.customerId = { existing: existing.customer_id, requested: customerId };
+  }
+  if (Number(existing.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = { existing: Number(existing.amount_cents || 0), requested: Number(amountCents || 0) };
+  }
+  if (normalizeCurrency(existing.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = {
+      existing: normalizeCurrency(existing.currency_code),
+      requested: normalizeCurrency(currencyCode),
+    };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError(
+      'Wallet load request idempotency conflict',
+      409,
+      'wallet_load_request_idempotency_conflict',
+      { mismatches }
+    );
+  }
+}
+
 function parseWalletLoadRequestStatuses(value) {
   const allowed = new Set(['pending', 'approved', 'cancelled', 'expired']);
   const raw = value ? String(value).split(',').map((part) => part.trim()).filter(Boolean) : ['pending'];
@@ -208,14 +236,23 @@ async function resolveCustomer(source) {
       customerId: 'customerId or customerEmail is required',
     });
   }
+  if (customerId && !looksLikeUuid(customerId)) {
+    throw new AppError('Invalid customer id', 400, 'invalid_customer_id');
+  }
 
+  const lookup = customerId && customerEmail
+    ? 'u.id = $1::uuid AND LOWER(u.email) = $2'
+    : customerId
+      ? 'u.id = $1::uuid'
+      : 'LOWER(u.email) = $1';
   const { rows } = await pool.query(
     `SELECT id, first_name, last_name, email
        FROM users
-      WHERE ($1::uuid IS NOT NULL AND id = $1::uuid)
-         OR ($2::text IS NOT NULL AND LOWER(email) = $2)
+      WHERE ${lookup}
       LIMIT 1`,
-    [customerId || null, customerEmail || null]
+    customerId && customerEmail
+      ? [customerId, customerEmail]
+      : [customerId || customerEmail]
   );
   if (!rows[0]) {
     throw new AppError('Customer not found', 404, 'customer_not_found');
@@ -845,35 +882,74 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
         paymentProof: 'Add a payment reference, proof attachment, or note for the restaurant',
       });
     }
-    const { rows } = await pool.query(
-      `INSERT INTO food_customer_wallet_load_requests
+    let requestRow = null;
+    let replayed = false;
+    const existingResult = await pool.query(
+      `SELECT *
+         FROM food_customer_wallet_load_requests
+        WHERE restaurant_id = $1 AND idempotency_key = $2
+        LIMIT 1`,
+      [restaurantId, idempotencyKey]
+    );
+    if (existingResult.rows[0]) {
+      assertWalletLoadRequestReplayMatches(existingResult.rows[0], {
+        customerId: req.user.id,
+        amountCents,
+        currencyCode: normalizeCurrency(restaurant.currency_code),
+      });
+      requestRow = existingResult.rows[0];
+      replayed = true;
+    } else {
+      const { rows } = await pool.query(
+        `INSERT INTO food_customer_wallet_load_requests
          (restaurant_id, business_id, customer_id, requested_by_user_id,
           amount_cents, currency_code, status, note, reference_id, idempotency_key,
           correlation_id, request_ip, metadata, expires_at)
        VALUES ($1,$2,$3,$3,$4,$5,'pending',$6,$7,$8,$8,$9,$10::jsonb,NOW() + INTERVAL '7 days')
        ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
-       DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
+       DO NOTHING
        RETURNING *`,
-      [
-        restaurantId,
-        restaurant.business_id,
-        req.user.id,
-        amountCents,
-        normalizeCurrency(restaurant.currency_code),
-        note,
-        paymentReference || idempotencyKey,
-        idempotencyKey,
-        req.ip || null,
-        JSON.stringify({
-          source: 'customer_credit_request',
-          restaurantName: restaurant.display_name,
-          paymentReference,
-          proofAttachmentUrl,
-          fundingMethod: normalizeString(req.body?.fundingMethod || req.body?.funding_method, 80),
-        }),
-      ]
-    );
-    res.status(201).json({ loadRequest: formatWalletLoadRequest(rows[0]) });
+        [
+          restaurantId,
+          restaurant.business_id,
+          req.user.id,
+          amountCents,
+          normalizeCurrency(restaurant.currency_code),
+          note,
+          paymentReference || idempotencyKey,
+          idempotencyKey,
+          req.ip || null,
+          JSON.stringify({
+            source: 'customer_credit_request',
+            restaurantName: restaurant.display_name,
+            paymentReference,
+            proofAttachmentUrl,
+            fundingMethod: normalizeString(req.body?.fundingMethod || req.body?.funding_method, 80),
+          }),
+        ]
+      );
+      requestRow = rows[0] || null;
+      if (!requestRow) {
+        const concurrentResult = await pool.query(
+          `SELECT *
+             FROM food_customer_wallet_load_requests
+            WHERE restaurant_id = $1 AND idempotency_key = $2
+            LIMIT 1`,
+          [restaurantId, idempotencyKey]
+        );
+        if (!concurrentResult.rows[0]) {
+          throw new AppError('Wallet load request could not be created', 409, 'wallet_load_request_conflict');
+        }
+        assertWalletLoadRequestReplayMatches(concurrentResult.rows[0], {
+          customerId: req.user.id,
+          amountCents,
+          currencyCode: normalizeCurrency(restaurant.currency_code),
+        });
+        requestRow = concurrentResult.rows[0];
+        replayed = true;
+      }
+    }
+    res.status(replayed ? 200 : 201).json({ loadRequest: formatWalletLoadRequest(requestRow), replayed });
   } catch (err) {
     next(err);
   }
@@ -946,6 +1022,12 @@ exports.loadCustomerWallet = async (req, res, next) => {
 
     if (amountCents >= WALLET_LOAD_APPROVAL_THRESHOLD_CENTS) {
       const loadRequest = await withTransaction(pool, async (client) => {
+        if (idempotencyKey) {
+          await client.query(
+            `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+            [`wallet-load-request:${restaurantId}:${idempotencyKey}`]
+          );
+        }
         const { rows: existingRows } = idempotencyKey
           ? await client.query(
             `SELECT *
@@ -956,7 +1038,14 @@ exports.loadCustomerWallet = async (req, res, next) => {
             [restaurantId, idempotencyKey]
           )
           : { rows: [] };
-        if (existingRows[0]) return existingRows[0];
+        if (existingRows[0]) {
+          assertWalletLoadRequestReplayMatches(existingRows[0], {
+            customerId: customer.id,
+            amountCents,
+            currencyCode,
+          });
+          return existingRows[0];
+        }
 
         const { rows: [requestRow] } = await client.query(
           `INSERT INTO food_customer_wallet_load_requests

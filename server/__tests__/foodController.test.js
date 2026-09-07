@@ -562,6 +562,8 @@ describe('food controller', () => {
     expect(res.body.replayed).toBe(true);
     expect(res.body.order.id).toBe(100);
     expect(res.body.trackingToken).toBe('track-xyz');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/customer_id = \$2/);
+    expect(mockQuery.mock.calls[0][1]).toEqual([3, '00000000-0000-4000-8000-000000000123', 'offline-abc']);
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
@@ -597,6 +599,8 @@ describe('food controller', () => {
     expect(res.body.replayed).toBe(true);
     expect(res.body.order.id).toBe(101);
     expect(res.body.trackingToken).toBe('track-race');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/customer_id = \$2/);
+    expect(mockQuery.mock.calls[2][1]).toEqual([3, '00000000-0000-4000-8000-000000000123', 'offline-race']);
     expect(mockQuery.mock.calls).toHaveLength(3);
   });
 

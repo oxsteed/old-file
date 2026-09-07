@@ -1,7 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
 const {
   creditFoodWallet,
   debitFoodWallet,
@@ -27,6 +29,47 @@ function normalizeAmount(amountCents) {
     });
   }
   return amount;
+}
+
+function assertHoldReplayMatches(existing, { amountCents, currencyCode, purpose, referenceType, referenceId }) {
+  const mismatches = {};
+  if (Number(existing.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = { existing: Number(existing.amount_cents || 0), requested: Number(amountCents || 0) };
+  }
+  if (normalizeCurrency(existing.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = { existing: normalizeCurrency(existing.currency_code), requested: normalizeCurrency(currencyCode) };
+  }
+  for (const [field, existingValue, requestedValue] of [
+    ['purpose', existing.purpose, purpose],
+    ['referenceType', existing.reference_type, referenceType],
+    ['referenceId', existing.reference_id, referenceId],
+  ]) {
+    if ((existingValue || null) !== (requestedValue || null)) {
+      mismatches[field] = { existing: existingValue || null, requested: requestedValue || null };
+    }
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Wallet hold idempotency conflict', 409, 'wallet_hold_idempotency_conflict', { mismatches });
+  }
+}
+
+function assertTransferReplayMatches(existing, { recipientCustomerId, amountCents, currencyCode }) {
+  const mismatches = {};
+  if (existing.recipient_customer_id !== recipientCustomerId) {
+    mismatches.recipientCustomerId = {
+      existing: existing.recipient_customer_id,
+      requested: recipientCustomerId,
+    };
+  }
+  if (Number(existing.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = { existing: Number(existing.amount_cents || 0), requested: Number(amountCents || 0) };
+  }
+  if (normalizeCurrency(existing.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = { existing: normalizeCurrency(existing.currency_code), requested: normalizeCurrency(currencyCode) };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Wallet transfer idempotency conflict', 409, 'wallet_transfer_idempotency_conflict', { mismatches });
+  }
 }
 
 function formatHold(row) {
@@ -106,6 +149,61 @@ async function expireWalletHoldsForAccount(client, accountId) {
   return releasedCents;
 }
 
+async function cleanupExpiredWalletOperations({ limit = 500 } = {}) {
+  const batchLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 500, 1), 2000);
+  return withTransaction(pool, async (client) => {
+    const { rows: sessionRows } = await client.query(
+      `SELECT id, restaurant_id, wallet_hold_id
+         FROM food_wallet_payment_sessions
+        WHERE status = 'active'
+          AND expires_at <= NOW()
+        ORDER BY expires_at ASC
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED`,
+      [batchLimit]
+    );
+    let sessionsExpired = 0;
+    for (const session of sessionRows) {
+      if (session.wallet_hold_id) {
+        await releaseWalletHold(client, {
+          holdId: session.wallet_hold_id,
+          restaurantId: session.restaurant_id,
+          nextStatus: 'expired',
+        });
+      }
+      const { rowCount } = await client.query(
+        `UPDATE food_wallet_payment_sessions
+            SET status = 'expired', updated_at = NOW()
+          WHERE id = $1 AND status = 'active'`,
+        [session.id]
+      );
+      sessionsExpired += rowCount || 0;
+    }
+
+    const { rows: expiredHoldRows } = await client.query(
+      `SELECT id, account_id
+         FROM food_customer_wallet_holds
+        WHERE status = 'active'
+          AND expires_at <= NOW()
+        ORDER BY expires_at ASC, id ASC
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED`,
+      [batchLimit]
+    );
+    const accountIds = [...new Set(expiredHoldRows.map((row) => String(row.account_id)))];
+    let holdsReleasedCents = 0;
+    for (const accountId of accountIds) {
+      holdsReleasedCents += await expireWalletHoldsForAccount(client, accountId);
+    }
+
+    return {
+      sessionsExpired,
+      accountsProcessed: accountIds.length,
+      holdsReleasedCents,
+    };
+  }, 'food_wallet_expiry_cleanup');
+}
+
 async function createWalletHold(client, {
   restaurantId,
   customerId,
@@ -125,16 +223,28 @@ async function createWalletHold(client, {
   const account = await getOrCreateWalletAccount(client, { restaurantId, customerId, currencyCode: currency });
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 120);
 
+  // Expire old holds before replaying a key so a retry cannot resurrect an
+  // expired authorization or leave its reservation stranded.
+  await expireWalletHoldsForAccount(client, account.id);
+
   if (normalizedIdempotencyKey) {
     const { rows } = await client.query(
       `SELECT * FROM food_customer_wallet_holds
         WHERE account_id = $1 AND idempotency_key = $2 LIMIT 1`,
       [account.id, normalizedIdempotencyKey]
     );
-    if (rows[0]) return { hold: rows[0], replayed: true };
+    if (rows[0]) {
+      assertHoldReplayMatches(rows[0], {
+        amountCents: amount,
+        currencyCode: currency,
+        purpose: normalizeString(purpose, 80),
+        referenceType: normalizeString(referenceType, 60),
+        referenceId: normalizeString(referenceId, 120),
+      });
+      return { hold: rows[0], replayed: true };
+    }
   }
 
-  await expireWalletHoldsForAccount(client, account.id);
   const { rows: accountRows } = await client.query(
     `UPDATE food_customer_wallet_accounts
         SET reserved_cents = reserved_cents + $1,
@@ -296,12 +406,27 @@ async function transferWalletCredit(client, {
     });
   }
 
+  // Serialize retries for a sender/key pair before looking up the existing
+  // transfer. Without this lock two concurrent requests could both pass the
+  // replay check and debit the sender twice.
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+    [`wallet-transfer:${restaurantId}:${senderCustomerId}:${key}`]
+  );
+
   const { rows: existingRows } = await client.query(
     `SELECT * FROM food_customer_wallet_transfers
       WHERE restaurant_id = $1 AND sender_customer_id = $2 AND idempotency_key = $3 LIMIT 1`,
     [restaurantId, senderCustomerId, key]
   );
-  if (existingRows[0]) return { transfer: existingRows[0], replayed: true };
+  if (existingRows[0]) {
+    assertTransferReplayMatches(existingRows[0], {
+      recipientCustomerId,
+      amountCents: amount,
+      currencyCode: currency,
+    });
+    return { transfer: existingRows[0], replayed: true };
+  }
 
   await client.query(
     `INSERT INTO food_customer_wallet_accounts (restaurant_id, customer_id, currency_code)
@@ -394,6 +519,7 @@ module.exports = {
   releaseWalletHold,
   transferWalletCredit,
   expireWalletHoldsForAccount,
+  cleanupExpiredWalletOperations,
   formatHold,
   formatTransfer,
   formatLedgerRow,

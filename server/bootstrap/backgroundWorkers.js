@@ -21,6 +21,7 @@ const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
+const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -65,6 +66,12 @@ class BackgroundWorkers {
       cron.schedule('* * * * *', () => {
         releaseExpiredInventoryReservations().catch((error) => {
           this.log.warn('Restaurant inventory reservation cleanup failed', { error: error.message });
+        });
+      });
+
+      cron.schedule('* * * * *', () => {
+        cleanupExpiredWalletOperations().catch((error) => {
+          this.log.warn('Restaurant credit expiry cleanup failed', { error: error.message });
         });
       });
 

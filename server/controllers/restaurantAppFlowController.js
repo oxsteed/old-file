@@ -4299,6 +4299,13 @@ exports.recordPosPayment = async (req, res, next) => {
           });
         }
 
+        // A missing POS idempotency key is still safe to retry, but the
+        // fallback must include the wallet owner. Otherwise two customers
+        // paying the same order amount could collide on the order-wide
+        // payment key after the second wallet had already been debited.
+        const walletPaymentIdempotencyKey = idempotencyKey
+          || `wallet:${restaurantId}:${orderId}:${customerWallet.customer.id}:${amountCents}`;
+
         const walletLedger = customerRow.payment_session_wallet_hold_id
           ? await captureWalletHold(client, {
               holdId: customerRow.payment_session_wallet_hold_id,
@@ -4324,9 +4331,9 @@ exports.recordPosPayment = async (req, res, next) => {
           description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
           referenceType: 'food_order',
           referenceId: String(orderId),
-          idempotencyKey: idempotencyKey ? `wallet:${idempotencyKey}` : `pos-wallet:${restaurantId}:${orderId}:${amountCents}`,
+          idempotencyKey: `wallet:${walletPaymentIdempotencyKey}`,
           createdByUserId: req.user.id,
-          correlationId: idempotencyKey || `pos-payment:${restaurantId}:${orderId}`,
+          correlationId: walletPaymentIdempotencyKey,
           actorType: 'restaurant_pos',
           metadata: {
             ...safeJson(req.body.metadata),
@@ -4347,7 +4354,7 @@ exports.recordPosPayment = async (req, res, next) => {
           walletAccountId: walletLedger.account?.id,
           walletLedgerEntryId: walletLedger.entry?.id,
           walletBalanceAfterCents: walletLedger.entry?.balance_after_cents,
-          idempotencyKey,
+          idempotencyKey: walletPaymentIdempotencyKey,
           shiftId,
           createdByUserId: req.user.id,
           metadata: {
@@ -4412,7 +4419,7 @@ exports.recordPosPayment = async (req, res, next) => {
                 : Number(walletLedger.entry.balance_after_cents),
               paymentContract: paymentContractMetadata(paymentContract),
             },
-            idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:${idempotencyKey}` : null,
+            idempotencyKey: `receipt:${restaurantId}:${walletPaymentIdempotencyKey}`,
           });
         }
 

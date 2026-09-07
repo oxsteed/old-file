@@ -2043,9 +2043,11 @@ exports.createOrder = async (req, res, next) => {
       if (clientOrderId) {
         const { rows: existingOrders } = await client.query(
           `SELECT * FROM food_orders
-            WHERE restaurant_id = $1 AND metadata->>'clientOrderId' = $2
+            WHERE restaurant_id = $1
+              AND customer_id = $2
+              AND metadata->>'clientOrderId' = $3
             LIMIT 1`,
-          [restaurantId, clientOrderId]
+          [restaurantId, req.user.id, clientOrderId]
         );
         if (existingOrders[0]) {
           const { rows: restaurants } = await client.query(
@@ -2091,9 +2093,11 @@ exports.createOrder = async (req, res, next) => {
       if (clientOrderId) {
         const { rows: existingOrders } = await client.query(
           `SELECT * FROM food_orders
-            WHERE restaurant_id = $1 AND metadata->>'clientOrderId' = $2
+            WHERE restaurant_id = $1
+              AND customer_id = $2
+              AND metadata->>'clientOrderId' = $3
             LIMIT 1`,
-          [restaurantId, clientOrderId]
+          [restaurantId, req.user.id, clientOrderId]
         );
         if (existingOrders[0]) {
           const existing = existingOrders[0];
