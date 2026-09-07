@@ -856,6 +856,8 @@ describe('restaurant app-flow backend', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 602, amount_cents: 300, payment_type: 'refund' }] })
@@ -865,11 +867,23 @@ describe('restaurant app-flow backend', () => {
 
     const refundRes = await request(buildApp())
       .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/refund`)
+      .set('Idempotency-Key', 'refund-guest-adjustment-1')
       .send({ amountCents: 300, reason: 'Guest adjustment' });
 
     expect(refundRes.status).toBe(201);
     expect(refundRes.body.payment.payment_type).toBe('refund');
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('payment_refunded'))).toBe(true);
+  });
+
+  test('requires an idempotency key for manual POS refunds', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [accessRow()] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/refund`)
+      .send({ amountCents: 300, reason: 'Guest adjustment' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('idempotency_key_required');
   });
 
   test('rejects direct-payment receipt confirmation when required proof is missing', async () => {

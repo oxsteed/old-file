@@ -4109,6 +4109,9 @@ exports.recordPosPayment = async (req, res, next) => {
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
     );
+    if (paymentType === 'refund' && !idempotencyKey) {
+      throw new AppError('Idempotency-Key is required for refunds', 400, 'idempotency_key_required');
+    }
     const paymentContract = normalizeRestaurantPaymentMode(
       req.body.paymentMode || req.body.payment_mode,
       paymentType === 'external'
