@@ -869,7 +869,15 @@ async function syncFoodOrderPaymentStatus(order) {
   }
 
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id);
+    const connectedAccountId = normalizeString(
+      order.metadata?.stripeCheckout?.connectedAccountId
+        || order.metadata?.stripe_checkout?.connectedAccountId,
+      255
+    );
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      order.stripe_payment_intent_id,
+      connectedAccountId ? { stripeAccount: connectedAccountId } : undefined
+    );
     const mappedStatus = paymentIntent.status === 'succeeded'
       ? 'paid'
       : ['processing', 'requires_capture'].includes(paymentIntent.status)

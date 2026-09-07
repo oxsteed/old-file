@@ -203,6 +203,40 @@ describe('food controller', () => {
     expect(res.body.order.items[0]).not.toHaveProperty('specialInstructions');
   });
 
+  test('checks connected-account payment intents when refreshing order payment status', async () => {
+    stripe.__mockInstance.paymentIntents.retrieve = jest.fn();
+    stripe.__mockInstance.paymentIntents.retrieve.mockResolvedValueOnce({ status: 'succeeded' });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 101,
+          restaurant_id: 3,
+          status: 'received',
+          payment_status: 'requires_payment',
+          stripe_payment_intent_id: 'pi_connected',
+          metadata: {
+            trackingToken: 'track-connected',
+            stripeCheckout: { connectedAccountId: 'acct_restaurant' },
+          },
+          restaurant_name: 'Ox Burger Lab',
+          prep_time_min: 15,
+          items: [],
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 101, payment_status: 'paid', status: 'received' }],
+      });
+
+    const res = await request(buildApp()).get('/api/food/orders/track/track-connected');
+
+    expect(res.status).toBe(200);
+    expect(res.body.order.payment_status).toBe('paid');
+    expect(stripe.__mockInstance.paymentIntents.retrieve).toHaveBeenCalledWith(
+      'pi_connected',
+      { stripeAccount: 'acct_restaurant' }
+    );
+  });
+
   test('lists restaurants with country and search filters', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 7, display_name: 'Ox Burger', address_country: 'US' }],
