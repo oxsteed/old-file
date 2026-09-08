@@ -262,6 +262,32 @@ function addLanguageAlternates(html, url) {
   return html.replace('</head>', `${links}\n</head>`);
 }
 
+function buildBreadcrumbJsonLd(pageTitle, url, req) {
+  const currentName = String(pageTitle || 'OxSteed')
+    .replace(/\s*\|\s*OxSteed\s*$/i, '')
+    .trim() || 'OxSteed';
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    inLanguage: getRequestedLanguage(req),
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'OxSteed',
+        item: getLocalizedRequestUrl('/', req),
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: currentName,
+        item: url,
+      },
+    ],
+  };
+}
+
 const MARKETING_PAGES = {
   '/about': {
     title: 'About OxSteed | Local Help and Services',
@@ -415,6 +441,7 @@ function handleMarketingPage(pagePath, template, res, req) {
     name: page.title,
     description: page.description,
     url,
+    inLanguage: getRequestedLanguage(req),
     isPartOf: { '@id': `${origin}/#website` },
     ...(page.schemaType === 'Service' ? {
       provider: { '@id': `${origin}/#organization` },
@@ -430,6 +457,7 @@ function handleMarketingPage(pagePath, template, res, req) {
   }
   if (page.localized !== false) html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, schema);
+  if (!page.noIndex) html = injectJsonLd(html, buildBreadcrumbJsonLd(page.title, url, req));
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
@@ -471,6 +499,7 @@ async function handleHomepage(template, res, req) {
       '@id': `${origin}/#website`,
       url: origin,
       name: 'OxSteed',
+      inLanguage: getRequestedLanguage(req),
       publisher: { '@id': `${origin}/#organization` },
       potentialAction: {
         '@type': 'SearchAction',
@@ -511,6 +540,7 @@ async function handleHelpersDirectory(template, res, req) {
     name: title,
     description,
     url,
+    inLanguage: getRequestedLanguage(req),
     isPartOf: { '@id': `${origin}/#website` },
   };
 
@@ -520,6 +550,7 @@ async function handleHelpersDirectory(template, res, req) {
   );
   html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req));
 
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
