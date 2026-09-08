@@ -56,7 +56,6 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/direct/service-area`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/direct/request-quote`, changefreq: 'monthly', priority: '0.7', localized: true },
-      { loc: `${origin}/direct/view-quote`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/support/escalation`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
