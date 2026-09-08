@@ -269,7 +269,7 @@ export default function DiscoverPage() {
 
   return (
     <PageShell>
-      <PageMeta title={t('discover.metaTitle')} description={t('discover.metaDesc')} />
+      <PageMeta title={t('discover.metaTitle')} description={t('discover.metaDesc')} noIndex />
       <div className="max-w-3xl mx-auto px-4 py-10 text-gray-100">
         <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
           <Search className="w-7 h-7 text-orange-400 shrink-0" aria-hidden />

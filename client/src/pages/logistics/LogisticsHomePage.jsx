@@ -84,6 +84,7 @@ export default function LogisticsHomePage() {
         title={t('logistics.home.heroTitle')}
         description={t('logistics.home.heroSubtitle')}
         url="https://oxsteed.com/logistics"
+        noIndex
       />
       <div className="lx-home">
 

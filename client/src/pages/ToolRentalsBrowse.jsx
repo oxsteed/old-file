@@ -553,7 +553,7 @@ const ToolRentalsBrowse = () => {
         title={selectedTool && routeToolId ? `${selectedTool.name} | OxSteed Tool Rentals` : t('toolRentalsDir.heroTitle')}
         description={toolMetaDescription}
         url={toolPublicUrl}
-        noIndex={Boolean(routeToolId && !selectedTool)}
+        noIndex={!routeToolId || Boolean(routeToolId && !selectedTool)}
       />
       <Navbar />
 

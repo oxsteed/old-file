@@ -620,6 +620,7 @@ export default function ProductMarketplacePage() {
       <PageMeta
         title={t('marketplace.title')}
         description={t('marketplace.description')}
+        noIndex
       />
 
       <Navbar />

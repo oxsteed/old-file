@@ -4219,6 +4219,7 @@ export default function LearnModePage() {
       <PageMeta
         title={t('learn.page.metaTitle')}
         description={t('learn.page.metaDesc')}
+        noIndex
       />
 
       <div className="lrn-page">

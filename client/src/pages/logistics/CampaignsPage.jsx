@@ -56,6 +56,7 @@ export default function CampaignsPage() {
         title={t('logistics.campaigns.title', 'Pooled Buying Campaigns')}
         description={t('logistics.campaigns.subtitle', 'Join group buying campaigns to unlock MOQ pricing across lanes.')}
         url="https://oxsteed.com/logistics/campaigns"
+        noIndex
       />
       <div className="lx-page">
       <div className="lx-page-header">
