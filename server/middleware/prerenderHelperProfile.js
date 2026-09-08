@@ -17,6 +17,17 @@ const { buildPublicProfileDescription } = require('../utils/seoProfileDescriptio
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 let cachedTemplate = null;
+const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+
+function getRequestedLanguage(req) {
+  const raw = req?.query?.lang || req?.query?.lng || req?.query?.locale;
+  const language = String(raw || '').trim().toLowerCase().split(/[-_]/)[0];
+  return SEO_LANGUAGES.has(language) ? language : 'en';
+}
+
+function setDocumentLanguage(html, language) {
+  return html.replace(/<html\s+lang="[^"]*"/i, `<html lang="${escapeHtml(language)}"`);
+}
 
 function getTemplate() {
   if (cachedTemplate && process.env.NODE_ENV === 'production') return cachedTemplate;
@@ -268,7 +279,7 @@ const MARKETING_PAGES = {
   '/legal/independent-contractor': { title: 'Independent Contractor Policy | OxSteed', description: 'Read the OxSteed independent contractor policy and marketplace terms.', localized: true },
 };
 
-function handleMarketingPage(pagePath, template, res) {
+function handleMarketingPage(pagePath, template, res, req) {
   const page = MARKETING_PAGES[pagePath];
   const origin = base();
   const url = `${origin}${pagePath}`;
@@ -284,7 +295,10 @@ function handleMarketingPage(pagePath, template, res) {
       areaServed: 'Within 60 miles of Springfield, Ohio',
     } : {}),
   };
-  let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/icons/icon-512.png` });
+  let html = setDocumentLanguage(
+    replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/icons/icon-512.png` }),
+    getRequestedLanguage(req),
+  );
   if (page.noIndex) {
     html = replaceRobots(html, 'noindex, nofollow');
   }
@@ -297,7 +311,7 @@ function handleMarketingPage(pagePath, template, res) {
 
 const base = () => getPublicSiteUrl();
 
-async function handleHomepage(template, res) {
+async function handleHomepage(template, res, req) {
   const origin = base();
   const title = 'OxSteed - Hire Local Help Today';
   const description = 'Find trusted local help for home services, moving, cleanup, tools, and more on OxSteed.';
@@ -338,7 +352,10 @@ async function handleHomepage(template, res) {
     },
   ];
 
-  let html = replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/icons/icon-512.png` });
+  let html = setDocumentLanguage(
+    replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/icons/icon-512.png` }),
+    getRequestedLanguage(req),
+  );
   html = addLanguageAlternates(html, `${origin}/`);
   html = injectJsonLd(html, jsonLd);
   res.set('Content-Type', 'text/html');
@@ -346,7 +363,7 @@ async function handleHomepage(template, res) {
   return res.send(html);
 }
 
-async function handleHelpersDirectory(template, res) {
+async function handleHelpersDirectory(template, res, req) {
   const origin = base();
   const title = 'Find Local Helpers Near You | OxSteed';
   const description =
@@ -362,7 +379,10 @@ async function handleHelpersDirectory(template, res) {
     isPartOf: { '@id': `${origin}/#website` },
   };
 
-  let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
+  let html = setDocumentLanguage(
+    replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` }),
+    getRequestedLanguage(req),
+  );
   html = addLanguageAlternates(html, url);
   html = injectJsonLd(html, jsonLd);
 
@@ -1037,18 +1057,18 @@ function prerenderPublicPages(req, res, next) {
   }
 
   if (MARKETING_PAGES[p]) {
-    return handleMarketingPage(p, template, res);
+    return handleMarketingPage(p, template, res, req);
   }
 
   if (p === '/') {
-    return handleHomepage(template, res).catch((err) => {
+    return handleHomepage(template, res, req).catch((err) => {
       logger.error('[prerender] homepage error', { error: err.message });
       return next();
     });
   }
 
   if (p === '/helpers' || p === '/helpers/') {
-    return handleHelpersDirectory(template, res).catch((err) => {
+    return handleHelpersDirectory(template, res, req).catch((err) => {
       logger.error('[prerender] helpers directory error', { error: err.message });
       return next();
     });
