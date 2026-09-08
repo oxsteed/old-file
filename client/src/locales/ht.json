@@ -6214,14 +6214,14 @@
       "ctaSubtext": "You can review the quote before booking."
     },
     "cta": {
-      "title": "Post your skills.",
-      "titleEm": "Run your own business.",
-      "desc": "List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.",
-      "goToDashboard": "Go to dashboard",
-      "viewDashboard": "View dashboard",
-      "listSkills": "List your skills",
-      "postJob": "Post a job",
-      "postJobInstead": "Post a job instead"
+      "title": "Pataje konpetans ou.",
+      "titleEm": "Dirije pwòp biznis ou.",
+      "desc": "Mete sèvis ou yo gratis sou anyè lokal ou a, oswa abòne ak Pro pou jwenn plis vizibilite. Se ou ki fikse tarif, lè travay ak zòn sèvis ou.",
+      "goToDashboard": "Ale nan tablodbò a",
+      "viewDashboard": "Gade tablodbò a",
+      "listSkills": "Ofri konpetans ou",
+      "postJob": "Pibliye yon travay",
+      "postJobInstead": "Pibliye yon travay pito"
     }
   },
   "preferredHelper": {

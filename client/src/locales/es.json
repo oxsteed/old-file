@@ -6214,14 +6214,14 @@
       "ctaSubtext": "You can review the quote before booking."
     },
     "cta": {
-      "title": "Post your skills.",
-      "titleEm": "Run your own business.",
-      "desc": "List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.",
-      "goToDashboard": "Go to dashboard",
-      "viewDashboard": "View dashboard",
-      "listSkills": "List your skills",
-      "postJob": "Post a job",
-      "postJobInstead": "Post a job instead"
+      "title": "Publica tus habilidades.",
+      "titleEm": "Dirige tu propio negocio.",
+      "desc": "Publica tus servicios gratis en tu directorio local o suscríbete a Pro para obtener prioridad. Tú defines tus tarifas, horarios y área de servicio.",
+      "goToDashboard": "Ir al panel",
+      "viewDashboard": "Ver panel",
+      "listSkills": "Ofrece tus habilidades",
+      "postJob": "Publicar un trabajo",
+      "postJobInstead": "Publicar un trabajo en su lugar"
     }
   },
   "preferredHelper": {

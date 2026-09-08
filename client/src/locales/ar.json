@@ -6214,14 +6214,14 @@
       "ctaSubtext": "You can review the quote before booking."
     },
     "cta": {
-      "title": "Post your skills.",
-      "titleEm": "Run your own business.",
-      "desc": "List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.",
-      "goToDashboard": "Go to dashboard",
-      "viewDashboard": "View dashboard",
-      "listSkills": "List your skills",
-      "postJob": "Post a job",
-      "postJobInstead": "Post a job instead"
+      "title": "اعرض مهاراتك.",
+      "titleEm": "أدر عملك الخاص.",
+      "desc": "اعرض خدماتك مجانًا على دليلك المحلي، أو اشترك في Pro للحصول على أولوية الظهور. أنت تحدد أسعارك وساعات عملك ومنطقة خدمتك.",
+      "goToDashboard": "الانتقال إلى لوحة التحكم",
+      "viewDashboard": "عرض لوحة التحكم",
+      "listSkills": "اعرض مهاراتك",
+      "postJob": "نشر وظيفة",
+      "postJobInstead": "نشر وظيفة بدلًا من ذلك"
     }
   },
   "preferredHelper": {

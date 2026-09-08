@@ -151,6 +151,14 @@ function verifyHomepageTranslationSurface() {
     'homePage.search.availToday',
     'homePage.search.availTodayTitle',
     'homePage.search.search',
+    'homePage.cta.title',
+    'homePage.cta.titleEm',
+    'homePage.cta.desc',
+    'homePage.cta.goToDashboard',
+    'homePage.cta.viewDashboard',
+    'homePage.cta.listSkills',
+    'homePage.cta.postJob',
+    'homePage.cta.postJobInstead',
   ];
   const toolKeys = [
     'truckHauling', 'powerDrill', 'ladders', 'pressureWasher',
