@@ -1,11 +1,13 @@
 'use strict';
 
 const express = require('express');
+const path = require('path');
 const request = require('supertest');
 const { sendDirectServiceAreaPage } = require('../routes/directServiceAreaPage');
 
 function buildApp() {
   const app = express();
+  app.use('/direct/service-area-assets', express.static(path.join(__dirname, '../public/direct-service-area')));
   app.get('/direct/service-area', sendDirectServiceAreaPage);
   return app;
 }
@@ -26,6 +28,8 @@ describe('localized Direct service-area page', () => {
     expect(res.text).toContain('<header class="site-header">');
     expect(res.text).toContain('<footer class="site-footer">');
     expect(res.text).toContain('class="map-attribution"');
+    expect(res.text).toMatch(/href="\/direct\/service-area-assets\/service-area\.css\?v=[0-9]+-[0-9]+"/);
+    expect(res.text).not.toContain('__SERVICE_AREA_CSS_VERSION__');
     expect(res.text).not.toContain('window.OXSTEED_SERVICE_AREA_COPY');
 
     const schemas = [...res.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
@@ -42,5 +46,25 @@ describe('localized Direct service-area page', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-language']).toBe('en');
     expect(res.text).toContain('<title>OxSteed Direct Service Area</title>');
+  });
+
+  test('serves the versioned stylesheet referenced by the page', async () => {
+    const page = await request(buildApp()).get('/direct/service-area');
+    const stylesheetPath = page.text.match(/href="([^\"]+service-area\.css\?v=[^\"]+)"/)[1];
+    const stylesheet = await request(buildApp()).get(stylesheetPath);
+
+    expect(stylesheet.status).toBe(200);
+    expect(stylesheet.headers['content-type']).toMatch(/^text\/css/);
+    expect(stylesheet.text).toContain('.site-header');
+    expect(stylesheet.text).toContain('.nav-links');
+    expect(stylesheet.text).toContain('.site-footer');
+  });
+
+  test('keeps the service-area page standalone instead of adding a React root', async () => {
+    const res = await request(buildApp()).get('/direct/service-area');
+
+    expect(res.text).toContain('<header class="site-header">');
+    expect(res.text).toContain('<footer class="site-footer">');
+    expect(res.text).not.toContain('<div id="root">');
   });
 });
