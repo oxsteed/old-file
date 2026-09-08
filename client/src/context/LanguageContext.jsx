@@ -4,6 +4,32 @@ import api from '../api/axios';
 
 const LanguageContext = createContext(null);
 const SUPPORTED = new Set(LANGUAGES.map((item) => item.code));
+const SEO_LOCALIZED_PATHS = new Set([
+  '/', '/about', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',
+  '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
+  '/support/escalation', '/terms', '/privacy', '/security', '/accessibility',
+  '/enforcement-policy', '/do-not-sell', '/cookie-policy',
+  '/legal/background-check', '/legal/arbitration', '/legal/escrow-policy',
+  '/legal/account-termination', '/legal/dispute-resolution',
+  '/legal/independent-contractor',
+]);
+
+function shouldPersistLanguageInUrl(pathname) {
+  return pathname === '/' || pathname.startsWith('/help/') || SEO_LOCALIZED_PATHS.has(pathname);
+}
+
+function persistLanguageInUrl(code) {
+  if (typeof window === 'undefined' || !shouldPersistLanguageInUrl(window.location.pathname)) return;
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete('lng');
+  url.searchParams.delete('locale');
+  if (code === 'en') url.searchParams.delete('lang');
+  else url.searchParams.set('lang', code);
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, '', nextUrl);
+}
 
 function normalizeLanguage(code) {
   const normalizedCode = String(code || '')
@@ -36,6 +62,7 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     applyDocumentLanguage(language);
+    persistLanguageInUrl(language);
     if (i18n.language !== language) {
       i18n.changeLanguage(language);
     }
