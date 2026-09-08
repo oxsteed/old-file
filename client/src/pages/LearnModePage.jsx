@@ -4229,7 +4229,7 @@ export default function LearnModePage() {
             <Smartphone size={20} aria-hidden="true" />
             <span>{t('learn.page.appBannerText')} — <strong>{t('learn.page.appBannerCta')}</strong></span>
             <a
-              href="https://apps.apple.com/app/oxsteed"
+              href="https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"
               target="_blank"
               rel="noopener noreferrer"
               className="lrn-app-banner-btn"

@@ -17,7 +17,7 @@
 const express = require('express');
 const router  = express.Router();
 
-const IOS_APP_STORE_URL = 'https://apps.apple.com/app/oxsteed/id000000000'; // update with real ID
+const IOS_APP_STORE_URL = 'https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367';
 
 router.get('/ios', (req, res) => {
   res.json({

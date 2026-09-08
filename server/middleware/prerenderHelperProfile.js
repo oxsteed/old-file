@@ -741,6 +741,7 @@ async function handleHomepage(template, res, req) {
       url: origin,
       logo: `${origin}/icons/icon-192.png`,
       telephone: '+1-937-408-5169',
+      sameAs: ['https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367'],
       contactPoint: {
         '@type': 'ContactPoint',
         contactType: 'customer support',

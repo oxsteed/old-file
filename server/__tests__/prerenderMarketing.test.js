@@ -36,6 +36,13 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).not.toContain('>Explore OxSteed<');
   });
 
+  test('links the organization schema to the verified app listing', async () => {
+    const res = await request(buildApp()).get('/');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('"sameAs":["https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"]');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{
