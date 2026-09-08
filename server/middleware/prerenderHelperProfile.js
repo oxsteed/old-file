@@ -1058,6 +1058,7 @@ function isPublicSeoPath(pagePath) {
   if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
   if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath)) return true;
+  if (PUBLIC_TOOL_RE.test(pagePath) || PUBLIC_LOGISTICS_CAMPAIGN_RE.test(pagePath)) return true;
   return false;
 }
 
@@ -1304,6 +1305,7 @@ async function handleToolProfile(toolId, template, res) {
     image: `${origin}/icons/icon-512.png`,
   });
   html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${tool.name} | OxSteed Tool Rentals`, url, null, 'en'));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -1369,6 +1371,7 @@ async function handleLogisticsCampaign(campaignId, template, res) {
     image: `${origin}/icons/icon-512.png`,
   });
   html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${campaign.title} | OxSteed Logistics`, url, null, 'en'));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');

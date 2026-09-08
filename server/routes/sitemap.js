@@ -1,4 +1,4 @@
-// Dynamic XML sitemap - static pages + public profiles + public jobs.
+// Dynamic XML sitemap - static pages plus eligible public listings and profiles.
 // Loc uses APP_URL / CLIENT_URL (publicSiteUrl).
 
 const express = require('express');
@@ -130,6 +130,27 @@ router.get('/', async (_req, res) => {
         LIMIT 2000`,
     );
 
+    const { rows: tools } = await pool.query(
+      `SELECT t.id, t.updated_at
+         FROM tool_rentals t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.is_available = TRUE
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
+        ORDER BY t.updated_at DESC NULLS LAST
+        LIMIT 5000`,
+    );
+
+    const { rows: campaigns } = await pool.query(
+      `SELECT po.id, po.updated_at
+         FROM pooled_orders po
+        WHERE po.status IN ('open', 'pledging', 'deposit_phase', 'locked',
+                            'placed', 'in_transit', 'receiving',
+                            'distributing', 'completed')
+        ORDER BY po.updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    );
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
@@ -161,6 +182,22 @@ router.get('/', async (_req, res) => {
           loc: `${origin}/restaurants/r/${r.id}`,
           changefreq: 'daily',
           priority: '0.75',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...tools.map((r) =>
+        urlEntry({
+          loc: `${origin}/tool-rentals/${r.id}`,
+          changefreq: 'weekly',
+          priority: '0.65',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...campaigns.map((r) =>
+        urlEntry({
+          loc: `${origin}/logistics/campaigns/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.65',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),
       ),
