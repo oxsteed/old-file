@@ -5,7 +5,11 @@ export default function DoNotSell() {
   const { t } = useTranslation();
 
   return (
-    <LegalPageLayout title={t('doNotSellPage.title')} effectiveDate="2026-03-22">
+    <LegalPageLayout
+      title={t('doNotSellPage.title')}
+      description={t('doNotSellPage.doesNotSellText1')}
+      effectiveDate="2026-03-22"
+    >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('doNotSellPage.doesNotSellYourDataTitle')}

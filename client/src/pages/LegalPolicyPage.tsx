@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
+import PageMeta from '../components/PageMeta';
 import { TermsBlocks } from './terms/TermsBlocks';
 import type { TermsBlock } from './terms/termsTypes';
 
@@ -29,6 +30,25 @@ function mainTocLabel(blocks: TermsBlock[]): string {
     (b): b is Extract<TermsBlock, { type: 'h2' }> => b.type === 'h2' && !b.sub
   );
   return h2?.text ?? '';
+}
+
+function firstParagraphText(blocks: TermsBlock[]): string {
+  const paragraph = blocks.find(
+    (block): block is Extract<TermsBlock, { type: 'p' }> => block.type === 'p',
+  );
+  if (!paragraph) return '';
+  if (paragraph.text) return paragraph.text;
+  return (paragraph.segments || [])
+    .map((segment) => {
+      if (typeof segment === 'string') return segment;
+      if ('strong' in segment) return segment.strong;
+      if ('mailto' in segment) return segment.mailto;
+      if ('routeLink' in segment) return segment.routeLink.label;
+      return '';
+    })
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 type HeroIconProps = { className?: string };
@@ -76,6 +96,11 @@ export default function LegalPolicyPage({
         };
       }),
     [legalData, sectionIds]
+  );
+
+  const metaDescription = useMemo(
+    () => firstParagraphText(legalData.sections['1']?.blocks ?? []),
+    [legalData],
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -127,6 +152,7 @@ export default function LegalPolicyPage({
 
   return (
     <PageShell>
+      <PageMeta title={t(pk('title'))} description={metaDescription} />
       <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
         <div className="bg-gradient-to-r from-orange-600/20 via-orange-500/10 to-transparent border-b border-gray-800">
           <div className="max-w-4xl mx-auto px-4 py-10 flex items-center gap-4">

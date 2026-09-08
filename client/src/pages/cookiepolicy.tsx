@@ -11,7 +11,11 @@ export default function CookiePolicyPage() {
   const { t } = useTranslation();
 
   return (
-    <LegalPageLayout title={t('cookiePolicyPage.title')} effectiveDate="2026-03-23">
+    <LegalPageLayout
+      title={t('cookiePolicyPage.title')}
+      description={t('cookiePolicyPage.section1Text')}
+      effectiveDate="2026-03-23"
+    >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('cookiePolicyPage.section1Title')}

@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageShell from './PageShell';
+import PageMeta from './PageMeta';
 
 interface LegalPageLayoutProps {
   title: string;
+  description?: string;
   effectiveDate: string;
   children: React.ReactNode;
 }
@@ -21,7 +23,7 @@ interface LegalPageLayoutProps {
  *  - Back-to-top button
  *  - Consistent heading hierarchy
  */
-export default function LegalPageLayout({ title, effectiveDate, children }: LegalPageLayoutProps) {
+export default function LegalPageLayout({ title, description, effectiveDate, children }: LegalPageLayoutProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,6 +41,7 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
 
   return (
     <PageShell>
+      <PageMeta title={title} description={description || title} />
       <div
         ref={mainRef}
         tabIndex={-1}

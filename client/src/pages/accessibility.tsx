@@ -13,7 +13,11 @@ export default function AccessibilityPage() {
   ];
 
   return (
-    <LegalPageLayout title={t('accessibilityPage.title')} effectiveDate="2026-03-23">
+    <LegalPageLayout
+      title={t('accessibilityPage.title')}
+      description={t('accessibilityPage.overview')}
+      effectiveDate="2026-03-23"
+    >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('accessibilityPage.sections.commitment')}

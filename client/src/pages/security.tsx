@@ -5,7 +5,11 @@ export default function SecurityPolicy() {
   const { t } = useTranslation();
 
   return (
-    <LegalPageLayout title={t('securityPolicyPage.title')} effectiveDate="2026-03-22">
+    <LegalPageLayout
+      title={t('securityPolicyPage.title')}
+      description={t('securityPolicyPage.section1Text')}
+      effectiveDate="2026-03-22"
+    >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('securityPolicyPage.section1Title')}
