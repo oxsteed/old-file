@@ -178,6 +178,11 @@ const MARKETING_PAGES = {
     description: 'Tell OxSteed what you need and request a direct service quote with no account required.',
     schemaType: 'Service',
   },
+  '/direct/request-quote/thanks': {
+    title: 'Quote Request Received | OxSteed Direct',
+    description: 'Your OxSteed Direct quote request has been received and is being reviewed.',
+    noIndex: true,
+  },
   '/support/escalation': {
     title: 'OxSteed Support | Get Help From Our Team',
     description: 'Contact OxSteed support for help with jobs, orders, quotes, accounts, and service issues.',

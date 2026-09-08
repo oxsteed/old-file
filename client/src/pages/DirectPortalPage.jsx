@@ -226,12 +226,12 @@ function Chip({ children, tone = 'default' }) {
   );
 }
 
-function DirectShell({ profile, title, subtitle, children, heroRight, path = '/direct' }) {
+function DirectShell({ profile, title, subtitle, children, heroRight, path = '/direct', noIndex = false }) {
   const { t } = useTranslation();
 
   return (
     <PageShell>
-      <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}${path}`} />
+      <PageMeta title={title ? `${title} | OxSteed Direct` : 'OxSteed Direct'} description={subtitle || profile.publicNote || profile.headline} url={`${window.location.origin}${path}`} noIndex={noIndex} />
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-[36px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_28px_80px_rgba(15,23,42,0.45)]">
           <div className="grid gap-6 px-5 py-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-8">
@@ -669,6 +669,7 @@ export function DirectQuoteThanksPage() {
       profile={profile}
       title={t('directPortal.thanks.title', { defaultValue: 'Request received' })}
       subtitle={t('directPortal.thanks.subtitle', { defaultValue: 'Thanks. Your Direct quote request is in the queue.' })}
+      noIndex
       heroRight={(
         <div className="space-y-3 text-sm leading-6 text-slate-300">
           <p>{t('directPortal.thanks.body', { defaultValue: 'We’ve got your request and we’ll review it soon.' })}</p>
@@ -822,6 +823,7 @@ export function DirectPublicQuoteLookupPage() {
       profile={profile}
       title={t('directPortal.lookup.title', { defaultValue: 'View your quote' })}
       subtitle={t('directPortal.lookup.subtitle', { defaultValue: 'Look up your OxSteed Direct quote with your reference ID and ZIP code, then verify by email for full details.' })}
+      noIndex
       heroRight={(
         <div className="space-y-4 text-sm leading-6 text-slate-300">
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
