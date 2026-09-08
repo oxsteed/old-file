@@ -7,6 +7,7 @@ import {
   getBusinessProcurementAccess,
 } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import PageMeta from '../../components/PageMeta';
 import {
   recommendedLogisticsWorkspace,
   isBusinessProcurementEligibleMembership,
@@ -79,6 +80,11 @@ export default function LogisticsHomePage() {
 
   return (
     <PageShell>
+      <PageMeta
+        title={t('logistics.home.heroTitle')}
+        description={t('logistics.home.heroSubtitle')}
+        url="https://oxsteed.com/logistics"
+      />
       <div className="lx-home">
 
         {/* ── Hero ───────────────────────────────────────────── */}

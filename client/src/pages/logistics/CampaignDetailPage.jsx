@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { getCampaign, joinCampaign, checkLaneAccess } from '../../api/logistics';
+import PageMeta from '../../components/PageMeta';
 import toast from 'react-hot-toast';
 import '../../styles/logistics/LogisticsHomePage.css';
 
@@ -78,6 +79,11 @@ export default function CampaignDetailPage() {
 
   return (
     <div className="lx-page">
+      <PageMeta
+        title={`${campaign.title} | OxSteed Logistics`}
+        description={campaign.description || `${campaign.title} pooled buying campaign on OxSteed Logistics.`}
+        url={`https://oxsteed.com/logistics/campaigns/${id}`}
+      />
       <div style={{ marginBottom:'1rem' }}>
         <Link to="/logistics/campaigns" className="lx-link">← {t('logistics.campaigns.allCampaigns','All Campaigns')}</Link>
       </div>

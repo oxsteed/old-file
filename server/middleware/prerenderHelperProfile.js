@@ -160,6 +160,16 @@ const MARKETING_PAGES = {
     description: 'Browse tools, safety gear, hardware, materials, and other products available through the OxSteed marketplace.',
     schemaType: 'CollectionPage',
   },
+  '/logistics': {
+    title: 'OxSteed Logistics | Group Buying and Global Supply',
+    description: 'Explore OxSteed logistics for pooled purchasing, supplier sourcing, freight coordination, and practical supply-chain support.',
+    schemaType: 'CollectionPage',
+  },
+  '/logistics/campaigns': {
+    title: 'Pooled Buying Campaigns | OxSteed Logistics',
+    description: 'Browse public OxSteed pooled buying campaigns and join group purchasing opportunities across global supply lanes.',
+    schemaType: 'CollectionPage',
+  },
   '/tool-rentals': {
     title: 'Tool Rentals Near You | OxSteed',
     description: 'Browse tools and equipment available for local rental through OxSteed.',
@@ -639,6 +649,7 @@ const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
 const PUBLIC_RESTAURANT_RE = /^\/restaurants\/r\/(\d+)$/i;
 const LEGACY_RESTAURANT_RE = /^\/food\/restaurants\/(\d+)$/i;
 const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
+const PUBLIC_LOGISTICS_CAMPAIGN_RE = /^\/logistics\/campaigns\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -647,6 +658,7 @@ function isPublicSeoPath(pagePath) {
   if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
   if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath) || PUBLIC_TOOL_RE.test(pagePath)) return true;
+  if (PUBLIC_LOGISTICS_CAMPAIGN_RE.test(pagePath)) return true;
   return false;
 }
 
@@ -888,6 +900,71 @@ async function handleToolProfile(toolId, template, res) {
   return res.send(html);
 }
 
+async function handleLogisticsCampaign(campaignId, template, res) {
+  const { rows } = await pool.query(
+    `SELECT po.id, po.title, po.description, po.status, po.target_moq,
+            po.current_committed_qty, po.open_date, po.close_date,
+            po.expected_arrival_date, ll.name AS lane_name,
+            ll.origin_country, ll.destination_country,
+            sp.title AS product_title, sp.category AS product_category
+       FROM pooled_orders po
+       LEFT JOIN logistics_lanes ll ON ll.id = po.lane_id
+       LEFT JOIN supplier_products sp ON sp.id = po.supplier_product_id
+      WHERE po.id = $1::integer
+        AND po.status IN ('open', 'pledging', 'deposit_phase', 'locked',
+                         'placed', 'in_transit', 'receiving', 'distributing', 'completed')`,
+    [campaignId],
+  );
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/logistics/campaigns/${campaignId}`,
+      'Logistics Campaign Not Found | OxSteed',
+      'This OxSteed logistics campaign is not currently available.',
+    );
+  }
+
+  const campaign = rows[0];
+  const origin = base();
+  const url = `${origin}/logistics/campaigns/${campaign.id}`;
+  const lane = [campaign.origin_country, campaign.destination_country].filter(Boolean).join(' to ');
+  const description = String(
+    campaign.description
+      || `${campaign.title} is an OxSteed pooled buying campaign${lane ? ` moving from ${lane}` : ''}.`,
+  ).replace(/\s+/g, ' ').trim().slice(0, 320);
+  const progress = campaign.target_moq
+    ? Math.min(Math.round((Number(campaign.current_committed_qty || 0) / Number(campaign.target_moq)) * 100), 100)
+    : 0;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${campaign.title} | OxSteed Logistics`,
+    description,
+    url,
+    about: {
+      '@type': 'Thing',
+      name: campaign.product_title || campaign.title,
+    },
+    isPartOf: { '@id': `${origin}/#website` },
+  };
+  const shell = `<div id="ssr-shell" data-campaign-id="${escapeHtml(String(campaign.id))}" style="max-width:52rem;margin:0 auto;padding:2rem 1rem;">
+    <header><h1>${escapeHtml(campaign.title)}</h1>${campaign.product_title ? `<p>${escapeHtml(campaign.product_category ? `${campaign.product_category} - ` : '')}${escapeHtml(campaign.product_title)}</p>` : ''}${lane ? `<p>${escapeHtml(lane)}</p>` : ''}<p>Status: ${escapeHtml(String(campaign.status || '').replace(/_/g, ' '))}</p><p>${escapeHtml(description)}</p></header>
+    <section><h2>Campaign progress</h2><p>${escapeHtml(String(campaign.current_committed_qty || 0))} of ${escapeHtml(String(campaign.target_moq || 0))} units committed (${progress}%).</p></section>
+  </div>`;
+  let html = replaceMeta(template, {
+    title: `${campaign.title} | OxSteed Logistics`,
+    description,
+    url,
+    image: `${origin}/og-default.png`,
+  });
+  html = injectJsonLd(html, jsonLd);
+  html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
 function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
   if (req.method !== 'GET') return next();
@@ -963,6 +1040,14 @@ function prerenderPublicPages(req, res, next) {
   if (matchTool) {
     return handleToolProfile(matchTool[1], template, res).catch((err) => {
       logger.error('[prerender] tool profile error', { toolId: matchTool[1], error: err.message });
+      return next();
+    });
+  }
+
+  const matchLogisticsCampaign = p.match(PUBLIC_LOGISTICS_CAMPAIGN_RE);
+  if (matchLogisticsCampaign) {
+    return handleLogisticsCampaign(matchLogisticsCampaign[1], template, res).catch((err) => {
+      logger.error('[prerender] logistics campaign error', { campaignId: matchLogisticsCampaign[1], error: err.message });
       return next();
     });
   }

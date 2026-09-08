@@ -47,6 +47,8 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/learn`, changefreq: 'weekly', priority: '0.7', localized: true },
       { loc: `${origin}/tool-rentals`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/products`, changefreq: 'daily', priority: '0.7', localized: true },
+      { loc: `${origin}/logistics`, changefreq: 'weekly', priority: '0.7', localized: true },
+      { loc: `${origin}/logistics/campaigns`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/consulting-intake`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/direct`, changefreq: 'weekly', priority: '0.8', localized: true },
       { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
@@ -135,6 +137,15 @@ router.get('/', async (_req, res) => {
         LIMIT 5000`,
     );
 
+    const { rows: campaigns } = await pool.query(
+      `SELECT id, updated_at
+         FROM pooled_orders
+        WHERE status IN ('open', 'pledging', 'deposit_phase', 'locked',
+                         'placed', 'in_transit', 'receiving', 'distributing', 'completed')
+        ORDER BY updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    );
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
@@ -172,6 +183,14 @@ router.get('/', async (_req, res) => {
       ...tools.map((r) =>
         urlEntry({
           loc: `${origin}/tool-rentals/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.7',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...campaigns.map((r) =>
+        urlEntry({
+          loc: `${origin}/logistics/campaigns/${r.id}`,
           changefreq: 'daily',
           priority: '0.7',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,

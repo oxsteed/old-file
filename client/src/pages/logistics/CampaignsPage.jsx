@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listCampaigns, listLanes } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import PageMeta from '../../components/PageMeta';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -51,6 +52,11 @@ export default function CampaignsPage() {
 
   return (
     <PageShell>
+      <PageMeta
+        title={t('logistics.campaigns.title', 'Pooled Buying Campaigns')}
+        description={t('logistics.campaigns.subtitle', 'Join group buying campaigns to unlock MOQ pricing across lanes.')}
+        url="https://oxsteed.com/logistics/campaigns"
+      />
       <div className="lx-page">
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'1rem' }}>
