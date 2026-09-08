@@ -174,6 +174,7 @@ export default function StatusPage() {
         title={t('statusPage.metaTitle', { defaultValue: 'OxSteed Status' })}
         description={t('statusPage.metaDescription', { defaultValue: 'Live public status for OxSteed core services, APIs, and infrastructure.' })}
         url="https://status.oxsteed.com/"
+        noIndex
       />
 
       <div style={{

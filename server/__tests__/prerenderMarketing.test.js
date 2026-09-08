@@ -72,6 +72,20 @@ describe('localized marketing SEO shell', () => {
     expect(quote.text).toContain('servicio dentro de 60 millas');
   });
 
+  test('keeps the operational status page out of search with one canonical shell', async () => {
+    const mainStatus = await request(buildApp()).get('/status');
+    const statusHost = await request(buildApp()).get('/').set('Host', 'status.oxsteed.com');
+
+    for (const res of [mainStatus, statusHost]) {
+      expect(res.status).toBe(200);
+      expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
+      expect(res.text).toContain('<title data-rh="true">OxSteed Status</title>');
+      expect(res.text).toContain('rel="canonical" href="https://status.oxsteed.com/"');
+      expect(res.text).toContain('<h1>OxSteed Status</h1>');
+      expect(res.text).not.toContain('OxSteed - Hire Local Help Today');
+    }
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

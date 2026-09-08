@@ -19,6 +19,7 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
+const STATUS_SITE_URL = 'https://status.oxsteed.com';
 const SEO_COPY_KEYS = {
   '/': { title: 'pageMeta.defaults.title', description: 'pageMeta.defaults.description' },
   '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
@@ -55,6 +56,7 @@ const SEO_COPY_KEYS = {
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
+  '/status': { title: 'statusPage.metaTitle', description: 'statusPage.metaDescription' },
 };
 const seoLocaleCache = new Map();
 const seoContentLocaleCache = new Map();
@@ -660,6 +662,11 @@ const MARKETING_PAGES = {
     title: 'OxSteed Support | Get Help From Our Team',
     description: 'Contact OxSteed support for help with jobs, orders, quotes, accounts, and service issues.',
   },
+  '/status': {
+    title: 'OxSteed Status',
+    description: 'Live public status for OxSteed core services, APIs, and infrastructure.',
+    noIndex: true,
+  },
   '/direct/view-quote': {
     title: 'View Your Quote | OxSteed Direct',
     description: 'Check your OxSteed Direct quote status using your reference ID, ZIP code, and email verification.',
@@ -830,6 +837,39 @@ async function handleHomepage(template, res, req) {
   res.set('Content-Type', 'text/html');
   res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+  return res.send(html);
+}
+
+function handleStatusPage(template, res, req) {
+  const language = getRequestedLanguage(req);
+  const title = 'OxSteed Status';
+  const description = 'Live public status for OxSteed core services, APIs, and infrastructure.';
+  const url = language === 'en' ? `${STATUS_SITE_URL}/` : `${STATUS_SITE_URL}/?lang=${language}`;
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description,
+    url,
+    inLanguage: language,
+  };
+  let html = replaceMeta(template, {
+    title,
+    description,
+    url,
+    image: `${base()}/icons/icon-512.png`,
+  });
+  html = setDocumentLanguage(html, language);
+  html = replaceRobots(html, 'noindex, nofollow');
+  html = injectJsonLd(html, schema);
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root"><main id="status-seo-shell" style="max-width:64rem;margin:0 auto;padding:3rem 1rem;"><p style="letter-spacing:.12em;text-transform:uppercase;font-size:.75rem;">OxSteed</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p><a href="${escapeHtml(base())}">Return to OxSteed</a></p></main></div>`,
+  );
+  res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
   return res.send(html);
 }
 
@@ -1586,6 +1626,11 @@ function prerenderPublicPages(req, res, next) {
 
   const template = getTemplate();
   if (!template) return next();
+
+  const isStatusHost = String(req.hostname || '').toLowerCase() === 'status.oxsteed.com';
+  if ((isStatusHost && (p === '/' || p === '/status')) || p === '/status') {
+    return handleStatusPage(template, res, req);
+  }
 
   const canonicalRedirects = {
     '/features': '/how-it-works',
