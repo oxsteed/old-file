@@ -23,6 +23,9 @@ describe('localized Direct service-area page', () => {
     expect(res.text).toContain('aria-label="Mapa aproximado de la cobertura de servicio activa"');
     expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/direct/service-area?lang=es"');
     expect(res.text).toContain('data-service-area-copy=');
+    expect(res.text).toContain('<header class="site-header">');
+    expect(res.text).toContain('<footer class="site-footer">');
+    expect(res.text).toContain('class="map-attribution"');
     expect(res.text).not.toContain('window.OXSTEED_SERVICE_AREA_COPY');
 
     const schemas = [...res.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]

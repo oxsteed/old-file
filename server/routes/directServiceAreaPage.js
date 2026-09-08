@@ -325,8 +325,8 @@ function sendDirectServiceAreaPage(req, res) {
   html = replaceAttribute(html, 'data-seo-slot="requestQuote"', 'href', localizedPageUrl('/direct/request-quote', language));
   html = html.replace(/<nav class="language-links"[\s\S]*?<\/nav>/i, `<nav class="language-links" aria-label="${escapeHtml(copy.language)}">${languageLinks(language)}</nav>`);
   html = html.replace(
-    /<main class="page">/i,
-    `<main class="page" data-service-area-copy="${escapeHtml(JSON.stringify(copy))}">`,
+    /<main(?=[^>]*class="page")[^>]*>/i,
+    `<main id="main-content" class="page" data-service-area-copy="${escapeHtml(JSON.stringify(copy))}">`,
   );
   let schemaIndex = 0;
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gi, () => {

@@ -1220,6 +1220,11 @@ function DirectAdminLanding() {
           <div className="mt-2 text-xl font-semibold text-white">Service area and tools</div>
           <p className="mt-2 text-sm leading-6 text-slate-400">Update minimums, cities, travel days, and tools.</p>
         </Link>
+        <a href="/admin/direct-service-areas" className="rounded-[24px] border border-orange-500/20 bg-orange-500/5 p-5">
+          <div className="text-sm uppercase tracking-[0.2em] text-orange-300">Coverage controls</div>
+          <div className="mt-2 text-xl font-semibold text-white">Manage service areas</div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Add or update live map coverage and distance radii.</p>
+        </a>
         <Link to="/direct/admin/email-test" className="rounded-[24px] border border-white/10 bg-white/5 p-5">
           <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Email</div>
           <div className="mt-2 text-xl font-semibold text-white">Send a test message</div>

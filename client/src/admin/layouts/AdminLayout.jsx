@@ -10,7 +10,7 @@ import {
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
-  HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
+  HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
 } from 'lucide-react';
 
@@ -26,6 +26,7 @@ const REGULAR_NAV = [
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
   { to: '/admin/quote-requests',   icon: FileText,        label: 'Quote Requests'   },
   { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops'       },
+  { to: '/admin/direct-service-areas', icon: MapPinned,    label: 'Direct Service Areas' },
   { to: '/admin/messages',         icon: MessageSquare,   label: 'Messages'         },
   { to: '/admin/search',           icon: Search,          label: 'Search'           },
   { to: '/admin/businesses',       icon: Building2,       label: 'Businesses'       },

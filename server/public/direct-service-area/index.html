@@ -58,7 +58,23 @@
     <link rel="stylesheet" href="/direct/service-area-assets/service-area.css" />
   </head>
   <body>
-    <main class="page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Main navigation">
+        <a class="brand" href="/" aria-label="OxSteed home">
+          <img src="/icons/icon-192.png" width="36" height="36" alt="" />
+          <span>OxSteed</span>
+        </a>
+        <div class="nav-links">
+          <a href="/jobs">Browse Jobs</a>
+          <a href="/restaurants">OxSteed Restaurants</a>
+          <a href="/join">Join OxSteed</a>
+          <a class="nav-sign-in" href="/login">Sign In</a>
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode">Dark mode</button>
+        </div>
+      </nav>
+    </header>
+    <main id="main-content" class="page">
       <nav class="language-links" aria-label="Language">
         <a href="/direct/service-area" aria-current="page">English</a>
         <a href="/direct/service-area?lang=es">Español</a>
@@ -105,10 +121,41 @@
         </div>
         <div class="map-wrap">
           <div id="map" class="map" aria-label="Approximate map of active service coverage"></div>
+          <div class="map-attribution">&copy; <a href="https://www.openstreetmap.org/copyright" rel="noreferrer">OpenStreetMap</a> contributors</div>
         </div>
         <p class="hint" data-seo-slot="mapHint">Coverage is approximate and final service availability is confirmed during quote review.</p>
       </section>
     </main>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <a class="brand footer-brand" href="/" aria-label="OxSteed home">
+            <img src="/icons/icon-192.png" width="32" height="32" alt="" />
+            <span>OxSteed</span>
+          </a>
+          <p>Post a job, compare local help, and request Direct service from one trusted network.</p>
+        </div>
+        <div class="footer-column">
+          <strong>Explore</strong>
+          <a href="/direct">OxSteed Direct</a>
+          <a href="/direct/request-quote">Request a quote</a>
+          <a href="/jobs">Browse jobs</a>
+        </div>
+        <div class="footer-column">
+          <strong>Support</strong>
+          <a href="/support/escalation">Contact support</a>
+          <a href="mailto:support@oxsteed.com">support@oxsteed.com</a>
+          <a href="tel:+19374085169">+1 (937) 408-5169</a>
+        </div>
+        <div class="footer-column">
+          <strong>Legal</strong>
+          <a href="/terms">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/accessibility">Accessibility</a>
+        </div>
+      </div>
+      <div class="footer-bottom">&copy; <span id="copyright-year"></span> OxSteed LLC</div>
+    </footer>
     <script src="/direct/service-area-assets/service-area.js"></script>
   </body>
 </html>
