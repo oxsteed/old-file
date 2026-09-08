@@ -26,6 +26,8 @@ describe('public sitemap coverage', () => {
     const res = await request(buildApp()).get('/sitemap.xml');
 
     expect(res.status).toBe(200);
+    expect(res.text).toContain('<loc>https://oxsteed.com/direct/service-area</loc>');
+    expect(res.text).toContain('hreflang="es" href="https://oxsteed.com/direct/service-area?lang=es"');
     expect(res.text).toContain('<loc>https://oxsteed.com/tool-rentals/41</loc>');
     expect(res.text).toContain('<loc>https://oxsteed.com/logistics/campaigns/52</loc>');
     expect(mockQuery.mock.calls[4][0]).toMatch(/FROM tool_rentals/);

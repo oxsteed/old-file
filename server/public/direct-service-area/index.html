@@ -59,45 +59,54 @@
   </head>
   <body>
     <main class="page">
+      <nav class="language-links" aria-label="Language">
+        <a href="/direct/service-area" aria-current="page">English</a>
+        <a href="/direct/service-area?lang=es">Español</a>
+        <a href="/direct/service-area?lang=fr">Français</a>
+        <a href="/direct/service-area?lang=ht">Kreyòl ayisyen</a>
+        <a href="/direct/service-area?lang=ar">العربية</a>
+      </nav>
+
       <section class="hero" aria-labelledby="service-area-title">
         <div>
-          <p class="eyebrow">OxSteed Direct</p>
-          <h1 id="service-area-title">Check service coverage</h1>
-          <p class="lede">OxSteed Direct serves locations within 60 miles of Springfield, Ohio. Enter a ZIP code or address to see whether we can quote work at that location.</p>
+          <p class="eyebrow" data-seo-slot="eyebrow">OxSteed Direct</p>
+          <h1 id="service-area-title" data-seo-slot="heading">Check service coverage</h1>
+          <p class="lede" data-seo-slot="lede">OxSteed Direct serves locations within 60 miles of Springfield, Ohio. Enter a ZIP code or address to see whether we can quote work at that location.</p>
         </div>
-        <a class="quote-link" href="/direct/request-quote">Request a quote</a>
+        <a class="quote-link" href="/direct/request-quote" data-seo-slot="requestQuote">Request a quote</a>
       </section>
 
-      <section class="checker" aria-label="Service availability checker">
+      <section class="checker" aria-labelledby="availability-title">
+        <h2 id="availability-title" class="sr-only" data-seo-slot="checkerLabel">Service availability checker</h2>
         <form id="availability-form" class="form">
-          <label for="zip-code">ZIP code</label>
+          <label for="zip-code" data-seo-slot="zipCode">ZIP code</label>
           <div class="row">
             <input id="zip-code" name="zipCode" autocomplete="postal-code" inputmode="numeric" placeholder="45503" />
-            <button type="submit">Check</button>
+            <button type="submit" data-seo-slot="check">Check</button>
           </div>
-          <label for="address">Address or city</label>
+          <label for="address" data-seo-slot="address">Address or city</label>
           <input id="address" name="address" autocomplete="street-address" placeholder="Springfield, OH" />
-          <p class="hint">ZIP code is fastest. Full addresses are checked through public geocoding and may take a moment.</p>
+          <p class="hint" data-seo-slot="hint">ZIP code is fastest. Full addresses are checked through public geocoding and may take a moment.</p>
         </form>
 
         <div id="result" class="result" role="status" aria-live="polite">
-          <strong>Coverage starts in Springfield, OH 45503.</strong>
-          <span>Current default radius is 60 miles.</span>
+          <strong data-seo-slot="initialTitle">Coverage starts in Springfield, OH 45503.</strong>
+          <span data-seo-slot="initialBody">Current default radius is 60 miles.</span>
         </div>
       </section>
 
       <section class="map-panel" aria-labelledby="coverage-map-title">
         <div class="map-heading">
           <div>
-            <p class="eyebrow">Coverage map</p>
-            <h2 id="coverage-map-title">Active Direct areas</h2>
+            <p class="eyebrow" data-seo-slot="mapEyebrow">Coverage map</p>
+            <h2 id="coverage-map-title" data-seo-slot="mapHeading">Active Direct areas</h2>
           </div>
-          <span id="area-count">Loading areas...</span>
+          <span id="area-count" data-seo-slot="areaCount">Loading areas...</span>
         </div>
         <div class="map-wrap">
           <div id="map" class="map" aria-label="Approximate map of active service coverage"></div>
         </div>
-        <p class="hint">Coverage is approximate and final service availability is confirmed during quote review.</p>
+        <p class="hint" data-seo-slot="mapHint">Coverage is approximate and final service availability is confirmed during quote review.</p>
       </section>
     </main>
     <script src="/direct/service-area-assets/service-area.js"></script>

@@ -147,6 +147,7 @@ const moderationRoutes = require('./routes/moderation');
 const foodRoutes = require('./routes/food');
 const mainAppRoutes = require('./routes/mainApp');
 const directRoutes = require('./routes/direct');
+const { sendDirectServiceAreaPage } = require('./routes/directServiceAreaPage');
 // OxSteed Restaurants — canonical ops surface (Phase 2: checklists + SOPs, migration 306)
 const restaurantRoutes = require('./routes/restaurants');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
@@ -585,9 +586,7 @@ app.get('/api/users/:id/profile', getPublicProfile);
 app.use('/api/monitoring', monitoringRoutes);
 
 app.use('/direct/service-area-assets', express.static(path.join(__dirname, 'public/direct-service-area')));
-app.get('/direct/service-area', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/direct-service-area/index.html'));
-});
+app.get('/direct/service-area', sendDirectServiceAreaPage);
 
 // Sitemap + robots - works in all environments, no auth required
 app.use('/robots.txt', robotsRoutes);

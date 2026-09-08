@@ -3,6 +3,35 @@
   const result = document.getElementById('result');
   const map = document.getElementById('map');
   const areaCount = document.getElementById('area-count');
+  const defaultCopy = {
+    loadingAreas: 'Loading areas...',
+    activeArea: '{{count}} active area',
+    activeAreas: '{{count}} active areas',
+    miles: 'miles',
+    availableHere: 'OxSteed Direct is available here',
+    outsideCoverage: 'Outside current Direct coverage',
+    checking: 'Checking coverage...',
+    checkingBody: 'This usually takes just a moment.',
+    requiredTitle: 'Enter a ZIP code or address',
+    requiredBody: 'A location is required before we can check coverage.',
+    unavailableTitle: 'Coverage map unavailable',
+    unavailableBody: 'Please try again later.',
+    checkFailed: 'Could not check that location',
+    checkFailedBody: 'Please try a ZIP code.',
+    distanceFrom: '{{location}} is about {{distance}} miles from {{area}}.',
+    noAreas: 'No active Direct service areas are configured right now.',
+  };
+  let pageCopy = {};
+  try {
+    pageCopy = JSON.parse(document.querySelector('.page')?.dataset?.serviceAreaCopy || '{}');
+  } catch (_) {
+    pageCopy = {};
+  }
+  const copy = { ...defaultCopy, ...pageCopy };
+
+  function format(value, replacements) {
+    return String(value).replace(/{{(\w+)}}/g, (_, key) => replacements[key] ?? '');
+  }
 
   function setResult(state, title, body) {
     result.className = `result ${state || ''}`.trim();
@@ -24,7 +53,10 @@
 
   function renderMap(serviceAreas) {
     map.innerHTML = '';
-    areaCount.textContent = `${serviceAreas.length} active area${serviceAreas.length === 1 ? '' : 's'}`;
+    areaCount.textContent = format(
+      serviceAreas.length === 1 ? copy.activeArea : copy.activeAreas,
+      { count: serviceAreas.length },
+    );
 
     serviceAreas.forEach((area) => {
       const { x, y } = positionFor(area);
@@ -42,7 +74,7 @@
       pin.style.top = `${y}%`;
       pin.textContent = area.label;
       const meta = document.createElement('small');
-      meta.textContent = `${area.anchorZip} - ${area.radiusMiles} miles`;
+      meta.textContent = `${area.anchorZip} - ${area.radiusMiles} ${copy.miles}`;
       pin.append(meta);
 
       map.append(radius, pin);
@@ -63,11 +95,11 @@
     const address = String(data.get('address') || '').trim();
 
     if (!zipCode && !address) {
-      setResult('bad', 'Enter a ZIP code or address', 'A location is required before we can check coverage.');
+      setResult('bad', copy.requiredTitle, copy.requiredBody);
       return;
     }
 
-    setResult('', 'Checking coverage...', 'This usually takes just a moment.');
+    setResult('', copy.checking, copy.checkingBody);
 
     try {
       const response = await fetch('/api/direct/service-availability', {
@@ -84,26 +116,34 @@
       if (payload.available) {
         setResult(
           'good',
-          'OxSteed Direct is available here',
-          `${payload.location.label || 'This location'} is about ${payload.matchedServiceArea.distanceMiles} miles from ${payload.matchedServiceArea.label}.`
+          copy.availableHere,
+          format(copy.distanceFrom, {
+            location: payload.location.label || 'This location',
+            distance: payload.matchedServiceArea.distanceMiles,
+            area: payload.matchedServiceArea.label,
+          }),
         );
       } else {
         const nearest = payload.nearestServiceArea;
         setResult(
           'bad',
-          'Outside current Direct coverage',
+          copy.outsideCoverage,
           nearest
-            ? `${payload.location.label || 'This location'} is about ${nearest.distanceMiles} miles from ${nearest.label}.`
-            : 'No active Direct service areas are configured right now.'
+            ? format(copy.distanceFrom, {
+              location: payload.location.label || 'This location',
+              distance: nearest.distanceMiles,
+              area: nearest.label,
+            })
+            : copy.noAreas,
         );
       }
     } catch (err) {
-      setResult('bad', 'Could not check that location', err.message || 'Please try a ZIP code.');
+      setResult('bad', copy.checkFailed, err.message || copy.checkFailedBody);
     }
   });
 
   loadAreas().catch((err) => {
-    areaCount.textContent = 'Areas unavailable';
-    setResult('bad', 'Coverage map unavailable', err.message || 'Please try again later.');
+    areaCount.textContent = copy.unavailableTitle;
+    setResult('bad', copy.unavailableTitle, err.message || copy.unavailableBody);
   });
 }());
