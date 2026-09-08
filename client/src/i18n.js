@@ -1,1 +1,7 @@
-export { default, LANGUAGES, detectInitialLanguage } from './i18n/index.js';
+export {
+  default,
+  LANGUAGES,
+  detectInitialLanguage,
+  ensureLanguageLoaded,
+  i18nReady,
+} from './i18n/index.js';

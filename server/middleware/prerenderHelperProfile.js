@@ -214,12 +214,26 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
       `<meta data-rh="true" name="twitter:title" content="${escapeHtml(title)}" />`,
     )
     .replace(
+      /<meta\s+(?:data-rh="true"\s+)?name="twitter:card"\s+content="[^"]*"\s*\/?>/,
+      '<meta data-rh="true" name="twitter:card" content="summary_large_image" />',
+    )
+    .replace(
+      /<meta\s+(?:data-rh="true"\s+)?name="twitter:site"\s+content="[^"]*"\s*\/?>/,
+      '<meta data-rh="true" name="twitter:site" content="@oxsteed" />',
+    )
+    .replace(
       /<meta\s+(?:data-rh="true"\s+)?name="twitter:description"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" name="twitter:description" content="${escapeHtml(description)}" />`,
     );
 
   if (!/<meta\s+(?:data-rh="true"\s+)?property="og:locale"/.test(out)) {
     out = out.replace('</head>', `<meta data-rh="true" property="og:locale" content="${ogLocale}" />\n</head>`);
+  }
+  if (!/<meta\s+(?:data-rh="true"\s+)?name="twitter:card"/.test(out)) {
+    out = out.replace('</head>', '<meta data-rh="true" name="twitter:card" content="summary_large_image" />\n</head>');
+  }
+  if (!/<meta\s+(?:data-rh="true"\s+)?name="twitter:site"/.test(out)) {
+    out = out.replace('</head>', '<meta data-rh="true" name="twitter:site" content="@oxsteed" />\n</head>');
   }
   const alternateLocales = Object.entries(OG_LOCALES)
     .filter(([code]) => code !== language)

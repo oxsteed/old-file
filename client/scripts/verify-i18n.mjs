@@ -73,8 +73,8 @@ function verifyI18nIndex() {
     if (!source.includes(`code: '${language}'`)) {
       throw new Error(`src/i18n/index.js is missing LANGUAGES entry for ${language}`);
     }
-    if (!source.includes(`${language}: {`)) {
-      throw new Error(`src/i18n/index.js is missing resources entry for ${language}`);
+    if (!source.includes(`${language}: {`) && !source.includes(`${language}: () =>`)) {
+      throw new Error(`src/i18n/index.js is missing resources or lazy loader entry for ${language}`);
     }
   }
   console.log(`ok i18n index declares ${languages.join('/')}`);

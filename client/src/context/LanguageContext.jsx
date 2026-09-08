@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import i18n, { LANGUAGES, detectInitialLanguage } from '../i18n';
+import i18n, { LANGUAGES, detectInitialLanguage, ensureLanguageLoaded } from '../i18n';
 import api from '../api/axios';
 
 const LanguageContext = createContext(null);
@@ -64,9 +64,11 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     applyDocumentLanguage(language);
     persistLanguageInUrl(language);
-    if (i18n.language !== language) {
-      i18n.changeLanguage(language);
-    }
+    let active = true;
+    void ensureLanguageLoaded(language).then(() => {
+      if (active && i18n.language !== language) i18n.changeLanguage(language);
+    });
+    return () => { active = false; };
   }, [language]);
 
   useEffect(() => {
@@ -74,9 +76,12 @@ export function LanguageProvider({ children }) {
     const handleStorage = (event) => {
       if (event.key !== 'oxs:language') return;
       const normalizedCode = normalizeLanguage(event.newValue);
-      setLanguageState(normalizedCode);
-      i18n.changeLanguage(normalizedCode);
-      applyDocumentLanguage(normalizedCode);
+      void ensureLanguageLoaded(normalizedCode).then(() => {
+        if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+        setLanguageState(normalizedCode);
+        i18n.changeLanguage(normalizedCode);
+        applyDocumentLanguage(normalizedCode);
+      });
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -86,11 +91,14 @@ export function LanguageProvider({ children }) {
     const normalizedCode = normalizeLanguage(code);
     if (normalizedCode === language) return;
     localStorage.setItem('oxs:language', normalizedCode);
-    setLanguageState(normalizedCode);
-    i18n.changeLanguage(normalizedCode);
-    applyDocumentLanguage(normalizedCode);
-    void api.patch('/users/me', { preferred_language: normalizedCode })
-      .catch(() => {});
+    void ensureLanguageLoaded(normalizedCode).then(() => {
+      if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+      setLanguageState(normalizedCode);
+      i18n.changeLanguage(normalizedCode);
+      applyDocumentLanguage(normalizedCode);
+      void api.patch('/users/me', { preferred_language: normalizedCode })
+        .catch(() => {});
+    });
   }, [language]);
 
   const syncLanguageFromServer = useCallback((code) => {
@@ -98,9 +106,12 @@ export function LanguageProvider({ children }) {
     const normalizedCode = normalizeLanguage(code);
     if (normalizedCode === language) return;
     localStorage.setItem('oxs:language', normalizedCode);
-    setLanguageState(normalizedCode);
-    i18n.changeLanguage(normalizedCode);
-    applyDocumentLanguage(normalizedCode);
+    void ensureLanguageLoaded(normalizedCode).then(() => {
+      if (localStorage.getItem('oxs:language') !== normalizedCode) return;
+      setLanguageState(normalizedCode);
+      i18n.changeLanguage(normalizedCode);
+      applyDocumentLanguage(normalizedCode);
+    });
   }, [language]);
 
   return (

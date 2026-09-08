@@ -6,6 +6,7 @@ import i18next from 'i18next';
 import App from './App';
 import './index.css';
 import { initMobileBridge } from './utils/mobileBridge';
+import { i18nReady } from './i18n';
 
 function sentryRootFallback({ error, resetError }) {
   return (
@@ -36,13 +37,15 @@ function sentryRootFallback({ error, resetError }) {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <Sentry.ErrorBoundary fallback={sentryRootFallback}>
-      <App />
-    </Sentry.ErrorBoundary>
-  </React.StrictMode>
-);
+i18nReady.then(() => {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <Sentry.ErrorBoundary fallback={sentryRootFallback}>
+        <App />
+      </Sentry.ErrorBoundary>
+    </React.StrictMode>
+  );
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

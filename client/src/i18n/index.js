@@ -1,33 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import enLegacy from '../locales/en.json';
-import esLegacy from '../locales/es.json';
-import frLegacy from '../locales/fr.json';
-import htLegacy from '../locales/ht.json';
-import enTerms from '../locales/terms/en.content.json';
-import esTerms from '../locales/terms/es.content.json';
-import frTerms from '../locales/terms/fr.content.json';
-import htTerms from '../locales/terms/ht.content.json';
-import enPrivacy from '../locales/privacy/en.content.json';
-import esPrivacy from '../locales/privacy/es.content.json';
-import frPrivacy from '../locales/privacy/fr.content.json';
-import htPrivacy from '../locales/privacy/ht.content.json';
-import arLegacy from '../locales/ar.json';
-import arTerms from '../locales/terms/ar.content.json';
-import arPrivacy from '../locales/privacy/ar.content.json';
-
-import enCommon from './locales/en/common.json';
-import esCommon from './locales/es/common.json';
-import frCommon from './locales/fr/common.json';
-import htCommon from './locales/ht/common.json';
-import arCommon from './locales/ar/common.json';
-import enTranslator from './locales/en/translator.json';
-import esTranslator from './locales/es/translator.json';
-import frTranslator from './locales/fr/translator.json';
-import htTranslator from './locales/ht/translator.json';
-import arTranslator from './locales/ar/translator.json';
-
 export const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
@@ -38,53 +11,69 @@ export const LANGUAGES = [
 
 const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
 
-const resources = {
-  en: {
-    translation: {
-      ...enLegacy,
-      termsContent: enTerms,
-      privacyContent: enPrivacy,
-    },
-    common: enCommon,
-    translator: enTranslator,
-  },
-  es: {
-    translation: {
-      ...esLegacy,
-      termsContent: esTerms,
-      privacyContent: esPrivacy,
-    },
-    common: esCommon,
-    translator: esTranslator,
-  },
-  fr: {
-    translation: {
-      ...frLegacy,
-      termsContent: frTerms,
-      privacyContent: frPrivacy,
-    },
-    common: frCommon,
-    translator: frTranslator,
-  },
-  ht: {
-    translation: {
-      ...htLegacy,
-      termsContent: htTerms,
-      privacyContent: htPrivacy,
-    },
-    common: htCommon,
-    translator: htTranslator,
-  },
-  ar: {
-    translation: {
-      ...arLegacy,
-      termsContent: arTerms,
-      privacyContent: arPrivacy,
-    },
-    common: arCommon,
-    translator: arTranslator,
-  },
+// Keep the initial bundle small: the legacy catalogs are large, and visitors
+// only need the selected language plus English fallback on first load.
+const localeLoaders = {
+  en: () => Promise.all([
+    import('../locales/en.json'),
+    import('../locales/terms/en.content.json'),
+    import('../locales/privacy/en.content.json'),
+    import('./locales/en/common.json'),
+    import('./locales/en/translator.json'),
+  ]),
+  es: () => Promise.all([
+    import('../locales/es.json'),
+    import('../locales/terms/es.content.json'),
+    import('../locales/privacy/es.content.json'),
+    import('./locales/es/common.json'),
+    import('./locales/es/translator.json'),
+  ]),
+  fr: () => Promise.all([
+    import('../locales/fr.json'),
+    import('../locales/terms/fr.content.json'),
+    import('../locales/privacy/fr.content.json'),
+    import('./locales/fr/common.json'),
+    import('./locales/fr/translator.json'),
+  ]),
+  ht: () => Promise.all([
+    import('../locales/ht.json'),
+    import('../locales/terms/ht.content.json'),
+    import('../locales/privacy/ht.content.json'),
+    import('./locales/ht/common.json'),
+    import('./locales/ht/translator.json'),
+  ]),
+  ar: () => Promise.all([
+    import('../locales/ar.json'),
+    import('../locales/terms/ar.content.json'),
+    import('../locales/privacy/ar.content.json'),
+    import('./locales/ar/common.json'),
+    import('./locales/ar/translator.json'),
+  ]),
 };
+
+const localePromises = new Map();
+
+function getLocaleResources(modules) {
+  const [legacy, terms, privacy, common, translator] = modules;
+  return {
+    translation: {
+      ...legacy.default,
+      termsContent: terms.default,
+      privacyContent: privacy.default,
+    },
+    common: common.default,
+    translator: translator.default,
+  };
+}
+
+function loadLanguageResources(code) {
+  const normalizedCode = normalizeInitialLanguage(code);
+  if (!localePromises.has(normalizedCode)) {
+    const loader = localeLoaders[normalizedCode] || localeLoaders.en;
+    localePromises.set(normalizedCode, loader().then(getLocaleResources));
+  }
+  return localePromises.get(normalizedCode);
+}
 
 function normalizeInitialLanguage(code) {
   const normalizedCode = String(code || '')
@@ -133,16 +122,39 @@ export function detectInitialLanguage() {
   return detectBrowserLanguage();
 }
 
-i18n.use(initReactI18next).init({
-  resources,
-  lng: detectInitialLanguage(),
-  fallbackLng: 'en',
-  supportedLngs: LANGUAGES.map((language) => language.code),
-  ns: ['translation', 'common', 'translator'],
-  defaultNS: 'translation',
-  fallbackNS: ['common'],
-  interpolation: { escapeValue: false },
-  react: { useSuspense: false },
+const initialLanguage = detectInitialLanguage();
+
+// Initialize before React mounts so the first render never flashes raw i18n
+// keys. Other languages are added on demand by LanguageProvider.
+export const i18nReady = Promise.all([
+  loadLanguageResources('en'),
+  initialLanguage === 'en' ? null : loadLanguageResources(initialLanguage),
+]).then(([enResources, initialResources]) => {
+  const initialResourcesMap = { en: enResources };
+  if (initialLanguage !== 'en') initialResourcesMap[initialLanguage] = initialResources;
+  return i18n.use(initReactI18next).init({
+    resources: initialResourcesMap,
+    lng: initialLanguage,
+    fallbackLng: 'en',
+    supportedLngs: LANGUAGES.map((language) => language.code),
+    ns: ['translation', 'common', 'translator'],
+    defaultNS: 'translation',
+    fallbackNS: ['common'],
+    interpolation: { escapeValue: false },
+    react: { useSuspense: false },
+  });
 });
+
+export function ensureLanguageLoaded(code) {
+  const normalizedCode = normalizeInitialLanguage(code);
+  return i18nReady.then(() => {
+    if (i18n.hasResourceBundle(normalizedCode, 'translation')) return;
+    return loadLanguageResources(normalizedCode).then((resourcesForLanguage) => {
+      i18n.addResourceBundle(normalizedCode, 'translation', resourcesForLanguage.translation, true, true);
+      i18n.addResourceBundle(normalizedCode, 'common', resourcesForLanguage.common, true, true);
+      i18n.addResourceBundle(normalizedCode, 'translator', resourcesForLanguage.translator, true, true);
+    });
+  });
+}
 
 export default i18n;
