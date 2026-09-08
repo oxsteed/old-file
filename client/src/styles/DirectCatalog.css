@@ -1,8 +1,10 @@
 .direct-catalog-card {
   display: flex;
+  flex-direction: column;
   min-height: 0;
   height: 560px;
   max-height: min(560px, calc(100vh - 11rem));
+  overflow: hidden;
 }
 
 .direct-catalog-scroll-region {
