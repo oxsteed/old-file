@@ -33,6 +33,19 @@ const SEO_COPY_KEYS = {
   '/help/crew': { title: 'publicSeo.help.crew.title', description: 'publicSeo.help.crew.description' },
   '/help/runner': { title: 'publicSeo.help.runner.title', description: 'publicSeo.help.runner.description' },
   '/restaurants': { title: 'food.home.title', description: 'food.home.subtitle' },
+  '/terms': { title: 'termsPage.title' },
+  '/privacy': { title: 'privacyPage.title' },
+  '/security': { title: 'securityPolicyPage.title', description: 'securityPolicyPage.section1Text' },
+  '/accessibility': { title: 'accessibilityPage.title', description: 'accessibilityPage.overview' },
+  '/enforcement-policy': { title: 'enforcementPolicy.pageTitle', description: 'enforcementPolicy.pageDescription' },
+  '/do-not-sell': { title: 'doNotSellPage.title', description: 'doNotSellPage.doesNotSellText1' },
+  '/cookie-policy': { title: 'cookiePolicyPage.title', description: 'cookiePolicyPage.section1Text' },
+  '/legal/background-check': { title: 'backgroundCheck.title', description: 'backgroundCheck.description' },
+  '/legal/arbitration': { title: 'arbitration.title', description: 'arbitration.description' },
+  '/legal/escrow-policy': { title: 'escrowPolicy.title', description: 'escrowPolicy.description' },
+  '/legal/account-termination': { title: 'accountTermination.pageTitle', description: 'accountTermination.pageDescription' },
+  '/legal/dispute-resolution': { title: 'disputeResolution.pageTitle', description: 'disputeResolution.pageDescription' },
+  '/legal/independent-contractor': { title: 'contractorAgreement.pageTitle', description: 'contractorAgreement.pageDescription' },
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
   '/direct': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
   '/direct/services': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
@@ -42,6 +55,7 @@ const SEO_COPY_KEYS = {
   '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
 };
 const seoLocaleCache = new Map();
+const seoContentLocaleCache = new Map();
 
 function getRequestedLanguage(req) {
   const raw = req?.query?.lang || req?.query?.lng || req?.query?.locale;
@@ -71,13 +85,49 @@ function getSeoLocale(language) {
   }
 }
 
+function getSeoContentLocale(section, language) {
+  const cacheKey = `${section}:${language}`;
+  if (seoContentLocaleCache.has(cacheKey)) return seoContentLocaleCache.get(cacheKey);
+  try {
+    const localePath = path.join(__dirname, '../../client/src/locales', section, `${language}.content.json`);
+    const locale = JSON.parse(fs.readFileSync(localePath, 'utf-8'));
+    seoContentLocaleCache.set(cacheKey, locale);
+    return locale;
+  } catch (err) {
+    logger.warn('[prerender] SEO legal content catalog unavailable', { section, language, error: err.message });
+    seoContentLocaleCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+function firstContentParagraph(content) {
+  const blocks = content?.sections?.['1']?.blocks;
+  const paragraph = Array.isArray(blocks) ? blocks.find((block) => block?.type === 'p') : null;
+  if (!paragraph) return null;
+  if (paragraph.text) return paragraph.text;
+  if (!Array.isArray(paragraph.segments)) return null;
+  return paragraph.segments.map((segment) => {
+    if (typeof segment === 'string') return segment;
+    if (segment?.strong) return segment.strong;
+    if (segment?.mailto) return segment.mailto;
+    if (segment?.routeLink?.label) return segment.routeLink.label;
+    return '';
+  }).join(' ');
+}
+
 function getLocalizedSeoCopy(pagePath, page, req) {
   const language = getRequestedLanguage(req);
   if (language === 'en') return page;
   const keys = SEO_COPY_KEYS[pagePath];
   const locale = keys ? getSeoLocale(language) : null;
   const title = keys && locale ? getNestedValue(locale, keys.title) : null;
-  const description = keys && locale ? getNestedValue(locale, keys.description) : null;
+  let description = keys && locale ? getNestedValue(locale, keys.description) : null;
+  if (!description && pagePath === '/terms') {
+    description = firstContentParagraph(getSeoContentLocale('terms', language));
+  }
+  if (!description && pagePath === '/privacy') {
+    description = firstContentParagraph(getSeoContentLocale('privacy', language));
+  }
   return {
     ...page,
     ...(title ? { title: `${String(title).trim()} | OxSteed` } : {}),
