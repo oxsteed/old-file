@@ -262,7 +262,7 @@ function addLanguageAlternates(html, url) {
   return html.replace('</head>', `${links}\n</head>`);
 }
 
-function buildBreadcrumbJsonLd(pageTitle, url, req) {
+function buildBreadcrumbJsonLd(pageTitle, url, req, language = getRequestedLanguage(req)) {
   const currentName = String(pageTitle || 'OxSteed')
     .replace(/\s*\|\s*OxSteed\s*$/i, '')
     .trim() || 'OxSteed';
@@ -270,13 +270,13 @@ function buildBreadcrumbJsonLd(pageTitle, url, req) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    inLanguage: getRequestedLanguage(req),
+    inLanguage: language,
     itemListElement: [
       {
         '@type': 'ListItem',
         position: 1,
         name: 'OxSteed',
-        item: getLocalizedRequestUrl('/', req),
+        item: language === 'en' ? `${base()}/` : getLocalizedRequestUrl('/', req),
       },
       {
         '@type': 'ListItem',
@@ -693,7 +693,7 @@ function buildBusinessStaticShell(biz, services) {
   `;
 }
 
-async function handleHelperProfile(helperId, template, res, next) {
+async function handleHelperProfile(helperId, template, res, next, req) {
   const { rows } = await pool.query(
     `SELECT u.id, u.first_name, u.last_name, u.display_name_preference,
             pb.business_name AS primary_business_name,
@@ -777,6 +777,7 @@ async function handleHelperProfile(helperId, template, res, next) {
 
   let html = replaceMeta(template, { title, description, url, ogType: 'profile', image });
   html = injectJsonLd(html, buildHelperJsonLd(helper, skillRows, location));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
   html = html.replace(
     '<div id="root"></div>',
     `<div id="root">${buildHelperStaticShell(helper, skillRows, categories, location)}</div>`,
@@ -795,7 +796,7 @@ async function handleHelperProfile(helperId, template, res, next) {
   return res.send(html);
 }
 
-async function handleBusinessProfile(businessId, template, res, next) {
+async function handleBusinessProfile(businessId, template, res, next, req) {
   const { rows } = await pool.query(
     `SELECT b.id, b.business_name, b.description,
             COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
@@ -865,6 +866,7 @@ async function handleBusinessProfile(businessId, template, res, next) {
 
   let html = replaceMeta(template, { title, description, url, ogType: 'profile', image });
   html = injectJsonLd(html, buildBusinessJsonLd(biz, svcRows, { city, state }));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
   html = html.replace(
     '<div id="root"></div>',
     `<div id="root">${buildBusinessStaticShell(biz, svcRows)}</div>`,
@@ -894,7 +896,7 @@ function isPublicSeoPath(pagePath) {
   return false;
 }
 
-async function handlePublicJob(jobId, template, res, next) {
+async function handlePublicJob(jobId, template, res, next, req) {
   const { rows } = await pool.query(
     `SELECT j.id, j.title, j.description, j.category_name, j.status,
             j.budget_min, j.budget_max, j.location_city, j.location_state,
@@ -959,13 +961,14 @@ async function handlePublicJob(jobId, template, res, next) {
   </div>`;
   let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
   html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
 
-async function handleRestaurantProfile(restaurantId, template, res, next) {
+async function handleRestaurantProfile(restaurantId, template, res, next, req) {
   const { rows } = await pool.query(
     `SELECT fr.id, fr.display_name, fr.slug, fr.description, fr.cuisine_tags,
             fr.cover_photo_url, fr.logo_url, fr.address_city, fr.address_state,
@@ -1055,6 +1058,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next) {
     image: absoluteUrl(image),
   });
   html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${restaurant.display_name} | OxSteed Restaurants`, url, req, 'en'));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -1222,10 +1226,6 @@ function prerenderPublicPages(req, res, next) {
     return res.redirect(301, `${base()}${canonicalRedirects[p]}`);
   }
 
-  if (MARKETING_PAGES[p]) {
-    return handleMarketingPage(p, template, res, req);
-  }
-
   if (p === '/') {
     return handleHomepage(template, res, req).catch((err) => {
       logger.error('[prerender] homepage error', { error: err.message });
@@ -1240,9 +1240,13 @@ function prerenderPublicPages(req, res, next) {
     });
   }
 
+  if (MARKETING_PAGES[p]) {
+    return handleMarketingPage(p, template, res, req);
+  }
+
   const matchJob = p.match(PUBLIC_JOB_RE);
   if (matchJob) {
-    return handlePublicJob(matchJob[1], template, res, next).catch((err) => {
+    return handlePublicJob(matchJob[1], template, res, next, req).catch((err) => {
       logger.error('[prerender] public job error', { jobId: matchJob[1], error: err.message });
       return next();
     });
@@ -1286,7 +1290,7 @@ function prerenderPublicPages(req, res, next) {
 
   const matchRestaurant = p.match(PUBLIC_RESTAURANT_RE);
   if (matchRestaurant) {
-    return handleRestaurantProfile(matchRestaurant[1], template, res, next).catch((err) => {
+    return handleRestaurantProfile(matchRestaurant[1], template, res, next, req).catch((err) => {
       logger.error('[prerender] restaurant profile error', { restaurantId: matchRestaurant[1], error: err.message });
       return next();
     });
@@ -1294,7 +1298,7 @@ function prerenderPublicPages(req, res, next) {
 
   const matchBiz = p.match(PUBLIC_BUSINESS_RE);
   if (matchBiz) {
-    return handleBusinessProfile(matchBiz[1], template, res, next).catch((err) => {
+    return handleBusinessProfile(matchBiz[1], template, res, next, req).catch((err) => {
       logger.error('[prerender] business profile error', { businessId: matchBiz[1], error: err.message });
       return next();
     });
@@ -1302,7 +1306,7 @@ function prerenderPublicPages(req, res, next) {
 
   const match = p.match(PUBLIC_HELPER_RE);
   if (match) {
-    return handleHelperProfile(match[1], template, res, next).catch((err) => {
+    return handleHelperProfile(match[1], template, res, next, req).catch((err) => {
       logger.error('[prerender] helper profile error', { helperId: match[1], error: err.message });
       return next();
     });
