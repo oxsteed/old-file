@@ -295,7 +295,7 @@ function sendSeoNotFound(template, res, url, title, description) {
 }
 
 function injectJsonLd(html, data) {
-  const script = `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
+  const script = `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
   return html.replace('</head>', `${script}\n</head>`);
 }
 
@@ -1105,12 +1105,13 @@ async function handleHelperProfile(helperId, template, res, next, req) {
     `<div id="root">${buildHelperStaticShell(helper, skillRows, categories, location)}</div>`,
   );
 
-  const preloadScript = `<script>window.__SSR_HELPER_DATA__=${JSON.stringify({
+  const preloadData = JSON.stringify({
     helper,
     categories,
     services: skillRows.map((s) => ({ name: s.skill_name, category: s.category_name })),
     location,
-  })};</script>`;
+  }).replace(/</g, '\\u003c');
+  const preloadScript = `<script>window.__SSR_HELPER_DATA__=${preloadData};</script>`;
   html = html.replace('</head>', `${preloadScript}\n</head>`);
 
   res.set('Content-Type', 'text/html');

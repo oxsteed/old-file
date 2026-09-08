@@ -78,9 +78,9 @@ describe('localized marketing SEO shell', () => {
         first_name: 'Alex',
         last_name: 'Helper',
         display_name_preference: null,
-        primary_business_name: null,
+        primary_business_name: '</script><img src=x onerror=alert(1)>',
         profile_headline: 'Home repair specialist',
-        bio_short: 'Local repair help.',
+        bio_short: '</script><img src=x onerror=alert(1)>',
         bio_long: null,
         profile_photo_url: null,
         cover_photo_url: null,
@@ -105,5 +105,7 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=fr"');
     expect(res.text).toContain('"inLanguage":"es"');
     expect(res.text).toContain('"url":"https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es"');
+    expect(res.text).not.toContain('</script><img src=x onerror=alert(1)>');
+    expect(res.text).toContain('\\u003c/script>\\u003cimg src=x onerror=alert(1)>');
   });
 });
