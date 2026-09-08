@@ -584,6 +584,10 @@ async function handleHomepage(template, res, req) {
   );
   html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root">${buildMarketingStaticShell(page, '/')}</div>`,
+  );
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
   return res.send(html);
@@ -617,6 +621,10 @@ async function handleHelpersDirectory(template, res, req) {
   html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
   html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req));
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root">${buildMarketingStaticShell(page, '/helpers')}</div>`,
+  );
 
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
