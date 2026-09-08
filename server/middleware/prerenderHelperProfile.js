@@ -19,6 +19,7 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const SEO_COPY_KEYS = {
+  '/': { title: 'pageMeta.defaults.title', description: 'pageMeta.defaults.description' },
   '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
   '/join': { title: 'join.heroTitle', description: 'join.heroSubtitle' },
   '/jobs': { title: 'jobsDir.metaTitle', description: 'jobsDir.metaDescription' },
@@ -419,8 +420,11 @@ const base = () => getPublicSiteUrl();
 
 async function handleHomepage(template, res, req) {
   const origin = base();
-  const title = 'OxSteed - Hire Local Help Today';
-  const description = 'Find trusted local help for home services, moving, cleanup, tools, and more on OxSteed.';
+  const page = getLocalizedSeoCopy('/', {
+    title: 'OxSteed - Hire Local Help Today',
+    description: 'Post a job, compare bids from skilled local helpers, and pay on OxSteed. Free to start.',
+  }, req);
+  const { title, description } = page;
   const jsonLd = [
     {
       '@context': 'https://schema.org',

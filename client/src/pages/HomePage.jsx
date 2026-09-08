@@ -596,7 +596,7 @@ export default function HomePage() {
   return (
     <PageShell>
     <div className="hp-root">
-      <PageMeta url="https://oxsteed.com" />
+      <PageMeta url="https://oxsteed.com/" />
 
 
 
