@@ -10,6 +10,7 @@ import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
 const SITE_NAME = 'OxSteed';
 const TWITTER_HANDLE = '@oxsteed';
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
 const LOCALIZED_PATHS = new Set([
   '/', '/about', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',
   '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
@@ -75,6 +76,10 @@ export default function PageMeta({
 
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:type" content={type} />
+      <meta property="og:locale" content={OG_LOCALES[language] || OG_LOCALES.en} />
+      {Object.entries(OG_LOCALES)
+        .filter(([code]) => code !== language)
+        .map(([, locale]) => <meta key={locale} property="og:locale:alternate" content={locale} />)}
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={resolvedDescription} />
       <meta property="og:image" content={resolvedImage} />

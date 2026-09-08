@@ -18,6 +18,7 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
 const SEO_COPY_KEYS = {
   '/': { title: 'pageMeta.defaults.title', description: 'pageMeta.defaults.description' },
   '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
@@ -167,6 +168,13 @@ function getTemplate() {
 
 function replaceMeta(html, { title, description, url, ogType = 'website', image }) {
   const img = image || `${getPublicSiteUrl()}/icons/icon-192.png`;
+  let language = 'en';
+  try {
+    language = getRequestedLanguage({ query: Object.fromEntries(new URL(url).searchParams.entries()) });
+  } catch (_) {
+    // Keep English metadata if a caller supplies a non-URL value.
+  }
+  const ogLocale = OG_LOCALES[language] || OG_LOCALES.en;
   let out = html
     .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
     .replace(
@@ -190,6 +198,10 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
       `<meta property="og:type" content="${escapeHtml(ogType)}" />`,
     )
     .replace(
+      /<meta\s+property="og:locale"\s+content="[^"]*"\s*\/?>/,
+      `<meta property="og:locale" content="${ogLocale}" />`,
+    )
+    .replace(
       /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/,
       `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
     )
@@ -197,6 +209,17 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
       /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/,
       `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
     );
+
+  if (!/<meta\s+property="og:locale"/.test(out)) {
+    out = out.replace('</head>', `<meta property="og:locale" content="${ogLocale}" />\n</head>`);
+  }
+  if (!/<meta\s+property="og:locale:alternate"/.test(out)) {
+    const alternateLocales = Object.entries(OG_LOCALES)
+      .filter(([code]) => code !== language)
+      .map(([, locale]) => `<meta property="og:locale:alternate" content="${locale}" />`)
+      .join('\n');
+    out = out.replace('</head>', `${alternateLocales}\n</head>`);
+  }
 
   if (/<meta\s+property="og:image"/.test(out)) {
     out = out.replace(
