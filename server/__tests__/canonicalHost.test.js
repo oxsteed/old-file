@@ -62,4 +62,13 @@ describe('canonical public host', () => {
     expect(res.status).toBe(200);
     expect(res.text).toBe('ok');
   });
+
+  test('does not guess when a tunnel omits the original scheme', async () => {
+    const res = await request(buildApp())
+      .get('/ready')
+      .set('Host', 'oxsteed.com');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('ok');
+  });
 });

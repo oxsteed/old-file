@@ -15,14 +15,13 @@ function getOriginalProtocol(req) {
       const visitor = JSON.parse(req.get('cf-visitor'));
       if (visitor?.scheme) return String(visitor.scheme).toLowerCase();
     } catch {
-      // Ignore malformed proxy metadata and use the secure tunnel default below.
+      // Ignore malformed proxy metadata and fall through without guessing.
     }
-    // A Cloudflare tunnel may omit CF-Visitor on an already HTTPS request.
-    // Treat that proxied request as secure rather than creating a loop.
-    return 'https';
   }
 
-  return req.protocol;
+  // A tunnel can hide the origin protocol entirely. In that case Cloudflare's
+  // edge redirect is authoritative; do not guess and create a redirect loop.
+  return null;
 }
 
 /**
@@ -34,7 +33,7 @@ function canonicalHostRedirect(req, res, next) {
 
   const host = String(req.hostname || '').toLowerCase();
   const isAlternateHost = host === `www.${CANONICAL_HOST}`;
-  const isInsecureCanonicalHost = host === CANONICAL_HOST && getOriginalProtocol(req) !== 'https';
+  const isInsecureCanonicalHost = host === CANONICAL_HOST && getOriginalProtocol(req) === 'http';
 
   if (!isAlternateHost && !isInsecureCanonicalHost) return next();
 
