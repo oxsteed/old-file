@@ -14389,7 +14389,7 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "OxSteed Restaurant Help Center | Ordering and Support", "description": "Learn how to browse restaurants, manage menus, place orders, track food, and get support through OxSteed Restaurants." },
+      "restaurant": { "title": "OxSteed Restaurants Help Center | Ordering and Support", "description": "Learn how to browse restaurants, manage menus, place orders, track food, and get support through OxSteed Restaurants." },
       "manager": { "title": "OxSteed Manager Help Center | Restaurant Operations", "description": "Learn how restaurant owners and managers use OxSteed Manager for orders, menus, team access, reports, and support." },
       "pos": { "title": "OxSteed POS Help Center | Orders and Payments", "description": "Learn how to use OxSteed POS for counter orders, payments, held orders, discounts, shifts, and cash workflows." },
       "kitchen": { "title": "OxSteed Kitchen Help Center | Ticket and Prep Workflows", "description": "Learn how OxSteed Kitchen handles ticket queues, station prep, expo handoff, item availability, and service history." },

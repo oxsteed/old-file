@@ -302,7 +302,7 @@ export function DirectLandingPage() {
     <DirectShell
       profile={profile}
       path={location.pathname}
-      title={t('homePage.company.headingDirect', { defaultValue: `${profile.companyName} Direct` })}
+      title={`${profile.companyName} Direct`}
       subtitle={t('homePage.company.subcopy', { defaultValue: profile.publicNote })}
       heroRight={(
         <div className="space-y-4">

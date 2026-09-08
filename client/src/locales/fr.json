@@ -844,7 +844,7 @@
     "howItWorks": "Comment ça marche",
     "about": "À propos",
     "findHelpers": "Trouver des prestataires",
-    "restaurants": "Restaurants OxSteed",
+    "restaurants": "OxSteed Restaurants",
     "direct": "OxSteed Direct",
     "support": "Assistance",
     "consultingIntake": "Programme de lancement d'entreprise",
@@ -2233,7 +2233,7 @@
       "skillsEyebrow": "Marché des services",
       "skillsTitle": "Trouvez la bonne aide pour vos prochains travaux.",
       "skillsText": "Publiez une mission, comparez les offres ou réservez directement un prestataire local de confiance.",
-      "foodEyebrow": "Restaurants OxSteed",
+      "foodEyebrow": "OxSteed Restaurants",
       "foodTitle": "Des plats locaux, commandés à votre façon.",
       "foodText": "Consultez les menus disponibles, commandez à l'avance et suivez chaque étape jusqu'au retrait ou à la livraison.",
       "browseRestaurants": "Voir les restaurants",
@@ -6039,7 +6039,7 @@
   "homePage": {
     "company": {
       "kicker": "OxSteed en tant qu'entreprise",
-      "heading": "BœufDestrier",
+      "heading": "OxSteed",
       "headingDirect": "OxSteed Direct",
       "subcopy": "Nourriture, outils et services locaux sous une seule entreprise.",
       "price": "100 $ minimum",
@@ -13324,7 +13324,7 @@
   },
   "food": {
     "nav": {
-      "entry": "Nourriture pour bœufs"
+      "entry": "OxSteed Food"
     },
     "common": {
       "loading": "Chargement...",
@@ -13344,7 +13344,7 @@
       "no": "Non"
     },
     "home": {
-      "title": "Restaurants OxSteed",
+      "title": "OxSteed Restaurants",
       "subtitle": "Commandez à l'avance ou sur place dans les restaurants près de chez vous, partout dans le monde.",
       "searchPlaceholder": "Rechercher des restaurants ou des cuisines",
       "searchBtn": "Rechercher",
@@ -13629,7 +13629,7 @@
       "price": "Prix",
       "advancedCoords": "Avancé : coordonnées GPS (facultatif)",
       "landing": {
-        "eyebrow": "Restaurants OxSteed",
+        "eyebrow": "OxSteed Restaurants",
         "headline": "Outils de niveau franchise pour restaurants indépendants",
         "sub": "Lancez-vous le même jour. Acceptez des commandes au comptoir, en kiosque, sur l'écran cuisine et en ligne — depuis un seul backend partagé.",
         "cta": "Ajouter votre restaurant",
@@ -13933,7 +13933,7 @@
       "hint": "Recrutez des aides locales, publiez des missions, comparez les offres"
     },
     "restaurants": {
-      "title": "Restaurants OxSteed",
+      "title": "OxSteed Restaurants",
       "hint": "Des outils de niveau franchise pour les restaurants indépendants"
     },
     "logistics": {
@@ -13966,7 +13966,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "Restaurants OxSteed"
+      "entry": "OxSteed Restaurants"
     },
     "ops": {
       "title": "Opérations",
@@ -14260,7 +14260,7 @@
     "calendarLink": "Calendrier - afficher les disponibilités aux clients",
     "reviewsLink": "Avis - demander et répondre aux retours clients",
     "templatesLink": "Modèles de profil - améliorez l'apparence de votre page",
-    "metaTitle": "Centre de croissance | BœufDestrier",
+    "metaTitle": "Centre de croissance | OxSteed",
     "metaDescription": "Promouvez vos services OxSteed avec des publications multi-angles, des campagnes saisonnières, des remplissages de créneaux, des parrainages, le suivi des performances et une boîte à outils professionnelle.",
     "kicker": "Centre de croissance",
     "heroTitle": "Promouvez vos services comme le font vraiment les meilleurs prestataires locaux.",
@@ -14385,7 +14385,7 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "Centre d'aide OxSteed Restaurant | Commandes et assistance", "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants." },
+      "restaurant": { "title": "Centre d'aide OxSteed Restaurants | Commandes et assistance", "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants." },
       "manager": { "title": "Centre d'aide OxSteed Manager | Opérations de restaurant", "description": "Découvrez comment les propriétaires et responsables utilisent OxSteed Manager pour les commandes, menus, équipes, rapports et assistance." },
       "pos": { "title": "Centre d'aide OxSteed POS | Commandes et paiements", "description": "Découvrez comment utiliser OxSteed POS pour les commandes au comptoir, paiements, commandes en attente, remises, équipes et caisse." },
       "kitchen": { "title": "Centre d'aide OxSteed Kitchen | Tickets et préparation", "description": "Découvrez comment OxSteed Kitchen gère les files de tickets, la préparation, le passage expo, la disponibilité et l'historique du service." },

@@ -929,7 +929,7 @@
     "howItWorks": "Kijan sa Mache",
     "about": "Apwopo",
     "findHelpers": "Jwenn Pwofesyonèl",
-    "restaurants": "Restoran OxSteed",
+    "restaurants": "OxSteed Restaurants",
     "direct": "OxSteed Direct",
     "support": "Sipò",
     "consultingIntake": "Pwogram Lansman Biznis",
@@ -2318,7 +2318,7 @@
       "skillsEyebrow": "Mache sèvis",
       "skillsTitle": "Jwenn bon moun pou travay ou bezwen fè a.",
       "skillsText": "Pibliye yon travay, konpare òf, oswa rezève yon moun lokal ou fè konfyans dirèkteman.",
-      "foodEyebrow": "Restoran OxSteed",
+      "foodEyebrow": "OxSteed Restaurants",
       "foodTitle": "Manje lokal, kòmande jan ou vle.",
       "foodText": "Gade meni ki disponib, kòmande davans, epi swiv tout etap yo jouk lè ou pran manje a oswa yo livre li.",
       "browseRestaurants": "Gade restoran yo",
@@ -6040,7 +6040,7 @@
     "company": {
       "kicker": "OxSteed kòm yon konpayi",
       "heading": "OxSteed",
-      "headingDirect": "OxSteed Dirèk",
+      "headingDirect": "OxSteed Direct",
       "subcopy": "Manje, zouti, ak travay sèvis lokal anba yon sèl konpayi.",
       "price": "$100 minimòm",
       "availability": "Lendi rive jedi",
@@ -13324,7 +13324,7 @@
   },
   "food": {
     "nav": {
-      "entry": "Manje OxSteed"
+      "entry": "OxSteed Food"
     },
     "common": {
       "loading": "Ap chaje...",
@@ -13344,7 +13344,7 @@
       "no": "Non"
     },
     "home": {
-      "title": "Restoran OxSteed",
+      "title": "OxSteed Restaurants",
       "subtitle": "Kòmande davans oswa nan restoran an, nan restoran ki tou pre w - nenpòt kote nan mond lan.",
       "searchPlaceholder": "Chèche restoran oswa kalite manje",
       "searchBtn": "Chèche",
@@ -13629,7 +13629,7 @@
       "price": "Pri",
       "advancedCoords": "Avanse: kowòdone GPS (si w vle)",
       "landing": {
-        "eyebrow": "Restoran OxSteed",
+        "eyebrow": "OxSteed Restaurants",
         "headline": "Zouti nivo franchise pou restoran endepandan",
         "sub": "Kòmanse menm jou a. Aksepte kòmand nan kontwa, kiosk, afichaj kwizin, ak sou entènèt — tout nan yon sèl backend pataje.",
         "cta": "Ajoute restoran ou",
@@ -13933,7 +13933,7 @@
       "hint": "Anboche èd lokal, poste travay, konpare òf yo"
     },
     "restaurants": {
-      "title": "Restoran OxSteed",
+      "title": "OxSteed Restaurants",
       "hint": "Zouti nivo franchiz pou restoran endepandan"
     },
     "logistics": {
@@ -13966,7 +13966,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "Restoran OxSteed"
+      "entry": "OxSteed Restaurants"
     },
     "ops": {
       "title": "Operasyon",
@@ -14385,7 +14385,7 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "Sant èd OxSteed Restaurant | Kòmand ak sipò", "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants." },
+      "restaurant": { "title": "Sant èd OxSteed Restaurants | Kòmand ak sipò", "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants." },
       "manager": { "title": "Sant èd OxSteed Manager | Operasyon restoran", "description": "Aprann kijan pwopriyetè ak manadjè restoran yo itilize OxSteed Manager pou kòmand, meni, ekip, rapò ak sipò." },
       "pos": { "title": "Sant èd OxSteed POS | Kòmand ak peman", "description": "Aprann kijan pou itilize OxSteed POS pou kòmand kontwa, peman, kòmand an atant, rabè, orè ak kès." },
       "kitchen": { "title": "Sant èd OxSteed Kitchen | Tikè ak preparasyon", "description": "Aprann kijan OxSteed Kitchen jere ke tikè, preparasyon, pase expo, disponiblite atik ak istwa sèvis." },
@@ -14396,8 +14396,8 @@
     },
     "direct": {
       "services": {
-        "title": "Sèvis OxSteed Dirèk | Èd lakay, transpò, ak plis ankò",
-        "description": "Eksplore èd lakay, travay ak zouti, livrezon, transpò, netwayaj ak preparasyon OxSteed Dirèk ofri nan yon distans 60 mil soti Springfield, Ohio."
+        "title": "OxSteed Direct Services | Èd lakay, transpò, ak plis ankò",
+        "description": "Eksplore èd lakay, travay ak zouti, livrezon, transpò, netwayaj ak preparasyon OxSteed Direct ofri nan yon distans 60 mil soti Springfield, Ohio."
       }
     }
   },

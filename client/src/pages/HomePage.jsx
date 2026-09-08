@@ -121,7 +121,7 @@ function HomeCompanySection() {
                   <OxSteedIcon size={54} />
                 </span>
                 <h2 className="hp-company-title">
-                  {t('homePage.company.heading', { defaultValue: profile.companyName })}
+                  {profile.companyName}
                 </h2>
               </div>
               <p className="hp-company-subcopy">

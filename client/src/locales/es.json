@@ -844,7 +844,7 @@
     "howItWorks": "Cómo funciona",
     "about": "Nosotros",
     "findHelpers": "Encontrar ayudantes",
-    "restaurants": "OxSteed Restaurantes",
+    "restaurants": "OxSteed Restaurants",
     "direct": "OxSteed Direct",
     "support": "Soporte",
     "consultingIntake": "Programa de lanzamiento empresarial",
@@ -2233,7 +2233,7 @@
       "skillsEyebrow": "Mercado de servicios",
       "skillsTitle": "Encuentra la ayuda adecuada para lo que necesitas.",
       "skillsText": "Publica un trabajo, compara ofertas o reserva directamente a un ayudante local de confianza.",
-      "foodEyebrow": "Restaurantes OxSteed",
+      "foodEyebrow": "OxSteed Restaurants",
       "foodTitle": "Comida local, a tu manera.",
       "foodText": "Explora menús disponibles, pide con anticipación y sigue cada actualización hasta la recogida o entrega.",
       "browseRestaurants": "Explorar restaurantes",
@@ -6039,8 +6039,8 @@
   "homePage": {
     "company": {
       "kicker": "OxSteed como empresa",
-      "heading": "BueyCorcel",
-      "headingDirect": "OxSteed Directo",
+      "heading": "OxSteed",
+      "headingDirect": "OxSteed Direct",
       "subcopy": "Alimentos, herramientas y trabajo de servicio local bajo una sola empresa.",
       "price": "$100 mínimo",
       "availability": "De lunes a jueves",
@@ -13324,7 +13324,7 @@
   },
   "food": {
     "nav": {
-      "entry": "Comida De Corcel"
+      "entry": "OxSteed Food"
     },
     "common": {
       "loading": "Cargando...",
@@ -13344,7 +13344,7 @@
       "no": "No"
     },
     "home": {
-      "title": "Restaurantes OxSteed",
+      "title": "OxSteed Restaurants",
       "subtitle": "Pide por adelantado o en el local en restaurantes cercanos, en cualquier parte del mundo.",
       "searchPlaceholder": "Busca restaurantes o cocinas",
       "searchBtn": "Buscar",
@@ -13629,7 +13629,7 @@
       "price": "Precio",
       "advancedCoords": "Avanzado: coordenadas GPS (opcional)",
       "landing": {
-        "eyebrow": "Restaurantes OxSteed",
+        "eyebrow": "OxSteed Restaurants",
         "headline": "Herramientas de nivel franquicia para restaurantes independientes",
         "sub": "Salga en vivo el mismo día. Acepta pedidos en el mostrador, kiosco, pantalla de cocina y en línea, todo desde un backend compartido.",
         "cta": "Agregar tu restaurante",
@@ -13933,7 +13933,7 @@
       "hint": "Contrata ayudantes locales, publica trabajos, compara ofertas"
     },
     "restaurants": {
-      "title": "Restaurantes OxSteed",
+      "title": "OxSteed Restaurants",
       "hint": "Herramientas de nivel franquicia para restaurantes independientes"
     },
     "logistics": {
@@ -13966,7 +13966,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "Restaurantes OxSteed"
+      "entry": "OxSteed Restaurants"
     },
     "ops": {
       "title": "Operaciones",
@@ -14260,7 +14260,7 @@
     "calendarLink": "Calendario - marca disponibilidad visible para clientes",
     "reviewsLink": "Reseñas - solicita y responde comentarios",
     "templatesLink": "Plantillas de perfil - mejora cómo se ve tu página",
-    "metaTitle": "Centro de Crecimiento | BueyCorcel",
+    "metaTitle": "Centro de Crecimiento | OxSteed",
     "metaDescription": "Promociona tus servicios de OxSteed con publicaciones por ángulos, campañas estacionales, relleno de huecos, referidos, seguimiento de rendimiento y un kit profesional.",
     "kicker": "Centro de crecimiento",
     "heroTitle": "Promociona tus servicios como lo hacen los mejores proveedores locales.",
@@ -14385,7 +14385,7 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "Centro de ayuda de OxSteed Restaurantes | Pedidos y soporte", "description": "Aprende a explorar restaurantes, administrar menús, hacer pedidos, seguir la comida y obtener soporte en OxSteed Restaurantes." },
+      "restaurant": { "title": "Centro de ayuda de OxSteed Restaurants | Pedidos y soporte", "description": "Aprende a explorar restaurantes, administrar menús, hacer pedidos, seguir la comida y obtener soporte en OxSteed Restaurants." },
       "manager": { "title": "Centro de ayuda de OxSteed Manager | Operaciones de restaurantes", "description": "Aprende cómo los propietarios y gerentes usan OxSteed Manager para pedidos, menús, equipos, informes y soporte." },
       "pos": { "title": "Centro de ayuda de OxSteed POS | Pedidos y pagos", "description": "Aprende a usar OxSteed POS para pedidos en mostrador, pagos, pedidos retenidos, descuentos, turnos y caja." },
       "kitchen": { "title": "Centro de ayuda de OxSteed Kitchen | Preparación y tickets", "description": "Aprende cómo OxSteed Kitchen gestiona colas de tickets, preparación, entrega en expo, disponibilidad y el historial del servicio." },

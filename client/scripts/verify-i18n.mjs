@@ -80,6 +80,49 @@ function verifyI18nIndex() {
   console.log(`ok i18n index declares ${languages.join('/')}`);
 }
 
+function verifyCanonicalBrands() {
+  const exact = {
+    'homePage.company.heading': 'OxSteed',
+    'homePage.company.headingDirect': 'OxSteed Direct',
+    'network.restaurants.title': 'OxSteed Restaurants',
+    'footer.restaurants': 'OxSteed Restaurants',
+    'restaurants.nav.entry': 'OxSteed Restaurants',
+    'food.nav.entry': 'OxSteed Food',
+    'dashboard.customer.foodEyebrow': 'OxSteed Restaurants',
+    'food.merchant.landing.eyebrow': 'OxSteed Restaurants',
+  };
+  const includes = {
+    'publicSeo.help.restaurant.title': 'OxSteed Restaurants',
+    'publicSeo.help.restaurant.description': 'OxSteed Restaurants',
+    'publicSeo.direct.services.title': 'OxSteed Direct',
+    'publicSeo.direct.services.description': 'OxSteed Direct',
+  };
+  const resolve = (value, key) => key.split('.').reduce((child, part) => child?.[part], value);
+  const failures = [];
+
+  for (const language of languages) {
+    const catalog = readJson(`src/locales/${language}.json`);
+    for (const [key, expectedValue] of Object.entries(exact)) {
+      const actualValue = resolve(catalog, key);
+      if (actualValue !== expectedValue) {
+        failures.push(`${language} ${key}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(actualValue)}`);
+      }
+    }
+    for (const [key, expectedValue] of Object.entries(includes)) {
+      const actualValue = resolve(catalog, key);
+      if (typeof actualValue !== 'string' || !actualValue.includes(expectedValue)) {
+        failures.push(`${language} ${key}: expected to contain ${JSON.stringify(expectedValue)}, got ${JSON.stringify(actualValue)}`);
+      }
+    }
+  }
+
+  if (failures.length) {
+    throw new Error(`Canonical brand values drifted:\n${failures.join('\n')}`);
+  }
+
+  console.log(`ok canonical brands remain unchanged across ${languages.join('/')}`);
+}
+
 function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], allowedAttributes = [] } = {}) {
   const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
   const allowedText = new Set(allowedJsxText);
@@ -135,6 +178,7 @@ compareKeySets('translator namespace', (language) => `src/i18n/locales/${languag
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
+verifyCanonicalBrands();
 verifyPageHasNoHardcodedUiText('src/pages/DirectPortalPage.jsx', {
   allowedJsxText: ['Cash App', 'Venmo', 'Zelle'],
   allowedAttributes: ['US'],
