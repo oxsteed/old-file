@@ -101,6 +101,9 @@ function injectJsonLd(html, data) {
 function addLanguageAlternates(html, url) {
   const languages = ['en', 'es', 'fr', 'ht', 'ar', 'x-default'];
   const links = languages.map((language) => {
+    if (language === 'x-default') {
+      return `<link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}" />`;
+    }
     const separator = url.includes('?') ? '&' : '?';
     return `<link rel="alternate" hreflang="${language}" href="${escapeHtml(`${url}${separator}lang=${language}`)}" />`;
   }).join('\n');
@@ -146,6 +149,10 @@ const MARKETING_PAGES = {
     title: 'Request a Quote | OxSteed Direct',
     description: 'Tell OxSteed what you need and request a direct service quote with no account required.',
     schemaType: 'Service',
+  },
+  '/support/escalation': {
+    title: 'OxSteed Support | Get Help From Our Team',
+    description: 'Contact OxSteed support for help with jobs, orders, quotes, accounts, and service issues.',
   },
   '/direct/view-quote': {
     title: 'View Your Quote | OxSteed Direct',
@@ -194,9 +201,18 @@ async function handleHomepage(template, res) {
       '@type': 'Organization',
       '@id': `${origin}/#organization`,
       name: 'OxSteed',
+      description: 'OxSteed connects customers with local help, home services, tools, food, and direct service operations.',
       url: origin,
       logo: `${origin}/icons/icon-192.png`,
       telephone: '+1-937-408-5169',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'support@oxsteed.com',
+        telephone: '+1-937-408-5169',
+        availableLanguage: ['English', 'Spanish', 'French', 'Haitian Creole', 'Arabic'],
+      },
+      areaServed: 'Within 60 miles of Springfield, Ohio',
     },
     {
       '@context': 'https://schema.org',

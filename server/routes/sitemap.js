@@ -10,6 +10,7 @@ const { getPublicSiteUrl } = require('../utils/publicSiteUrl');
 const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar'];
 
 function localizedUrl(path, language) {
+  if (language === 'x-default') return `${getPublicSiteUrl()}${path}`;
   const separator = path.includes('?') ? '&' : '?';
   return `${getPublicSiteUrl()}${path}${separator}lang=${language}`;
 }
@@ -46,6 +47,7 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/direct`, changefreq: 'weekly', priority: '0.8', localized: true },
       { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/direct/request-quote`, changefreq: 'monthly', priority: '0.7', localized: true },
+      { loc: `${origin}/support/escalation`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/restaurants`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/terms`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
