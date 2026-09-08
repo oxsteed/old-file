@@ -567,7 +567,7 @@ async function handleBusinessProfile(businessId, template, res, next) {
 
 const UUID_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const BUSINESS_RE = /^\/business\/(\d+)$/i;
-const PUBLIC_JOB_RE = /^\/jobs\/public\/([^/]+)$/i;
+const PUBLIC_JOB_RE = /^\/jobs\/public\/(\d+)$/i;
 
 async function handlePublicJob(jobId, template, res, next) {
   const { rows } = await pool.query(
@@ -587,7 +587,18 @@ async function handlePublicJob(jobId, template, res, next) {
      LIMIT 1`,
     [jobId],
   );
-  if (!rows[0]) return next();
+  if (!rows[0]) {
+    const origin = base();
+    const url = `${origin}/jobs/public/${jobId}`;
+    let html = replaceMeta(template, {
+      title: 'Job Not Found | OxSteed',
+      description: 'This OxSteed job posting is no longer available.',
+      url,
+      image: `${origin}/og-default.png`,
+    });
+    html = html.replace('</head>', '<meta name="robots" content="noindex, nofollow" />\n</head>');
+    return res.status(404).send(html);
+  }
 
   const job = rows[0];
   const origin = base();
