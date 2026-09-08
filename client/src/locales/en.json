@@ -14818,5 +14818,34 @@
         "confirmReceipt": "Could not confirm receipt."
       }
     }
+  },
+  "directCatalog": {
+    "skillCategories": "Skill categories",
+    "searchCategories": "Search categories...",
+    "searchCategoriesAria": "Search categories",
+    "noCategories": "No published categories yet.",
+    "directServices": "Direct services",
+    "availableServices": "Available services",
+    "listed": "{{count}} listed",
+    "searchServices": "Search {{category}} services...",
+    "searchServicesAria": "Search services",
+    "quoteRequired": "Quote required",
+    "scheduleByQuote": "Schedule by quote",
+    "request": "Request",
+    "noServices": "No published services match this search.",
+    "equipment": "Equipment",
+    "toolsEquipment": "Tools & equipment",
+    "searchTools": "Search tools...",
+    "searchToolsAria": "Search tools",
+    "availableWhenScheduled": "Available when scheduled",
+    "noTools": "No published tools match your search.",
+    "serviceCoverage": "Service coverage",
+    "coverageCopy": "{{city}} and surrounding locations within the active Direct coverage areas.",
+    "coverageConfiguring": "Coverage areas are being configured.",
+    "checkLocation": "Check exact location",
+    "minimum": "{{amount}} minimum",
+    "heroFallback": "Direct service, organized for real work.",
+    "heroCopyFallback": "Browse available Direct services, tools, and coverage from one place.",
+    "navigation": "Direct navigation"
   }
 }

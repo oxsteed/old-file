@@ -1,7 +1,12 @@
 import api from './axios';
 
-export async function getDirectProfile() {
-  const response = await api.get('/direct/profile');
+export async function getDirectProfile(locale) {
+  const response = await api.get('/direct/profile', { params: locale ? { lang: locale } : undefined });
+  return response.data;
+}
+
+export async function getDirectCatalog(locale) {
+  const response = await api.get('/direct/catalog', { params: locale ? { lang: locale } : undefined });
   return response.data;
 }
 
@@ -133,6 +138,56 @@ export async function getDirectAdminCustomer(userId) {
 
 export async function getDirectAdminSettings() {
   const response = await api.get('/direct/admin/settings');
+  return response.data;
+}
+
+export async function getDirectAdminCatalog() {
+  const response = await api.get('/direct/admin/catalog');
+  return response.data;
+}
+
+export async function createDirectAdminCatalogCategory(payload) {
+  const response = await api.post('/direct/admin/catalog/categories', payload);
+  return response.data;
+}
+
+export async function updateDirectAdminCatalogCategory(id, payload) {
+  const response = await api.patch(`/direct/admin/catalog/categories/${id}`, payload);
+  return response.data;
+}
+
+export async function createDirectAdminCatalogService(payload) {
+  const response = await api.post('/direct/admin/catalog/services', payload);
+  return response.data;
+}
+
+export async function updateDirectAdminCatalogService(id, payload) {
+  const response = await api.patch(`/direct/admin/catalog/services/${id}`, payload);
+  return response.data;
+}
+
+export async function createDirectAdminCatalogTool(payload) {
+  const response = await api.post('/direct/admin/catalog/tools', payload);
+  return response.data;
+}
+
+export async function updateDirectAdminCatalogTool(id, payload) {
+  const response = await api.patch(`/direct/admin/catalog/tools/${id}`, payload);
+  return response.data;
+}
+
+export async function archiveDirectAdminCatalogEntity(entity, id) {
+  const response = await api.patch(`/direct/admin/catalog/${entity}/${id}/archive`);
+  return response.data;
+}
+
+export async function previewDirectAdminCatalogAI(prompt) {
+  const response = await api.post('/direct/admin/catalog/ai/preview', { prompt });
+  return response.data;
+}
+
+export async function applyDirectAdminCatalogAI(draft) {
+  const response = await api.post('/direct/admin/catalog/ai/apply', { draft });
   return response.data;
 }
 

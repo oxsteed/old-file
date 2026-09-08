@@ -14720,5 +14720,34 @@
         "loadRequest": "تعذر تحميل الطلب", "load": "تعذر تحميل سجل Direct.", "saveSchedule": "تعذر حفظ الجدول.", "update": "تعذر تحديث الطلب.", "acceptQuote": "تعذر قبول عرض السعر.", "declineQuote": "تعذر رفض عرض السعر.", "uploadProof": "تعذر رفع الإثبات.", "saveProof": "تعذر حفظ الإثبات.", "confirmReceipt": "تعذر تأكيد الإيصال."
       }
     }
+  },
+  "directCatalog": {
+    "skillCategories": "فئات المهارات",
+    "searchCategories": "البحث في الفئات...",
+    "searchCategoriesAria": "البحث في الفئات",
+    "noCategories": "لا توجد فئات منشورة بعد.",
+    "directServices": "خدمات Direct",
+    "availableServices": "الخدمات المتاحة",
+    "listed": "{{count}} مدرجة",
+    "searchServices": "البحث في خدمات {{category}}...",
+    "searchServicesAria": "البحث في الخدمات",
+    "quoteRequired": "يتطلب عرض سعر",
+    "scheduleByQuote": "يُحدد الموعد حسب عرض السعر",
+    "request": "طلب",
+    "noServices": "لا توجد خدمات منشورة تطابق هذا البحث.",
+    "equipment": "المعدات",
+    "toolsEquipment": "الأدوات والمعدات",
+    "searchTools": "البحث في الأدوات...",
+    "searchToolsAria": "البحث في الأدوات",
+    "availableWhenScheduled": "متاحة عند تحديد الموعد",
+    "noTools": "لا توجد أدوات منشورة تطابق بحثك.",
+    "serviceCoverage": "تغطية الخدمة",
+    "coverageCopy": "{{city}} والمناطق المحيطة ضمن مناطق تغطية Direct النشطة.",
+    "coverageConfiguring": "جارٍ إعداد مناطق التغطية.",
+    "checkLocation": "تحقق من الموقع الدقيق",
+    "minimum": "الحد الأدنى {{amount}}",
+    "heroFallback": "خدمة Direct منظمة للعمل الحقيقي.",
+    "heroCopyFallback": "تصفح خدمات Direct والأدوات والتغطية المتاحة من مكان واحد.",
+    "navigation": "تنقل Direct"
   }
 }

@@ -76,6 +76,7 @@ import Disputes        from './pages/Disputes';
 import DisputeResolve  from './pages/DisputeResolve';
 import MarketZipCodes  from './pages/MarketZipCodes';
 import DirectServiceAreas from './pages/DirectServiceAreas';
+import DirectCatalog from './pages/DirectCatalog';
 import JobsList        from './pages/JobsList';
 import JobDetail       from './pages/JobDetail';
 import Moderation      from './pages/Moderation';
@@ -179,6 +180,7 @@ export default function AdminApp() {
           <Route path="disputes/:disputeId" element={<DisputeResolve />} />
           <Route path="markets"             element={<MarketZipCodes />} />
           <Route path="direct-service-areas" element={<DirectServiceAreas />} />
+          <Route path="direct-catalog" element={<DirectCatalog embedded />} />
           <Route path="skills"              element={<SkillsManager />} />
           <Route path="licenses"            element={<LicensesManager />} />
           <Route path="content-removals"    element={<ContentRemovals />} />

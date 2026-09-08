@@ -14717,5 +14717,34 @@
         "loadRequest": "Impossible de charger la demande", "load": "Impossible de charger le dossier Direct.", "saveSchedule": "Impossible d’enregistrer le créneau.", "update": "Impossible de mettre à jour la demande.", "acceptQuote": "Impossible d’accepter le devis.", "declineQuote": "Impossible de refuser le devis.", "uploadProof": "Impossible de téléverser la preuve.", "saveProof": "Impossible d’enregistrer la preuve.", "confirmReceipt": "Impossible de confirmer le reçu."
       }
     }
+  },
+  "directCatalog": {
+    "skillCategories": "Catégories de compétences",
+    "searchCategories": "Rechercher des catégories...",
+    "searchCategoriesAria": "Rechercher des catégories",
+    "noCategories": "Aucune catégorie publiée pour le moment.",
+    "directServices": "Services Direct",
+    "availableServices": "Services disponibles",
+    "listed": "{{count}} répertoriés",
+    "searchServices": "Rechercher des services {{category}}...",
+    "searchServicesAria": "Rechercher des services",
+    "quoteRequired": "Devis requis",
+    "scheduleByQuote": "Planification selon le devis",
+    "request": "Demander",
+    "noServices": "Aucun service publié ne correspond à cette recherche.",
+    "equipment": "Équipement",
+    "toolsEquipment": "Outils et équipement",
+    "searchTools": "Rechercher des outils...",
+    "searchToolsAria": "Rechercher des outils",
+    "availableWhenScheduled": "Disponible sur planification",
+    "noTools": "Aucun outil publié ne correspond à votre recherche.",
+    "serviceCoverage": "Zone de service",
+    "coverageCopy": "{{city}} et les zones voisines situées dans les zones de couverture Direct actives.",
+    "coverageConfiguring": "Les zones de couverture sont en cours de configuration.",
+    "checkLocation": "Vérifier l’emplacement exact",
+    "minimum": "Minimum : {{amount}}",
+    "heroFallback": "Un service Direct organisé pour le travail réel.",
+    "heroCopyFallback": "Parcourez les services Direct, les outils et la couverture disponibles au même endroit.",
+    "navigation": "Navigation Direct"
   }
 }

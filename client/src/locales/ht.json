@@ -14717,5 +14717,34 @@
         "loadRequest": "Nou pa t kapab chaje demann lan", "load": "Nou pa t kapab chaje dosye Direct la.", "saveSchedule": "Nou pa t kapab sove orè a.", "update": "Nou pa t kapab mete demann lan ajou.", "acceptQuote": "Nou pa t kapab aksepte quote la.", "declineQuote": "Nou pa t kapab refize quote la.", "uploadProof": "Nou pa t kapab telechaje prèv la.", "saveProof": "Nou pa t kapab sove prèv la.", "confirmReceipt": "Nou pa t kapab konfime resi a."
       }
     }
+  },
+  "directCatalog": {
+    "skillCategories": "Kategori konpetans",
+    "searchCategories": "Chèche kategori...",
+    "searchCategoriesAria": "Chèche kategori",
+    "noCategories": "Pa gen kategori ki pibliye ankò.",
+    "directServices": "Sèvis Direct",
+    "availableServices": "Sèvis ki disponib",
+    "listed": "{{count}} nan lis la",
+    "searchServices": "Chèche sèvis {{category}}...",
+    "searchServicesAria": "Chèche sèvis",
+    "quoteRequired": "Mande yon devis",
+    "scheduleByQuote": "Orè selon devis la",
+    "request": "Mande",
+    "noServices": "Pa gen sèvis ki pibliye ki koresponn ak rechèch sa a.",
+    "equipment": "Ekipman",
+    "toolsEquipment": "Zouti ak ekipman",
+    "searchTools": "Chèche zouti...",
+    "searchToolsAria": "Chèche zouti",
+    "availableWhenScheduled": "Disponib lè yo pwograme li",
+    "noTools": "Pa gen zouti ki pibliye ki koresponn ak rechèch ou a.",
+    "serviceCoverage": "Kouvèti sèvis",
+    "coverageCopy": "{{city}} ak zòn ki toupre yo ki nan zòn kouvèti Direct yo ki aktif.",
+    "coverageConfiguring": "Y ap konfigire zòn kouvèti yo.",
+    "checkLocation": "Verifye kote egzak la",
+    "minimum": "{{amount}} minimòm",
+    "heroFallback": "Sèvis Direct ki òganize pou travay reyèl.",
+    "heroCopyFallback": "Gade sèvis Direct, zouti ak kouvèti ki disponib yo nan yon sèl kote.",
+    "navigation": "Navigasyon Direct"
   }
 }

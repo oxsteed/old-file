@@ -11,6 +11,7 @@ const quoteCtrl = require('../controllers/quoteRequestsController');
 const ctrl = require('../controllers/directController');
 
 router.get('/profile', optionalAuth, ctrl.getProfile);
+router.get('/catalog', generalLimiter, ctrl.getCatalog);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', generalLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);
@@ -36,6 +37,16 @@ router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
 router.post('/requests/:id/proof-confirm', authenticate, ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, ctrl.getAdminDashboard);
+router.get('/admin/catalog', authenticate, requireAdmin, ctrl.getAdminCatalog);
+router.post('/admin/catalog/categories', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogCategory);
+router.patch('/admin/catalog/categories/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogCategory);
+router.post('/admin/catalog/services', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogService);
+router.patch('/admin/catalog/services/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogService);
+router.post('/admin/catalog/tools', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogTool);
+router.patch('/admin/catalog/tools/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogTool);
+router.patch('/admin/catalog/:entity/:id/archive', authenticate, requireAdmin, generalLimiter, ctrl.archiveAdminCatalogEntity);
+router.post('/admin/catalog/ai/preview', authenticate, requireAdmin, generalLimiter, ctrl.previewAdminCatalogAI);
+router.post('/admin/catalog/ai/apply', authenticate, requireAdmin, generalLimiter, ctrl.applyAdminCatalogAI);
 router.get('/admin/service-areas', authenticate, requireAdmin, ctrl.getAdminServiceAreas);
 router.post('/admin/service-areas', authenticate, requireAdmin, ctrl.createAdminServiceArea);
 router.patch('/admin/service-areas/:id', authenticate, requireAdmin, ctrl.updateAdminServiceArea);

@@ -1,0 +1,97 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Bot, Check, ChevronLeft, Loader2, Plus, Save, Search, Archive, Wrench } from 'lucide-react';
+import toast from 'react-hot-toast';
+import adminApi from '../lib/adminApi';
+
+const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
+const EMPTY_TRANSLATIONS = Object.fromEntries(LOCALES.map((locale) => [locale, '']));
+const EMPTY_CATEGORY = { slug: '', nameI18n: { ...EMPTY_TRANSLATIONS }, iconKey: 'wrench', sortOrder: 0, isActive: true, isPublished: false };
+const EMPTY_SERVICE = { categoryId: '', slug: '', nameI18n: { ...EMPTY_TRANSLATIONS }, descriptionI18n: { ...EMPTY_TRANSLATIONS }, priceCents: '', availabilityDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'], sortOrder: 0, isActive: true, isPublished: false };
+const EMPTY_TOOL = { slug: '', nameI18n: { ...EMPTY_TRANSLATIONS }, descriptionI18n: { ...EMPTY_TRANSLATIONS }, iconKey: 'wrench', availabilityDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'], sortOrder: 0, isActive: true, isPublished: false };
+
+const get = (path) => adminApi.get(path).then((response) => response.data);
+const save = (method, path, payload) => adminApi[method](path, payload).then((response) => response.data);
+
+function Input({ className = '', ...props }) { return <input {...props} className={`w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-orange-400 ${className}`} />; }
+function Textarea({ className = '', ...props }) { return <textarea {...props} className={`w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none focus:border-orange-400 ${className}`} />; }
+function Field({ label, children }) { return <label className="grid gap-1.5"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</span>{children}</label>; }
+
+function Translations({ value, onChange, multiline = false }) {
+  const [activeLocale, setActiveLocale] = useState('en');
+  return <div className="grid gap-2"><div className="flex flex-wrap gap-1" role="tablist" aria-label="Catalog translations">{LOCALES.map((locale) => <button type="button" key={locale} role="tab" aria-selected={activeLocale === locale} onClick={() => setActiveLocale(locale)} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase ${activeLocale === locale ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-400 hover:text-white'}`}>{locale}</button>)}</div><Field label={activeLocale.toUpperCase()}>{multiline ? <Textarea rows={2} value={value?.[activeLocale] || ''} onChange={(event) => onChange({ ...value, [activeLocale]: event.target.value })} /> : <Input value={value?.[activeLocale] || ''} onChange={(event) => onChange({ ...value, [activeLocale]: event.target.value })} />}</Field></div>;
+}
+
+function recordForm(entity, record) {
+  if (!record) return entity === 'category' ? { ...EMPTY_CATEGORY, nameI18n: { ...EMPTY_TRANSLATIONS } } : entity === 'service' ? { ...EMPTY_SERVICE, nameI18n: { ...EMPTY_TRANSLATIONS }, descriptionI18n: { ...EMPTY_TRANSLATIONS } } : { ...EMPTY_TOOL, nameI18n: { ...EMPTY_TRANSLATIONS }, descriptionI18n: { ...EMPTY_TRANSLATIONS } };
+  return { ...record, priceCents: record.priceCents ?? '' };
+}
+
+export default function DirectCatalog({ embedded = false }) {
+  const [catalog, setCatalog] = useState({ categories: [], services: [], tools: [], icons: [] });
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [entity, setEntity] = useState('service');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(recordForm('service'));
+  const [query, setQuery] = useState('');
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiDraft, setAiDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const load = () => get('/direct/admin/catalog').then((data) => { setCatalog(data.catalog || data); setLoading(false); }).catch((error) => { setLoading(false); toast.error(error.response?.data?.error || 'Could not load Direct catalog.'); });
+  useEffect(() => { load(); }, []);
+  const categories = catalog.categories || [];
+  const currentCategory = selectedCategory || categories[0]?.id || '';
+  const visibleCategories = useMemo(() => categories.filter((item) => `${item.nameI18n?.en || ''} ${item.slug}`.toLowerCase().includes(categoryQuery.toLowerCase())), [categories, categoryQuery]);
+  const visibleServices = useMemo(() => (catalog.services || []).filter((item) => item.categoryId === currentCategory && `${item.nameI18n?.en || ''} ${item.descriptionI18n?.en || ''}`.toLowerCase().includes(query.toLowerCase())), [catalog.services, currentCategory, query]);
+  const visibleTools = useMemo(() => (catalog.tools || []).filter((item) => `${item.nameI18n?.en || ''} ${item.descriptionI18n?.en || ''}`.toLowerCase().includes(query.toLowerCase())), [catalog.tools, query]);
+  const records = entity === 'category' ? categories : entity === 'service' ? visibleServices : visibleTools;
+
+  const startNew = (nextEntity) => { setEntity(nextEntity); setEditing(null); setForm({ ...recordForm(nextEntity), ...(nextEntity === 'service' ? { categoryId: currentCategory } : {}) }); };
+  const edit = (nextEntity, record) => { setEntity(nextEntity); setEditing(record.id); setForm(recordForm(nextEntity, record)); };
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const saveRecord = async (event) => {
+    event.preventDefault();
+    if (form.isPublished) {
+      const missing = LOCALES.filter((locale) => !form.nameI18n?.[locale]?.trim() || (entity !== 'category' && !form.descriptionI18n?.[locale]?.trim()));
+      if (missing.length) {
+        toast.error(`Complete all five locale fields before publishing (${missing.join(', ')}).`);
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const path = entity === 'category' ? '/direct/admin/catalog/categories' : entity === 'service' ? '/direct/admin/catalog/services' : '/direct/admin/catalog/tools';
+      const payload = { ...form, priceCents: form.priceCents === '' ? null : Number(form.priceCents) };
+      const data = editing ? await save('patch', `${path}/${editing}`, payload) : await save('post', path, payload);
+      setCatalog(data.catalog); setEditing(null); setForm(recordForm(entity)); toast.success(editing ? 'Catalog record updated.' : 'Catalog record created.');
+    } catch (error) { toast.error(error.response?.data?.error || 'Could not save catalog record.'); } finally { setSaving(false); }
+  };
+  const archive = async (record) => {
+    if (!window.confirm(`Archive ${record.nameI18n?.en || record.slug}?`)) return;
+    try { const data = await save('patch', `/direct/admin/catalog/${entity}/${record.id}/archive`, {}); setCatalog(data.catalog); if (editing === record.id) { setEditing(null); setForm(recordForm(entity)); } toast.success('Catalog record archived.'); } catch (error) { toast.error(error.response?.data?.error || 'Could not archive record.'); }
+  };
+  const previewAI = async () => {
+    setAiLoading(true);
+    try { const data = await save('post', '/direct/admin/catalog/ai/preview', { prompt: aiPrompt }); setAiDraft(data.draft); toast.success('Draft ready for review.'); } catch (error) { toast.error(error.response?.data?.error || 'AI draft failed.'); } finally { setAiLoading(false); }
+  };
+  const applyAI = async () => {
+    setAiLoading(true);
+    try { const data = await save('post', '/direct/admin/catalog/ai/apply', { draft: aiDraft }); setCatalog(data.catalog); setAiDraft(null); setAiPrompt(''); toast.success('Confirmed AI draft applied.'); } catch (error) { toast.error(error.response?.data?.error || 'Could not apply AI draft.'); } finally { setAiLoading(false); }
+  };
+
+  if (loading) return <div className="flex min-h-[360px] items-center justify-center text-orange-300"><Loader2 className="animate-spin" /></div>;
+  return <div className={`min-h-full bg-slate-950 p-4 text-white sm:p-6 ${embedded ? '' : 'rounded-3xl'}`}>
+    {!embedded && <div className="mb-5 flex items-center justify-between gap-3"><Link to="/direct/admin" className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"><ChevronLeft size={16} /> Back to Direct admin</Link><span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Admin-managed catalog</span></div>}
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-bold uppercase tracking-[0.22em] text-orange-300">OxSteed Direct</div><h1 className="mt-2 text-3xl font-bold">Service catalog</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Manage what customers see, what is available, and what is ready to publish. Changes are shared with the public Direct page.</p></div><div className="flex flex-wrap gap-2"><Link to="/admin/direct-service-areas" className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10">Manage service areas</Link><Link to="/direct" className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10">Preview public page</Link></div></header>
+    <section className="mb-6 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4"><div className="flex items-start gap-3"><Bot className="mt-0.5 text-orange-300" size={20} /><div className="min-w-0 flex-1"><h2 className="font-semibold">Describe a catalog change</h2><p className="mt-1 text-xs leading-5 text-slate-400">The server-side assistant prepares a draft. Nothing is published until you review and confirm it.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} placeholder="Add ceiling fan installation, quote required, available Monday through Thursday" /><button type="button" onClick={previewAI} disabled={aiLoading || !aiPrompt.trim()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />} Draft change</button></div>{aiDraft && <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/70 p-3 text-sm"><div className="font-semibold text-orange-200">{aiDraft.summary || `Draft ${aiDraft.entity}`}</div><pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap text-xs text-slate-300">{JSON.stringify(aiDraft.fields, null, 2)}</pre><div className="mt-3 flex gap-2"><button type="button" onClick={applyAI} disabled={aiLoading} className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-white"><Check size={14} /> Confirm and save</button><button type="button" onClick={() => setAiDraft(null)} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Discard</button></div></div>}</div></div></section>
+    <div className="grid gap-5 xl:grid-cols-[230px_minmax(0,1fr)_minmax(360px,0.9fr)]">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"><h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Skill categories</h2><label className="relative mt-3 block"><Search size={16} className="absolute left-3 top-3.5 text-slate-500" /><Input value={categoryQuery} onChange={(event) => setCategoryQuery(event.target.value)} placeholder="Search categories..." className="pl-9" /></label><div className="mt-3 space-y-2">{visibleCategories.map((category) => <button type="button" key={category.id} onClick={() => { setSelectedCategory(category.id); setEntity('service'); setEditing(null); setForm({ ...recordForm('service'), categoryId: category.id }); }} className={`flex w-full items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-semibold ${currentCategory === category.id ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-300'}`}><Wrench size={16} />{category.nameI18n?.en || category.slug}</button>)}{!visibleCategories.length && <p className="rounded-xl border border-dashed border-white/10 p-3 text-xs text-slate-500">No categories match this search.</p>}</div><button type="button" onClick={() => startNew('category')} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 px-3 py-2.5 text-xs font-semibold text-slate-300 hover:border-orange-400"><Plus size={14} /> Add category</button></section>
+      <section className="min-w-0 rounded-2xl border border-white/10 bg-slate-900/70 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">{entity === 'category' ? 'Categories' : entity === 'tool' ? 'Tools & equipment' : 'Services'}</h2><p className="mt-1 text-xs text-slate-500">{records.length} record{records.length === 1 ? '' : 's'}</p></div><div className="flex gap-2"><button type="button" onClick={() => startNew('service')} className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold">+ Service</button><button type="button" onClick={() => startNew('tool')} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold">+ Tool</button></div></div><label className="relative mt-4 block"><Search size={16} className="absolute left-3 top-3.5 text-slate-500" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search catalog..." className="pl-9" /></label><div className="mt-4 space-y-2">{records.map((record) => <button type="button" key={record.id} onClick={() => edit(entity, record)} className={`flex w-full items-start justify-between gap-3 rounded-xl border p-3 text-left ${editing === record.id ? 'border-orange-400 bg-orange-500/10' : 'border-white/10 bg-slate-950/50'}`}><span><span className="block font-semibold text-white">{record.nameI18n?.en || record.slug}</span><span className="mt-1 block text-xs text-slate-500">{entity === 'service' ? (record.priceCents == null ? 'Quote required' : `$${(record.priceCents / 100).toFixed(2)}`) : record.descriptionI18n?.en || 'No description'}</span></span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${record.isPublished && record.isActive ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>{record.isPublished && record.isActive ? 'Published' : 'Draft'}</span></button>)}{!records.length && <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">No records match this view.</div>}</div></section>
+      <form onSubmit={saveRecord} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"><div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">{editing ? 'Edit' : 'New'} {entity}</h2><p className="mt-1 text-xs text-slate-500">Drafts may be incomplete; all five locale fields are required before publishing.</p></div>{editing && <button type="button" onClick={() => { setEditing(null); setForm(recordForm(entity)); }} className="text-xs text-slate-400">Cancel</button>}</div><div className="mt-4 space-y-4"><Field label="Slug"><Input value={form.slug} onChange={(event) => update('slug', event.target.value)} placeholder="ceiling-fan-installation" required /></Field>{entity === 'service' && <Field label="Category"><select value={form.categoryId || currentCategory} onChange={(event) => update('categoryId', event.target.value)} className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white" required><option value="">Choose category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.nameI18n?.en || category.slug}</option>)}</select></Field>}<Field label="Names by language"><Translations value={form.nameI18n} onChange={(value) => update('nameI18n', value)} /></Field>{entity !== 'category' && <Field label="Descriptions by language"><Translations value={form.descriptionI18n} onChange={(value) => update('descriptionI18n', value)} multiline /></Field>}{entity === 'service' && <div className="grid gap-3 sm:grid-cols-2"><Field label="Price (cents)"><Input type="number" min="0" value={form.priceCents} onChange={(event) => update('priceCents', event.target.value)} placeholder="Leave blank for quote" /></Field><Field label="Days"><Input value={(form.availabilityDays || []).join(', ')} onChange={(event) => update('availabilityDays', event.target.value.split(',').map((day) => day.trim()).filter(Boolean))} placeholder="Monday, Thursday" /></Field></div>}{entity === 'tool' && <Field label="Days available"><Input value={(form.availabilityDays || []).join(', ')} onChange={(event) => update('availabilityDays', event.target.value.split(',').map((day) => day.trim()).filter(Boolean))} placeholder="Monday, Thursday" /></Field>}{entity !== 'service' && <Field label="Icon"><select value={form.iconKey} onChange={(event) => update('iconKey', event.target.value)} className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white">{(catalog.icons || ['wrench']).map((icon) => <option key={icon} value={icon}>{icon}</option>)}</select></Field>}<Field label="Sort order"><Input type="number" min="0" value={form.sortOrder ?? 0} onChange={(event) => update('sortOrder', Number(event.target.value) || 0)} /></Field><div className="flex flex-wrap gap-4"><label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={form.isActive} onChange={(event) => update('isActive', event.target.checked)} className="accent-orange-500" /> Active</label><label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={form.isPublished} onChange={(event) => update('isPublished', event.target.checked)} className="accent-orange-500" /> Publish publicly</label></div><div className="flex gap-2"><button type="submit" disabled={saving} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save</button>{editing && <button type="button" onClick={() => archive(form)} className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 px-3 py-3 text-xs font-bold text-red-300"><Archive size={15} /> Archive</button>}</div></div></form>
+    </div>
+  </div>;
+}

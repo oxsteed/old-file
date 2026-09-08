@@ -14734,5 +14734,34 @@
         "loadRequest": "No se pudo cargar la solicitud", "load": "No se pudo cargar el registro Direct.", "saveSchedule": "No se pudo guardar el horario.", "update": "No se pudo actualizar la solicitud.", "acceptQuote": "No se pudo aceptar la cotización.", "declineQuote": "No se pudo rechazar la cotización.", "uploadProof": "No se pudo subir el comprobante.", "saveProof": "No se pudo guardar el comprobante.", "confirmReceipt": "No se pudo confirmar el recibo."
       }
     }
+  },
+  "directCatalog": {
+    "skillCategories": "Categorías de habilidades",
+    "searchCategories": "Buscar categorías...",
+    "searchCategoriesAria": "Buscar categorías",
+    "noCategories": "Aún no hay categorías publicadas.",
+    "directServices": "Servicios Direct",
+    "availableServices": "Servicios disponibles",
+    "listed": "{{count}} publicados",
+    "searchServices": "Buscar servicios de {{category}}...",
+    "searchServicesAria": "Buscar servicios",
+    "quoteRequired": "Cotización requerida",
+    "scheduleByQuote": "Horario según la cotización",
+    "request": "Solicitar",
+    "noServices": "No hay servicios publicados que coincidan con esta búsqueda.",
+    "equipment": "Equipo",
+    "toolsEquipment": "Herramientas y equipo",
+    "searchTools": "Buscar herramientas...",
+    "searchToolsAria": "Buscar herramientas",
+    "availableWhenScheduled": "Disponible al programar",
+    "noTools": "No hay herramientas publicadas que coincidan con tu búsqueda.",
+    "serviceCoverage": "Cobertura del servicio",
+    "coverageCopy": "{{city}} y las zonas cercanas dentro de las áreas activas de cobertura Direct.",
+    "coverageConfiguring": "Las áreas de cobertura se están configurando.",
+    "checkLocation": "Comprobar ubicación exacta",
+    "minimum": "{{amount}} mínimo",
+    "heroFallback": "Servicio Direct, organizado para el trabajo real.",
+    "heroCopyFallback": "Explora los servicios Direct, las herramientas y la cobertura disponibles en un solo lugar.",
+    "navigation": "Navegación de Direct"
   }
 }

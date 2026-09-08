@@ -16,6 +16,15 @@ const {
   listServiceAreas,
   updateServiceArea,
 } = require('../services/directServiceAreas');
+const {
+  getCatalog,
+  getAdminCatalog,
+  saveEntity,
+  removeEntity,
+  parseEntity,
+  audit: auditCatalog,
+} = require('../services/directCatalogService');
+const { createDraft: createCatalogDraft } = require('../services/directCatalogAI');
 const crypto = require('crypto');
 
 const DEFAULT_PROFILE = {
@@ -217,6 +226,17 @@ function serializeProfile(row) {
     travelCities: normalizeArray(row.travel_cities),
     supportEmail: row.support_email || DEFAULT_PROFILE.supportEmail,
     supportPhone: row.support_phone || DEFAULT_PROFILE.supportPhone,
+  };
+}
+
+function publicServiceArea(area) {
+  return {
+    id: area.id,
+    label: area.label,
+    anchorZip: area.anchorZip,
+    lat: area.lat,
+    lng: area.lng,
+    radiusMiles: area.radiusMiles,
   };
 }
 
@@ -474,13 +494,115 @@ async function sendRequestConfirmationEmail(request) {
   });
 }
 
-exports.getProfile = async (_req, res) => {
+exports.getProfile = async (req, res) => {
   try {
     const profile = await loadProfileRow();
-    return res.json({ profile: serializeProfile(profile) });
+    const [catalog, serviceAreas] = await Promise.all([
+      getCatalog({ locale: req.query.lang || req.query.locale || 'en' }).catch((error) => {
+        // Keep the public profile available during a rolling deploy before the catalog migration finishes.
+        logger.warn('Direct catalog unavailable while loading profile', { error: error.message });
+        return { locale: req.query.lang || req.query.locale || 'en', categories: [], tools: [] };
+      }),
+      listServiceAreas({ activeOnly: true }),
+    ]);
+    const publicAreas = serviceAreas.map(publicServiceArea);
+    return res.json({ profile: { ...serializeProfile(profile), serviceAreas: publicAreas.map((area) => area.label) }, catalog, serviceAreas: publicAreas });
   } catch (err) {
     logger.error('getProfile error', { error: err.message });
     return res.status(500).json({ error: 'Failed to load Direct profile' });
+  }
+};
+
+exports.getCatalog = async (req, res) => {
+  try {
+    return res.json({ catalog: await getCatalog({ locale: req.query.lang || req.query.locale || 'en' }) });
+  } catch (err) {
+    logger.error('getCatalog error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load Direct catalog' });
+  }
+};
+
+exports.getAdminCatalog = async (_req, res) => {
+  try {
+    return res.json({ catalog: await getAdminCatalog() });
+  } catch (err) {
+    logger.error('getAdminCatalog error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load Direct catalog' });
+  }
+};
+
+function catalogEntityName(value) {
+  const entity = String(value || '').toLowerCase();
+  return ['category', 'service', 'tool'].includes(entity) ? entity : null;
+}
+
+async function resolveCatalogDraft(draft) {
+  const entity = catalogEntityName(draft?.entity);
+  if (!entity || !draft?.fields || typeof draft.fields !== 'object') {
+    const error = new Error('A valid catalog draft is required');
+    error.statusCode = 400;
+    throw error;
+  }
+  const fields = { ...draft.fields };
+  if (entity === 'service' && !fields.categoryId && fields.categorySlug) {
+    const result = await db.query('SELECT id FROM direct_catalog_categories WHERE slug = $1 LIMIT 1', [cleanText(fields.categorySlug, 100).toLowerCase()]);
+    if (!result.rows[0]) throw Object.assign(new Error('The requested service category was not found'), { statusCode: 400 });
+    fields.categoryId = result.rows[0].id;
+  }
+  delete fields.categorySlug;
+  return { entity, fields };
+}
+
+async function saveCatalogEntity(req, res, entity, id = null) {
+  try {
+    const row = await saveEntity(entity, req.body || {}, req.user?.id, id);
+    return res.status(id ? 200 : 201).json({ record: row, catalog: await getAdminCatalog() });
+  } catch (err) {
+    const status = err.statusCode || (err.code === '23505' ? 409 : 500);
+    if (status >= 500) logger.error('saveCatalogEntity error', { error: err.message, entity, id, userId: req.user?.id });
+    return res.status(status).json({ error: err.message || 'Failed to save Direct catalog record' });
+  }
+}
+
+exports.createAdminCatalogCategory = (req, res) => saveCatalogEntity(req, res, 'category');
+exports.updateAdminCatalogCategory = (req, res) => saveCatalogEntity(req, res, 'category', req.params.id);
+exports.createAdminCatalogService = (req, res) => saveCatalogEntity(req, res, 'service');
+exports.updateAdminCatalogService = (req, res) => saveCatalogEntity(req, res, 'service', req.params.id);
+exports.createAdminCatalogTool = (req, res) => saveCatalogEntity(req, res, 'tool');
+exports.updateAdminCatalogTool = (req, res) => saveCatalogEntity(req, res, 'tool', req.params.id);
+
+exports.archiveAdminCatalogEntity = async (req, res) => {
+  try {
+    const entity = catalogEntityName(req.params.entity);
+    if (!entity) return res.status(400).json({ error: 'Unsupported catalog entity' });
+    await removeEntity(entity, req.params.id, req.user?.id);
+    return res.json({ success: true, catalog: await getAdminCatalog() });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to archive catalog record' });
+  }
+};
+
+exports.previewAdminCatalogAI = async (req, res) => {
+  try {
+    const draft = await createCatalogDraft(req.body?.prompt);
+    const resolved = await resolveCatalogDraft(draft);
+    parseEntity(resolved.entity, resolved.fields);
+    await auditCatalog(req.user?.id, 'ai_preview', resolved.entity, null, { summary: draft.summary || '' });
+    return res.json({ draft: { ...draft, ...resolved } });
+  } catch (err) {
+    return res.status(err.statusCode || 502).json({ error: err.message || 'Failed to draft catalog change' });
+  }
+};
+
+exports.applyAdminCatalogAI = async (req, res) => {
+  try {
+    const resolved = await resolveCatalogDraft(req.body?.draft || {});
+    const row = await saveEntity(resolved.entity, resolved.fields, req.user?.id);
+    await auditCatalog(req.user?.id, 'ai_apply', resolved.entity, row.id, { source: 'confirmed_preview' });
+    return res.status(201).json({ record: row, catalog: await getAdminCatalog() });
+  } catch (err) {
+    const status = err.statusCode || (err.code === '23505' ? 409 : 500);
+    return res.status(status).json({ error: err.message || 'Failed to apply catalog draft' });
   }
 };
 
@@ -863,7 +985,7 @@ exports.getServiceAreas = async (_req, res) => {
         version: 'direct-service-areas-v1',
         generatedAt: new Date().toISOString(),
       },
-      serviceAreas,
+      serviceAreas: serviceAreas.map(publicServiceArea),
     });
   } catch (err) {
     logger.error('getServiceAreas error', { error: err.message });

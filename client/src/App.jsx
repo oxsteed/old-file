@@ -163,6 +163,7 @@ const LearnModePage = lazy(() => import('./pages/LearnModePage'));
 const PromotePage = lazy(() => import('./pages/PromotePage'));
 const DirectPortalPage = lazy(() => import('./pages/DirectPortalPage'));
 const DirectAdminPortalPage = lazy(() => import('./pages/DirectAdminPortalPage'));
+const DirectCatalog = lazy(() => import('./admin/pages/DirectCatalog'));
 const MaintenanceRequestPage = lazy(() => import('./pages/MaintenanceRequestPage'));
 const TradesDiagnosticRequestPage = lazy(() => import('./pages/TradesDiagnosticRequestPage'));
 const BeautyIntakeRequestPage = lazy(() => import('./pages/BeautyIntakeRequestPage'));
@@ -313,6 +314,7 @@ export default function App() {
                     <Route path="/direct/admin/payments/:id" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="payment" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/customers/:userId" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="customer" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/settings"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="settings" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
+                    <Route path="/direct/admin/catalog"   element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectCatalog /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/reports"    element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="reports" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/team"       element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="team" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />
                     <Route path="/direct/admin/email-test" element={<Guarded><ProtectedRoute><DirectAdminRouteGate><RouteErrorBoundary><DirectAdminPortalPage view="email-test" /></RouteErrorBoundary></DirectAdminRouteGate></ProtectedRoute></Guarded>} />

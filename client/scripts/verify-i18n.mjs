@@ -204,6 +204,27 @@ function verifyHomepageTranslationSurface() {
     }
   }
 
+  const directCatalogKeys = [
+    'skillCategories', 'searchCategories', 'searchCategoriesAria', 'noCategories',
+    'directServices', 'availableServices', 'listed', 'searchServices', 'searchServicesAria',
+    'quoteRequired', 'scheduleByQuote', 'request', 'noServices', 'equipment',
+    'toolsEquipment', 'searchTools', 'searchToolsAria', 'availableWhenScheduled', 'noTools',
+    'serviceCoverage', 'coverageCopy', 'coverageConfiguring', 'checkLocation', 'minimum',
+    'heroFallback', 'heroCopyFallback', 'navigation',
+  ];
+  for (const language of languages.filter((entry) => entry !== 'en')) {
+    const catalog = readJson(`src/locales/${language}.json`);
+    for (const key of directCatalogKeys) {
+      const englishValue = resolve(english, `directCatalog.${key}`);
+      const translatedValue = resolve(catalog, `directCatalog.${key}`);
+      if (typeof translatedValue !== 'string' || !translatedValue.trim()) {
+        failures.push(`${language} directCatalog.${key} is missing or empty`);
+      } else if (translatedValue === englishValue) {
+        failures.push(`${language} directCatalog.${key} is still English: ${JSON.stringify(translatedValue)}`);
+      }
+    }
+  }
+
   const hardcodedHomepageText = [
     ['src/components/Hero.jsx', 'Local Skills Directory'],
     ['src/components/LiveHelpersHeroCard.tsx', '✓ Verified'],
@@ -282,6 +303,10 @@ verifyHomepageTranslationSurface();
 verifyPageHasNoHardcodedUiText('src/pages/DirectPortalPage.jsx', {
   allowedJsxText: ['Cash App', 'Venmo', 'Zelle'],
   allowedAttributes: ['US'],
+});
+verifyPageHasNoHardcodedUiText('src/pages/DirectCatalogLanding.jsx', {
+  allowedJsxText: ['OxSteed', 'OxSteed Direct'],
+  allowedAttributes: ['OxSteed Direct'],
 });
 verifyPageHasNoHardcodedUiText('src/pages/PostJobPage.jsx', {
   allowedJsxText: ['OxS'],

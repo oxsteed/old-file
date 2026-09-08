@@ -27,6 +27,7 @@ const REGULAR_NAV = [
   { to: '/admin/quote-requests',   icon: FileText,        label: 'Quote Requests'   },
   { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops'       },
   { to: '/admin/direct-service-areas', icon: MapPinned,    label: 'Direct Service Areas' },
+  { to: '/admin/direct-catalog',       icon: Package,      label: 'Direct Catalog'       },
   { to: '/admin/messages',         icon: MessageSquare,   label: 'Messages'         },
   { to: '/admin/search',           icon: Search,          label: 'Search'           },
   { to: '/admin/businesses',       icon: Building2,       label: 'Businesses'       },

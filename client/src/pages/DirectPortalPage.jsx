@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
+import DirectCatalogLanding from './DirectCatalogLanding';
 import {
   acceptDirectRequest,
   changeDirectRequest,
@@ -266,16 +267,27 @@ function DirectShell({ profile, title, subtitle, children, heroRight, path = '/d
   );
 }
 
-async function loadProfile() {
+async function loadProfile(locale) {
   try {
-    const data = await getDirectProfile();
-    return data?.profile || DEFAULT_PROFILE;
+    const data = await getDirectProfile(locale);
+    return { ...DEFAULT_PROFILE, ...(data?.profile || {}), catalog: data?.catalog || { categories: [], tools: [] }, serviceAreas: data?.serviceAreas?.map((area) => area.label) || data?.profile?.serviceAreas || DEFAULT_PROFILE.serviceAreas };
   } catch {
     return DEFAULT_PROFILE;
   }
 }
 
 export function DirectLandingPage() {
+  const { i18n } = useTranslation();
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  useEffect(() => {
+    let active = true;
+    loadProfile(i18n.resolvedLanguage).then((next) => { if (active) setProfile(next); });
+    return () => { active = false; };
+  }, [i18n.resolvedLanguage]);
+  return <DirectCatalogLanding profile={profile} />;
+}
+
+function DirectLandingLegacyPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
