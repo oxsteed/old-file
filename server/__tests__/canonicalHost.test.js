@@ -51,4 +51,15 @@ describe('canonical public host', () => {
     expect(res.status).toBe(200);
     expect(res.text).toBe('ok');
   });
+
+  test('recognizes HTTPS terminated by the Cloudflare tunnel', async () => {
+    const res = await request(buildApp())
+      .get('/')
+      .set('Host', 'oxsteed.com')
+      .set('CF-Ray', 'example-ray')
+      .set('CF-Visitor', '{"scheme":"https"}');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('ok');
+  });
 });
