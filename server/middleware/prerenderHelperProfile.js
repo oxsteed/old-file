@@ -642,6 +642,14 @@ const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
+function isPublicSeoPath(pagePath) {
+  if (pagePath === '/' || pagePath === '/helpers' || pagePath === '/helpers/') return true;
+  if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
+  if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
+  if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath) || PUBLIC_TOOL_RE.test(pagePath)) return true;
+  return false;
+}
+
 async function handlePublicJob(jobId, template, res, next) {
   const { rows } = await pool.query(
     `SELECT j.id, j.title, j.description, j.category_name, j.status,
@@ -884,10 +892,15 @@ function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
   if (req.method !== 'GET') return next();
 
+  const p = req.path;
+  // Keep authenticated, tokenized, and unknown SPA navigations out of search
+  // even when the client shell has not mounted yet. Static assets are excluded.
+  if (!path.extname(p) && (!isPublicSeoPath(p) || MARKETING_PAGES[p]?.noIndex)) {
+    res.set('X-Robots-Tag', 'noindex, nofollow');
+  }
+
   const template = getTemplate();
   if (!template) return next();
-
-  const p = req.path;
 
   const canonicalRedirects = {
     '/features': '/how-it-works',
