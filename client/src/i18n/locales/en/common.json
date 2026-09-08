@@ -233,7 +233,7 @@
   "pageMeta": {
     "defaults": {
       "title": "OxSteed - Hire Local Help Today",
-      "description": "Post a job, compare bids from skills local helpers, and pay on OxSteed. Free to start."
+      "description": "Post a job, compare bids from skilled local helpers, and pay on OxSteed. Free to start."
     }
   },
   "orderErrorBoundary": {
