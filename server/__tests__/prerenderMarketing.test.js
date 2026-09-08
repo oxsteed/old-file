@@ -41,6 +41,7 @@ describe('localized marketing SEO shell', () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain('"sameAs":["https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"]');
+    expect(res.text).toContain('"alternateName":"OxSteed Marketplace"');
   });
 
   test('localizes homepage navigation schema and search action', async () => {

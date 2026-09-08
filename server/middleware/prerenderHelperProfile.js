@@ -769,6 +769,7 @@ async function handleHomepage(template, res, req) {
       '@type': 'Organization',
       '@id': `${origin}/#organization`,
       name: 'OxSteed',
+      alternateName: 'OxSteed Marketplace',
       description: description || 'OxSteed connects customers with local help, home services, tools, food, and direct service operations.',
       url: origin,
       logo: `${origin}/icons/icon-192.png`,
@@ -802,6 +803,7 @@ async function handleHomepage(template, res, req) {
       '@id': `${origin}/#website`,
       url,
       name: 'OxSteed',
+      alternateName: 'OxSteed Marketplace',
       inLanguage: language,
       publisher: { '@id': `${origin}/#organization` },
       potentialAction: {
