@@ -38,7 +38,8 @@ router.get('/', (req, res) => {
   ].join('\n');
 
   res.set('Content-Type', 'text/plain; charset=utf-8');
-  res.set('Cache-Control', 'public, max-age=86400');
+  // Keep crawler policy changes fresh at the edge without requiring a manual purge.
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
   return res.send(body);
 });
 
