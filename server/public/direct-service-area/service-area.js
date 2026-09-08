@@ -153,12 +153,21 @@
     themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
   }
 
-  const savedTheme = window.localStorage.getItem('oxsteed:service-area-theme');
+  let savedTheme = null;
+  try {
+    savedTheme = window.localStorage.getItem('oxsteed:service-area-theme');
+  } catch (_) {
+    savedTheme = null;
+  }
   applyTheme(savedTheme === 'dark');
   themeToggle?.addEventListener('click', () => {
     const isDark = !document.body.classList.contains('dark');
     applyTheme(isDark);
-    window.localStorage.setItem('oxsteed:service-area-theme', isDark ? 'dark' : 'light');
+    try {
+      window.localStorage.setItem('oxsteed:service-area-theme', isDark ? 'dark' : 'light');
+    } catch (_) {
+      /* Storage can be disabled in private browsing. */
+    }
   });
   if (year) year.textContent = String(new Date().getFullYear());
 
