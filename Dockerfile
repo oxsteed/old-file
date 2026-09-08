@@ -25,6 +25,8 @@ COPY server/ .
 
 # Copy built client to correct location expected by server (../client/dist)
 COPY --from=client-build /app/client/dist /app/client/dist
+# Keep the source locale catalogs available for server-rendered SEO metadata.
+COPY --from=client-build /app/client/src/locales /app/client/src/locales
 
 WORKDIR /app/server
 

@@ -18,6 +18,20 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const SEO_COPY_KEYS = {
+  '/about': { title: 'aboutPage.title', description: 'aboutPage.mission' },
+  '/join': { title: 'join.heroTitle', description: 'join.heroSubtitle' },
+  '/jobs': { title: 'jobsDir.metaTitle', description: 'jobsDir.metaDescription' },
+  '/helpers': { title: 'helpersDir.heroTitle', description: 'helpersDir.metaDescription' },
+  '/how-it-works': { title: 'howItWorks.title', description: 'howItWorks.subtitle' },
+  '/restaurants': { title: 'food.home.title', description: 'food.home.subtitle' },
+  '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
+  '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
+  '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
+  '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
+  '/support/escalation': { title: 'support.escalateTitle', description: 'support.escalateDesc' },
+};
+const seoLocaleCache = new Map();
 
 function getRequestedLanguage(req) {
   const raw = req?.query?.lang || req?.query?.lng || req?.query?.locale;
@@ -27,6 +41,38 @@ function getRequestedLanguage(req) {
 
 function setDocumentLanguage(html, language) {
   return html.replace(/<html\s+lang="[^"]*"/i, `<html lang="${escapeHtml(language)}"`);
+}
+
+function getNestedValue(value, key) {
+  return key.split('.').reduce((current, segment) => current?.[segment], value);
+}
+
+function getSeoLocale(language) {
+  if (seoLocaleCache.has(language)) return seoLocaleCache.get(language);
+  try {
+    const localePath = path.join(__dirname, '../../client/src/locales', `${language}.json`);
+    const locale = JSON.parse(fs.readFileSync(localePath, 'utf-8'));
+    seoLocaleCache.set(language, locale);
+    return locale;
+  } catch (err) {
+    logger.warn('[prerender] SEO locale catalog unavailable', { language, error: err.message });
+    seoLocaleCache.set(language, null);
+    return null;
+  }
+}
+
+function getLocalizedSeoCopy(pagePath, page, req) {
+  const language = getRequestedLanguage(req);
+  if (language === 'en') return page;
+  const keys = SEO_COPY_KEYS[pagePath];
+  const locale = keys ? getSeoLocale(language) : null;
+  const title = keys && locale ? getNestedValue(locale, keys.title) : null;
+  const description = keys && locale ? getNestedValue(locale, keys.description) : null;
+  return {
+    ...page,
+    ...(title ? { title: `${String(title).trim()} | OxSteed` } : {}),
+    ...(description ? { description: String(description).replace(/\s+/g, ' ').trim().slice(0, 320) } : {}),
+  };
 }
 
 function getTemplate() {
@@ -280,7 +326,7 @@ const MARKETING_PAGES = {
 };
 
 function handleMarketingPage(pagePath, template, res, req) {
-  const page = MARKETING_PAGES[pagePath];
+  const page = getLocalizedSeoCopy(pagePath, MARKETING_PAGES[pagePath], req);
   const origin = base();
   const url = `${origin}${pagePath}`;
   const schema = {
@@ -365,9 +411,12 @@ async function handleHomepage(template, res, req) {
 
 async function handleHelpersDirectory(template, res, req) {
   const origin = base();
-  const title = 'Find Local Helpers Near You | OxSteed';
-  const description =
-    'Browse verified local tradespeople on OxSteed. Read reviews, compare rates, and hire local help today. Free to post a job.';
+  const page = getLocalizedSeoCopy('/helpers', {
+    title: 'Find Local Helpers Near You | OxSteed',
+    description:
+      'Browse verified local tradespeople on OxSteed. Read reviews, compare rates, and hire local help today. Free to post a job.',
+  }, req);
+  const { title, description } = page;
   const url = `${origin}/helpers`;
 
   const jsonLd = {
