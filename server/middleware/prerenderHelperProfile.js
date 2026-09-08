@@ -77,6 +77,14 @@ function getSeoLocale(language) {
   try {
     const localePath = path.join(__dirname, '../../client/src/locales', `${language}.json`);
     const locale = JSON.parse(fs.readFileSync(localePath, 'utf-8'));
+    // Homepage defaults live in the common namespace rather than the legacy catalog.
+    const commonPath = path.join(__dirname, '../../client/src/i18n/locales', language, 'common.json');
+    try {
+      const common = JSON.parse(fs.readFileSync(commonPath, 'utf-8'));
+      if (common.pageMeta) locale.pageMeta = common.pageMeta;
+    } catch (commonErr) {
+      logger.warn('[prerender] Common SEO locale catalog unavailable', { language, error: commonErr.message });
+    }
     seoLocaleCache.set(language, locale);
     return locale;
   } catch (err) {
