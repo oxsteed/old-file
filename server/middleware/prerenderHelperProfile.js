@@ -151,6 +151,46 @@ const MARKETING_PAGES = {
     title: 'OxSteed Learn | Practical Home and Business Guides',
     description: 'Explore practical guides for home maintenance, local services, tools, business, and everyday planning.',
   },
+  '/help/restaurant': {
+    title: 'OxSteed Restaurant Help Center | Ordering and Support',
+    description: 'Learn how customers use OxSteed Restaurants to browse menus, place orders, track food, and request support.',
+    schemaType: 'TechArticle',
+  },
+  '/help/manager': {
+    title: 'OxSteed Manager Help Center | Restaurant Operations',
+    description: 'Learn how restaurant owners and managers use OxSteed Manager for orders, menus, team access, reports, and support.',
+    schemaType: 'TechArticle',
+  },
+  '/help/pos': {
+    title: 'OxSteed POS Help Center | Orders and Payments',
+    description: 'Learn how to use OxSteed POS for counter orders, payments, held orders, discounts, shifts, and cash workflows.',
+    schemaType: 'TechArticle',
+  },
+  '/help/kitchen': {
+    title: 'OxSteed Kitchen Help Center | Ticket and Prep Workflows',
+    description: 'Learn how OxSteed Kitchen handles ticket queues, station prep, expo handoff, item availability, and service history.',
+    schemaType: 'TechArticle',
+  },
+  '/help/display': {
+    title: 'OxSteed Display Help Center | Guest Order Status',
+    description: 'Learn how OxSteed Display supports guest order status, kiosk flows, and customer-facing restaurant updates.',
+    schemaType: 'TechArticle',
+  },
+  '/help/inventory': {
+    title: 'OxSteed Inventory Help Center | Stock and Availability',
+    description: 'Learn how OxSteed Inventory supports stock tracking, availability updates, counts, and restaurant operations.',
+    schemaType: 'TechArticle',
+  },
+  '/help/crew': {
+    title: 'OxSteed Crew Help Center | Restaurant Team Workflows',
+    description: 'Learn how OxSteed Crew supports restaurant staff, assignments, checklists, and daily service coordination.',
+    schemaType: 'TechArticle',
+  },
+  '/help/runner': {
+    title: 'OxSteed Runner Help Center | Handoff and Delivery',
+    description: 'Learn how OxSteed Runner supports order pickup, handoff, delivery coordination, and service status updates.',
+    schemaType: 'TechArticle',
+  },
   '/restaurants': {
     title: 'OxSteed Restaurants | Order Local Food',
     description: 'Browse participating local restaurants and order food through OxSteed.',
@@ -211,6 +251,7 @@ const MARKETING_PAGES = {
   '/privacy': { title: 'Privacy Policy | OxSteed', description: 'Read the OxSteed Privacy Policy.', localized: true },
   '/security': { title: 'Security | OxSteed', description: 'Learn how OxSteed protects accounts, payments, and personal information.', localized: true },
   '/accessibility': { title: 'Accessibility | OxSteed', description: 'Learn about accessibility support on OxSteed.', localized: true },
+  '/enforcement-policy': { title: 'Enforcement Policy | OxSteed', description: 'Read how OxSteed handles marketplace standards, restrictions, appeals, and account enforcement.', localized: true },
   '/do-not-sell': { title: 'Do Not Sell or Share My Information | OxSteed', description: 'Review OxSteed privacy choices and learn how to exercise data rights.', localized: true },
   '/cookie-policy': { title: 'Cookie Policy | OxSteed', description: 'Learn how OxSteed uses essential, analytics, marketing, and functional cookies.', localized: true },
   '/legal/background-check': { title: 'Background Check Policy | OxSteed', description: 'Read the OxSteed background check policy for helpers and customers.', localized: true },
