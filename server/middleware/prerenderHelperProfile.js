@@ -178,65 +178,67 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
   let out = html
     .replace(/<title>[^<]*<\/title>/, `<title data-rh="true">${escapeHtml(title)}</title>`)
     .replace(
-      /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?name="description"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" name="description" content="${escapeHtml(description)}" />`,
     )
     .replace(
-      /<meta\s+property="og:site_name"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:site_name"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:site_name" content="OxSteed" />`,
     )
     .replace(
-      /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:title"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:title" content="${escapeHtml(title)}" />`,
     )
     .replace(
-      /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:description"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:description" content="${escapeHtml(description)}" />`,
     )
     .replace(
-      /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:url"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:url" content="${escapeHtml(url)}" />`,
     )
     .replace(
-      /<meta\s+property="og:type"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:type"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:type" content="${escapeHtml(ogType)}" />`,
     )
     .replace(
-      /<meta\s+property="og:locale"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:locale"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:locale" content="${ogLocale}" />`,
     )
     .replace(
-      /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?name="twitter:title"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" name="twitter:title" content="${escapeHtml(title)}" />`,
     )
     .replace(
-      /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?name="twitter:description"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" name="twitter:description" content="${escapeHtml(description)}" />`,
     );
 
-  if (!/<meta\s+property="og:locale"/.test(out)) {
+  if (!/<meta\s+(?:data-rh="true"\s+)?property="og:locale"/.test(out)) {
     out = out.replace('</head>', `<meta data-rh="true" property="og:locale" content="${ogLocale}" />\n</head>`);
   }
-  if (!/<meta\s+property="og:locale:alternate"/.test(out)) {
-    const alternateLocales = Object.entries(OG_LOCALES)
-      .filter(([code]) => code !== language)
-      .map(([, locale]) => `<meta data-rh="true" property="og:locale:alternate" content="${locale}" />`)
-      .join('\n');
-    out = out.replace('</head>', `${alternateLocales}\n</head>`);
-  }
+  const alternateLocales = Object.entries(OG_LOCALES)
+    .filter(([code]) => code !== language)
+    .map(([, locale]) => `<meta data-rh="true" property="og:locale:alternate" content="${locale}" />`)
+    .join('\n');
+  out = out.replace(
+    /<meta\s+(?:data-rh="true"\s+)?property="og:locale:alternate"\s+content="[^"]*"\s*\/?>\s*/g,
+    '',
+  );
+  out = out.replace('</head>', `${alternateLocales}\n</head>`);
 
-  if (/<meta\s+property="og:image"/.test(out)) {
+  if (/<meta\s+(?:data-rh="true"\s+)?property="og:image"/.test(out)) {
     out = out.replace(
-      /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?property="og:image"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" property="og:image" content="${escapeHtml(img)}" />`,
     );
   } else {
     out = out.replace('</head>', `<meta data-rh="true" property="og:image" content="${escapeHtml(img)}" />\n</head>`);
   }
 
-  if (/<meta\s+name="twitter:image"/.test(out)) {
+  if (/<meta\s+(?:data-rh="true"\s+)?name="twitter:image"/.test(out)) {
     out = out.replace(
-      /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/,
+      /<meta\s+(?:data-rh="true"\s+)?name="twitter:image"\s+content="[^"]*"\s*\/?>/,
       `<meta data-rh="true" name="twitter:image" content="${escapeHtml(img)}" />`,
     );
   } else {
@@ -244,8 +246,8 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
   }
 
   const canon = `<link data-rh="true" rel="canonical" href="${escapeHtml(url)}" />`;
-  if (/<link\s+rel="canonical"/.test(out)) {
-    out = out.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, canon);
+  if (/<link\s+(?:data-rh="true"\s+)?rel="canonical"/.test(out)) {
+    out = out.replace(/<link\s+(?:data-rh="true"\s+)?rel="canonical"\s+href="[^"]*"\s*\/?>/, canon);
   } else {
     out = out.replace('</head>', `${canon}\n</head>`);
   }
@@ -255,8 +257,8 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
 
 function replaceRobots(html, content) {
   const tag = `<meta data-rh="true" name="robots" content="${escapeHtml(content)}" />`;
-  if (/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/.test(html)) {
-    return html.replace(/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/, tag);
+  if (/<meta\s+(?:data-rh="true"\s+)?name="robots"\s+content="[^"]*"\s*\/?>/.test(html)) {
+    return html.replace(/<meta\s+(?:data-rh="true"\s+)?name="robots"\s+content="[^"]*"\s*\/?>/, tag);
   }
   return html.replace('</head>', `${tag}\n</head>`);
 }
