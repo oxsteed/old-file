@@ -1,5 +1,6 @@
 import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
+import PageMeta from '../components/PageMeta';
 
 export default function AboutPage() {
   const { t } = useTranslation();
@@ -11,7 +12,13 @@ export default function AboutPage() {
   ];
 
   return (
-    <LegalPageLayout title={t('aboutPage.title')} effectiveDate="2026-03-24">
+    <>
+      <PageMeta
+        title={t('aboutPage.title')}
+        description={t('aboutPage.mission')}
+        url="https://oxsteed.com/about"
+      />
+      <LegalPageLayout title={t('aboutPage.title')} effectiveDate="2026-03-24">
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">{t('aboutPage.sections.whoWeAre')}</h2>
         <p className="mb-3">
@@ -62,6 +69,7 @@ export default function AboutPage() {
           <a href="/privacy" className="text-orange-400 underline hover:text-orange-300">{t('footer.privacy')}</a>.
         </p>
       </section>
-    </LegalPageLayout>
+      </LegalPageLayout>
+    </>
   );
 }

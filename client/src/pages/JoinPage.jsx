@@ -22,6 +22,7 @@ import { Mail, Phone, MapPin, User, ChevronRight, AlertCircle, CheckCircle2 } fr
 import api from '../api/axios';
 import { persistSessionPayload } from '../api/auth';
 import Footer from '../components/Footer';
+import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
 import OTPInput from '../components/registration/OTPInput';
 import PasswordField, { scorePassword } from '../components/registration/PasswordField';
@@ -237,6 +238,11 @@ export default function JoinPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
+      <PageMeta
+        title={t('join.heroTitle')}
+        description={t('join.heroSubtitle')}
+        url="https://oxsteed.com/join"
+      />
       <nav className="border-b border-[var(--color-border)]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>

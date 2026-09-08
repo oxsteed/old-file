@@ -8,6 +8,7 @@ import { listFoodRestaurants, listMyFoodOrders } from '../../api/food';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
+import PageMeta from '../../components/PageMeta';
 import '../../styles/FoodPages.css';
 
 const DEFAULT_CENTER = [25.0, -40.0];
@@ -239,6 +240,11 @@ export default function FoodHomePage() {
 
   return (
     <PageShell>
+    <PageMeta
+      title={t('food.home.title')}
+      description={t('food.home.subtitle')}
+      url="https://oxsteed.com/restaurants"
+    />
     <div className="fd-home-page">
 
       {/* ── Hero banner ── */}
