@@ -172,3 +172,37 @@ html.dark .rp-root .rp-sheet {
   .rp-desktop-only { display: none !important; }
 }
 .rp-divider-block { height: 8px; background: var(--color-surface-2); }
+
+/* The ordering view still contains legacy inline light-mode values in its
+   menu and checkout markup. Keep those values readable in dark mode while
+   leaving photo gradients, status colors, and the restaurant accent intact. */
+html.dark .rp-root [style*="background: rgb(255, 255, 255)"] {
+  background: var(--color-surface) !important;
+}
+html.dark .rp-root [style*="background: rgb(248, 250, 252)"] {
+  background: var(--color-surface-2) !important;
+}
+html.dark .rp-root [style*="background: rgb(241, 245, 249)"] {
+  background: var(--color-surface-2) !important;
+}
+html.dark .rp-root [style*="color: rgb(15, 23, 42)"] {
+  color: var(--color-text) !important;
+}
+html.dark .rp-root [style*="color: rgb(71, 85, 105)"] {
+  color: var(--color-text-muted) !important;
+}
+html.dark .rp-root [style*="color: rgb(100, 116, 139)"] {
+  color: var(--color-text-muted) !important;
+}
+html.dark .rp-root [style*="color: rgb(148, 163, 184)"] {
+  color: var(--color-text-faint) !important;
+}
+html.dark .rp-root [style*="border:"][style*="rgb(226, 232, 240)"],
+html.dark .rp-root [style*="border:"][style*="rgb(241, 245, 249)"],
+html.dark .rp-root [style*="border-top:"][style*="rgb(226, 232, 240)"],
+html.dark .rp-root [style*="border-bottom:"][style*="rgb(241, 245, 249)"] {
+  border-color: var(--color-border) !important;
+}
+html.dark .rp-root [style*="background: rgb(255, 248, 237)"] {
+  background: var(--color-primary-bg) !important;
+}

@@ -27,13 +27,13 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
       <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold text-orange-500">OxSteed</Link>
-          <h2 className="mt-6 text-2xl font-bold text-white">{t('forgotPassword.title')}</h2>
-          <p className="mt-2 text-gray-400 text-sm">
+          <h2 className="mt-6 text-2xl font-bold text-[var(--color-text)]">{t('forgotPassword.title')}</h2>
+          <p className="mt-2 text-[var(--color-text-muted)] text-sm">
             {sent
               ? t('forgotPassword.sentSubtitle')
               : t('forgotPassword.subtitle')}
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         {!sent ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
                 {t('auth.email')}
               </label>
               <input
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
             <div className="w-16 h-16 mx-auto bg-orange-500/10 rounded-full flex items-center justify-center">
               <Mail className="w-8 h-8 text-orange-500" />
             </div>
-            <p className="text-gray-300 text-sm">{t('forgotPassword.checkSpam')}</p>
+            <p className="text-[var(--color-text-muted)] text-sm">{t('forgotPassword.checkSpam')}</p>
             <button
               onClick={() => setSent(false)}
               className="text-orange-500 hover:text-orange-400 text-sm font-medium transition"
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <div className="text-center">
-          <Link to="/login" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white transition">
+          <Link to="/login" className="inline-flex items-center gap-1 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">
             <ArrowLeft size={16} /> {t('forgotPassword.backToSignIn')}
           </Link>
         </div>

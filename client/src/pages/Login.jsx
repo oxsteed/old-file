@@ -152,10 +152,10 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
 
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="inline-flex min-h-11 items-center text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-3">
@@ -259,14 +259,14 @@ export default function Login() {
             {/* Mobile wordmark */}
             <div className="lg:hidden text-center">
               <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-              <p className="text-gray-500 mt-1">{t('login.brandTagline')}</p>
+              <p className="text-[var(--color-text-faint)] mt-1">{t('login.brandTagline')}</p>
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-[var(--color-text)]">
                 {mfaToken ? t('login.twoFactorTitle') : t('login.title')}
               </h2>
-              <p className="text-gray-400 mt-1">
+              <p className="text-[var(--color-text-muted)] mt-1">
                 {mfaToken ? t('login.twoFactorSubtitle') : t('login.subtitle')}
               </p>
             </div>
@@ -277,7 +277,7 @@ export default function Login() {
                 <div className="space-y-4">
                   <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 flex gap-3">
                     <ShieldCheck className="mt-0.5 flex-shrink-0 text-orange-400" size={22} />
-                    <p className="text-sm leading-relaxed text-gray-300">
+                    <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
                       {t('login.twoFactorHint')}
                     </p>
                   </div>
@@ -292,7 +292,7 @@ export default function Login() {
                       autoFocus
                       value={twoFactorCode}
                       onChange={(e) => setTwoFactorCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                      className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                       placeholder={t('login.twoFactorCodePlaceholder')}
                       autoComplete="one-time-code"
                     />
@@ -319,7 +319,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                      className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                     placeholder={t('login.emailPlaceholder')}
                   autoComplete="email"
                 />
@@ -342,7 +342,7 @@ export default function Login() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
+                    className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
                     placeholder={t('login.passwordPlaceholder')}
                     autoComplete="current-password"
                   />
@@ -358,7 +358,7 @@ export default function Login() {
               </div>
 
               {/* ── Terms & Signature agreement box ── */}
-              <div className="rounded-xl bg-gray-900/70 border border-gray-700/60 p-4 space-y-4">
+              <div className="rounded-xl bg-[var(--color-surface-translucent)] border border-[var(--color-border-subtle)] p-4 space-y-4">
 
                 {/* Mandatory checkbox */}
                 <div className="flex items-start gap-3">
@@ -441,7 +441,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading || (mfaToken ? !twoFactorCode.trim() : !canSubmit)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 aria-disabled={mfaToken ? !twoFactorCode.trim() : !canSubmit}
               >
                 {loading ? (
@@ -464,7 +464,7 @@ export default function Login() {
                 <div className="w-full border-t border-gray-800" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-gray-950 text-gray-500">{t('login.newHere')}</span>
+                <span className="px-4 bg-[var(--color-bg)] text-[var(--color-text-faint)]">{t('login.newHere')}</span>
               </div>
             </div>
 

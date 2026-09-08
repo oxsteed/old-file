@@ -40,15 +40,15 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
       <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold text-orange-500">OxSteed</Link>
-          <h2 className="mt-6 text-2xl font-bold text-white">
+          <h2 className="mt-6 text-2xl font-bold text-[var(--color-text)]">
             {success ? t('resetPassword.successTitle') : t('resetPassword.title')}
           </h2>
-          <p className="mt-2 text-gray-400 text-sm">
+          <p className="mt-2 text-[var(--color-text-muted)] text-sm">
             {success
               ? t('resetPassword.successSubtitle')
               : t('resetPassword.subtitle')}
@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
         {!success && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
                 {t('resetPassword.newPassword')}
               </label>
               <div className="relative">
@@ -68,20 +68,20 @@ export default function ResetPasswordPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
+                  className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
                   placeholder={t('resetPassword.passwordPlaceholder')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--color-text-muted)] mb-1.5">
                 {t('resetPassword.confirmPassword')}
               </label>
               <input
@@ -90,7 +90,7 @@ export default function ResetPasswordPage() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                 placeholder={t('resetPassword.confirmPlaceholder')}
               />
             </div>

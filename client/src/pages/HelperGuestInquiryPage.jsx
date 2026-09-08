@@ -100,10 +100,10 @@ export default function HelperGuestInquiryPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-950">
+      <div className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
         <Navbar />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <p className="text-gray-400">{t('messages.guestInquirySignIn')}</p>
+          <p className="text-[var(--color-text-muted)]">{t('messages.guestInquirySignIn')}</p>
         </main>
         <Footer />
       </div>
@@ -112,7 +112,7 @@ export default function HelperGuestInquiryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-950">
+      <div className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
@@ -123,36 +123,36 @@ export default function HelperGuestInquiryPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-950">
+    <div className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <button
           type="button"
           onClick={() => navigate('/helper/messages')}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+          className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] mb-6"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           {t('messages.backToInbox')}
         </button>
 
         {!inquiryUuid ? (
-          <p className="text-gray-400">{t('messages.guestInquiryInvalid')}</p>
+          <p className="text-[var(--color-text-muted)]">{t('messages.guestInquiryInvalid')}</p>
         ) : fetchError === 'forbidden' ? (
-          <p className="text-gray-400">{t('messages.guestInquiryForbidden')}</p>
+          <p className="text-[var(--color-text-muted)]">{t('messages.guestInquiryForbidden')}</p>
         ) : !payload ? (
-          <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-            <h1 className="text-lg font-semibold text-white mb-2">{t('messages.guestInquiryUnavailable')}</h1>
-            <p className="text-sm text-gray-400">{t('messages.guestInquiryUnavailableHint')}</p>
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <h1 className="text-lg font-semibold text-[var(--color-text)] mb-2">{t('messages.guestInquiryUnavailable')}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">{t('messages.guestInquiryUnavailableHint')}</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-start justify-between gap-4">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-orange-400/90">
                   {t('messages.guestInquiryBadge')}
                 </p>
-                <h1 className="text-xl font-semibold text-white mt-1">{guestName}</h1>
-                <p className="text-sm text-gray-400 mt-0.5">{guestEmail}</p>
+                <h1 className="text-xl font-semibold text-[var(--color-text)] mt-1">{guestName}</h1>
+                <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{guestEmail}</p>
                 {createdAt && (
                   <p className="text-xs text-gray-600 mt-2">{new Date(createdAt).toLocaleString()}</p>
                 )}
@@ -168,8 +168,8 @@ export default function HelperGuestInquiryPage() {
               )}
             </div>
             <div className="px-5 py-5">
-              <p className="text-xs text-gray-500 mb-2">{t('messages.guestInquiryMessageLabel')}</p>
-              <p className="text-sm text-gray-200 whitespace-pre-wrap">{message}</p>
+              <p className="text-xs text-[var(--color-text-faint)] mb-2">{t('messages.guestInquiryMessageLabel')}</p>
+              <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-wrap">{message}</p>
             </div>
           </div>
         )}

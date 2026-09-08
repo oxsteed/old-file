@@ -220,7 +220,7 @@ export default function JoinPage() {
   }, [registrationToken, t]);
 
   // ── Render helpers ─────────────────────────────────────
-  const inputBase = 'w-full py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 transition-all hover:border-gray-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20';
+  const inputBase = 'w-full py-3 bg-[var(--color-surface-2)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text)] text-sm placeholder-[var(--color-text-faint)] transition-all hover:border-[var(--color-border-strong)] focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20';
   const inputWithIcon = `${inputBase} pl-10 pr-3`;
 
   const FieldError = ({ id, msg }) => msg ? (
@@ -236,13 +236,13 @@ export default function JoinPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <nav className="border-b border-gray-800">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
+      <nav className="border-b border-[var(--color-border)]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-4">
-            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.howItWorks')}</Link>
-            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.signIn')}</Link>
+            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.howItWorks')}</Link>
+            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.signIn')}</Link>
           </div>
         </div>
       </nav>
@@ -250,12 +250,12 @@ export default function JoinPage() {
       <div className="flex-1 flex flex-col items-center px-4 py-8 md:py-12">
         <div className="w-full max-w-[520px] flex flex-col gap-8">
           <section className="text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">{t('join.heroTitle')}</h1>
+            <h1 className="text-3xl font-bold text-[var(--color-text)] mb-2">{t('join.heroTitle')}</h1>
             <p className="text-orange-400 font-semibold text-lg">{t('join.heroSubtitle')}</p>
-            <p className="text-gray-400 text-sm mt-2">{t('join.heroNote')}</p>
+            <p className="text-[var(--color-text-muted)] text-sm mt-2">{t('join.heroNote')}</p>
           </section>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg shadow-black/30 overflow-hidden">
             {!otpSent ? (
               <form onSubmit={handleSubmit} noValidate className="p-6 flex flex-col gap-5">
                 {errors.general && (
@@ -265,7 +265,7 @@ export default function JoinPage() {
                 )}
 
                 <div>
-                  <label className="text-[11px] font-semibold tracking-wide uppercase text-gray-400 block mb-1">
+                  <label className="text-[11px] font-semibold tracking-wide uppercase text-[var(--color-text-muted)] block mb-1">
                     {t('join.modeLabel')}
                   </label>
                   <select
@@ -283,7 +283,7 @@ export default function JoinPage() {
                     })}
                   </select>
                   {selectedModeDescription && (
-                    <p className="text-xs text-gray-400 mt-2 leading-relaxed">{selectedModeDescription}</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-2 leading-relaxed">{selectedModeDescription}</p>
                   )}
                   <FieldError msg={errors.defaultMode} />
                 </div>
@@ -427,7 +427,7 @@ export default function JoinPage() {
                   />
                 </div>
 
-                <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
+                <label className="flex items-start gap-2 text-xs text-[var(--color-text-muted)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.termsAccepted}
@@ -450,7 +450,7 @@ export default function JoinPage() {
             ) : (
               <div className="p-6 flex flex-col gap-4 text-center">
                 <h2 className="text-xl font-semibold">{t('join.otpTitle')}</h2>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-[var(--color-text-muted)]">
                   {t('join.otpHint', { email: form.email })}
                 </p>
                 <OTPInput value={otpDigits} onChange={setOtpDigits} onComplete={handleOtpComplete} />
@@ -462,12 +462,12 @@ export default function JoinPage() {
                   {t('join.resend')}
                 </button>
                 {verifying && (
-                  <div className="text-sm text-gray-400">{t('join.verifying')}</div>
+                  <div className="text-sm text-[var(--color-text-muted)]">{t('join.verifying')}</div>
                 )}
               </div>
             )}
 
-            <div className="text-center px-6 pb-5 text-xs text-gray-400">
+            <div className="text-center px-6 pb-5 text-xs text-[var(--color-text-muted)]">
               {t('auth.welcomeBack')}?{' '}
               <Link to="/login" className="text-orange-400 hover:text-orange-300 underline">
                 {t('nav.signIn')}
