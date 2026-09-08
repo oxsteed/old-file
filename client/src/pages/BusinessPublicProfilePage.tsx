@@ -5,6 +5,8 @@ import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
 import { Star, MapPin, Phone, Mail, Users } from 'lucide-react';
 import api from '../api/axios';
+import PageMeta from '../components/PageMeta';
+import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import './BusinessPublicProfilePage.css';
 
 /**
@@ -26,7 +28,18 @@ export default function BusinessPublicProfilePage() {
   const loadBusiness = async () => {
     try {
       const { data } = await api.get(`/businesses/${businessId}/public`);
-      setBusiness(data.data);
+      const profile = data.business || data.data || data;
+      setBusiness({
+        ...profile,
+        name: profile.name || profile.business_name,
+        profilePhotoUrl: profile.profilePhotoUrl || profile.logo_url,
+        coverImageUrl: profile.coverImageUrl || profile.cover_photo_url,
+        rating: profile.rating ?? profile.avg_rating,
+        reviewCount: profile.reviewCount ?? profile.total_reviews,
+        location: profile.location || [profile.address_city, profile.address_state].filter(Boolean).join(', '),
+        teamSize: profile.teamSize ?? data.team?.length,
+        hours: profile.hours || data.hours,
+      });
     } catch (err) {
       setError(err.response?.data?.error || err.message || t('businessPublicProfile.notFound'));
     } finally {
@@ -40,11 +53,25 @@ export default function BusinessPublicProfilePage() {
 
   return (
     <div className="business-public-profile">
+      <PageMeta
+        title={business.name || business.business_name}
+        description={buildPublicProfileDescription({
+          displayName: business.name || business.business_name,
+          tagline: business.headline || business.profile_headline,
+          bio: business.description,
+          city: business.location?.split(',')[0] || business.address_city,
+          state: business.location?.split(',')[1]?.trim() || business.address_state,
+          entityLabel: 'business',
+        })}
+        image={business.coverImageUrl || business.cover_photo_url || business.profilePhotoUrl || business.logo_url}
+        url={`${getPublicSiteUrl()}/businesses/public/${businessId}`}
+        type="profile"
+      />
       {/* COVER IMAGE WITH QR OVERLAY - AT TOP */}
       <ProfileHeader
         helperId={businessId}
-        helperName={business.name}
-        coverImageUrl={business.coverImageUrl}
+        helperName={business.name || business.business_name}
+        coverImageUrl={business.coverImageUrl || business.cover_photo_url}
       />
 
       {/* Main Profile Content */}
@@ -55,11 +82,11 @@ export default function BusinessPublicProfilePage() {
             <div className="business-header">
               <img
                 src={business.profilePhotoUrl}
-                alt={business.name}
+                alt={business.name || business.business_name}
                 className="business-logo"
               />
               <div className="business-info">
-                <h1>{business.name}</h1>
+                <h1>{business.name || business.business_name}</h1>
                 <div className="business-rating">
                   <Star size={18} fill="gold" color="gold" />
                   <span>{business.rating} ({t('businessPublicProfile.reviewCount', { count: business.reviewCount })})</span>

@@ -1,6 +1,6 @@
 /**
  * JobPublicPage — public view of a single job posting.
- * Route: /jobs/:jobId
+ * Route: /jobs/public/:jobId
  *
  * Used from discover search results and discover alert email links.
  * No auth required to view; bid CTA redirects to login if not authenticated.
@@ -16,6 +16,8 @@ import {
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PageMeta from '../components/PageMeta';
+import { getPublicSiteUrl } from '../utils/seoDescription';
 import { formatDate, formatMoney } from '../lib/format';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ export default function JobPublicPage() {
   useEffect(() => {
     if (!jobId) return;
     setLoading(true);
-    api.get(`/jobs/${jobId}`)
+    api.get(`/jobs/public/${jobId}`)
       .then(({ data }) => setJob(data.job ?? data))
       .catch((err) => {
         if (err.response?.status === 404) {
@@ -129,8 +131,19 @@ export default function JobPublicPage() {
     }
   };
 
+  const isPublicJob = job && ['published', 'matched'].includes(job.status);
+  const publicUrl = `${getPublicSiteUrl()}/jobs/public/${jobId}`;
+  const metaDescription = job?.description?.replace(/\s+/g, ' ').trim().slice(0, 155)
+    || t('jobPublicPage.metaDescription', { defaultValue: 'Find local work opportunities and submit a bid through OxSteed.' });
+
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-white">
+      <PageMeta
+        title={job?.title || t('jobPublicPage.metaTitle', { defaultValue: 'Local Job Opportunity' })}
+        description={metaDescription}
+        url={publicUrl}
+        noIndex={Boolean(error) || Boolean(job && !isPublicJob)}
+      />
       <Navbar />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
@@ -240,7 +253,7 @@ export default function JobPublicPage() {
             )}
 
             {/* CTA */}
-            {job.status === 'published' && (
+            {isPublicJob && (
               <button
                 onClick={handleBid}
                 className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white

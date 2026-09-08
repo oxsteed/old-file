@@ -78,7 +78,22 @@ router.get('/', async (_req, res) => {
          AND u.onboarding_completed = TRUE
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
        ORDER BY b.updated_at DESC NULLS LAST
-       LIMIT 2000`,
+      LIMIT 2000`,
+    );
+
+    const { rows: jobs } = await pool.query(
+      `SELECT j.id, j.updated_at
+       FROM jobs j
+       JOIN users u ON u.id = j.client_id
+       WHERE j.deleted_at IS NULL
+         AND j.status IN ('published', 'matched')
+         AND (j.expires_at IS NULL OR j.expires_at > NOW())
+         AND u.is_active = TRUE
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+       ORDER BY j.updated_at DESC NULLS LAST
+       LIMIT 5000`,
     );
 
     const entries = [
@@ -96,6 +111,14 @@ router.get('/', async (_req, res) => {
           loc: `${origin}/business/${r.id}`,
           changefreq: 'weekly',
           priority: '0.75',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...jobs.map((r) =>
+        urlEntry({
+          loc: `${origin}/jobs/public/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.7',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),
       ),

@@ -11280,6 +11280,8 @@
   "jobPublicPage": {
     "back": "Retour",
     "loading": "Chargement de la mission…",
+    "metaTitle": "Opportunité de travail locale",
+    "metaDescription": "Trouvez des opportunités de travail locales et soumettez une offre sur OxSteed.",
     "description": "Description",
     "photos": "Photos",
     "statusOpen": "Ouvert",

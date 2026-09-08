@@ -452,6 +452,68 @@ exports.getJob = async (req, res, next) => {
   }
 };
 
+// Guest pages receive only fields that are safe to publish and index.
+exports.getPublicJob = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(`
+      SELECT
+        j.id, j.title, j.description, j.category_name, j.status,
+        j.budget_min, j.budget_max,
+        j.location_city, j.location_state,
+        j.scheduled_date, j.created_at, j.expires_at,
+        j.media_urls
+      FROM jobs j
+      JOIN users u ON u.id = j.client_id
+      WHERE j.id = $1
+        AND j.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.deleted_at IS NULL
+        AND u.email_verified = TRUE
+        AND u.onboarding_completed = TRUE
+        AND j.status IN ('published', 'matched')
+        AND (j.expires_at IS NULL OR j.expires_at > NOW())
+      LIMIT 1
+    `, [id]);
+
+    if (rows.length === 0) throw new AppError('Job not found', 404, 'job_not_found');
+
+    let media = rows[0].media_urls;
+    if (typeof media === 'string') {
+      try { media = JSON.parse(media); } catch { media = []; }
+    }
+    media = Array.isArray(media)
+      ? media.filter((item) => item && typeof item.url === 'string' && /^https?:\/\//i.test(item.url))
+        .map((item) => ({ url: item.url, type: item.type || 'image' }))
+        .slice(0, 10)
+      : [];
+
+    const publicJob = {
+      id: rows[0].id,
+      title: rows[0].title,
+      description: rows[0].description,
+      category_name: rows[0].category_name,
+      status: rows[0].status,
+      budget_min: rows[0].budget_min,
+      budget_max: rows[0].budget_max,
+      location_city: rows[0].location_city,
+      location_state: rows[0].location_state,
+      scheduled_date: rows[0].scheduled_date,
+      created_at: rows[0].created_at,
+      expires_at: rows[0].expires_at,
+      media,
+    };
+
+    const translatedJob = await translateRecordForRequest(publicJob, req, {
+      fields: ['title', 'description', 'category_name'],
+      contentType: 'job',
+    });
+    return res.json({ job: translatedJob });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // Update a job (only by the client who created it)
 exports.updateJob = async (req, res, next) => {
   try {

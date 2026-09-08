@@ -11283,6 +11283,8 @@
   "jobPublicPage": {
     "back": "العودة",
     "loading": "جارٍ تحميل الوظيفة…",
+    "metaTitle": "فرصة عمل محلية",
+    "metaDescription": "اعثر على فرص عمل محلية وقدّم عرضًا عبر OxSteed.",
     "description": "الوصف",
     "photos": "الصور",
     "statusOpen": "مفتوح",

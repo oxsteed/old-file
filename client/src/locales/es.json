@@ -11280,6 +11280,8 @@
   "jobPublicPage": {
     "back": "Atrás",
     "loading": "Cargando trabajo…",
+    "metaTitle": "Oportunidad de trabajo local",
+    "metaDescription": "Encuentra oportunidades de trabajo locales y envía una oferta a través de OxSteed.",
     "description": "Descripción",
     "photos": "Fotos",
     "statusOpen": "Abierto",

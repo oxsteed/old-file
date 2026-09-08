@@ -567,6 +567,69 @@ async function handleBusinessProfile(businessId, template, res, next) {
 
 const UUID_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const BUSINESS_RE = /^\/business\/(\d+)$/i;
+const PUBLIC_JOB_RE = /^\/jobs\/public\/([^/]+)$/i;
+
+async function handlePublicJob(jobId, template, res, next) {
+  const { rows } = await pool.query(
+    `SELECT j.id, j.title, j.description, j.category_name, j.status,
+            j.budget_min, j.budget_max, j.location_city, j.location_state,
+            j.scheduled_date, j.created_at, j.expires_at
+     FROM jobs j
+     JOIN users u ON u.id = j.client_id
+     WHERE j.id = $1
+       AND j.deleted_at IS NULL
+       AND u.is_active = TRUE
+       AND u.deleted_at IS NULL
+       AND u.email_verified = TRUE
+       AND u.onboarding_completed = TRUE
+       AND j.status IN ('published', 'matched')
+       AND (j.expires_at IS NULL OR j.expires_at > NOW())
+     LIMIT 1`,
+    [jobId],
+  );
+  if (!rows[0]) return next();
+
+  const job = rows[0];
+  const origin = base();
+  const url = `${origin}/jobs/public/${job.id}`;
+  const title = `${job.title} | OxSteed`;
+  const description = String(job.description || `${job.title} local service opportunity on OxSteed.`)
+    .replace(/\s+/g, ' ').trim().slice(0, 320);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: job.title,
+    description,
+    datePosted: job.created_at ? new Date(job.created_at).toISOString() : undefined,
+    validThrough: job.expires_at ? new Date(job.expires_at).toISOString() : undefined,
+    url,
+    hiringOrganization: { '@type': 'Organization', name: 'OxSteed', url: origin },
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: job.location_city || undefined,
+        addressRegion: job.location_state || undefined,
+        addressCountry: 'US',
+      },
+    },
+    occupationalCategory: job.category_name || undefined,
+  };
+  const budget = job.budget_min || job.budget_max
+    ? `<p>Budget: ${escapeHtml(String(job.budget_min || job.budget_max))}${job.budget_min && job.budget_max && job.budget_min !== job.budget_max ? ` - ${escapeHtml(String(job.budget_max))}` : ''}</p>`
+    : '';
+  const location = [job.location_city, job.location_state].filter(Boolean).join(', ');
+  const shell = `<div id="ssr-shell" data-job-id="${escapeHtml(String(job.id))}" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;">
+    <header><h1>${escapeHtml(job.title)}</h1>${job.category_name ? `<p>${escapeHtml(job.category_name)}</p>` : ''}${location ? `<p>${escapeHtml(location)}</p>` : ''}${budget}</header>
+    <section><h2>Job description</h2><p>${escapeHtml(job.description || '')}</p></section>
+  </div>`;
+  let html = replaceMeta(template, { title, description, url, image: `${origin}/og-default.png` });
+  html = injectJsonLd(html, jsonLd);
+  html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
 
 function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
@@ -591,6 +654,14 @@ function prerenderPublicPages(req, res, next) {
   if (p === '/helpers' || p === '/helpers/') {
     return handleHelpersDirectory(template, res).catch((err) => {
       logger.error('[prerender] helpers directory error', { error: err.message });
+      return next();
+    });
+  }
+
+  const matchJob = p.match(PUBLIC_JOB_RE);
+  if (matchJob) {
+    return handlePublicJob(matchJob[1], template, res, next).catch((err) => {
+      logger.error('[prerender] public job error', { jobId: matchJob[1], error: err.message });
       return next();
     });
   }

@@ -8,7 +8,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const {
-  createJob, getJobs, getJob, updateJob,
+  createJob, getJobs, getJob, getPublicJob, updateJob,
   cancelJob, assignHelper, startJob, completeJob, closeJob, getMyJobs,
 } = require('../controllers/jobController');
 
@@ -48,8 +48,9 @@ router.post('/',       authenticate, requireEmailVerified, checkRestrictions('jo
 router.post('/assign', authenticate, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────
-router.get('/',     generalLimiter, getJobs);
-router.get('/:id',  generalLimiter, getJob);
+router.get('/',            generalLimiter, getJobs);
+router.get('/public/:id',  generalLimiter, getPublicJob);
+router.get('/:id',         authenticate, generalLimiter, getJob);
 
 // ── Protected parameterized ───────────────────────────────────────────────────
 router.put('/:id',           authenticate, updateJob);

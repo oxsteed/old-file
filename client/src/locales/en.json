@@ -11179,6 +11179,8 @@
   "jobPublicPage": {
     "back": "Back",
     "loading": "Loading job…",
+    "metaTitle": "Local Job Opportunity",
+    "metaDescription": "Find local work opportunities and submit a bid through OxSteed.",
     "description": "Description",
     "photos": "Photos",
     "statusOpen": "Open",

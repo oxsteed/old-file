@@ -3,8 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
-import { Star, MapPin, Phone, Mail } from 'lucide-react';
+import { Star, MapPin } from 'lucide-react';
 import api from '../api/axios';
+import PageMeta from '../components/PageMeta';
+import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import './HelperPublicProfilePage.css';
 
 /**
@@ -27,7 +29,8 @@ export default function HelperPublicProfilePage() {
   const loadHelperProfile = async () => {
     try {
       const { data } = await api.get(`/helpers/${helperId}/profile`);
-      setHelper(data.data);
+      const profile = data.helper || data.data || data;
+      setHelper({ ...profile, services: data.services || profile.services || [] });
     } catch (err) {
       setError(err.response?.data?.error || err.message || t('publicProfile.notFound'));
     } finally {
@@ -39,13 +42,35 @@ export default function HelperPublicProfilePage() {
   if (error) return <div className="page-error">{error}</div>;
   if (!helper) return <div className="page-error">{t('publicProfile.notFound')}</div>;
 
+  const displayName = helper.businessName || helper.ownerName || t('common.helper');
+  const profilePhoto = helper.profilePhotoUrl || helper.avatar;
+  const coverImage = helper.coverImageUrl || helper.coverImage;
+  const location = [helper.city, helper.state].filter(Boolean).join(', ');
+  const services = helper.services || [];
+  const startingRate = helper.startingRate || services.find((service) => service.price)?.price;
+  const isAvailable = helper.isAvailableNow || helper.availabilityStatus === 'online';
+
   return (
     <div className="helper-public-profile">
+      <PageMeta
+        title={displayName}
+        description={buildPublicProfileDescription({
+          displayName,
+          tagline: helper.tagline,
+          bio: helper.bio,
+          city: helper.city,
+          state: helper.state,
+          entityLabel: 'helper',
+        })}
+        image={coverImage || profilePhoto}
+        url={`${getPublicSiteUrl()}/helpers/public/${helperId}`}
+        type="profile"
+      />
       {/* COVER IMAGE WITH QR OVERLAY - AT TOP */}
       <ProfileHeader
         helperId={helperId}
-        helperName={`${helper.firstName} ${helper.lastName}`}
-        coverImageUrl={helper.coverImageUrl}
+        helperName={displayName}
+        coverImageUrl={coverImage}
       />
 
       {/* Main Profile Content */}
@@ -55,12 +80,12 @@ export default function HelperPublicProfilePage() {
           <div className="profile-card">
             <div className="helper-header">
               <img
-                src={helper.profilePhotoUrl}
-                alt={helper.firstName}
+                src={profilePhoto}
+                alt={displayName}
                 className="helper-avatar"
               />
               <div className="helper-info">
-                <h1>{helper.firstName} {helper.lastName}</h1>
+                <h1>{displayName}</h1>
                 <div className="helper-rating">
                   <Star size={18} fill="gold" color="gold" />
                   <span>{helper.rating} ({t('publicProfile.reviewCount', { count: helper.reviewCount })})</span>
@@ -72,22 +97,10 @@ export default function HelperPublicProfilePage() {
 
             {/* Contact Info */}
             <div className="contact-info">
-              {helper.location && (
+              {location && (
                 <div className="contact-item">
                   <MapPin size={18} />
-                  <span>{helper.location}</span>
-                </div>
-              )}
-              {helper.phone && (
-                <div className="contact-item">
-                  <Phone size={18} />
-                  <span>{helper.phone}</span>
-                </div>
-              )}
-              {helper.email && (
-                <div className="contact-item">
-                  <Mail size={18} />
-                  <span>{helper.email}</span>
+                  <span>{location}</span>
                 </div>
               )}
             </div>
@@ -102,11 +115,11 @@ export default function HelperPublicProfilePage() {
           <div className="profile-card">
             <h2>{t('helperProfile.services.title')}</h2>
             <div className="services-list">
-              {helper.services && helper.services.map(service => (
+              {services.map(service => (
                 <div key={service.id} className="service-item">
                   <h4>{service.name}</h4>
                   <p>{service.description}</p>
-                  <span className="service-price">{t('jobDetail.hourlyRate', { amount: `$${service.rate}` })}</span>
+                  <span className="service-price">{t('jobDetail.hourlyRate', { amount: `$${service.price}` })}</span>
                 </div>
               ))}
             </div>
@@ -134,7 +147,7 @@ export default function HelperPublicProfilePage() {
             <h3>{t('profile.qrCode.title')}</h3>
             <QRCodeDisplay
               helperId={helperId}
-              helperName={`${helper.firstName} ${helper.lastName}`}
+              helperName={displayName}
             />
           </div>
 
@@ -143,15 +156,15 @@ export default function HelperPublicProfilePage() {
             <h3>{t('helpersDir.pricePerHour')}</h3>
             <div className="pricing-item">
               <span>{t('helpersDir.priceStartingAt')}</span>
-              <span className="price">{t('jobDetail.hourlyRate', { amount: `$${helper.startingRate}` })}</span>
+              <span className="price">{startingRate ? t('jobDetail.hourlyRate', { amount: `$${startingRate}` }) : t('common.notProvided')}</span>
             </div>
           </div>
 
           {/* Availability Badge */}
           <div className="sidebar-card">
             <h3>{t('helperProfile.hours.title')}</h3>
-            <div className={`availability-badge ${helper.isAvailable ? 'available' : 'unavailable'}`}>
-              {helper.isAvailable ? t('helpersDir.available') : t('common.unavailable')}
+            <div className={`availability-badge ${isAvailable ? 'available' : 'unavailable'}`}>
+              {isAvailable ? t('helpersDir.available') : t('common.unavailable')}
             </div>
           </div>
         </aside>
