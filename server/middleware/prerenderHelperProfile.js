@@ -1313,6 +1313,13 @@ function prerenderPublicPages(req, res, next) {
   if (req.method !== 'GET') return next();
 
   const p = req.path;
+  const canonicalPath = p.length > 1 ? p.replace(/\/+$/, '') : p;
+  if (canonicalPath !== p && (MARKETING_PAGES[canonicalPath] || isPublicSeoPath(canonicalPath))) {
+    const target = new URL(req.originalUrl, base());
+    target.pathname = canonicalPath;
+    return res.redirect(301, target.toString());
+  }
+
   // Keep authenticated, tokenized, and unknown SPA navigations out of search
   // even when the client shell has not mounted yet. Static assets are excluded.
   if (!path.extname(p) && (!isPublicSeoPath(p) || MARKETING_PAGES[p]?.noIndex)) {
