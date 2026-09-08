@@ -567,7 +567,7 @@ async function handleBusinessProfile(businessId, template, res, next) {
 
 const UUID_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const BUSINESS_RE = /^\/business\/(\d+)$/i;
-const PUBLIC_JOB_RE = /^\/jobs\/public\/(\d+)$/i;
+const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 async function handlePublicJob(jobId, template, res, next) {
   const { rows } = await pool.query(
