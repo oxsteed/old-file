@@ -493,6 +493,17 @@ const MARKETING_PAGES = {
   '/legal/independent-contractor': { title: 'Independent Contractor Policy | OxSteed', description: 'Review the OxSteed independent contractor responsibilities, marketplace standards, and service terms.', localized: true },
 };
 
+const DIRECT_SERVICE_AREA = {
+  '@type': 'GeoCircle',
+  name: 'Within 60 miles of Springfield, Ohio',
+  geoMidpoint: {
+    '@type': 'GeoCoordinates',
+    latitude: 39.9528,
+    longitude: -83.7804,
+  },
+  geoRadius: 96560.64,
+};
+
 function handleMarketingPage(pagePath, template, res, req) {
   const page = getLocalizedSeoCopy(pagePath, MARKETING_PAGES[pagePath], req);
   const origin = base();
@@ -508,7 +519,7 @@ function handleMarketingPage(pagePath, template, res, req) {
     isPartOf: { '@id': `${origin}/#website` },
     ...(page.schemaType === 'Service' ? {
       provider: { '@id': `${origin}/#organization` },
-      areaServed: 'Within 60 miles of Springfield, Ohio',
+      areaServed: DIRECT_SERVICE_AREA,
     } : {}),
   };
   let html = setDocumentLanguage(
@@ -558,7 +569,7 @@ async function handleHomepage(template, res, req) {
         telephone: '+1-937-408-5169',
         availableLanguage: ['English', 'Spanish', 'French', 'Haitian Creole', 'Arabic'],
       },
-      areaServed: 'Within 60 miles of Springfield, Ohio',
+      areaServed: DIRECT_SERVICE_AREA,
     },
     {
       '@context': 'https://schema.org',
