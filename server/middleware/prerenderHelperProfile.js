@@ -381,12 +381,50 @@ const MARKETING_SHELL_LINKS = {
   ],
 };
 
+function getMarketingShellTranslation(req, key, fallback) {
+  const language = getRequestedLanguage(req);
+  if (language === 'en') return fallback;
+  const locale = getSeoLocale(language);
+  return getNestedValue(locale, key) || fallback;
+}
+
+const DIRECT_SERVICE_AREA_LABELS = {
+  en: 'Service area',
+  es: '\u00c1rea de servicio',
+  fr: 'Zone de service',
+  ht: 'Z\u00f2n s\u00e8vis',
+  ar: '\u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u062e\u062f\u0645\u0629',
+};
+
+function buildDirectMarketingShellContent(pagePath, page, req) {
+  if (!['/direct', '/direct/services', '/direct/request-quote'].includes(pagePath)) return '';
+
+  const services = [
+    getMarketingShellTranslation(req, 'homePage.company.serviceTypes.homeHelp', 'Home help'),
+    getMarketingShellTranslation(req, 'homePage.company.serviceTypes.toolBased', 'Tool-based jobs'),
+    getMarketingShellTranslation(req, 'homePage.company.serviceTypes.delivery', 'Delivery and hauling'),
+    getMarketingShellTranslation(req, 'homePage.company.serviceTypes.cleanup', 'Cleanup and setup'),
+  ];
+  const cities = ['Springfield, Ohio', 'Dayton, Ohio', 'Columbus, Ohio', 'Beavercreek, Ohio', 'Fairborn, Ohio', 'Urbana, Ohio'];
+  const servicesLabel = getMarketingShellTranslation(req, 'homePage.company.services', 'Services');
+  const travelLabel = getMarketingShellTranslation(req, 'homePage.company.travelCities', 'Travel cities');
+  const coverageLabel = DIRECT_SERVICE_AREA_LABELS[getRequestedLanguage(req)] || DIRECT_SERVICE_AREA_LABELS.en;
+
+  return `<section aria-label="${escapeHtml(coverageLabel)}" style="margin-top:2rem;">
+      <h2>${escapeHtml(coverageLabel)}</h2>
+      <p>${escapeHtml(page.description)} ${escapeHtml(travelLabel)}: ${cities.map(escapeHtml).join(', ')}.</p>
+      <h2 style="margin-top:1.5rem;">${escapeHtml(servicesLabel)}</h2>
+      <ul>${services.map((service) => `<li>${escapeHtml(service)}</li>`).join('')}</ul>
+    </section>`;
+}
+
 function buildMarketingStaticShell(page, pagePath, req) {
   const title = String(page.title || 'OxSteed')
     .replace(/\s*\|\s*OxSteed\s*$/i, '')
     .trim();
   const description = String(page.description || '').trim();
   const links = MARKETING_SHELL_LINKS[pagePath] || [];
+  const directContentHtml = buildDirectMarketingShellContent(pagePath, page, req);
   const linksHtml = links.length
     ? `<nav aria-label="Explore OxSteed" style="margin-top:2rem;">
         <p style="font-weight:600;">Explore OxSteed</p>
@@ -400,6 +438,7 @@ function buildMarketingStaticShell(page, pagePath, req) {
       <p style="letter-spacing:.12em;text-transform:uppercase;font-size:.75rem;">OxSteed</p>
       <h1>${escapeHtml(title)}</h1>
       ${description ? `<p>${escapeHtml(description)}</p>` : ''}
+      ${directContentHtml}
       ${linksHtml}
     </article>
   </div>`;
