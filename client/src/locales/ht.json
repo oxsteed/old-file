@@ -14748,6 +14748,9 @@
     "navigation": "Navigasyon Direct",
     "loading": "Sèvis Direct yo ap chaje...",
     "loadError": "Sèvis Direct yo pa disponib pou yon ti tan.",
-    "retry": "Eseye ankò"
+    "retry": "Eseye ankò",
+    "viewAllCategories": "Gade tout konpetans yo",
+    "viewAllServices": "Gade tout sèvis yo",
+    "viewAllTools": "Gade tout zouti yo"
   }
 }

@@ -14765,6 +14765,9 @@
     "navigation": "Navegación de Direct",
     "loading": "Cargando servicios Direct...",
     "loadError": "Los servicios Direct no están disponibles temporalmente.",
-    "retry": "Intentar de nuevo"
+    "retry": "Intentar de nuevo",
+    "viewAllCategories": "Ver todas las habilidades",
+    "viewAllServices": "Ver todos los servicios",
+    "viewAllTools": "Ver todas las herramientas"
   }
 }

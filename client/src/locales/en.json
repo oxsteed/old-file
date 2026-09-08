@@ -14849,6 +14849,9 @@
     "navigation": "Direct navigation",
     "loading": "Loading Direct services...",
     "loadError": "Direct services are temporarily unavailable.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "viewAllCategories": "View all skills",
+    "viewAllServices": "View all services",
+    "viewAllTools": "View all tools"
   }
 }

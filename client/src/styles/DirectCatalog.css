@@ -1,0 +1,58 @@
+.direct-catalog-card {
+  display: flex;
+  min-height: 0;
+  height: 560px;
+  max-height: min(560px, calc(100vh - 11rem));
+}
+
+.direct-catalog-scroll-region {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: .35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, .55) transparent;
+}
+
+.direct-catalog-scroll-region::after {
+  content: '';
+  position: sticky;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  display: block;
+  height: 2.25rem;
+  margin-top: -2.25rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, .9));
+}
+
+.direct-catalog-scroll-region::-webkit-scrollbar { width: 6px; }
+.direct-catalog-scroll-region::-webkit-scrollbar-track { background: transparent; }
+.direct-catalog-scroll-region::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, .55);
+  border-radius: 999px;
+}
+
+.direct-catalog-view-all {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  padding-top: .75rem;
+  color: rgb(253, 186, 116);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.direct-catalog-view-all:hover { color: rgb(251, 146, 60); }
+
+@media (max-width: 640px) {
+  .direct-catalog-card {
+    height: 500px;
+    max-height: 70vh;
+  }
+}

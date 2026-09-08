@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
+import '../styles/DirectCatalog.css';
 
 const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck };
 
@@ -14,7 +15,11 @@ function priceLabel(cents, currency = 'USD', quoteRequired) {
 }
 
 function CatalogCard({ children, className = '' }) {
-  return <section className={`rounded-3xl border border-white/10 bg-slate-900/75 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.18)] ${className}`}>{children}</section>;
+  return <section className={`direct-catalog-card rounded-3xl border border-white/10 bg-slate-900/75 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.18)] ${className}`}>{children}</section>;
+}
+
+function CatalogScrollRegion({ children, className = '' }) {
+  return <div className={`direct-catalog-scroll-region ${className}`}>{children}</div>;
 }
 
 export function DirectCatalogPanels({ profile }) {
@@ -35,22 +40,31 @@ export function DirectCatalogPanels({ profile }) {
       <CatalogCard>
         <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-white">{t('directCatalog.skillCategories', { defaultValue: 'Skill categories' })}</h2>
         <label className="relative mt-4 block"><Search size={17} className="absolute left-3 top-3.5 text-slate-500" /><input aria-label={t('directCatalog.searchCategoriesAria', { defaultValue: 'Search categories' })} placeholder={t('directCatalog.searchCategories', { defaultValue: 'Search categories...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-orange-500" onChange={(event) => setCategorySearch(event.target.value)} /></label>
-        <div className="mt-4 space-y-2">
-          {visibleCategories.map((category) => { const Icon = ICONS[category.iconKey] || Wrench; const active = (selected?.id || '') === category.id; return <button type="button" key={category.id} onClick={() => { setSelectedCategory(category.id); setServiceSearch(''); }} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-300 hover:border-orange-400/50'}`}><Icon size={19} />{category.name}</button>; })}
-          {!visibleCategories.length && <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">{t('directCatalog.noCategories', { defaultValue: 'No published categories yet.' })}</p>}
-        </div>
+        <CatalogScrollRegion className="mt-4">
+          <div className="space-y-2">
+            {visibleCategories.map((category) => { const Icon = ICONS[category.iconKey] || Wrench; const active = (selected?.id || '') === category.id; return <button type="button" key={category.id} onClick={() => { setSelectedCategory(category.id); setServiceSearch(''); }} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${active ? 'border-orange-400 bg-orange-500 text-white' : 'border-white/10 bg-white/5 text-slate-300 hover:border-orange-400/50'}`}><Icon size={19} />{category.name}</button>; })}
+            {!visibleCategories.length && <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">{t('directCatalog.noCategories', { defaultValue: 'No published categories yet.' })}</p>}
+          </div>
+        </CatalogScrollRegion>
+        <Link to="/helpers" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllCategories', { defaultValue: 'View all skills' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
 
       <CatalogCard className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{selected?.name || t('directCatalog.directServices', { defaultValue: 'Direct services' })}</div><h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.availableServices', { defaultValue: 'Available services' })}</h2></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: services.length, defaultValue: '{{count}} listed' })}</span></div>
         <label className="relative mt-4 block"><Search size={17} className="absolute left-3 top-3.5 text-slate-500" /><input aria-label={t('directCatalog.searchServicesAria', { defaultValue: 'Search services' })} value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder={t('directCatalog.searchServices', { category: selected?.name || t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-orange-500" /></label>
-        <div className="mt-4 space-y-3">{services.map((service) => <article key={service.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex items-start justify-between gap-4"><div><h3 className="font-semibold text-white">{service.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{service.description}</p></div><strong className="shrink-0 text-sm text-white">{priceLabel(service.priceCents, service.currencyCode, t('directCatalog.quoteRequired', { defaultValue: 'Quote required' }))}</strong></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} />{service.availabilityDays?.length ? service.availabilityDays.join(' · ') : t('directCatalog.scheduleByQuote', { defaultValue: 'Schedule by quote' })}</span><Link to={`/direct/request-quote?service=${encodeURIComponent(service.name)}`} className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">{t('directCatalog.request', { defaultValue: 'Request' })} <ArrowRight size={14} /></Link></div></article>)}{!services.length && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.noServices', { defaultValue: 'No published services match this search.' })}</p>}</div>
+        <CatalogScrollRegion className="mt-4">
+          <div className="space-y-3">{services.map((service) => <article key={service.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4"><div className="flex items-start justify-between gap-4"><div><h3 className="font-semibold text-white">{service.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{service.description}</p></div><strong className="shrink-0 text-sm text-white">{priceLabel(service.priceCents, service.currencyCode, t('directCatalog.quoteRequired', { defaultValue: 'Quote required' }))}</strong></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} />{service.availabilityDays?.length ? service.availabilityDays.join(' · ') : t('directCatalog.scheduleByQuote', { defaultValue: 'Schedule by quote' })}</span><Link to={`/direct/request-quote?service=${encodeURIComponent(service.name)}`} className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">{t('directCatalog.request', { defaultValue: 'Request' })} <ArrowRight size={14} /></Link></div></article>)}{!services.length && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.noServices', { defaultValue: 'No published services match this search.' })}</p>}</div>
+        </CatalogScrollRegion>
+        <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllServices', { defaultValue: 'View all services' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
 
       <CatalogCard>
         <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{t('directCatalog.equipment', { defaultValue: 'Equipment' })}</div><h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.toolsEquipment', { defaultValue: 'Tools & equipment' })}</h2></div><Truck className="text-orange-300" size={22} /></div>
         <label className="relative mt-4 block"><Search size={17} className="absolute left-3 top-3.5 text-slate-500" /><input aria-label={t('directCatalog.searchToolsAria', { defaultValue: 'Search tools' })} value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={t('directCatalog.searchTools', { defaultValue: 'Search tools...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-orange-500" /></label>
-        <div className="mt-4 space-y-3">{tools.map((tool) => { const Icon = ICONS[tool.iconKey] || Wrench; return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Icon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{tool.description}</p><span className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 size={13} /> {t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' })}</span></div></article>; })}{!tools.length && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' })}</p>}</div>
+        <CatalogScrollRegion className="mt-4">
+          <div className="space-y-3">{tools.map((tool) => { const Icon = ICONS[tool.iconKey] || Wrench; return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Icon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{tool.description}</p><span className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 size={13} /> {t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' })}</span></div></article>; })}{!tools.length && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' })}</p>}</div>
+        </CatalogScrollRegion>
+        <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllTools', { defaultValue: 'View all tools' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
     </div>
   );

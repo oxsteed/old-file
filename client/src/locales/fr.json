@@ -14748,6 +14748,9 @@
     "navigation": "Navigation Direct",
     "loading": "Chargement des services Direct...",
     "loadError": "Les services Direct sont temporairement indisponibles.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "viewAllCategories": "Voir toutes les compétences",
+    "viewAllServices": "Voir tous les services",
+    "viewAllTools": "Voir tous les outils"
   }
 }

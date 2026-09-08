@@ -14751,6 +14751,9 @@
     "navigation": "تنقل Direct",
     "loading": "جار تحميل خدمات Direct...",
     "loadError": "خدمات Direct غير متاحة مؤقتًا.",
-    "retry": "حاول مرة أخرى"
+    "retry": "حاول مرة أخرى",
+    "viewAllCategories": "عرض كل المهارات",
+    "viewAllServices": "عرض كل الخدمات",
+    "viewAllTools": "عرض كل الأدوات"
   }
 }
