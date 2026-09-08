@@ -983,27 +983,32 @@ async function handlePublicJob(jobId, template, res, next, req) {
   const title = `${job.title} | OxSteed`;
   const description = String(job.description || `${job.title} local service opportunity on OxSteed.`)
     .replace(/\s+/g, ' ').trim().slice(0, 320);
+  // Customer requests are marketplace service needs, not employment openings.
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'JobPosting',
-    title: job.title,
+    '@type': 'WebPage',
+    name: job.title,
     description,
-    datePosted: job.created_at ? new Date(job.created_at).toISOString() : undefined,
-    validThrough: job.expires_at ? new Date(job.expires_at).toISOString() : undefined,
     url,
     inLanguage: 'en',
     mainEntityOfPage: url,
-    hiringOrganization: { '@type': 'Organization', name: 'OxSteed', url: origin },
-    jobLocation: {
-      '@type': 'Place',
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: job.location_city || undefined,
-        addressRegion: job.location_state || undefined,
-        addressCountry: 'US',
-      },
+    isPartOf: { '@id': `${origin}/#website` },
+    about: {
+      '@type': 'Thing',
+      name: job.category_name || 'Local service request',
+      description,
+      ...(job.location_city || job.location_state ? {
+        location: {
+          '@type': 'Place',
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: job.location_city || undefined,
+            addressRegion: job.location_state || undefined,
+            addressCountry: 'US',
+          },
+        },
+      } : {}),
     },
-    occupationalCategory: job.category_name || undefined,
   };
   const budget = job.budget_min || job.budget_max
     ? `<p>Budget: ${escapeHtml(String(job.budget_min || job.budget_max))}${job.budget_min && job.budget_max && job.budget_min !== job.budget_max ? ` - ${escapeHtml(String(job.budget_max))}` : ''}</p>`
