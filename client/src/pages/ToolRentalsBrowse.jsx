@@ -539,12 +539,21 @@ const ToolRentalsBrowse = () => {
     navigate(`/helpers/public/${userId}`);
   }, [handleCloseModal, navigate]);
 
+  const toolPublicUrl = routeToolId
+    ? `${getPublicSiteUrl()}/tool-rentals/${routeToolId}`
+    : `${getPublicSiteUrl()}/tool-rentals`;
+  const toolMetaDescription = selectedTool?.description
+    || (selectedTool
+      ? `${selectedTool.name} is available for local rental through OxSteed.`
+      : t('toolRentalsDir.metaDescription'));
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
-        title={t('toolRentalsDir.heroTitle')}
-        description={t('toolRentalsDir.metaDescription')}
-        url={`${getPublicSiteUrl()}/tool-rentals`}
+        title={selectedTool && routeToolId ? `${selectedTool.name} | OxSteed Tool Rentals` : t('toolRentalsDir.heroTitle')}
+        description={toolMetaDescription}
+        url={toolPublicUrl}
+        noIndex={Boolean(routeToolId && !selectedTool)}
       />
       <Navbar />
 

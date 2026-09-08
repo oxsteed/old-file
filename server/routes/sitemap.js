@@ -46,6 +46,7 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/learn`, changefreq: 'weekly', priority: '0.7', localized: true },
       { loc: `${origin}/tool-rentals`, changefreq: 'daily', priority: '0.7', localized: true },
+      { loc: `${origin}/products`, changefreq: 'daily', priority: '0.7', localized: true },
       { loc: `${origin}/consulting-intake`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/direct`, changefreq: 'weekly', priority: '0.8', localized: true },
       { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
@@ -123,6 +124,17 @@ router.get('/', async (_req, res) => {
         LIMIT 2000`,
     );
 
+    const { rows: tools } = await pool.query(
+      `SELECT t.id, t.updated_at
+         FROM tool_rentals t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.is_available = TRUE
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
+        ORDER BY t.updated_at DESC NULLS LAST
+        LIMIT 5000`,
+    );
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
@@ -154,6 +166,14 @@ router.get('/', async (_req, res) => {
           loc: `${origin}/restaurants/r/${r.id}`,
           changefreq: 'daily',
           priority: '0.75',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...tools.map((r) =>
+        urlEntry({
+          loc: `${origin}/tool-rentals/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.7',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),
       ),

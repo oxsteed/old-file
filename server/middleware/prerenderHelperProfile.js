@@ -155,6 +155,11 @@ const MARKETING_PAGES = {
     title: 'OxSteed Restaurants | Order Local Food',
     description: 'Browse participating local restaurants and order food through OxSteed.',
   },
+  '/products': {
+    title: 'OxSteed Marketplace | Tools, Materials, and Supplies',
+    description: 'Browse tools, safety gear, hardware, materials, and other products available through the OxSteed marketplace.',
+    schemaType: 'CollectionPage',
+  },
   '/tool-rentals': {
     title: 'Tool Rentals Near You | OxSteed',
     description: 'Browse tools and equipment available for local rental through OxSteed.',
@@ -633,6 +638,7 @@ const PUBLIC_BUSINESS_RE = /^\/businesses\/public\/(\d+)$/i;
 const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
 const PUBLIC_RESTAURANT_RE = /^\/restaurants\/r\/(\d+)$/i;
 const LEGACY_RESTAURANT_RE = /^\/food\/restaurants\/(\d+)$/i;
+const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -803,6 +809,77 @@ async function handleRestaurantProfile(restaurantId, template, res, next) {
   return res.send(html);
 }
 
+async function handleToolProfile(toolId, template, res) {
+  const { rows } = await pool.query(
+    `SELECT t.id, t.name, t.category, t.description, t.daily_rate,
+            t.hourly_rate, t.condition, t.brand, t.model,
+            t.location_city, t.location_state, t.created_at, t.updated_at
+       FROM tool_rentals t
+       JOIN users u ON u.id = t.user_id
+      WHERE t.id = $1::bigint
+        AND t.is_available = TRUE
+        AND u.is_active = TRUE
+        AND u.deleted_at IS NULL`,
+    [toolId],
+  );
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/tool-rentals/${toolId}`,
+      'Tool Rental Not Found | OxSteed',
+      'This OxSteed tool rental is no longer available.',
+    );
+  }
+
+  const tool = rows[0];
+  const origin = base();
+  const url = `${origin}/tool-rentals/${tool.id}`;
+  const location = [tool.location_city, tool.location_state].filter(Boolean).join(', ');
+  const details = [tool.brand, tool.model, tool.condition].filter(Boolean).join(' - ');
+  const description = String(
+    tool.description
+      || `${tool.name} is available for local rental${location ? ` in ${location}` : ''} through OxSteed${details ? ` (${details})` : ''}.`,
+  ).replace(/\s+/g, ' ').trim().slice(0, 320);
+  const price = Number(tool.daily_rate ?? tool.hourly_rate);
+  const priceValid = Number.isFinite(price) && price >= 0;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: tool.name,
+    description,
+    category: tool.category || undefined,
+    brand: tool.brand ? { '@type': 'Brand', name: tool.brand } : undefined,
+    url,
+    image: `${origin}/og-default.png`,
+    offers: priceValid ? {
+      '@type': 'Offer',
+      price,
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url,
+    } : undefined,
+    isRelatedTo: { '@id': `${origin}/#website` },
+  };
+  const priceHtml = priceValid
+    ? `<p>From $${escapeHtml(price.toFixed(2))} per ${tool.daily_rate != null ? 'day' : 'hour'}</p>`
+    : '';
+  const shell = `<div id="ssr-shell" data-tool-id="${escapeHtml(String(tool.id))}" style="max-width:52rem;margin:0 auto;padding:2rem 1rem;">
+    <header><h1>${escapeHtml(tool.name)}</h1>${tool.category ? `<p>${escapeHtml(tool.category)}</p>` : ''}${location ? `<p>${escapeHtml(location)}</p>` : ''}${details ? `<p>${escapeHtml(details)}</p>` : ''}${priceHtml}<p>${escapeHtml(description)}</p></header>
+  </div>`;
+  let html = replaceMeta(template, {
+    title: `${tool.name} | OxSteed Tool Rentals`,
+    description,
+    url,
+    image: `${origin}/og-default.png`,
+  });
+  html = injectJsonLd(html, jsonLd);
+  html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
 function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
   if (req.method !== 'GET') return next();
@@ -867,6 +944,14 @@ function prerenderPublicPages(req, res, next) {
   const matchLegacyRestaurant = p.match(LEGACY_RESTAURANT_RE);
   if (matchLegacyRestaurant) {
     return res.redirect(301, `${base()}/restaurants/r/${matchLegacyRestaurant[1]}`);
+  }
+
+  const matchTool = p.match(PUBLIC_TOOL_RE);
+  if (matchTool) {
+    return handleToolProfile(matchTool[1], template, res).catch((err) => {
+      logger.error('[prerender] tool profile error', { toolId: matchTool[1], error: err.message });
+      return next();
+    });
   }
 
   const matchRestaurant = p.match(PUBLIC_RESTAURANT_RE);
