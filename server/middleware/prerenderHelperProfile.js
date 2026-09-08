@@ -64,6 +64,13 @@ function getRequestedLanguage(req) {
   return SEO_LANGUAGES.has(language) ? language : 'en';
 }
 
+function getLocalizedRequestUrl(pagePath, req) {
+  const origin = getPublicSiteUrl();
+  const language = getRequestedLanguage(req);
+  if (language === 'en') return `${origin}${pagePath}`;
+  return `${origin}${pagePath}?lang=${language}`;
+}
+
 function setDocumentLanguage(html, language) {
   return html.replace(/<html\s+lang="[^"]*"/i, `<html lang="${escapeHtml(language)}"`);
 }
@@ -397,7 +404,8 @@ const MARKETING_PAGES = {
 function handleMarketingPage(pagePath, template, res, req) {
   const page = getLocalizedSeoCopy(pagePath, MARKETING_PAGES[pagePath], req);
   const origin = base();
-  const url = `${origin}${pagePath}`;
+  const baseUrl = `${origin}${pagePath}`;
+  const url = getLocalizedRequestUrl(pagePath, req);
   const schema = {
     '@context': 'https://schema.org',
     '@type': page.schemaType || 'WebPage',
@@ -417,7 +425,7 @@ function handleMarketingPage(pagePath, template, res, req) {
   if (page.noIndex) {
     html = replaceRobots(html, 'noindex, nofollow');
   }
-  if (page.localized !== false) html = addLanguageAlternates(html, url);
+  if (page.localized !== false) html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, schema);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -433,6 +441,8 @@ async function handleHomepage(template, res, req) {
     description: 'Post a job, compare bids from skilled local helpers, and pay on OxSteed. Free to start.',
   }, req);
   const { title, description } = page;
+  const baseUrl = `${origin}/`;
+  const url = getLocalizedRequestUrl('/', req);
   const jsonLd = [
     {
       '@context': 'https://schema.org',
@@ -471,10 +481,10 @@ async function handleHomepage(template, res, req) {
   ];
 
   let html = setDocumentLanguage(
-    replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/icons/icon-512.png` }),
+    replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` }),
     getRequestedLanguage(req),
   );
-  html = addLanguageAlternates(html, `${origin}/`);
+  html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
@@ -489,7 +499,8 @@ async function handleHelpersDirectory(template, res, req) {
       'Browse verified local tradespeople on OxSteed. Read reviews, compare rates, and hire local help today. Free to post a job.',
   }, req);
   const { title, description } = page;
-  const url = `${origin}/helpers`;
+  const baseUrl = `${origin}/helpers`;
+  const url = getLocalizedRequestUrl('/helpers', req);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -504,7 +515,7 @@ async function handleHelpersDirectory(template, res, req) {
     replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` }),
     getRequestedLanguage(req),
   );
-  html = addLanguageAlternates(html, url);
+  html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
 
   res.set('Content-Type', 'text/html');

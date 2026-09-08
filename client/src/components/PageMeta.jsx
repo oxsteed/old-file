@@ -9,6 +9,32 @@ import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
 
 const SITE_NAME = 'OxSteed';
 const TWITTER_HANDLE = '@oxsteed';
+const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const LOCALIZED_PATHS = new Set([
+  '/', '/about', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',
+  '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
+  '/support/escalation', '/terms', '/privacy', '/security', '/accessibility',
+  '/enforcement-policy', '/do-not-sell', '/cookie-policy',
+  '/legal/background-check', '/legal/arbitration', '/legal/escrow-policy',
+  '/legal/account-termination', '/legal/dispute-resolution',
+  '/legal/independent-contractor',
+]);
+
+function getLocalizedPath(pathname) {
+  return pathname === '/' || pathname.startsWith('/help/') || LOCALIZED_PATHS.has(pathname);
+}
+
+function getRequestedLanguage() {
+  if (typeof window === 'undefined') return 'en';
+  const raw = new URLSearchParams(window.location.search).get('lang') || '';
+  const language = raw.trim().toLowerCase().split(/[-_]/)[0];
+  return SEO_LANGUAGES.has(language) ? language : 'en';
+}
+
+function addLanguageToUrl(url, language) {
+  if (language === 'en' || url.includes('lang=')) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}lang=${language}`;
+}
 
 export default function PageMeta({
   title,
@@ -27,8 +53,12 @@ export default function PageMeta({
   const currentPath = typeof window !== 'undefined' && window.location?.pathname
     ? window.location.pathname
     : '/';
-  const defaultUrl = `${base}${currentPath === '/' ? '/' : currentPath}`;
-  const resolvedUrl = url ? toAbsoluteUrl(url) : defaultUrl;
+  const language = getRequestedLanguage();
+  const localizedPath = getLocalizedPath(currentPath) && language !== 'en';
+  const defaultUrl = `${base}${currentPath === '/' ? '/' : currentPath}${localizedPath ? `?lang=${language}` : ''}`;
+  const resolvedUrl = url
+    ? addLanguageToUrl(toAbsoluteUrl(url), localizedPath ? language : 'en')
+    : defaultUrl;
   const resolvedImage = toAbsoluteUrl(image || '/icons/icon-512.png');
   const fullTitle = resolvedTitle.includes(SITE_NAME)
     ? resolvedTitle
