@@ -175,6 +175,8 @@ const httpServer = http.createServer(app);
 // and cannot be spoofed by sending a fake X-Forwarded-For header.
 app.set('trust proxy', 1); // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
+const canonicalHostRedirect = require('./middleware/canonicalHost');
+app.use(canonicalHostRedirect);
 
 // ── ALLOWED ORIGINS (shared by Express CORS and Socket.IO) ────
 const rawAllowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || 'http://localhost:3000')
