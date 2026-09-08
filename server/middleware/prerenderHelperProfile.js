@@ -253,6 +253,9 @@ function addLanguageAlternates(html, url) {
     if (language === 'x-default') {
       return `<link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}" />`;
     }
+    if (language === 'en') {
+      return `<link rel="alternate" hreflang="en" href="${escapeHtml(url)}" />`;
+    }
     const separator = url.includes('?') ? '&' : '?';
     return `<link rel="alternate" hreflang="${language}" href="${escapeHtml(`${url}${separator}lang=${language}`)}" />`;
   }).join('\n');

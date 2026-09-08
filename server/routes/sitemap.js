@@ -10,7 +10,7 @@ const { getPublicSiteUrl } = require('../utils/publicSiteUrl');
 const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar'];
 
 function localizedUrl(path, language) {
-  if (language === 'x-default') return `${getPublicSiteUrl()}${path}`;
+  if (language === 'x-default' || language === 'en') return `${getPublicSiteUrl()}${path}`;
   const separator = path.includes('?') ? '&' : '?';
   return `${getPublicSiteUrl()}${path}${separator}lang=${language}`;
 }
