@@ -16,7 +16,7 @@ const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
 const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
-function OxSteedIcon({ size = 24 }) {
+export function OxSteedIcon({ size = 24 }) {
   return (
     <svg
       width={size}

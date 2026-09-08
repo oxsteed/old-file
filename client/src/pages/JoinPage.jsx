@@ -22,6 +22,7 @@ import { Mail, Phone, MapPin, User, ChevronRight, AlertCircle, CheckCircle2 } fr
 import api from '../api/axios';
 import { persistSessionPayload } from '../api/auth';
 import Footer from '../components/Footer';
+import AuthNavbar from '../components/AuthNavbar';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
 import OTPInput from '../components/registration/OTPInput';
@@ -243,15 +244,12 @@ export default function JoinPage() {
         description={t('join.heroSubtitle')}
         url="https://oxsteed.com/join"
       />
-      <nav className="border-b border-[var(--color-border)]">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
-          <div className="flex items-center gap-4">
-            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.howItWorks')}</Link>
-            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.signIn')}</Link>
-          </div>
-        </div>
-      </nav>
+      <AuthNavbar
+        links={[
+          { to: '/how-it-works', label: t('nav.howItWorks'), hideOnSmall: true },
+          { to: '/login', label: t('nav.signIn') },
+        ]}
+      />
 
       <div className="flex-1 flex flex-col items-center px-4 py-8 md:py-12">
         <div className="w-full max-w-[520px] flex flex-col gap-8">

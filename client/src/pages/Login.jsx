@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowRight, MapPin, Briefcase, ShieldCheck } from 'lucide-react';
 import Footer from '../components/Footer';
+import AuthNavbar from '../components/AuthNavbar';
 import { resolveAuthReturnPath } from '../utils/authReturnPath';
 
 function diditGateSatisfied(user) {
@@ -154,20 +155,12 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
 
-      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="inline-flex min-h-11 items-center text-2xl font-bold text-orange-500">OxSteed</Link>
-          <div className="flex items-center gap-3">
-            <Link
-              to="/join"
-              className="inline-flex min-h-11 items-center text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-all duration-300"
-            >
-              {t('login.joinOxSteed', { defaultValue: 'Join OxSteed' })}
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <AuthNavbar
+        cta={{
+          to: '/join',
+          label: t('login.joinOxSteed', { defaultValue: 'Join OxSteed' }),
+        }}
+      />
 
       <div className="flex flex-1">
 
@@ -253,7 +246,7 @@ export default function Login() {
         </div>
 
         {/* ── Right panel — form ─────────────────────────────────────────────── */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12 pt-20">
+        <div className="flex-1 flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-md space-y-8">
 
             {/* Mobile wordmark */}
