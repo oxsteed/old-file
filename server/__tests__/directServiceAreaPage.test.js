@@ -29,6 +29,7 @@ describe('localized Direct service-area page', () => {
     expect(res.text).toContain('<footer class="site-footer">');
     expect(res.text).toContain('class="map-attribution"');
     expect(res.text).toMatch(/href="\/direct\/service-area-assets\/service-area\.css\?v=[0-9]+-[0-9]+"/);
+    expect(res.text).toMatch(/src="\/direct\/service-area-assets\/service-area\.js\?v=[0-9]+-[0-9]+"/);
     expect(res.text).not.toContain('__SERVICE_AREA_CSS_VERSION__');
     expect(res.text).not.toContain('window.OXSTEED_SERVICE_AREA_COPY');
 
@@ -58,6 +59,17 @@ describe('localized Direct service-area page', () => {
     expect(stylesheet.text).toContain('.site-header');
     expect(stylesheet.text).toContain('.nav-links');
     expect(stylesheet.text).toContain('.site-footer');
+  });
+
+  test('serves the versioned script with theme toggle behavior', async () => {
+    const page = await request(buildApp()).get('/direct/service-area');
+    const scriptPath = page.text.match(/src="([^\"]+service-area\.js\?v=[^\"]+)"/)[1];
+    const script = await request(buildApp()).get(scriptPath);
+
+    expect(script.status).toBe(200);
+    expect(script.headers['content-type']).toMatch(/^application\/javascript/);
+    expect(script.text).toContain("themeToggle?.addEventListener('click'");
+    expect(script.text).toContain("themeToggle.setAttribute('aria-pressed'");
   });
 
   test('keeps the service-area page standalone instead of adding a React root', async () => {

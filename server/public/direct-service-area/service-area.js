@@ -151,6 +151,7 @@
     if (!themeToggle) return;
     themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
     themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeToggle.setAttribute('aria-pressed', String(isDark));
   }
 
   let savedTheme = null;

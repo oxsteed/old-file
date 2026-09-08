@@ -6,6 +6,7 @@ const { getPublicSiteUrl } = require('../utils/publicSiteUrl');
 const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar'];
 const TEMPLATE_PATH = path.join(__dirname, '../public/direct-service-area/index.html');
 const SERVICE_AREA_CSS_PATH = path.join(__dirname, '../public/direct-service-area/service-area.css');
+const SERVICE_AREA_JS_PATH = path.join(__dirname, '../public/direct-service-area/service-area.js');
 const SERVICE_AREA = {
   '@type': 'GeoCircle',
   name: 'Within 60 miles of Springfield, Ohio',
@@ -234,9 +235,17 @@ function getTemplate() {
   return cachedTemplate;
 }
 
-function getStylesheetVersion() {
-  const stats = fs.statSync(SERVICE_AREA_CSS_PATH);
+function getAssetVersion(assetPath) {
+  const stats = fs.statSync(assetPath);
   return `${Math.trunc(stats.mtimeMs)}-${stats.size}`;
+}
+
+function getStylesheetVersion() {
+  return getAssetVersion(SERVICE_AREA_CSS_PATH);
+}
+
+function getJavascriptVersion() {
+  return getAssetVersion(SERVICE_AREA_JS_PATH);
 }
 
 function replaceSlot(html, slot, value) {
@@ -305,6 +314,7 @@ function sendDirectServiceAreaPage(req, res) {
   let html = getTemplate()
     .replace(/<html lang="[^"]*">/i, `<html lang="${escapeHtml(language)}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">`)
     .replace('__SERVICE_AREA_CSS_VERSION__', getStylesheetVersion())
+    .replace('__SERVICE_AREA_JS_VERSION__', getJavascriptVersion())
     .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(copy.title)}</title>`)
     .replace(/(<link rel="canonical" href=")[^"]*(")/i, `$1${escapeHtml(url)}$2`)
     .replace(/(<meta property="og:title" content=")[^"]*(")/i, `$1${escapeHtml(copy.title)}$2`)
