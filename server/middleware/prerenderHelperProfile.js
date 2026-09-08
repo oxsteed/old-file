@@ -300,6 +300,7 @@ const MARKETING_PAGES = {
   '/jobs': {
     title: 'Browse Local Jobs | OxSteed',
     description: 'Browse local service jobs and connect with customers who need dependable help.',
+    schemaType: 'CollectionPage',
   },
   '/discover': {
     title: 'Discover Local Help, Jobs, and Services | OxSteed',
@@ -358,6 +359,7 @@ const MARKETING_PAGES = {
   '/restaurants': {
     title: 'OxSteed Restaurants | Order Local Food',
     description: 'Browse participating local restaurants and order food through OxSteed.',
+    schemaType: 'CollectionPage',
   },
   '/products': {
     title: 'OxSteed Marketplace | Tools, Materials, and Supplies',
