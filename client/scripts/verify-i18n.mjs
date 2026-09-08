@@ -238,12 +238,15 @@ function verifyHomepageTranslationSurface() {
   }
 
   const homepageSource = fs.readFileSync(path.join(root, 'src/pages/HomePage.jsx'), 'utf8');
-  if (!homepageSource.includes('<DirectCatalogLanding embedded />')) {
-    failures.push('src/pages/HomePage.jsx must embed the shared Direct catalog component');
+  if (!homepageSource.includes('<DirectCatalogPanels profile={catalogProfile} />')) {
+    failures.push('src/pages/HomePage.jsx must render the shared Direct catalog panels');
   }
-  for (const obsolete of ['OXSTEED_SERVICE_PROFILE', 'HomeCompanySection', 'hp-company-section']) {
+  if (!homepageSource.includes('function HomeCompanySection()')) {
+    failures.push('src/pages/HomePage.jsx must preserve the existing company-card shell');
+  }
+  for (const obsolete of ['HomeDirectCatalogSection', '<DirectCatalogLanding embedded />']) {
     if (homepageSource.includes(obsolete)) {
-      failures.push(`src/pages/HomePage.jsx still contains obsolete hardcoded catalog surface: ${obsolete}`);
+      failures.push(`src/pages/HomePage.jsx still contains obsolete homepage catalog wrapper: ${obsolete}`);
     }
   }
 
