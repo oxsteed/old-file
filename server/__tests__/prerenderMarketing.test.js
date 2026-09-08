@@ -43,6 +43,17 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"sameAs":["https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"]');
   });
 
+  test('localizes homepage navigation schema and search action', async () => {
+    const res = await request(buildApp()).get('/?lang=es');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('"inLanguage":"es"');
+    expect(res.text).toContain('"name":"Encuentra ayudantes locales"');
+    expect(res.text).toContain('"name":"Únete a OxSteed"');
+    expect(res.text).toContain('"url":"https://oxsteed.com/helpers?lang=es"');
+    expect(res.text).toContain('https://oxsteed.com/helpers?lang=es&q={search_term_string}');
+  });
+
   test('localizes the Direct geographic schema label', async () => {
     const res = await request(buildApp()).get('/direct?lang=fr');
 
