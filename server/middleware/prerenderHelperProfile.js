@@ -335,16 +335,72 @@ function buildBreadcrumbJsonLd(pageTitle, url, req, language = getRequestedLangu
   };
 }
 
-function buildMarketingStaticShell(page, pagePath) {
+const MARKETING_SHELL_LINKS = {
+  '/': [
+    ['/helpers', 'Find local helpers'],
+    ['/jobs', 'Browse local jobs'],
+    ['/restaurants', 'OxSteed Restaurants'],
+    ['/direct/services', 'OxSteed Direct services'],
+    ['/direct/service-area', 'Check the service area'],
+    ['/support/escalation', 'Contact OxSteed support'],
+  ],
+  '/helpers': [
+    ['/jobs', 'Browse local jobs'],
+    ['/direct/services', 'Explore OxSteed Direct services'],
+    ['/direct/service-area', 'Check the service area'],
+  ],
+  '/jobs': [
+    ['/helpers', 'Find local helpers'],
+    ['/direct/services', 'Explore OxSteed Direct services'],
+    ['/direct/service-area', 'Check the service area'],
+  ],
+  '/restaurants': [
+    ['/helpers', 'Find local helpers'],
+    ['/jobs', 'Browse local jobs'],
+    ['/direct/services', 'Explore OxSteed Direct services'],
+  ],
+  '/direct': [
+    ['/direct/services', 'View Direct services'],
+    ['/direct/request-quote', 'Request a quote'],
+    ['/direct/service-area', 'Check the service area'],
+    ['/direct/view-quote', 'View your quote'],
+  ],
+  '/direct/services': [
+    ['/direct/request-quote', 'Request a quote'],
+    ['/direct/service-area', 'Check the service area'],
+    ['/direct/view-quote', 'View your quote'],
+  ],
+  '/direct/request-quote': [
+    ['/direct/services', 'View Direct services'],
+    ['/direct/service-area', 'Check the service area'],
+    ['/direct/view-quote', 'View your quote'],
+  ],
+  '/support/escalation': [
+    ['/direct/services', 'Explore OxSteed Direct services'],
+    ['/direct/service-area', 'Check the service area'],
+  ],
+};
+
+function buildMarketingStaticShell(page, pagePath, req) {
   const title = String(page.title || 'OxSteed')
     .replace(/\s*\|\s*OxSteed\s*$/i, '')
     .trim();
   const description = String(page.description || '').trim();
+  const links = MARKETING_SHELL_LINKS[pagePath] || [];
+  const linksHtml = links.length
+    ? `<nav aria-label="Explore OxSteed" style="margin-top:2rem;">
+        <p style="font-weight:600;">Explore OxSteed</p>
+        <ul style="display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;padding-left:1.25rem;">
+          ${links.map(([linkPath, label]) => `<li><a href="${escapeHtml(linkPath === '/direct/service-area' ? `${base()}${linkPath}` : getLocalizedRequestUrl(linkPath, req))}">${escapeHtml(label)}</a></li>`).join('')}
+        </ul>
+      </nav>`
+    : '';
   return `<div id="ssr-shell" data-seo-page="${escapeHtml(pagePath)}" style="max-width:64rem;margin:0 auto;padding:3rem 1rem;">
     <article>
       <p style="letter-spacing:.12em;text-transform:uppercase;font-size:.75rem;">OxSteed</p>
       <h1>${escapeHtml(title)}</h1>
       ${description ? `<p>${escapeHtml(description)}</p>` : ''}
+      ${linksHtml}
     </article>
   </div>`;
 }
@@ -534,7 +590,7 @@ function handleMarketingPage(pagePath, template, res, req) {
   if (!page.noIndex) html = injectJsonLd(html, buildBreadcrumbJsonLd(page.title, url, req));
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root">${buildMarketingStaticShell(page, pagePath)}</div>`,
+    `<div id="root">${buildMarketingStaticShell(page, pagePath, req)}</div>`,
   );
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
@@ -617,7 +673,7 @@ async function handleHomepage(template, res, req) {
   html = injectJsonLd(html, jsonLd);
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root">${buildMarketingStaticShell(page, '/')}</div>`,
+    `<div id="root">${buildMarketingStaticShell(page, '/', req)}</div>`,
   );
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
@@ -654,7 +710,7 @@ async function handleHelpersDirectory(template, res, req) {
   html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req));
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root">${buildMarketingStaticShell(page, '/helpers')}</div>`,
+    `<div id="root">${buildMarketingStaticShell(page, '/helpers', req)}</div>`,
   );
 
   res.set('Content-Type', 'text/html');
