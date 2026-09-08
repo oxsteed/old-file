@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
@@ -12,165 +13,165 @@ import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBound
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import ImpersonationBanner from './components/ImpersonationBanner';
-import ImpersonatePage     from './pages/ImpersonatePage';
-import HomePage from './pages/HomePage';
-import Login from './pages/Login';
-import InvestorLoginPage from './pages/InvestorLoginPage';
-import CustomerRegister from './pages/CustomerRegister';
-import HelperRegister from './pages/HelperRegister';
-import JoinPage from './pages/JoinPage';
-import ConsultingIntakePage from './pages/ConsultingIntakePage';
-import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
-import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
-import FranchiseIntakePage from './pages/FranchiseIntakePage';
-import FranchiseApplicantDashboard from './pages/FranchiseApplicantDashboard';
-import FranchiseTerritoryOpsPage from './pages/FranchiseTerritoryOpsPage';
-import SmartDashboard from './pages/SmartDashboard';
-import UpgradePage from './pages/UpgradePage';
-import ActivityPage from './pages/ActivityPage';
-import JobListPage from './pages/JobListPage';
-import JobDetailPage from './pages/JobDetailPage';
-import BidDetailPage from './pages/BidDetailPage';
-import PostJobPage from './pages/PostJobPage';
-import NotFoundPage from './pages/NotFoundPage';
-import TermsPage from './pages/terms';
-import PrivacyPage from './pages/privacy';
-import DoNotSellPage from './pages/donotsell';
-import SecurityPage from './pages/security';
-import CookiePolicyPage from './pages/cookiepolicy';
-import AccessibilityPage from './pages/accessibility';
-import BackgroundCheckPage from './pages/BackgroundCheckPage';
-import ArbitrationPage from './pages/ArbitrationPage';
-import EscrowPolicyPage from './pages/EscrowPolicyPage';
-import AccountTerminationPage from './pages/AccountTerminationPage';
-import DisputeResolutionPage from './pages/DisputeResolutionPage';
-import IndependentContractorPage from './pages/IndependentContractorPage';
-import AboutPage from './pages/about';
-import ForgotPasswordPage from './pages/ForgotPassword';
-import ResetPasswordPage from './pages/ResetPassword';
-import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
-import NotificationSettings from './pages/Settings/Notifications';
-import CountrySettings from './pages/Settings/Country';
-import SettingsPage from './pages/SettingsPage';
-import HelperCancellationSettings from './pages/HelperCancellationSettings';
-import PublicProfile from './pages/PublicProfile';
-import BookHelperPage from './pages/BookHelperPage';
-import BookBusinessPage from './pages/BookBusinessPage';
-import BookServicePage from './pages/BookServicePage';
-import TemplatePicker from './pages/TemplatePicker';
-import BusinessProfilePage from './pages/BusinessProfilePage';
-import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
-import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
-import DisputeCenter from './pages/disputes/DisputeCenter';
-import DisputeDetail from './pages/disputes/DisputeDetail';
-import MessagesPage from './pages/MessagesPage';
-import ConversationPage from './pages/ConversationPage';
-import HelperInboxPage from './pages/HelperInboxPage';
-import HelperConversationPage from './pages/HelperConversationPage';
-import HelperGuestInquiryPage from './pages/HelperGuestInquiryPage';
-import PlannedNeedsPage from './pages/PlannedNeedsPage';
-import CarCarePage from './pages/CarCarePage';
+const ImpersonatePage = lazy(() => import('./pages/ImpersonatePage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const Login = lazy(() => import('./pages/Login'));
+const InvestorLoginPage = lazy(() => import('./pages/InvestorLoginPage'));
+const CustomerRegister = lazy(() => import('./pages/CustomerRegister'));
+const HelperRegister = lazy(() => import('./pages/HelperRegister'));
+const JoinPage = lazy(() => import('./pages/JoinPage'));
+const ConsultingIntakePage = lazy(() => import('./pages/ConsultingIntakePage'));
+const ConsultingFeedbackPage = lazy(() => import('./pages/ConsultingFeedbackPage'));
+const BusinessLaunchStatusPage = lazy(() => import('./pages/BusinessLaunchStatusPage'));
+const FranchiseIntakePage = lazy(() => import('./pages/FranchiseIntakePage'));
+const FranchiseApplicantDashboard = lazy(() => import('./pages/FranchiseApplicantDashboard'));
+const FranchiseTerritoryOpsPage = lazy(() => import('./pages/FranchiseTerritoryOpsPage'));
+const SmartDashboard = lazy(() => import('./pages/SmartDashboard'));
+const UpgradePage = lazy(() => import('./pages/UpgradePage'));
+const ActivityPage = lazy(() => import('./pages/ActivityPage'));
+const JobListPage = lazy(() => import('./pages/JobListPage'));
+const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
+const BidDetailPage = lazy(() => import('./pages/BidDetailPage'));
+const PostJobPage = lazy(() => import('./pages/PostJobPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const TermsPage = lazy(() => import('./pages/terms'));
+const PrivacyPage = lazy(() => import('./pages/privacy'));
+const DoNotSellPage = lazy(() => import('./pages/donotsell'));
+const SecurityPage = lazy(() => import('./pages/security'));
+const CookiePolicyPage = lazy(() => import('./pages/cookiepolicy'));
+const AccessibilityPage = lazy(() => import('./pages/accessibility'));
+const BackgroundCheckPage = lazy(() => import('./pages/BackgroundCheckPage'));
+const ArbitrationPage = lazy(() => import('./pages/ArbitrationPage'));
+const EscrowPolicyPage = lazy(() => import('./pages/EscrowPolicyPage'));
+const AccountTerminationPage = lazy(() => import('./pages/AccountTerminationPage'));
+const DisputeResolutionPage = lazy(() => import('./pages/DisputeResolutionPage'));
+const IndependentContractorPage = lazy(() => import('./pages/IndependentContractorPage'));
+const AboutPage = lazy(() => import('./pages/about'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPassword'));
+const TwoFactorSetup = lazy(() => import('./pages/Settings/TwoFactorSetup'));
+const NotificationSettings = lazy(() => import('./pages/Settings/Notifications'));
+const CountrySettings = lazy(() => import('./pages/Settings/Country'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const HelperCancellationSettings = lazy(() => import('./pages/HelperCancellationSettings'));
+const PublicProfile = lazy(() => import('./pages/PublicProfile'));
+const BookHelperPage = lazy(() => import('./pages/BookHelperPage'));
+const BookBusinessPage = lazy(() => import('./pages/BookBusinessPage'));
+const BookServicePage = lazy(() => import('./pages/BookServicePage'));
+const TemplatePicker = lazy(() => import('./pages/TemplatePicker'));
+const BusinessProfilePage = lazy(() => import('./pages/BusinessProfilePage'));
+const HelperBusinessProfilePage = lazy(() => import('./pages/HelperBusinessProfilePage'));
+const HelpersDirectoryPage = lazy(() => import('./pages/HelpersDirectoryPage'));
+const DisputeCenter = lazy(() => import('./pages/disputes/DisputeCenter'));
+const DisputeDetail = lazy(() => import('./pages/disputes/DisputeDetail'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const ConversationPage = lazy(() => import('./pages/ConversationPage'));
+const HelperInboxPage = lazy(() => import('./pages/HelperInboxPage'));
+const HelperConversationPage = lazy(() => import('./pages/HelperConversationPage'));
+const HelperGuestInquiryPage = lazy(() => import('./pages/HelperGuestInquiryPage'));
+const PlannedNeedsPage = lazy(() => import('./pages/PlannedNeedsPage'));
+const CarCarePage = lazy(() => import('./pages/CarCarePage'));
 // OxSteed Food - restaurant online + in-store ordering (migration 305)
-import FoodHomePage from './pages/food/FoodHomePage';
-import FoodRestaurantPage from './pages/food/FoodRestaurantPage';
-import FoodMerchantPage from './pages/food/FoodMerchantPage';
-import FoodKitchenPage from './pages/food/FoodKitchenPage';
-import FoodQueueBoardPage from './pages/food/FoodQueueBoardPage';
-import FoodKioskPage from './pages/food/FoodKioskPage';
-import RestaurantPOSPage from './pages/food/RestaurantPOSPage';
-import RestaurantInventoryPage from './pages/food/RestaurantInventoryPage';
-import RestaurantCrewPage from './pages/food/RestaurantCrewPage';
-import RestaurantRunnerPage from './pages/food/RestaurantRunnerPage';
-import RestaurantCreditPage from './pages/food/RestaurantCreditPage';
+const FoodHomePage = lazy(() => import('./pages/food/FoodHomePage'));
+const FoodRestaurantPage = lazy(() => import('./pages/food/FoodRestaurantPage'));
+const FoodMerchantPage = lazy(() => import('./pages/food/FoodMerchantPage'));
+const FoodKitchenPage = lazy(() => import('./pages/food/FoodKitchenPage'));
+const FoodQueueBoardPage = lazy(() => import('./pages/food/FoodQueueBoardPage'));
+const FoodKioskPage = lazy(() => import('./pages/food/FoodKioskPage'));
+const RestaurantPOSPage = lazy(() => import('./pages/food/RestaurantPOSPage'));
+const RestaurantInventoryPage = lazy(() => import('./pages/food/RestaurantInventoryPage'));
+const RestaurantCrewPage = lazy(() => import('./pages/food/RestaurantCrewPage'));
+const RestaurantRunnerPage = lazy(() => import('./pages/food/RestaurantRunnerPage'));
+const RestaurantCreditPage = lazy(() => import('./pages/food/RestaurantCreditPage'));
 // OxSteed Logistics branch
-import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
-import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';
-import OrganizerDashboardPage from './pages/logistics/OrganizerDashboardPage';
-import BusinessProcurementPage from './pages/logistics/BusinessProcurementPage';
-import DistributorResellerPage from './pages/logistics/DistributorResellerPage';
-import OperationsWorkspacePage from './pages/logistics/OperationsWorkspacePage';
-import ComplianceWorkspacePage from './pages/logistics/ComplianceWorkspacePage';
-import AdminControlWorkspacePage from './pages/logistics/AdminControlWorkspacePage';
-import SourcingOpsAdmin from './admin/pages/logistics/SourcingOpsAdmin';
-import OrganizerApprovalsAdmin from './admin/pages/logistics/OrganizerApprovalsAdmin';
-import ShipmentOpsAdmin from './admin/pages/logistics/ShipmentOpsAdmin';
-import WarehouseOpsDashboard from './admin/pages/logistics/WarehouseOpsDashboard';
-import AllocationsAdmin from './admin/pages/logistics/AllocationsAdmin';
-import DisputesAdmin from './admin/pages/logistics/DisputesAdmin';
-import ComplianceReviewAdmin from './admin/pages/logistics/ComplianceReviewAdmin';
-import CustomsAdmin from './admin/pages/logistics/CustomsAdmin';
-import RestrictionsAdmin from './admin/pages/logistics/RestrictionsAdmin';
-import LogisticsOperatorLoginPage from './pages/logistics/LogisticsOperatorLoginPage';
-import InternalWorkspaceLoginPage from './pages/internal/InternalWorkspaceLoginPage';
-import InternalDepartmentWorkspacePage from './pages/internal/InternalDepartmentWorkspacePage';
-import CampaignsPage        from './pages/logistics/CampaignsPage';
-import CampaignDetailPage   from './pages/logistics/CampaignDetailPage';
-import SourcingPage         from './pages/logistics/SourcingPage';
-import NewRequestPage       from './pages/logistics/NewRequestPage';
-import RequestDetailPage    from './pages/logistics/RequestDetailPage';
-import OrdersPage           from './pages/logistics/OrdersPage';
-import OrderDetailPage      from './pages/logistics/OrderDetailPage';
-import ShipmentsPage        from './pages/logistics/ShipmentsPage';
-import ShipmentDetailPage   from './pages/logistics/ShipmentDetailPage';
-import WarehousingPage      from './pages/logistics/WarehousingPage';
-import DistributionPage     from './pages/logistics/DistributionPage';
-import CompliancePage       from './pages/logistics/CompliancePage';
-import LogisticsFinancePage from './pages/logistics/LogisticsFinancePage';
-import BusinessHubPage from './pages/BusinessHubPage';
-import VortexPage from './pages/VortexPage';
-import NetworkAppsPage from './pages/NetworkAppsPage';
-import AccessGateRecoveryPage from './pages/AccessGateRecoveryPage';
-import VerifyIdentityPage from './pages/VerifyIdentityPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
-import PublicInvoiceView from './pages/PublicInvoiceView';
-import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
-import DiscoverPage from './pages/DiscoverPage';
-import MyBookingsPage from './pages/MyBookingsPage';
-import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
-import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
-import BusinessPublicProfilePage from './pages/BusinessPublicProfilePage';
-import HelperPublicProfilePage from './pages/HelperPublicProfilePage';
-import JobPublicPage from './pages/JobPublicPage';
-import ConsultingFullPortal from './pages/ConsultingFullPortal';
-import ConsultingPortalPage from './pages/ConsultingPortalPage';
-import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
-import ConsultantContractorDashboard from './pages/ConsultantContractorDashboard';
-import InvoicesPage from './pages/InvoicesPage';
-import CalendarPage from './pages/CalendarPage';
-import CalendarAppointmentDetailPage from './pages/CalendarAppointmentDetailPage';
-import AIPreviewPage from './pages/AIPreviewPage';
-import ProductMarketplacePage from './pages/ProductMarketplacePage';
-import ShoppingCartPage from './pages/ShoppingCartPage';
-import SharedCartPage from './pages/SharedCartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import OrderHistoryPage from './pages/OrderHistoryPage';
-import OrderDetailsPage from './pages/OrderDetailsPage';
-import SupportTicketDetailPage from './pages/SupportTicketDetailPage';
-import RestaurantSupportCasePage from './pages/RestaurantSupportCasePage';
-import SupportEscalationPage from './pages/SupportEscalationPage';
-import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
-import SupportAgentWorkspacePage from './pages/SupportAgentWorkspacePage';
-import StatusPage from './pages/StatusPage';
-import InventoryHelpCenterPage from './pages/InventoryHelpCenterPage';
-import MyJobsPage from './pages/MyJobsPage';
-import MyBidsPage from './pages/MyBidsPage';
-import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
-import HelperProfileEditPage from './pages/HelperProfileEditPage';
-import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
-import FeatureGuidePage from './pages/FeatureGuidePage';
-import LearnModePage from './pages/LearnModePage';
-import PromotePage from './pages/PromotePage';
-import DirectPortalPage from './pages/DirectPortalPage';
-import DirectAdminPortalPage from './pages/DirectAdminPortalPage';
-import MaintenanceRequestPage from './pages/MaintenanceRequestPage';
-import TradesDiagnosticRequestPage from './pages/TradesDiagnosticRequestPage';
-import BeautyIntakeRequestPage from './pages/BeautyIntakeRequestPage';
-import CreativeIntakeRequestPage from './pages/CreativeIntakeRequestPage';
-import ProfessionalIntakeRequestPage from './pages/ProfessionalIntakeRequestPage';
-import ContinuityIntakeRequestPage from './pages/ContinuityIntakeRequestPage';
-import TranslatorWorkspacePage from './pages/TranslatorWorkspacePage';
-import InvestorDashboardPage from './pages/InvestorDashboardPage';
-import AffiliateDashboardPage from './pages/AffiliateDashboardPage';
+const LogisticsHomePage = lazy(() => import('./pages/logistics/LogisticsHomePage'));
+const BuyerDashboardPage = lazy(() => import('./pages/logistics/BuyerDashboardPage'));
+const OrganizerDashboardPage = lazy(() => import('./pages/logistics/OrganizerDashboardPage'));
+const BusinessProcurementPage = lazy(() => import('./pages/logistics/BusinessProcurementPage'));
+const DistributorResellerPage = lazy(() => import('./pages/logistics/DistributorResellerPage'));
+const OperationsWorkspacePage = lazy(() => import('./pages/logistics/OperationsWorkspacePage'));
+const ComplianceWorkspacePage = lazy(() => import('./pages/logistics/ComplianceWorkspacePage'));
+const AdminControlWorkspacePage = lazy(() => import('./pages/logistics/AdminControlWorkspacePage'));
+const SourcingOpsAdmin = lazy(() => import('./admin/pages/logistics/SourcingOpsAdmin'));
+const OrganizerApprovalsAdmin = lazy(() => import('./admin/pages/logistics/OrganizerApprovalsAdmin'));
+const ShipmentOpsAdmin = lazy(() => import('./admin/pages/logistics/ShipmentOpsAdmin'));
+const WarehouseOpsDashboard = lazy(() => import('./admin/pages/logistics/WarehouseOpsDashboard'));
+const AllocationsAdmin = lazy(() => import('./admin/pages/logistics/AllocationsAdmin'));
+const DisputesAdmin = lazy(() => import('./admin/pages/logistics/DisputesAdmin'));
+const ComplianceReviewAdmin = lazy(() => import('./admin/pages/logistics/ComplianceReviewAdmin'));
+const CustomsAdmin = lazy(() => import('./admin/pages/logistics/CustomsAdmin'));
+const RestrictionsAdmin = lazy(() => import('./admin/pages/logistics/RestrictionsAdmin'));
+const LogisticsOperatorLoginPage = lazy(() => import('./pages/logistics/LogisticsOperatorLoginPage'));
+const InternalWorkspaceLoginPage = lazy(() => import('./pages/internal/InternalWorkspaceLoginPage'));
+const InternalDepartmentWorkspacePage = lazy(() => import('./pages/internal/InternalDepartmentWorkspacePage'));
+const CampaignsPage = lazy(() => import('./pages/logistics/CampaignsPage'));
+const CampaignDetailPage = lazy(() => import('./pages/logistics/CampaignDetailPage'));
+const SourcingPage = lazy(() => import('./pages/logistics/SourcingPage'));
+const NewRequestPage = lazy(() => import('./pages/logistics/NewRequestPage'));
+const RequestDetailPage = lazy(() => import('./pages/logistics/RequestDetailPage'));
+const OrdersPage = lazy(() => import('./pages/logistics/OrdersPage'));
+const OrderDetailPage = lazy(() => import('./pages/logistics/OrderDetailPage'));
+const ShipmentsPage = lazy(() => import('./pages/logistics/ShipmentsPage'));
+const ShipmentDetailPage = lazy(() => import('./pages/logistics/ShipmentDetailPage'));
+const WarehousingPage = lazy(() => import('./pages/logistics/WarehousingPage'));
+const DistributionPage = lazy(() => import('./pages/logistics/DistributionPage'));
+const CompliancePage = lazy(() => import('./pages/logistics/CompliancePage'));
+const LogisticsFinancePage = lazy(() => import('./pages/logistics/LogisticsFinancePage'));
+const BusinessHubPage = lazy(() => import('./pages/BusinessHubPage'));
+const VortexPage = lazy(() => import('./pages/VortexPage'));
+const NetworkAppsPage = lazy(() => import('./pages/NetworkAppsPage'));
+const AccessGateRecoveryPage = lazy(() => import('./pages/AccessGateRecoveryPage'));
+const VerifyIdentityPage = lazy(() => import('./pages/VerifyIdentityPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const PublicInvoiceView = lazy(() => import('./pages/PublicInvoiceView'));
+const ToolRentalsBrowse = lazy(() => import('./pages/ToolRentalsBrowse'));
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
+const MyBookingsPage = lazy(() => import('./pages/MyBookingsPage'));
+const ToolRentalsAnalytics = lazy(() => import('./pages/ToolRentalsAnalytics'));
+const QRCodeGeneratorPage = lazy(() => import('./pages/QRCodeGeneratorPage'));
+const BusinessPublicProfilePage = lazy(() => import('./pages/BusinessPublicProfilePage'));
+const HelperPublicProfilePage = lazy(() => import('./pages/HelperPublicProfilePage'));
+const JobPublicPage = lazy(() => import('./pages/JobPublicPage'));
+const ConsultingFullPortal = lazy(() => import('./pages/ConsultingFullPortal'));
+const ConsultingPortalPage = lazy(() => import('./pages/ConsultingPortalPage'));
+const ConsultantAvailabilityPage = lazy(() => import('./pages/ConsultantAvailabilityPage'));
+const ConsultantContractorDashboard = lazy(() => import('./pages/ConsultantContractorDashboard'));
+const InvoicesPage = lazy(() => import('./pages/InvoicesPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const CalendarAppointmentDetailPage = lazy(() => import('./pages/CalendarAppointmentDetailPage'));
+const AIPreviewPage = lazy(() => import('./pages/AIPreviewPage'));
+const ProductMarketplacePage = lazy(() => import('./pages/ProductMarketplacePage'));
+const ShoppingCartPage = lazy(() => import('./pages/ShoppingCartPage'));
+const SharedCartPage = lazy(() => import('./pages/SharedCartPage'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const OrderHistoryPage = lazy(() => import('./pages/OrderHistoryPage'));
+const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
+const SupportTicketDetailPage = lazy(() => import('./pages/SupportTicketDetailPage'));
+const RestaurantSupportCasePage = lazy(() => import('./pages/RestaurantSupportCasePage'));
+const SupportEscalationPage = lazy(() => import('./pages/SupportEscalationPage'));
+const SupportAgentPortalPage = lazy(() => import('./pages/SupportAgentPortalPage'));
+const SupportAgentWorkspacePage = lazy(() => import('./pages/SupportAgentWorkspacePage'));
+const StatusPage = lazy(() => import('./pages/StatusPage'));
+const InventoryHelpCenterPage = lazy(() => import('./pages/InventoryHelpCenterPage'));
+const MyJobsPage = lazy(() => import('./pages/MyJobsPage'));
+const MyBidsPage = lazy(() => import('./pages/MyBidsPage'));
+const EnforcementPolicyPage = lazy(() => import('./pages/EnforcementPolicyPage'));
+const HelperProfileEditPage = lazy(() => import('./pages/HelperProfileEditPage'));
+const BusinessProfileEditPage = lazy(() => import('./pages/BusinessProfileEditPage'));
+const FeatureGuidePage = lazy(() => import('./pages/FeatureGuidePage'));
+const LearnModePage = lazy(() => import('./pages/LearnModePage'));
+const PromotePage = lazy(() => import('./pages/PromotePage'));
+const DirectPortalPage = lazy(() => import('./pages/DirectPortalPage'));
+const DirectAdminPortalPage = lazy(() => import('./pages/DirectAdminPortalPage'));
+const MaintenanceRequestPage = lazy(() => import('./pages/MaintenanceRequestPage'));
+const TradesDiagnosticRequestPage = lazy(() => import('./pages/TradesDiagnosticRequestPage'));
+const BeautyIntakeRequestPage = lazy(() => import('./pages/BeautyIntakeRequestPage'));
+const CreativeIntakeRequestPage = lazy(() => import('./pages/CreativeIntakeRequestPage'));
+const ProfessionalIntakeRequestPage = lazy(() => import('./pages/ProfessionalIntakeRequestPage'));
+const ContinuityIntakeRequestPage = lazy(() => import('./pages/ContinuityIntakeRequestPage'));
+const TranslatorWorkspacePage = lazy(() => import('./pages/TranslatorWorkspacePage'));
+const InvestorDashboardPage = lazy(() => import('./pages/InvestorDashboardPage'));
+const AffiliateDashboardPage = lazy(() => import('./pages/AffiliateDashboardPage'));
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -196,6 +197,14 @@ const queryClient = new QueryClient({
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
+function RouteLoadingFallback() {
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-300" aria-live="polite">
+      Loading...
+    </main>
+  );
 }
 
 function LaunchScopeRouteGate({ children }) {
@@ -241,6 +250,7 @@ export default function App() {
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>
                   <LaunchScopeRouteGate>
+                  <Suspense fallback={<RouteLoadingFallback />}>
                   <Routes>
                     {/* ── Impersonation landing (super-admin only, new tab) ── */}
                     <Route path="/impersonate"             element={<ImpersonatePage />} />
@@ -508,8 +518,9 @@ export default function App() {
                     {/* Client Consulting Portal - Track Progress */}
                     <Route path="/consulting" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingPortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
-                    <Route path="*" element={<NotFoundPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                   </Routes>
+                  </Suspense>
                   </LaunchScopeRouteGate>
                 </TermsGate>
                 {!isStatusHost && <CookieConsent />}
