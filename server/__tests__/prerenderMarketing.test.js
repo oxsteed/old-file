@@ -2,6 +2,7 @@
 
 const express = require('express');
 const request = require('supertest');
+const { mockQuery, resetMocks } = require('./setup');
 const prerenderPublicPages = require('../middleware/prerenderHelperProfile');
 
 function buildApp() {
@@ -15,6 +16,7 @@ describe('localized marketing SEO shell', () => {
 
   beforeEach(() => {
     process.env.NODE_ENV = 'production';
+    resetMocks();
   });
 
   afterEach(() => {
@@ -31,5 +33,41 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('href="https://oxsteed.com/direct/service-area?lang=es"');
     expect(res.text).toContain('href="https://oxsteed.com/direct/request-quote?lang=es"');
     expect(res.text).not.toContain('>Explore OxSteed<');
+  });
+
+  test('localizes eligible public profile metadata and structured data', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        first_name: 'Alex',
+        last_name: 'Helper',
+        display_name_preference: null,
+        primary_business_name: null,
+        profile_headline: 'Home repair specialist',
+        bio_short: 'Local repair help.',
+        bio_long: null,
+        profile_photo_url: null,
+        cover_photo_url: null,
+        service_city: 'Springfield',
+        service_state: 'OH',
+        service_zip: '45503',
+        service_radius_miles: 60,
+        hourly_rate_min: 50,
+        avg_rating: 5,
+        total_reviews: 2,
+        is_identity_verified: true,
+        is_background_checked: true,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ skill_name: 'Carpentry', category_name: 'Home repair' }] });
+
+    const res = await request(buildApp()).get('/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-language']).toBe('es');
+    expect(res.text).toContain('<html lang="es">');
+    expect(res.text).toContain('rel="canonical" href="https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es"');
+    expect(res.text).toContain('hreflang="fr" href="https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=fr"');
+    expect(res.text).toContain('"inLanguage":"es"');
+    expect(res.text).toContain('"url":"https://oxsteed.com/helpers/public/123e4567-e89b-12d3-a456-426614174000?lang=es"');
   });
 });

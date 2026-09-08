@@ -838,9 +838,9 @@ async function handleHelpersDirectory(template, res, req) {
   return res.send(html);
 }
 
-function buildHelperJsonLd(helper, services, location) {
+function buildHelperJsonLd(helper, services, location, { profileUrl, language = 'en' } = {}) {
   const origin = base();
-  const profileUrl = `${origin}/helpers/public/${helper.id}`;
+  const resolvedProfileUrl = profileUrl || `${origin}/helpers/public/${helper.id}`;
   const knowsAbout = (services || []).map((s) => s.skill_name || s.name).filter(Boolean).slice(0, 20);
 
   const addr = {
@@ -857,9 +857,9 @@ function buildHelperJsonLd(helper, services, location) {
     name: helper.businessName,
     description: helper.bio || helper.tagline || undefined,
     image: helper.avatar ? absoluteUrl(helper.avatar) : undefined,
-    url: profileUrl,
-    inLanguage: 'en',
-    mainEntityOfPage: profileUrl,
+    url: resolvedProfileUrl,
+    inLanguage: language,
+    mainEntityOfPage: resolvedProfileUrl,
     jobTitle: helper.tagline || undefined,
     address: hasAddr ? addr : undefined,
     areaServed: {
@@ -881,9 +881,9 @@ function buildHelperJsonLd(helper, services, location) {
   return out;
 }
 
-function buildBusinessJsonLd(biz, services, location) {
+function buildBusinessJsonLd(biz, services, location, { profileUrl, language = 'en' } = {}) {
   const origin = base();
-  const profileUrl = `${origin}/businesses/public/${biz.id}`;
+  const resolvedProfileUrl = profileUrl || `${origin}/businesses/public/${biz.id}`;
   const offerItems = (services || []).slice(0, 12).map((s) => ({
     '@type': 'Offer',
     itemOffered: { '@type': 'Service', name: s.name || 'Service' },
@@ -903,9 +903,9 @@ function buildBusinessJsonLd(biz, services, location) {
     name: biz.businessName,
     description: biz.description || biz.tagline || undefined,
     image: biz.image ? absoluteUrl(biz.image) : undefined,
-    url: profileUrl,
-    inLanguage: 'en',
-    mainEntityOfPage: profileUrl,
+    url: resolvedProfileUrl,
+    inLanguage: language,
+    mainEntityOfPage: resolvedProfileUrl,
     address: hasAddr ? addr : undefined,
     areaServed: {
       '@type': 'AdministrativeArea',
@@ -1046,7 +1046,9 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   };
 
   const origin = base();
-  const url = `${origin}/helpers/public/${helper.id}`;
+  const publicPath = `/helpers/public/${helper.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const image = (helper.coverImage || helper.avatar)
     ? absoluteUrl(helper.coverImage || helper.avatar)
     : `${origin}/icons/icon-192.png`;
@@ -1061,8 +1063,10 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   });
 
   let html = replaceMeta(template, { title, description, url, ogType: 'profile', image });
-  html = injectJsonLd(html, buildHelperJsonLd(helper, skillRows, location));
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
+  html = injectJsonLd(html, buildHelperJsonLd(helper, skillRows, location, { profileUrl: url, language }));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
   html = html.replace(
     '<div id="root"></div>',
     `<div id="root">${buildHelperStaticShell(helper, skillRows, categories, location)}</div>`,
@@ -1077,6 +1081,7 @@ async function handleHelperProfile(helperId, template, res, next, req) {
   html = html.replace('</head>', `${preloadScript}\n</head>`);
 
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
@@ -1137,7 +1142,9 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
   };
 
   const origin = base();
-  const url = `${origin}/businesses/public/${biz.id}`;
+  const publicPath = `/businesses/public/${biz.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const image = biz.image ? absoluteUrl(biz.image) : `${origin}/icons/icon-192.png`;
   const title = `${biz.businessName} | OxSteed`;
   const description = buildPublicProfileDescription({
@@ -1150,14 +1157,17 @@ async function handleBusinessProfile(businessId, template, res, next, req) {
   });
 
   let html = replaceMeta(template, { title, description, url, ogType: 'profile', image });
-  html = injectJsonLd(html, buildBusinessJsonLd(biz, svcRows, { city, state }));
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
+  html = injectJsonLd(html, buildBusinessJsonLd(biz, svcRows, { city, state }, { profileUrl: url, language }));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
   html = html.replace(
     '<div id="root"></div>',
     `<div id="root">${buildBusinessStaticShell(biz, svcRows)}</div>`,
   );
 
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
@@ -1213,7 +1223,9 @@ async function handlePublicJob(jobId, template, res, next, req) {
 
   const job = rows[0];
   const origin = base();
-  const url = `${origin}/jobs/public/${job.id}`;
+  const publicPath = `/jobs/public/${job.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const title = `${job.title} | OxSteed`;
   const description = String(job.description || `${job.title} local service opportunity on OxSteed.`)
     .replace(/\s+/g, ' ').trim().slice(0, 320);
@@ -1224,7 +1236,7 @@ async function handlePublicJob(jobId, template, res, next, req) {
     name: job.title,
     description,
     url,
-    inLanguage: 'en',
+    inLanguage: language,
     mainEntityOfPage: url,
     isPartOf: { '@id': `${origin}/#website` },
     about: {
@@ -1253,10 +1265,13 @@ async function handlePublicJob(jobId, template, res, next, req) {
     <section><h2>Job description</h2><p>${escapeHtml(job.description || '')}</p></section>
   </div>`;
   let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, 'en'));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
@@ -1302,7 +1317,9 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
   );
 
   const origin = base();
-  const url = `${origin}/restaurants/r/${restaurant.id}`;
+  const publicPath = `/restaurants/r/${restaurant.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const cuisine = Array.isArray(restaurant.cuisine_tags) ? restaurant.cuisine_tags.filter(Boolean) : [];
   const location = [restaurant.address_city, restaurant.address_state].filter(Boolean).join(', ');
   const description = String(
@@ -1325,7 +1342,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     description,
     url,
     image: absoluteUrl(image),
-    inLanguage: 'en',
+    inLanguage: language,
     mainEntityOfPage: url,
     servesCuisine: cuisine.length ? cuisine : undefined,
     address,
@@ -1352,15 +1369,18 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     url,
     image: absoluteUrl(image),
   });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${restaurant.display_name} | OxSteed Restaurants`, url, req, 'en'));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${restaurant.display_name} | OxSteed Restaurants`, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
 
-async function handleToolProfile(toolId, template, res) {
+async function handleToolProfile(toolId, template, res, req) {
   const { rows } = await pool.query(
     `SELECT t.id, t.name, t.category, t.description, t.daily_rate,
             t.hourly_rate, t.condition, t.brand, t.model,
@@ -1385,7 +1405,9 @@ async function handleToolProfile(toolId, template, res) {
 
   const tool = rows[0];
   const origin = base();
-  const url = `${origin}/tool-rentals/${tool.id}`;
+  const publicPath = `/tool-rentals/${tool.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const location = [tool.location_city, tool.location_state].filter(Boolean).join(', ');
   const details = [tool.brand, tool.model, tool.condition].filter(Boolean).join(' - ');
   const description = String(
@@ -1399,6 +1421,7 @@ async function handleToolProfile(toolId, template, res) {
     '@type': 'Product',
     name: tool.name,
     description,
+    inLanguage: language,
     category: tool.category || undefined,
     brand: tool.brand ? { '@type': 'Brand', name: tool.brand } : undefined,
     url,
@@ -1424,15 +1447,18 @@ async function handleToolProfile(toolId, template, res) {
     url,
     image: `${origin}/icons/icon-512.png`,
   });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${tool.name} | OxSteed Tool Rentals`, url, null, 'en'));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${tool.name} | OxSteed Tool Rentals`, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
 
-async function handleLogisticsCampaign(campaignId, template, res) {
+async function handleLogisticsCampaign(campaignId, template, res, req) {
   const { rows } = await pool.query(
     `SELECT po.id, po.title, po.description, po.status, po.target_moq,
             po.current_committed_qty, po.open_date, po.close_date,
@@ -1459,7 +1485,9 @@ async function handleLogisticsCampaign(campaignId, template, res) {
 
   const campaign = rows[0];
   const origin = base();
-  const url = `${origin}/logistics/campaigns/${campaign.id}`;
+  const publicPath = `/logistics/campaigns/${campaign.id}`;
+  const language = getRequestedLanguage(req);
+  const url = getLocalizedRequestUrl(publicPath, req);
   const lane = [campaign.origin_country, campaign.destination_country].filter(Boolean).join(' to ');
   const description = String(
     campaign.description
@@ -1474,6 +1502,7 @@ async function handleLogisticsCampaign(campaignId, template, res) {
     name: `${campaign.title} | OxSteed Logistics`,
     description,
     url,
+    inLanguage: language,
     about: {
       '@type': 'Thing',
       name: campaign.product_title || campaign.title,
@@ -1490,10 +1519,13 @@ async function handleLogisticsCampaign(campaignId, template, res) {
     url,
     image: `${origin}/icons/icon-512.png`,
   });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${campaign.title} | OxSteed Logistics`, url, null, 'en'));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${campaign.title} | OxSteed Logistics`, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
@@ -1578,7 +1610,7 @@ function prerenderPublicPages(req, res, next) {
 
   const matchTool = p.match(PUBLIC_TOOL_RE);
   if (matchTool) {
-    return handleToolProfile(matchTool[1], template, res).catch((err) => {
+    return handleToolProfile(matchTool[1], template, res, req).catch((err) => {
       logger.error('[prerender] tool profile error', { toolId: matchTool[1], error: err.message });
       return next();
     });
@@ -1586,7 +1618,7 @@ function prerenderPublicPages(req, res, next) {
 
   const matchLogisticsCampaign = p.match(PUBLIC_LOGISTICS_CAMPAIGN_RE);
   if (matchLogisticsCampaign) {
-    return handleLogisticsCampaign(matchLogisticsCampaign[1], template, res).catch((err) => {
+    return handleLogisticsCampaign(matchLogisticsCampaign[1], template, res, req).catch((err) => {
       logger.error('[prerender] logistics campaign error', { campaignId: matchLogisticsCampaign[1], error: err.message });
       return next();
     });

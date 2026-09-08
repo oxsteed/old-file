@@ -14,6 +14,7 @@ const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar
 const LOCALIZED_PATHS = new Set([
   '/', '/about', '/join', '/jobs', '/helpers', '/how-it-works', '/restaurants',
   '/consulting-intake', '/direct', '/direct/services', '/direct/request-quote',
+  '/direct/view-quote',
   '/support/escalation', '/terms', '/privacy', '/security', '/accessibility',
   '/enforcement-policy', '/do-not-sell', '/cookie-policy',
   '/legal/background-check', '/legal/arbitration', '/legal/escrow-policy',
@@ -23,7 +24,10 @@ const LOCALIZED_PATHS = new Set([
 
 function getLocalizedPath(pathname) {
   const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/+$/, '') || '/';
-  return normalizedPath === '/' || normalizedPath.startsWith('/help/') || LOCALIZED_PATHS.has(normalizedPath);
+  return normalizedPath === '/'
+    || normalizedPath.startsWith('/help/')
+    || LOCALIZED_PATHS.has(normalizedPath)
+    || /^\/(helpers\/public|businesses\/public|jobs\/public|restaurants\/r|tool-rentals|logistics\/campaigns)\/[^/]+$/i.test(normalizedPath);
 }
 
 function normalizePathname(pathname) {
