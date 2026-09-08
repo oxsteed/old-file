@@ -26,6 +26,8 @@ import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import PageMeta from '../../components/PageMeta';
+import { getPublicSiteUrl } from '../../utils/seoDescription';
 import '../../styles/FoodRestaurantPage.css';
 
 // ── Active-order persistence ─────────────────────────────────────────────────
@@ -576,6 +578,12 @@ export default function FoodRestaurantPage() {
   if (!restaurant) {
     return (
       <>
+        <PageMeta
+          title={t('food.restaurant.notFoundTitle')}
+          description={t('food.restaurant.notFoundTitle')}
+          url={`${getPublicSiteUrl()}/restaurants/r/${restaurantId}`}
+          noIndex
+        />
         <Navbar />
         <div className="rp-root">
           <div className="rp-not-found">
@@ -621,6 +629,11 @@ export default function FoodRestaurantPage() {
   const modeLabels = (restaurant.fulfillment_modes || [])
     .map((m) => fulfillmentLabels[m]).filter(Boolean);
   const meta = [cuisineLabel, ...modeLabels].filter(Boolean).join(' · ');
+  const publicUrl = `${getPublicSiteUrl()}/restaurants/r/${restaurantId}`;
+  const seoDescription = String(
+    restaurant.description
+      || `${restaurant.display_name} serves ${cuisineLabel.toLowerCase()} food${restaurant.address_city ? ` in ${restaurant.address_city}` : ''} through OxSteed Restaurants.`,
+  ).replace(/\s+/g, ' ').trim().slice(0, 320);
 
   const rating = parseFloat(restaurant.avg_rating || 0) || 0;
   const ratingDisplay = rating > 0 ? rating.toFixed(1) : t('food.restaurant.new');
@@ -970,6 +983,13 @@ export default function FoodRestaurantPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
+      <PageMeta
+        title={`${restaurant.display_name} | OxSteed Restaurants`}
+        description={seoDescription}
+        image={restaurant.cover_photo_url || restaurant.logo_url}
+        url={publicUrl}
+        type="restaurant"
+      />
       <Navbar />
       <div className="rp-root" style={rootStyle}>
         <div className="rp-page-wrap">

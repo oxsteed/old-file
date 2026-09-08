@@ -196,6 +196,14 @@ const MARKETING_PAGES = {
   '/privacy': { title: 'Privacy Policy | OxSteed', description: 'Read the OxSteed Privacy Policy.', localized: true },
   '/security': { title: 'Security | OxSteed', description: 'Learn how OxSteed protects accounts, payments, and personal information.', localized: true },
   '/accessibility': { title: 'Accessibility | OxSteed', description: 'Learn about accessibility support on OxSteed.', localized: true },
+  '/do-not-sell': { title: 'Do Not Sell or Share My Information | OxSteed', description: 'Review OxSteed privacy choices and learn how to exercise data rights.', localized: true },
+  '/cookie-policy': { title: 'Cookie Policy | OxSteed', description: 'Learn how OxSteed uses essential, analytics, marketing, and functional cookies.', localized: true },
+  '/legal/background-check': { title: 'Background Check Policy | OxSteed', description: 'Read the OxSteed background check policy for helpers and customers.', localized: true },
+  '/legal/arbitration': { title: 'Arbitration Policy | OxSteed', description: 'Read the OxSteed arbitration policy and dispute terms.', localized: true },
+  '/legal/escrow-policy': { title: 'Escrow Policy | OxSteed', description: 'Learn how OxSteed handles escrow, payment holds, and release conditions.', localized: true },
+  '/legal/account-termination': { title: 'Account Termination Policy | OxSteed', description: 'Read the OxSteed account termination and suspension policy.', localized: true },
+  '/legal/dispute-resolution': { title: 'Dispute Resolution | OxSteed', description: 'Learn how OxSteed handles disputes, reviews, and resolution steps.', localized: true },
+  '/legal/independent-contractor': { title: 'Independent Contractor Policy | OxSteed', description: 'Read the OxSteed independent contractor policy and marketplace terms.', localized: true },
 };
 
 function handleMarketingPage(pagePath, template, res) {
@@ -623,6 +631,8 @@ const PUBLIC_HELPER_RE = /^\/helpers\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{
 const LEGACY_HELPER_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const PUBLIC_BUSINESS_RE = /^\/businesses\/public\/(\d+)$/i;
 const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
+const PUBLIC_RESTAURANT_RE = /^\/restaurants\/r\/(\d+)$/i;
+const LEGACY_RESTAURANT_RE = /^\/food\/restaurants\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -697,6 +707,102 @@ async function handlePublicJob(jobId, template, res, next) {
   return res.send(html);
 }
 
+async function handleRestaurantProfile(restaurantId, template, res, next) {
+  const { rows } = await pool.query(
+    `SELECT fr.id, fr.display_name, fr.slug, fr.description, fr.cuisine_tags,
+            fr.cover_photo_url, fr.logo_url, fr.address_city, fr.address_state,
+            fr.address_country, fr.price_level, fr.fulfillment_modes,
+            fr.avg_rating, fr.rating_count, fr.updated_at
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE fr.id = $1::bigint
+        AND fr.status IN ('active', 'paused')
+        AND fr.discovery_status = 'visible'
+        AND b.is_active = TRUE
+        AND b.is_listed = TRUE
+        AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+        AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+        AND b.deleted_at IS NULL`,
+    [restaurantId],
+  );
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/restaurants/r/${restaurantId}`,
+      'Restaurant Not Found | OxSteed',
+      'This OxSteed restaurant is no longer available.',
+    );
+  }
+
+  const restaurant = rows[0];
+  const { rows: menuItems } = await pool.query(
+    `SELECT name, description, price_cents
+       FROM food_menu_items
+      WHERE restaurant_id = $1::bigint
+        AND publication_status = 'published'
+        AND archived_at IS NULL
+      ORDER BY sort_order, name
+      LIMIT 100`,
+    [restaurantId],
+  );
+
+  const origin = base();
+  const url = `${origin}/restaurants/r/${restaurant.id}`;
+  const cuisine = Array.isArray(restaurant.cuisine_tags) ? restaurant.cuisine_tags.filter(Boolean) : [];
+  const location = [restaurant.address_city, restaurant.address_state].filter(Boolean).join(', ');
+  const description = String(
+    restaurant.description
+      || `${restaurant.display_name} serves ${cuisine.join(', ') || 'local food'}${location ? ` in ${location}` : ''} through OxSteed Restaurants.`,
+  ).replace(/\s+/g, ' ').trim().slice(0, 320);
+  const image = restaurant.cover_photo_url || restaurant.logo_url || `${origin}/og-default.png`;
+  const address = restaurant.address_city || restaurant.address_state
+    ? {
+        '@type': 'PostalAddress',
+        addressLocality: restaurant.address_city || undefined,
+        addressRegion: restaurant.address_state || undefined,
+        addressCountry: restaurant.address_country || 'US',
+      }
+    : undefined;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Restaurant',
+    name: restaurant.display_name,
+    description,
+    url,
+    image: absoluteUrl(image),
+    servesCuisine: cuisine.length ? cuisine : undefined,
+    address,
+    priceRange: restaurant.price_level === 'cheap' ? '$' : restaurant.price_level === 'expensive' ? '$$$' : '$$',
+    aggregateRating: Number(restaurant.rating_count || 0) > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: Number(restaurant.avg_rating || 0),
+      reviewCount: Number(restaurant.rating_count || 0),
+      bestRating: 5,
+    } : undefined,
+    hasMenu: menuItems.length ? url : undefined,
+    isPartOf: { '@id': `${origin}/#website` },
+  };
+  const menuHtml = menuItems.length
+    ? `<section><h2>Menu</h2><ul>${menuItems.map((item) => `<li><strong>${escapeHtml(item.name)}</strong>${item.description ? ` - ${escapeHtml(item.description)}` : ''}</li>`).join('')}</ul></section>`
+    : '';
+  const shell = `<div id="ssr-shell" data-restaurant-id="${escapeHtml(String(restaurant.id))}" style="max-width:52rem;margin:0 auto;padding:2rem 1rem;">
+    <header><h1>${escapeHtml(restaurant.display_name)}</h1>${cuisine.length ? `<p>${escapeHtml(cuisine.join(', '))}</p>` : ''}${location ? `<p>${escapeHtml(location)}</p>` : ''}<p>${escapeHtml(description)}</p></header>
+    ${menuHtml}
+  </div>`;
+  let html = replaceMeta(template, {
+    title: `${restaurant.display_name} | OxSteed Restaurants`,
+    description,
+    url,
+    image: absoluteUrl(image),
+  });
+  html = injectJsonLd(html, jsonLd);
+  html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
 function prerenderPublicPages(req, res, next) {
   if (process.env.NODE_ENV !== 'production') return next();
   if (req.method !== 'GET') return next();
@@ -705,6 +811,17 @@ function prerenderPublicPages(req, res, next) {
   if (!template) return next();
 
   const p = req.path;
+
+  const canonicalRedirects = {
+    '/features': '/how-it-works',
+    '/support': '/support/escalation',
+    '/request-quote': '/direct/request-quote',
+    '/quote-request': '/direct/request-quote',
+    '/food': '/restaurants',
+  };
+  if (canonicalRedirects[p]) {
+    return res.redirect(301, `${base()}${canonicalRedirects[p]}`);
+  }
 
   if (MARKETING_PAGES[p]) {
     return handleMarketingPage(p, template, res);
@@ -745,6 +862,19 @@ function prerenderPublicPages(req, res, next) {
   const matchLegacyBusiness = p.match(LEGACY_BUSINESS_RE);
   if (matchLegacyBusiness) {
     return res.redirect(301, `${base()}/businesses/public/${matchLegacyBusiness[1]}`);
+  }
+
+  const matchLegacyRestaurant = p.match(LEGACY_RESTAURANT_RE);
+  if (matchLegacyRestaurant) {
+    return res.redirect(301, `${base()}/restaurants/r/${matchLegacyRestaurant[1]}`);
+  }
+
+  const matchRestaurant = p.match(PUBLIC_RESTAURANT_RE);
+  if (matchRestaurant) {
+    return handleRestaurantProfile(matchRestaurant[1], template, res, next).catch((err) => {
+      logger.error('[prerender] restaurant profile error', { restaurantId: matchRestaurant[1], error: err.message });
+      return next();
+    });
   }
 
   const matchBiz = p.match(PUBLIC_BUSINESS_RE);

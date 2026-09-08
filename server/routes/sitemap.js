@@ -56,6 +56,14 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/privacy`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/security`, changefreq: 'yearly', priority: '0.2', localized: true },
       { loc: `${origin}/accessibility`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/do-not-sell`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/cookie-policy`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/background-check`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/arbitration`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/escrow-policy`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/account-termination`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/dispute-resolution`, changefreq: 'yearly', priority: '0.2', localized: true },
+      { loc: `${origin}/legal/independent-contractor`, changefreq: 'yearly', priority: '0.2', localized: true },
     ];
 
     const { rows: helpers } = await pool.query(
@@ -100,6 +108,21 @@ router.get('/', async (_req, res) => {
        LIMIT 5000`,
     );
 
+    const { rows: restaurants } = await pool.query(
+      `SELECT fr.id, fr.updated_at
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.status IN ('active', 'paused')
+          AND fr.discovery_status = 'visible'
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND b.deleted_at IS NULL
+        ORDER BY fr.updated_at DESC NULLS LAST
+        LIMIT 2000`,
+    );
+
     const entries = [
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
@@ -123,6 +146,14 @@ router.get('/', async (_req, res) => {
           loc: `${origin}/jobs/public/${r.id}`,
           changefreq: 'daily',
           priority: '0.7',
+          lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
+        }),
+      ),
+      ...restaurants.map((r) =>
+        urlEntry({
+          loc: `${origin}/restaurants/r/${r.id}`,
+          changefreq: 'daily',
+          priority: '0.75',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
         }),
       ),
