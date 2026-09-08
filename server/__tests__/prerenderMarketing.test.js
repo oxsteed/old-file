@@ -27,6 +27,7 @@ describe('localized marketing SEO shell', () => {
     const res = await request(buildApp()).get('/direct/services?lang=es');
 
     expect(res.status).toBe(200);
+    expect(res.headers['content-language']).toBe('es');
     expect(res.text).toContain('<html lang="es">');
     expect(res.text).toContain('Explora OxSteed');
     expect(res.text).toContain('Consulta el \u00e1rea de servicio');

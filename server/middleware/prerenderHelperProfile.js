@@ -683,6 +683,7 @@ const DIRECT_SERVICE_AREA = {
 function handleMarketingPage(pagePath, template, res, req) {
   const page = getLocalizedSeoCopy(pagePath, MARKETING_PAGES[pagePath], req);
   const origin = base();
+  const language = getRequestedLanguage(req);
   const baseUrl = `${origin}${pagePath}`;
   const url = getLocalizedRequestUrl(pagePath, req);
   const schema = {
@@ -700,7 +701,7 @@ function handleMarketingPage(pagePath, template, res, req) {
   };
   let html = setDocumentLanguage(
     replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/icons/icon-512.png` }),
-    getRequestedLanguage(req),
+    language,
   );
   if (page.noIndex) {
     html = replaceRobots(html, 'noindex, nofollow');
@@ -713,6 +714,7 @@ function handleMarketingPage(pagePath, template, res, req) {
     `<div id="root">${buildMarketingStaticShell(page, pagePath, req)}</div>`,
   );
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
@@ -721,6 +723,7 @@ const base = () => getPublicSiteUrl();
 
 async function handleHomepage(template, res, req) {
   const origin = base();
+  const language = getRequestedLanguage(req);
   const page = getLocalizedSeoCopy('/', {
     title: 'OxSteed - Hire Local Help Today',
     description: 'Post a job, compare bids from skilled local helpers, and pay on OxSteed. Free to start.',
@@ -787,7 +790,7 @@ async function handleHomepage(template, res, req) {
 
   let html = setDocumentLanguage(
     replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` }),
-    getRequestedLanguage(req),
+    language,
   );
   html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
@@ -796,12 +799,14 @@ async function handleHomepage(template, res, req) {
     `<div id="root">${buildMarketingStaticShell(page, '/', req)}</div>`,
   );
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=60, s-maxage=300');
   return res.send(html);
 }
 
 async function handleHelpersDirectory(template, res, req) {
   const origin = base();
+  const language = getRequestedLanguage(req);
   const page = getLocalizedSeoCopy('/helpers', {
     title: 'Find Local Helpers Near You | OxSteed',
     description:
@@ -823,7 +828,7 @@ async function handleHelpersDirectory(template, res, req) {
 
   let html = setDocumentLanguage(
     replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` }),
-    getRequestedLanguage(req),
+    language,
   );
   html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, jsonLd);
@@ -834,6 +839,7 @@ async function handleHelpersDirectory(template, res, req) {
   );
 
   res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
 }
