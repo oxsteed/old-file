@@ -21,7 +21,8 @@ const LOCALIZED_PATHS = new Set([
 ]);
 
 function getLocalizedPath(pathname) {
-  return pathname === '/' || pathname.startsWith('/help/') || LOCALIZED_PATHS.has(pathname);
+  const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/+$/, '') || '/';
+  return normalizedPath === '/' || normalizedPath.startsWith('/help/') || LOCALIZED_PATHS.has(normalizedPath);
 }
 
 function getRequestedLanguage() {

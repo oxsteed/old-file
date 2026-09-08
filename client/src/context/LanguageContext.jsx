@@ -15,7 +15,8 @@ const SEO_LOCALIZED_PATHS = new Set([
 ]);
 
 function shouldPersistLanguageInUrl(pathname) {
-  return pathname === '/' || pathname.startsWith('/help/') || SEO_LOCALIZED_PATHS.has(pathname);
+  const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/+$/, '') || '/';
+  return normalizedPath === '/' || normalizedPath.startsWith('/help/') || SEO_LOCALIZED_PATHS.has(normalizedPath);
 }
 
 function persistLanguageInUrl(code) {
