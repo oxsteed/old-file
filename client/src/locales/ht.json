@@ -14745,6 +14745,9 @@
     "minimum": "{{amount}} minimòm",
     "heroFallback": "Sèvis Direct ki òganize pou travay reyèl.",
     "heroCopyFallback": "Gade sèvis Direct, zouti ak kouvèti ki disponib yo nan yon sèl kote.",
-    "navigation": "Navigasyon Direct"
+    "navigation": "Navigasyon Direct",
+    "loading": "Sèvis Direct yo ap chaje...",
+    "loadError": "Sèvis Direct yo pa disponib pou yon ti tan.",
+    "retry": "Eseye ankò"
   }
 }

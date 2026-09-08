@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Droplets, Gauge, Hammer, MapPin, Paintbrush, Ruler, Search, ShieldCheck, Trees, Truck, Wrench, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
 
 const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck };
 
@@ -16,7 +17,7 @@ function CatalogCard({ children, className = '' }) {
   return <section className={`rounded-3xl border border-white/10 bg-slate-900/75 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.18)] ${className}`}>{children}</section>;
 }
 
-export default function DirectCatalogLanding({ profile }) {
+export function DirectCatalogContent({ profile, embedded = false }) {
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
@@ -31,19 +32,17 @@ export default function DirectCatalogLanding({ profile }) {
   const visibleCategories = categories.filter((category) => category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()));
 
   return (
-    <PageShell>
-      <PageMeta title="OxSteed Direct" description={profile.publicNote || profile.headline} url={`${window.location.origin}/direct`} />
-      <main className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8" aria-labelledby="direct-catalog-title">
+      <div className={embedded ? 'w-full' : 'mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8'} aria-labelledby="direct-catalog-title">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/80 px-5 py-4 shadow-lg">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="OxSteed" className="h-10 w-10 rounded-xl" />
             <div><div className="text-xl font-bold text-white">OxSteed</div><div className="text-xs uppercase tracking-[0.2em] text-orange-300">OxSteed Direct</div></div>
           </div>
-          <nav className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-300" aria-label={t('directCatalog.navigation', { defaultValue: 'Direct navigation' })}>
+          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-300" aria-label={t('directCatalog.navigation', { defaultValue: 'Direct navigation' })}>
             <Link to="/direct/request-quote" className="rounded-full bg-orange-500 px-4 py-2 text-white hover:bg-orange-600">{t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}</Link>
             <Link to="/direct/view-quote" className="rounded-full border border-white/10 px-4 py-2 hover:bg-white/10">{t('homePage.company.viewQuote', { defaultValue: 'View quote' })}</Link>
             <Link to="/direct/service-area" reloadDocument className="rounded-full border border-white/10 px-4 py-2 hover:bg-white/10">{t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}</Link>
-          </nav>
+          </div>
         </header>
 
         <section className="mb-6 rounded-[32px] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 sm:p-8">
@@ -81,7 +80,48 @@ export default function DirectCatalogLanding({ profile }) {
         </div>
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto] rounded-3xl border border-white/10 bg-slate-950/70 p-5"><div><div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-orange-300"><MapPin size={17} /> {t('directCatalog.serviceCoverage', { defaultValue: 'Service coverage' })}</div><p className="mt-2 text-sm leading-6 text-slate-300">{t('directCatalog.coverageCopy', { city: profile.baseCity || 'Springfield, OH', defaultValue: '{{city}} and surrounding locations within the active Direct coverage areas.' })}</p><div className="mt-3 flex flex-wrap gap-2">{areas.map((area) => <span key={area} className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-200">{area}</span>)}{!areas.length && <span className="text-sm text-slate-500">{t('directCatalog.coverageConfiguring', { defaultValue: 'Coverage areas are being configured.' })}</span>}</div></div><div className="flex items-center"><Link to="/direct/service-area" reloadDocument className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 px-4 py-2.5 text-sm font-semibold text-orange-200 hover:bg-orange-500/10">{t('directCatalog.checkLocation', { defaultValue: 'Check exact location' })} <ChevronRight size={16} /></Link></div></section>
-      </main>
+      </div>
+  );
+}
+
+function CatalogState({ error, onRetry }) {
+  const { t } = useTranslation();
+  if (!error) {
+    return <div className="mx-auto flex min-h-[420px] w-full max-w-[1500px] items-center justify-center px-4 py-12 text-slate-300">{t('directCatalog.loading', { defaultValue: 'Loading Direct services...' })}</div>;
+  }
+  return <div className="mx-auto flex min-h-[420px] w-full max-w-[1500px] flex-col items-center justify-center gap-4 px-4 py-12 text-center text-slate-300"><p>{t('directCatalog.loadError', { defaultValue: 'Direct services are temporarily unavailable.' })}</p><button type="button" onClick={onRetry} className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600">{t('directCatalog.retry', { defaultValue: 'Try again' })}</button></div>;
+}
+
+export default function DirectCatalogLanding({ embedded = false }) {
+  const { i18n } = useTranslation();
+  const [profile, setProfile] = useState(DEFAULT_DIRECT_PROFILE);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    loadDirectProfile(i18n.resolvedLanguage).then((result) => {
+      if (!active) return;
+      setProfile(result.profile);
+      setError(result.error);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [i18n.resolvedLanguage, reloadToken]);
+
+  const content = loading
+    ? <CatalogState />
+    : error
+      ? <CatalogState error={error} onRetry={() => setReloadToken((value) => value + 1)} />
+      : <DirectCatalogContent profile={profile} embedded={embedded} />;
+
+  if (embedded) return content;
+  return (
+    <PageShell>
+      <PageMeta title="OxSteed Direct" description={profile.publicNote || profile.headline} url={`${window.location.origin}/direct`} />
+      {content}
     </PageShell>
   );
 }

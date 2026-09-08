@@ -14762,6 +14762,9 @@
     "minimum": "{{amount}} mínimo",
     "heroFallback": "Servicio Direct, organizado para el trabajo real.",
     "heroCopyFallback": "Explora los servicios Direct, las herramientas y la cobertura disponibles en un solo lugar.",
-    "navigation": "Navegación de Direct"
+    "navigation": "Navegación de Direct",
+    "loading": "Cargando servicios Direct...",
+    "loadError": "Los servicios Direct no están disponibles temporalmente.",
+    "retry": "Intentar de nuevo"
   }
 }

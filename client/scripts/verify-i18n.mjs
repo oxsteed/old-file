@@ -211,6 +211,7 @@ function verifyHomepageTranslationSurface() {
     'toolsEquipment', 'searchTools', 'searchToolsAria', 'availableWhenScheduled', 'noTools',
     'serviceCoverage', 'coverageCopy', 'coverageConfiguring', 'checkLocation', 'minimum',
     'heroFallback', 'heroCopyFallback', 'navigation',
+    'loading', 'loadError', 'retry',
   ];
   for (const language of languages.filter((entry) => entry !== 'en')) {
     const catalog = readJson(`src/locales/${language}.json`);
@@ -233,6 +234,16 @@ function verifyHomepageTranslationSurface() {
     const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
     if (source.includes(text)) {
       failures.push(`${relativePath} contains hardcoded homepage text: ${text}`);
+    }
+  }
+
+  const homepageSource = fs.readFileSync(path.join(root, 'src/pages/HomePage.jsx'), 'utf8');
+  if (!homepageSource.includes('<DirectCatalogLanding embedded />')) {
+    failures.push('src/pages/HomePage.jsx must embed the shared Direct catalog component');
+  }
+  for (const obsolete of ['OXSTEED_SERVICE_PROFILE', 'HomeCompanySection', 'hp-company-section']) {
+    if (homepageSource.includes(obsolete)) {
+      failures.push(`src/pages/HomePage.jsx still contains obsolete hardcoded catalog surface: ${obsolete}`);
     }
   }
 

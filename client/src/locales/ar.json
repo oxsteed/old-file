@@ -14748,6 +14748,9 @@
     "minimum": "الحد الأدنى {{amount}}",
     "heroFallback": "خدمة Direct منظمة للعمل الحقيقي.",
     "heroCopyFallback": "تصفح خدمات Direct والأدوات والتغطية المتاحة من مكان واحد.",
-    "navigation": "تنقل Direct"
+    "navigation": "تنقل Direct",
+    "loading": "جار تحميل خدمات Direct...",
+    "loadError": "خدمات Direct غير متاحة مؤقتًا.",
+    "retry": "حاول مرة أخرى"
   }
 }

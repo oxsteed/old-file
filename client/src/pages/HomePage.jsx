@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import DirectCatalogLanding from './DirectCatalogLanding';
 
 const SHOW_DISCOVER_SEARCH_TAB = LAUNCH_VISIBILITY.discoverEverything;
 const SHOW_BUSINESS_ASCENSION_CONSULTING = LAUNCH_VISIBILITY.businessAscension;
@@ -35,159 +36,11 @@ const SKILL_SLUGS = [
   { slug: 'tutoring',     icon: '📚' },
 ];
 
-const OXSTEED_SERVICE_PROFILE = {
-  companyName: 'OxSteed',
-  headline: 'Food, tools, and local service work under one company.',
-  startingPrice: '$100 minimum',
-  availability: 'Monday through Thursday',
-  baseCity: 'Springfield, OH',
-  serviceTypes: [
-    'Home help',
-    'Tool-based jobs',
-    'Delivery and hauling',
-    'Cleanup and setup',
-  ],
-  toolList: [
-    'truckHauling',
-    'powerDrill',
-    'ladders',
-    'pressureWasher',
-    'handTools',
-    'measuringLayout',
-    'cleanupSupplies',
-    'phoneInspection',
-  ],
-  travelCities: [
-    'Springfield',
-    'Dayton',
-    'Columbus',
-    'Beavercreek',
-    'Fairborn',
-    'Urbana',
-  ],
-};
-
-/** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
-function OxSteedIcon({ size = 26 }) {
+function HomeDirectCatalogSection() {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 512 512"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <rect width="512" height="512" rx="88" fill="#16213e"/>
-      <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316"/>
-      <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316"/>
-      <path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316"/>
-      <path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316"/>
-      <circle cx="256" cy="256" r="145" fill="#F97316"/>
-      <text
-        x="256" y="236"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif"
-        fontWeight="900"
-        fontSize="90"
-        fill="#FFFFFF"
-      >OxS</text>
-      <polyline
-        points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function HomeCompanySection() {
-  const { t } = useTranslation();
-  const profile = OXSTEED_SERVICE_PROFILE;
-  return (
-    <section className="hp-section hp-company-section">
+    <section className="hp-section hp-direct-catalog-section" aria-labelledby="direct-catalog-title">
       <div className="hp-container">
-        <div className="hp-company-card">
-          <div className="hp-company-hero">
-            <div className="hp-company-copy">
-              <p className="hp-company-kicker">
-                {t('homePage.company.kicker', { defaultValue: 'OxSteed as a company' })}
-              </p>
-              <div className="hp-company-title-row">
-                <span className="hp-company-logo" aria-hidden="true">
-                  <OxSteedIcon size={54} />
-                </span>
-                <h2 className="hp-company-title">
-                  {profile.companyName}
-                </h2>
-              </div>
-              <p className="hp-company-subcopy">
-                {t('homePage.company.subcopy', { defaultValue: profile.headline })}
-              </p>
-              <div className="hp-company-meta">
-                <span>{t('homePage.company.price', { defaultValue: profile.startingPrice })}</span>
-                <span>•</span>
-                <span>{t('homePage.company.availability', { defaultValue: profile.availability })}</span>
-                <span>•</span>
-                <span>{t('homePage.company.serviceArea', { defaultValue: `${profile.baseCity} - service within 60 miles` })}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="hp-company-grid">
-            <div className="hp-company-panel">
-              <h3>{t('homePage.company.services', { defaultValue: 'Services' })}</h3>
-              <div className="hp-chip-grid">
-                {profile.serviceTypes.map((item, index) => (
-                  <span key={item} className="hp-chip hp-chip--warm">
-                    {index === 0 ? t('homePage.company.serviceTypes.homeHelp', { defaultValue: item }) : index === 1 ? t('homePage.company.serviceTypes.toolBased', { defaultValue: item }) : index === 2 ? t('homePage.company.serviceTypes.delivery', { defaultValue: item }) : t('homePage.company.serviceTypes.cleanup', { defaultValue: item })}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="hp-company-panel">
-              <h3>{t('homePage.company.tools', { defaultValue: 'Tools' })}</h3>
-              <div className="hp-chip-grid">
-                {profile.toolList.map((toolKey) => (
-                  <span key={toolKey} className="hp-chip hp-chip--cool">
-                    {t(`homePage.company.toolList.${toolKey}`)}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="hp-company-panel hp-company-panel--wide">
-              <h3>{t('homePage.company.travelCities', { defaultValue: 'Travel cities' })}</h3>
-              <div className="hp-chip-grid">
-                {profile.travelCities.map((item) => (
-                  <span key={item} className="hp-chip hp-chip--blue">{item}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="hp-company-actions">
-            <Link to="/direct/request-quote" className="hp-btn hp-btn-primary hp-btn-lg hp-company-btn">
-              {t('homePage.company.requestQuote', { defaultValue: 'Request a quote' })}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </Link>
-            <Link to="/direct/view-quote" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
-              {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
-            </Link>
-            <Link to="/direct/service-area" reloadDocument className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
-              {t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}
-            </Link>
-            <Link to="/direct/services" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
-              {t('homePage.company.viewServices', { defaultValue: 'View services' })}
-            </Link>
-          </div>
-        </div>
+        <DirectCatalogLanding embedded />
       </div>
     </section>
   );
@@ -613,8 +466,8 @@ export default function HomePage() {
         <LiveHelpersHeroCard />
       </section>
 
-      {/* -- Browse by Skills -- */}
-      <HomeCompanySection />
+      {/* -- Direct catalog -- */}
+      <HomeDirectCatalogSection />
       <section className="hp-section">
         <div className="hp-container">
           <div className="hp-section-head">

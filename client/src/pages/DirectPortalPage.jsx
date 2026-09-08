@@ -277,14 +277,7 @@ async function loadProfile(locale) {
 }
 
 export function DirectLandingPage() {
-  const { i18n } = useTranslation();
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
-  useEffect(() => {
-    let active = true;
-    loadProfile(i18n.resolvedLanguage).then((next) => { if (active) setProfile(next); });
-    return () => { active = false; };
-  }, [i18n.resolvedLanguage]);
-  return <DirectCatalogLanding profile={profile} />;
+  return <DirectCatalogLanding />;
 }
 
 function DirectLandingLegacyPage() {

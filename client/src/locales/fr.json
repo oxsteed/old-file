@@ -14745,6 +14745,9 @@
     "minimum": "Minimum : {{amount}}",
     "heroFallback": "Un service Direct organisé pour le travail réel.",
     "heroCopyFallback": "Parcourez les services Direct, les outils et la couverture disponibles au même endroit.",
-    "navigation": "Navigation Direct"
+    "navigation": "Navigation Direct",
+    "loading": "Chargement des services Direct...",
+    "loadError": "Les services Direct sont temporairement indisponibles.",
+    "retry": "Réessayer"
   }
 }

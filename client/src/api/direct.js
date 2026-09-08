@@ -1,8 +1,43 @@
 import api from './axios';
 
+export const DEFAULT_DIRECT_PROFILE = {
+  companyName: 'OxSteed',
+  headline: 'Food, tools, and local service work under one company.',
+  minimumPriceCents: 10000,
+  availabilityText: 'Monday through Thursday',
+  baseCity: 'Springfield, OH',
+  publicNote: 'Company-run service portal for customers who want a direct quote, a scheduled visit, and in-app proof/history.',
+  serviceAreas: [],
+  tools: [],
+  travelDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+  travelCities: [],
+  catalog: { categories: [], tools: [] },
+};
+
+export function normalizeDirectProfile(data) {
+  const profile = data?.profile || {};
+  return {
+    ...DEFAULT_DIRECT_PROFILE,
+    ...profile,
+    catalog: data?.catalog || DEFAULT_DIRECT_PROFILE.catalog,
+    serviceAreas: data?.serviceAreas?.map((area) => area.label)
+      || profile.serviceAreas
+      || DEFAULT_DIRECT_PROFILE.serviceAreas,
+  };
+}
+
 export async function getDirectProfile(locale) {
   const response = await api.get('/direct/profile', { params: locale ? { lang: locale } : undefined });
   return response.data;
+}
+
+export async function loadDirectProfile(locale) {
+  try {
+    const data = await getDirectProfile(locale);
+    return { profile: normalizeDirectProfile(data), error: null };
+  } catch (error) {
+    return { profile: DEFAULT_DIRECT_PROFILE, error };
+  }
 }
 
 export async function getDirectCatalog(locale) {

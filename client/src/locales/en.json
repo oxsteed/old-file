@@ -14846,6 +14846,9 @@
     "minimum": "{{amount}} minimum",
     "heroFallback": "Direct service, organized for real work.",
     "heroCopyFallback": "Browse available Direct services, tools, and coverage from one place.",
-    "navigation": "Direct navigation"
+    "navigation": "Direct navigation",
+    "loading": "Loading Direct services...",
+    "loadError": "Direct services are temporarily unavailable.",
+    "retry": "Try again"
   }
 }
