@@ -14,15 +14,14 @@
 }
 
 .rp-root {
-  /* the design is a light, branded surface (like the homepage) — pin colors
-     so it reads correctly regardless of the app's dark/light theme. */
+  /* Restaurant content follows the same app theme as the surrounding shell. */
   --rp-nav-h: 60px;            /* site navbar height (3.75rem) */
   --rp-accent: #ff8c00;
   --rp-accent-bg: rgba(255, 140, 0, 0.12);
   --rp-accent-fade: rgba(255, 140, 0, 0.18);
   --rp-accent-shadow: rgba(255, 140, 0, 0.35);
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
   min-height: 60vh;
   -webkit-font-smoothing: antialiased;
@@ -43,22 +42,28 @@
 @keyframes rp-spin     { to { transform: rotate(360deg); } }
 
 /* ── Layout shell ───────────────────────────────────────────────────────── */
-.rp-page-wrap { background: #fff; }
+.rp-page-wrap { background: var(--color-surface); }
 
 .rp-type-row {
   display: flex; gap: 8px; overflow-x: auto;
   padding: 8px 16px; scrollbar-width: none;
-  background: #fff; border-bottom: 1px solid #e2e8f0;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-border);
 }
 .rp-type-row::-webkit-scrollbar { display: none; }
 
 .rp-type-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 14px; border-radius: 9999px;
-  border: 1.5px solid #e2e8f0; background: #fff; color: #475569;
+  border: 1.5px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted);
   font-size: 13px; font-weight: 600; white-space: nowrap;
   min-height: 34px; cursor: pointer; flex-shrink: 0;
   transition: all 0.15s;
+}
+
+html.dark .rp-root .rp-type-pill {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
 }
 
 .rp-hero-wrap { position: relative; height: 260px; overflow: hidden; }
@@ -84,18 +89,18 @@
 .rp-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; }
 .rp-status-dot.closed { background: #94a3b8; }
 
-.rp-info-card { background: #fff; padding: 16px 16px 0; }
+.rp-info-card { background: var(--color-surface); padding: 16px 16px 0; }
 
 .rp-sticky-search {
   position: sticky; top: var(--rp-nav-h); z-index: 40;
-  background: #fff; border-bottom: 1px solid #e2e8f0;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-border);
 }
 .rp-chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px 10px; scrollbar-width: none; }
 .rp-chip-row::-webkit-scrollbar { display: none; }
 
 .rp-tab-sticky {
   position: sticky; top: calc(var(--rp-nav-h) + 96px); z-index: 39;
-  background: #fff; border-bottom: 1px solid #e2e8f0;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-border);
   display: flex; overflow-x: auto; scrollbar-width: none;
 }
 .rp-tab-sticky::-webkit-scrollbar { display: none; }
@@ -103,13 +108,13 @@
 .rp-cat-row {
   display: flex; gap: 8px; overflow-x: auto;
   padding: 12px 16px; scrollbar-width: none;
-  border-bottom: 1px solid #f1f5f9; background: #fff;
+  border-bottom: 1px solid var(--color-border); background: var(--color-surface);
 }
 .rp-cat-row::-webkit-scrollbar { display: none; }
 
 .rp-menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px; }
-.rp-panel { animation: rp-fadeUp 0.16s ease both; background: #fff; }
-.rp-panel-wrap { border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
+.rp-panel { animation: rp-fadeUp 0.16s ease both; background: var(--color-surface); }
+.rp-panel-wrap { border: 1px solid var(--color-border); border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
 
 .rp-float-cart {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -122,32 +127,36 @@
 }
 .rp-sheet {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-  background: #fff; border-radius: 20px 20px 0 0;
+  background: var(--color-surface); border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
   display: flex; flex-direction: column; max-height: 92vh;
   animation: rp-drawerUp 0.3s cubic-bezier(0.32,0.72,0,1); overflow: hidden;
 }
 
+html.dark .rp-root .rp-sheet {
+  border: 1px solid var(--color-border);
+}
+
 /* loading / not found */
 .rp-loading-screen, .rp-not-found {
   min-height: 60vh; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px; color: #64748b;
+  align-items: center; justify-content: center; gap: 14px; color: var(--color-text-muted);
 }
 .rp-loading-spinner {
   width: 38px; height: 38px; border-radius: 50%;
-  border: 3px solid #e2e8f0; border-top-color: var(--rp-accent);
+  border: 3px solid var(--color-border); border-top-color: var(--rp-accent);
   animation: rp-spin 0.7s linear infinite;
 }
 
 /* ── Desktop (≥1024px) ──────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
-  .rp-root { background: #e8edf2; }
+  .rp-root { background: var(--color-bg); }
   .rp-page-wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px 40px; background: transparent; }
   .rp-type-row { background: transparent; border-bottom: none; padding: 20px 0 12px; }
   .rp-hero-wrap { border-radius: 16px; overflow: hidden; }
-  .rp-info-card { border-radius: 0 0 16px 16px; border: 1px solid #e2e8f0; border-top: none; margin-bottom: 24px; }
+  .rp-info-card { border-radius: 0 0 16px 16px; border: 1px solid var(--color-border); border-top: none; margin-bottom: 24px; }
   .rp-sticky-search { top: var(--rp-nav-h); }
-  .rp-tab-sticky { top: calc(var(--rp-nav-h) + 96px); border-radius: 12px 12px 0 0; border: 1px solid #e2e8f0; border-bottom: none; }
+  .rp-tab-sticky { top: calc(var(--rp-nav-h) + 96px); border-radius: 12px 12px 0 0; border: 1px solid var(--color-border); border-bottom: none; }
   .rp-panel-wrap { border-radius: 0 0 12px 12px; }
   .rp-main-grid { display: grid; grid-template-columns: 296px 1fr; gap: 20px; align-items: start; }
   .rp-sidebar { display: block; position: sticky; top: calc(var(--rp-nav-h) + 16px); }
@@ -162,4 +171,4 @@
   .rp-sidebar { display: none; }
   .rp-desktop-only { display: none !important; }
 }
-.rp-divider-block { height: 8px; background: #f1f5f9; }
+.rp-divider-block { height: 8px; background: var(--color-surface-2); }

@@ -82,19 +82,19 @@ function CheckoutPageContent() {
   return (
     <>
       <PageMeta title={t('checkout.title', { defaultValue: 'Checkout' })} description="Launch-safe checkout summary for restaurant credit and direct payment." />
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[var(--color-bg)] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto space-y-6">
-          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold">{t('checkout.title', { defaultValue: 'Checkout' })}</h1>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-[var(--color-text-muted)] mt-2">
                   Restaurant credit and direct payment are the launch payment paths. Card checkout is not shown here.
                 </p>
               </div>
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-                className="shrink-0 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-200"
+                className="shrink-0 bg-[var(--color-surface-2)] text-[var(--color-text)] px-4 py-2 rounded-xl hover:bg-[var(--color-surface-3)]"
               >
                 {t('common.back', { defaultValue: 'Back' })}
               </button>
@@ -107,31 +107,31 @@ function CheckoutPageContent() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold">{t('checkout.orderSummary', { defaultValue: 'Order Summary' })}</h2>
             {items.length === 0 ? (
-              <p className="text-gray-600">This cart is empty.</p>
+              <p className="text-[var(--color-text-muted)]">This cart is empty.</p>
             ) : (
                 <div className="space-y-3">
                   {items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+                    <div key={item.id} className="flex items-center justify-between gap-4 border-b border-[var(--color-border)] pb-3">
                     <div>
-                      <div className="font-medium text-gray-900">{item.name} × {item.quantity}</div>
-                      {item.notes && <div className="text-sm text-gray-500">{item.notes}</div>}
+                      <div className="font-medium text-[var(--color-text)]">{item.name} × {item.quantity}</div>
+                      {item.notes && <div className="text-sm text-[var(--color-text-muted)]">{item.notes}</div>}
                     </div>
-                    <div className="font-semibold text-gray-900">${(item.totalPrice / 100).toFixed(2)}</div>
+                    <div className="font-semibold text-[var(--color-text)]">${(item.totalPrice / 100).toFixed(2)}</div>
                   </div>
                 ))}
                 <div className="pt-3 space-y-2">
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-[var(--color-text-muted)]">
                     <span>{t('checkout.subtotal', { defaultValue: 'Subtotal' })}</span>
                     <span>${(subtotalCents / 100).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-[var(--color-text-muted)]">
                     <span>{t('checkout.tax', { defaultValue: 'Tax' })}</span>
                     <span>${(taxCents / 100).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-[var(--color-border)]">
                     <span>{t('checkout.total', { defaultValue: 'Total' })}</span>
                     <span>${(totalCents / 100).toFixed(2)}</span>
                   </div>
@@ -140,9 +140,9 @@ function CheckoutPageContent() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold">What happens next</h2>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="text-[var(--color-text-muted)] leading-relaxed">
               For launch, this page keeps the checkout flow honest: no card payment screen is shown.
               If payment is handled outside OxSteed, record the proof here so the order can be matched later.
             </p>
@@ -155,7 +155,7 @@ function CheckoutPageContent() {
               </button>
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-                className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl font-semibold hover:bg-gray-200"
+                className="bg-[var(--color-surface-2)] text-[var(--color-text)] px-5 py-3 rounded-xl font-semibold hover:bg-[var(--color-surface-3)]"
               >
                 Return to cart
               </button>

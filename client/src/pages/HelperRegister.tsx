@@ -28,14 +28,14 @@ export default function HelperRegister() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
       {/* Navbar */}
-      <nav className="border-b border-gray-800">
+      <nav className="border-b border-[var(--color-border)]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-4">
-            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.howItWorks')}</Link>
-            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.signIn')}</Link>
+            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.howItWorks')}</Link>
+            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition">{t('nav.signIn')}</Link>
           </div>
         </div>
       </nav>
@@ -44,12 +44,12 @@ export default function HelperRegister() {
         <div className="w-full max-w-[480px] flex flex-col gap-8">
 
           <section className="text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">{t('register.helperHeroTitle')}</h1>
+            <h1 className="text-3xl font-bold text-[var(--color-text)] mb-2">{t('register.helperHeroTitle')}</h1>
             <p className="text-orange-400 font-semibold text-lg">{t('register.helperHeroSubtitle')}</p>
-            <p className="text-gray-400 text-sm mt-2">{t('register.customerHeroTrial')}</p>
+            <p className="text-[var(--color-text-muted)] text-sm mt-2">{t('register.customerHeroTrial')}</p>
           </section>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg shadow-black/30 overflow-hidden">
             <StepBar
               current={step}
               labels={[t('register.step1Label'), t('register.step2Label')]}

@@ -904,8 +904,8 @@ export default function FoodRestaurantPage() {
   };
 
   // Shared inline styles
-  const sectionLabel = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 10 };
-  const closeBtn = { width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', lineHeight: 1 };
+  const sectionLabel = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)', marginBottom: 10 };
+  const closeBtn = { width: 32, height: 32, borderRadius: '50%', background: 'var(--color-surface-2)', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', lineHeight: 1 };
 
   const tabs = [
     { key: 'menu', label: t('food.restaurant.tabs.menu') },
@@ -980,19 +980,19 @@ export default function FoodRestaurantPage() {
             const isReady = status === 'ready';
             const queueNumber = recoveredLiveOrder?.queue_number ?? recoveredOrder.queueNumber;
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, marginBottom: 12, background: isReady ? '#dcfce7' : accentBg, border: `1.5px solid ${isReady ? '#86efac' : accent}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, marginBottom: 12, background: isReady ? 'var(--color-success-bg)' : accentBg, border: `1.5px solid ${isReady ? 'var(--color-success)' : accent}` }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isReady ? '#166534' : '#0f172a' }}>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isReady ? 'var(--color-success)' : 'var(--color-text)' }}>
                   {queueNumber != null ? t('food.restaurant.orderNumber', { number: queueNumber }) : t('food.order.yourOrder')}
                   {' — '}
                   {isReady ? t('food.restaurant.readyForPickupShort') : t(FOOD_STATUS_KEYS[status] || FOOD_STATUS_KEYS.received)}
                 </span>
-                <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('food.order.watchQueue')}</Link>
+                <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? 'var(--color-success)' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('food.order.watchQueue')}</Link>
                 <button
                   type="button"
                   aria-label={t('food.restaurant.dismissOrderStatus')}
                   onClick={() => { clearActiveOrder(restaurantId); setRecoveredOrder(null); }}
-                  style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(15,23,42,0.08)', color: '#334155', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
+                  style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--color-surface-2)', color: 'var(--color-text-muted)', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
                 >
                   ×
                 </button>
@@ -1002,7 +1002,7 @@ export default function FoodRestaurantPage() {
 
           {/* ── Cuisine pills row (decorative quick filters) ── */}
           <div className="rp-type-row">
-            <span className="rp-type-pill" style={{ borderColor: accent, background: accent, color: '#fff' }}>{emoji} {cuisineLabel}</span>
+              <span className="rp-type-pill" style={{ borderColor: accent, background: accent, color: 'var(--color-primary-text)' }}>{emoji} {cuisineLabel}</span>
             {modeLabels.map((label) => (
               <span key={label} className="rp-type-pill">{label}</span>
             ))}
@@ -1044,13 +1044,13 @@ export default function FoodRestaurantPage() {
               </div>
             </div>
             <div style={{ display: 'inline-flex', background: accentBg, color: accent, padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{cuisineLabel}</div>
-            <h1 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 400, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.01em', marginBottom: 4 }}>{restaurant.display_name}</h1>
-            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 10 }}>{meta}</p>
+            <h1 style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 400, color: 'var(--color-text)', lineHeight: 1.15, letterSpacing: '-0.01em', marginBottom: 4 }}>{restaurant.display_name}</h1>
+            <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 10 }}>{meta}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <span style={{ color: '#fbbf24', fontSize: 13 }}>★</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{ratingDisplay}</span>
-                <span style={{ fontSize: 13, color: '#94a3b8' }}>({reviewCount})</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{ratingDisplay}</span>
+                <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>({reviewCount})</span>
               </div>
               <span style={{ color: '#e2e8f0' }}>·</span>
               <span style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>{priceRange}</span>
