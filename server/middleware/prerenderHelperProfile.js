@@ -315,6 +315,20 @@ function buildBreadcrumbJsonLd(pageTitle, url, req, language = getRequestedLangu
   };
 }
 
+function buildMarketingStaticShell(page, pagePath) {
+  const title = String(page.title || 'OxSteed')
+    .replace(/\s*\|\s*OxSteed\s*$/i, '')
+    .trim();
+  const description = String(page.description || '').trim();
+  return `<div id="ssr-shell" data-seo-page="${escapeHtml(pagePath)}" style="max-width:64rem;margin:0 auto;padding:3rem 1rem;">
+    <article>
+      <p style="letter-spacing:.12em;text-transform:uppercase;font-size:.75rem;">OxSteed</p>
+      <h1>${escapeHtml(title)}</h1>
+      ${description ? `<p>${escapeHtml(description)}</p>` : ''}
+    </article>
+  </div>`;
+}
+
 const MARKETING_PAGES = {
   '/about': {
     title: 'About OxSteed | Local Help and Services',
@@ -487,6 +501,10 @@ function handleMarketingPage(pagePath, template, res, req) {
   if (page.localized !== false) html = addLanguageAlternates(html, baseUrl);
   html = injectJsonLd(html, schema);
   if (!page.noIndex) html = injectJsonLd(html, buildBreadcrumbJsonLd(page.title, url, req));
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root">${buildMarketingStaticShell(page, pagePath)}</div>`,
+  );
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
   return res.send(html);
