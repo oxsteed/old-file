@@ -74,7 +74,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
 
   const handleCopyLink = async () => {
     try {
-      const profileUrl = `${window.location.origin}/helpers/${helperId}`;
+      const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
       await navigator.clipboard.writeText(profileUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -84,7 +84,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
   };
 
   const handleShare = async () => {
-    const profileUrl = `${window.location.origin}/helpers/${helperId}`;
+    const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
 
     if (navigator.share) {
       try {

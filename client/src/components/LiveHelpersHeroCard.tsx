@@ -20,8 +20,8 @@ function initialsFromName(name: string) {
 
 function profilePath(row: Helper): string {
   if (row.profileUrl) return row.profileUrl;
-  if (row.type === 'business' && row.businessId != null) return `/business/${row.businessId}`;
-  return `/helpers/${row.id}`;
+  if (row.type === 'business' && row.businessId != null) return `/businesses/public/${row.businessId}`;
+  return `/helpers/public/${row.id}`;
 }
 
 function mergeSkillServiceLabels(row: Helper): string[] {

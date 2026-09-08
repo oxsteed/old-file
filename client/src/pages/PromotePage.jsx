@@ -1393,7 +1393,7 @@ export default function PromotePage() {
           selectedBusiness.state || selectedBusiness.location_state,
         ], '')
       : compactList([helperProfile?.service_city, helperProfile?.service_state], '');
-    const profilePath = canUseBusiness ? `/business/${selectedBusiness.id}` : `/helpers/${user?.id}`;
+    const profilePath = canUseBusiness ? `/businesses/public/${selectedBusiness.id}` : `/helpers/public/${user?.id}`;
     const bookingPath = canUseBusiness ? profilePath : `/book/${user?.id}`;
     return {
       businessId: canUseBusiness ? selectedBusiness.id : null,

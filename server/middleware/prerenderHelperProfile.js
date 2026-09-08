@@ -2,8 +2,8 @@
 // Pre-renders SEO shell for public marketing pages (production only):
 //   /               → Organization + WebSite JSON-LD
 //   /helpers        → CollectionPage JSON-LD + meta
-//   /helpers/:uuid  → Person JSON-LD + static shell (listed public helpers only)
-//   /business/:id   → LocalBusiness JSON-LD + static shell (active businesses, verified owner)
+//   /helpers/public/:uuid → Person JSON-LD + static shell (listed public helpers only)
+//   /businesses/public/:id → LocalBusiness JSON-LD + static shell (active businesses, verified owner)
 //
 // Canonical URLs use APP_URL / CLIENT_URL (see server/utils/publicSiteUrl.js).
 
@@ -101,6 +101,14 @@ function replaceRobots(html, content) {
   return html.replace('</head>', `${tag}\n</head>`);
 }
 
+function sendSeoNotFound(template, res, url, title, description) {
+  let html = replaceMeta(template, { title, description, url, image: `${base()}/og-default.png` });
+  html = replaceRobots(html, 'noindex, nofollow');
+  res.set('Content-Type', 'text/html');
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+  return res.status(404).send(html);
+}
+
 function injectJsonLd(html, data) {
   const script = `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
   return html.replace('</head>', `${script}\n</head>`);
@@ -131,6 +139,10 @@ const MARKETING_PAGES = {
     title: 'Browse Local Jobs | OxSteed',
     description: 'Browse local service jobs and connect with customers who need dependable help.',
   },
+  '/discover': {
+    title: 'Discover Local Help, Jobs, and Services | OxSteed',
+    description: 'Search OxSteed for trusted local helpers, service jobs, businesses, tools, and services near you.',
+  },
   '/how-it-works': {
     title: 'How OxSteed Works | Local Help Made Simple',
     description: 'See how OxSteed helps customers post jobs, compare bids, hire local helpers, and pay securely.',
@@ -142,6 +154,14 @@ const MARKETING_PAGES = {
   '/restaurants': {
     title: 'OxSteed Restaurants | Order Local Food',
     description: 'Browse participating local restaurants and order food through OxSteed.',
+  },
+  '/tool-rentals': {
+    title: 'Tool Rentals Near You | OxSteed',
+    description: 'Browse tools and equipment available for local rental through OxSteed.',
+  },
+  '/consulting-intake': {
+    title: 'OxSteed Business Launch Program | Start Your Business',
+    description: 'Get practical help with setup, branding, website, and launch planning for your local business.',
   },
   '/direct': {
     title: 'OxSteed Direct | Home Services and Local Help',
@@ -265,6 +285,7 @@ async function handleHelpersDirectory(template, res) {
   };
 
   let html = replaceMeta(template, { title, description, url, image: `${origin}/og-default.png` });
+  html = addLanguageAlternates(html, url);
   html = injectJsonLd(html, jsonLd);
 
   res.set('Content-Type', 'text/html');
@@ -274,7 +295,7 @@ async function handleHelpersDirectory(template, res) {
 
 function buildHelperJsonLd(helper, services, location) {
   const origin = base();
-  const profileUrl = `${origin}/helpers/${helper.id}`;
+  const profileUrl = `${origin}/helpers/public/${helper.id}`;
   const knowsAbout = (services || []).map((s) => s.skill_name || s.name).filter(Boolean).slice(0, 20);
 
   const addr = {
@@ -315,7 +336,7 @@ function buildHelperJsonLd(helper, services, location) {
 
 function buildBusinessJsonLd(biz, services, location) {
   const origin = base();
-  const profileUrl = `${origin}/business/${biz.id}`;
+  const profileUrl = `${origin}/businesses/public/${biz.id}`;
   const offerItems = (services || []).slice(0, 12).map((s) => ({
     '@type': 'Offer',
     itemOffered: { '@type': 'Service', name: s.name || 'Service' },
@@ -424,13 +445,22 @@ async function handleHelperProfile(helperId, template, res, next) {
      LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
      WHERE u.id = $1
        AND u.deleted_at IS NULL
+       AND u.is_active = TRUE
        AND u.role IN ('helper', 'helper_pro', 'broker')
        AND u.email_verified = TRUE
        AND u.onboarding_completed = TRUE
        AND COALESCE(hp.is_listed, TRUE) = TRUE`,
     [helperId],
   );
-  if (!rows[0]) return next();
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/helpers/public/${helperId}`,
+      'Helper Profile Not Found | OxSteed',
+      'This OxSteed helper profile is no longer available.',
+    );
+  }
 
   const h = rows[0];
   const { rows: skillRows } = await pool.query(
@@ -467,7 +497,7 @@ async function handleHelperProfile(helperId, template, res, next) {
   };
 
   const origin = base();
-  const url = `${origin}/helpers/${helper.id}`;
+  const url = `${origin}/helpers/public/${helper.id}`;
   const image = (helper.coverImage || helper.avatar)
     ? absoluteUrl(helper.coverImage || helper.avatar)
     : `${origin}/icons/icon-192.png`;
@@ -512,7 +542,7 @@ async function handleBusinessProfile(businessId, template, res, next) {
             hp.avg_rating, hp.total_reviews,
             hp.is_identity_verified, hp.is_background_checked
      FROM businesses b
-     JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL
+     JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
      LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
      WHERE b.id = $1::int
        AND b.is_active = TRUE
@@ -521,7 +551,15 @@ async function handleBusinessProfile(businessId, template, res, next) {
        AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)`,
     [businessId],
   );
-  if (!rows[0]) return next();
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/businesses/public/${businessId}`,
+      'Business Profile Not Found | OxSteed',
+      'This OxSteed business profile is no longer available.',
+    );
+  }
 
   const b = rows[0];
   const { rows: svcRows } = await pool.query(
@@ -549,7 +587,7 @@ async function handleBusinessProfile(businessId, template, res, next) {
   };
 
   const origin = base();
-  const url = `${origin}/business/${biz.id}`;
+  const url = `${origin}/businesses/public/${biz.id}`;
   const image = biz.image ? absoluteUrl(biz.image) : `${origin}/icons/icon-192.png`;
   const title = `${biz.businessName} | OxSteed`;
   const description = buildPublicProfileDescription({
@@ -573,9 +611,12 @@ async function handleBusinessProfile(businessId, template, res, next) {
   return res.send(html);
 }
 
-const UUID_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-const BUSINESS_RE = /^\/business\/(\d+)$/i;
+const PUBLIC_HELPER_RE = /^\/helpers\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const LEGACY_HELPER_RE = /^\/helpers\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const PUBLIC_BUSINESS_RE = /^\/businesses\/public\/(\d+)$/i;
+const LEGACY_BUSINESS_RE = /^\/business\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 async function handlePublicJob(jobId, template, res, next) {
   const { rows } = await pool.query(
@@ -597,15 +638,13 @@ async function handlePublicJob(jobId, template, res, next) {
   );
   if (!rows[0]) {
     const origin = base();
-    const url = `${origin}/jobs/public/${jobId}`;
-    let html = replaceMeta(template, {
-      title: 'Job Not Found | OxSteed',
-      description: 'This OxSteed job posting is no longer available.',
-      url,
-      image: `${origin}/og-default.png`,
-    });
-    html = replaceRobots(html, 'noindex, nofollow');
-    return res.status(404).send(html);
+    return sendSeoNotFound(
+      template,
+      res,
+      `${origin}/jobs/public/${jobId}`,
+      'Job Not Found | OxSteed',
+      'This OxSteed job posting is no longer available.',
+    );
   }
 
   const job = rows[0];
@@ -685,7 +724,22 @@ function prerenderPublicPages(req, res, next) {
     });
   }
 
-  const matchBiz = p.match(BUSINESS_RE);
+  const matchLegacyJob = p.match(LEGACY_JOB_RE);
+  if (matchLegacyJob) {
+    return res.redirect(301, `${base()}/jobs/public/${matchLegacyJob[1]}`);
+  }
+
+  const matchLegacyHelper = p.match(LEGACY_HELPER_RE);
+  if (matchLegacyHelper) {
+    return res.redirect(301, `${base()}/helpers/public/${matchLegacyHelper[1]}`);
+  }
+
+  const matchLegacyBusiness = p.match(LEGACY_BUSINESS_RE);
+  if (matchLegacyBusiness) {
+    return res.redirect(301, `${base()}/businesses/public/${matchLegacyBusiness[1]}`);
+  }
+
+  const matchBiz = p.match(PUBLIC_BUSINESS_RE);
   if (matchBiz) {
     return handleBusinessProfile(matchBiz[1], template, res, next).catch((err) => {
       logger.error('[prerender] business profile error', { businessId: matchBiz[1], error: err.message });
@@ -693,7 +747,7 @@ function prerenderPublicPages(req, res, next) {
     });
   }
 
-  const match = p.match(UUID_RE);
+  const match = p.match(PUBLIC_HELPER_RE);
   if (match) {
     return handleHelperProfile(match[1], template, res, next).catch((err) => {
       logger.error('[prerender] helper profile error', { helperId: match[1], error: err.message });

@@ -43,7 +43,7 @@ export default function BookBusinessPage() {
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
           <Link
-            to={`/business/${id}`}
+            to={`/businesses/public/${id}`}
             style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}
           >
             ← {t('booking.backToProfile')}

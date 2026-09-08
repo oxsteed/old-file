@@ -39,8 +39,19 @@ export default function HelperPublicProfilePage() {
   };
 
   if (loading) return <div className="page-loading">{t('publicProfile.loading')}</div>;
-  if (error) return <div className="page-error">{error}</div>;
-  if (!helper) return <div className="page-error">{t('publicProfile.notFound')}</div>;
+  if (error || !helper) {
+    return (
+      <>
+        <PageMeta
+          title={t('publicProfile.notFound')}
+          description={t('publicProfile.notFound')}
+          url={`${getPublicSiteUrl()}/helpers/public/${helperId}`}
+          noIndex
+        />
+        <div className="page-error">{error || t('publicProfile.notFound')}</div>
+      </>
+    );
+  }
 
   const displayName = helper.businessName || helper.ownerName || t('common.helper');
   const profilePhoto = helper.profilePhotoUrl || helper.avatar;

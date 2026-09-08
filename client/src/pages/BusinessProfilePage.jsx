@@ -935,13 +935,13 @@ export default function BusinessProfilePage() {
             entityLabel: 'business',
           })}
           image={helper.coverImage || helper.avatar}
-          url={`${getPublicSiteUrl()}/business/${id}`}
+          url={`${getPublicSiteUrl()}/businesses/public/${id}`}
           type="profile"
         />
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
-            shareUrl={`${getPublicSiteUrl()}/business/${id}`}
+            shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
             shareTitle={helper.businessName}
             i18nPrefix="businessProfile"
           />
@@ -1003,7 +1003,7 @@ export default function BusinessProfilePage() {
           entityLabel: 'business',
         })}
         image={helper.coverImage || helper.avatar}
-        url={`${getPublicSiteUrl()}/business/${id}`}
+        url={`${getPublicSiteUrl()}/businesses/public/${id}`}
         type="profile"
       />
       <ProfileJsonLd
@@ -1022,7 +1022,7 @@ export default function BusinessProfilePage() {
         onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
         onOpenChat={handleOpenChat}
-        shareUrl={`${getPublicSiteUrl()}/business/${id}`}
+        shareUrl={`${getPublicSiteUrl()}/businesses/public/${id}`}
         shareTitle={helper.businessName}
         shareI18nPrefix="businessProfile"
       />

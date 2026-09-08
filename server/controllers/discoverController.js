@@ -210,7 +210,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-       WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
+       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND (
@@ -244,7 +244,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         id: String(h.id),
         title: displayTitle,
         subtitle: (h.subtitle || '').slice(0, 160),
-        url: `/helpers/${h.id}`,
+        url: `/helpers/public/${h.id}`,
         imageUrl: h.image_url || null,
         meta: [h.service_city, h.service_state].filter(Boolean).join(', ') || null,
         distanceMiles: d,
@@ -261,7 +261,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     }
 
     // ── Jobs ────────────────────────────────────────────────────────────────
-    const jobParams = [patterns, 'published'];
+    const jobParams = [patterns, ['published', 'matched']];
     let jobGeo = '';
     if (hasGeo) {
       jobParams.push(latN, lngN, radius);
@@ -289,7 +289,13 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
               (LOWER(COALESCE(j.category_name, '')) LIKE ANY($1::text[])) AS matched_category
        FROM jobs j
        JOIN users u ON j.client_id = u.id
-       WHERE u.is_active = TRUE AND j.status = $2
+       WHERE u.is_active = TRUE
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND j.deleted_at IS NULL
+         AND j.status = ANY($2::text[])
+         AND (j.expires_at IS NULL OR j.expires_at > NOW())
          AND (
            LOWER(j.title) LIKE ANY($1::text[])
            OR LOWER(COALESCE(j.description, '')) LIKE ANY($1::text[])
@@ -308,7 +314,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         id: String(j.id),
         title: j.title,
         subtitle: j.category || '',
-        url: `/jobs/${j.id}`,
+        url: `/jobs/public/${j.id}`,
         meta: [j.location_city, j.location_state].filter(Boolean).join(', ') || null,
         distanceMiles: d,
         freshnessDays: fd,
@@ -349,6 +355,10 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        JOIN users u ON u.id = b.user_id AND u.is_active = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
        WHERE b.is_active = TRUE
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
          AND (
            LOWER(b.business_name) LIKE ANY($1::text[])
            OR LOWER(COALESCE(b.description, '')) LIKE ANY($1::text[])
@@ -366,7 +376,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         id: String(b.id),
         title: b.title,
         subtitle: (b.subtitle || '').slice(0, 160),
-        url: `/business/${b.id}`,
+        url: `/businesses/public/${b.id}`,
         imageUrl: b.image_url || null,
         meta: [b.service_city, b.service_state].filter(Boolean).join(', ') || null,
         distanceMiles: d,
@@ -506,7 +516,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
         tr.related = rel.map((x) => ({
           type: 'helper',
           title: resolvePublicDisplayName(x),
-          url: `/helpers/${x.id}`,
+          url: `/helpers/public/${x.id}`,
         }));
       } catch {
         tr.related = [];
@@ -610,7 +620,7 @@ exports.discoverPopular = async (req, res) => {
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-       WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
+       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified AND u.onboarding_completed
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          ${helperGeo}
@@ -625,7 +635,7 @@ exports.discoverPopular = async (req, res) => {
         id: String(h.id),
         title: resolvePublicDisplayName(h),
         subtitle: (h.subtitle || '').slice(0, 120),
-        url: `/helpers/${h.id}`,
+        url: `/helpers/public/${h.id}`,
         distanceMiles: d,
         rating: h.avg_rating != null ? parseFloat(h.avg_rating) : null,
         reviewCount: h.total_reviews || 0,
@@ -653,7 +663,14 @@ exports.discoverPopular = async (req, res) => {
               j.location_approx_lat::float8 AS lat, j.location_approx_lng::float8 AS lng,
               j.created_at
        FROM jobs j JOIN users u ON j.client_id = u.id
-       WHERE u.is_active AND j.status = 'published' ${jobGeo}
+       WHERE u.is_active
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND j.deleted_at IS NULL
+         AND j.status IN ('published', 'matched')
+         AND (j.expires_at IS NULL OR j.expires_at > NOW())
+         ${jobGeo}
        ORDER BY j.created_at DESC LIMIT 5`,
       jp,
     );
@@ -664,7 +681,7 @@ exports.discoverPopular = async (req, res) => {
         id: String(j.id),
         title: j.title,
         subtitle: j.subtitle || '',
-        url: `/jobs/${j.id}`,
+        url: `/jobs/public/${j.id}`,
         distanceMiles: d,
         freshnessDays: daysSinceDate(j.created_at),
         primaryAction: 'bid',
@@ -707,9 +724,13 @@ exports.discoverPopular = async (req, res) => {
               LEFT(COALESCE(b.description, ''), 100) AS subtitle,
               hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng
        FROM businesses b
-       JOIN users u ON u.id = b.user_id AND u.is_active
+       JOIN users u ON u.id = b.user_id AND u.is_active AND u.deleted_at IS NULL
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-       WHERE b.is_active ${bizGeo}
+       WHERE b.is_active
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
+         ${bizGeo}
        ORDER BY b.updated_at DESC NULLS LAST LIMIT 4`,
       bp,
     );
@@ -720,7 +741,7 @@ exports.discoverPopular = async (req, res) => {
         id: String(b.id),
         title: b.title,
         subtitle: (b.subtitle || '').slice(0, 120),
-        url: `/business/${b.id}`,
+        url: `/businesses/public/${b.id}`,
         distanceMiles: d,
         primaryAction: 'view',
       });

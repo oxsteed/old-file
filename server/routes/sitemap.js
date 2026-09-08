@@ -1,4 +1,4 @@
-// Dynamic XML sitemap - static pages + public helper profiles + public business profiles.
+// Dynamic XML sitemap - static pages + public profiles + public jobs.
 // Loc uses APP_URL / CLIENT_URL (publicSiteUrl).
 
 const express = require('express');
@@ -42,8 +42,11 @@ router.get('/', async (_req, res) => {
       { loc: `${origin}/join`, changefreq: 'weekly', priority: '0.7', localized: true },
       { loc: `${origin}/helpers`, changefreq: 'daily', priority: '0.9', localized: true },
       { loc: `${origin}/jobs`, changefreq: 'daily', priority: '0.8', localized: true },
+      { loc: `${origin}/discover`, changefreq: 'daily', priority: '0.8', localized: true },
       { loc: `${origin}/how-it-works`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/learn`, changefreq: 'weekly', priority: '0.7', localized: true },
+      { loc: `${origin}/tool-rentals`, changefreq: 'daily', priority: '0.7', localized: true },
+      { loc: `${origin}/consulting-intake`, changefreq: 'monthly', priority: '0.6', localized: true },
       { loc: `${origin}/direct`, changefreq: 'weekly', priority: '0.8', localized: true },
       { loc: `${origin}/direct/services`, changefreq: 'monthly', priority: '0.7', localized: true },
       { loc: `${origin}/direct/request-quote`, changefreq: 'monthly', priority: '0.7', localized: true },
@@ -60,6 +63,7 @@ router.get('/', async (_req, res) => {
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        WHERE u.deleted_at IS NULL
+         AND u.is_active = TRUE
          AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
@@ -71,7 +75,7 @@ router.get('/', async (_req, res) => {
     const { rows: businesses } = await pool.query(
       `SELECT b.id, b.updated_at
        FROM businesses b
-       JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL
+       JOIN users u ON u.id = b.user_id AND u.deleted_at IS NULL AND u.is_active = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
        WHERE b.is_active = TRUE
          AND u.email_verified = TRUE
@@ -100,7 +104,7 @@ router.get('/', async (_req, res) => {
       ...STATIC_URLS.map(urlEntry),
       ...helpers.map((r) =>
         urlEntry({
-          loc: `${origin}/helpers/${r.id}`,
+          loc: `${origin}/helpers/public/${r.id}`,
           changefreq: 'weekly',
           priority: '0.8',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,
@@ -108,7 +112,7 @@ router.get('/', async (_req, res) => {
       ),
       ...businesses.map((r) =>
         urlEntry({
-          loc: `${origin}/business/${r.id}`,
+          loc: `${origin}/businesses/public/${r.id}`,
           changefreq: 'weekly',
           priority: '0.75',
           lastmod: r.updated_at ? new Date(r.updated_at).toISOString().split('T')[0] : undefined,

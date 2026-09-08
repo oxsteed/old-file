@@ -23,7 +23,7 @@ export default function HelperCard({ helper }: HelperCardProps) {
 
   return (
     <Link
-      to={`/helpers/${helper.id}`}
+      to={`/helpers/public/${helper.id}`}
       className="group block bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border border-gray-200 dark:border-gray-700 hover:border-teal-400 dark:hover:border-teal-500"
       aria-label={t('helpers.viewProfileAria', {
         name: displayName,
@@ -171,7 +171,7 @@ export default function HelperCard({ helper }: HelperCardProps) {
           className="w-full mt-auto px-4 py-2.5 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-medium text-sm rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           onClick={(e) => {
             e.preventDefault();
-            window.location.href = `/helpers/${helper.id}`;
+            window.location.href = `/helpers/public/${helper.id}`;
           }}
         >
           {t('liveHelpers.viewProfile', 'View Profile')}

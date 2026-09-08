@@ -584,9 +584,9 @@ const HelpersDirectoryPage: React.FC = () => {
 
   const handleMessage = useCallback((id: string) => {
     if (id.startsWith('biz_')) {
-      navigate(`/business/${id.replace('biz_', '')}`);
+      navigate(`/businesses/public/${id.replace('biz_', '')}`);
     } else {
-      navigate(`/helpers/${id}`);
+      navigate(`/helpers/public/${id}`);
     }
   }, [navigate]);
 

@@ -48,8 +48,19 @@ export default function BusinessPublicProfilePage() {
   };
 
   if (loading) return <div className="page-loading">{t('businessPublicProfile.loading')}</div>;
-  if (error) return <div className="page-error">{error}</div>;
-  if (!business) return <div className="page-error">{t('businessPublicProfile.notFound')}</div>;
+  if (error || !business) {
+    return (
+      <>
+        <PageMeta
+          title={t('businessPublicProfile.notFound')}
+          description={t('businessPublicProfile.notFound')}
+          url={`${getPublicSiteUrl()}/businesses/public/${businessId}`}
+          noIndex
+        />
+        <div className="page-error">{error || t('businessPublicProfile.notFound')}</div>
+      </>
+    );
+  }
 
   return (
     <div className="business-public-profile">

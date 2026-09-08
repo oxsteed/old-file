@@ -24,8 +24,11 @@ export default function PageMeta({
   const resolvedTitle = title || defaultTitle;
   const resolvedDescription = description || defaultDescription;
   const base = getPublicSiteUrl();
-  const defaultUrl = base;
-  const resolvedUrl = url || defaultUrl;
+  const currentPath = typeof window !== 'undefined' && window.location?.pathname
+    ? window.location.pathname
+    : '/';
+  const defaultUrl = `${base}${currentPath === '/' ? '/' : currentPath}`;
+  const resolvedUrl = url ? toAbsoluteUrl(url) : defaultUrl;
   const resolvedImage = toAbsoluteUrl(image || '/og-default.png');
   const fullTitle = resolvedTitle.includes(SITE_NAME)
     ? resolvedTitle

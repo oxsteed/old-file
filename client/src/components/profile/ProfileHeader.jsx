@@ -66,7 +66,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
 
   const handleQRShare = (e) => {
     e.stopPropagation();
-    const profileUrl = `${window.location.origin}/helpers/${helperId}`;
+    const profileUrl = `${window.location.origin}/helpers/public/${helperId}`;
 
     if (navigator.share) {
       navigator.share({

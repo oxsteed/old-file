@@ -23,7 +23,7 @@ export default function ProfileJsonLd(props: ProfileJsonLdProps) {
   const { helper, location, services } = props;
 
   if (props.variant === 'helper') {
-    const profileUrl = `${origin}/helpers/${props.helperId}`;
+    const profileUrl = `${origin}/helpers/public/${props.helperId}`;
     const knowsAbout = [
       ...helper.categories,
       ...services.map((s) => s.name).filter(Boolean),
@@ -69,7 +69,7 @@ export default function ProfileJsonLd(props: ProfileJsonLdProps) {
     );
   }
 
-  const profileUrl = `${origin}/business/${props.businessId}`;
+  const profileUrl = `${origin}/businesses/public/${props.businessId}`;
   const data = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',

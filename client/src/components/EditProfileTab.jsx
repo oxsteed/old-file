@@ -319,7 +319,7 @@ export default function EditProfileTab() {
           <p className="text-xs text-gray-500 mt-1">{t('helperDashboard.editProfileDesc')}</p>
         </div>
         <a
-          href={`/helpers/${user?.id}`}
+          href={`/helpers/public/${user?.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"

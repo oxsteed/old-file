@@ -39,7 +39,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
   const { t } = useTranslation();
   const isBusiness    = helper.type === 'business';
   const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
-  const profileLink   = helper.profileUrl ?? `/helpers/${helper.id}`;
+  const profileLink   = helper.profileUrl ?? (isBusiness ? `/businesses/public/${helper.id}` : `/helpers/public/${helper.id}`);
 
   const formatPrice = (price: number | undefined | null, unit: string): string => {
     const u = unit || 'hour';
