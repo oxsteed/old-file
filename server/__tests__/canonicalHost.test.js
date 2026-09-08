@@ -32,17 +32,17 @@ describe('canonical public host', () => {
     expect(res.headers.location).toBe('https://oxsteed.com/direct?lang=es');
   });
 
-  test('redirects insecure requests when the proxy reports HTTP', async () => {
+  test('leaves scheme enforcement to the edge proxy', async () => {
     const res = await request(buildApp())
       .get('/about?lang=fr')
       .set('Host', 'oxsteed.com')
       .set('X-Forwarded-Proto', 'http');
 
-    expect(res.status).toBe(301);
-    expect(res.headers.location).toBe('https://oxsteed.com/about?lang=fr');
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('ok');
   });
 
-  test('leaves the canonical HTTPS origin alone', async () => {
+  test('leaves the canonical origin alone', async () => {
     const res = await request(buildApp())
       .get('/helpers')
       .set('Host', 'oxsteed.com')
@@ -52,7 +52,7 @@ describe('canonical public host', () => {
     expect(res.text).toBe('ok');
   });
 
-  test('recognizes HTTPS terminated by the Cloudflare tunnel', async () => {
+  test('does not guess when a tunnel omits the original scheme', async () => {
     const res = await request(buildApp())
       .get('/')
       .set('Host', 'oxsteed.com')
@@ -63,12 +63,4 @@ describe('canonical public host', () => {
     expect(res.text).toBe('ok');
   });
 
-  test('does not guess when a tunnel omits the original scheme', async () => {
-    const res = await request(buildApp())
-      .get('/ready')
-      .set('Host', 'oxsteed.com');
-
-    expect(res.status).toBe(200);
-    expect(res.text).toBe('ok');
-  });
 });
