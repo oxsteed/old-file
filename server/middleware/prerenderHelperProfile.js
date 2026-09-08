@@ -497,6 +497,25 @@ async function handleHomepage(template, res, req) {
     },
     {
       '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      '@id': `${origin}/#site-navigation`,
+      name: 'OxSteed site navigation',
+      itemListElement: [
+        ['/helpers', 'Find Local Helpers'],
+        ['/jobs', 'Browse Local Jobs'],
+        ['/restaurants', 'OxSteed Restaurants'],
+        ['/join', 'Join OxSteed'],
+        ['/direct/services', 'OxSteed Direct Services'],
+        ['/support/escalation', 'OxSteed Support'],
+      ].map(([pathName, name], index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name,
+        url: `${origin}${pathName}`,
+      })),
+    },
+    {
+      '@context': 'https://schema.org',
       '@type': 'WebSite',
       '@id': `${origin}/#website`,
       url: origin,
@@ -579,6 +598,8 @@ function buildHelperJsonLd(helper, services, location) {
     description: helper.bio || helper.tagline || undefined,
     image: helper.avatar ? absoluteUrl(helper.avatar) : undefined,
     url: profileUrl,
+    inLanguage: 'en',
+    mainEntityOfPage: profileUrl,
     jobTitle: helper.tagline || undefined,
     address: hasAddr ? addr : undefined,
     areaServed: {
@@ -623,6 +644,8 @@ function buildBusinessJsonLd(biz, services, location) {
     description: biz.description || biz.tagline || undefined,
     image: biz.image ? absoluteUrl(biz.image) : undefined,
     url: profileUrl,
+    inLanguage: 'en',
+    mainEntityOfPage: profileUrl,
     address: hasAddr ? addr : undefined,
     areaServed: {
       '@type': 'AdministrativeArea',
@@ -941,6 +964,8 @@ async function handlePublicJob(jobId, template, res, next, req) {
     datePosted: job.created_at ? new Date(job.created_at).toISOString() : undefined,
     validThrough: job.expires_at ? new Date(job.expires_at).toISOString() : undefined,
     url,
+    inLanguage: 'en',
+    mainEntityOfPage: url,
     hiringOrganization: { '@type': 'Organization', name: 'OxSteed', url: origin },
     jobLocation: {
       '@type': 'Place',
@@ -1034,6 +1059,8 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     description,
     url,
     image: absoluteUrl(image),
+    inLanguage: 'en',
+    mainEntityOfPage: url,
     servesCuisine: cuisine.length ? cuisine : undefined,
     address,
     priceRange: restaurant.price_level === 'cheap' ? '$' : restaurant.price_level === 'expensive' ? '$$$' : '$$',
