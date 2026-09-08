@@ -43,6 +43,13 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"sameAs":["https://apps.apple.com/us/app/oxsteed-marketplace/id6784977367"]');
   });
 
+  test('localizes the Direct geographic schema label', async () => {
+    const res = await request(buildApp()).get('/direct?lang=fr');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('"name":"Dans un rayon de 60 miles autour de Springfield, Ohio"');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

@@ -680,10 +680,23 @@ const DIRECT_SERVICE_AREA = {
   geoRadius: 96560.64,
 };
 
+const DIRECT_SERVICE_AREA_NAMES = {
+  en: 'Within 60 miles of Springfield, Ohio',
+  es: 'A menos de 60 millas de Springfield, Ohio',
+  fr: 'Dans un rayon de 60 miles autour de Springfield, Ohio',
+  ht: 'Nan yon distans 60 mil ak Springfield, Ohio',
+  ar: '\u0636\u0645\u0646 60 \u0645\u064a\u0644\u0627\u064b \u0645\u0646 Springfield\u060c Ohio',
+};
+
+function getDirectServiceArea(req) {
+  const language = getRequestedLanguage(req);
+  return { ...DIRECT_SERVICE_AREA, name: DIRECT_SERVICE_AREA_NAMES[language] || DIRECT_SERVICE_AREA_NAMES.en };
+}
+
 function handleMarketingPage(pagePath, template, res, req) {
   const page = getLocalizedSeoCopy(pagePath, MARKETING_PAGES[pagePath], req);
   const origin = base();
-  const language = getRequestedLanguage(req);
+    const language = getRequestedLanguage(req);
   const baseUrl = `${origin}${pagePath}`;
   const url = getLocalizedRequestUrl(pagePath, req);
   const schema = {
@@ -696,7 +709,7 @@ function handleMarketingPage(pagePath, template, res, req) {
     isPartOf: { '@id': `${origin}/#website` },
     ...(page.schemaType === 'Service' ? {
       provider: { '@id': `${origin}/#organization` },
-      areaServed: DIRECT_SERVICE_AREA,
+      areaServed: getDirectServiceArea(req),
     } : {}),
   };
   let html = setDocumentLanguage(
@@ -749,7 +762,7 @@ async function handleHomepage(template, res, req) {
         telephone: '+1-937-408-5169',
         availableLanguage: ['English', 'Spanish', 'French', 'Haitian Creole', 'Arabic'],
       },
-      areaServed: DIRECT_SERVICE_AREA,
+      areaServed: getDirectServiceArea(req),
     },
     {
       '@context': 'https://schema.org',

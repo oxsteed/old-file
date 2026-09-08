@@ -30,6 +30,7 @@ describe('localized Direct service-area page', () => {
     expect(schemas.map((schema) => schema['@type'])).toEqual(['Service', 'BreadcrumbList']);
     expect(schemas.every((schema) => schema.inLanguage === 'es')).toBe(true);
     expect(schemas[0].areaServed.geoRadius).toBe(96560.64);
+    expect(schemas[0].areaServed.name).toBe('A menos de 60 millas de Springfield, Ohio');
   });
 
   test('falls back to the default language for unsupported values', async () => {

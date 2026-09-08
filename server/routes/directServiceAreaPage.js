@@ -15,6 +15,13 @@ const SERVICE_AREA = {
   },
   geoRadius: 96560.64,
 };
+const SERVICE_AREA_NAMES = {
+  en: 'Within 60 miles of Springfield, Ohio',
+  es: 'A menos de 60 millas de Springfield, Ohio',
+  fr: 'Dans un rayon de 60 miles autour de Springfield, Ohio',
+  ht: 'Nan yon distans 60 mil ak Springfield, Ohio',
+  ar: '\u0636\u0645\u0646 60 \u0645\u064a\u0644\u0627\u064b \u0645\u0646 Springfield\u060c Ohio',
+};
 
 const COPY = {
   en: {
@@ -274,7 +281,10 @@ function sendDirectServiceAreaPage(req, res) {
       logo: `${origin}/icons/icon-192.png`,
       telephone: '+1-937-408-5169',
     },
-    areaServed: SERVICE_AREA,
+    areaServed: {
+      ...SERVICE_AREA,
+      name: SERVICE_AREA_NAMES[language] || SERVICE_AREA_NAMES.en,
+    },
   };
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
