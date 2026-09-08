@@ -61,6 +61,16 @@ describe('localized marketing SEO shell', () => {
     expect(res.text).toContain('"name":"Dans un rayon de 60 miles autour de Springfield, Ohio"');
   });
 
+  test('keeps localized Direct metadata explicit about coverage', async () => {
+    const landing = await request(buildApp()).get('/direct?lang=es');
+    const quote = await request(buildApp()).get('/direct/request-quote?lang=es');
+
+    expect(landing.status).toBe(200);
+    expect(landing.text).toContain('dentro de 60 millas de Springfield, Ohio');
+    expect(quote.status).toBe(200);
+    expect(quote.text).toContain('servicio dentro de 60 millas');
+  });
+
   test('localizes eligible public profile metadata and structured data', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{

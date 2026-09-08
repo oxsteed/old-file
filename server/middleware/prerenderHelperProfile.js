@@ -49,7 +49,7 @@ const SEO_COPY_KEYS = {
   '/legal/dispute-resolution': { title: 'disputeResolution.pageTitle', description: 'disputeResolution.pageDescription' },
   '/legal/independent-contractor': { title: 'contractorAgreement.pageTitle', description: 'contractorAgreement.pageDescription' },
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
-  '/direct': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
+  '/direct': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
   '/direct/services': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
@@ -139,6 +139,11 @@ function getLocalizedSeoCopy(pagePath, page, req) {
   const locale = keys ? getSeoLocale(language) : null;
   const title = keys && locale ? getNestedValue(locale, keys.title) : null;
   let description = keys?.description && locale ? getNestedValue(locale, keys.description) : null;
+  if (pagePath === '/direct/request-quote' && locale) {
+    const requestSubtitle = getNestedValue(locale, 'directPortal.request.subtitle');
+    const serviceArea = getNestedValue(locale, 'homePage.company.serviceArea');
+    if (requestSubtitle && serviceArea) description = `${requestSubtitle} ${serviceArea}.`;
+  }
   if (!description && pagePath === '/terms') {
     description = firstContentParagraph(getSeoContentLocale('terms', language));
   }
