@@ -56,7 +56,7 @@ export function getPublicSiteUrl(): string {
 /** Turn a site-relative or absolute URL into an absolute URL for og:image / JSON-LD. */
 export function toAbsoluteUrl(href: string | undefined | null): string {
   const base = getPublicSiteUrl();
-  if (!href) return `${base}/og-default.png`;
+  if (!href) return `${base}/icons/icon-512.png`;
   const s = String(href).trim();
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
   const path = s.startsWith('/') ? s : `/${s}`;

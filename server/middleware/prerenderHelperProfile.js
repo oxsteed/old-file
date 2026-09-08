@@ -102,7 +102,7 @@ function replaceRobots(html, content) {
 }
 
 function sendSeoNotFound(template, res, url, title, description) {
-  let html = replaceMeta(template, { title, description, url, image: `${base()}/og-default.png` });
+  let html = replaceMeta(template, { title, description, url, image: `${base()}/icons/icon-512.png` });
   html = replaceRobots(html, 'noindex, nofollow');
   res.set('Content-Type', 'text/html');
   res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
@@ -284,7 +284,7 @@ function handleMarketingPage(pagePath, template, res) {
       areaServed: 'Within 60 miles of Springfield, Ohio',
     } : {}),
   };
-  let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/og-default.png` });
+  let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/icons/icon-512.png` });
   if (page.noIndex) {
     html = replaceRobots(html, 'noindex, nofollow');
   }
@@ -338,7 +338,7 @@ async function handleHomepage(template, res) {
     },
   ];
 
-  let html = replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/og-default.png` });
+  let html = replaceMeta(template, { title, description, url: `${origin}/`, image: `${origin}/icons/icon-512.png` });
   html = addLanguageAlternates(html, `${origin}/`);
   html = injectJsonLd(html, jsonLd);
   res.set('Content-Type', 'text/html');
@@ -362,7 +362,7 @@ async function handleHelpersDirectory(template, res) {
     isPartOf: { '@id': `${origin}/#website` },
   };
 
-  let html = replaceMeta(template, { title, description, url, image: `${origin}/og-default.png` });
+  let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
   html = addLanguageAlternates(html, url);
   html = injectJsonLd(html, jsonLd);
 
@@ -771,7 +771,7 @@ async function handlePublicJob(jobId, template, res, next) {
     <header><h1>${escapeHtml(job.title)}</h1>${job.category_name ? `<p>${escapeHtml(job.category_name)}</p>` : ''}${location ? `<p>${escapeHtml(location)}</p>` : ''}${budget}</header>
     <section><h2>Job description</h2><p>${escapeHtml(job.description || '')}</p></section>
   </div>`;
-  let html = replaceMeta(template, { title, description, url, image: `${origin}/og-default.png` });
+  let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
   html = injectJsonLd(html, jsonLd);
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
@@ -827,7 +827,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next) {
     restaurant.description
       || `${restaurant.display_name} serves ${cuisine.join(', ') || 'local food'}${location ? ` in ${location}` : ''} through OxSteed Restaurants.`,
   ).replace(/\s+/g, ' ').trim().slice(0, 320);
-  const image = restaurant.cover_photo_url || restaurant.logo_url || `${origin}/og-default.png`;
+  const image = restaurant.cover_photo_url || restaurant.logo_url || `${origin}/icons/icon-512.png`;
   const address = restaurant.address_city || restaurant.address_state
     ? {
         '@type': 'PostalAddress',
@@ -917,7 +917,7 @@ async function handleToolProfile(toolId, template, res) {
     category: tool.category || undefined,
     brand: tool.brand ? { '@type': 'Brand', name: tool.brand } : undefined,
     url,
-    image: `${origin}/og-default.png`,
+    image: `${origin}/icons/icon-512.png`,
     offers: priceValid ? {
       '@type': 'Offer',
       price,
@@ -937,7 +937,7 @@ async function handleToolProfile(toolId, template, res) {
     title: `${tool.name} | OxSteed Tool Rentals`,
     description,
     url,
-    image: `${origin}/og-default.png`,
+    image: `${origin}/icons/icon-512.png`,
   });
   html = injectJsonLd(html, jsonLd);
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
@@ -1002,7 +1002,7 @@ async function handleLogisticsCampaign(campaignId, template, res) {
     title: `${campaign.title} | OxSteed Logistics`,
     description,
     url,
-    image: `${origin}/og-default.png`,
+    image: `${origin}/icons/icon-512.png`,
   });
   html = injectJsonLd(html, jsonLd);
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);

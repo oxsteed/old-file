@@ -29,7 +29,7 @@ export default function PageMeta({
     : '/';
   const defaultUrl = `${base}${currentPath === '/' ? '/' : currentPath}`;
   const resolvedUrl = url ? toAbsoluteUrl(url) : defaultUrl;
-  const resolvedImage = toAbsoluteUrl(image || '/og-default.png');
+  const resolvedImage = toAbsoluteUrl(image || '/icons/icon-512.png');
   const fullTitle = resolvedTitle.includes(SITE_NAME)
     ? resolvedTitle
     : `${resolvedTitle} | ${SITE_NAME}`;
