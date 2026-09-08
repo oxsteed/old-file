@@ -93,6 +93,14 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
   return out;
 }
 
+function replaceRobots(html, content) {
+  const tag = `<meta name="robots" content="${escapeHtml(content)}" />`;
+  if (/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/.test(html)) {
+    return html.replace(/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/, tag);
+  }
+  return html.replace('</head>', `${tag}\n</head>`);
+}
+
 function injectJsonLd(html, data) {
   const script = `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
   return html.replace('</head>', `${script}\n</head>`);
@@ -180,7 +188,7 @@ function handleMarketingPage(pagePath, template, res) {
   };
   let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/og-default.png` });
   if (page.noIndex) {
-    html = html.replace('</head>', '<meta name="robots" content="noindex, nofollow" />\n</head>');
+    html = replaceRobots(html, 'noindex, nofollow');
   }
   if (page.localized !== false) html = addLanguageAlternates(html, url);
   html = injectJsonLd(html, schema);
@@ -596,7 +604,7 @@ async function handlePublicJob(jobId, template, res, next) {
       url,
       image: `${origin}/og-default.png`,
     });
-    html = html.replace('</head>', '<meta name="robots" content="noindex, nofollow" />\n</head>');
+    html = replaceRobots(html, 'noindex, nofollow');
     return res.status(404).send(html);
   }
 
