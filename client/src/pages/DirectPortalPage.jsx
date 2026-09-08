@@ -250,7 +250,7 @@ function DirectShell({ profile, title, subtitle, children, heroRight, path = '/d
               <div className="flex flex-wrap gap-2">
                 <Chip tone="orange">{t('directPortal.common.minimum', { amount: `$${Math.round(profile.minimumPriceCents / 100)}`, defaultValue: '{{amount}} minimum' })}</Chip>
                 <Chip tone="blue">{profile.availabilityText}</Chip>
-                <Chip tone="emerald">{profile.baseCity}</Chip>
+              <Chip tone="emerald">{t('homePage.company.serviceArea', { defaultValue: `${profile.baseCity} - service within 60 miles` })}</Chip>
               </div>
             </div>
 

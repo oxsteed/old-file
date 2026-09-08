@@ -165,17 +165,17 @@ const MARKETING_PAGES = {
   },
   '/direct': {
     title: 'OxSteed Direct | Home Services and Local Help',
-    description: 'Request reliable home help, tool-based work, delivery, hauling, cleanup, and setup from OxSteed Direct.',
+    description: 'Request reliable home help, tool-based work, delivery, hauling, cleanup, and setup from OxSteed Direct within 60 miles of Springfield, Ohio.',
     schemaType: 'Service',
   },
   '/direct/services': {
     title: 'OxSteed Direct Services | Home Help, Hauling, and More',
-    description: 'Explore OxSteed Direct services for home help, tool-based jobs, delivery, hauling, cleanup, and setup.',
+    description: 'Explore OxSteed Direct services for home help, tool-based jobs, delivery, hauling, cleanup, and setup within 60 miles of Springfield, Ohio.',
     schemaType: 'Service',
   },
   '/direct/request-quote': {
     title: 'Request a Quote | OxSteed Direct',
-    description: 'Tell OxSteed what you need and request a direct service quote with no account required.',
+    description: 'Tell OxSteed what you need and request a direct service quote with no account required. Service is available within 60 miles of Springfield, Ohio.',
     schemaType: 'Service',
   },
   '/direct/request-quote/thanks': {
@@ -209,7 +209,10 @@ function handleMarketingPage(pagePath, template, res) {
     description: page.description,
     url,
     isPartOf: { '@id': `${origin}/#website` },
-    ...(page.schemaType === 'Service' ? { provider: { '@id': `${origin}/#organization` }, areaServed: 'Springfield, Ohio' } : {}),
+    ...(page.schemaType === 'Service' ? {
+      provider: { '@id': `${origin}/#organization` },
+      areaServed: 'Within 60 miles of Springfield, Ohio',
+    } : {}),
   };
   let html = replaceMeta(template, { title: page.title, description: page.description, url, image: `${origin}/og-default.png` });
   if (page.noIndex) {
