@@ -26,10 +26,12 @@ const SEO_COPY_KEYS = {
   '/how-it-works': { title: 'howItWorks.title', description: 'howItWorks.subtitle' },
   '/restaurants': { title: 'food.home.title', description: 'food.home.subtitle' },
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
+  '/direct': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
+  '/direct/services': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
-  '/support/escalation': { title: 'support.escalateTitle', description: 'support.escalateDesc' },
+  '/support/escalation': { title: 'support.escalation.pageTitle', description: 'support.escalation.pageDesc' },
 };
 const seoLocaleCache = new Map();
 
