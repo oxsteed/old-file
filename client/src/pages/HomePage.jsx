@@ -48,14 +48,14 @@ const OXSTEED_SERVICE_PROFILE = {
     'Cleanup and setup',
   ],
   toolList: [
-    'Truck and hauling gear',
-    'Power drill and bit set',
-    'Ladders and step stools',
-    'Pressure washer',
-    'Hand tools and repair kit',
-    'Measuring and layout tools',
-    'Cleanup and janitorial supplies',
-    'Phone and photo inspection kit',
+    'truckHauling',
+    'powerDrill',
+    'ladders',
+    'pressureWasher',
+    'handTools',
+    'measuringLayout',
+    'cleanupSupplies',
+    'phoneInspection',
   ],
   travelCities: [
     'Springfield',
@@ -152,8 +152,10 @@ function HomeCompanySection() {
             <div className="hp-company-panel">
               <h3>{t('homePage.company.tools', { defaultValue: 'Tools' })}</h3>
               <div className="hp-chip-grid">
-                {profile.toolList.map((item) => (
-                  <span key={item} className="hp-chip hp-chip--cool">{item}</span>
+                {profile.toolList.map((toolKey) => (
+                  <span key={toolKey} className="hp-chip hp-chip--cool">
+                    {t(`homePage.company.toolList.${toolKey}`)}
+                  </span>
                 ))}
               </div>
             </div>

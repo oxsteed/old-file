@@ -450,6 +450,7 @@
     "note": "Transactional emails (order confirmations, password resets, etc.) will always be sent regardless of your preferences."
   },
   "hero": {
+    "eyebrow": "Local Skills Directory",
     "title": "Local Help,\nWhen You Need It",
     "subtitle": "Post a job in minutes. Get bids from skills local helpers for home repair, cleaning, moving, and more.",
     "postJob": "Post a Job",
@@ -6009,6 +6010,16 @@
       "serviceArea": "Springfield, OH - service within 60 miles",
       "services": "Services",
       "tools": "Tools",
+      "toolList": {
+        "truckHauling": "Truck and hauling gear",
+        "powerDrill": "Power drill and bit set",
+        "ladders": "Ladders and step stools",
+        "pressureWasher": "Pressure washer",
+        "handTools": "Hand tools and repair kit",
+        "measuringLayout": "Measuring and layout tools",
+        "cleanupSupplies": "Cleanup and janitorial supplies",
+        "phoneInspection": "Phone and photo inspection kit"
+      },
       "travelCities": "Travel cities",
       "requestQuote": "Request a quote",
       "viewQuote": "View quote",
@@ -7305,6 +7316,7 @@
     "badgeHelper": "Helper",
     "badgeBusiness": "Business",
     "availableNow": "Available now",
+    "verified": "Verified",
     "onlineCount": "{{count}} online",
     "viewProfile": "View Profile",
     "viewProfileAria": "View {{name}}'s profile",

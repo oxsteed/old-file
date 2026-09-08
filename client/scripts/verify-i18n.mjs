@@ -123,6 +123,80 @@ function verifyCanonicalBrands() {
   console.log(`ok canonical brands remain unchanged across ${languages.join('/')}`);
 }
 
+function verifyHomepageTranslationSurface() {
+  const english = readJson('src/locales/en.json');
+  const resolve = (value, key) => key.split('.').reduce((child, part) => child?.[part], value);
+  const translatedKeys = [
+    'hero.eyebrow',
+    'liveHelpers.verified',
+    'homePage.search.searchMode',
+    'homePage.search.findHelper',
+    'homePage.search.browseJobs',
+    'homePage.search.discoverAll',
+    'homePage.search.helperLabel',
+    'homePage.search.helperPh',
+    'homePage.search.jobsLabel',
+    'homePage.search.jobsPh',
+    'homePage.search.discoverLabel',
+    'homePage.search.discoverPh',
+    'homePage.search.discoverSearch',
+    'homePage.search.findJobs',
+    'homePage.search.locationLabel',
+    'homePage.search.locationPh',
+    'homePage.search.locationSuggestions',
+    'homePage.search.skillSuggestions',
+    'homePage.search.nearYou',
+    'homePage.search.clearSearch',
+    'homePage.search.clearLocation',
+    'homePage.search.availToday',
+    'homePage.search.availTodayTitle',
+    'homePage.search.search',
+  ];
+  const toolKeys = [
+    'truckHauling', 'powerDrill', 'ladders', 'pressureWasher',
+    'handTools', 'measuringLayout', 'cleanupSupplies', 'phoneInspection',
+  ];
+  const failures = [];
+
+  for (const language of languages.filter((entry) => entry !== 'en')) {
+    const catalog = readJson(`src/locales/${language}.json`);
+    for (const key of translatedKeys) {
+      const englishValue = resolve(english, key);
+      const translatedValue = resolve(catalog, key);
+      if (translatedValue === englishValue) {
+        failures.push(`${language} ${key} is still English: ${JSON.stringify(translatedValue)}`);
+      }
+    }
+  }
+
+  for (const toolKey of toolKeys) {
+    const key = `homePage.company.toolList.${toolKey}`;
+    for (const language of languages) {
+      const value = resolve(readJson(`src/locales/${language}.json`), key);
+      if (typeof value !== 'string' || !value.trim()) {
+        failures.push(`${language} ${key} is missing or empty`);
+      }
+    }
+  }
+
+  const hardcodedHomepageText = [
+    ['src/components/Hero.jsx', 'Local Skills Directory'],
+    ['src/components/LiveHelpersHeroCard.tsx', '✓ Verified'],
+  ];
+  for (const [relativePath, text] of hardcodedHomepageText) {
+    const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+    if (source.includes(text)) {
+      failures.push(`${relativePath} contains hardcoded homepage text: ${text}`);
+    }
+  }
+
+  if (failures.length) {
+    throw new Error(`Homepage translation coverage failed:\n${failures.join('\n')}`);
+  }
+
+  console.log(`ok homepage translation surface is localized across ${languages.join('/')}`);
+}
+
 function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], allowedAttributes = [] } = {}) {
   const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
   const allowedText = new Set(allowedJsxText);
@@ -179,6 +253,7 @@ compareKeySets('terms content', (language) => `src/locales/terms/${language}.con
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
 verifyCanonicalBrands();
+verifyHomepageTranslationSurface();
 verifyPageHasNoHardcodedUiText('src/pages/DirectPortalPage.jsx', {
   allowedJsxText: ['Cash App', 'Venmo', 'Zelle'],
   allowedAttributes: ['US'],

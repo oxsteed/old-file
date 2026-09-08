@@ -316,7 +316,7 @@ export default function LiveHelpersHeroCard() {
                         marginBottom: preview.length ? '0.25rem' : 0,
                       }}
                     >
-                      ✓ Verified
+                      ✓ {t('liveHelpers.verified')}
                     </div>
                     {preview.length > 0 && (
                       <div
