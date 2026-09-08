@@ -121,7 +121,7 @@ function getLocalizedSeoCopy(pagePath, page, req) {
   const keys = SEO_COPY_KEYS[pagePath];
   const locale = keys ? getSeoLocale(language) : null;
   const title = keys && locale ? getNestedValue(locale, keys.title) : null;
-  let description = keys && locale ? getNestedValue(locale, keys.description) : null;
+  let description = keys?.description && locale ? getNestedValue(locale, keys.description) : null;
   if (!description && pagePath === '/terms') {
     description = firstContentParagraph(getSeoContentLocale('terms', language));
   }
