@@ -178,6 +178,9 @@ function HomeCompanySection() {
             <Link to="/direct/view-quote" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
               {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
             </Link>
+            <Link to="/direct/service-area" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
+              {t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}
+            </Link>
             <Link to="/direct/services" className="hp-btn hp-btn-outline hp-btn-lg hp-company-btn-secondary">
               {t('homePage.company.viewServices', { defaultValue: 'View services' })}
             </Link>

@@ -323,6 +323,9 @@ export function DirectLandingPage() {
             <Link to="/direct/view-quote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
               {t('homePage.company.viewQuote', { defaultValue: 'View quote' })}
             </Link>
+            <Link to="/direct/service-area" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              {t('homePage.company.checkServiceArea', { defaultValue: 'Check service area' })}
+            </Link>
             <Link to="/direct/history" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
               {t('homePage.company.viewHistory', { defaultValue: 'View history' })}
             </Link>
