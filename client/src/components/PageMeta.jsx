@@ -26,6 +26,10 @@ function getLocalizedPath(pathname) {
   return normalizedPath === '/' || normalizedPath.startsWith('/help/') || LOCALIZED_PATHS.has(normalizedPath);
 }
 
+function normalizePathname(pathname) {
+  return pathname === '/' ? '/' : pathname.replace(/\/+$/, '') || '/';
+}
+
 function getRequestedLanguage() {
   if (typeof window === 'undefined') return 'en';
   const raw = new URLSearchParams(window.location.search).get('lang') || '';
@@ -34,8 +38,15 @@ function getRequestedLanguage() {
 }
 
 function addLanguageToUrl(url, language) {
-  if (language === 'en' || url.includes('lang=')) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}lang=${language}`;
+  try {
+    const localizedUrl = new URL(url, getPublicSiteUrl());
+    localizedUrl.pathname = normalizePathname(localizedUrl.pathname);
+    ['lang', 'lng', 'locale'].forEach((key) => localizedUrl.searchParams.delete(key));
+    if (language !== 'en') localizedUrl.searchParams.set('lang', language);
+    return localizedUrl.toString();
+  } catch {
+    return url;
+  }
 }
 
 export default function PageMeta({
@@ -55,9 +66,11 @@ export default function PageMeta({
   const currentPath = typeof window !== 'undefined' && window.location?.pathname
     ? window.location.pathname
     : '/';
+  const normalizedCurrentPath = normalizePathname(currentPath);
   const language = getRequestedLanguage();
-  const localizedPath = getLocalizedPath(currentPath) && language !== 'en';
-  const defaultUrl = `${base}${currentPath === '/' ? '/' : currentPath}${localizedPath ? `?lang=${language}` : ''}`;
+  const isLocalizedPage = getLocalizedPath(normalizedCurrentPath);
+  const localizedPath = isLocalizedPage && language !== 'en';
+  const defaultUrl = addLanguageToUrl(`${base}${normalizedCurrentPath}`, localizedPath ? language : 'en');
   const resolvedUrl = url
     ? addLanguageToUrl(toAbsoluteUrl(url), localizedPath ? language : 'en')
     : defaultUrl;
@@ -65,6 +78,12 @@ export default function PageMeta({
   const fullTitle = resolvedTitle.includes(SITE_NAME)
     ? resolvedTitle
     : `${resolvedTitle} | ${SITE_NAME}`;
+  const alternateLanguageLinks = isLocalizedPage
+    ? [...SEO_LANGUAGES].map((code) => ({
+        code,
+        href: addLanguageToUrl(resolvedUrl, code),
+      })).concat({ code: 'x-default', href: addLanguageToUrl(resolvedUrl, 'en') })
+    : [];
 
   return (
     <Helmet>
@@ -73,6 +92,9 @@ export default function PageMeta({
       {noIndex && <meta name="robots" content="noindex, nofollow" />}
 
       <link rel="canonical" href={resolvedUrl} />
+      {alternateLanguageLinks.map(({ code, href }) => (
+        <link key={code} rel="alternate" hrefLang={code} href={href} />
+      ))}
 
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:type" content={type} />
