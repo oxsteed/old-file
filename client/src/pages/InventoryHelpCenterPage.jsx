@@ -342,12 +342,18 @@ export default function InventoryHelpCenterPage({ appKey }) {
   const params = useParams();
   const resolvedKey = appKey || params.restaurantAppHelpSlug || 'inventory';
   const guide = getGuide(resolvedKey);
+  const seoTitle = t(`publicSeo.help.${resolvedKey}.title`, {
+    defaultValue: `${guide.name} Help Center`,
+  });
+  const seoDescription = t(`publicSeo.help.${resolvedKey}.description`, {
+    defaultValue: guide.description,
+  });
 
   return (
     <PageShell>
       <PageMeta
-        title={t('inventoryHelpCenter.metaTitle', { defaultValue: `${guide.name} Help Center` })}
-        description={t('inventoryHelpCenter.metaDescription', { defaultValue: `Setup guides and workflow instructions for ${guide.name}.` })}
+        title={seoTitle}
+        description={seoDescription}
         url={`https://oxsteed.com/help/${resolvedKey}`}
       />
 

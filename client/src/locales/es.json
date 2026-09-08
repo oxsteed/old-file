@@ -14382,6 +14382,18 @@
     "needHelp": "¿Necesitas ayuda?",
     "contactSupport": "Contactar soporte"
   },
+  "publicSeo": {
+    "help": {
+      "restaurant": { "title": "Centro de ayuda de OxSteed Restaurantes | Pedidos y soporte", "description": "Aprende a explorar restaurantes, administrar menús, hacer pedidos, seguir la comida y obtener soporte en OxSteed Restaurantes." },
+      "manager": { "title": "Centro de ayuda de OxSteed Manager | Operaciones de restaurantes", "description": "Aprende cómo los propietarios y gerentes usan OxSteed Manager para pedidos, menús, equipos, informes y soporte." },
+      "pos": { "title": "Centro de ayuda de OxSteed POS | Pedidos y pagos", "description": "Aprende a usar OxSteed POS para pedidos en mostrador, pagos, pedidos retenidos, descuentos, turnos y caja." },
+      "kitchen": { "title": "Centro de ayuda de OxSteed Kitchen | Preparación y tickets", "description": "Aprende cómo OxSteed Kitchen gestiona colas de tickets, preparación, entrega en expo, disponibilidad y el historial del servicio." },
+      "display": { "title": "Centro de ayuda de OxSteed Display | Estado de pedidos", "description": "Aprende cómo OxSteed Display muestra el estado de los pedidos, los flujos de kiosco y las actualizaciones para clientes." },
+      "inventory": { "title": "Centro de ayuda de OxSteed Inventory | Existencias y disponibilidad", "description": "Aprende cómo OxSteed Inventory apoya el seguimiento de existencias, la disponibilidad, los conteos y las operaciones del restaurante." },
+      "crew": { "title": "Centro de ayuda de OxSteed Crew | Flujos del equipo", "description": "Aprende cómo OxSteed Crew ayuda al personal del restaurante con tareas, listas de verificación y coordinación diaria." },
+      "runner": { "title": "Centro de ayuda de OxSteed Runner | Entrega y traspaso", "description": "Aprende cómo OxSteed Runner apoya la recogida, el traspaso, la entrega y las actualizaciones del servicio." }
+    }
+  },
   "directPortal": {
     "request": {
       "title": "Solicitar una cotización Direct",

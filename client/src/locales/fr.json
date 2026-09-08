@@ -14382,6 +14382,18 @@
     "needHelp": "Besoin d'aide ?",
     "contactSupport": "Contacter le support"
   },
+  "publicSeo": {
+    "help": {
+      "restaurant": { "title": "Centre d'aide OxSteed Restaurant | Commandes et assistance", "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants." },
+      "manager": { "title": "Centre d'aide OxSteed Manager | Opérations de restaurant", "description": "Découvrez comment les propriétaires et responsables utilisent OxSteed Manager pour les commandes, menus, équipes, rapports et assistance." },
+      "pos": { "title": "Centre d'aide OxSteed POS | Commandes et paiements", "description": "Découvrez comment utiliser OxSteed POS pour les commandes au comptoir, paiements, commandes en attente, remises, équipes et caisse." },
+      "kitchen": { "title": "Centre d'aide OxSteed Kitchen | Tickets et préparation", "description": "Découvrez comment OxSteed Kitchen gère les files de tickets, la préparation, le passage expo, la disponibilité et l'historique du service." },
+      "display": { "title": "Centre d'aide OxSteed Display | État des commandes", "description": "Découvrez comment OxSteed Display prend en charge l'état des commandes, les parcours kiosque et les mises à jour destinées aux clients." },
+      "inventory": { "title": "Centre d'aide OxSteed Inventory | Stock et disponibilité", "description": "Découvrez comment OxSteed Inventory accompagne le suivi des stocks, la disponibilité, les comptages et les opérations de restaurant." },
+      "crew": { "title": "Centre d'aide OxSteed Crew | Workflows de l'équipe", "description": "Découvrez comment OxSteed Crew aide le personnel avec les tâches, les listes de contrôle et la coordination quotidienne du restaurant." },
+      "runner": { "title": "Centre d'aide OxSteed Runner | Remise et livraison", "description": "Découvrez comment OxSteed Runner accompagne le retrait, la remise, la coordination des livraisons et les mises à jour du service." }
+    }
+  },
   "directPortal": {
     "request": {
       "title": "Demander un devis Direct",

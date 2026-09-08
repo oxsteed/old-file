@@ -14386,6 +14386,18 @@
     "needHelp": "Need help?",
     "contactSupport": "Contact support"
   },
+  "publicSeo": {
+    "help": {
+      "restaurant": { "title": "OxSteed Restaurant Help Center | Ordering and Support", "description": "Learn how to browse restaurants, manage menus, place orders, track food, and get support through OxSteed Restaurants." },
+      "manager": { "title": "OxSteed Manager Help Center | Restaurant Operations", "description": "Learn how restaurant owners and managers use OxSteed Manager for orders, menus, team access, reports, and support." },
+      "pos": { "title": "OxSteed POS Help Center | Orders and Payments", "description": "Learn how to use OxSteed POS for counter orders, payments, held orders, discounts, shifts, and cash workflows." },
+      "kitchen": { "title": "OxSteed Kitchen Help Center | Ticket and Prep Workflows", "description": "Learn how OxSteed Kitchen handles ticket queues, station prep, expo handoff, item availability, and service history." },
+      "display": { "title": "OxSteed Display Help Center | Guest Order Status", "description": "Learn how OxSteed Display supports guest order status, kiosk flows, and customer-facing restaurant updates." },
+      "inventory": { "title": "OxSteed Inventory Help Center | Stock and Availability", "description": "Learn how OxSteed Inventory supports stock tracking, availability updates, counts, and restaurant operations." },
+      "crew": { "title": "OxSteed Crew Help Center | Restaurant Team Workflows", "description": "Learn how OxSteed Crew supports restaurant staff, assignments, checklists, and daily service coordination." },
+      "runner": { "title": "OxSteed Runner Help Center | Handoff and Delivery", "description": "Learn how OxSteed Runner supports order pickup, handoff, delivery coordination, and service status updates." }
+    }
+  },
   "directPortal": {
     "request": {
       "title": "Request a Direct quote",

@@ -14382,6 +14382,18 @@
     "needHelp": "Bezwen èd?",
     "contactSupport": "Kontakte sipò"
   },
+  "publicSeo": {
+    "help": {
+      "restaurant": { "title": "Sant èd OxSteed Restaurant | Kòmand ak sipò", "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants." },
+      "manager": { "title": "Sant èd OxSteed Manager | Operasyon restoran", "description": "Aprann kijan pwopriyetè ak manadjè restoran yo itilize OxSteed Manager pou kòmand, meni, ekip, rapò ak sipò." },
+      "pos": { "title": "Sant èd OxSteed POS | Kòmand ak peman", "description": "Aprann kijan pou itilize OxSteed POS pou kòmand kontwa, peman, kòmand an atant, rabè, orè ak kès." },
+      "kitchen": { "title": "Sant èd OxSteed Kitchen | Tikè ak preparasyon", "description": "Aprann kijan OxSteed Kitchen jere ke tikè, preparasyon, pase expo, disponiblite atik ak istwa sèvis." },
+      "display": { "title": "Sant èd OxSteed Display | Eta kòmand kliyan", "description": "Aprann kijan OxSteed Display sipòte eta kòmand, workflow kyòs ak mizajou pou kliyan nan restoran." },
+      "inventory": { "title": "Sant èd OxSteed Inventory | Stock ak disponiblite", "description": "Aprann kijan OxSteed Inventory sipòte swivi stock, disponiblite, konte ak operasyon restoran." },
+      "crew": { "title": "Sant èd OxSteed Crew | Workflow ekip restoran", "description": "Aprann kijan OxSteed Crew ede anplwaye restoran ak travay, lis verifikasyon ak kowòdinasyon chak jou." },
+      "runner": { "title": "Sant èd OxSteed Runner | Remiz ak livrezon", "description": "Aprann kijan OxSteed Runner sipòte ranmase kòmand, remiz, kowòdinasyon livrezon ak mizajou sèvis." }
+    }
+  },
   "directPortal": {
     "request": {
       "title": "Mande yon quote Direct",
