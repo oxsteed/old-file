@@ -211,12 +211,12 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
     );
 
   if (!/<meta\s+property="og:locale"/.test(out)) {
-    out = out.replace('</head>', `<meta property="og:locale" content="${ogLocale}" />\n</head>`);
+    out = out.replace('</head>', `<meta data-rh="true" property="og:locale" content="${ogLocale}" />\n</head>`);
   }
   if (!/<meta\s+property="og:locale:alternate"/.test(out)) {
     const alternateLocales = Object.entries(OG_LOCALES)
       .filter(([code]) => code !== language)
-      .map(([, locale]) => `<meta property="og:locale:alternate" content="${locale}" />`)
+      .map(([, locale]) => `<meta data-rh="true" property="og:locale:alternate" content="${locale}" />`)
       .join('\n');
     out = out.replace('</head>', `${alternateLocales}\n</head>`);
   }
@@ -274,13 +274,13 @@ function addLanguageAlternates(html, url) {
   const languages = ['en', 'es', 'fr', 'ht', 'ar', 'x-default'];
   const links = languages.map((language) => {
     if (language === 'x-default') {
-      return `<link rel="alternate" hreflang="x-default" href="${escapeHtml(url)}" />`;
+      return `<link data-rh="true" rel="alternate" hreflang="x-default" href="${escapeHtml(url)}" />`;
     }
     if (language === 'en') {
-      return `<link rel="alternate" hreflang="en" href="${escapeHtml(url)}" />`;
+      return `<link data-rh="true" rel="alternate" hreflang="en" href="${escapeHtml(url)}" />`;
     }
     const separator = url.includes('?') ? '&' : '?';
-    return `<link rel="alternate" hreflang="${language}" href="${escapeHtml(`${url}${separator}lang=${language}`)}" />`;
+    return `<link data-rh="true" rel="alternate" hreflang="${language}" href="${escapeHtml(`${url}${separator}lang=${language}`)}" />`;
   }).join('\n');
   return html.replace('</head>', `${links}\n</head>`);
 }
