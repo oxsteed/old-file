@@ -6116,89 +6116,89 @@
       "search": "Buscar"
     },
     "skills": {
-      "sectionTitle": "Browse by Skill",
-      "sectionSubtitle": "Find a local helper for the exact job you need done.",
-      "dontSeeSkill": "Don’t see the skill you need?",
-      "postJobLink": "Post a Job",
-      "dontSeeEnd": "We’ll connect you with the right help.",
-      "showMore": "Show more skills",
-      "showFewer": "Show fewer skills",
+      "sectionTitle": "Explorar por habilidad",
+      "sectionSubtitle": "Encuentra un ayudante local para el trabajo exacto que necesitas.",
+      "dontSeeSkill": "¿No ves la habilidad que necesitas?",
+      "postJobLink": "Publicar un trabajo",
+      "dontSeeEnd": "Te conectaremos con la ayuda adecuada.",
+      "showMore": "Mostrar más habilidades",
+      "showFewer": "Mostrar menos habilidades",
       "tiles": {
         "electrical": {
-          "name": "Electrical",
-          "desc": "Outlets, panels, EV chargers"
+          "name": "Electricidad",
+          "desc": "Enchufes, paneles, cargadores para vehículos eléctricos"
         },
         "plumbing": {
-          "name": "Plumbing",
-          "desc": "Leaks, drains, water heaters"
+          "name": "Plomería",
+          "desc": "Fugas, desagües, calentadores de agua"
         },
         "hvac": {
-          "name": "HVAC",
-          "desc": "AC, heating, duct work"
+          "name": "Climatización",
+          "desc": "Aire acondicionado, calefacción, conductos"
         },
         "carpentry": {
-          "name": "Carpentry",
-          "desc": "Decks, trim, custom builds"
+          "name": "Carpintería",
+          "desc": "Terrazas, molduras, construcciones personalizadas"
         },
         "painting": {
-          "name": "Painting",
-          "desc": "Interior & exterior"
+          "name": "Pintura",
+          "desc": "Interior y exterior"
         },
         "roofing": {
-          "name": "Roofing",
-          "desc": "Repairs, replacement, sealing"
+          "name": "Techado",
+          "desc": "Reparaciones, reemplazo, sellado"
         },
         "flooring": {
-          "name": "Flooring",
-          "desc": "Install, repair, refinish"
+          "name": "Pisos",
+          "desc": "Instalación, reparación, renovación"
         },
         "landscaping": {
-          "name": "Landscaping",
-          "desc": "Yard work, trimming, cleanup"
+          "name": "Paisajismo",
+          "desc": "Trabajo de jardín, poda, limpieza"
         },
         "moving": {
-          "name": "Moving",
-          "desc": "Packing, hauling, unload help"
+          "name": "Mudanzas",
+          "desc": "Empaque, transporte, ayuda para descargar"
         },
         "cleaning": {
-          "name": "Cleaning",
-          "desc": "Deep clean, routine clean, reset"
+          "name": "Limpieza",
+          "desc": "Limpieza profunda, rutinaria y preparación"
         },
         "pest-control": {
-          "name": "Pest control",
-          "desc": "Inspection, treatment, prevention"
+          "name": "Control de plagas",
+          "desc": "Inspección, tratamiento, prevención"
         },
         "auto": {
-          "name": "Auto",
-          "desc": "Light repairs, diagnostics, detailing"
+          "name": "Automóviles",
+          "desc": "Reparaciones menores, diagnóstico, detallado"
         },
         "appliance": {
-          "name": "Appliance",
-          "desc": "Install, repair, haul away"
+          "name": "Electrodomésticos",
+          "desc": "Instalación, reparación, retiro"
         },
         "concrete": {
-          "name": "Concrete",
-          "desc": "Pads, patching, resurfacing"
+          "name": "Concreto",
+          "desc": "Losas, parches, renovación de superficies"
         },
         "welding": {
-          "name": "Welding",
-          "desc": "Fabrication, repair, custom metalwork"
+          "name": "Soldadura",
+          "desc": "Fabricación, reparación, metal personalizado"
         },
         "home-repair": {
-          "name": "Home repair",
-          "desc": "General fixes, small projects"
+          "name": "Reparaciones del hogar",
+          "desc": "Arreglos generales, proyectos pequeños"
         },
         "security": {
-          "name": "Security",
-          "desc": "Locks, cameras, access control"
+          "name": "Seguridad",
+          "desc": "Cerraduras, cámaras, control de acceso"
         },
         "pet-care": {
-          "name": "Pet care",
-          "desc": "Walking, sitting, basic care"
+          "name": "Cuidado de mascotas",
+          "desc": "Paseos, cuidado y atención básica"
         },
         "tutoring": {
-          "name": "Tutoring",
-          "desc": "Homework help, study support"
+          "name": "Tutoría",
+          "desc": "Ayuda con tareas y estudio"
         }
       }
     },

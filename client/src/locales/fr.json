@@ -6116,89 +6116,89 @@
       "search": "Rechercher"
     },
     "skills": {
-      "sectionTitle": "Browse by Skill",
-      "sectionSubtitle": "Find a local helper for the exact job you need done.",
-      "dontSeeSkill": "Don’t see the skill you need?",
-      "postJobLink": "Post a Job",
-      "dontSeeEnd": "We’ll connect you with the right help.",
-      "showMore": "Show more skills",
-      "showFewer": "Show fewer skills",
+      "sectionTitle": "Parcourir par compétence",
+      "sectionSubtitle": "Trouvez un prestataire local pour le travail précis dont vous avez besoin.",
+      "dontSeeSkill": "Vous ne trouvez pas la compétence recherchée ?",
+      "postJobLink": "Publier une mission",
+      "dontSeeEnd": "Nous vous mettrons en relation avec la bonne aide.",
+      "showMore": "Afficher plus de compétences",
+      "showFewer": "Afficher moins de compétences",
       "tiles": {
         "electrical": {
-          "name": "Electrical",
-          "desc": "Outlets, panels, EV chargers"
+          "name": "Électricité",
+          "desc": "Prises, tableaux, bornes de recharge"
         },
         "plumbing": {
-          "name": "Plumbing",
-          "desc": "Leaks, drains, water heaters"
+          "name": "Plomberie",
+          "desc": "Fuites, évacuations, chauffe-eau"
         },
         "hvac": {
-          "name": "HVAC",
-          "desc": "AC, heating, duct work"
+          "name": "Climatisation",
+          "desc": "Climatisation, chauffage, conduits"
         },
         "carpentry": {
-          "name": "Carpentry",
-          "desc": "Decks, trim, custom builds"
+          "name": "Menuiserie",
+          "desc": "Terrasses, moulures, constructions sur mesure"
         },
         "painting": {
-          "name": "Painting",
-          "desc": "Interior & exterior"
+          "name": "Peinture",
+          "desc": "Intérieur et extérieur"
         },
         "roofing": {
-          "name": "Roofing",
-          "desc": "Repairs, replacement, sealing"
+          "name": "Toiture",
+          "desc": "Réparation, remplacement, étanchéité"
         },
         "flooring": {
-          "name": "Flooring",
-          "desc": "Install, repair, refinish"
+          "name": "Revêtements de sol",
+          "desc": "Pose, réparation, rénovation"
         },
         "landscaping": {
-          "name": "Landscaping",
-          "desc": "Yard work, trimming, cleanup"
+          "name": "Aménagement paysager",
+          "desc": "Entretien du jardin, taille, nettoyage"
         },
         "moving": {
-          "name": "Moving",
-          "desc": "Packing, hauling, unload help"
+          "name": "Déménagement",
+          "desc": "Emballage, transport, aide au déchargement"
         },
         "cleaning": {
-          "name": "Cleaning",
-          "desc": "Deep clean, routine clean, reset"
+          "name": "Nettoyage",
+          "desc": "Nettoyage en profondeur, entretien courant, remise en état"
         },
         "pest-control": {
-          "name": "Pest control",
-          "desc": "Inspection, treatment, prevention"
+          "name": "Lutte antiparasitaire",
+          "desc": "Inspection, traitement, prévention"
         },
         "auto": {
-          "name": "Auto",
-          "desc": "Light repairs, diagnostics, detailing"
+          "name": "Automobile",
+          "desc": "Petites réparations, diagnostic, esthétique"
         },
         "appliance": {
-          "name": "Appliance",
-          "desc": "Install, repair, haul away"
+          "name": "Électroménager",
+          "desc": "Installation, réparation, enlèvement"
         },
         "concrete": {
-          "name": "Concrete",
-          "desc": "Pads, patching, resurfacing"
+          "name": "Béton",
+          "desc": "Dalles, réparation, resurfaçage"
         },
         "welding": {
-          "name": "Welding",
-          "desc": "Fabrication, repair, custom metalwork"
+          "name": "Soudage",
+          "desc": "Fabrication, réparation, métallerie sur mesure"
         },
         "home-repair": {
-          "name": "Home repair",
-          "desc": "General fixes, small projects"
+          "name": "Réparations de maison",
+          "desc": "Travaux généraux, petits projets"
         },
         "security": {
-          "name": "Security",
-          "desc": "Locks, cameras, access control"
+          "name": "Sécurité",
+          "desc": "Serrures, caméras, contrôle d'accès"
         },
         "pet-care": {
-          "name": "Pet care",
-          "desc": "Walking, sitting, basic care"
+          "name": "Soins aux animaux",
+          "desc": "Promenade, garde, soins de base"
         },
         "tutoring": {
-          "name": "Tutoring",
-          "desc": "Homework help, study support"
+          "name": "Tutorat",
+          "desc": "Aide aux devoirs, accompagnement scolaire"
         }
       }
     },

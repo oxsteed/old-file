@@ -6116,89 +6116,89 @@
       "search": "بحث"
     },
     "skills": {
-      "sectionTitle": "Browse by Skill",
-      "sectionSubtitle": "Find a local helper for the exact job you need done.",
-      "dontSeeSkill": "Don’t see the skill you need?",
-      "postJobLink": "Post a Job",
-      "dontSeeEnd": "We’ll connect you with the right help.",
-      "showMore": "Show more skills",
-      "showFewer": "Show fewer skills",
+      "sectionTitle": "تصفح حسب المهارة",
+      "sectionSubtitle": "اعثر على مساعد محلي للعمل المحدد الذي تحتاج إلى إنجازه.",
+      "dontSeeSkill": "ألا ترى المهارة التي تحتاجها؟",
+      "postJobLink": "انشر عملًا",
+      "dontSeeEnd": "سنوصلك بالمساعدة المناسبة.",
+      "showMore": "عرض المزيد من المهارات",
+      "showFewer": "عرض عدد أقل من المهارات",
       "tiles": {
         "electrical": {
-          "name": "Electrical",
-          "desc": "Outlets, panels, EV chargers"
+          "name": "الكهرباء",
+          "desc": "منافذ، لوحات، شواحن سيارات كهربائية"
         },
         "plumbing": {
-          "name": "Plumbing",
-          "desc": "Leaks, drains, water heaters"
+          "name": "السباكة",
+          "desc": "تسريبات، مصارف، سخانات مياه"
         },
         "hvac": {
-          "name": "HVAC",
-          "desc": "AC, heating, duct work"
+          "name": "التكييف والتدفئة والتهوية",
+          "desc": "تكييف، تدفئة، مجاري هواء"
         },
         "carpentry": {
-          "name": "Carpentry",
-          "desc": "Decks, trim, custom builds"
+          "name": "النجارة",
+          "desc": "أسطح، تشطيبات، أعمال مخصصة"
         },
         "painting": {
-          "name": "Painting",
-          "desc": "Interior & exterior"
+          "name": "الدهان",
+          "desc": "داخلي وخارجي"
         },
         "roofing": {
-          "name": "Roofing",
-          "desc": "Repairs, replacement, sealing"
+          "name": "الأسقف",
+          "desc": "إصلاح، استبدال، عزل"
         },
         "flooring": {
-          "name": "Flooring",
-          "desc": "Install, repair, refinish"
+          "name": "الأرضيات",
+          "desc": "تركيب، إصلاح، تجديد"
         },
         "landscaping": {
-          "name": "Landscaping",
-          "desc": "Yard work, trimming, cleanup"
+          "name": "تنسيق الحدائق",
+          "desc": "أعمال الحدائق، تقليم، تنظيف"
         },
         "moving": {
-          "name": "Moving",
-          "desc": "Packing, hauling, unload help"
+          "name": "النقل",
+          "desc": "تعبئة، نقل، مساعدة في التفريغ"
         },
         "cleaning": {
-          "name": "Cleaning",
-          "desc": "Deep clean, routine clean, reset"
+          "name": "التنظيف",
+          "desc": "تنظيف عميق، تنظيف دوري، تهيئة"
         },
         "pest-control": {
-          "name": "Pest control",
-          "desc": "Inspection, treatment, prevention"
+          "name": "مكافحة الآفات",
+          "desc": "فحص، معالجة، وقاية"
         },
         "auto": {
-          "name": "Auto",
-          "desc": "Light repairs, diagnostics, detailing"
+          "name": "السيارات",
+          "desc": "إصلاحات خفيفة، تشخيص، عناية"
         },
         "appliance": {
-          "name": "Appliance",
-          "desc": "Install, repair, haul away"
+          "name": "الأجهزة المنزلية",
+          "desc": "تركيب، إصلاح، نقل للتخلص منها"
         },
         "concrete": {
-          "name": "Concrete",
-          "desc": "Pads, patching, resurfacing"
+          "name": "الخرسانة",
+          "desc": "قواعد، ترقيع، إعادة تسوية الأسطح"
         },
         "welding": {
-          "name": "Welding",
-          "desc": "Fabrication, repair, custom metalwork"
+          "name": "اللحام",
+          "desc": "تصنيع، إصلاح، أعمال معدنية مخصصة"
         },
         "home-repair": {
-          "name": "Home repair",
-          "desc": "General fixes, small projects"
+          "name": "إصلاحات المنزل",
+          "desc": "إصلاحات عامة، مشاريع صغيرة"
         },
         "security": {
-          "name": "Security",
-          "desc": "Locks, cameras, access control"
+          "name": "الأمن",
+          "desc": "أقفال، كاميرات، التحكم في الدخول"
         },
         "pet-care": {
-          "name": "Pet care",
-          "desc": "Walking, sitting, basic care"
+          "name": "رعاية الحيوانات الأليفة",
+          "desc": "تمشية، رعاية، عناية أساسية"
         },
         "tutoring": {
-          "name": "Tutoring",
-          "desc": "Homework help, study support"
+          "name": "الدروس الخصوصية",
+          "desc": "مساعدة في الواجبات، دعم دراسي"
         }
       }
     },

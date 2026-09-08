@@ -156,6 +156,16 @@ function verifyHomepageTranslationSurface() {
     'truckHauling', 'powerDrill', 'ladders', 'pressureWasher',
     'handTools', 'measuringLayout', 'cleanupSupplies', 'phoneInspection',
   ];
+  const skillKeys = [
+    'sectionTitle', 'sectionSubtitle', 'dontSeeSkill', 'postJobLink',
+    'dontSeeEnd', 'showMore', 'showFewer',
+    ...['electrical', 'plumbing', 'hvac', 'carpentry', 'painting', 'roofing',
+      'flooring', 'landscaping', 'moving', 'cleaning', 'pest-control', 'auto',
+      'appliance', 'concrete', 'welding', 'home-repair', 'security', 'pet-care',
+      'tutoring'].flatMap((slug) => [
+      `tiles.${slug}.name`, `tiles.${slug}.desc`,
+    ]),
+  ];
   const failures = [];
 
   for (const language of languages.filter((entry) => entry !== 'en')) {
@@ -165,6 +175,13 @@ function verifyHomepageTranslationSurface() {
       const translatedValue = resolve(catalog, key);
       if (translatedValue === englishValue) {
         failures.push(`${language} ${key} is still English: ${JSON.stringify(translatedValue)}`);
+      }
+    }
+    for (const key of skillKeys) {
+      const englishValue = resolve(english, `homePage.skills.${key}`);
+      const translatedValue = resolve(catalog, `homePage.skills.${key}`);
+      if (translatedValue === englishValue) {
+        failures.push(`${language} homePage.skills.${key} is still English: ${JSON.stringify(translatedValue)}`);
       }
     }
   }

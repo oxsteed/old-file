@@ -6116,89 +6116,89 @@
       "search": "Chèche"
     },
     "skills": {
-      "sectionTitle": "Browse by Skill",
-      "sectionSubtitle": "Find a local helper for the exact job you need done.",
-      "dontSeeSkill": "Don’t see the skill you need?",
-      "postJobLink": "Post a Job",
-      "dontSeeEnd": "We’ll connect you with the right help.",
-      "showMore": "Show more skills",
-      "showFewer": "Show fewer skills",
+      "sectionTitle": "Chèche dapre konpetans",
+      "sectionSubtitle": "Jwenn yon asistan lokal pou travay egzak ou bezwen fè.",
+      "dontSeeSkill": "Ou pa wè konpetans ou bezwen an?",
+      "postJobLink": "Pibliye yon travay",
+      "dontSeeEnd": "N ap mete w an kontak ak bon èd la.",
+      "showMore": "Montre plis konpetans",
+      "showFewer": "Montre mwens konpetans",
       "tiles": {
         "electrical": {
-          "name": "Electrical",
-          "desc": "Outlets, panels, EV chargers"
+          "name": "Elektrisite",
+          "desc": "Priz, panèl, chajè machin elektrik"
         },
         "plumbing": {
-          "name": "Plumbing",
-          "desc": "Leaks, drains, water heaters"
+          "name": "Plonbri",
+          "desc": "Fwit, drenaj, aparèy chofaj dlo"
         },
         "hvac": {
-          "name": "HVAC",
-          "desc": "AC, heating, duct work"
+          "name": "Èkondisyone ak chofaj",
+          "desc": "Èkondisyone, chofaj, kanal lè"
         },
         "carpentry": {
-          "name": "Carpentry",
-          "desc": "Decks, trim, custom builds"
+          "name": "Karpantri",
+          "desc": "Galri, bòdi, konstriksyon pèsonalize"
         },
         "painting": {
-          "name": "Painting",
-          "desc": "Interior & exterior"
+          "name": "Penti",
+          "desc": "Anndan ak deyò"
         },
         "roofing": {
-          "name": "Roofing",
-          "desc": "Repairs, replacement, sealing"
+          "name": "Twati",
+          "desc": "Reparasyon, ranplasman, sele"
         },
         "flooring": {
-          "name": "Flooring",
-          "desc": "Install, repair, refinish"
+          "name": "Planche",
+          "desc": "Enstalasyon, reparasyon, fini ankò"
         },
         "landscaping": {
-          "name": "Landscaping",
-          "desc": "Yard work, trimming, cleanup"
+          "name": "Amenajman jaden",
+          "desc": "Travay nan lakou, koupe branch, netwayaj"
         },
         "moving": {
-          "name": "Moving",
-          "desc": "Packing, hauling, unload help"
+          "name": "Demenajman",
+          "desc": "Anbalaj, transpò, èd pou dechaje"
         },
         "cleaning": {
-          "name": "Cleaning",
-          "desc": "Deep clean, routine clean, reset"
+          "name": "Netwayaj",
+          "desc": "Netwayaj pwofon, netwayaj regilye, mete an òd"
         },
         "pest-control": {
-          "name": "Pest control",
-          "desc": "Inspection, treatment, prevention"
+          "name": "Kontwòl ensèk",
+          "desc": "Enspeksyon, tretman, prevansyon"
         },
         "auto": {
-          "name": "Auto",
-          "desc": "Light repairs, diagnostics, detailing"
+          "name": "Oto",
+          "desc": "Ti reparasyon, dyagnostik, netwayaj detaye"
         },
         "appliance": {
-          "name": "Appliance",
-          "desc": "Install, repair, haul away"
+          "name": "Aparèy",
+          "desc": "Enstalasyon, reparasyon, retire aparèy"
         },
         "concrete": {
-          "name": "Concrete",
-          "desc": "Pads, patching, resurfacing"
+          "name": "Beton",
+          "desc": "Baz, repare twou, refè sifas"
         },
         "welding": {
-          "name": "Welding",
-          "desc": "Fabrication, repair, custom metalwork"
+          "name": "Soudi",
+          "desc": "Fabrikasyon, reparasyon, travay metal pèsonalize"
         },
         "home-repair": {
-          "name": "Home repair",
-          "desc": "General fixes, small projects"
+          "name": "Reparasyon kay",
+          "desc": "Reparasyon jeneral, ti pwojè"
         },
         "security": {
-          "name": "Security",
-          "desc": "Locks, cameras, access control"
+          "name": "Sekirite",
+          "desc": "Kadna, kamera, kontwòl aksè"
         },
         "pet-care": {
-          "name": "Pet care",
-          "desc": "Walking, sitting, basic care"
+          "name": "Swen bèt kay",
+          "desc": "Pwomnad, gadri, swen debaz"
         },
         "tutoring": {
-          "name": "Tutoring",
-          "desc": "Homework help, study support"
+          "name": "Leson patikilye",
+          "desc": "Èd pou devwa, sipò pou etid"
         }
       }
     },
