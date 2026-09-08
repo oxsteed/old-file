@@ -142,6 +142,7 @@ const MARKETING_PAGES = {
   '/discover': {
     title: 'Discover Local Help, Jobs, and Services | OxSteed',
     description: 'Search OxSteed for trusted local helpers, service jobs, businesses, tools, and services near you.',
+    noIndex: true,
   },
   '/how-it-works': {
     title: 'How OxSteed Works | Local Help Made Simple',
@@ -150,6 +151,7 @@ const MARKETING_PAGES = {
   '/learn': {
     title: 'OxSteed Learn | Practical Home and Business Guides',
     description: 'Explore practical guides for home maintenance, local services, tools, business, and everyday planning.',
+    noIndex: true,
   },
   '/help/restaurant': {
     title: 'OxSteed Restaurant Help Center | Ordering and Support',
@@ -199,20 +201,24 @@ const MARKETING_PAGES = {
     title: 'OxSteed Marketplace | Tools, Materials, and Supplies',
     description: 'Browse tools, safety gear, hardware, materials, and other products available through the OxSteed marketplace.',
     schemaType: 'CollectionPage',
+    noIndex: true,
   },
   '/logistics': {
     title: 'OxSteed Logistics | Group Buying and Global Supply',
     description: 'Explore OxSteed logistics for pooled purchasing, supplier sourcing, freight coordination, and practical supply-chain support.',
     schemaType: 'CollectionPage',
+    noIndex: true,
   },
   '/logistics/campaigns': {
     title: 'Pooled Buying Campaigns | OxSteed Logistics',
     description: 'Browse public OxSteed pooled buying campaigns and join group purchasing opportunities across global supply lanes.',
     schemaType: 'CollectionPage',
+    noIndex: true,
   },
   '/tool-rentals': {
     title: 'Tool Rentals Near You | OxSteed',
     description: 'Browse tools and equipment available for local rental through OxSteed.',
+    noIndex: true,
   },
   '/consulting-intake': {
     title: 'OxSteed Business Launch Program | Start Your Business',
@@ -698,8 +704,7 @@ function isPublicSeoPath(pagePath) {
   if (pagePath === '/' || pagePath === '/helpers' || pagePath === '/helpers/') return true;
   if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
-  if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath) || PUBLIC_TOOL_RE.test(pagePath)) return true;
-  if (PUBLIC_LOGISTICS_CAMPAIGN_RE.test(pagePath)) return true;
+  if (PUBLIC_JOB_RE.test(pagePath) || PUBLIC_RESTAURANT_RE.test(pagePath)) return true;
   return false;
 }
 

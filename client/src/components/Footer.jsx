@@ -150,14 +150,14 @@ export default function Footer() {
             gap: 'var(--space-6)',
             alignContent: 'start',
           }}>
-            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 {t('footer.company')}
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
             </div>
-            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 {t('footer.legal')}
               </span>
@@ -168,7 +168,7 @@ export default function Footer() {
               <FooterLink to="/legal/dispute-resolution">{t('footer.disputeResolution')}</FooterLink>
               <FooterLink to="/legal/independent-contractor">{t('footer.independentContractor')}</FooterLink>
             </div>
-            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 {t('footer.platform')}
               </span>
@@ -178,10 +178,14 @@ export default function Footer() {
                 <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
               )}
               <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
+              <FooterLink to="/restaurants">{t('footer.restaurants')}</FooterLink>
+              <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
+              <FooterLink to="/support/escalation">{t('footer.support')}</FooterLink>
               <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
               <FooterLink to={isHelper ? routeForMode(currentMode) : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
-              <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
+              <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
+              {LAUNCH_VISIBILITY.productMarketplace && <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>}
               {isHelper && (
                 <>
                   <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>
