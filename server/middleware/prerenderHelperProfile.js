@@ -381,6 +381,86 @@ const MARKETING_SHELL_LINKS = {
   ],
 };
 
+const MARKETING_SHELL_NAV_COPY = {
+  en: {
+    explore: 'Explore OxSteed',
+    findHelpers: 'Find local helpers',
+    browseJobs: 'Browse local jobs',
+    restaurants: 'OxSteed Restaurants',
+    directServices: 'OxSteed Direct services',
+    checkArea: 'Check the service area',
+    contactSupport: 'Contact OxSteed support',
+    viewDirectServices: 'View Direct services',
+    requestQuote: 'Request a quote',
+    viewQuote: 'View your quote',
+  },
+  es: {
+    explore: 'Explora OxSteed',
+    findHelpers: 'Encuentra ayudantes locales',
+    browseJobs: 'Explora trabajos locales',
+    restaurants: 'Restaurantes OxSteed',
+    directServices: 'Servicios Direct de OxSteed',
+    checkArea: 'Consulta el \u00e1rea de servicio',
+    contactSupport: 'Contacta al soporte de OxSteed',
+    viewDirectServices: 'Ver servicios Direct',
+    requestQuote: 'Solicitar una cotizaci\u00f3n',
+    viewQuote: 'Ver tu cotizaci\u00f3n',
+  },
+  fr: {
+    explore: 'D\u00e9couvrez OxSteed',
+    findHelpers: 'Trouver des aides locales',
+    browseJobs: 'Parcourir les missions locales',
+    restaurants: 'Restaurants OxSteed',
+    directServices: 'Services OxSteed Direct',
+    checkArea: 'V\u00e9rifier la zone de service',
+    contactSupport: 'Contacter le support OxSteed',
+    viewDirectServices: 'Voir les services Direct',
+    requestQuote: 'Demander un devis',
+    viewQuote: 'Voir votre devis',
+  },
+  ht: {
+    explore: 'Eksplore OxSteed',
+    findHelpers: 'Jwenn \u00e8d\u00e8 lokal',
+    browseJobs: 'Gade travay lokal yo',
+    restaurants: 'Restoran OxSteed',
+    directServices: 'S\u00e8vis OxSteed Direct',
+    checkArea: 'Verifye z\u00f2n s\u00e8vis la',
+    contactSupport: 'Kontakte sip\u00f2 OxSteed',
+    viewDirectServices: 'W\u00e8 s\u00e8vis Direct yo',
+    requestQuote: 'Mande yon pri',
+    viewQuote: 'W\u00e8 pri ou a',
+  },
+  ar: {
+    explore: '\u0627\u0633\u062a\u0643\u0634\u0641 OxSteed',
+    findHelpers: '\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0633\u0627\u0639\u062f\u064a\u0646 \u0645\u062d\u0644\u064a\u064a\u0646',
+    browseJobs: '\u062a\u0635\u0641\u062d \u0627\u0644\u0648\u0638\u0627\u0626\u0641 \u0627\u0644\u0645\u062d\u0644\u064a\u0629',
+    restaurants: '\u0645\u0637\u0627\u0639\u0645 OxSteed',
+    directServices: '\u062e\u062f\u0645\u0627\u062a OxSteed Direct',
+    checkArea: '\u062a\u062d\u0642\u0642 \u0645\u0646 \u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u062e\u062f\u0645\u0629',
+    contactSupport: '\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u062f\u0639\u0645 OxSteed',
+    viewDirectServices: '\u0639\u0631\u0636 \u062e\u062f\u0645\u0627\u062a Direct',
+    requestQuote: '\u0627\u0637\u0644\u0628 \u0639\u0631\u0636 \u0633\u0639\u0631',
+    viewQuote: '\u0639\u0631\u0636 \u0639\u0631\u0636 \u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u062e\u0627\u0635 \u0628\u0643',
+  },
+};
+
+function getMarketingShellNavCopy(req, label) {
+  const language = getRequestedLanguage(req);
+  const copy = MARKETING_SHELL_NAV_COPY[language] || MARKETING_SHELL_NAV_COPY.en;
+  const labelKey = {
+    'Find local helpers': 'findHelpers',
+    'Browse local jobs': 'browseJobs',
+    'OxSteed Restaurants': 'restaurants',
+    'OxSteed Direct services': 'directServices',
+    'Check the service area': 'checkArea',
+    'Contact OxSteed support': 'contactSupport',
+    'View Direct services': 'viewDirectServices',
+    'Request a quote': 'requestQuote',
+    'View your quote': 'viewQuote',
+  }[label];
+  return copy[labelKey] || label;
+}
+
 function getMarketingShellTranslation(req, key, fallback) {
   const language = getRequestedLanguage(req);
   if (language === 'en') return fallback;
@@ -425,11 +505,12 @@ function buildMarketingStaticShell(page, pagePath, req) {
   const description = String(page.description || '').trim();
   const links = MARKETING_SHELL_LINKS[pagePath] || [];
   const directContentHtml = buildDirectMarketingShellContent(pagePath, page, req);
+  const navCopy = MARKETING_SHELL_NAV_COPY[getRequestedLanguage(req)] || MARKETING_SHELL_NAV_COPY.en;
   const linksHtml = links.length
-    ? `<nav aria-label="Explore OxSteed" style="margin-top:2rem;">
-        <p style="font-weight:600;">Explore OxSteed</p>
+    ? `<nav aria-label="${escapeHtml(navCopy.explore)}" style="margin-top:2rem;">
+        <p style="font-weight:600;">${escapeHtml(navCopy.explore)}</p>
         <ul style="display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;padding-left:1.25rem;">
-          ${links.map(([linkPath, label]) => `<li><a href="${escapeHtml(linkPath === '/direct/service-area' ? `${base()}${linkPath}` : getLocalizedRequestUrl(linkPath, req))}">${escapeHtml(label)}</a></li>`).join('')}
+          ${links.map(([linkPath, label]) => `<li><a href="${escapeHtml(getLocalizedRequestUrl(linkPath, req))}">${escapeHtml(getMarketingShellNavCopy(req, label))}</a></li>`).join('')}
         </ul>
       </nav>`
     : '';
