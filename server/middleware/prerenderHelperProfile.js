@@ -50,7 +50,7 @@ const SEO_COPY_KEYS = {
   '/legal/independent-contractor': { title: 'contractorAgreement.pageTitle', description: 'contractorAgreement.pageDescription' },
   '/consulting-intake': { title: 'consulting.intakePageTitle', description: 'consulting.intakePageDesc' },
   '/direct': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
-  '/direct/services': { title: 'homePage.company.headingDirect', description: 'homePage.company.subcopy' },
+  '/direct/services': { title: 'publicSeo.direct.services.title', description: 'publicSeo.direct.services.description' },
   '/direct/request-quote': { title: 'directPortal.request.title', description: 'directPortal.request.subtitle' },
   '/direct/request-quote/thanks': { title: 'directPortal.thanks.title', description: 'directPortal.thanks.subtitle' },
   '/direct/view-quote': { title: 'directPortal.lookup.title', description: 'directPortal.lookup.subtitle' },
@@ -147,7 +147,11 @@ function getLocalizedSeoCopy(pagePath, page, req) {
   }
   return {
     ...page,
-    ...(title ? { title: `${String(title).trim()} | OxSteed` } : {}),
+    ...(title ? {
+      title: /\|\s*OxSteed\s*$/i.test(String(title).trim())
+        ? String(title).trim()
+        : `${String(title).trim()} | OxSteed`,
+    } : {}),
     ...(description ? { description: String(description).replace(/\s+/g, ' ').trim().slice(0, 320) } : {}),
   };
 }

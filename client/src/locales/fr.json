@@ -14392,6 +14392,12 @@
       "inventory": { "title": "Centre d'aide OxSteed Inventory | Stock et disponibilité", "description": "Découvrez comment OxSteed Inventory accompagne le suivi des stocks, la disponibilité, les comptages et les opérations de restaurant." },
       "crew": { "title": "Centre d'aide OxSteed Crew | Workflows de l'équipe", "description": "Découvrez comment OxSteed Crew aide le personnel avec les tâches, les listes de contrôle et la coordination quotidienne du restaurant." },
       "runner": { "title": "Centre d'aide OxSteed Runner | Remise et livraison", "description": "Découvrez comment OxSteed Runner accompagne le retrait, la remise, la coordination des livraisons et les mises à jour du service." }
+    },
+    "direct": {
+      "services": {
+        "title": "Services OxSteed Direct | Aide à domicile, transport et plus",
+        "description": "Découvrez l'aide à domicile, les travaux avec outils, la livraison, le transport, le nettoyage et l'installation d'OxSteed Direct dans un rayon de 60 miles autour de Springfield, Ohio."
+      }
     }
   },
   "directPortal": {

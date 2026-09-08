@@ -14396,6 +14396,12 @@
       "inventory": { "title": "OxSteed Inventory Help Center | Stock and Availability", "description": "Learn how OxSteed Inventory supports stock tracking, availability updates, counts, and restaurant operations." },
       "crew": { "title": "OxSteed Crew Help Center | Restaurant Team Workflows", "description": "Learn how OxSteed Crew supports restaurant staff, assignments, checklists, and daily service coordination." },
       "runner": { "title": "OxSteed Runner Help Center | Handoff and Delivery", "description": "Learn how OxSteed Runner supports order pickup, handoff, delivery coordination, and service status updates." }
+    },
+    "direct": {
+      "services": {
+        "title": "OxSteed Direct Services | Home Help, Hauling, and More",
+        "description": "Explore OxSteed Direct home help, tool-based jobs, delivery, hauling, cleanup, and setup within 60 miles of Springfield, Ohio."
+      }
     }
   },
   "directPortal": {

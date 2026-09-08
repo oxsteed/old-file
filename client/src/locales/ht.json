@@ -14392,6 +14392,12 @@
       "inventory": { "title": "Sant èd OxSteed Inventory | Stock ak disponiblite", "description": "Aprann kijan OxSteed Inventory sipòte swivi stock, disponiblite, konte ak operasyon restoran." },
       "crew": { "title": "Sant èd OxSteed Crew | Workflow ekip restoran", "description": "Aprann kijan OxSteed Crew ede anplwaye restoran ak travay, lis verifikasyon ak kowòdinasyon chak jou." },
       "runner": { "title": "Sant èd OxSteed Runner | Remiz ak livrezon", "description": "Aprann kijan OxSteed Runner sipòte ranmase kòmand, remiz, kowòdinasyon livrezon ak mizajou sèvis." }
+    },
+    "direct": {
+      "services": {
+        "title": "Sèvis OxSteed Dirèk | Èd lakay, transpò, ak plis ankò",
+        "description": "Eksplore èd lakay, travay ak zouti, livrezon, transpò, netwayaj ak preparasyon OxSteed Dirèk ofri nan yon distans 60 mil soti Springfield, Ohio."
+      }
     }
   },
   "directPortal": {
