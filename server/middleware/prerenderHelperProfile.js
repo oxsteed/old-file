@@ -176,38 +176,42 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
   }
   const ogLocale = OG_LOCALES[language] || OG_LOCALES.en;
   let out = html
-    .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+    .replace(/<title>[^<]*<\/title>/, `<title data-rh="true">${escapeHtml(title)}</title>`)
     .replace(
       /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
-      `<meta name="description" content="${escapeHtml(description)}" />`,
+      `<meta data-rh="true" name="description" content="${escapeHtml(description)}" />`,
+    )
+    .replace(
+      /<meta\s+property="og:site_name"\s+content="[^"]*"\s*\/?>/,
+      `<meta data-rh="true" property="og:site_name" content="OxSteed" />`,
     )
     .replace(
       /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:title" content="${escapeHtml(title)}" />`,
+      `<meta data-rh="true" property="og:title" content="${escapeHtml(title)}" />`,
     )
     .replace(
       /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:description" content="${escapeHtml(description)}" />`,
+      `<meta data-rh="true" property="og:description" content="${escapeHtml(description)}" />`,
     )
     .replace(
       /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:url" content="${escapeHtml(url)}" />`,
+      `<meta data-rh="true" property="og:url" content="${escapeHtml(url)}" />`,
     )
     .replace(
       /<meta\s+property="og:type"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:type" content="${escapeHtml(ogType)}" />`,
+      `<meta data-rh="true" property="og:type" content="${escapeHtml(ogType)}" />`,
     )
     .replace(
       /<meta\s+property="og:locale"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:locale" content="${ogLocale}" />`,
+      `<meta data-rh="true" property="og:locale" content="${ogLocale}" />`,
     )
     .replace(
       /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/,
-      `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
+      `<meta data-rh="true" name="twitter:title" content="${escapeHtml(title)}" />`,
     )
     .replace(
       /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/,
-      `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
+      `<meta data-rh="true" name="twitter:description" content="${escapeHtml(description)}" />`,
     );
 
   if (!/<meta\s+property="og:locale"/.test(out)) {
@@ -224,22 +228,22 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
   if (/<meta\s+property="og:image"/.test(out)) {
     out = out.replace(
       /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/,
-      `<meta property="og:image" content="${escapeHtml(img)}" />`,
+      `<meta data-rh="true" property="og:image" content="${escapeHtml(img)}" />`,
     );
   } else {
-    out = out.replace('</head>', `<meta property="og:image" content="${escapeHtml(img)}" />\n</head>`);
+    out = out.replace('</head>', `<meta data-rh="true" property="og:image" content="${escapeHtml(img)}" />\n</head>`);
   }
 
   if (/<meta\s+name="twitter:image"/.test(out)) {
     out = out.replace(
       /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/,
-      `<meta name="twitter:image" content="${escapeHtml(img)}" />`,
+      `<meta data-rh="true" name="twitter:image" content="${escapeHtml(img)}" />`,
     );
   } else {
-    out = out.replace('</head>', `<meta name="twitter:image" content="${escapeHtml(img)}" />\n</head>`);
+    out = out.replace('</head>', `<meta data-rh="true" name="twitter:image" content="${escapeHtml(img)}" />\n</head>`);
   }
 
-  const canon = `<link rel="canonical" href="${escapeHtml(url)}" />`;
+  const canon = `<link data-rh="true" rel="canonical" href="${escapeHtml(url)}" />`;
   if (/<link\s+rel="canonical"/.test(out)) {
     out = out.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, canon);
   } else {
@@ -250,7 +254,7 @@ function replaceMeta(html, { title, description, url, ogType = 'website', image 
 }
 
 function replaceRobots(html, content) {
-  const tag = `<meta name="robots" content="${escapeHtml(content)}" />`;
+  const tag = `<meta data-rh="true" name="robots" content="${escapeHtml(content)}" />`;
   if (/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/.test(html)) {
     return html.replace(/<meta\s+name="robots"\s+content="[^"]*"\s*\/?>/, tag);
   }
