@@ -1214,7 +1214,15 @@ exports.getFinancials = async (req, res) => {
     const params = []; let paramIdx = 1; let condition = '';
     if (type) { condition = `WHERE source_type = $${paramIdx++}`; params.push(type); }
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
-    const { rows: totals } = await db.query(`SELECT SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END) AS gross_revenue_cents, SUM(amount_cents) AS net_revenue_cents FROM platform_ledger`);
+    const { rows: totals } = await db.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS gross_revenue_cents,
+        COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS job_fee_revenue_cents,
+        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS subscription_revenue_cents,
+        COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0) AS total_refunds_cents,
+        COALESCE(SUM(amount_cents), 0) AS net_revenue_cents
+      FROM platform_ledger
+    `);
     res.json({ ledger: rows, totals: totals[0], page: parseInt(page), limit: parseInt(limit) });
   } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };

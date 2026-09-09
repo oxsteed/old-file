@@ -201,22 +201,32 @@ export default function FeeConfig() {
   const [resetting, setResetting] = useState(false);
   const [resetReason, setResetReason] = useState('');
   const [showReset, setShowReset] = useState(false);
+  const [error, setError] = useState('');
 
-  const load = () => {
-    Promise.all([
-      api.get('/fee-config'),
-      api.get('/fee-config/history'),
-    ]).then(([cfgRes, histRes]) => {
-      setConfig(cfgRes.data.config);
-      setHistory(histRes.data.history);
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [cfgRes, histRes] = await Promise.all([
+        api.get('/fee-config'),
+        api.get('/fee-config/history'),
+      ]);
+      setConfig(cfgRes.data.config || []);
+      setHistory(histRes.data.history || []);
+    } catch (err) {
+      setConfig([]);
+      setHistory([]);
+      setError(err.response?.data?.error || 'Failed to load fee configuration.');
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   useEffect(() => { load(); }, []);
 
   const handleReset = async () => {
     setResetting(true);
+    setError('');
     try {
       await api.post('/fee-config/reset', {
         reason: resetReason || 'Manual reset to defaults',
@@ -224,6 +234,8 @@ export default function FeeConfig() {
       setShowReset(false);
       setResetReason('');
       load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reset fee configuration.');
     } finally {
       setResetting(false);
     }
@@ -263,6 +275,15 @@ export default function FeeConfig() {
           Reset to Defaults
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          <span>{error}</span>
+          <button onClick={load} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
+        </div>
+      )}
 
       {showReset && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">

@@ -7,9 +7,11 @@ export default function Revenue() {
   const [period, setPeriod] = useState('30d');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const fetchRevenue = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await adminApi.get('/admin/super/revenue', {
         params: { period }
@@ -18,7 +20,9 @@ export default function Revenue() {
       setTransactions(data.transactions || []);
     } catch (err) {
       console.error('Failed to fetch revenue:', err);
-      setStats({ totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0 });
+      setStats(null);
+      setTransactions([]);
+      setError(err.response?.data?.error || 'Failed to load revenue.');
     } finally {
       setLoading(false);
     }
@@ -26,7 +30,10 @@ export default function Revenue() {
 
   useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
 
-  const fmt = (v) => `$${(v || 0).toFixed(2)}`;
+  const fmt = (v) => {
+    const amount = Number(v);
+    return `$${Number.isFinite(amount) ? amount.toFixed(2) : '0.00'}`;
+  };
 
   const exportCSV = async () => {
     try {
@@ -35,7 +42,10 @@ export default function Revenue() {
       const a = document.createElement('a'); a.href = url;
       a.download = `revenue_${period}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click(); window.URL.revokeObjectURL(url);
-    } catch (err) { console.error('Export failed:', err); }
+    } catch (err) {
+      console.error('Export failed:', err);
+      setError(err.response?.data?.error || 'Failed to export revenue.');
+    }
   };
 
   return (
@@ -58,6 +68,15 @@ export default function Revenue() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{error}</span>
+          <button onClick={fetchRevenue} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[

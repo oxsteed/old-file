@@ -15,24 +15,30 @@ export default function Financials() {
   const [type,    setType]    = useState('');
   const [page,    setPage]    = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState('');
+  const [retry,   setRetry]   = useState(0);
 
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
+      setError('');
       try {
         const { data } = await adminApi.get('/admin/financials', {
           params: { type, page, limit: 30 }
         });
-        setLedger(data.ledger);
-        setTotals(data.totals);
+        setLedger(data.ledger || []);
+        setTotals(data.totals || null);
       } catch (err) {
         console.error(err);
+        setLedger([]);
+        setTotals(null);
+        setError(err.response?.data?.error || 'Failed to load financials.');
       } finally {
         setLoading(false);
       }
     };
     fetch();
-  }, [type, page]);
+  }, [type, page, retry]);
 
   const handleExport = async () => {
     try {
@@ -47,6 +53,7 @@ export default function Financials() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
+      setError(err.response?.data?.error || 'Failed to export financials.');
     }
   };
 
@@ -69,6 +76,15 @@ export default function Financials() {
           Export CSV
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{error}</span>
+          <button onClick={() => setRetry(value => value + 1)} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Revenue summary */}
       {totals && (

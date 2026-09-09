@@ -4,6 +4,8 @@ import adminApi                from '../../../lib/adminApi';
 export default function AuditLog() {
   const [log,     setLog]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const [page,    setPage]    = useState(1);
   const [filters, setFilters] = useState({
     action: '', target_type: ''
@@ -12,19 +14,22 @@ export default function AuditLog() {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
+      setError('');
       try {
         const { data } = await adminApi.get('/admin/audit-log', {
           params: { page, limit: 50, ...filters }
         });
-                setLog(data.log);
+        setLog(data.log || []);
       } catch (err) {
         console.error(err);
+        setLog([]);
+        setError(err.response?.data?.error || 'Failed to load the audit log.');
       } finally {
         setLoading(false);
       }
     };
     fetch();
-  }, [page, filters]);
+  }, [page, filters, retry]);
 
   const ACTION_COLORS = {
     user_banned:          'text-red-400',
@@ -61,14 +66,14 @@ export default function AuditLog() {
           type="text"
           placeholder="Filter by action..."
           value={filters.action}
-          onChange={e => setFilters(f => ({ ...f, action: e.target.value }))}
+          onChange={e => { setPage(1); setFilters(f => ({ ...f, action: e.target.value })); }}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
                      text-sm text-white placeholder-gray-500
                      focus:outline-none focus:border-orange-500 w-52"
         />
         <select
           value={filters.target_type}
-          onChange={e => setFilters(f => ({ ...f, target_type: e.target.value }))}
+          onChange={e => { setPage(1); setFilters(f => ({ ...f, target_type: e.target.value })); }}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
                      text-sm text-gray-300 focus:outline-none
                      focus:border-orange-500"
@@ -79,6 +84,15 @@ export default function AuditLog() {
           ))}
         </select>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{error}</span>
+          <button onClick={() => setRetry(value => value + 1)} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Log table */}
       <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">

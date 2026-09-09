@@ -36,6 +36,7 @@ export default function SearchLogs() {
   const [logs,         setLogs]         = useState([]);
   const [stats,        setStats]        = useState(null);
   const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
   const [total,        setTotal]        = useState(0);
   const [offset,       setOffset]       = useState(0);
   // inputFilters: live text box values (updated on every keystroke)
@@ -49,14 +50,18 @@ export default function SearchLogs() {
 
   const fetchLogs = async (params = {}) => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await adminApi.get('/admin/super/search-logs', {
         params: { limit: LIMIT, offset, ...filters, ...params },
       });
-      setLogs(data.logs);
-      setTotal(data.total);
+      setLogs(data.logs || []);
+      setTotal(data.total || 0);
     } catch (err) {
       console.error(err);
+      setLogs([]);
+      setTotal(0);
+      setError(err.response?.data?.error || 'Failed to load search logs.');
     } finally {
       setLoading(false);
     }
@@ -68,6 +73,7 @@ export default function SearchLogs() {
       setStats(data);
     } catch (err) {
       console.error(err);
+      setError(err.response?.data?.error || 'Failed to load search statistics.');
     }
   };
 
@@ -114,6 +120,15 @@ export default function SearchLogs() {
           Refresh Stats
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{error}</span>
+          <button onClick={() => { fetchStats(); fetchLogs(); }} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats bar */}
       {stats && <StatsBar stats={stats.summary} />}

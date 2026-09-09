@@ -15,12 +15,16 @@ export default function PricingConfig() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError('');
     api.get('/config/pricing')
-      .then(res => { setForm(res.data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+      .then(res => { setForm(prev => ({ ...prev, ...res.data })); })
+      .catch(err => setError(err.response?.data?.error || 'Failed to load pricing configuration.'))
+      .finally(() => setLoading(false));
+  }, [retry]);
 
   const handleSave = async () => {
     setSaved(false);
@@ -38,6 +42,20 @@ export default function PricingConfig() {
   }
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
+
+  if (error) {
+    return (
+      <div className="p-8 text-center text-gray-300">
+        <p className="text-red-400">{error}</p>
+        <button
+          onClick={() => setRetry(value => value + 1)}
+          className="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded font-medium"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const fields = [
     { key: 'tier1_price', label: 'Tier 1 Price' },

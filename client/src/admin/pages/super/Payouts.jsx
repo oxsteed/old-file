@@ -10,9 +10,11 @@ export default function Payouts() {
   const [stats, setStats] = useState({ pending: 0, processing: 0, completed: 0, totalPaid: 0 });
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
 
   const fetchPayouts = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await adminApi.get('/admin/payouts', {
         params: { status: activeTab }
@@ -24,6 +26,7 @@ export default function Payouts() {
       console.error('Failed to fetch payouts:', err);
       setPayouts([]);
       setNotice('');
+      setError(err.response?.data?.error || 'Failed to load payouts.');
     } finally {
       setLoading(false);
     }
@@ -31,7 +34,10 @@ export default function Payouts() {
 
   useEffect(() => { fetchPayouts(); }, [fetchPayouts]);
 
-  const fmt = (v) => `$${(v || 0).toFixed(2)}`;
+  const fmt = (v) => {
+    const amount = Number(v);
+    return `$${Number.isFinite(amount) ? amount.toFixed(2) : '0.00'}`;
+  };
 
   return (
     <div>
@@ -46,6 +52,15 @@ export default function Payouts() {
         <div className="flex items-center gap-2 mb-6 px-4 py-3 bg-yellow-900/40 border border-yellow-700/60 rounded-xl text-yellow-300 text-sm">
           <AlertTriangle size={16} className="shrink-0" />
           {notice}
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 bg-red-900/30 border border-red-700/60 rounded-xl text-red-300 text-sm">
+          <span>{error}</span>
+          <button onClick={fetchPayouts} className="px-3 py-1.5 rounded-lg bg-red-700/60 hover:bg-red-700 text-white text-xs font-semibold">
+            Retry
+          </button>
         </div>
       )}
 
