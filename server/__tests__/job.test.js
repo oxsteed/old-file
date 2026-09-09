@@ -71,16 +71,18 @@ describe('GET /api/jobs', () => {
 // ── GET /api/jobs/:id ─────────────────────────────────────────────────────────
 describe('GET /api/jobs/:id', () => {
   test('returns 404 for unknown job', async () => {
+    mockAuth();
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    const res = await request(buildApp()).get('/api/jobs/999');
+    const res = await auth(request(buildApp()).get('/api/jobs/999'));
     expect(res.status).toBe(404);
   });
 
   test('returns job details', async () => {
+    mockAuth();
     mockQuery.mockResolvedValueOnce({ rows: [
       { id: 10, title: 'Fix my fence', status: 'published', client_id: 1 },
     ] });
-    const res = await request(buildApp()).get('/api/jobs/10');
+    const res = await auth(request(buildApp()).get('/api/jobs/10'));
     expect(res.status).toBe(200);
   });
 });

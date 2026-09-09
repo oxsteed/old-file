@@ -32,6 +32,7 @@ router.post(
 // Get session and messages (public for now, can be restricted later)
 router.get(
   '/sessions/:sessionId',
+  generalLimiter,
   getSession
 );
 
