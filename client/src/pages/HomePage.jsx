@@ -146,7 +146,7 @@ function HomeCompanySection() {
           </div>
 
           <div className="hp-company-grid">
-            <div className="hp-company-catalog-slot hp-company-panel--wide">
+            <div className="hp-company-catalog-slot hp-company-panel--wide direct-catalog-content">
               {catalogLoading && (
                 <div className="hp-company-catalog-state">
                   {t('directCatalog.loading', { defaultValue: 'Loading Direct services...' })}
