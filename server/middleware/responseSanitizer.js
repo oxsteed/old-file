@@ -100,6 +100,13 @@ function addAdditionalSecurityHeaders(req, res, next) {
   // Referrer policy
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+  // Do not let browsers or intermediary caches retain authenticated API and
+  // admin responses. Public page assets keep their existing cache policy.
+  if (req.path?.startsWith('/api/') || req.path?.startsWith('/admin/')) {
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
+  }
+
   // Permissions policy (Chromium)
   res.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
 

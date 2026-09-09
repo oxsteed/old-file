@@ -36,7 +36,7 @@ const validateFileUpload = async (req, res, next) => {
         if (safeTextExtensions.includes(ext)) continue;
 
         logger.warn('File type detection failed', { filename: file.originalname, size: file.size });
-        return res.status(400).json({ error: `Security check failed: Could not determine file type for ${file.originalname}.` });
+        return res.status(400).json({ error: 'Security check failed: Could not determine file type.' });
       }
 
       // Check for discrepancies between detected MIME and what the browser/multer reported
@@ -52,7 +52,7 @@ const validateFileUpload = async (req, res, next) => {
                 reported: file.mimetype, 
                 detected: detected.mime 
             });
-            return res.status(400).json({ error: `Security check failed: File content does not match reported extension for ${file.originalname}.` });
+            return res.status(400).json({ error: 'Security check failed: File content does not match the reported type.' });
         }
       }
 

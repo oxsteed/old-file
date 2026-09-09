@@ -42,7 +42,16 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+    // Bound multipart metadata as well as file bytes to reduce parser DoS risk.
+    fieldNameSize: 100,
+    fieldSize: 64 * 1024,
+    fields: 30,
+    files: 10,
+    parts: 40,
+    headerPairs: 200,
+  },
 });
 
 module.exports = upload;

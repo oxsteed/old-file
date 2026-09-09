@@ -164,7 +164,7 @@ describe('live support connection lifecycle', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'ticket-new' }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-new' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const req = {

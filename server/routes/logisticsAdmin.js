@@ -13,8 +13,8 @@ const poCtrl     = require('../controllers/logisticsPurchaseOrdersController');
 const pooledCtrl = require('../controllers/logisticsPooledOrdersController');
 const whCtrl     = require('../controllers/logisticsWarehouseController');
 const sourcingCtrl = require('../controllers/logisticsSourcingController');
-const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const upload = require('../middleware/logisticsUpload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const { requireRole } = require('../middleware/auth');
 
@@ -84,7 +84,7 @@ router.get('/shipments/:id',                 requireOperationsWorkspace, shipCtr
 router.post('/shipments',                    requireOperationsWorkspace, shipCtrl.createShipment);
 router.post('/shipments/:id/milestone',      requireOperationsWorkspace, shipCtrl.addMilestone);
 router.patch('/shipments/:id/tracking',      requireOperationsWorkspace, shipCtrl.updateTracking);
-router.post('/shipments/:id/documents', requireOperationsWorkspace, upload.single('file'), shipCtrl.uploadDocument);
+router.post('/shipments/:id/documents', requireOperationsWorkspace, upload.single('file'), validateFileUpload, shipCtrl.uploadDocument);
 
 // ─── Warehouses ───────────────────────────────────────────────
 

@@ -28,7 +28,15 @@ function parseBufferMinutes(value) {
 
 const coverUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    fieldNameSize: 100,
+    fieldSize: 64 * 1024,
+    fields: 10,
+    files: 1,
+    parts: 12,
+    headerPairs: 200,
+  },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
     if (allowedMimes.includes(file.mimetype)) cb(null, true);

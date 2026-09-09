@@ -57,7 +57,11 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
     }
 
     if (meta?.originalName) {
-      res.setHeader('Content-Disposition', `inline; filename="${String(meta.originalName).replace(/"/g, '')}"`);
+      const safeFilename = path.basename(String(meta.originalName))
+        .replace(/[^A-Za-z0-9._ -]/g, '_')
+        .replace(/\.{2,}/g, '.')
+        .slice(0, 160) || 'download';
+      res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
     }
 
     return res.send(buffer);

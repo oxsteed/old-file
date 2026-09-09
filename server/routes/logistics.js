@@ -6,8 +6,8 @@
 const router = require('express').Router();
 const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
-const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const upload = require('../middleware/logisticsUpload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 const lanesCtrl     = require('../controllers/logisticsLanesController');
 const sourcingCtrl  = require('../controllers/logisticsSourcingController');
@@ -80,7 +80,7 @@ router.get('/shipments/:id',            requireAuth, shipCtrl.getShipment);
 router.post('/shipments',               requireAuth, requireShipmentOps, shipCtrl.createShipment);
 router.post('/shipments/:id/milestone', requireAuth, requireShipmentOps, shipCtrl.addMilestone);
 router.patch('/shipments/:id/tracking', requireAuth, requireShipmentOps, shipCtrl.updateTracking);
-router.post('/shipments/:id/documents', requireAuth, requireShipmentOps, upload.single('file'), shipCtrl.uploadDocument);
+router.post('/shipments/:id/documents', requireAuth, requireShipmentOps, upload.single('file'), validateFileUpload, shipCtrl.uploadDocument);
 
 // ─── Warehouses / Receiving / Allocations / Delivery ─────────
 

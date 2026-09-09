@@ -10,7 +10,46 @@ const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
 const { waitingState } = require('../services/supportWaitService');
 const supportConversationsController = require('./supportConversationsController');
+const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
+
+async function canViewConversation(conversation, user) {
+  if (!conversation || !user) return false;
+  if (supportEmployerService.isPlatformAdmin(user.role)) return true;
+  if (conversation.customer_id === user.id) return true;
+
+  if (conversation.agent_id) {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM support_agents WHERE id = $1 AND user_id = $2 AND status = \'active\'',
+      [conversation.agent_id, user.id]
+    );
+    if (rows.length) return true;
+  }
+
+  return supportEmployerService.userCanAccessBusinessConversations(
+    conversation.business_id,
+    user.id,
+    user.role
+  );
+}
+
+async function canManageConversation(conversation, user) {
+  if (!conversation || !user) return false;
+  if (supportEmployerService.isPlatformAdmin(user.role)) return true;
+
+  if (conversation.agent_id) {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM support_agents WHERE id = $1 AND user_id = $2 AND status = \'active\'',
+      [conversation.agent_id, user.id]
+    );
+    if (rows.length) return true;
+  }
+
+  return supportEmployerService.userCanAdministrateBusiness(
+    conversation.business_id,
+    user.id
+  );
+}
 
 function assignedAgentFromRow(row) {
   if (!row?.agent_id) return null;
@@ -109,13 +148,28 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
   };
 
   if (routing.routedTo === 'agent' && routing.agentId) {
-    await withTransaction(pool, async (client) => {
-      await client.query(
+    const assigned = await withTransaction(pool, async (client) => {
+      const assignmentResult = await client.query(
         `UPDATE support_conversations
          SET agent_id = $1, status = 'in_progress', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
-         WHERE id = $2`,
+         WHERE id = $2
+           AND agent_id IS NULL
+           AND status NOT IN ('resolved', 'closed')
+           AND (
+             SELECT COUNT(*)
+             FROM support_conversations active_conversations
+             WHERE active_conversations.agent_id = $1
+               AND active_conversations.status NOT IN ('resolved', 'closed')
+               AND active_conversations.id <> $2
+           ) < COALESCE((
+             SELECT max_concurrent_chats FROM support_agents WHERE id = $1
+           ), 3)
+         RETURNING id`,
         [routing.agentId, ticketId]
       );
+
+      if (!assignmentResult.rows.length) return false;
+
       await client.query(
         `INSERT INTO conversation_assignments
          (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
@@ -126,25 +180,34 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
          )`,
         [ticketId, routing.agentId, businessId]
       );
+      return true;
     }, 'support_auto_route_assignment');
 
-    response.assignedAgent = {
-      id: routing.agent.id,
-      name: [routing.agent.first_name, routing.agent.last_name].filter(Boolean).join(' ').trim()
-        || routing.agent.email
-        || 'Support specialist',
-      email: routing.agent.email || null,
-    };
+    if (assigned) {
+      response.assignedAgent = {
+        id: routing.agent.id,
+        name: [routing.agent.first_name, routing.agent.last_name].filter(Boolean).join(' ').trim()
+          || routing.agent.email
+          || 'Support specialist',
+        email: routing.agent.email || null,
+      };
 
-    WebSocketService.notifyAgent(routing.agentId, 'ticket:new-assignment', {
-      ticketId,
-      customerName: visitorName,
-      customerEmail: visitorEmail,
-      category,
-      message,
-      timestamp: new Date().toISOString(),
-    });
-  } else {
+      WebSocketService.notifyAgent(routing.agentId, 'ticket:new-assignment', {
+        ticketId,
+        customerName: visitorName,
+        customerEmail: visitorEmail,
+        category,
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      // The agent filled up between availability lookup and assignment.
+      // Use the normal queue path rather than promising a live response.
+      response.routedTo = 'queue';
+    }
+  }
+
+  if (response.routedTo !== 'agent') {
     const { rows: waitingRows } = await pool.query(
       `UPDATE support_conversations
        SET status = 'waiting_for_agent',
@@ -403,6 +466,9 @@ exports.getConversation = async (req, res) => {
     }
 
     const conversation = result.rows[0];
+    if (!(await canViewConversation(conversation, req.user))) {
+      return sendError(res, 403, 'Access denied');
+    }
 
     // Get messages (excluding soft-deleted messages, only active within 180-day window)
     const messagesQuery = `
@@ -445,6 +511,17 @@ exports.updateStatus = async (req, res) => {
       return sendValidationError(res, { status: 'Invalid status' });
     }
 
+    const conversationResult = await pool.query(
+      'SELECT id, business_id, customer_id, agent_id FROM support_conversations WHERE id = $1',
+      [ticketId]
+    );
+    if (!conversationResult.rows.length) {
+      return sendError(res, 404, 'Conversation not found');
+    }
+    if (!(await canManageConversation(conversationResult.rows[0], req.user))) {
+      return sendError(res, 403, 'Access denied');
+    }
+
     const query = `
       UPDATE support_conversations
       SET status = $1, updated_at = NOW()
@@ -477,12 +554,36 @@ exports.assignToAgent = async (req, res) => {
     const { ticketId } = req.params;
     const { agentId } = req.body;
 
-    // Verify agent exists and has capacity
+    const conversationResult = await pool.query(
+      'SELECT id, business_id, customer_id, agent_id FROM support_conversations WHERE id = $1',
+      [ticketId]
+    );
+    if (!conversationResult.rows.length) {
+      return sendError(res, 404, 'Conversation not found');
+    }
+    const canAssign = supportEmployerService.isPlatformAdmin(req.user.role)
+      || await supportEmployerService.userCanAdministrateBusiness(
+        conversationResult.rows[0].business_id,
+        req.user.id
+      );
+    if (!canAssign) return sendError(res, 403, 'Access denied');
+
+    // Manual assignment must use the same connected, fresh, capacity-aware
+    // eligibility view as automatic routing.
+    const availability = await SupportRoutingService.getLiveAvailability(
+      conversationResult.rows[0].business_id
+    );
+    const selectedAgent = availability.liveAgents.find((agent) => agent.id === agentId);
+    if (!selectedAgent) {
+      return sendError(res, 409, 'Agent is not live-ready or has no remaining capacity');
+    }
+
+    // Verify the selected agent still exists and is active before writing.
     const agentQuery = `
       SELECT sa.id, u.first_name, u.last_name
       FROM support_agents sa
       JOIN users u ON u.id = sa.user_id
-      WHERE sa.id = $1 AND sa.status = 'active' AND sa.is_available = true
+      WHERE sa.id = $1 AND sa.status = 'active' AND sa.is_available = true AND u.is_active = true
     `;
     const agentResult = await pool.query(agentQuery, [agentId]);
     if (agentResult.rows.length === 0) {
@@ -490,14 +591,26 @@ exports.assignToAgent = async (req, res) => {
     }
 
     // Assign
-      const assignQuery = `
-        UPDATE support_conversations
-        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
-        WHERE id = $2
+    const assignQuery = `
+      UPDATE support_conversations
+      SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
+      WHERE id = $2
+        AND (
+          SELECT COUNT(*)
+          FROM support_conversations active_conversations
+          WHERE active_conversations.agent_id = $1
+            AND active_conversations.status NOT IN ('resolved', 'closed')
+            AND active_conversations.id <> $2
+        ) < COALESCE((
+          SELECT max_concurrent_chats FROM support_agents WHERE id = $1
+        ), 3)
       RETURNING *
     `;
 
     const result = await pool.query(assignQuery, [agentId, ticketId]);
+    if (!result.rows.length) {
+      return sendError(res, 409, 'Agent reached capacity before assignment completed');
+    }
 
     // Notify agent via WebSocket
     WebSocketService.notifyAgent(agentId, 'ticket:assigned-to-you', {

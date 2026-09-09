@@ -69,6 +69,10 @@ const securityHeaders = helmet({
   hidePoweredBy: true,
   // DNS prefetch control
   dnsPrefetchControl: { allow: false },
+  // Isolate the document from cross-origin opener and resource contexts.
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  originAgentCluster: true,
   // IE no-open
   ieNoOpen: true,
   // Permissions policy

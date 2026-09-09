@@ -1,9 +1,73 @@
 const db = require('../db');
+const crypto = require('crypto');
 const { uuidv4 } = require('../utils/uuid');
 const { withChatTransaction, updateSessionStatus, logChatEvent, queueMessageIfTransitioning, drainMessageQueue } = require('../services/chatTransactionService');
 const { broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage } = require('../services/socketService');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+
+const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const GUEST_TOKEN_SECRET = String(
+  process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'development-only-guest-chat-secret'
+).trim();
+
+function createGuestToken(sessionId) {
+  const expiresAt = Math.floor(Date.now() / 1000) + GUEST_TOKEN_TTL_SECONDS;
+  const payload = `${sessionId}.${expiresAt}`;
+  const signature = crypto.createHmac('sha256', GUEST_TOKEN_SECRET).update(payload).digest('hex');
+  return `${payload}.${signature}`;
+}
+
+function getGuestToken(req) {
+  const authorization = String(req.headers.authorization || '');
+  if (authorization.startsWith('Guest ')) return authorization.slice(6).trim();
+  return String(req.headers['x-guest-chat-token'] || '').trim();
+}
+
+function verifyGuestToken(req, sessionId) {
+  const [tokenSessionId, expiryText, signature] = getGuestToken(req).split('.');
+  const expiry = Number.parseInt(expiryText, 10);
+  if (!tokenSessionId || tokenSessionId !== sessionId || !Number.isFinite(expiry)
+    || expiry < Math.floor(Date.now() / 1000) || !/^[a-f0-9]{64}$/i.test(signature || '')) {
+    return false;
+  }
+
+  const expected = crypto.createHmac('sha256', GUEST_TOKEN_SECRET)
+    .update(`${tokenSessionId}.${expiry}`)
+    .digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(signature, 'utf8'), Buffer.from(expected, 'utf8'));
+}
+
+function requireGuestSessionToken(req, sessionId) {
+  if (!verifyGuestToken(req, sessionId)) {
+    throw new AppError('Guest session verification required', 401, 'guest_session_verification_required');
+  }
+}
+
+async function requireGuestChatStaff(req) {
+  const userId = req.user?.id;
+  if (!userId) {
+    throw new AppError('Authentication required', 401, 'auth_error');
+  }
+
+  if (req.user.role === 'admin' || req.user.role === 'super_admin') return;
+
+  const { rows } = await db.query(
+    `SELECT 1
+     FROM support_agents sa
+     JOIN users u ON u.id = sa.user_id
+     WHERE sa.user_id = $1
+       AND sa.status = 'active'
+       AND u.is_active = true
+       AND u.deleted_at IS NULL
+     LIMIT 1`,
+    [userId]
+  );
+
+  if (!rows.length) {
+    throw new AppError('Support staff access required', 403, 'forbidden');
+  }
+}
 
 /**
  * Guest creates a new chat session and sends initial message
@@ -54,18 +118,12 @@ async function createGuestSession(req, res, next) {
       await logChatEvent(client, sessionId, 'session_created', {
         triggeredBy: null,
         metadata: {
-          guest_name: guestName,
-          guest_email: guestEmail,
           consent_monitoring: consentMonitoring
         }
       });
     }, 'create_guest_session');
 
-    logger.info('Guest chat session created', {
-      sessionId,
-      guestName,
-      consentMonitoring
-    });
+    logger.info('Guest chat session created', { sessionId, consentMonitoring });
 
     // Broadcast new session to online helpers and admins
     broadcastNewGuestSession({
@@ -80,6 +138,7 @@ async function createGuestSession(req, res, next) {
     res.status(201).json({
       sessionId,
       messageId,
+      guestToken: createGuestToken(sessionId),
       status: 'waiting_for_helper',
       deadlineMinutes: 5
     });
@@ -95,7 +154,8 @@ async function createGuestSession(req, res, next) {
 async function sendGuestMessage(req, res, next) {
   try {
     const { sessionId } = req.params;
-    const { guestName, message } = req.body;
+    requireGuestSessionToken(req, sessionId);
+    const { message } = req.body;
 
     if (!message || !message.trim()) {
       throw new AppError('Message is required', 400, 'validation_failed', { message: 'Message is required' });
@@ -109,7 +169,7 @@ async function sendGuestMessage(req, res, next) {
     await withChatTransaction(async (client) => {
       // Get session with lock
       const { rows: [session] } = await client.query(
-        `SELECT session_status FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
+        `SELECT session_status, guest_name FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
         [sessionId]
       );
 
@@ -124,7 +184,7 @@ async function sendGuestMessage(req, res, next) {
       // Check if we should queue this message
       const shouldQueue = await queueMessageIfTransitioning(client, sessionId, {
         sender_type: 'guest',
-        sender_name: guestName,
+        sender_name: session.guest_name,
         message
       });
 
@@ -135,7 +195,7 @@ async function sendGuestMessage(req, res, next) {
            (session_id, sender_type, sender_name, message, created_at)
            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
            RETURNING id`,
-          [sessionId, 'guest', guestName, message]
+          [sessionId, 'guest', session.guest_name, message]
         );
         messageId = msg.id;
       } else {
@@ -164,7 +224,7 @@ async function sendGuestMessage(req, res, next) {
       broadcastGuestChatMessage(sessionId, {
         messageId,
         senderType: 'guest',
-        senderName: guestName,
+        senderName: 'Guest',
         message,
         createdAt: new Date().toISOString()
       });
@@ -187,6 +247,7 @@ async function sendGuestMessage(req, res, next) {
 async function helperClaimSession(req, res, next) {
   try {
     const { sessionId } = req.params;
+    await requireGuestChatStaff(req);
     const helperId = req.user.id;
 
     if (!helperId) {
@@ -275,6 +336,7 @@ async function sendHelperMessage(req, res, next) {
   try {
     const { sessionId } = req.params;
     const { message } = req.body;
+    await requireGuestChatStaff(req);
     const helperId = req.user.id;
 
     if (!helperId) {
@@ -435,6 +497,7 @@ async function resolveSession(req, res, next) {
 async function getSession(req, res, next) {
   try {
     const { sessionId } = req.params;
+    requireGuestSessionToken(req, sessionId);
 
     const { rows: [session] } = await db.query(
       `SELECT * FROM guest_profile_chat_inbound WHERE id = $1`,
@@ -468,5 +531,7 @@ module.exports = {
   helperClaimSession,
   sendHelperMessage,
   resolveSession,
-  getSession
+  getSession,
+  createGuestToken,
+  verifyGuestToken,
 };

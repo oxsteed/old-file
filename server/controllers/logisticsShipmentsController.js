@@ -62,7 +62,11 @@ exports.uploadDocument = async (req, res, next) => {
     }
     let fileUrl = null;
     if (req.file) {
-      const key = `logistics/shipment-docs/${req.params.id}/${Date.now()}-${req.file.originalname}`;
+      const safeFilename = String(req.file.originalname || 'document')
+        .replace(/[^A-Za-z0-9._ -]/g, '_')
+        .replace(/\.{2,}/g, '.')
+        .slice(0, 160) || 'document';
+      const key = `logistics/shipment-docs/${req.params.id}/${Date.now()}-${safeFilename}`;
       fileUrl = await storage.uploadFile(key, req.file.buffer, req.file.mimetype);
     }
     if (!fileUrl) return next(new AppError('File upload failed', 500, 'upload_failed'));
