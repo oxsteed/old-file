@@ -277,6 +277,49 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('treats the multipart legacy fields as a public agent reply when requested', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: 'agent-1',
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-agent-2',
+          content: 'Public follow-up.',
+          created_at: '2026-08-13T00:03:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-1' },
+      body: { message: 'Public follow-up.', is_internal: 'false' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    expect(insertCall[1][2]).toBe('text');
+    expect(insertCall[1][3]).toBe('Public follow-up.');
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'ticket-1',
+      'message:new',
+      expect.objectContaining({
+        content: 'Public follow-up.',
+        isInternal: false,
+      })
+    );
+  });
+
   test('lets a platform admin leave a private note without broadcasting it to the customer', async () => {
     mockQuery
       .mockResolvedValueOnce({
@@ -450,5 +493,66 @@ describe('live support connection lifecycle', () => {
     const messageCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages scm/.test(sql));
     expect(messageCall[0]).toContain("scm.message_type <> 'internal_note'");
     expect(messageCall[1]).toEqual(['ticket-1', true]);
+  });
+
+  test('returns same-email support history with internal notes to authorized staff only', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-current',
+          business_id: 42,
+          customer_id: 'customer-1',
+          guest_email: null,
+          agent_id: null,
+          customer_email: 'customer@example.com',
+          subject: 'Current request',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'current-message', content: 'Current message' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-previous',
+          business_id: 42,
+          customer_email: 'customer@example.com',
+          subject: 'Previous request',
+          status: 'resolved',
+          customer_message_count: 1,
+          agent_message_count: 2,
+          created_at: '2026-08-12T00:00:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'note-previous',
+          conversation_id: 'ticket-previous',
+          message_type: 'internal_note',
+          content: 'Followed up by email.',
+          is_agent: true,
+        }],
+      });
+
+    const req = {
+      user: { id: 'admin-1', role: 'super_admin' },
+      params: { conversationId: 'ticket-current' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.getConversation(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        customerHistory: expect.objectContaining({
+          email: 'customer@example.com',
+          previousConversationCount: 1,
+          conversations: [expect.objectContaining({
+            id: 'ticket-previous',
+            messages: [expect.objectContaining({
+              message_type: 'internal_note',
+              content: 'Followed up by email.',
+            })],
+          })],
+        }),
+      }),
+    }));
   });
 });

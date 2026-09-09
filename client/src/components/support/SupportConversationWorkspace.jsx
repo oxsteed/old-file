@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   Headphones,
+  History,
   Inbox,
   Lock,
   MessageSquare,
@@ -151,6 +152,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     loadDetail(selectedId);
   }, [loadDetail, selectedId]);
 
+  // Each conversation starts in public-reply mode so a prior private note
+  // selection cannot silently carry over to the next customer.
+  useEffect(() => {
+    setReply('');
+    setAttachment(null);
+    setInternalNote(false);
+  }, [selectedId]);
+
   useEffect(() => {
     const refresh = () => {
       loadConversations({ quiet: true });
@@ -291,9 +300,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setBusy(true);
     try {
       const body = new FormData();
-      if (content) body.append('message', content);
+      if (content) body.append('content', content);
       if (attachment) body.append('file', attachment);
-      body.append('is_internal', String(internalNote));
+      body.append('isInternal', String(internalNote));
       await api.post(`/support/conversations/${selected.id}/message`, body);
       setReply('');
       setAttachment(null);
@@ -482,6 +491,54 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (
                   <div className="space-y-4">
+                    {selected.customerHistory?.previousConversationCount > 0 && (
+                      <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-orange-200">
+                            <History size={16} /> Customer history
+                          </div>
+                          <span className="rounded-full border border-orange-500/30 px-2.5 py-1 text-[11px] font-semibold text-orange-200">
+                            {selected.customerHistory.previousConversationCount} previous conversation{selected.customerHistory.previousConversationCount === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">
+                          Verified support history for {selected.customerHistory.email || selected.customer_email}. Internal notes are visible only to authorized support staff.
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {selected.customerHistory.conversations.map((history) => (
+                            <details key={history.id} className="rounded-xl border border-slate-800 bg-slate-950/70">
+                              <summary className="cursor-pointer list-none px-3 py-3 text-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="font-semibold text-slate-200">{history.subject}</span>
+                                  <span className="text-xs text-slate-500">{statusBadge(history.status)} · {formatWhen(history.created_at)}</span>
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {history.customer_message_count || 0} customer message{history.customer_message_count === 1 ? '' : 's'} · {history.agent_message_count || 0} support message{history.agent_message_count === 1 ? '' : 's'}
+                                </div>
+                              </summary>
+                              <div className="space-y-2 border-t border-slate-800 px-3 py-3">
+                                {history.messages.length === 0 && <p className="text-xs text-slate-500">No messages recorded.</p>}
+                                {history.messages.map((message) => {
+                                  const fromAgent = Boolean(message.is_agent || message.is_from_agent);
+                                  const isNote = message.message_type === 'internal_note';
+                                  return (
+                                    <div key={message.id} className={`rounded-xl border px-3 py-2 text-xs ${isNote ? 'border-amber-500/30 bg-amber-500/10 text-amber-100' : fromAgent ? 'border-orange-500/20 bg-orange-500/10 text-orange-100' : 'border-slate-800 bg-slate-900 text-slate-300'}`}>
+                                      <div className="mb-1 flex items-center gap-2 text-[10px] opacity-70">
+                                        <span>{message.sender_name || (fromAgent ? 'Support team' : history.customer_name || 'Customer')}</span>
+                                        {isNote && <span className="rounded-full border border-amber-400/30 px-1.5 py-0.5">Internal note</span>}
+                                        <span className="ml-auto">{formatWhen(message.created_at)}</span>
+                                      </div>
+                                      {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-40 max-w-full rounded-lg object-contain" />}
+                                      {messageBody(message) && <div className="whitespace-pre-wrap leading-5">{messageBody(message)}</div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+                      </section>
+                    )}
                     {selected.description && (!selected.messages || selected.messages.length === 0) && (
                       <div className="max-w-[82%] rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm leading-6 text-slate-200">{selected.description}</div>
                     )}

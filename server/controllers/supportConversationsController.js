@@ -223,11 +223,80 @@ async function getConversation(req, res) {
       [conversationId, isCustomer]
     );
 
+    let customerHistory = null;
+    const customerEmail = String(conversation.customer_email || '').trim().toLowerCase();
+    if (!isCustomer && customerEmail) {
+      const historyParams = [conversationId, customerEmail];
+      const historyScope = isPlatformAdmin ? '' : ' AND sc.business_id = $3::integer';
+      if (!isPlatformAdmin) historyParams.push(conversation.business_id);
+
+      const historyResult = await query(
+        `SELECT
+           sc.id, sc.business_id, sc.subject, sc.status, sc.priority,
+           sc.message_count, sc.customer_message_count, sc.agent_message_count,
+           sc.created_at, sc.updated_at, sc.resolved_at,
+           COALESCE(
+             NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+             u.email, sc.guest_name, 'Customer'
+           ) AS customer_name,
+           COALESCE(u.email, sc.guest_email) AS customer_email
+         FROM support_conversations sc
+         LEFT JOIN users u ON u.id = sc.customer_id
+         WHERE sc.id <> $1
+           AND LOWER(BTRIM(COALESCE(u.email, sc.guest_email))) = $2
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${historyScope}
+         ORDER BY sc.created_at DESC
+         LIMIT 25`,
+        historyParams
+      );
+
+      const historyRows = historyResult.rows || [];
+      const historyIds = historyRows.map((row) => row.id);
+      let historyMessages = [];
+      if (historyIds.length) {
+        const historyMessagesResult = await query(
+          `SELECT
+             scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
+             scm.attachment_url, scm.attachment_name,
+             scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.created_at,
+             COALESCE(
+               NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
+               sender.email
+             ) AS sender_name
+           FROM support_conversation_messages scm
+           LEFT JOIN users sender ON sender.id = scm.sender_id
+           WHERE scm.conversation_id = ANY($1::uuid[])
+           ORDER BY scm.created_at ASC
+           LIMIT 500`,
+          [historyIds]
+        );
+        historyMessages = historyMessagesResult.rows || [];
+      }
+
+      const messagesByConversation = new Map();
+      historyMessages.forEach((message) => {
+        const existing = messagesByConversation.get(message.conversation_id) || [];
+        existing.push(message);
+        messagesByConversation.set(message.conversation_id, existing);
+      });
+
+      customerHistory = {
+        email: conversation.customer_email,
+        previousConversationCount: historyRows.length,
+        conversations: historyRows.map((history) => ({
+          ...history,
+          messages: messagesByConversation.get(history.id) || [],
+        })),
+      };
+    }
+
     res.json({
       success: true,
       data: {
         ...conversation,
-        messages: messages.rows
+        messages: messages.rows,
+        ...(customerHistory ? { customerHistory } : {}),
       }
     });
   } catch (err) {
@@ -352,13 +421,19 @@ async function addMessage(req, res) {
     const { conversationId } = req.params;
     const {
       content,
+      message,
       messageType = 'text',
       attachmentUrl,
       attachmentName,
-      isInternal = false,
+      isInternal,
+      is_internal: snakeCaseInternal,
     } = req.body;
 
-    const normalizedContent = String(content || '').trim();
+    const normalizedContent = String(content ?? message ?? '').trim();
+    const internalRequested = isInternal ?? snakeCaseInternal;
+    const isInternalMessage = ['true', '1', 'yes', 'on'].includes(
+      String(internalRequested || '').toLowerCase()
+    );
     if ((!normalizedContent && !req.file) || normalizedContent.length > 5000) {
       return sendValidationError(res, { content: 'Required' });
     }
@@ -389,7 +464,7 @@ async function addMessage(req, res) {
     }
 
     const isAgent = isAssignedAgent || canManageBusiness || isPlatformAdmin;
-    if (isInternal && !isAgent) {
+    if (isInternalMessage && !isAgent) {
       return sendError(res, 403, 'Only support staff can add internal notes');
     }
 
@@ -405,7 +480,7 @@ async function addMessage(req, res) {
       storedAttachmentName = req.file.originalname;
     }
 
-    const storedMessageType = isInternal ? 'internal_note' : (req.file ? 'image' : messageType);
+    const storedMessageType = isInternalMessage ? 'internal_note' : (req.file ? 'image' : messageType);
 
     // Add message
     const result = await query(
@@ -447,7 +522,7 @@ async function addMessage(req, res) {
       conversationId,
       isAgent,
       messageType: storedMessageType,
-      isInternal
+      isInternal: isInternalMessage
     });
 
     const eventPayload = {
@@ -466,11 +541,11 @@ async function addMessage(req, res) {
       attachmentName: storedAttachmentName,
       messageType: storedMessageType,
       timestamp: result.rows[0].created_at,
-      isInternal,
+      isInternal: isInternalMessage,
     };
 
     // Private notes must never enter the customer ticket room.
-    if (!isInternal) {
+    if (!isInternalMessage) {
       WebSocketService.broadcastToTicket(conversationId, 'message:new', eventPayload);
     }
     WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);

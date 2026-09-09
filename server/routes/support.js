@@ -31,6 +31,16 @@ const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
+function parseBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
 router.post('/public/conversations', conversationMessageLimiter, publicSupport.createGuestConversation);
 router.post('/public/conversations/:conversationId/verify', conversationMessageLimiter, publicSupport.verifyGuestConversation);
 router.post('/public/conversations/:conversationId/resend-code', conversationMessageLimiter, publicSupport.resendGuestVerification);
@@ -323,7 +333,7 @@ router.post('/conversations/:conversationId/message', conversationMessageLimiter
     content: req.body.content || req.body.message,
     attachmentUrl: req.body.attachmentUrl || req.body.attachments?.[0]?.url,
     attachmentName: req.body.attachmentName || req.body.attachments?.[0]?.name,
-    isInternal: Boolean(req.body.isInternal || req.body.is_internal),
+    isInternal: parseBoolean(req.body.isInternal ?? req.body.is_internal),
   };
   return supportConversationsController.addMessage(req, res, next);
 });

@@ -5,9 +5,17 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const { generateTokens } = require('../middleware/auth');
+
+jest.mock('../services/websocketService', () => ({
+  broadcastToAdmins: jest.fn(),
+  broadcastToTicket: jest.fn(),
+}));
+
 const supportRoutes = require('../routes/support');
+const WebSocketService = require('../services/websocketService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000888';
+const ADMIN_ID = '00000000-0000-4000-8000-000000000889';
 
 function buildApp() {
   const app = express();
@@ -22,6 +30,15 @@ function authHeader() {
     id: USER_ID,
     email: 'mobile@example.com',
     role: 'customer',
+  });
+  return `Bearer ${accessToken}`;
+}
+
+function adminAuthHeader() {
+  const { accessToken } = generateTokens({
+    id: ADMIN_ID,
+    email: 'admin@example.com',
+    role: 'super_admin',
   });
   return `Bearer ${accessToken}`;
 }
@@ -130,5 +147,36 @@ describe('support routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.tickets).toHaveLength(1);
     expect(res.body.tickets[0].ticket_number).toBe('SUP-101');
+  });
+
+  test('keeps multipart false internal flag as a public support reply', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'conversation-1',
+          business_id: null,
+          customer_id: USER_ID,
+          agent_id: null,
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', created_at: '2026-09-09T00:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/message')
+      .set('Authorization', adminAuthHeader())
+      .field('message', 'Visible to the customer')
+      .field('is_internal', 'false');
+
+    expect(res.status).toBe(200);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    expect(insertCall[1][2]).toBe('text');
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'message:new',
+      expect.objectContaining({ isInternal: false })
+    );
   });
 });
