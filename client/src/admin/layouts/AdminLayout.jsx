@@ -96,6 +96,7 @@ export default function AdminLayout() {
   const isSuper                 = user?.role === 'super_admin';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [sidebarNavSearch, setSidebarNavSearch] = useState('');
   const searchRef = useRef(null);
   const {
     availability: supportAvailable,
@@ -122,8 +123,14 @@ export default function AdminLayout() {
   };
 
   // Plain function (not a component) - avoids remount on every render
-  const renderSidebar = () => (
-    <>
+  const renderSidebar = () => {
+    const query = sidebarNavSearch.trim().toLowerCase();
+    const matches = ({ label, to }) => !query || `${label} ${to}`.toLowerCase().includes(query);
+    const visibleRegularNav = REGULAR_NAV.filter(matches);
+    const visibleSuperNav = SUPER_NAV.filter(matches);
+
+    return (
+      <>
       {/* Logo */}
       <div className="px-5 py-4 border-b border-gray-800 flex items-center
                       justify-between">
@@ -149,18 +156,46 @@ export default function AdminLayout() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-xs font-semibold text-gray-500 uppercase
-                      tracking-wider px-3 mb-2">
-          Operations
-        </p>
-        {REGULAR_NAV.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} className={navClass} onClick={closeSidebar}>
-            <Icon size={16} />
-            {label}
-          </NavLink>
-        ))}
+        <div className="sticky top-0 z-10 -mx-3 bg-gray-900 px-3 pb-3">
+          <label className="relative block">
+            <span className="sr-only">Find an admin tab</span>
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              value={sidebarNavSearch}
+              onChange={(event) => setSidebarNavSearch(event.target.value)}
+              placeholder="Find a tab..."
+              aria-label="Find an admin tab"
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 py-2 pl-9 pr-8 text-xs text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+            />
+            {sidebarNavSearch && (
+              <button
+                type="button"
+                onClick={() => setSidebarNavSearch('')}
+                aria-label="Clear admin tab search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-white"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+        </div>
 
-        {isSuper && (
+        {visibleRegularNav.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-gray-500 uppercase
+                          tracking-wider px-3 mb-2">
+              Operations
+            </p>
+            {visibleRegularNav.map(({ to, icon: Icon, label }) => (
+              <NavLink key={to} to={to} className={navClass} onClick={closeSidebar}>
+                <Icon size={16} />
+                {label}
+              </NavLink>
+            ))}
+          </>
+        )}
+
+        {isSuper && visibleSuperNav.length > 0 && (
           <>
             <div className="pt-4 pb-2">
               <p className="text-xs font-semibold text-gray-500 uppercase
@@ -168,13 +203,16 @@ export default function AdminLayout() {
                 Super Admin
               </p>
             </div>
-            {SUPER_NAV.map(({ to, icon: Icon, label }) => (
+            {visibleSuperNav.map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} className={superNavClass} onClick={closeSidebar}>
                 <Icon size={16} />
                 {label}
               </NavLink>
             ))}
           </>
+        )}
+        {!visibleRegularNav.length && !visibleSuperNav.length && (
+          <p className="px-3 py-4 text-xs text-gray-500">No admin tabs match.</p>
         )}
       </nav>
 
@@ -220,8 +258,9 @@ export default function AdminLayout() {
           Sign Out
         </button>
       </div>
-    </>
-  );
+      </>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-gray-950 text-gray-100 overflow-hidden">
