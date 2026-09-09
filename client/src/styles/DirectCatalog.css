@@ -52,6 +52,63 @@
 
 .direct-catalog-view-all:hover { color: rgb(251, 146, 60); }
 
+/* The shared light-mode utility bridge remaps most slate classes, but the
+   translucent catalog surfaces need scoped values to avoid muddy cards and
+   dark text on darkened backgrounds. */
+html:not(.dark) .direct-catalog-content .direct-catalog-header,
+html:not(.dark) .direct-catalog-content .direct-catalog-hero,
+html:not(.dark) .direct-catalog-content .direct-catalog-coverage,
+html:not(.dark) .direct-catalog-content .direct-catalog-card {
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-header,
+html:not(.dark) .direct-catalog-content .direct-catalog-coverage {
+  background: rgba(255, 255, 255, .96) !important;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eef2f7 100%) !important;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-card {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .direct-catalog-content .bg-slate-950\/80,
+html:not(.dark) .direct-catalog-content .bg-slate-950\/60 {
+  background: #f8fafc !important;
+}
+
+html:not(.dark) .direct-catalog-content .bg-white\/5 {
+  background: rgba(15, 23, 42, .04) !important;
+}
+
+html:not(.dark) .direct-catalog-content .text-white { color: #0f172a !important; }
+html:not(.dark) .direct-catalog-content .bg-orange-500.text-white { color: #ffffff !important; }
+html:not(.dark) .direct-catalog-content .text-slate-200 { color: #334155 !important; }
+html:not(.dark) .direct-catalog-content .text-slate-300 { color: #334155 !important; }
+html:not(.dark) .direct-catalog-content .text-slate-400 { color: #475569 !important; }
+html:not(.dark) .direct-catalog-content .text-slate-500 { color: #64748b !important; }
+html:not(.dark) .direct-catalog-content .text-orange-200 { color: #c2410c !important; }
+html:not(.dark) .direct-catalog-content .text-orange-300 { color: #c2410c !important; }
+html:not(.dark) .direct-catalog-content .text-sky-200 { color: #0369a1 !important; }
+html:not(.dark) .direct-catalog-content .text-emerald-300 { color: #047857 !important; }
+
+html:not(.dark) .direct-catalog-content .direct-catalog-scroll-region::after {
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, .96));
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-view-all {
+  border-top-color: var(--color-border) !important;
+  color: #c2410c;
+}
+
+html:not(.dark) .direct-catalog-content .direct-catalog-view-all:hover {
+  color: #9a3412;
+}
+
 @media (max-width: 640px) {
   .direct-catalog-card {
     height: 500px;
