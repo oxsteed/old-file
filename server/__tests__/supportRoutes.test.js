@@ -483,6 +483,29 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_admin_settings/.test(sql))).toBe(false);
   });
 
+  test('does not let customers choose an arbitrary support business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations')
+      .set('Authorization', authHeader())
+      .send({
+        businessId: 999,
+        subject: 'Account question',
+        description: 'Please help with my account.',
+      });
+
+    expect(res.status).toBe(200);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversations/.test(sql));
+    expect(insertCall?.[1]?.[0]).toBe(42);
+    expect(insertCall?.[1]?.[0]).not.toBe(999);
+  });
+
   test('reads durable knowledge-base articles for support admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

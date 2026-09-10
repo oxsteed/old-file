@@ -174,6 +174,22 @@ async function resolveSupportBusinessId(req) {
   return rows[0]?.id || null;
 }
 
+// Customers should not be able to place a ticket in an arbitrary business
+// queue. Platform admins retain explicit business selection for operations.
+async function resolveCustomerSupportBusinessId(req) {
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) {
+    return resolveSupportBusinessId(req);
+  }
+  const { rows } = await db.query(
+    `SELECT id
+     FROM businesses
+     WHERE is_active = TRUE
+     ORDER BY is_primary DESC, created_at ASC
+     LIMIT 1`
+  );
+  return rows[0]?.id || null;
+}
+
 async function supportBusinessFromRequest(req) {
   return resolveSupportBusinessId(req);
 }
@@ -334,7 +350,7 @@ router.get('/conversations', async (req, res, next) => {
 
 router.post('/conversations', conversationMessageLimiter, async (req, res, next) => {
   try {
-    const businessId = await resolveSupportBusinessId(req);
+    const businessId = await resolveCustomerSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });
     req.body = {
       ...req.body,
