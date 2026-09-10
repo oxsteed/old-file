@@ -15,7 +15,7 @@ async function validateSocketUser(socket) {
 
   try {
     const { rows } = await pool.query(
-      `SELECT is_active, deleted_at FROM users WHERE id = $1`,
+      `SELECT is_active, deleted_at, role FROM users WHERE id = $1`,
       [socket.userId]
     );
 
@@ -36,6 +36,11 @@ async function validateSocketUser(socket) {
       logger.warn('Socket auth failed: user deleted', { userId: socket.userId });
       return false;
     }
+
+    // Roles can change while a long-lived dashboard socket remains connected.
+    // Refresh the role before every sensitive event so privilege changes take
+    // effect without relying on a reconnect.
+    if (rows[0].role) socket.userRole = rows[0].role;
 
     return true;
   } catch (err) {

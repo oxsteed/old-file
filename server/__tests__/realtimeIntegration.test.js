@@ -220,4 +220,25 @@ describe('shared realtime server', () => {
       log: silentLogger,
     })).toThrow('already been initialized');
   });
+
+  test('refreshes a connected socket role before sensitive events', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, deleted_at: null, role: 'customer' }] };
+      return { rows: [] };
+    });
+
+    const token = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const support = await connect(`${baseUrl}/support`, { auth: { token } });
+    clients.push(support);
+    support.userRole = 'admin';
+    support.emit('ticket:read', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(mockQuery.mock.calls.some(([sql]) => /SELECT is_active, deleted_at, role FROM users/.test(sql))).toBe(true);
+    expect(support.connected).toBe(true);
+  });
 });
