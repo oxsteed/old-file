@@ -17,6 +17,20 @@ const SIGNING_SECRET = String(process.env.ENCRYPTION_KEY || process.env.JWT_SECR
 const FORCE_PATH_STYLE = /^(1|true|yes)$/i.test(String(process.env.S3_FORCE_PATH_STYLE || ''));
 const ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID;
 const SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY;
+const ACTIVE_CONTENT_TYPES = new Set([
+  'text/html',
+  'application/xhtml+xml',
+  'text/javascript',
+  'application/javascript',
+  'application/x-javascript',
+  'image/svg+xml',
+]);
+
+function normalizeContentType(contentType) {
+  const normalized = String(contentType || '').split(';', 1)[0].trim().toLowerCase();
+  if (!normalized || ACTIVE_CONTENT_TYPES.has(normalized)) return 'application/octet-stream';
+  return normalized;
+}
 
 let s3 = null;
 if (ACCESS_KEY_ID && SECRET_ACCESS_KEY) {
@@ -94,7 +108,7 @@ async function writeLocalObject(key, buffer, { contentType, originalName }) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, buffer);
   await fs.writeFile(metaPath, JSON.stringify({
-    contentType: contentType || 'application/octet-stream',
+    contentType: normalizeContentType(contentType),
     originalName: originalName || path.basename(normalized),
     size: Number(buffer?.length || 0),
     storedAt: new Date().toISOString(),
@@ -142,7 +156,7 @@ async function uploadFile(arg1, arg2, arg3, arg4) {
       Bucket: BUCKET,
       Key: key,
       Body: buffer,
-      ContentType: contentType,
+      ContentType: normalizeContentType(contentType),
     }));
     return key;
   }
@@ -203,5 +217,6 @@ module.exports = {
   readLocalObjectMeta,
   verifyLocalDownloadSignature,
   normalizeStorageKey: normalizeKey,
+  normalizeStorageContentType: normalizeContentType,
   LOCAL_STORAGE_ROOT,
 };
