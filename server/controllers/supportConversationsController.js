@@ -892,6 +892,23 @@ async function addMessage(req, res) {
       messageType: storedMessageType,
       isInternal: isInternalMessage
     });
+    if (isAgent) {
+      void logAdminAction({
+        adminId: req.user.id,
+        action: 'support_message_created',
+        targetType: 'support_conversation_message',
+        targetId: result.rows[0].id,
+        description: isInternalMessage
+          ? 'Internal support note created'
+          : 'Public support reply created',
+        after: {
+          messageType: storedMessageType,
+          isPublic: !isInternalMessage,
+          hasAttachment: Boolean(storedAttachmentUrl || storedAttachmentName),
+        },
+        req,
+      });
+    }
 
     const eventPayload = {
       messageId: result.rows[0].id,
