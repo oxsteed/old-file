@@ -109,6 +109,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [showNewMessages, setShowNewMessages] = useState(false);
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
@@ -199,6 +200,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     const messageList = messageListRef.current;
     if (!messageList || !stickToBottomRef.current) return;
     messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'smooth' });
+    setShowNewMessages(false);
   }, [detail?.id, detail?.messages?.length]);
 
   // Each conversation starts in public-reply mode so a prior private note
@@ -621,10 +623,13 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 ref={messageListRef}
                 onScroll={(event) => {
                   const element = event.currentTarget;
-                  stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                  const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                  stickToBottomRef.current = nearBottom;
+                  if (nearBottom) setShowNewMessages(false);
                 }}
                 className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] p-5"
               >
+                {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">New messages ↓</button>}
                 {detailLoading ? (
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (

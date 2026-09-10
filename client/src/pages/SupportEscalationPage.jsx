@@ -73,6 +73,7 @@ function PublicGuestSupport({ t }) {
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [showNewMessages, setShowNewMessages] = useState(false);
   const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
@@ -127,6 +128,9 @@ function PublicGuestSupport({ t }) {
     if (step === 'chat') {
       if (stickToBottomRef.current) {
         messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+        setShowNewMessages(false);
+      } else if (messages.length > 0) {
+        setShowNewMessages(true);
       }
       socketRef.current?.emit('ticket:read', { ticketId: conversationId });
     }
@@ -327,10 +331,13 @@ function PublicGuestSupport({ t }) {
         ref={messageListRef}
         onScroll={(event) => {
           const element = event.currentTarget;
-          stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+          const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+          stickToBottomRef.current = nearBottom;
+          if (nearBottom) setShowNewMessages(false);
         }}
         className="my-6 max-h-[420px] space-y-3 overflow-y-auto"
       >
+        {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
         {messages.map((item) => {
           const isCustomer = item.sender?.type === 'customer';
           const canEdit = isCustomer && item.content && !['resolved', 'closed'].includes(conversationStatus) && Date.now() - new Date(item.timestamp).getTime() < 15 * 60 * 1000;
@@ -407,6 +414,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [connectionState, setConnectionState] = useState('checking');
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [showNewMessages, setShowNewMessages] = useState(false);
   const profileName = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || '';
   const profileEmail = user?.email || '';
   const [visitorName, setVisitorName] = useState(profileName);
@@ -648,6 +656,9 @@ function AuthenticatedSupportEscalationPage({ user }) {
   useEffect(() => {
     if (stickToBottomRef.current) {
       messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+      setShowNewMessages(false);
+    } else if (liveMessages.length > 0) {
+      setShowNewMessages(true);
     }
     if (ticketId) socketRef.current?.emit('ticket:read', { ticketId });
   }, [liveMessages, ticketId]);
@@ -977,10 +988,13 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   ref={messageListRef}
                   onScroll={(event) => {
                     const element = event.currentTarget;
-                    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                    const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                    stickToBottomRef.current = nearBottom;
+                    if (nearBottom) setShowNewMessages(false);
                   }}
                   className="h-[520px] overflow-y-auto px-6 py-5 space-y-4 bg-slate-950/30"
                 >
+                  {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
                   {liveMessages.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-center">
                       <div>
