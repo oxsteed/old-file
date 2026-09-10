@@ -787,6 +787,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {QUICK_REPLIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </div>
+                {internalNote && (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="status">
+                    <Lock size={13} /> Internal note mode: this message is visible only to authorized support staff.
+                  </div>
+                )}
                 {attachment && <div className="mb-2 flex items-center gap-2 text-xs text-orange-200">{attachment.name}<button type="button" onClick={() => setAttachment(null)} className="text-slate-400 hover:text-white">Remove</button></div>}
                 <div className="flex gap-3">
                   <label className="cursor-pointer rounded-2xl border border-slate-700 p-3 text-slate-300 hover:border-orange-500" title="Attach image">
