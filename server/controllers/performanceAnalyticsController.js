@@ -3,11 +3,36 @@ const { sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function canAccessBusiness(req, businessId) {
+  if (!businessId) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
+  return supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+}
+
+function boundedDays(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 30;
+  return Math.min(365, Math.max(1, parsed));
+}
+
+async function agentBelongsToBusiness(agentId, businessId) {
+  const result = await query(
+    `SELECT sa.id FROM support_agents sa
+     JOIN support_employers se ON se.id = sa.employer_id
+     WHERE sa.id = $1 AND (se.kind = 'platform' OR (se.kind = 'business' AND se.business_id = $2))
+     LIMIT 1`,
+    [agentId, businessId]
+  );
+  return result.rows.length > 0;
+}
+
 async function getAgentLeaderboard(req, res) {
   try {
     const { businessId } = req.params;
     const { orderBy = 'csat', days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    const reportDays = boundedDays(days);
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     let orderClause = 'adp.avg_csat_score DESC';
@@ -31,7 +56,7 @@ async function getAgentLeaderboard(req, res) {
       AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       GROUP BY sa.id, sa.user_id, u.name, u.avatar_url
       ORDER BY ${orderClause}`,
-      [employerId, parseInt(days, 10)]
+      [employerId, reportDays]
     );
 
     res.json({ success: true, data: result.rows });
@@ -43,9 +68,12 @@ async function getAgentLeaderboard(req, res) {
 
 async function getAgentMetrics(req, res) {
   try {
-    const { agentId } = req.params;
+    const { businessId, agentId } = req.params;
     const { days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    if (!(await agentBelongsToBusiness(agentId, businessId))) return sendError(res, 404, 'Agent not found');
+    const reportDays = boundedDays(days);
     const result = await query(
       `SELECT
         adp.performance_date,
@@ -60,7 +88,7 @@ async function getAgentMetrics(req, res) {
       FROM agent_daily_performance adp
       WHERE adp.agent_id = $1 AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       ORDER BY adp.performance_date DESC`,
-      [agentId, parseInt(days)]
+      [agentId, reportDays]
     );
 
     const summary = await query(
@@ -73,7 +101,7 @@ async function getAgentMetrics(req, res) {
         SUM(conversations_escalated) as total_escalations
       FROM agent_daily_performance
       WHERE agent_id = $1 AND performance_date > CURRENT_DATE - INTERVAL '1 day' * $2`,
-      [agentId, parseInt(days)]
+      [agentId, reportDays]
     );
 
     res.json({
@@ -94,6 +122,8 @@ async function getTeamPerformance(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    const reportDays = boundedDays(days);
     const result = await query(
       `SELECT
         st.id, st.team_name,
@@ -109,7 +139,7 @@ async function getTeamPerformance(req, res) {
       WHERE st.business_id = $1 AND tdp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       GROUP BY st.id, st.team_name
       ORDER BY ROUND(AVG(tdp.avg_csat_score), 2) DESC`,
-      [businessId, parseInt(days)]
+      [businessId, reportDays]
     );
 
     res.json({ success: true, data: result.rows });
@@ -124,6 +154,8 @@ async function getBusinessMetrics(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    const reportDays = boundedDays(days);
     const result = await query(
       `SELECT
         SUM(total_conversations_created) as total_created,
@@ -137,7 +169,7 @@ async function getBusinessMetrics(req, res) {
         AVG(avg_wait_time_seconds) as avg_wait_time_seconds
       FROM business_daily_metrics
       WHERE business_id = $1 AND metric_date > CURRENT_DATE - INTERVAL '1 day' * $2`,
-      [businessId, parseInt(days)]
+      [businessId, reportDays]
     );
 
     const trends = await query(
@@ -152,7 +184,7 @@ async function getBusinessMetrics(req, res) {
       FROM business_daily_metrics
       WHERE business_id = $1 AND metric_date > CURRENT_DATE - INTERVAL '1 day' * $2
       ORDER BY metric_date DESC`,
-      [businessId, parseInt(days)]
+      [businessId, reportDays]
     );
 
     res.json({
@@ -173,6 +205,8 @@ async function getConversationMetrics(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    const reportDays = boundedDays(days);
     const result = await query(
       `SELECT
         DATE(sc.resolved_at) as date,
@@ -186,7 +220,7 @@ async function getConversationMetrics(req, res) {
       WHERE sc.business_id = $1 AND sc.resolved_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2
       GROUP BY DATE(sc.resolved_at)
       ORDER BY DATE(sc.resolved_at) DESC`,
-      [businessId, parseInt(days)]
+      [businessId, reportDays]
     );
 
     res.json({ success: true, data: result.rows });
@@ -201,6 +235,8 @@ async function getAgentUtilization(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    const reportDays = boundedDays(days);
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const result = await query(
@@ -216,7 +252,7 @@ async function getAgentUtilization(req, res) {
       WHERE sa.employer_id = $1 AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       GROUP BY sa.id, sa.user_id, u.name
       ORDER BY ROUND(100.0 * SUM(adp.total_chat_minutes) / NULLIF(SUM(adp.total_worked_minutes), 0), 2) DESC`,
-      [employerId, parseInt(days, 10)]
+      [employerId, reportDays]
     );
 
     res.json({ success: true, data: result.rows });
