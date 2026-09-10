@@ -135,6 +135,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const replyInputRef = useRef(null);
   const stickToBottomRef = useRef(true);
   const pendingMessageIdRef = useRef(null);
+  const renderedConversationRef = useRef({ id: null, messageCount: 0 });
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -249,9 +250,19 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
   useEffect(() => {
     const messageList = messageListRef.current;
-    if (!messageList || !stickToBottomRef.current) return;
-    messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'smooth' });
-    setShowNewMessages(false);
+    const conversationId = detail?.id || null;
+    const messageCount = detail?.messages?.length || 0;
+    const previous = renderedConversationRef.current;
+    const sameConversation = previous.id === conversationId;
+    renderedConversationRef.current = { id: conversationId, messageCount };
+    if (!messageList || !conversationId) return;
+
+    if (stickToBottomRef.current) {
+      messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'smooth' });
+      setShowNewMessages(false);
+    } else if (sameConversation && messageCount > previous.messageCount) {
+      setShowNewMessages(true);
+    }
   }, [detail?.id, detail?.messages?.length]);
 
   // Each conversation starts in public-reply mode so a prior private note
@@ -268,6 +279,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setEditingMessageId(null);
     setEditingContent('');
     setCustomerTyping(false);
+    renderedConversationRef.current = { id: selectedId, messageCount: 0 };
     window.clearTimeout(customerTypingTimerRef.current);
   }, [selectedId]);
 
@@ -882,7 +894,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                               <span>{message.sender_name || (fromAgent ? 'Support team' : selected.customer_name || 'Customer')}</span>
                               {isNote && <span className="rounded-full border border-amber-400/30 px-2 py-0.5">Internal note</span>}
                             </div>
-                            {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+                            {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} onLoad={() => { if (stickToBottomRef.current) messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'auto' }); }} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
                             {editingMessageId === message.id ? (
                               <div className="space-y-2">
                                 <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" />
