@@ -343,6 +343,7 @@ router.post('/conversations', conversationMessageLimiter, async (req, res, next)
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
 router.get('/conversations/:conversationId/download', supportConversationsController.downloadConversation);
+router.post('/conversations/:conversationId/mark-all-read', conversationMessageLimiter, supportConversationsController.markConversationRead);
 
 router.post('/conversations/:conversationId/message', conversationMessageLimiter, upload.single('file'), validateFileUpload, (req, res, next) => {
   req.body = {

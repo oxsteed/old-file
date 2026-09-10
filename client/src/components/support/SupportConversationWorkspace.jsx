@@ -159,6 +159,12 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   }, [loadDetail, selectedId]);
 
   useEffect(() => {
+    if (!selectedId || detailLoading) return;
+    // Mark only customer-visible messages as read for this authorized operator.
+    api.post(`/support/conversations/${selectedId}/mark-all-read`).catch(() => {});
+  }, [detailLoading, selectedId]);
+
+  useEffect(() => {
     const messageList = messageListRef.current;
     if (!messageList || !stickToBottomRef.current) return;
     messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'smooth' });

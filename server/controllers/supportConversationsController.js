@@ -420,6 +420,43 @@ async function updateCustomerMessage(req, res) {
   }
 }
 
+async function markConversationRead(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed) return sendError(res, 403, 'Access denied');
+
+    const result = await query(
+      `UPDATE support_conversation_messages
+       SET read_by_recipient = TRUE,
+           read_at = COALESCE(read_at, NOW()),
+           status = 'read',
+           updated_at = NOW()
+       WHERE conversation_id = $1
+         AND sender_id <> $2
+         AND COALESCE(message_type, 'text') <> 'internal_note'
+         AND read_by_recipient = FALSE
+       RETURNING id, read_at`,
+      [conversationId, req.user.id]
+    );
+    const readAt = result.rows[0]?.read_at || null;
+    const payload = {
+      ticketId: conversationId,
+      conversationId,
+      userId: req.user.id,
+      markedCount: result.rows.length,
+      readAt,
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'messages:read', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: { markedCount: result.rows.length, readAt } });
+  } catch (err) {
+    logger.error('markConversationRead error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to mark conversation as read');
+  }
+}
+
 function transcriptFilename(subject, conversationId) {
   const safeSubject = String(subject || 'support-conversation')
     .replace(/[^a-z0-9]+/gi, '-')
@@ -969,6 +1006,7 @@ module.exports = {
   listConversations,
   getConversation,
   updateCustomerMessage,
+  markConversationRead,
   downloadConversation,
   createConversationReview,
   reopenCustomerConversation,

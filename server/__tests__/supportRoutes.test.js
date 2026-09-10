@@ -200,6 +200,27 @@ describe('support routes', () => {
     );
   });
 
+  test('marks customer-visible messages read for the authorized conversation participant', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', read_at: '2026-09-09T00:01:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/mark-all-read')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.markedCount).toBe(1);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /SET read_by_recipient = TRUE/.test(sql));
+    expect(updateCall[0]).toContain("COALESCE(message_type, 'text') <> 'internal_note'");
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'messages:read',
+      expect.objectContaining({ markedCount: 1 })
+    );
+  });
+
   test('blocks reviews until the customer conversation is finished', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
