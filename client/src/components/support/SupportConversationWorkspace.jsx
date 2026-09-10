@@ -62,6 +62,34 @@ function messageBody(message) {
   return message.content || message.text || '';
 }
 
+function formatRemaining(milliseconds) {
+  const totalMinutes = Math.max(0, Math.ceil(Math.abs(milliseconds) / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function SlaTimer({ target, label }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const targetTime = new Date(target).getTime();
+  if (!target || Number.isNaN(targetTime)) return null;
+  const remaining = targetTime - now;
+  const breached = remaining < 0;
+  return (
+    <span className={breached ? 'font-semibold text-red-300' : 'font-semibold text-emerald-300'}>
+      {label} SLA {breached ? `breached ${formatRemaining(remaining)} ago` : `due in ${formatRemaining(remaining)}`}
+    </span>
+  );
+}
+
 export default function SupportConversationWorkspace({ businessId = null, embedded = false }) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -521,6 +549,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       <span>Opened {formatWhen(selected.created_at)}</span>
                       <span>{selected.agent_name ? `Assigned to ${selected.agent_name}` : 'Unassigned'}</span>
                       {selected.first_response_at && <span>First response {formatWhen(selected.first_response_at)}</span>}
+                      <SlaTimer target={selected.sla_first_response_target} label="First response" />
+                      <SlaTimer target={selected.sla_resolution_target} label="Resolution" />
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
