@@ -4102,6 +4102,7 @@
       "textSupport": "Text",
       "guestChatBody": "Your verified support conversation is open.",
       "attachImage": "Attach image",
+      "downloadAttachment": "Download",
       "verifyTitle": "Check your email",
       "verifyBody": "Enter the six-digit code we sent to your email address.",
       "verifyButton": "Verify and continue",

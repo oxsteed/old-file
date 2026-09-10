@@ -4141,6 +4141,7 @@
       "textSupport": "Envoyer un SMS",
       "guestChatBody": "Votre conversation d’assistance vérifiée est ouverte.",
       "attachImage": "Joindre une image",
+      "downloadAttachment": "Télécharger",
       "verifyTitle": "Consultez votre e-mail",
       "verifyBody": "Saisissez le code à six chiffres envoyé à votre adresse e-mail.",
       "verifyButton": "Vérifier et continuer",

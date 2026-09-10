@@ -4141,6 +4141,7 @@
       "textSupport": "Enviar mensaje",
       "guestChatBody": "Tu conversación de soporte verificada está abierta.",
       "attachImage": "Adjuntar imagen",
+      "downloadAttachment": "Descargar",
       "verifyTitle": "Revisa tu correo electrónico",
       "verifyBody": "Ingresa el código de seis dígitos que enviamos a tu correo electrónico.",
       "verifyButton": "Verificar y continuar",
