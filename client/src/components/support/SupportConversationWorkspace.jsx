@@ -42,6 +42,13 @@ const PRIORITY = {
   low: 'text-slate-500',
 };
 
+const QUICK_REPLIES = [
+  ['greeting', 'Greeting', 'Hi, thanks for reaching out to OxSteed Support. I am reviewing your request now and will help with the next steps.'],
+  ['more-info', 'Request details', 'To help us resolve this quickly, please share any relevant order, booking, invoice, or conversation ID and the outcome you expected.'],
+  ['follow-up', 'Follow-up', 'I am following up on your support request. Please reply here with any new details and we will continue helping you.'],
+  ['resolved', 'Resolution check', 'We believe this is resolved. Please let us know if anything is still blocked so we can keep working with you.'],
+];
+
 function statusBadge(status) {
   const [label, className] = STATUS[status] || [status || 'Unknown', 'border-slate-700 bg-slate-800 text-slate-300'];
   return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{label}</span>;
@@ -101,6 +108,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [statusFilter, setStatusFilter] = useState('active');
   const [ownershipFilter, setOwnershipFilter] = useState('all');
   const [reply, setReply] = useState('');
+  const [quickReply, setQuickReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
@@ -207,6 +215,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   // selection cannot silently carry over to the next customer.
   useEffect(() => {
     setReply('');
+    setQuickReply('');
     setAttachment(null);
     setInternalNote(false);
     setEditingMessageId(null);
@@ -763,6 +772,20 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 <div className="mb-3 flex gap-2">
                   <button type="button" onClick={() => setInternalNote(false)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${!internalNote ? 'bg-orange-600 text-white' : 'bg-slate-900 text-slate-400'}`}><MessageSquare size={12} className="mr-1 inline" /> Customer reply</button>
                   <button type="button" onClick={() => setInternalNote(true)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${internalNote ? 'bg-amber-600 text-white' : 'bg-slate-900 text-slate-400'}`}><Lock size={12} className="mr-1 inline" /> Internal note</button>
+                  <select
+                    value={quickReply}
+                    onChange={(event) => {
+                      const next = QUICK_REPLIES.find(([value]) => value === event.target.value);
+                      setQuickReply('');
+                      if (next) setReply((current) => current.trim() ? `${current.trim()}\n\n${next[2]}` : next[2]);
+                    }}
+                    disabled={!canReply || busy}
+                    className="ml-auto max-w-[180px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
+                    aria-label="Insert quick reply"
+                  >
+                    <option value="">Quick reply…</option>
+                    {QUICK_REPLIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
                 </div>
                 {attachment && <div className="mb-2 flex items-center gap-2 text-xs text-orange-200">{attachment.name}<button type="button" onClick={() => setAttachment(null)} className="text-slate-400 hover:text-white">Remove</button></div>}
                 <div className="flex gap-3">
