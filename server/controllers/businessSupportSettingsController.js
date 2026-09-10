@@ -24,13 +24,18 @@ function normalizeLanguages(value) {
     .slice(0, 20);
 }
 
+async function canManageBusiness(req, businessId) {
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+}
+
 // Get support settings for a business
 async function getSupportSettings(req, res) {
   try {
     const { businessId } = req.params;
 
     // Verify access
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     // Get SLA targets
@@ -85,7 +90,7 @@ async function setSLATarget(req, res) {
     }
 
     // Verify access
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
@@ -123,7 +128,7 @@ async function createBreakType(req, res) {
     }
 
     // Verify access
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
@@ -162,7 +167,7 @@ async function createRoutingRule(req, res) {
     }
 
     // Verify access
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
@@ -193,8 +198,11 @@ async function createRoutingRule(req, res) {
 // Update routing rule
 async function updateRoutingRule(req, res) {
   try {
+    const { businessId } = req.params;
     const { ruleId } = req.params;
     const { ruleName, isActive, priority } = req.body;
+
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `UPDATE routing_rules
@@ -202,9 +210,9 @@ async function updateRoutingRule(req, res) {
            is_active = COALESCE($2, is_active),
            priority = COALESCE($3, priority),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4
+       WHERE id = $4 AND business_id = $5
        RETURNING *`,
-      [ruleName || null, isActive !== undefined ? isActive : null, priority !== undefined ? priority : null, ruleId]
+      [ruleName || null, isActive !== undefined ? isActive : null, priority !== undefined ? priority : null, ruleId, businessId]
     );
 
     if (!result.rows.length) {
@@ -223,11 +231,14 @@ async function updateRoutingRule(req, res) {
 // Delete routing rule
 async function deleteRoutingRule(req, res) {
   try {
+    const { businessId } = req.params;
     const { ruleId } = req.params;
 
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+
     const result = await query(
-      'DELETE FROM routing_rules WHERE id = $1 RETURNING *',
-      [ruleId]
+      'DELETE FROM routing_rules WHERE id = $1 AND business_id = $2 RETURNING *',
+      [ruleId, businessId]
     );
 
     if (!result.rows.length) {
@@ -250,7 +261,7 @@ async function getSupportStatistics(req, res) {
     const { days = 30 } = req.query;
 
     // Verify access
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     // Get aggregate stats
@@ -292,7 +303,7 @@ async function getSupportStatistics(req, res) {
 async function getHiringProfile(req, res) {
   try {
     const { businessId } = req.params;
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
@@ -358,7 +369,7 @@ async function getHiringProfile(req, res) {
 async function upsertHiringProfile(req, res) {
   try {
     const { businessId } = req.params;
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const {

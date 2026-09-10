@@ -765,6 +765,50 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO agent_shifts/.test(sql))).toBe(false);
   });
 
+  test('blocks routing-rule updates without access to the route business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/settings/routing-rules/rule-1')
+      .set('Authorization', authHeader())
+      .send({ ruleName: 'Unauthorized rule' });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE routing_rules/.test(sql))).toBe(false);
+  });
+
+  test('scopes routing-rule updates and deletes to the requested business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'rule-1', business_id: 42, rule_name: 'Updated rule' }] });
+
+    const updateRes = await request(buildApp())
+      .put('/api/support/42/settings/routing-rules/rule-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ ruleName: 'Updated rule' });
+
+    expect(updateRes.status).toBe(200);
+    const updateQuery = mockQuery.mock.calls.find(([sql]) => /UPDATE routing_rules/.test(sql));
+    expect(updateQuery[0]).toMatch(/business_id = \$5/);
+    expect(updateQuery[1][4]).toBe('42');
+
+    resetMocks();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'rule-1', business_id: 42 }] });
+
+    const deleteRes = await request(buildApp())
+      .delete('/api/support/42/settings/routing-rules/rule-1')
+      .set('Authorization', adminAuthHeader());
+
+    expect(deleteRes.status).toBe(200);
+    const deleteQuery = mockQuery.mock.calls.find(([sql]) => /DELETE FROM routing_rules/.test(sql));
+    expect(deleteQuery[0]).toMatch(/business_id = \$2/);
+    expect(deleteQuery[1][1]).toBe('42');
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
