@@ -1758,7 +1758,7 @@ router.get('/audit/export', async (req, res, next) => {
 });
 
 // Create new conversation
-router.post('/:businessId/conversations', supportConversationsController.createConversation);
+router.post('/:businessId/conversations', conversationMessageLimiter, supportConversationsController.createConversation);
 
 // List conversations (with filters)
 router.get('/:businessId/conversations', supportConversationsController.listConversations);
@@ -1770,7 +1770,7 @@ router.get('/:businessId/conversations/:conversationId', supportConversationsCon
 router.put('/:businessId/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
 
 // Add message to conversation
-router.post('/:businessId/conversations/:conversationId/messages', supportConversationsController.addMessage);
+router.post('/:businessId/conversations/:conversationId/messages', conversationMessageLimiter, upload.single('file'), validateFileUpload, supportConversationsController.addMessage);
 
 // Get conversation stats
 router.get('/:businessId/conversation-stats', supportConversationsController.getConversationStats);

@@ -3,6 +3,7 @@
 const { mockQuery, resetMocks } = require('./setup');
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
+const supportTriageAI = require('../services/supportTriageAI');
 
 beforeEach(() => {
   resetMocks();
@@ -11,6 +12,43 @@ beforeEach(() => {
 });
 
 describe('SupportRoutingService', () => {
+  test('fails closed to human routing when AI is not configured', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+
+    const result = await SupportRoutingService.analyzeWithAI('I need help with my account.', 'account');
+
+    expect(result).toMatchObject({
+      category: 'account',
+      confidence: 0,
+      shouldEscalate: true,
+      provider: 'fallback',
+    });
+  });
+
+  test('validates provider triage output and limits suggested routing skills', () => {
+    expect(supportTriageAI.validateResult({
+      category: 'technical',
+      confidence: 0.91,
+      priority: 'high',
+      summary: 'The customer reports an account access problem.',
+      suggestedSkills: ['technical', 'billing', 'unknown', 'technical'],
+    }, 'general')).toMatchObject({
+      category: 'technical',
+      confidence: 0.91,
+      priority: 'high',
+      suggestedSkills: ['technical', 'billing'],
+    });
+  });
+
+  test('rejects unsafe provider categories instead of routing on them', () => {
+    expect(() => supportTriageAI.validateResult({
+      category: '<script>alert(1)</script>',
+      confidence: 1,
+      priority: 'normal',
+    }, 'general')).toThrow(/unsupported support category/i);
+  });
+
   test('queries only active and available routable agents', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{

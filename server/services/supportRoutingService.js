@@ -6,6 +6,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const WebSocketService = require('./websocketService');
+const supportTriageAI = require('./supportTriageAI');
 
 function routableAgents(agents) {
   // A database availability flag alone must never promise a live reply. The
@@ -21,28 +22,21 @@ class SupportRoutingService {
    */
   static async analyzeWithAI(messageText, category) {
     try {
-      // TODO: Integrate with OpenRouter/Claude for confidence scoring
-      // For now, return mock confidence based on category
-      const categoryConfidence = {
-        'billing': 0.85,
-        'technical': 0.65,
-        'account': 0.90,
-        'general': 0.75,
-        'shipping': 0.88,
-      };
-
-      const confidence = categoryConfidence[category] || 0.60;
-      const shouldEscalate = confidence < 0.70; // Threshold for escalation
-
+      const result = await supportTriageAI.analyze({ message: messageText, category });
       return {
-        confidence,
-        shouldEscalate,
-        category,
-        suggestedResponse: null, // Would contain AI response
+        ...result,
+        shouldEscalate: result.confidence < 0.70,
+        suggestedResponse: null,
       };
     } catch (err) {
-      logger.error('AI analysis failed', { error: err.message });
-      return { confidence: 0, shouldEscalate: true, category };
+      logger.warn('Support triage AI unavailable; continuing with human routing', {
+        error: err.message,
+      });
+      return {
+        ...supportTriageAI.fallback(category, 'provider_error'),
+        shouldEscalate: true,
+        suggestedResponse: null,
+      };
     }
   }
 
@@ -164,7 +158,10 @@ class SupportRoutingService {
       const aiAnalysis = await this.analyzeWithAI(message, category);
 
       // Layer 2: Skill-based search
-      const skillsForCategory = this.getSkillsForCategory(category);
+      const explicitSkills = this.getSkillsForCategory(category);
+      const skillsForCategory = explicitSkills.length > 0
+        ? explicitSkills
+        : (Array.isArray(aiAnalysis.suggestedSkills) ? aiAnalysis.suggestedSkills : []);
       const skillMatchedAgents = await this.findAgentsBySkill(
         skillsForCategory,
         businessId

@@ -80,6 +80,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const messageListRef = useRef(null);
+  const stickToBottomRef = useRef(true);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -151,7 +153,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
   useEffect(() => {
     loadDetail(selectedId);
+    stickToBottomRef.current = true;
   }, [loadDetail, selectedId]);
+
+  useEffect(() => {
+    const messageList = messageListRef.current;
+    if (!messageList || !stickToBottomRef.current) return;
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'smooth' });
+  }, [detail?.id, detail?.messages?.length]);
 
   // Each conversation starts in public-reply mode so a prior private note
   // selection cannot silently carry over to the next customer.
@@ -322,6 +331,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     const content = reply.trim();
     if ((!content && !attachment) || !selected || !canReply) return;
     setBusy(true);
+    stickToBottomRef.current = true;
     try {
       const body = new FormData();
       if (content) body.append('content', content);
@@ -512,7 +522,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 )}
               </header>
 
-              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] p-5">
+              <div
+                ref={messageListRef}
+                onScroll={(event) => {
+                  const element = event.currentTarget;
+                  stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                }}
+                className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] p-5"
+              >
                 {detailLoading ? (
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (

@@ -15,10 +15,11 @@ async function createConversation(req, res) {
   try {
     const { businessId, subject, description, category, priority } = req.body;
 
-    if (!businessId || !subject) {
+    if (!businessId || !subject || String(subject).trim().length > 200 || String(description || '').length > 5000) {
       return sendValidationError(res, {
         businessId: 'Required',
-        subject: 'Required'
+        subject: 'Required and must be 200 characters or fewer',
+        description: 'Must be 5000 characters or fewer',
       });
     }
 
@@ -95,7 +96,9 @@ async function createConversation(req, res) {
 async function listConversations(req, res) {
   try {
     const { businessId } = req.params;
-    const { status, priority, agentId, limit = 50, offset = 0 } = req.query;
+    const { status, priority, agentId } = req.query;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const offset = Math.max(0, Number.parseInt(req.query.offset, 10) || 0);
 
     const can = await supportEmployerService.userCanAccessBusinessConversations(
       businessId,
