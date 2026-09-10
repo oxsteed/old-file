@@ -5,6 +5,7 @@
 
 const logger = require('../utils/logger');
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 class WebSocketService {
   constructor() {
@@ -142,56 +143,99 @@ class WebSocketService {
         }
       });
 
-      // Customer sends message
+      // Persist legacy Socket.IO sends so messages cannot appear live and then
+      // disappear on reload or from support exports. REST clients use the same
+      // schema and continue to broadcast their own events as before.
+      const persistAndBroadcastMessage = async ({ ticketId, content, senderId, senderType, isAgent }) => {
+        const normalizedContent = String(content || '').trim();
+        if (
+          !ticketId
+          || !socket.rooms.has(`ticket:${ticketId}`)
+          || !normalizedContent
+          || normalizedContent.length > 5000
+        ) return;
+
+        try {
+          const conversation = await pool.query(
+            `SELECT id, status
+             FROM support_conversations
+             WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+            [ticketId]
+          );
+          if (!conversation.rows.length) return;
+
+          const result = await withTransaction(pool, async (client) => {
+            const inserted = await client.query(
+              `INSERT INTO support_conversation_messages
+               (conversation_id, sender_id, message_type, content, is_agent)
+               VALUES ($1, $2, 'text', $3, $4)
+               RETURNING id, created_at`,
+              [ticketId, senderId, normalizedContent, isAgent]
+            );
+            const countColumn = isAgent ? 'agent_message_count' : 'customer_message_count';
+            const updated = await client.query(
+              `UPDATE support_conversations
+               SET message_count = message_count + 1,
+                   ${countColumn} = ${countColumn} + 1,
+                   updated_at = NOW(),
+                   first_response_at = CASE
+                     WHEN $2::boolean AND first_response_at IS NULL THEN NOW()
+                     ELSE first_response_at
+                   END,
+                   status = CASE
+                     WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
+                     ELSE status
+                   END
+               WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+              [ticketId, isAgent]
+            );
+            if (!updated.rowCount) return null;
+            return inserted.rows[0];
+          }, 'persist_support_socket_message');
+
+          if (!result) return;
+
+          namespace.to(`ticket:${ticketId}`).emit('message:new', {
+            ticketId,
+            messageId: result.id,
+            sender: {
+              type: senderType,
+              id: senderId,
+              name: isAgent ? 'Support Agent' : socket.data.name,
+              ...(isAgent ? {} : { email: socket.data.email }),
+            },
+            content: normalizedContent,
+            timestamp: result.created_at,
+          });
+          logger.info('Socket message persisted', { ticketId, senderId, isAgent });
+        } catch (err) {
+          socket.emit('message:send:error', { ticketId, error: 'Message could not be sent' });
+          logger.warn('Socket message persistence failed', { ticketId, senderId, error: err.message });
+        }
+      };
+
       socket.on('message:send', (data) => {
-        const { ticketId, content, timestamp } = data;
-        const userId = socket.data.userId;
-
-        if (!userId || !socket.rooms.has(`ticket:${ticketId}`) || !String(content || '').trim() || String(content).length > 5000) return;
-
-        // Broadcast to all in ticket room (customer + agent + admins)
-        namespace.to(`ticket:${ticketId}`).emit('message:new', {
-          ticketId,
-          sender: {
-            type: 'customer',
-            id: userId,
-            name: socket.data.name,
-            email: socket.data.email,
-          },
-          content,
-          timestamp,
+        if (socket.userRole !== 'customer') return;
+        void persistAndBroadcastMessage({
+          ticketId: data?.ticketId,
+          content: data?.content,
+          senderId: socket.userId,
+          senderType: 'customer',
+          isAgent: false,
         });
-
-        logger.info('Message sent', { ticketId, userId });
       });
 
-      // Agent sends message
       socket.on('agent:message-send', (data) => {
-        const { ticketId, content, timestamp } = data;
-        const agentId = socket.data.agentId;
-
-        if (!agentId || !socket.rooms.has(`ticket:${ticketId}`) || !String(content || '').trim() || String(content).length > 5000) return;
-
-        // Broadcast to all in ticket room
-        namespace.to(`ticket:${ticketId}`).emit('message:new', {
-          ticketId,
-          sender: {
-            type: 'agent',
-            id: agentId,
-            name: 'Support Agent',
-          },
-          content,
-          timestamp,
+        const senderId = socket.data.agentId || socket.userId;
+        const isAgent = Boolean(socket.data.agentId || ['admin', 'super_admin'].includes(socket.userRole));
+        if (!isAgent) return;
+        void persistAndBroadcastMessage({
+          ticketId: data?.ticketId,
+          content: data?.content,
+          senderId,
+          senderType: 'agent',
+          isAgent: true,
         });
-
-        // Mark message as read for customer
-        namespace.to(`ticket:${ticketId}`).emit('message:agent-typing', {
-          ticketId,
-          agentId,
-          isTyping: false,
-        });
-
-        logger.info('Agent message sent', { ticketId, agentId });
       });
 
       // Agent typing indicator

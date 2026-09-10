@@ -169,6 +169,45 @@ describe('shared realtime server', () => {
     await expect(typingEvent).resolves.toEqual({ ticketId: 'ticket-1', isTyping: true });
   });
 
+  test('persists legacy Socket.IO customer messages before broadcasting them', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM support_conversations')) return { rows: [{ id: 'ticket-1', status: 'open' }] };
+      if (sql.includes('INSERT INTO support_conversation_messages')) {
+        return { rows: [{ id: 'message-1', created_at: '2026-09-10T15:00:00.000Z' }] };
+      }
+      if (sql.includes('UPDATE support_conversations')) return { rows: [], rowCount: 1 };
+      return { rows: [] };
+    });
+
+    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const observerToken = jwt.sign({ id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
+    const observer = await connect(`${baseUrl}/support`, { auth: { token: observerToken } });
+    clients.push(customer, observer);
+
+    customer.emit('customer:join', { visitorName: 'Customer' });
+    observer.emit('customer:join', { visitorName: 'Observer' });
+    customer.emit('ticket:join', { ticketId: 'ticket-1' });
+    observer.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const messageEvent = once(observer, 'message:new');
+    customer.emit('message:send', { ticketId: 'ticket-1', content: 'Persist this message' });
+    await expect(messageEvent).resolves.toEqual(expect.objectContaining({
+      ticketId: 'ticket-1',
+      messageId: 'message-1',
+      content: 'Persist this message',
+      timestamp: '2026-09-10T15:00:00.000Z',
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(true);
+  });
+
   test('prevents a second Socket.IO server from attaching to the same HTTP server', () => {
     expect(() => createRealtimeServer({
       httpServer,
