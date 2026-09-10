@@ -223,6 +223,14 @@ describe('support routes', () => {
       'message:updated',
       expect.objectContaining({ messageId: 'message-1', content: 'Updated reply' })
     );
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      adminId: ADMIN_ID,
+      action: 'support_message_edited',
+      targetType: 'support_conversation_message',
+      targetId: 'message-1',
+      before: { editCount: 0, isPublic: true },
+      after: { editCount: 1, isPublic: true },
+    }));
   });
 
   test('audits support conversation status changes', async () => {

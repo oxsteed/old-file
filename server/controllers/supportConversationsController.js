@@ -478,6 +478,17 @@ async function updateAgentMessage(req, res) {
       editCount: message.edit_count,
       timestamp: message.created_at,
     };
+    const editCount = Number(message.edit_count || 0);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_message_edited',
+      targetType: 'support_conversation_message',
+      targetId: message.id,
+      description: 'Public support reply edited by authorized staff',
+      before: { editCount: Math.max(0, editCount - 1), isPublic: true },
+      after: { editCount, isPublic: true },
+      req,
+    });
     WebSocketService.broadcastToTicket(conversationId, 'message:updated', payload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
     return res.json({ success: true, data: message });
