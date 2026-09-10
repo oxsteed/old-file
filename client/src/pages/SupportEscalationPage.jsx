@@ -115,6 +115,12 @@ function PublicGuestSupport({ t }) {
     socket.on('message:updated', (data) => {
       if (data.ticketId === conversationId) load().catch(() => {});
     });
+    socket.on('messages:read', (data) => {
+      if (data.ticketId !== conversationId) return;
+      setMessages((previous) => previous.map((item) => item.sender.type === 'customer'
+        ? { ...item, readByRecipient: true, readAt: data.readAt || new Date().toISOString() }
+        : item));
+    });
     socket.on('agent:typing-indicator', (data) => {
       if (data.ticketId === conversationId) setAgentTyping(Boolean(data.isTyping));
     });
@@ -344,6 +350,7 @@ function PublicGuestSupport({ t }) {
           return <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${isCustomer ? 'ml-8 bg-orange-600' : 'bg-slate-800'}`}>
             {item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
             {editingMessageId === item.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editMessage(item.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{item.content && <p className="whitespace-pre-wrap">{item.content}</p>}{item.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content); }} className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
+            {item.readByRecipient && isCustomer && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
           </div>;
         })}
         <div ref={messagesEndRef} />
@@ -368,6 +375,8 @@ function normalizeSupportMessages(messages = []) {
     attachmentName: message.attachment_name || message.attachmentName,
     editedAt: message.edited_at || message.editedAt,
     editCount: message.edit_count || message.editCount || 0,
+    readByRecipient: Boolean(message.read_by_recipient || message.readByRecipient),
+    readAt: message.read_at || message.readAt,
     messageType: message.message_type || message.messageType,
     timestamp: message.created_at,
   }));
@@ -500,6 +509,12 @@ function AuthenticatedSupportEscalationPage({ user }) {
         editedAt: data.editedAt,
         editCount: data.editCount,
       } : message));
+    });
+    socket.on('ticket:read', (data) => {
+      if (data.ticketId !== ticketIdRef.current) return;
+      setLiveMessages((previous) => previous.map((message) => message.sender.type === 'agent'
+        ? { ...message, readByRecipient: true, readAt: data.readAt || new Date().toISOString() }
+        : message));
     });
     socket.on('agent:typing-indicator', (data) => {
       if (data.ticketId === ticketIdRef.current) setAgentTyping(Boolean(data.isTyping));
@@ -1022,6 +1037,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                         >
                           {msg.attachmentUrl && <img src={msg.attachmentUrl} alt={msg.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
                           {editingMessageId === msg.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editCustomerMessage(msg.id)} disabled={liveSending || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{msg.content && <p className="break-words leading-6 whitespace-pre-wrap">{msg.content}</p>}{msg.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(msg.id); setEditingContent(msg.content); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
+                          {msg.readByRecipient && msg.sender.type === 'customer' && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
                           {msg.timestamp && (
                             <span className="text-xs opacity-70 mt-2 block">
                               {new Date(msg.timestamp).toLocaleTimeString(i18n.language || 'en', {

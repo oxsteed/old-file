@@ -273,6 +273,15 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     socket.on('ticket:created', refreshWorkspace);
     socket.on('message:new', refreshWorkspace);
     socket.on('support:conversation-updated', refreshWorkspace);
+    socket.on('ticket:read', (data) => {
+      if (data.ticketId !== selectedId) return;
+      setDetail((current) => current ? {
+        ...current,
+        messages: (current.messages || []).map((message) => message.is_agent
+          ? { ...message, read_by_recipient: true, read_at: data.readAt || new Date().toISOString(), status: 'read' }
+          : message),
+      } : current);
+    });
     agentSocketRef.current = socket;
 
     return () => {
@@ -753,6 +762,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                                 {canEdit && <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingContent(messageBody(message)); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} /> Edit reply</button>}
                               </>
                             )}
+                            {fromAgent && message.read_by_recipient && <div className="mt-2 text-[11px] opacity-60">Read by customer</div>}
                             {message.edited_at && <div className="mt-2 text-[11px] opacity-60">Edited {formatWhen(message.edited_at)}</div>}
                             <div className="mt-2 flex items-center gap-1 text-[11px] opacity-60"><Clock3 size={11} /> {formatWhen(message.created_at)}</div>
                           </div>
