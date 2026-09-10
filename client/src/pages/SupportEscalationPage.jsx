@@ -73,9 +73,11 @@ function PublicGuestSupport({ t }) {
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const stickToBottomRef = useRef(true);
 
   const load = useCallback(async () => {
     if (!conversationId || !token) return;
@@ -123,7 +125,9 @@ function PublicGuestSupport({ t }) {
 
   useEffect(() => {
     if (step === 'chat') {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (stickToBottomRef.current) {
+        messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+      }
       socketRef.current?.emit('ticket:read', { ticketId: conversationId });
     }
   }, [conversationId, messages, step]);
@@ -319,7 +323,14 @@ function PublicGuestSupport({ t }) {
           <button type="button" onClick={download} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50"><Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}</button>
         </div>
       </div>
-      <div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">
+      <div
+        ref={messageListRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
+        }}
+        className="my-6 max-h-[420px] space-y-3 overflow-y-auto"
+      >
         {messages.map((item) => {
           const isCustomer = item.sender?.type === 'customer';
           const canEdit = isCustomer && item.content && !['resolved', 'closed'].includes(conversationStatus) && Date.now() - new Date(item.timestamp).getTime() < 15 * 60 * 1000;
@@ -405,9 +416,11 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [successTicketId, setSuccessTicketId] = useState(null);
 
   const socketRef = useRef(null);
+  const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
   const ticketIdRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const stickToBottomRef = useRef(true);
 
   useEffect(() => {
     ticketIdRef.current = ticketId;
@@ -633,9 +646,15 @@ function AuthenticatedSupportEscalationPage({ user }) {
   }, [ticketId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (stickToBottomRef.current) {
+      messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+    }
     if (ticketId) socketRef.current?.emit('ticket:read', { ticketId });
   }, [liveMessages, ticketId]);
+
+  useEffect(() => {
+    stickToBottomRef.current = true;
+  }, [ticketId]);
 
   useEffect(() => () => {
     window.clearTimeout(typingTimerRef.current);
@@ -954,7 +973,14 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   </button>
                 </div>
 
-                <div className="h-[520px] overflow-y-auto px-6 py-5 space-y-4 bg-slate-950/30">
+                <div
+                  ref={messageListRef}
+                  onScroll={(event) => {
+                    const element = event.currentTarget;
+                    stickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+                  }}
+                  className="h-[520px] overflow-y-auto px-6 py-5 space-y-4 bg-slate-950/30"
+                >
                   {liveMessages.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-center">
                       <div>
