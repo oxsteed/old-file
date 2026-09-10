@@ -4241,7 +4241,9 @@
       "agentTyping": "Un agent du support écrit…",
       "reopen": "Rouvrir la conversation",
       "reopening": "Réouverture…",
-      "reopenError": "Impossible de rouvrir cette conversation."
+      "reopenError": "Impossible de rouvrir cette conversation.",
+      "realtimeReconnecting": "Les mises à jour en direct se reconnectent. Vos messages restent disponibles grâce à l’envoi sécurisé.",
+      "realtimeUnavailable": "Les mises à jour en direct sont temporairement indisponibles. Nous continuerons à vérifier les réponses."
     }
   },
   "businessHub": {

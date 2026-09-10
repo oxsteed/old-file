@@ -4241,7 +4241,9 @@
       "agentTyping": "Un agente de soporte está escribiendo…",
       "reopen": "Reabrir conversación",
       "reopening": "Reabriendo…",
-      "reopenError": "No se pudo reabrir esta conversación."
+      "reopenError": "No se pudo reabrir esta conversación.",
+      "realtimeReconnecting": "Las actualizaciones en directo se están reconectando. Tus mensajes siguen disponibles mediante entrega segura.",
+      "realtimeUnavailable": "Las actualizaciones en directo no están disponibles temporalmente. Seguiremos comprobando las respuestas."
     }
   },
   "businessHub": {

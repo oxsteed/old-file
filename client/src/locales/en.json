@@ -4202,7 +4202,9 @@
       "agentTyping": "A support agent is typing…",
       "reopen": "Reopen conversation",
       "reopening": "Reopening…",
-      "reopenError": "Could not reopen this conversation."
+      "reopenError": "Could not reopen this conversation.",
+      "realtimeReconnecting": "Live updates are reconnecting. Your messages remain available through secure delivery.",
+      "realtimeUnavailable": "Live updates are temporarily unavailable. We will keep checking for replies."
     }
   },
   "businessHub": {

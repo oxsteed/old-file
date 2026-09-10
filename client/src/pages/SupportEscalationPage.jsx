@@ -91,6 +91,7 @@ function PublicGuestSupport({ t }) {
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [showNewMessages, setShowNewMessages] = useState(false);
+  const [realtimeState, setRealtimeState] = useState('connecting');
   const messageListRef = useRef(null);
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
@@ -122,10 +123,13 @@ function PublicGuestSupport({ t }) {
     const socket = io(realtimeNamespaceUrl('support'), { transports: ['websocket', 'polling'], auth: { guestToken: token, conversationId } });
     socketRef.current = socket;
     socket.on('connect', () => {
+      setRealtimeState('connected');
       socket.emit('customer:join', { visitorName: name, visitorEmail: email });
       socket.emit('ticket:join', { ticketId: conversationId });
       load().catch(() => {});
     });
+    socket.on('disconnect', () => setRealtimeState('reconnecting'));
+    socket.on('connect_error', () => setRealtimeState('unavailable'));
     socket.on('ticket:assigned', () => load().catch(() => {}));
     socket.on('message:new', (data) => {
       if (data.ticketId === conversationId) load().catch(() => {});
@@ -356,6 +360,9 @@ function PublicGuestSupport({ t }) {
           <button type="button" onClick={download} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50"><Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}</button>
         </div>
       </div>
+      {realtimeState !== 'connected' && <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100" role="status" aria-live="polite">
+        {realtimeState === 'unavailable' ? t('support.escalation.realtimeUnavailable') : t('support.escalation.realtimeReconnecting')}
+      </div>}
       <div
         ref={messageListRef}
         onScroll={(event) => {
@@ -449,6 +456,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [showNewMessages, setShowNewMessages] = useState(false);
+  const [realtimeState, setRealtimeState] = useState('connecting');
   const profileName = user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || '';
   const profileEmail = user?.email || '';
   const [visitorName, setVisitorName] = useState(profileName);
@@ -478,6 +486,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      setRealtimeState('connected');
       socket.emit('customer:join', {
         userId: user.id,
         visitorEmail: profileEmail,
@@ -490,6 +499,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
         });
       }
     });
+    socket.on('disconnect', () => setRealtimeState('reconnecting'));
+    socket.on('connect_error', () => setRealtimeState('unavailable'));
 
     const handleAssignment = (data) => {
       if (data.ticketId !== ticketIdRef.current) return;
@@ -1031,6 +1042,9 @@ function AuthenticatedSupportEscalationPage({ user }) {
                     <X size={20} />
                   </button>
                 </div>
+                {realtimeState !== 'connected' && <div className="mx-6 mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100" role="status" aria-live="polite">
+                  {realtimeState === 'unavailable' ? t('support.escalation.realtimeUnavailable') : t('support.escalation.realtimeReconnecting')}
+                </div>}
 
                 <div
                   ref={messageListRef}

@@ -4326,7 +4326,9 @@
       "agentTyping": "Yon ajan sipò ap ekri…",
       "reopen": "Relouvri konvèsasyon an",
       "reopening": "Ap relouvri…",
-      "reopenError": "Nou pa t kapab relouvri konvèsasyon sa a."
+      "reopenError": "Nou pa t kapab relouvri konvèsasyon sa a.",
+      "realtimeReconnecting": "Mizajou an dirèk yo ap rekonekte. Mesaj ou yo toujou disponib atravè livrezon an sekirite.",
+      "realtimeUnavailable": "Mizajou an dirèk yo pa disponib pou yon ti tan. N ap kontinye verifye repons yo."
     }
   },
   "businessHub": {
