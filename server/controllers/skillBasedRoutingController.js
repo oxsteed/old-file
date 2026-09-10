@@ -3,36 +3,53 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function canManageBusiness(req, businessId) {
+  if (!businessId) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
+  return supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
+}
+
+async function canAccessBusiness(req, businessId) {
+  if (!businessId) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
+  return supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+}
+
+function normalizeSkills(requiredSkills) {
+  if (!Array.isArray(requiredSkills) || requiredSkills.length < 1 || requiredSkills.length > 50) return null;
+  const skills = requiredSkills.map((skill) => String(skill).trim()).filter(Boolean);
+  if (skills.length !== requiredSkills.length || skills.some((skill) => skill.length > 100)) return null;
+  return [...new Set(skills)];
+}
+
 async function findAgentBySkills(req, res) {
   try {
     const { businessId } = req.params;
-    const { requiredSkills } = req.body;
+    const requiredSkills = normalizeSkills(req.body.requiredSkills);
 
-    if (!requiredSkills || !requiredSkills.length) {
-      return sendValidationError(res, { requiredSkills: 'Required array of skills' });
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    if (!requiredSkills) {
+      return sendValidationError(res, { requiredSkills: 'Required array of 1 to 50 skills, each no more than 100 characters' });
     }
-
-    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const result = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
-        COUNT(ag.skill_name) as matching_skills,
+        COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) as matching_skills,
         AVG(CAST(CASE ag.proficiency_level WHEN 'expert' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END AS FLOAT)) as avg_proficiency,
         COUNT(ca.id) as active_chats
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_skills ag ON sa.id = ag.agent_id
       LEFT JOIN conversation_assignments ca ON sa.id = ca.agent_id AND ca.status = 'active'
-      WHERE sa.employer_id = $1
+      WHERE sa.employer_id = ANY($1::uuid[])
       AND sa.status = 'active'
       AND sa.is_available = true
-      AND (ag.skill_name = ANY($2::text[]) OR COUNT(ag.skill_name) = 0)
       GROUP BY sa.id, sa.user_id, u.name, sa.max_concurrent_chats
-      HAVING COUNT(ag.skill_name) > 0
-      ORDER BY COUNT(ag.skill_name) DESC, AVG(CAST(CASE ag.proficiency_level WHEN 'expert' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END AS FLOAT)) DESC, COUNT(ca.id) ASC
+      HAVING COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) > 0
+      ORDER BY COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) DESC, AVG(CAST(CASE ag.proficiency_level WHEN 'expert' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END AS FLOAT)) DESC, COUNT(ca.id) ASC
       LIMIT 1`,
-      [employerId, requiredSkills]
+      [await supportEmployerService.employerIdsForConversationBusiness(businessId), requiredSkills]
     );
 
     if (!result.rows.length) {
@@ -49,26 +66,26 @@ async function findAgentBySkills(req, res) {
 async function findTeamBySkills(req, res) {
   try {
     const { businessId } = req.params;
-    const { requiredSkills } = req.body;
+    const requiredSkills = normalizeSkills(req.body.requiredSkills);
 
-    if (!requiredSkills || !requiredSkills.length) {
-      return sendValidationError(res, { requiredSkills: 'Required array of skills' });
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    if (!requiredSkills) {
+      return sendValidationError(res, { requiredSkills: 'Required array of 1 to 50 skills, each no more than 100 characters' });
     }
 
     const result = await query(
       `SELECT
         st.id, st.team_name,
-        COUNT(DISTINCT ts.skill_name) as matching_skills,
+        COUNT(DISTINCT ts.skill_name) FILTER (WHERE ts.skill_name = ANY($2::text[])) as matching_skills,
         COUNT(DISTINCT tm.agent_id) as team_size
       FROM support_teams st
       LEFT JOIN team_skills ts ON st.id = ts.team_id
       LEFT JOIN team_members tm ON st.id = tm.team_id AND tm.is_active = true
       WHERE st.business_id = $1
       AND st.is_active = true
-      AND (ts.skill_name = ANY($2::text[]) OR COUNT(DISTINCT ts.skill_name) = 0)
       GROUP BY st.id, st.team_name
-      HAVING COUNT(DISTINCT ts.skill_name) > 0
-      ORDER BY COUNT(DISTINCT ts.skill_name) DESC, COUNT(DISTINCT tm.agent_id) DESC
+      HAVING COUNT(DISTINCT ts.skill_name) FILTER (WHERE ts.skill_name = ANY($2::text[])) > 0
+      ORDER BY COUNT(DISTINCT ts.skill_name) FILTER (WHERE ts.skill_name = ANY($2::text[])) DESC, COUNT(DISTINCT tm.agent_id) DESC
       LIMIT 1`,
       [businessId, requiredSkills]
     );
@@ -86,12 +103,17 @@ async function findTeamBySkills(req, res) {
 
 async function routeBySkills(req, res) {
   try {
-    const { conversationId } = req.params;
-    const { requiredSkills } = req.body;
+    const { businessId, conversationId } = req.params;
+    const requiredSkills = normalizeSkills(req.body.requiredSkills);
+
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    if (!requiredSkills) {
+      return sendValidationError(res, { requiredSkills: 'Required array of 1 to 50 skills, each no more than 100 characters' });
+    }
 
     const conv = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
-      [conversationId]
+      'SELECT * FROM support_conversations WHERE id = $1 AND business_id = $2',
+      [conversationId, businessId]
     );
 
     if (!conv.rows.length) return sendError(res, 404, 'Conversation not found');
@@ -105,17 +127,16 @@ async function routeBySkills(req, res) {
     const agent = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
-        COUNT(ag.skill_name) as matching_skills
+        COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) as matching_skills
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_skills ag ON sa.id = ag.agent_id
       WHERE sa.employer_id = ANY($1::uuid[])
       AND sa.status = 'active'
       AND sa.is_available = true
-      AND (ag.skill_name = ANY($2::text[]) OR COUNT(ag.skill_name) = 0)
       GROUP BY sa.id, sa.user_id, u.name
-      HAVING COUNT(ag.skill_name) > 0
-      ORDER BY COUNT(ag.skill_name) DESC, sa.id ASC
+      HAVING COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) > 0
+      ORDER BY COUNT(ag.skill_name) FILTER (WHERE ag.skill_name = ANY($2::text[])) DESC, sa.id ASC
       LIMIT 1`,
       [employerIds, requiredSkills]
     );
@@ -135,8 +156,8 @@ async function routeBySkills(req, res) {
     );
 
     await query(
-      'UPDATE support_conversations SET agent_id = $1, status = $2 WHERE id = $3',
-      [agentId, 'in_progress', conversationId]
+      'UPDATE support_conversations SET agent_id = $1, status = $2 WHERE id = $3 AND business_id = $4',
+      [agentId, 'in_progress', conversationId, businessId]
     );
 
     await query(
@@ -159,6 +180,7 @@ async function getAgentSkillMatrix(req, res) {
   try {
     const { businessId } = req.params;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const result = await query(
@@ -185,6 +207,7 @@ async function getCoverageBySkill(req, res) {
   try {
     const { businessId } = req.params;
 
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const result = await query(
