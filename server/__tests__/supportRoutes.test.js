@@ -237,14 +237,14 @@ describe('support routes', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: null, customer_id: USER_ID, status: 'open', agent_id: null }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'resolved', resolution_status: 'resolved' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'resolved', resolution_status: 'resolved', resolution_summary: 'Issue fixed and next steps provided.' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp())
       .put('/api/support/conversations/conversation-1/status')
       .set('Authorization', adminAuthHeader())
-      .send({ status: 'resolved' });
+      .send({ status: 'resolved', resolutionSummary: 'Issue fixed and next steps provided.' });
 
     expect(res.status).toBe(200);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
@@ -255,6 +255,11 @@ describe('support routes', () => {
       before: { status: 'open' },
       after: { status: 'resolved', resolutionStatus: 'resolved' },
     }));
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'ticket:status-changed',
+      expect.objectContaining({ resolutionSummary: 'Issue fixed and next steps provided.' })
+    );
   });
 
   test('marks customer-visible messages read for the authorized conversation participant', async () => {

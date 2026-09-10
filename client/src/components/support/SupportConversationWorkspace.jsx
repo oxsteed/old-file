@@ -114,6 +114,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
+  const [resolutionSummary, setResolutionSummary] = useState('');
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
@@ -226,6 +227,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setQuickReply('');
     setAttachment(null);
     setInternalNote(false);
+    setResolutionSummary('');
     setEditingMessageId(null);
     setEditingContent('');
     setCustomerTyping(false);
@@ -401,8 +403,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     );
   };
 
-  const updateStatus = (status) => runAction(
-    () => api.put(`/support/conversations/${selected.id}/status`, { status }),
+  const updateStatus = (status, extra = {}) => runAction(
+    () => api.put(`/support/conversations/${selected.id}/status`, { status, ...extra }),
     'Conversation status updated.'
   );
 
@@ -726,11 +728,17 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 </div>
 
                 {(canReply || isPlatformAdmin) && (
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 space-y-3">
+                    {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">Resolution summary <span className="text-slate-500">(shown to the customer when resolved)</span>
+                      <textarea value={resolutionSummary} onChange={(event) => setResolutionSummary(event.target.value)} maxLength={2000} rows={2} className="mt-1 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500" placeholder="Summarize what was done or what the customer should do next…" />
+                    </label>}
+                    {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">Resolution summary:</span> {selected.resolution_summary}</div>}
+                    <div className="flex flex-wrap gap-2">
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('waiting_for_customer')} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-amber-500/50">Waiting for customer</button>}
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('escalated')} className="rounded-xl border border-red-500/30 px-3 py-2 text-xs text-red-200 hover:bg-red-500/10">Escalate</button>}
-                    {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('resolved')} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/10"><CheckCircle2 size={13} /> Resolve</button>}
+                    {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('resolved', { resolutionSummary: resolutionSummary.trim() })} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/10"><CheckCircle2 size={13} /> Resolve</button>}
                     {isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('open')} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs text-blue-200 hover:bg-blue-500/10">Reopen</button>}
+                    </div>
                   </div>
                 )}
               </header>

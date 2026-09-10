@@ -48,6 +48,14 @@ function ConversationReviewForm({ t, review, rating, setRating, comment, setComm
   </form>;
 }
 
+function ResolutionSummary({ t, summary }) {
+  if (!summary) return null;
+  return <section className="mb-5 rounded-2xl border border-orange-500/25 bg-orange-500/10 p-4" aria-live="polite">
+    <p className="font-semibold text-orange-200">{t('support.escalation.resolutionSummaryTitle', { defaultValue: 'Resolution summary' })}</p>
+    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">{summary}</p>
+  </section>;
+}
+
 function PublicGuestSupport({ t }) {
   const [step, setStep] = useState('start');
   const [name, setName] = useState('');
@@ -67,6 +75,7 @@ function PublicGuestSupport({ t }) {
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [conversationStatus, setConversationStatus] = useState('');
+  const [resolutionSummary, setResolutionSummary] = useState('');
   const [agentTyping, setAgentTyping] = useState(false);
   const [reopenBusy, setReopenBusy] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,6 +94,7 @@ function PublicGuestSupport({ t }) {
     const response = await api.get(`/support/public/conversations/${conversationId}`, { headers: { Authorization: `Guest ${token}` } });
     setMessages(normalizeSupportMessages(response.data.data?.messages || []));
     setConversationStatus(response.data.data?.status || '');
+    setResolutionSummary(response.data.data?.resolution_summary || response.data.data?.resolutionSummary || '');
     setReview(response.data.data?.review || null);
     const state = response.data.data?.waiting;
     if (state) setWaiting({ ...state, localDeadline: Date.now() + state.remainingSeconds * 1000 });
@@ -125,7 +135,10 @@ function PublicGuestSupport({ t }) {
       if (data.ticketId === conversationId) setAgentTyping(Boolean(data.isTyping));
     });
     socket.on('ticket:status-changed', (data) => {
-      if (data.ticketId === conversationId) setConversationStatus(data.status || '');
+      if (data.ticketId === conversationId) {
+        setConversationStatus(data.status || '');
+        setResolutionSummary(data.resolutionSummary || '');
+      }
     });
     return () => socket.disconnect();
   }, [conversationId, email, name, token, load]);
@@ -355,6 +368,7 @@ function PublicGuestSupport({ t }) {
         })}
         <div ref={messagesEndRef} />
       </div>
+      {['resolved', 'closed'].includes(conversationStatus) && <ResolutionSummary t={t} summary={resolutionSummary} />}
       {['resolved', 'closed'].includes(conversationStatus) && <ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitReview} />}
       {error && <p className="mb-3 text-red-300">{error}</p>}
       {agentTyping && <p className="mb-2 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
@@ -412,6 +426,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [editingContent, setEditingContent] = useState('');
   const [liveSending, setLiveSending] = useState(false);
   const [conversationStatus, setConversationStatus] = useState('');
+  const [resolutionSummary, setResolutionSummary] = useState('');
   const [review, setReview] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -520,7 +535,10 @@ function AuthenticatedSupportEscalationPage({ user }) {
       if (data.ticketId === ticketIdRef.current) setAgentTyping(Boolean(data.isTyping));
     });
     socket.on('ticket:status-changed', (data) => {
-      if (data.ticketId === ticketIdRef.current) setConversationStatus(data.status || '');
+      if (data.ticketId === ticketIdRef.current) {
+        setConversationStatus(data.status || '');
+        setResolutionSummary(data.resolutionSummary || '');
+      }
     });
 
     const connect = async () => {
@@ -539,6 +557,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
         setConversationStatus(response.data.status || '');
+        setResolutionSummary(response.data.resolution_summary || response.data.resolutionSummary || '');
         setReview(response.data.review || null);
         const connected = response.data.routedTo === 'agent';
         const nextWaiting = localizeWaitingState(response.data.waiting);
@@ -596,6 +615,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
         setConversationStatus(response.data.status || '');
+        setResolutionSummary(response.data.resolution_summary || response.data.resolutionSummary || '');
         setReview(response.data.review || null);
         setWaiting(null);
         setConnectionState('connected');
@@ -636,6 +656,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
         const conversation = response.data.data;
         setLiveMessages(normalizeSupportMessages(conversation.messages));
         setConversationStatus(conversation.status || '');
+        setResolutionSummary(conversation.resolution_summary || conversation.resolutionSummary || '');
         setReview(conversation.review || null);
         if (conversation.agent_id) {
           setAssignedAgent({
@@ -1053,7 +1074,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {['resolved', 'closed'].includes(conversationStatus) && <div className="px-6 pt-4"><ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitConversationReview} /></div>}
+                {['resolved', 'closed'].includes(conversationStatus) && <div className="px-6 pt-4"><ResolutionSummary t={t} summary={resolutionSummary} /><ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitConversationReview} /></div>}
                 {agentTyping && <p className="px-6 pt-3 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
                 {liveFile && <div className="px-6 pt-3 text-sm text-orange-200">{liveFile.name}</div>}
                 <form

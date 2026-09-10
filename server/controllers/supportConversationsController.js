@@ -640,7 +640,7 @@ async function reopenCustomerConversation(req, res) {
     const result = await query(
       `UPDATE support_conversations
        SET status = 'open', resolved_at = NULL, closed_at = NULL,
-           resolution_status = NULL, updated_at = NOW()
+           resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
        WHERE id = $1 AND status = 'resolved'
        RETURNING *`,
       [conversationId]
@@ -668,6 +668,8 @@ async function updateConversationStatus(req, res) {
   try {
     const { conversationId } = req.params;
     const { status, resolutionStatus, internalNotes } = req.body;
+    const rawResolutionSummary = req.body?.resolutionSummary ?? req.body?.resolution_summary;
+    const resolutionSummary = rawResolutionSummary == null ? null : String(rawResolutionSummary).trim();
 
     if (!status) {
       return sendValidationError(res, { status: 'Required' });
@@ -676,6 +678,9 @@ async function updateConversationStatus(req, res) {
     const validStatuses = ['open', 'in_progress', 'waiting_for_customer', 'waiting_for_agent', 'resolved', 'closed', 'escalated'];
     if (!validStatuses.includes(status)) {
       return sendValidationError(res, { status: 'Invalid status' });
+    }
+    if (resolutionSummary && resolutionSummary.length > 2000) {
+      return sendValidationError(res, { resolutionSummary: 'Must be 2000 characters or fewer' });
     }
 
     // Get conversation
@@ -706,13 +711,15 @@ async function updateConversationStatus(req, res) {
     const params = [status];
 
     if (status === 'resolved') {
-      updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}`;
+      updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
       params.push(resolutionStatus || 'resolved');
+      params.push(resolutionSummary || '');
     } else if (status === 'closed') {
-      updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}`;
+      updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
       params.push(resolutionStatus || 'resolved');
+      params.push(resolutionSummary || '');
     } else if (status === 'open') {
-      updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL`;
+      updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL`;
     } else if (status === 'in_progress') {
       updateSql += `, resolved_at = NULL, closed_at = NULL`;
     }
@@ -770,6 +777,7 @@ async function updateConversationStatus(req, res) {
       ticketId: conversationId,
       conversationId,
       status,
+      resolutionSummary: result.rows[0]?.resolution_summary || null,
       updatedBy: req.user.id,
       timestamp: new Date().toISOString(),
     };

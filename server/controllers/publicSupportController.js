@@ -193,6 +193,7 @@ async function loadGuestConversation(req, res) {
   try {
     const { rows } = await pool.query(
       `SELECT id, status, category, priority, guest_name, subject, created_at, updated_at, agent_id,
+        resolution_summary,
         live_wait_started_at, live_wait_expires_at, live_wait_ended_at,
         (
           SELECT jsonb_build_object(
@@ -410,7 +411,7 @@ async function reopenGuestConversation(req, res) {
     const { rows: updated } = await pool.query(
       `UPDATE support_conversations
        SET status = 'open', resolved_at = NULL, closed_at = NULL,
-           resolution_status = NULL, updated_at = NOW()
+           resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
        WHERE id = $1 AND status = 'resolved'
        RETURNING id, status, updated_at`,
       [conversationId]
