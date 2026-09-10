@@ -200,8 +200,12 @@ export default function SupportMetricsDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-orange-400 font-semibold">{agent.rating || 0}★</p>
-                    <p className="text-gray-400 text-xs">{agent.avg_response_time_seconds}s avg</p>
+                    <p className="text-orange-400 font-semibold">
+                      {agent.rating == null ? 'No rating' : `${agent.rating}★`}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      {agent.avg_response_time_seconds == null ? 'No response data' : `${agent.avg_response_time_seconds}s avg`}
+                    </p>
                   </div>
                 </div>
               </div>

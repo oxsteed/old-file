@@ -38,14 +38,17 @@ export default function SupportSLADashboard() {
   const trendData = data.trend || [];
   const departmentData = data.departments || [];
   const violations = data.violations || [];
+  const compliance = stats.overall_compliance;
 
   const getComplianceColor = (compliance) => {
+    if (compliance == null) return 'text-gray-400';
     if (compliance >= 95) return 'text-green-400';
     if (compliance >= 85) return 'text-yellow-400';
     return 'text-red-400';
   };
 
   const getComplianceBg = (compliance) => {
+    if (compliance == null) return 'bg-gray-800';
     if (compliance >= 95) return 'bg-green-900/30';
     if (compliance >= 85) return 'bg-yellow-900/30';
     return 'bg-red-900/30';
@@ -74,8 +77,8 @@ export default function SupportSLADashboard() {
             <Target size={14} />
             Overall Compliance
           </p>
-          <p className={`text-3xl font-bold ${getComplianceColor(stats.overall_compliance || 0)}`}>
-            {stats.overall_compliance || 0}%
+          <p className={`text-3xl font-bold ${getComplianceColor(compliance)}`}>
+            {compliance == null ? '-' : `${compliance}%`}
           </p>
           <p className="text-gray-500 text-xs mt-2">Target: 95%</p>
         </div>
@@ -162,7 +165,7 @@ export default function SupportSLADashboard() {
                     <td className="px-6 py-4 text-white font-medium">{dept.name}</td>
                     <td className="px-6 py-4">
                       <span className={`font-semibold ${getComplianceColor(dept.compliance)}`}>
-                        {dept.compliance}%
+                        {dept.compliance == null ? '-' : `${dept.compliance}%`}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-white">{dept.avg_first_response_minutes}m</td>

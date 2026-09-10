@@ -127,7 +127,7 @@ describe('support routes', () => {
 
   test('lists the signed-in user support tickets', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
       .mockResolvedValueOnce({
         rows: [{
           id: 'ticket-1',
@@ -343,5 +343,46 @@ describe('support routes', () => {
     expect(res.body.logs).toHaveLength(1);
     expect(res.body.limit).toBe(10);
     expect(res.body.total).toBe(1);
+  });
+
+  test('reads durable support admin settings instead of process memory', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ settings: { general: { support_enabled: false } } }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/settings?business_id=42')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.general).toMatchObject({ business_id: '42', support_enabled: false });
+  });
+
+  test('reads durable knowledge-base articles for support admins', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'article-1', title: 'Billing help', content: 'Steps', keywords: ['billing'], category: 'billing', view_count: 3 }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/kb?business_id=42&search=billing')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.articles[0]).toMatchObject({ id: 'article-1', tags: ['billing'], views: 3 });
+  });
+
+  test('reads durable escalation rules and real daily escalation counts', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'rule-1', business_id: 42, rule_name: 'Urgent wait', condition: { priority: 'critical', trigger_condition: 'Wait over target' }, action: { escalate_to: 'manager', escalate_after_minutes: 15 }, is_active: true }] })
+      .mockResolvedValueOnce({ rows: [{ escalations_today: 2 }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/escalation/rules?business_id=42')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.rules[0]).toMatchObject({ rule_name: 'Urgent wait', priority: 'critical', escalate_to: 'manager' });
+    expect(res.body.stats.escalations_today).toBe(2);
   });
 });

@@ -24,12 +24,12 @@ const skillBasedRoutingController = require('../controllers/skillBasedRoutingCon
 const supportAgentPortalController = require('../controllers/supportAgentPortalController');
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
-const { randomUUID } = require('crypto');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
 const publicSupport = require('../controllers/publicSupportController');
 const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const DAY_NAMES = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
 
 function parseBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;
@@ -174,46 +174,31 @@ async function resolveSupportBusinessId(req) {
   return rows[0]?.id || null;
 }
 
-const supportAdminStore = {
-  shifts: new Map(),
-  kb: new Map(),
-  templates: new Map(),
-  escalationRules: new Map(),
-  teamMembers: new Map(),
-  settings: new Map(),
-};
+async function supportBusinessFromRequest(req) {
+  return resolveSupportBusinessId(req);
+}
 
-function withId(payload) {
-  const now = new Date().toISOString();
+async function canManageSupportBusiness(req, businessId) {
+  if (!businessId) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+}
+
+function serializeKnowledgeArticle(row) {
   return {
-    id: payload.id || randomUUID(),
-    created_at: payload.created_at || now,
-    updated_at: now,
-    ...payload,
+    ...row,
+    category: row.category || 'general',
+    tags: Array.isArray(row.tags) ? row.tags : (Array.isArray(row.keywords) ? row.keywords : []),
+    views: Number(row.views || row.view_count || 0),
   };
-}
-
-function valuesFor(store, businessId) {
-  return Array.from(store.values()).filter((item) => !businessId || item.business_id === businessId);
-}
-
-function saveTo(store, payload) {
-  const row = withId(payload);
-  store.set(row.id, row);
-  return row;
-}
-
-function updateIn(store, id, payload) {
-  const existing = store.get(id);
-  if (!existing) return null;
-  const row = withId({ ...existing, ...payload, id });
-  store.set(id, row);
-  return row;
 }
 
 async function supportConversationStats(businessId) {
   const conditions = [];
   const params = [];
+  const agentScope = businessId
+    ? `(se.kind = 'platform' OR se.business_id = $1::integer)`
+    : 'TRUE';
   if (businessId) {
     params.push(businessId);
     conditions.push(`business_id = $${params.length}`);
@@ -250,6 +235,10 @@ async function supportConversationStats(businessId) {
              WHEN 'low' THEN INTERVAL '24 hours'
              ELSE INTERVAL '4 hours'
            END) THEN 1 ELSE 0 END), 0)::int AS sla_violation_count
+       ,(SELECT COUNT(*)::int
+         FROM support_agents sa
+         JOIN support_employers se ON se.id = sa.employer_id
+         WHERE sa.status = 'active' AND ${agentScope}) AS active_agents
      FROM support_conversations
      ${where}`,
     params
@@ -626,12 +615,76 @@ router.get('/metrics', async (req, res, next) => {
       return res.status(400).json({ error: 'business_id is required' });
     }
     const stats = await supportConversationStats(businessId);
+    const scope = businessId ? 'sc.business_id = $1::integer' : 'TRUE';
+    const agentScope = businessId
+      ? `(se.kind = 'platform' OR se.business_id = $1::integer)`
+      : 'TRUE';
+    const [trendResult, departmentResult, categoryResult, agentResult] = await Promise.all([
+      db.query(
+        `SELECT day::date AS date,
+                COUNT(sc.id)::int AS conversations,
+                COUNT(sc.id) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved
+         FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS day
+         LEFT JOIN support_conversations sc
+           ON sc.created_at >= day
+          AND sc.created_at < day + INTERVAL '1 day'
+          AND ${scope}
+         GROUP BY day
+         ORDER BY day ASC`,
+        businessId ? [businessId] : []
+      ),
+      db.query(
+        `SELECT COALESCE(NULLIF(BTRIM(sa.department), ''), 'general') AS name,
+                COUNT(sc.id)::int AS conversations,
+                COUNT(sc.id) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved,
+                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds
+         FROM support_conversations sc
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+           AND ${scope}
+         GROUP BY COALESCE(NULLIF(BTRIM(sa.department), ''), 'general')
+         ORDER BY conversations DESC`,
+        businessId ? [businessId] : []
+      ),
+      db.query(
+        `SELECT COALESCE(NULLIF(BTRIM(sc.category), ''), 'general') AS name,
+                COUNT(*)::int AS count
+         FROM support_conversations sc
+         WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+           AND ${scope}
+         GROUP BY COALESCE(NULLIF(BTRIM(sc.category), ''), 'general')
+         ORDER BY count DESC`,
+        businessId ? [businessId] : []
+      ),
+      db.query(
+        `SELECT sa.id,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
+                COUNT(sc.id)::int AS total_conversations,
+                COUNT(sc.id) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved_conversations,
+                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds,
+                ROUND(AVG(scr.rating)::numeric, 1) AS rating
+         FROM support_agents sa
+         JOIN users u ON u.id = sa.user_id
+         JOIN support_employers se ON se.id = sa.employer_id
+         LEFT JOIN support_conversations sc
+           ON sc.agent_id = sa.id
+          AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+          AND ${scope}
+         LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
+         WHERE ${agentScope}
+         GROUP BY sa.id, u.id
+         HAVING COUNT(sc.id) > 0
+         ORDER BY resolved_conversations DESC, total_conversations DESC
+         LIMIT 10`,
+        businessId ? [businessId] : []
+      ),
+    ]);
     res.json({
       stats,
-      trend: [],
-      departments: [],
-      categories: [],
-      top_agents: [],
+      trend: trendResult.rows,
+      departments: departmentResult.rows,
+      categories: categoryResult.rows,
+      top_agents: agentResult.rows,
     });
   } catch (err) {
     next(err);
@@ -649,6 +702,122 @@ router.get('/sla', async (req, res, next) => {
     }
     const stats = await supportConversationStats(businessId);
     const eligible = Number(stats.sla_met_count || 0) + Number(stats.sla_violation_count || 0);
+    const scope = businessId ? 'sc.business_id = $1::integer' : 'TRUE';
+    const [trendResult, departmentResult, violationsResult] = await Promise.all([
+      db.query(
+        `SELECT day::date AS date,
+                COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
+                  OR NOW() - sc.created_at > CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END)::int AS eligible,
+                COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
+                  AND sc.first_response_at - sc.created_at <= CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END)::int AS met,
+                COUNT(*) FILTER (WHERE (sc.first_response_at IS NOT NULL
+                  AND sc.first_response_at - sc.created_at > CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END)
+                  OR (sc.first_response_at IS NULL
+                  AND NOW() - sc.created_at > CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END))::int AS violations
+         FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS day
+         LEFT JOIN support_conversations sc
+           ON sc.created_at >= day
+          AND sc.created_at < day + INTERVAL '1 day'
+          AND ${scope}
+         GROUP BY day
+         ORDER BY day ASC`,
+        businessId ? [businessId] : []
+      ),
+      db.query(
+        `SELECT COALESCE(NULLIF(BTRIM(sa.department), ''), 'general') AS name,
+                COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
+                  OR NOW() - sc.created_at > CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END)::int AS eligible,
+                COUNT(*) FILTER (WHERE sc.first_response_at IS NOT NULL
+                  AND sc.first_response_at - sc.created_at <= CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END)::int AS met,
+                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at))) / 60)::int AS avg_first_response_minutes,
+                ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(sc.resolved_at, sc.updated_at) - sc.created_at))) / 3600, 1) AS avg_resolution_hours
+         FROM support_conversations sc
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+           AND ${scope}
+         GROUP BY COALESCE(NULLIF(BTRIM(sa.department), ''), 'general')
+         ORDER BY eligible DESC`,
+        businessId ? [businessId] : []
+      ),
+      db.query(
+        `SELECT sc.id, sc.subject AS issue_type, sc.priority, sc.status,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name,
+                violation.violation_type,
+                CASE WHEN violation.violation_type = 'first_response'
+                  THEN ROUND(EXTRACT(EPOCH FROM (NOW() - (sc.created_at + CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '15 minutes'
+                    WHEN 'high' THEN INTERVAL '1 hour'
+                    WHEN 'low' THEN INTERVAL '24 hours'
+                    ELSE INTERVAL '4 hours'
+                  END))) / 60)::int
+                  ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - (sc.created_at + CASE sc.priority
+                    WHEN 'urgent' THEN INTERVAL '12 hours'
+                    WHEN 'high' THEN INTERVAL '24 hours'
+                    WHEN 'low' THEN INTERVAL '96 hours'
+                    ELSE INTERVAL '48 hours'
+                  END))) / 3600, 1)
+                END AS overage
+         FROM support_conversations sc
+         LEFT JOIN users u ON u.id = sc.customer_id
+         CROSS JOIN LATERAL (VALUES
+           ('first_response', sc.first_response_at IS NULL AND NOW() - sc.created_at > CASE sc.priority
+             WHEN 'urgent' THEN INTERVAL '15 minutes'
+             WHEN 'high' THEN INTERVAL '1 hour'
+             WHEN 'low' THEN INTERVAL '24 hours'
+             ELSE INTERVAL '4 hours'
+           END),
+           ('resolution', sc.status NOT IN ('resolved', 'closed') AND NOW() - sc.created_at > CASE sc.priority
+             WHEN 'urgent' THEN INTERVAL '12 hours'
+             WHEN 'high' THEN INTERVAL '24 hours'
+             WHEN 'low' THEN INTERVAL '96 hours'
+             ELSE INTERVAL '48 hours'
+           END)
+         ) AS violation(violation_type, is_violation)
+         WHERE violation.is_violation
+           AND ${scope}
+         ORDER BY sc.updated_at DESC
+         LIMIT 100`,
+        businessId ? [businessId] : []
+      ),
+    ]);
+    const departments = departmentResult.rows.map((row) => {
+      const departmentEligible = Number(row.eligible || 0);
+      return {
+        ...row,
+        compliance: departmentEligible ? Math.round((Number(row.met || 0) / departmentEligible) * 100) : null,
+        violations: Math.max(0, departmentEligible - Number(row.met || 0)),
+      };
+    });
     res.json({
       stats: {
         overall_compliance: eligible ? Math.round((Number(stats.sla_met_count || 0) / eligible) * 100) : null,
@@ -656,9 +825,16 @@ router.get('/sla', async (req, res, next) => {
         avg_resolution_hours: stats.avg_resolution_hours || 0,
         violation_count: Number(stats.sla_violation_count || 0),
       },
-      trend: [],
-      departments: [],
-      violations: [],
+      trend: trendResult.rows.map((row) => ({
+        ...row,
+        compliance: Number(row.eligible || 0) ? Math.round((Number(row.met || 0) / Number(row.eligible)) * 100) : null,
+      })),
+      departments,
+      violations: violationsResult.rows.map((row) => ({
+        ...row,
+        minutes_over: row.violation_type === 'first_response' ? row.overage : null,
+        hours_over: row.violation_type === 'resolution' ? row.overage : null,
+      })),
     });
   } catch (err) {
     next(err);
@@ -678,22 +854,40 @@ router.get('/performance', async (req, res, next) => {
     } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
       return res.status(400).json({ error: 'business_id is required' });
     }
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const sortBy = String(req.query.sort_by || 'rating');
+    const sortSql = {
+      rating: 'rating DESC NULLS LAST',
+      response_time: 'avg_response_time_seconds ASC NULLS LAST',
+      resolution: 'resolved_count DESC',
+      volume: 'total_chats DESC',
+    }[sortBy] || 'rating DESC NULLS LAST';
+    const params = [businessId || null];
+    const searchSql = search ? 'AND (u.email ILIKE $2 OR u.first_name ILIKE $2 OR u.last_name ILIKE $2)' : '';
+    if (search) params.push(`%${search}%`);
     const { rows } = await db.query(
       `SELECT
          sa.id,
          sa.user_id,
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          COALESCE(sa.role, 'agent') AS role,
-         COALESCE(sa.avg_rating, 0) AS rating,
-         COALESCE(sa.total_conversations_handled, 0) AS total_chats,
-         0 AS avg_response_time_seconds,
-         COALESCE(sa.total_resolved_count, 0) AS resolved_count
+         COALESCE(AVG(scr.rating), sa.avg_rating) AS rating,
+         COUNT(sc.id)::int AS total_chats,
+         ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds,
+         COUNT(sc.id) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved_count
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
-       WHERE ($1::integer IS NULL OR sa.business_id = $1::integer)
-       ORDER BY sa.avg_rating DESC NULLS LAST, sa.updated_at DESC
+       JOIN support_employers se ON se.id = sa.employer_id
+       LEFT JOIN support_conversations sc
+         ON sc.agent_id = sa.id
+        AND ($1::integer IS NULL OR sc.business_id = $1::integer)
+       LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
+       WHERE ($1::integer IS NULL OR se.kind = 'platform' OR se.business_id = $1::integer)
+         ${searchSql}
+       GROUP BY sa.id, u.id
+       ORDER BY ${sortSql}, sa.updated_at DESC
        LIMIT 100`,
-      [businessId || null]
+      params
     );
     res.json({ agents: rows });
   } catch (err) {
@@ -703,6 +897,8 @@ router.get('/performance', async (req, res, next) => {
 
 router.get('/performance/:agentId', async (req, res, next) => {
   try {
+    const businessId = req.query.business_id || req.query.businessId || null;
+    const days = Math.min(365, Math.max(1, Number.parseInt(req.query.days, 10) || 30));
     const { rows } = await db.query(
       `SELECT
          sa.id,
@@ -710,16 +906,28 @@ router.get('/performance/:agentId', async (req, res, next) => {
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          u.email,
          COALESCE(sa.role, 'agent') AS role,
-         COALESCE(sa.avg_rating, 0) AS rating,
-         COALESCE(sa.total_conversations_handled, 0) AS total_chats,
-         COALESCE(sa.total_resolved_count, 0) AS resolved_count,
-         sa.employer_id
+         COALESCE(AVG(scr.rating), sa.avg_rating) AS rating,
+         COUNT(sc.id)::int AS total_chats,
+         COUNT(sc.id) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved_count,
+         ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds,
+         sa.employer_id,
+         se.business_id,
+         se.kind
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
+       JOIN support_employers se ON se.id = sa.employer_id
+       LEFT JOIN support_conversations sc
+         ON sc.agent_id = sa.id
+        AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
+        AND ($2::integer IS NULL OR sc.business_id = $2::integer)
+       LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
        WHERE sa.id = $1`,
-      [req.params.agentId]
+      [req.params.agentId, businessId || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Agent not found' });
+    if (businessId && rows[0].kind !== 'platform' && String(rows[0].business_id) !== String(businessId)) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
     const canAccess = await supportEmployerService.userCanManageEmployer(
       rows[0].employer_id,
       req.user.id,
@@ -728,7 +936,39 @@ router.get('/performance/:agentId', async (req, res, next) => {
     if (!canAccess && rows[0].user_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    res.json({ agent: rows[0], trend: [], conversations: [] });
+    const [trendResult, conversationsResult] = await Promise.all([
+      db.query(
+        `SELECT sc.created_at::date AS date,
+                COUNT(*)::int AS conversations,
+                COUNT(*) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved,
+                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds
+         FROM support_conversations sc
+         WHERE sc.agent_id = $1
+           AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
+           AND ($2::integer IS NULL OR sc.business_id = $2::integer)
+         GROUP BY sc.created_at::date
+         ORDER BY date ASC`,
+        [req.params.agentId, businessId || null]
+      ),
+      db.query(
+        `SELECT sc.id, sc.subject, sc.category, sc.priority, sc.status,
+                sc.created_at, sc.updated_at, sc.resolved_at,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name,
+                (SELECT scm.content
+                 FROM support_conversation_messages scm
+                 WHERE scm.conversation_id = sc.id AND scm.message_type <> 'internal_note'
+                 ORDER BY scm.created_at DESC LIMIT 1) AS last_message
+         FROM support_conversations sc
+         LEFT JOIN users u ON u.id = sc.customer_id
+         WHERE sc.agent_id = $1
+           AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
+           AND ($2::integer IS NULL OR sc.business_id = $2::integer)
+         ORDER BY sc.updated_at DESC
+         LIMIT 100`,
+        [req.params.agentId, businessId || null]
+      ),
+    ]);
+    res.json({ agent: rows[0], trend: trendResult.rows, conversations: conversationsResult.rows });
   } catch (err) {
     next(err);
   }
@@ -825,138 +1065,611 @@ router.get('/csat/analytics', async (req, res, next) => {
   }
 });
 
-router.get('/shifts', (req, res) => {
-  res.json({ shifts: valuesFor(supportAdminStore.shifts, req.query.business_id || req.query.businessId) });
+router.get('/shifts', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `SELECT id, business_id, name, start_time, end_time, days, max_agents, is_active, created_at, updated_at
+       FROM support_shift_definitions
+       WHERE business_id = $1 AND is_active = true
+       ORDER BY start_time, name
+       LIMIT 200`,
+      [businessId]
+    );
+    return res.json({ shifts: rows });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/shifts', (req, res) => {
-  res.status(201).json({ shift: saveTo(supportAdminStore.shifts, req.body) });
+router.post('/shifts', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const name = String(req.body.name || '').trim();
+    const startTime = String(req.body.start_time || '').trim();
+    const endTime = String(req.body.end_time || '').trim();
+    const days = Array.isArray(req.body.days) ? req.body.days.map((day) => String(day).toLowerCase()).filter((day) => DAY_NAMES.has(day)) : [];
+    const maxAgents = Number.parseInt(req.body.max_agents, 10);
+    if (!name || name.length > 120 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || !days.length || !Number.isInteger(maxAgents) || maxAgents < 0 || maxAgents > 10000) {
+      return res.status(400).json({ error: 'Invalid shift definition' });
+    }
+    const { rows } = await db.query(
+      `INSERT INTO support_shift_definitions (business_id, name, start_time, end_time, days, max_agents, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, business_id, name, start_time, end_time, days, max_agents, is_active, created_at, updated_at`,
+      [businessId, name, startTime, endTime, [...new Set(days)], maxAgents, req.user.id]
+    );
+    return res.status(201).json({ shift: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.patch('/shifts/:id', (req, res) => {
-  const shift = updateIn(supportAdminStore.shifts, req.params.id, req.body);
-  if (!shift) return res.status(404).json({ error: 'Shift not found' });
-  res.json({ shift });
+router.patch('/shifts/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM support_shift_definitions WHERE id = $1 AND is_active = true', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Shift not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    const name = String(req.body.name || '').trim();
+    const startTime = String(req.body.start_time || '').trim();
+    const endTime = String(req.body.end_time || '').trim();
+    const days = Array.isArray(req.body.days) ? req.body.days.map((day) => String(day).toLowerCase()).filter((day) => DAY_NAMES.has(day)) : [];
+    const maxAgents = Number.parseInt(req.body.max_agents, 10);
+    if (!name || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || !days.length || !Number.isInteger(maxAgents) || maxAgents < 0 || maxAgents > 10000) {
+      return res.status(400).json({ error: 'Invalid shift definition' });
+    }
+    const { rows } = await db.query(
+      `UPDATE support_shift_definitions
+       SET name = $1, start_time = $2, end_time = $3, days = $4, max_agents = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 AND business_id = $7 AND is_active = true
+       RETURNING id, business_id, name, start_time, end_time, days, max_agents, is_active, created_at, updated_at`,
+      [name, startTime, endTime, [...new Set(days)], maxAgents, req.params.id, existing.rows[0].business_id]
+    );
+    return res.json({ shift: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/shifts/:id', (req, res) => {
-  supportAdminStore.shifts.delete(req.params.id);
-  res.json({ success: true });
+router.delete('/shifts/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM support_shift_definitions WHERE id = $1 AND is_active = true', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Shift not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    await db.query('UPDATE support_shift_definitions SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND business_id = $2', [req.params.id, existing.rows[0].business_id]);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/kb', (req, res) => {
-  res.json({ articles: valuesFor(supportAdminStore.kb, req.query.business_id || req.query.businessId) });
+router.get('/kb', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const category = String(req.query.category || '').trim().slice(0, 100);
+    const params = [businessId];
+    const filters = ['kba.business_id = $1'];
+    if (search) {
+      params.push(`%${search}%`);
+      filters.push(`(kba.title ILIKE $${params.length} OR kba.content ILIKE $${params.length} OR COALESCE(kba.excerpt, '') ILIKE $${params.length})`);
+    }
+    if (category) {
+      params.push(category);
+      filters.push(`kbc.slug = $${params.length}`);
+    }
+    const { rows } = await db.query(
+      `SELECT kba.id, kba.business_id, kba.title, kba.slug, kba.content, kba.excerpt,
+              kba.keywords, kba.language, kba.is_published, kba.view_count, kba.helpful_count,
+              kba.unhelpful_count, kba.created_at, kba.updated_at,
+              COALESCE(kbc.category_name, 'general') AS category
+       FROM knowledge_base_articles kba
+       LEFT JOIN knowledge_base_categories kbc ON kbc.id = kba.category_id
+       WHERE ${filters.join(' AND ')}
+       ORDER BY kba.updated_at DESC
+       LIMIT 200`,
+      params
+    );
+    return res.json({ articles: rows.map(serializeKnowledgeArticle) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/kb', (req, res) => {
-  res.status(201).json({ article: saveTo(supportAdminStore.kb, { views: 0, helpful_count: 0, ...req.body }) });
+router.post('/kb', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const title = String(req.body.title || '').trim();
+    const content = String(req.body.content || '').trim();
+    const category = String(req.body.category || 'general').trim().slice(0, 100);
+    const tags = Array.isArray(req.body.tags) ? req.body.tags.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 20) : [];
+    if (!title || title.length > 500 || !content || content.length > 100000) {
+      return res.status(400).json({ error: 'Title and content are required within the allowed limits' });
+    }
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 480) || `article-${Date.now()}`;
+    let categoryResult = await db.query(
+      'SELECT id FROM knowledge_base_categories WHERE business_id = $1 AND (slug = $2 OR category_name = $3) LIMIT 1',
+      [businessId, category.toLowerCase().replace(/[^a-z0-9]+/g, '-'), category]
+    );
+    if (!categoryResult.rows.length) {
+      categoryResult = await db.query(
+        `INSERT INTO knowledge_base_categories (business_id, category_name, slug, is_public)
+         VALUES ($1, $2, $3, true) RETURNING id`,
+        [businessId, category, category.toLowerCase().replace(/[^a-z0-9]+/g, '-')]
+      );
+    }
+    const result = await db.query(
+      `INSERT INTO knowledge_base_articles
+       (business_id, category_id, title, slug, content, excerpt, keywords, language, is_published, author_id, estimated_read_time_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'en', false, $8, $9)
+       RETURNING *`,
+      [businessId, categoryResult.rows[0].id, title, slug, content, content.slice(0, 300), tags, req.user.id, Math.max(1, Math.ceil(content.split(/\s+/).length / 200))]
+    );
+    const article = result.rows[0];
+    await db.query(
+      `INSERT INTO knowledge_base_search_index (article_id, business_id, search_text)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (article_id) DO UPDATE SET search_text = EXCLUDED.search_text, last_indexed = CURRENT_TIMESTAMP`,
+      [article.id, businessId, `${title} ${content} ${tags.join(' ')}`]
+    );
+    return res.status(201).json({ article: serializeKnowledgeArticle({ ...article, category, tags }) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.patch('/kb/:id', (req, res) => {
-  const article = updateIn(supportAdminStore.kb, req.params.id, req.body);
-  if (!article) return res.status(404).json({ error: 'Article not found' });
-  res.json({ article });
+router.patch('/kb/:id', async (req, res, next) => {
+  try {
+    const existingResult = await db.query(
+      `SELECT kba.*, COALESCE(kbc.category_name, 'general') AS category
+       FROM knowledge_base_articles kba
+       LEFT JOIN knowledge_base_categories kbc ON kbc.id = kba.category_id
+       WHERE kba.id = $1`,
+      [req.params.id]
+    );
+    if (!existingResult.rows.length) return res.status(404).json({ error: 'Article not found' });
+    const existing = existingResult.rows[0];
+    if (!(await canManageSupportBusiness(req, existing.business_id))) return res.status(403).json({ error: 'Access denied' });
+    const title = req.body.title == null ? existing.title : String(req.body.title).trim();
+    const content = req.body.content == null ? existing.content : String(req.body.content).trim();
+    const tags = Array.isArray(req.body.tags) ? req.body.tags.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 20) : existing.keywords || [];
+    if (!title || title.length > 500 || !content || content.length > 100000) return res.status(400).json({ error: 'Invalid article content' });
+    const result = await db.query(
+      `UPDATE knowledge_base_articles
+       SET title = $1, content = $2, excerpt = $3, keywords = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5 AND business_id = $6
+       RETURNING *`,
+      [title, content, content.slice(0, 300), tags, req.params.id, existing.business_id]
+    );
+    await db.query(
+      `UPDATE knowledge_base_search_index SET search_text = $1, last_indexed = CURRENT_TIMESTAMP WHERE article_id = $2`,
+      [`${title} ${content} ${tags.join(' ')}`, req.params.id]
+    );
+    return res.json({ article: serializeKnowledgeArticle({ ...result.rows[0], category: existing.category, tags }) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/kb/:id', (req, res) => {
-  supportAdminStore.kb.delete(req.params.id);
-  res.json({ success: true });
+router.delete('/kb/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM knowledge_base_articles WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Article not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    await db.query('DELETE FROM knowledge_base_articles WHERE id = $1 AND business_id = $2', [req.params.id, existing.rows[0].business_id]);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/templates', (req, res) => {
-  res.json({ templates: valuesFor(supportAdminStore.templates, req.query.business_id || req.query.businessId) });
+router.get('/templates', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const params = [businessId];
+    let searchSql = '';
+    if (req.query.search) {
+      params.push(`%${String(req.query.search).trim().slice(0, 100)}%`);
+      searchSql = `AND (title ILIKE $2 OR content ILIKE $2 OR COALESCE(shortcut, '') ILIKE $2)`;
+    }
+    const { rows } = await db.query(
+      `SELECT id, business_id, category, title, title AS name, content, shortcut, language,
+              usage_count, usage_count AS use_count, is_active, created_at, updated_at
+       FROM canned_responses
+       WHERE business_id = $1 ${searchSql}
+       ORDER BY category NULLS LAST, title
+       LIMIT 200`,
+      params
+    );
+    return res.json({ templates: rows });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/templates', (req, res) => {
-  res.status(201).json({ template: saveTo(supportAdminStore.templates, { use_count: 0, ...req.body }) });
+router.post('/templates', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const title = String(req.body.name || req.body.title || '').trim();
+    const content = String(req.body.content || '').trim();
+    if (!title || title.length > 255 || !content || content.length > 10000) return res.status(400).json({ error: 'Template name and content are required within the allowed limits' });
+    const { rows } = await db.query(
+      `INSERT INTO canned_responses (business_id, category, title, content, shortcut, language, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'en', true, $6)
+       RETURNING id, business_id, category, title, title AS name, content, shortcut, language, usage_count, usage_count AS use_count, is_active, created_at, updated_at`,
+      [businessId, req.body.category || 'general', title, content, req.body.shortcut || null, req.user.id]
+    );
+    return res.status(201).json({ template: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.patch('/templates/:id', (req, res) => {
-  const template = updateIn(supportAdminStore.templates, req.params.id, req.body);
-  if (!template) return res.status(404).json({ error: 'Template not found' });
-  res.json({ template });
+router.patch('/templates/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM canned_responses WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Template not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    const title = String(req.body.name || req.body.title || '').trim();
+    const content = String(req.body.content || '').trim();
+    if (!title || !content) return res.status(400).json({ error: 'Template name and content are required' });
+    const { rows } = await db.query(
+      `UPDATE canned_responses
+       SET title = $1, content = $2, category = COALESCE($3, category), shortcut = COALESCE($4, shortcut), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5 AND business_id = $6
+       RETURNING id, business_id, category, title, title AS name, content, shortcut, language, usage_count, usage_count AS use_count, is_active, created_at, updated_at`,
+      [title, content, req.body.category || null, req.body.shortcut || null, req.params.id, existing.rows[0].business_id]
+    );
+    return res.json({ template: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/templates/:id', (req, res) => {
-  supportAdminStore.templates.delete(req.params.id);
-  res.json({ success: true });
+router.delete('/templates/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM canned_responses WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Template not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    await db.query('UPDATE canned_responses SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND business_id = $2', [req.params.id, existing.rows[0].business_id]);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/escalation/rules', (req, res) => {
-  const rules = valuesFor(supportAdminStore.escalationRules, req.query.business_id || req.query.businessId);
-  res.json({
-    rules,
-    stats: {
-      total_rules: rules.length,
-      active_rules: rules.filter((rule) => rule.is_active !== false).length,
-      escalations_today: 0,
-    },
-  });
+function serializeLegacyEscalationRule(row) {
+  const condition = row.condition || {};
+  const action = row.action || {};
+  return {
+    ...row,
+    priority: condition.priority || 'medium',
+    trigger_condition: condition.trigger_condition || row.description || '',
+    escalate_to: action.escalate_to || '',
+    escalate_after_minutes: Number(action.escalate_after_minutes || 15),
+    notify_managers: action.notify_managers !== false,
+  };
+}
+
+function escalationPriorityValue(value) {
+  return { critical: 100, high: 75, medium: 50, low: 25 }[value] || 50;
+}
+
+router.get('/escalation/rules', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const [rulesResult, statsResult] = await Promise.all([
+      db.query(
+        `SELECT id, business_id, rule_name, description, priority, condition, action, is_active, created_at, updated_at
+         FROM routing_rules
+         WHERE business_id = $1
+         ORDER BY priority DESC, created_at DESC
+         LIMIT 200`,
+        [businessId]
+      ),
+      db.query(
+        `SELECT COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS escalations_today
+         FROM queue_events
+         WHERE business_id = $1 AND event_type = 'escalated'`,
+        [businessId]
+      ),
+    ]);
+    const rules = rulesResult.rows.map(serializeLegacyEscalationRule);
+    return res.json({
+      rules,
+      stats: {
+        total_rules: rules.length,
+        active_rules: rules.filter((rule) => rule.is_active !== false).length,
+        escalations_today: Number(statsResult.rows[0]?.escalations_today || 0),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/escalation/rules', (req, res) => {
-  res.status(201).json({ rule: saveTo(supportAdminStore.escalationRules, { is_active: true, ...req.body }) });
+router.post('/escalation/rules', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const ruleName = String(req.body.rule_name || '').trim();
+    const triggerCondition = String(req.body.trigger_condition || '').trim();
+    const priority = String(req.body.priority || 'medium').toLowerCase();
+    const escalateTo = String(req.body.escalate_to || '').trim();
+    const minutes = Number.parseInt(req.body.escalate_after_minutes, 10);
+    if (!ruleName || ruleName.length > 100 || !triggerCondition || triggerCondition.length > 500 || !['critical', 'high', 'medium', 'low'].includes(priority) || !escalateTo || !Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
+      return res.status(400).json({ error: 'Invalid escalation rule' });
+    }
+    const { rows } = await db.query(
+      `INSERT INTO routing_rules (business_id, rule_name, rule_type, description, priority, condition, action, is_active, created_by)
+       VALUES ($1, $2, 'manual', $3, $4, $5, $6, $7, $8)
+       RETURNING id, business_id, rule_name, description, priority, condition, action, is_active, created_at, updated_at`,
+      [
+        businessId,
+        ruleName,
+        triggerCondition,
+        escalationPriorityValue(priority),
+        JSON.stringify({ trigger_condition: triggerCondition, priority }),
+        JSON.stringify({ escalate_to: escalateTo, escalate_after_minutes: minutes, notify_managers: req.body.notify_managers !== false }),
+        req.body.is_active !== false,
+        req.user.id,
+      ]
+    );
+    return res.status(201).json({ rule: serializeLegacyEscalationRule(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.put('/escalation/rules/:id', (req, res) => {
-  const rule = updateIn(supportAdminStore.escalationRules, req.params.id, req.body);
-  if (!rule) return res.status(404).json({ error: 'Rule not found' });
-  res.json({ rule });
+router.put('/escalation/rules/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT * FROM routing_rules WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Rule not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    const current = serializeLegacyEscalationRule(existing.rows[0]);
+    const priority = String(req.body.priority || current.priority).toLowerCase();
+    const triggerCondition = String(req.body.trigger_condition || current.trigger_condition).trim();
+    const escalateTo = String(req.body.escalate_to || current.escalate_to).trim();
+    const minutes = Number.parseInt(req.body.escalate_after_minutes ?? current.escalate_after_minutes, 10);
+    if (!['critical', 'high', 'medium', 'low'].includes(priority) || !triggerCondition || !escalateTo || !Number.isInteger(minutes) || minutes < 1 || minutes > 10080) return res.status(400).json({ error: 'Invalid escalation rule' });
+    const { rows } = await db.query(
+      `UPDATE routing_rules
+       SET rule_name = $1, description = $2, priority = $3, condition = $4, action = $5,
+           is_active = COALESCE($6, is_active), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 AND business_id = $8
+       RETURNING id, business_id, rule_name, description, priority, condition, action, is_active, created_at, updated_at`,
+      [
+        String(req.body.rule_name || current.rule_name).trim(),
+        triggerCondition,
+        escalationPriorityValue(priority),
+        JSON.stringify({ trigger_condition: triggerCondition, priority }),
+        JSON.stringify({ escalate_to: escalateTo, escalate_after_minutes: minutes, notify_managers: req.body.notify_managers !== false }),
+        req.body.is_active === undefined ? null : req.body.is_active,
+        req.params.id,
+        existing.rows[0].business_id,
+      ]
+    );
+    return res.json({ rule: serializeLegacyEscalationRule(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.patch('/escalation/rules/:id/toggle', (req, res) => {
-  const existing = supportAdminStore.escalationRules.get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Rule not found' });
-  const rule = updateIn(supportAdminStore.escalationRules, req.params.id, { is_active: existing.is_active === false });
-  res.json({ rule });
+router.patch('/escalation/rules/:id/toggle', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT * FROM routing_rules WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Rule not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query(
+      `UPDATE routing_rules SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING id, business_id, rule_name, description, priority, condition, action, is_active, created_at, updated_at`,
+      [req.params.id]
+    );
+    return res.json({ rule: serializeLegacyEscalationRule(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/escalation/rules/:id', (req, res) => {
-  supportAdminStore.escalationRules.delete(req.params.id);
-  res.json({ success: true });
+router.delete('/escalation/rules/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query('SELECT business_id FROM routing_rules WHERE id = $1', [req.params.id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Rule not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    await db.query('DELETE FROM routing_rules WHERE id = $1 AND business_id = $2', [req.params.id, existing.rows[0].business_id]);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/team/hierarchy', (req, res) => {
-  const members = valuesFor(supportAdminStore.teamMembers, req.query.business_id || req.query.businessId);
-  res.json({
-    departments: [{ id: 'support', name: 'Support', members }],
-    stats: { members: members.length, departments: 1 },
-    available_roles: ['agent', 'supervisor', 'manager', 'director'],
-    available_skills: ['billing', 'technical', 'account', 'safety'],
-  });
+async function teamMembersForBusiness(businessId) {
+  const { rows: teams } = await db.query(
+    `SELECT id, business_id, team_name AS name, team_type, description, is_active
+     FROM support_teams
+     WHERE business_id = $1 AND is_active = true
+     ORDER BY team_name`,
+    [businessId]
+  );
+  const departments = [];
+  for (const team of teams) {
+    const [membersResult, skillsResult] = await Promise.all([
+      db.query(
+        `SELECT tm.id, tm.agent_id, tm.role,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
+                u.email, sa.department, sa.status,
+                COALESCE(ARRAY_AGG(DISTINCT ts.skill_name) FILTER (WHERE ts.skill_name IS NOT NULL), ARRAY[]::text[]) AS skills
+         FROM team_members tm
+         JOIN support_agents sa ON sa.id = tm.agent_id
+         JOIN users u ON u.id = sa.user_id
+         LEFT JOIN team_skills ts ON ts.team_id = tm.team_id
+         WHERE tm.team_id = $1 AND tm.is_active = true
+         GROUP BY tm.id, tm.agent_id, tm.role, u.id, sa.id`,
+        [team.id]
+      ),
+      db.query('SELECT skill_name FROM team_skills WHERE team_id = $1 ORDER BY skill_name', [team.id]),
+    ]);
+    departments.push({
+      ...team,
+      members: membersResult.rows,
+      skills: skillsResult.rows.map((row) => row.skill_name),
+    });
+  }
+  return departments;
+}
+
+router.get('/team/hierarchy', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const departments = await teamMembersForBusiness(businessId);
+    const members = departments.reduce((total, department) => total + department.members.length, 0);
+    const configuredSkills = [...new Set(departments.flatMap((department) => department.skills))];
+    return res.json({
+      departments,
+      stats: { members, departments: departments.length },
+      available_roles: ['agent', 'supervisor', 'manager', 'director'],
+      available_skills: configuredSkills,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/team/members', (req, res) => {
-  res.status(201).json({ member: saveTo(supportAdminStore.teamMembers, req.body) });
+router.post('/team/members', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const role = String(req.body.role || 'agent').trim().toLowerCase();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email) || !['agent', 'supervisor', 'manager', 'director'].includes(role)) return res.status(400).json({ error: 'A valid support-agent email and role are required' });
+    const agentResult = await db.query(
+      `SELECT sa.id
+       FROM support_agents sa
+       JOIN users u ON u.id = sa.user_id
+       JOIN support_employers se ON se.id = sa.employer_id
+       WHERE LOWER(u.email) = $1 AND (se.kind = 'platform' OR se.business_id = $2)
+       LIMIT 1`,
+      [email, businessId]
+    );
+    if (!agentResult.rows.length) return res.status(404).json({ error: 'The user must be onboarded as a support agent before joining a team' });
+    let teamResult = await db.query('SELECT id FROM support_teams WHERE business_id = $1 AND is_active = true ORDER BY created_at LIMIT 1', [businessId]);
+    if (!teamResult.rows.length) {
+      teamResult = await db.query(
+        `INSERT INTO support_teams (business_id, team_name, team_type, is_active)
+         VALUES ($1, 'Support', 'tier1', true) RETURNING id`,
+        [businessId]
+      );
+    }
+    const { rows } = await db.query(
+      `INSERT INTO team_members (team_id, agent_id, role, is_active)
+       VALUES ($1, $2, $3, true)
+       ON CONFLICT (team_id, agent_id) DO UPDATE SET role = EXCLUDED.role, is_active = true, left_at = NULL
+       RETURNING id, team_id, agent_id, role, is_active`,
+      [teamResult.rows[0].id, agentResult.rows[0].id, role]
+    );
+    return res.status(201).json({ member: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.put('/team/members/:id', (req, res) => {
-  const member = updateIn(supportAdminStore.teamMembers, req.params.id, req.body);
-  if (!member) return res.status(404).json({ error: 'Member not found' });
-  res.json({ member });
+router.put('/team/members/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query(
+      `SELECT tm.*, st.business_id
+       FROM team_members tm JOIN support_teams st ON st.id = tm.team_id
+       WHERE tm.id = $1`,
+      [req.params.id]
+    );
+    if (!existing.rows.length) return res.status(404).json({ error: 'Member not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    const role = String(req.body.role || existing.rows[0].role || 'agent').trim().toLowerCase();
+    if (!['agent', 'supervisor', 'manager', 'director'].includes(role)) return res.status(400).json({ error: 'Invalid team role' });
+    const { rows } = await db.query('UPDATE team_members SET role = $1 WHERE id = $2 RETURNING id, team_id, agent_id, role, is_active', [role, req.params.id]);
+    return res.json({ member: rows[0] });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/team/members/:id', (req, res) => {
-  supportAdminStore.teamMembers.delete(req.params.id);
-  res.json({ success: true });
+router.delete('/team/members/:id', async (req, res, next) => {
+  try {
+    const existing = await db.query(
+      `SELECT tm.id, st.business_id FROM team_members tm JOIN support_teams st ON st.id = tm.team_id WHERE tm.id = $1`,
+      [req.params.id]
+    );
+    if (!existing.rows.length) return res.status(404).json({ error: 'Member not found' });
+    if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
+    await db.query('UPDATE team_members SET is_active = false, left_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/settings', (req, res) => {
-  const businessId = req.query.business_id || req.query.businessId || 'default';
-  res.json(supportAdminStore.settings.get(businessId) || {
-    general: { business_id: businessId, support_enabled: true },
-    routing: {},
-    notifications: {},
-    sla: {},
-  });
+const DEFAULT_SUPPORT_SETTINGS = {
+  general: { support_enabled: true, timezone: 'UTC', language: 'en' },
+  routing: {},
+  notifications: {},
+  integrations: {},
+  automation: {},
+  working_hours: {},
+  sla: {},
+};
+
+router.get('/settings', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const { rows } = await db.query('SELECT settings FROM support_admin_settings WHERE business_id = $1', [businessId]);
+    const stored = rows[0]?.settings || {};
+    return res.json({
+      ...DEFAULT_SUPPORT_SETTINGS,
+      ...stored,
+      general: { ...DEFAULT_SUPPORT_SETTINGS.general, ...(stored.general || {}), business_id: businessId },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/settings/:section', (req, res) => {
-  const businessId = req.body.business_id || 'default';
-  const existing = supportAdminStore.settings.get(businessId) || {};
-  const updated = { ...existing, [req.params.section]: req.body };
-  supportAdminStore.settings.set(businessId, updated);
-  res.json(updated);
+router.post('/settings/:section', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const allowedSections = new Set(['general', 'notifications', 'integrations', 'automation', 'working_hours']);
+    if (!allowedSections.has(req.params.section)) return res.status(400).json({ error: 'Invalid settings section' });
+    const section = { ...req.body };
+    delete section.business_id;
+    delete section.businessId;
+    const serialized = JSON.stringify(section);
+    if (serialized.length > 20000) return res.status(400).json({ error: 'Settings payload is too large' });
+    const { rows } = await db.query(
+      `INSERT INTO support_admin_settings (business_id, settings, updated_by)
+       VALUES ($1, jsonb_build_object($2, $3::jsonb), $4)
+       ON CONFLICT (business_id) DO UPDATE
+       SET settings = support_admin_settings.settings || jsonb_build_object($2, $3::jsonb),
+           updated_by = EXCLUDED.updated_by,
+           updated_at = CURRENT_TIMESTAMP
+       RETURNING settings`,
+      [businessId, req.params.section, serialized, req.user.id]
+    );
+    return res.json({
+      ...DEFAULT_SUPPORT_SETTINGS,
+      ...(rows[0]?.settings || {}),
+      general: { ...DEFAULT_SUPPORT_SETTINGS.general, ...(rows[0]?.settings?.general || {}), business_id: businessId },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/audit/logs', async (req, res, next) => {

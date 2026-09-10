@@ -158,7 +158,9 @@ export default function SupportPerformanceAnalytics() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Response Time</span>
-                <span className="text-white font-medium">{agent.avg_response_time_seconds}s</span>
+                    <span className="text-white font-medium">
+                      {agent.avg_response_time_seconds == null ? '-' : `${agent.avg_response_time_seconds}s`}
+                    </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Resolution Rate</span>
@@ -207,7 +209,9 @@ export default function SupportPerformanceAnalytics() {
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.avg_response_time_seconds}s</p>
+                  <p className="text-white text-2xl font-bold">
+                    {agentDetails.avg_response_time_seconds == null ? '-' : `${agentDetails.avg_response_time_seconds}s`}
+                  </p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">Resolution Rate</p>
