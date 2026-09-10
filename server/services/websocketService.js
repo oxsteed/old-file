@@ -6,6 +6,7 @@
 const logger = require('../utils/logger');
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
+const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 
 class WebSocketService {
   constructor() {
@@ -87,11 +88,20 @@ class WebSocketService {
           `SELECT 1
            FROM support_conversations sc
            LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+           LEFT JOIN users current_user
+             ON current_user.id = $2
+            AND current_user.is_active = TRUE
+            AND current_user.deleted_at IS NULL
            WHERE sc.id = $1
-             AND ($2 = sc.customer_id
-               OR sa.user_id = $2
-               OR $3 IN ('admin', 'super_admin')
-               OR $4 = sc.id)`,
+             AND (
+               ($2 IS NULL AND $4 = sc.id)
+               OR (
+                 current_user.id IS NOT NULL
+                 AND ($2 = sc.customer_id
+                   OR sa.user_id = $2
+                   OR current_user.role IN ('admin', 'super_admin'))
+               )
+             )`,
           [ticketId, socket.userId, socket.userRole, socket.guestConversationId]
         );
         if (!rows.length) return;
@@ -122,7 +132,7 @@ class WebSocketService {
 
       // Mark agent messages as read for a customer or verified guest. Room
       // membership is the authorization boundary for this realtime action.
-      socket.on('ticket:read', async (data) => {
+      socket.on('ticket:read', validateBeforeHandler(async function(data) {
         const { ticketId } = data || {};
         if (!ticketId || !socket.rooms.has(`ticket:${ticketId}`)) return;
         if (socket.guestConversationId !== ticketId && socket.userRole !== 'customer') return;
@@ -141,7 +151,7 @@ class WebSocketService {
         } catch (err) {
           logger.warn('ticket:read failed', { ticketId, error: err.message });
         }
-      });
+      }));
 
       // Persist legacy Socket.IO sends so messages cannot appear live and then
       // disappear on reload or from support exports. REST clients use the same
@@ -214,29 +224,29 @@ class WebSocketService {
         }
       };
 
-      socket.on('message:send', (data) => {
+      socket.on('message:send', validateBeforeHandler(async function(data) {
         if (socket.userRole !== 'customer') return;
-        void persistAndBroadcastMessage({
+        await persistAndBroadcastMessage({
           ticketId: data?.ticketId,
           content: data?.content,
           senderId: socket.userId,
           senderType: 'customer',
           isAgent: false,
         });
-      });
+      }));
 
-      socket.on('agent:message-send', (data) => {
+      socket.on('agent:message-send', validateBeforeHandler(async function(data) {
         const senderId = socket.data.agentId || socket.userId;
         const isAgent = Boolean(socket.data.agentId || ['admin', 'super_admin'].includes(socket.userRole));
         if (!isAgent) return;
-        void persistAndBroadcastMessage({
+        await persistAndBroadcastMessage({
           ticketId: data?.ticketId,
           content: data?.content,
           senderId,
           senderType: 'agent',
           isAgent: true,
         });
-      });
+      }));
 
       // Agent typing indicator
       socket.on('agent:typing', (data) => {

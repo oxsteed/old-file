@@ -176,6 +176,7 @@ describe('shared realtime server', () => {
       return { rows: [] };
     });
     mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, deleted_at: null }] };
       if (sql.includes('FROM support_conversations')) return { rows: [{ id: 'ticket-1', status: 'open' }] };
       if (sql.includes('INSERT INTO support_conversation_messages')) {
         return { rows: [{ id: 'message-1', created_at: '2026-09-10T15:00:00.000Z' }] };
