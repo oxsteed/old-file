@@ -136,14 +136,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const stickToBottomRef = useRef(true);
   const pendingMessageIdRef = useRef(null);
   const renderedConversationRef = useRef({ id: null, messageCount: 0 });
+  const conversationRequestRef = useRef(0);
+  const detailRequestRef = useRef(0);
+  const conversationLoadingRequestRef = useRef(null);
+  const detailLoadingRequestRef = useRef(null);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
   const loadConversations = useCallback(async ({ quiet = false } = {}) => {
-    if (!quiet) setLoading(true);
+    const requestId = conversationRequestRef.current + 1;
+    conversationRequestRef.current = requestId;
+    if (!quiet) {
+      conversationLoadingRequestRef.current = requestId;
+      setLoading(true);
+    }
     try {
       const params = businessId ? { business_id: businessId } : {};
       const { data } = await api.get('/support/conversations', { params });
+      if (requestId !== conversationRequestRef.current) return;
       const rows = data?.conversations || data?.data || [];
       setConversations(Array.isArray(rows) ? rows : []);
       setSelectedId((current) => {
@@ -151,25 +161,43 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         return rows[0]?.id || null;
       });
     } catch (error) {
-      if (!quiet) toast.error(error?.response?.data?.error || 'Could not load the support queue.');
+      if (requestId === conversationRequestRef.current && !quiet) {
+        toast.error(error?.response?.data?.error || 'Could not load the support queue.');
+      }
     } finally {
-      if (!quiet) setLoading(false);
+      if (!quiet && conversationLoadingRequestRef.current === requestId) {
+        conversationLoadingRequestRef.current = null;
+        setLoading(false);
+      }
     }
   }, [businessId]);
 
   const loadDetail = useCallback(async (conversationId, { quiet = false } = {}) => {
+    const requestId = detailRequestRef.current + 1;
+    detailRequestRef.current = requestId;
     if (!conversationId) {
       setDetail(null);
+      detailLoadingRequestRef.current = null;
+      setDetailLoading(false);
       return;
     }
-    if (!quiet) setDetailLoading(true);
+    if (!quiet) {
+      detailLoadingRequestRef.current = requestId;
+      setDetailLoading(true);
+    }
     try {
       const { data } = await api.get(`/support/conversations/${conversationId}`);
+      if (requestId !== detailRequestRef.current) return;
       setDetail(data?.data || null);
     } catch (error) {
-      if (!quiet) toast.error(error?.response?.data?.error || 'Could not load this conversation.');
+      if (requestId === detailRequestRef.current && !quiet) {
+        toast.error(error?.response?.data?.error || 'Could not load this conversation.');
+      }
     } finally {
-      if (!quiet) setDetailLoading(false);
+      if (!quiet && detailLoadingRequestRef.current === requestId) {
+        detailLoadingRequestRef.current = null;
+        setDetailLoading(false);
+      }
     }
   }, []);
 
