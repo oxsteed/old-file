@@ -8,6 +8,8 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 
+const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class WebSocketService {
   constructor() {
     this.io = null;
@@ -158,13 +160,15 @@ class WebSocketService {
       // Persist legacy Socket.IO sends so messages cannot appear live and then
       // disappear on reload or from support exports. REST clients use the same
       // schema and continue to broadcast their own events as before.
-      const persistAndBroadcastMessage = async ({ ticketId, content, senderId, senderType, isAgent }) => {
+      const persistAndBroadcastMessage = async ({ ticketId, content, senderId, senderType, isAgent, clientMessageId }) => {
         const normalizedContent = String(content || '').trim();
+        const normalizedClientMessageId = String(clientMessageId || '').trim() || null;
         if (
           !ticketId
           || !socket.rooms.has(`ticket:${ticketId}`)
           || !normalizedContent
           || normalizedContent.length > 5000
+          || (normalizedClientMessageId && !CLIENT_MESSAGE_ID_PATTERN.test(normalizedClientMessageId))
         ) return;
 
         try {
@@ -179,11 +183,22 @@ class WebSocketService {
           const result = await withTransaction(pool, async (client) => {
             const inserted = await client.query(
               `INSERT INTO support_conversation_messages
-               (conversation_id, sender_id, message_type, content, is_agent)
-               VALUES ($1, $2, 'text', $3, $4)
+               (conversation_id, sender_id, message_type, content, is_agent, client_message_id)
+               VALUES ($1, $2, 'text', $3, $4, $5)
+               ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL DO NOTHING
                RETURNING id, created_at`,
-              [ticketId, senderId, normalizedContent, isAgent]
+              [ticketId, senderId, normalizedContent, isAgent, normalizedClientMessageId]
             );
+            if (!inserted.rows.length) {
+              const existing = await client.query(
+                `SELECT id, created_at, content
+                 FROM support_conversation_messages
+                 WHERE conversation_id = $1 AND client_message_id = $2`,
+                [ticketId, normalizedClientMessageId]
+              );
+              if (!existing.rows.length) return null;
+              return { message: existing.rows[0], duplicate: true };
+            }
             const countColumn = isAgent ? 'agent_message_count' : 'customer_message_count';
             const updated = await client.query(
               `UPDATE support_conversations
@@ -202,14 +217,16 @@ class WebSocketService {
               [ticketId, isAgent]
             );
             if (!updated.rowCount) return null;
-            return inserted.rows[0];
+            return { message: inserted.rows[0], duplicate: false };
           }, 'persist_support_socket_message');
 
           if (!result) return;
 
+          if (result.duplicate) return;
+
           namespace.to(`ticket:${ticketId}`).emit('message:new', {
             ticketId,
-            messageId: result.id,
+            messageId: result.message.id,
             sender: {
               type: senderType,
               id: senderId,
@@ -217,7 +234,7 @@ class WebSocketService {
               ...(isAgent ? {} : { email: socket.data.email }),
             },
             content: normalizedContent,
-            timestamp: result.created_at,
+            timestamp: result.message.created_at,
           });
           logger.info('Socket message persisted', { ticketId, senderId, isAgent });
         } catch (err) {
@@ -234,6 +251,7 @@ class WebSocketService {
           senderId: socket.userId,
           senderType: 'customer',
           isAgent: false,
+          clientMessageId: data?.clientMessageId || data?.client_message_id,
         });
       }));
 
@@ -247,6 +265,7 @@ class WebSocketService {
           senderId,
           senderType: 'agent',
           isAgent: true,
+          clientMessageId: data?.clientMessageId || data?.client_message_id,
         });
       }));
 

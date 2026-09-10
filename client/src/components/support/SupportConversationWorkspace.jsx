@@ -26,6 +26,7 @@ import {
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
 import { realtimeNamespaceUrl } from '../../lib/realtime';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 
 const STATUS = {
   open: ['Open', 'border-blue-500/30 bg-blue-500/10 text-blue-200'],
@@ -133,6 +134,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const queueSearchRef = useRef(null);
   const replyInputRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const pendingMessageIdRef = useRef(null);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -519,7 +521,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       if (content) body.append('content', content);
       if (attachment) body.append('file', attachment);
       body.append('isInternal', String(internalNote));
+      const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+      pendingMessageIdRef.current = clientMessageId;
+      body.append('clientMessageId', clientMessageId);
       await api.post(`/support/conversations/${selected.id}/message`, body);
+      pendingMessageIdRef.current = null;
       setReply('');
       setAttachment(null);
       await Promise.all([

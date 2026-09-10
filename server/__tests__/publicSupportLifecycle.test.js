@@ -81,6 +81,34 @@ test('persists a guest image-only reply with non-null content', async () => {
   );
 });
 
+test('replays a guest retry without incrementing counters or rebroadcasting', async () => {
+  const clientMessageId = '11111111-1111-4111-8111-111111111111';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'message-existing',
+      content: 'A follow-up question',
+      message_type: 'text',
+      client_message_id: clientMessageId,
+      created_at: '2026-09-10T12:00:00.000Z',
+    }] });
+
+  const res = responseDouble();
+  await publicSupport.addGuestMessage({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+    body: { message: 'A follow-up question', clientMessageId },
+  }, res);
+
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    idempotent: true,
+    data: expect.objectContaining({ id: 'message-existing' }),
+  }));
+  expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
+  expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+});
+
 test('reopens a guest conversation and requeues it atomically', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'resolved' }] })

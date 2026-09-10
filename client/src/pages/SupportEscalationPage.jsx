@@ -27,6 +27,7 @@ import Footer from '../components/Footer';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { realtimeNamespaceUrl } from '../lib/realtime';
+import { createMessageRequestId } from '../lib/messageRequestId';
 import { useAuth } from '../hooks/useAuth';
 import './SupportEscalationPage.css';
 
@@ -97,6 +98,7 @@ function PublicGuestSupport({ t }) {
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const pendingMessageIdRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!conversationId || !token) return;
@@ -205,7 +207,11 @@ function PublicGuestSupport({ t }) {
       const body = new FormData();
       if (content) body.append('message', content);
       if (replyFile) body.append('file', replyFile);
+      const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+      pendingMessageIdRef.current = clientMessageId;
+      body.append('clientMessageId', clientMessageId);
       await api.post(`/support/public/conversations/${conversationId}/messages`, body, { headers: { Authorization: `Guest ${token}` } });
+      pendingMessageIdRef.current = null;
       setReply(''); setReplyFile(null); await load();
     }
     catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not send your message.' })); }
@@ -471,6 +477,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const ticketIdRef = useRef(null);
   const typingTimerRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const pendingMessageIdRef = useRef(null);
 
   useEffect(() => {
     ticketIdRef.current = ticketId;
@@ -740,14 +747,18 @@ function AuthenticatedSupportEscalationPage({ user }) {
       const body = new FormData();
       if (content) body.append('message', content);
       if (liveFile) body.append('file', liveFile);
+      const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+      pendingMessageIdRef.current = clientMessageId;
+      body.append('clientMessageId', clientMessageId);
       const response = await api.post(`/support/conversations/${ticketId}/message`, body);
+      pendingMessageIdRef.current = null;
 
       setLiveMessages((prev) => [
         ...prev,
         {
           id: response.data.data?.id || `customer-${Date.now()}`,
           sender: { type: 'customer' },
-          content,
+          content: response.data.data?.content || content || 'Attachment',
           attachmentUrl: response.data.data?.attachment_url,
           attachmentName: response.data.data?.attachment_name,
           messageType: response.data.data?.message_type || 'text',
@@ -844,7 +855,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
     setTicketSubmitting(true);
     try {
       const response = ticketId
-        ? await api.post(`/support/conversations/${ticketId}/message`, { message: ticketMessage })
+        ? await api.post(`/support/conversations/${ticketId}/message`, { message: ticketMessage, clientMessageId: createMessageRequestId() })
         : await api.post('/support-routing/conversations', {
           customerId: user.id,
           visitorEmail,

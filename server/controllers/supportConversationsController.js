@@ -12,6 +12,7 @@ const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
+const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   const rawUrl = String(attachmentUrl ?? '').trim();
@@ -842,15 +843,23 @@ async function addMessage(req, res) {
     const { conversationId } = req.params;
     const {
       content,
-      message,
+      message: legacyMessage,
       messageType = 'text',
       attachmentUrl,
       attachmentName,
       isInternal,
       is_internal: snakeCaseInternal,
+      clientMessageId: bodyClientMessageId,
+      client_message_id: snakeCaseClientMessageId,
     } = req.body || {};
 
-    const normalizedContent = String(content ?? message ?? '').trim();
+    const normalizedContent = String(content ?? legacyMessage ?? '').trim();
+    const clientMessageId = String(
+      bodyClientMessageId || snakeCaseClientMessageId || req.get?.('Idempotency-Key') || ''
+    ).trim() || null;
+    if (clientMessageId && !CLIENT_MESSAGE_ID_PATTERN.test(clientMessageId)) {
+      return sendValidationError(res, { clientMessageId: 'Must be a UUID v4 request identifier' });
+    }
     const normalizedMessageType = typeof messageType === 'string' ? messageType.trim().toLowerCase() : '';
     const internalRequested = isInternal ?? snakeCaseInternal;
     const isInternalMessage = ['true', '1', 'yes', 'on'].includes(
@@ -920,11 +929,27 @@ async function addMessage(req, res) {
     const result = await withTransaction(pool, async (client) => {
       const inserted = await client.query(
         `INSERT INTO support_conversation_messages
-         (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent, client_message_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING *`,
-        [conversationId, req.user.id, storedMessageType, messageContent, storedAttachmentUrl, storedAttachmentName, isAgent]
+        [conversationId, req.user.id, storedMessageType, messageContent, storedAttachmentUrl, storedAttachmentName, isAgent, clientMessageId]
       );
+
+      if (!inserted.rows.length) {
+        const existing = await client.query(
+          `SELECT * FROM support_conversation_messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientMessageId]
+        );
+        if (!existing.rows.length) throw new Error('Idempotent support message could not be recovered');
+        if (String(existing.rows[0].sender_id) !== String(req.user.id)) {
+          const conflict = new Error('This message request identifier is already in use');
+          conflict.statusCode = 409;
+          throw conflict;
+        }
+        return { rows: existing.rows, duplicate: true };
+      }
 
       const countCol = isAgent ? 'agent_message_count' : 'customer_message_count';
       await client.query(
@@ -950,21 +975,22 @@ async function addMessage(req, res) {
           ['in_progress', conversationId]
         );
       }
-      return inserted;
+      return { rows: inserted.rows, duplicate: false };
     }, 'add_support_conversation_message');
 
+    const message = result.rows[0];
     logger.info('Message added to conversation', {
       conversationId,
       isAgent,
       messageType: storedMessageType,
       isInternal: isInternalMessage
     });
-    if (isAgent) {
+    if (isAgent && !result.duplicate) {
       void logAdminAction({
         adminId: req.user.id,
         action: 'support_message_created',
         targetType: 'support_conversation_message',
-        targetId: result.rows[0].id,
+        targetId: message.id,
         description: isInternalMessage
           ? 'Internal support note created'
           : 'Public support reply created',
@@ -978,7 +1004,7 @@ async function addMessage(req, res) {
     }
 
     const eventPayload = {
-      messageId: result.rows[0].id,
+      messageId: message.id,
       ticketId: conversationId,
       sender: {
         type: isAgent ? 'agent' : 'customer',
@@ -988,23 +1014,24 @@ async function addMessage(req, res) {
           || req.user.email
           || (isAgent ? 'Support specialist' : 'Customer'),
       },
-      content: messageContent,
-      attachmentUrl: storedAttachmentUrl,
-      attachmentName: storedAttachmentName,
-      messageType: storedMessageType,
-      timestamp: result.rows[0].created_at,
+      content: message.content || messageContent,
+      attachmentUrl: message.attachment_url || storedAttachmentUrl,
+      attachmentName: message.attachment_name || storedAttachmentName,
+      messageType: message.message_type || storedMessageType,
+      timestamp: message.created_at,
       isInternal: isInternalMessage,
     };
 
     // Private notes must never enter the customer ticket room.
-    if (!isInternalMessage) {
+    if (!isInternalMessage && !result.duplicate) {
       WebSocketService.broadcastToTicket(conversationId, 'message:new', eventPayload);
     }
-    WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);
+    if (!result.duplicate) WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {
     logger.error('addMessage error', { error: err.message });
+    if (err.statusCode) return sendError(res, err.statusCode, err.message);
     sendError(res, 500, 'Failed to add message');
   }
 }

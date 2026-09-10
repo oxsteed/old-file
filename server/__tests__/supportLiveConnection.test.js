@@ -370,6 +370,46 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('replays an authenticated retry without incrementing counters or rebroadcasting', async () => {
+    const clientMessageId = '22222222-2222-4222-8222-222222222222';
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: 'agent-1',
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'message-existing',
+        sender_id: 'admin-1',
+        content: 'I can help with that.',
+        message_type: 'text',
+        client_message_id: clientMessageId,
+        created_at: '2026-09-10T12:00:00.000Z',
+      }] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'I can help with that.', clientMessageId },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      idempotent: true,
+      data: expect.objectContaining({ id: 'message-existing' }),
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
+    expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+  });
+
   test('keeps a customer reply and waiting-state transition atomic', async () => {
     mockQuery
       .mockResolvedValueOnce({

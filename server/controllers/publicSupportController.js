@@ -13,6 +13,7 @@ const { withTransaction } = require('../utils/transaction');
 const CODE_TTL_MS = 15 * 60 * 1000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_EMAIL_LENGTH = 254;
+const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function hash(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -255,6 +256,14 @@ async function loadGuestConversation(req, res) {
 async function addGuestMessage(req, res) {
   const conversationId = req.params.conversationId;
   const content = String(req.body?.message || req.body?.content || '').trim();
+  const rawClientMessageId = req.body?.clientMessageId
+    || req.body?.client_message_id
+    || req.get?.('Idempotency-Key')
+    || '';
+  const clientMessageId = String(rawClientMessageId).trim() || null;
+  if (clientMessageId && !CLIENT_MESSAGE_ID_PATTERN.test(clientMessageId)) {
+    return sendValidationError(res, { clientMessageId: 'Must be a UUID v4 request identifier' });
+  }
   if ((!content && !req.file) || content.length > 5000) return sendValidationError(res, { message: 'Message or image is required and must be 5000 characters or fewer' });
   if (req.file && (!req.file.mimetype || !req.file.mimetype.startsWith('image/'))) {
     return sendValidationError(res, { file: 'Only image attachments are allowed' });
@@ -277,23 +286,36 @@ async function addGuestMessage(req, res) {
     // The message content column is non-nullable; represent an image-only
     // reply with a stable text label while the attachment carries the detail.
     const messageContent = content || 'Attachment';
-    const message = await withTransaction(pool, async (client) => {
+    const result = await withTransaction(pool, async (client) => {
       const { rows: messageRows } = await client.query(
         `INSERT INTO support_conversation_messages
-          (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
-         VALUES ($1, NULL, $2, $3, $4, $5, FALSE) RETURNING id, created_at, attachment_url, attachment_name`,
-        [conversationId, req.file ? 'image' : 'text', messageContent, attachmentUrl, attachmentName]
+          (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent, client_message_id)
+         VALUES ($1, NULL, $2, $3, $4, $5, FALSE, $6)
+         ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL DO NOTHING
+         RETURNING id, created_at, content, message_type, attachment_url, attachment_name, client_message_id`,
+        [conversationId, req.file ? 'image' : 'text', messageContent, attachmentUrl, attachmentName, clientMessageId]
       );
+      if (!messageRows.length) {
+        const existing = await client.query(
+          `SELECT id, created_at, content, message_type, attachment_url, attachment_name, client_message_id
+           FROM support_conversation_messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientMessageId]
+        );
+        if (!existing.rows.length) throw new Error('Idempotent support message could not be recovered');
+        return { rows: existing.rows, duplicate: true };
+      }
       await client.query(
         `UPDATE support_conversations SET message_count = message_count + 1,
           customer_message_count = customer_message_count + 1, updated_at = NOW()
          WHERE id = $1`, [conversationId]
       );
-      return messageRows[0];
+      return { rows: messageRows, duplicate: false };
     }, 'add_guest_support_message');
-    const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content: messageContent, attachmentUrl, attachmentName, messageType: req.file ? 'image' : 'text', timestamp: message.created_at };
-    WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
-    return res.json({ success: true, data: message });
+    const message = result.rows[0];
+    const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content: message.content || messageContent, attachmentUrl: message.attachment_url || attachmentUrl, attachmentName: message.attachment_name || attachmentName, messageType: message.message_type || (req.file ? 'image' : 'text'), timestamp: message.created_at };
+    if (!result.duplicate) WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
+    return res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {
     logger.error('addGuestMessage error', { error: err.message });
     return sendError(res, 500, 'Failed to send support message');
