@@ -241,4 +241,36 @@ describe('shared realtime server', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /SELECT is_active, deleted_at, role FROM users/.test(sql))).toBe(true);
     expect(support.connected).toBe(true);
   });
+
+  test('persists an authorized legacy ticket close before broadcasting it', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'helper' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, deleted_at: null, role: 'helper' }] };
+      if (sql.includes('JOIN support_agents sa')) return { rows: [{ id: 'ticket-1' }] };
+      if (sql.includes('UPDATE support_conversations')) {
+        return { rows: [{ id: 'ticket-1', status: 'closed', closed_at: '2026-09-10T15:00:00.000Z' }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+
+    const token = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const support = await connect(`${baseUrl}/support`, { auth: { token } });
+    clients.push(support);
+    support.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const closeEvent = once(support, 'ticket:closed');
+    support.emit('ticket:close', { ticketId: 'ticket-1' });
+    await expect(closeEvent).resolves.toEqual(expect.objectContaining({
+      ticketId: 'ticket-1',
+      status: 'closed',
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE conversation_assignments/.test(sql))).toBe(true);
+  });
 });

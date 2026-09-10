@@ -284,21 +284,73 @@ class WebSocketService {
         logger.info('Ticket assigned via socket', { ticketId, agentId });
       });
 
-      // Close ticket
-      socket.on('ticket:close', (data) => {
-        const { ticketId } = data;
+      // Close ticket. This legacy event remains supported for older dashboards,
+      // but it must follow the same authorization and persistence boundary as
+      // the REST lifecycle endpoint before notifying any connected clients.
+      socket.on('ticket:close', validateBeforeHandler(async function(data) {
+        const { ticketId } = data || {};
+        if (!ticketId || !socket.userId || !socket.rooms.has(`ticket:${ticketId}`)) return;
+        if (!['admin', 'super_admin'].includes(socket.userRole)) {
+          const assigned = await pool.query(
+            `SELECT sc.id
+             FROM support_conversations sc
+             JOIN support_agents sa ON sa.id = sc.agent_id
+             WHERE sc.id = $1 AND sa.user_id = $2 AND sa.status = 'active'`,
+            [ticketId, socket.userId]
+          );
+          if (!assigned.rows.length) return;
+        }
 
-        if (!socket.rooms.has(`ticket:${ticketId}`)) return;
+        try {
+          const closed = await withTransaction(pool, async (client) => {
+            const updated = await client.query(
+              `UPDATE support_conversations
+               SET status = 'closed',
+                   closed_at = COALESCE(closed_at, CURRENT_TIMESTAMP),
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = $1 AND status NOT IN ('resolved', 'closed')
+               RETURNING id, status, closed_at`,
+              [ticketId]
+            );
+            if (!updated.rows.length) return null;
 
-        namespace.to(`ticket:${ticketId}`).emit('ticket:closed', {
-          ticketId,
-          message: 'This ticket has been closed.',
-          timestamp: new Date().toISOString(),
-        });
+            await client.query(
+              `UPDATE support_queue
+               SET status = 'removed', removed_at = COALESCE(removed_at, CURRENT_TIMESTAMP),
+                   reason_removed = 'closed'
+               WHERE conversation_id = $1 AND status <> 'removed'`,
+              [ticketId]
+            );
+            await client.query(
+              `UPDATE conversation_assignments
+               SET status = 'completed', released_at = COALESCE(released_at, CURRENT_TIMESTAMP),
+                   duration_seconds = COALESCE(
+                     duration_seconds,
+                     EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::integer
+                   )
+               WHERE conversation_id = $1 AND status = 'active'`,
+              [ticketId]
+            );
+            return updated.rows[0];
+          }, 'close_support_socket_ticket');
 
-        socket.leave(`ticket:${ticketId}`);
-        logger.info('Ticket closed', { ticketId });
-      });
+          if (!closed) return;
+
+          const payload = {
+            ticketId,
+            status: closed.status,
+            message: 'This ticket has been closed.',
+            timestamp: closed.closed_at || new Date().toISOString(),
+          };
+          namespace.to(`ticket:${ticketId}`).emit('ticket:status-changed', payload);
+          namespace.to(`ticket:${ticketId}`).emit('ticket:closed', payload);
+          socket.leave(`ticket:${ticketId}`);
+          logger.info('Ticket closed', { ticketId, closedBy: socket.userId });
+        } catch (err) {
+          socket.emit('ticket:close:error', { ticketId, error: 'Ticket could not be closed' });
+          logger.warn('Ticket close failed', { ticketId, error: err.message });
+        }
+      }));
 
       // Disconnect
       socket.on('disconnect', () => {
