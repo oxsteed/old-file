@@ -620,6 +620,48 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO canned_responses/.test(sql))).toBe(false);
   });
 
+  test('blocks legacy message reads for users without business conversation access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/conversations/conversation-1/messages')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM support_conversation_messages scm/.test(sql))).toBe(false);
+  });
+
+  test('allows platform admins to read legacy messages only from the requested business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', content: 'Visible reply' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/conversations/conversation-1/messages?limit=500&offset=-2')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toMatchObject({ id: 'message-1', content: 'Visible reply' });
+    const messageQuery = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages scm/.test(sql));
+    expect(messageQuery[1].slice(-2)).toEqual([100, 0]);
+  });
+
+  test('rejects insecure legacy attachment URLs before storing them', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/conversations/conversation-1/attachment')
+      .set('Authorization', adminAuthHeader())
+      .send({ attachmentUrl: 'javascript:alert(1)', attachmentName: 'bad.txt' });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

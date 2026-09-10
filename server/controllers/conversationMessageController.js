@@ -2,11 +2,49 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { broadcastToConversation } = require('../services/socketService');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
+
+async function loadAuthorizedConversation(req, conversationId) {
+  const { businessId } = req.params;
+  if (!businessId || !req.user?.id) return null;
+  const canAccess = await supportEmployerService.userCanAccessBusinessConversations(
+    businessId,
+    req.user.id,
+    req.user.role
+  );
+  if (!canAccess) return null;
+  const result = await query(
+    'SELECT id, business_id, customer_id, agent_id, status FROM support_conversations WHERE id = $1 AND business_id = $2',
+    [conversationId, businessId]
+  );
+  return result.rows[0] || null;
+}
+
+async function loadAuthorizedMessage(req, messageId) {
+  const { businessId } = req.params;
+  if (!businessId || !req.user?.id) return null;
+  const canAccess = await supportEmployerService.userCanAccessBusinessConversations(
+    businessId,
+    req.user.id,
+    req.user.role
+  );
+  if (!canAccess) return null;
+  const result = await query(
+    `SELECT scm.*, sc.business_id, sc.customer_id, sc.agent_id, sc.status AS conversation_status
+     FROM support_conversation_messages scm
+     JOIN support_conversations sc ON sc.id = scm.conversation_id
+     WHERE scm.id = $1 AND sc.business_id = $2`,
+    [messageId, businessId]
+  );
+  return result.rows[0] || null;
+}
 
 async function getMessages(req, res) {
   try {
     const { conversationId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const offset = Math.max(0, Number.parseInt(req.query.offset, 10) || 0);
+    if (!(await loadAuthorizedConversation(req, conversationId))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT scm.*, u.name, u.avatar_url
@@ -15,7 +53,7 @@ async function getMessages(req, res) {
        WHERE scm.conversation_id = $1
        ORDER BY scm.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [conversationId, parseInt(limit), parseInt(offset)]
+      [conversationId, limit, offset]
     );
 
     res.json({ success: true, data: result.rows });
@@ -29,13 +67,8 @@ async function markAsRead(req, res) {
   try {
     const { messageId } = req.params;
 
-    const existing = await query(
-      'SELECT * FROM support_conversation_messages WHERE id = $1',
-      [messageId]
-    );
-    if (!existing.rows.length) return sendError(res, 404, 'Message not found');
-
-    const message = existing.rows[0];
+    const message = await loadAuthorizedMessage(req, messageId);
+    if (!message) return sendError(res, 403, 'Access denied');
 
     // Only the recipient (i.e. not the original sender) may mark a message as read.
     if (message.sender_id === req.user.id) {
@@ -45,9 +78,9 @@ async function markAsRead(req, res) {
     const result = await query(
       `UPDATE support_conversation_messages
        SET read_by_recipient = true, read_at = CURRENT_TIMESTAMP, status = 'read'
-       WHERE id = $1
+       WHERE id = $1 AND conversation_id = $2
        RETURNING *`,
-      [messageId]
+      [messageId, message.conversation_id]
     );
 
     const msg = result.rows[0];
@@ -66,14 +99,8 @@ async function markAsRead(req, res) {
 async function deleteMessage(req, res) {
   try {
     const { messageId } = req.params;
-    const msg = await query(
-      'SELECT * FROM support_conversation_messages WHERE id = $1',
-      [messageId]
-    );
-
-    if (!msg.rows.length) return sendError(res, 404, 'Message not found');
-
-    const message = msg.rows[0];
+    const message = await loadAuthorizedMessage(req, messageId);
+    if (!message) return sendError(res, 403, 'Access denied');
 
     // Only the original sender (or a platform admin) may delete their own message.
     const isOwner = message.sender_id === req.user.id;
@@ -83,8 +110,8 @@ async function deleteMessage(req, res) {
     }
 
     await query(
-      'DELETE FROM support_conversation_messages WHERE id = $1',
-      [messageId]
+      'DELETE FROM support_conversation_messages WHERE id = $1 AND conversation_id = $2',
+      [messageId, message.conversation_id]
     );
 
     await query(
@@ -110,13 +137,8 @@ async function editMessage(req, res) {
       return sendValidationError(res, { content: 'Required' });
     }
 
-    const existing = await query(
-      'SELECT * FROM support_conversation_messages WHERE id = $1',
-      [messageId]
-    );
-    if (!existing.rows.length) return sendError(res, 404, 'Message not found');
-
-    const message = existing.rows[0];
+    const message = await loadAuthorizedMessage(req, messageId);
+    if (!message) return sendError(res, 403, 'Access denied');
 
     // Only the original sender (or a platform admin) may edit their own message.
     const isOwner = message.sender_id === req.user.id;
@@ -128,9 +150,9 @@ async function editMessage(req, res) {
     const result = await query(
       `UPDATE support_conversation_messages
        SET content = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
+       WHERE id = $2 AND conversation_id = $3
        RETURNING *`,
-      [content, messageId]
+      [content, messageId, message.conversation_id]
     );
 
     broadcastToConversation(result.rows[0].conversation_id, 'message_edited', {
@@ -150,16 +172,27 @@ async function addAttachment(req, res) {
     const { conversationId } = req.params;
     const { attachmentUrl, attachmentName } = req.body;
 
-    if (!attachmentUrl) {
+    if (!attachmentUrl || String(attachmentUrl).length > 2048) {
       return sendValidationError(res, { attachmentUrl: 'Required' });
     }
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(String(attachmentUrl));
+    } catch {
+      return sendValidationError(res, { attachmentUrl: 'Must be a valid HTTPS URL' });
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      return sendValidationError(res, { attachmentUrl: 'Must be a valid HTTPS URL' });
+    }
+    const conversation = await loadAuthorizedConversation(req, conversationId);
+    if (!conversation) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO support_conversation_messages
        (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
        VALUES ($1, $2, 'attachment', $3, $4, $5, false)
        RETURNING *`,
-      [conversationId, req.user.id, attachmentName || 'File', attachmentUrl, attachmentName || 'Attachment']
+      [conversationId, req.user.id, attachmentName || 'File', String(attachmentUrl), attachmentName || 'Attachment']
     );
 
     await query(
@@ -183,6 +216,7 @@ async function addAttachment(req, res) {
 async function getUnreadCount(req, res) {
   try {
     const { conversationId } = req.params;
+    if (!(await loadAuthorizedConversation(req, conversationId))) return sendError(res, 403, 'Access denied');
     const result = await query(
       `SELECT COUNT(*) as unread_count
        FROM support_conversation_messages
@@ -200,6 +234,7 @@ async function getUnreadCount(req, res) {
 async function markAllAsRead(req, res) {
   try {
     const { conversationId } = req.params;
+    if (!(await loadAuthorizedConversation(req, conversationId))) return sendError(res, 403, 'Access denied');
     await query(
       `UPDATE support_conversation_messages
        SET read_by_recipient = true, read_at = CURRENT_TIMESTAMP, status = 'read'
@@ -219,6 +254,7 @@ async function markAllAsRead(req, res) {
 async function sendTypingIndicator(req, res) {
   try {
     const { conversationId } = req.params;
+    if (!(await loadAuthorizedConversation(req, conversationId))) return sendError(res, 403, 'Access denied');
     broadcastToConversation(conversationId, 'typing_indicator', {
       userId: req.user.id,
       isTyping: true
