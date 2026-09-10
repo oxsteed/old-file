@@ -11,6 +11,25 @@ const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
+function normalizeAttachmentReference(attachmentUrl, attachmentName) {
+  const rawUrl = String(attachmentUrl ?? '').trim();
+  const rawName = String(attachmentName ?? '').trim();
+  if (!rawUrl) return { url: null, name: rawName.slice(0, 255) || null };
+  if (rawUrl.length > 2048) return { error: 'Attachment URL is too long' };
+
+  if (rawUrl.startsWith('/api/storage/')) {
+    return { url: rawUrl, name: rawName.slice(0, 255) || null };
+  }
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') return { error: 'Attachment URL must use HTTPS' };
+    return { url: parsed.toString(), name: rawName.slice(0, 255) || null };
+  } catch {
+    return { error: 'Attachment URL must be a valid HTTPS URL' };
+  }
+}
+
 // Create a new support conversation/ticket
 async function createConversation(req, res) {
   try {
@@ -854,8 +873,13 @@ async function addMessage(req, res) {
       return sendValidationError(res, { file: 'Only image attachments are allowed' });
     }
 
-    let storedAttachmentUrl = attachmentUrl || null;
-    let storedAttachmentName = attachmentName || null;
+    const attachment = normalizeAttachmentReference(attachmentUrl, attachmentName);
+    if (attachment.error) {
+      return sendValidationError(res, { attachmentUrl: attachment.error });
+    }
+
+    let storedAttachmentUrl = attachment.url;
+    let storedAttachmentName = attachment.name;
     if (req.file) {
       const key = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
       storedAttachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);

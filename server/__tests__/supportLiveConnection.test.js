@@ -323,6 +323,30 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('rejects unsafe caller-supplied attachment references', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'ticket-1',
+        business_id: 'business-1',
+        customer_id: 'customer-1',
+        agent_id: null,
+        status: 'in_progress',
+      }],
+    });
+
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'Here is a file.', attachmentUrl: 'javascript:alert(1)', attachmentName: 'bad.txt' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
+
   test('lets a platform admin leave a private note without broadcasting it to the customer', async () => {
     mockQuery
       .mockResolvedValueOnce({
