@@ -535,15 +535,15 @@ async function markConversationRead(req, res) {
   }
 }
 
-function transcriptFilename(subject, conversationId) {
+function transcriptFilename(subject, conversationId, suffix = '') {
   const safeSubject = String(subject || 'support-conversation')
     .replace(/[^a-z0-9]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60) || 'support-conversation';
-  return `oxsteed-${safeSubject}-${String(conversationId).slice(0, 8)}.txt`;
+  return `oxsteed-${safeSubject}-${String(conversationId).slice(0, 8)}${suffix ? `-${suffix}` : ''}.txt`;
 }
 
-function buildTranscript(conversation, messages) {
+function buildTranscript(conversation, messages, { includeInternal = false } = {}) {
   const lines = [
     'OxSteed Support Conversation',
     `Subject: ${conversation.subject || 'Support request'}`,
@@ -552,8 +552,11 @@ function buildTranscript(conversation, messages) {
     '',
   ];
   for (const message of messages) {
-    if (message.message_type === 'internal_note') continue;
-    const sender = message.is_agent ? 'OxSteed Support' : (conversation.customer_name || 'Customer');
+    const isInternal = message.message_type === 'internal_note';
+    if (isInternal && !includeInternal) continue;
+    const sender = isInternal
+      ? 'Internal support note'
+      : (message.is_agent ? 'OxSteed Support' : (conversation.customer_name || 'Customer'));
     const timestamp = message.created_at ? new Date(message.created_at).toISOString() : '-';
     lines.push(`[${timestamp}] ${sender}`);
     if (message.content) lines.push(String(message.content));
@@ -569,28 +572,31 @@ async function downloadConversation(req, res) {
     const access = await authorizeConversationAccess(conversationId, req);
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.allowed) return sendError(res, 403, 'Access denied');
+    const includeInternal = !access.isCustomer && ['true', '1', 'yes'].includes(String(req.query.include_internal || '').toLowerCase());
     if (!access.isCustomer) {
       void logAdminAction({
         adminId: req.user.id,
-        action: 'support_transcript_downloaded',
+        action: includeInternal ? 'support_case_record_downloaded' : 'support_transcript_downloaded',
         targetType: 'support_conversation',
         targetId: conversationId,
-        description: 'Authorized staff downloaded a customer-visible support transcript',
+        description: includeInternal
+          ? 'Authorized staff downloaded a full support case record'
+          : 'Authorized staff downloaded a customer-visible support transcript',
         req,
       });
     }
 
     const { rows: messages } = await query(
-      `SELECT content, attachment_name, is_agent, created_at
+      `SELECT content, attachment_name, message_type, is_agent, created_at
        FROM support_conversation_messages
        WHERE conversation_id = $1
-         AND COALESCE(message_type, 'text') <> 'internal_note'
+         AND ($2::boolean = true OR COALESCE(message_type, 'text') <> 'internal_note')
        ORDER BY created_at ASC`,
-      [conversationId]
+      [conversationId, includeInternal]
     );
     res.set('Content-Type', 'text/plain; charset=utf-8');
-    res.set('Content-Disposition', `attachment; filename="${transcriptFilename(access.conversation.subject, conversationId)}"`);
-    return res.send(buildTranscript(access.conversation, messages));
+    res.set('Content-Disposition', `attachment; filename="${transcriptFilename(access.conversation.subject, conversationId, includeInternal ? 'case-record' : '')}"`);
+    return res.send(buildTranscript(access.conversation, messages, { includeInternal }));
   } catch (err) {
     logger.error('downloadConversation error', { conversationId, error: err.message });
     return sendError(res, 500, 'Failed to download conversation');

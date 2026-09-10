@@ -316,6 +316,25 @@ describe('support routes', () => {
     expect(res.text).not.toContain('Private note');
   });
 
+  test('allows authorized staff to download a full case record with internal notes', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, subject: 'Account help', status: 'closed', agent_id: null, created_at: '2026-09-09T00:00:00.000Z', customer_name: 'Mobile User' }] })
+      .mockResolvedValueOnce({ rows: [
+        { content: 'Public reply', is_agent: true, message_type: 'text', created_at: '2026-09-09T00:01:00.000Z' },
+        { content: 'Private note', is_agent: true, message_type: 'internal_note', created_at: '2026-09-09T00:02:00.000Z' },
+      ] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations/conversation-1/download?include_internal=true')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('case-record');
+    expect(res.text).toContain('Private note');
+    expect(res.text).toContain('Internal support note');
+  });
+
   test('lets a verified guest download the conversation transcript', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'guest-1', subject: 'Guest request', status: 'closed', guest_name: 'Guest User', created_at: '2026-09-09T00:00:00.000Z' }] })

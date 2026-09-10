@@ -443,16 +443,17 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     'Conversation status updated.'
   );
 
-  const downloadTranscript = async () => {
+  const downloadTranscript = async (includeInternal = false) => {
     if (!selected?.id || downloadBusy) return;
     setDownloadBusy(true);
     try {
       const response = await api.get(`/support/conversations/${selected.id}/download`, {
+        params: includeInternal ? { include_internal: 'true' } : undefined,
         responseType: 'blob',
       });
       const blobUrl = URL.createObjectURL(response.data);
       const disposition = response.headers?.['content-disposition'] || '';
-      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || `oxsteed-support-${selected.id}.txt`;
+      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || `oxsteed-support-${selected.id}${includeInternal ? '-case-record' : ''}.txt`;
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = filename;
@@ -460,7 +461,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       link.click();
       link.remove();
       URL.revokeObjectURL(blobUrl);
-      toast.success('Transcript downloaded.');
+      toast.success(includeInternal ? 'Full case record downloaded.' : 'Transcript downloaded.');
     } catch (error) {
       toast.error(error?.response?.data?.error || 'Could not download this transcript.');
     } finally {
@@ -740,6 +741,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" onClick={downloadTranscript} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300 hover:border-orange-500/50 disabled:opacity-50" title="Download customer-visible transcript">
                       <Download size={13} /> {downloadBusy ? 'Preparing…' : 'Download'}
+                    </button>
+                    <button type="button" onClick={() => downloadTranscript(true)} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200 hover:border-amber-400/60 disabled:opacity-50" title="Download full case record including internal notes">
+                      <Download size={13} /> Case record
                     </button>
                     {!selected.agent_id && !isClosed && (
                       <button type="button" onClick={claim} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold hover:bg-orange-500 disabled:opacity-50">
