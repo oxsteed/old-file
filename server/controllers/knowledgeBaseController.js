@@ -1,11 +1,32 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
+
+async function canAccessBusiness(req, businessId, manage = false) {
+  if (!businessId || !req.user?.id) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return manage
+    ? supportEmployerService.userCanManageBusiness(businessId, req.user.id)
+    : supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+}
+
+async function loadArticleForBusiness(req, articleId, manage = false) {
+  const { businessId } = req.params;
+  if (!(await canAccessBusiness(req, businessId, manage))) return { forbidden: true };
+  const result = await query(
+    'SELECT * FROM knowledge_base_articles WHERE id = $1 AND business_id = $2',
+    [articleId, businessId]
+  );
+  return { row: result.rows[0] || null };
+}
 
 async function createCategory(req, res) {
   try {
     const { businessId } = req.params;
     const { categoryName, slug, description } = req.body;
+
+    if (!(await canAccessBusiness(req, businessId, true))) return sendError(res, 403, 'Access denied');
 
     if (!categoryName || !slug) {
       return sendValidationError(res, { categoryName: 'Required', slug: 'Required' });
@@ -28,6 +49,7 @@ async function createCategory(req, res) {
 async function listCategories(req, res) {
   try {
     const { businessId } = req.params;
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
     const result = await query(
       'SELECT * FROM knowledge_base_categories WHERE business_id = $1 ORDER BY display_order',
       [businessId]
@@ -43,6 +65,8 @@ async function createArticle(req, res) {
   try {
     const { businessId } = req.params;
     const { categoryId, title, slug, content, excerpt, keywords, language } = req.body;
+
+    if (!(await canAccessBusiness(req, businessId, true))) return sendError(res, 403, 'Access denied');
 
     if (!title || !slug || !content) {
       return sendValidationError(res, { title: 'Required', slug: 'Required', content: 'Required' });
@@ -77,14 +101,18 @@ async function updateArticle(req, res) {
   try {
     const { articleId } = req.params;
     const { title, content, excerpt, isPublished } = req.body;
+    const access = await loadArticleForBusiness(req, articleId, true);
+
+    if (access.forbidden) return sendError(res, 403, 'Access denied');
+    if (!access.row) return sendError(res, 404, 'Article not found');
 
     const result = await query(
       `UPDATE knowledge_base_articles
        SET title = COALESCE($1, title), content = COALESCE($2, content),
            excerpt = COALESCE($3, excerpt), is_published = COALESCE($4, is_published),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 RETURNING *`,
-      [title || null, content || null, excerpt || null, isPublished !== undefined ? isPublished : null, articleId]
+       WHERE id = $5 AND business_id = $6 RETURNING *`,
+      [title || null, content || null, excerpt || null, isPublished !== undefined ? isPublished : null, articleId, req.params.businessId]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Article not found');
@@ -104,12 +132,16 @@ async function updateArticle(req, res) {
 async function publishArticle(req, res) {
   try {
     const { articleId } = req.params;
+    const access = await loadArticleForBusiness(req, articleId, true);
+
+    if (access.forbidden) return sendError(res, 403, 'Access denied');
+    if (!access.row) return sendError(res, 404, 'Article not found');
 
     const result = await query(
       `UPDATE knowledge_base_articles
        SET is_published = true, published_at = CURRENT_TIMESTAMP
-       WHERE id = $1 RETURNING *`,
-      [articleId]
+       WHERE id = $1 AND business_id = $2 RETURNING *`,
+      [articleId, req.params.businessId]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Article not found');
@@ -123,16 +155,13 @@ async function publishArticle(req, res) {
 async function getArticle(req, res) {
   try {
     const { articleId } = req.params;
+    const access = await loadArticleForBusiness(req, articleId);
 
-    const result = await query(
-      'SELECT * FROM knowledge_base_articles WHERE id = $1',
-      [articleId]
-    );
+    if (access.forbidden) return sendError(res, 403, 'Access denied');
+    if (!access.row) return sendError(res, 404, 'Article not found');
 
-    if (!result.rows.length) return sendError(res, 404, 'Article not found');
-
-    await query('UPDATE knowledge_base_articles SET view_count = view_count + 1 WHERE id = $1', [articleId]);
-    res.json({ success: true, data: result.rows[0] });
+    await query('UPDATE knowledge_base_articles SET view_count = view_count + 1 WHERE id = $1 AND business_id = $2', [articleId, req.params.businessId]);
+    res.json({ success: true, data: access.row });
   } catch (err) {
     logger.error('getArticle error', { error: err.message });
     sendError(res, 500, 'Failed to get article');
@@ -143,6 +172,8 @@ async function searchArticles(req, res) {
   try {
     const { businessId } = req.params;
     const { query: searchQuery, categoryId, language } = req.query;
+
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     if (!searchQuery) {
       return sendValidationError(res, { query: 'Required' });
@@ -177,8 +208,15 @@ async function searchArticles(req, res) {
 
 async function recordFeedback(req, res) {
   try {
-    const { articleId } = req.params;
+    const { businessId, articleId } = req.params;
     const { helpful, comment } = req.body;
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+
+    const article = await query(
+      'SELECT id FROM knowledge_base_articles WHERE id = $1 AND business_id = $2 AND is_published = true',
+      [articleId, businessId]
+    );
+    if (!article.rows.length) return sendError(res, 404, 'Article not found');
 
     const result = await query(
       `INSERT INTO knowledge_base_feedback (article_id, user_id, helpful, comment)
@@ -187,9 +225,9 @@ async function recordFeedback(req, res) {
     );
 
     if (helpful) {
-      await query('UPDATE knowledge_base_articles SET helpful_count = helpful_count + 1 WHERE id = $1', [articleId]);
+      await query('UPDATE knowledge_base_articles SET helpful_count = helpful_count + 1 WHERE id = $1 AND business_id = $2', [articleId, businessId]);
     } else {
-      await query('UPDATE knowledge_base_articles SET unhelpful_count = unhelpful_count + 1 WHERE id = $1', [articleId]);
+      await query('UPDATE knowledge_base_articles SET unhelpful_count = unhelpful_count + 1 WHERE id = $1 AND business_id = $2', [articleId, businessId]);
     }
 
     res.json({ success: true, data: result.rows[0] });
@@ -202,6 +240,7 @@ async function recordFeedback(req, res) {
 async function getArticlesByCategory(req, res) {
   try {
     const { businessId, categoryId } = req.params;
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT * FROM knowledge_base_articles

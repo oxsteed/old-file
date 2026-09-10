@@ -487,6 +487,52 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /is_published = true/.test(sql))).toBe(true);
   });
 
+  test('blocks legacy knowledge-base reads for users without business access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/kb/categories')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM knowledge_base_categories/.test(sql))).toBe(false);
+  });
+
+  test('allows platform admins to read a knowledge-base article in its own business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'article-1', business_id: 42, title: 'Billing help', content: 'Steps', is_published: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/kb/articles/article-1')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: 'article-1', business_id: 42, title: 'Billing help' });
+    expect(mockQuery.mock.calls.some(([sql]) => /SET view_count = view_count \+ 1/.test(sql) && /business_id = \$2/.test(sql))).toBe(true);
+  });
+
+  test('keeps knowledge-base article updates scoped to the requested business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'article-1', business_id: 42, title: 'Billing help', content: 'Steps', excerpt: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'article-1', business_id: 42, title: 'Updated billing help', content: 'Updated steps', excerpt: null }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/kb/articles/article-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ title: 'Updated billing help', content: 'Updated steps' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.title).toBe('Updated billing help');
+    expect(mockQuery.mock.calls.some(([sql]) => /WHERE id = \$5 AND business_id = \$6/.test(sql))).toBe(true);
+  });
+
   test('returns only active saved replies to authorized support operators', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
