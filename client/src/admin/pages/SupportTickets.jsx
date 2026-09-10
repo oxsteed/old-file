@@ -558,6 +558,8 @@ export default function SupportTickets() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [assigned, setAssigned] = useState('');
+  const ticketRequestRef = useRef(0);
+  const ticketLoadingRequestRef = useRef(null);
   const {
     availability,
     busy: availabilityBusy,
@@ -565,6 +567,9 @@ export default function SupportTickets() {
   } = useAdminSupportAvailability();
 
   const loadTickets = useCallback(async () => {
+    const requestId = ticketRequestRef.current + 1;
+    ticketRequestRef.current = requestId;
+    ticketLoadingRequestRef.current = requestId;
     setLoading(true);
     try {
       const params = {};
@@ -578,15 +583,20 @@ export default function SupportTickets() {
         adminApi.get('/admin/support/stats'),
       ]);
 
+      if (requestId !== ticketRequestRef.current) return;
       setTickets(ticketResponse.data.tickets || []);
       setTotal(ticketResponse.data.total || 0);
       setStats(statsResponse.data || null);
     } catch {
+      if (requestId !== ticketRequestRef.current) return;
       setTickets([]);
       setStats(null);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (ticketLoadingRequestRef.current === requestId) {
+        ticketLoadingRequestRef.current = null;
+        setLoading(false);
+      }
     }
   }, [search, status, priority, assigned]);
 
