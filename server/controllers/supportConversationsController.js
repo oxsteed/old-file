@@ -569,6 +569,16 @@ async function downloadConversation(req, res) {
     const access = await authorizeConversationAccess(conversationId, req);
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.allowed) return sendError(res, 403, 'Access denied');
+    if (!access.isCustomer) {
+      void logAdminAction({
+        adminId: req.user.id,
+        action: 'support_transcript_downloaded',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'Authorized staff downloaded a customer-visible support transcript',
+        req,
+      });
+    }
 
     const { rows: messages } = await query(
       `SELECT content, attachment_name, is_agent, created_at
