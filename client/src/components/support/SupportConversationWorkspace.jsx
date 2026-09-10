@@ -576,6 +576,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     </div>
                     <h3 className="mt-3 text-xl font-semibold">{selected.subject}</h3>
                     <div className="mt-2 text-sm text-slate-400">{selected.customer_name || 'Customer'} · {selected.customer_email || 'No email'}</div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
+                        {selected.customerHistory?.previousConversationCount > 0
+                          ? `Returning customer · ${selected.customerHistory.previousConversationCount} previous conversation${selected.customerHistory.previousConversationCount === 1 ? '' : 's'}`
+                          : 'No prior verified conversations'}
+                      </span>
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
+                        {selected.category || 'general'}
+                      </span>
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
+                        {selected.customer_message_count || 0} customer · {selected.agent_message_count || 0} support messages
+                      </span>
+                      {selected.review && (
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-200">
+                          Reviewed · {selected.review.rating}/5
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
                       <span>Opened {formatWhen(selected.created_at)}</span>
                       <span>{selected.agent_name ? `Assigned to ${selected.agent_name}` : 'Unassigned'}</span>
