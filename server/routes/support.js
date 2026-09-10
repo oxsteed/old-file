@@ -226,7 +226,30 @@ async function supportConversationStats(businessId) {
        COALESCE(SUM(CASE WHEN status NOT IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS active_conversations,
        COALESCE(SUM(CASE WHEN priority IN ('high','urgent') THEN 1 ELSE 0 END), 0)::int AS priority_conversations,
        COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(first_response_at, updated_at) - created_at)))::numeric), 0)::int AS avg_response_time_seconds,
-       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(resolved_at, updated_at) - created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours
+       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(resolved_at, updated_at) - created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours,
+       COALESCE(SUM(CASE
+         WHEN first_response_at IS NOT NULL
+          AND first_response_at - created_at <= CASE priority
+            WHEN 'urgent' THEN INTERVAL '15 minutes'
+            WHEN 'high' THEN INTERVAL '1 hour'
+            WHEN 'low' THEN INTERVAL '24 hours'
+            ELSE INTERVAL '4 hours'
+          END THEN 1 ELSE 0 END), 0)::int AS sla_met_count,
+       COALESCE(SUM(CASE
+         WHEN (first_response_at IS NOT NULL
+           AND first_response_at - created_at > CASE priority
+             WHEN 'urgent' THEN INTERVAL '15 minutes'
+             WHEN 'high' THEN INTERVAL '1 hour'
+             WHEN 'low' THEN INTERVAL '24 hours'
+             ELSE INTERVAL '4 hours'
+           END)
+           OR (first_response_at IS NULL
+           AND NOW() - created_at > CASE priority
+             WHEN 'urgent' THEN INTERVAL '15 minutes'
+             WHEN 'high' THEN INTERVAL '1 hour'
+             WHEN 'low' THEN INTERVAL '24 hours'
+             ELSE INTERVAL '4 hours'
+           END) THEN 1 ELSE 0 END), 0)::int AS sla_violation_count
      FROM support_conversations
      ${where}`,
     params
@@ -595,7 +618,14 @@ router.delete('/agents/:agentId', async (req, res, next) => {
 
 router.get('/metrics', async (req, res, next) => {
   try {
-    const stats = await supportConversationStats(req.query.business_id || req.query.businessId);
+    const businessId = req.query.business_id || req.query.businessId || null;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
+    const stats = await supportConversationStats(businessId);
     res.json({
       stats,
       trend: [],
@@ -610,13 +640,21 @@ router.get('/metrics', async (req, res, next) => {
 
 router.get('/sla', async (req, res, next) => {
   try {
-    const stats = await supportConversationStats(req.query.business_id || req.query.businessId);
+    const businessId = req.query.business_id || req.query.businessId || null;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
+    const stats = await supportConversationStats(businessId);
+    const eligible = Number(stats.sla_met_count || 0) + Number(stats.sla_violation_count || 0);
     res.json({
       stats: {
-        overall_compliance: stats.priority_conversations ? 90 : 100,
+        overall_compliance: eligible ? Math.round((Number(stats.sla_met_count || 0) / eligible) * 100) : null,
         avg_first_response_minutes: Math.round((stats.avg_response_time_seconds || 0) / 60),
         avg_resolution_hours: stats.avg_resolution_hours || 0,
-        violation_count: 0,
+        violation_count: Number(stats.sla_violation_count || 0),
       },
       trend: [],
       departments: [],
@@ -696,21 +734,95 @@ router.get('/performance/:agentId', async (req, res, next) => {
   }
 });
 
-router.get('/csat/analytics', (req, res) => {
-  res.json({
-    metrics: {
-      csat_score: 0,
-      csat_target: 80,
-      survey_response_rate: 0,
-      surveys_sent: 0,
-      surveys_completed: 0,
-      avg_rating: 0,
-    },
-    csat_trend: [],
-    sentiment_distribution: [],
-    agent_csat: [],
-    recent_feedback: [],
-  });
+router.get('/csat/analytics', async (req, res, next) => {
+  try {
+    const businessId = req.query.business_id || req.query.businessId || null;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+        businessId,
+        req.user.id,
+        req.user.role
+      );
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
+
+    const [summaryResult, trendResult, agentResult, feedbackResult] = await Promise.all([
+      db.query(
+        `WITH finished AS (
+           SELECT id
+           FROM support_conversations
+           WHERE status IN ('resolved', 'closed')
+             AND updated_at >= NOW() - INTERVAL '30 days'
+             AND ($1 IS NULL OR business_id = $1)
+         )
+         SELECT
+           (SELECT COUNT(*)::int FROM finished) AS surveys_sent,
+           COUNT(scr.id)::int AS surveys_completed,
+           COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
+           COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE scr.rating >= 4) / NULLIF(COUNT(scr.id), 0), 1), 0)::float AS csat_score
+         FROM finished f
+         LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = f.id
+           AND scr.created_at >= NOW() - INTERVAL '30 days'`,
+        [businessId]
+      ),
+      db.query(
+        `SELECT DATE_TRUNC('day', scr.created_at)::date AS day,
+                COUNT(*)::int AS responses,
+                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating
+         FROM support_conversation_reviews scr
+         JOIN support_conversations sc ON sc.id = scr.conversation_id
+         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+           AND ($1 IS NULL OR sc.business_id = $1)
+         GROUP BY 1 ORDER BY 1 ASC`,
+        [businessId]
+      ),
+      db.query(
+        `SELECT COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Support team') AS agent_name,
+                COUNT(scr.id)::int AS responses,
+                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating
+         FROM support_conversation_reviews scr
+         JOIN support_conversations sc ON sc.id = scr.conversation_id
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         LEFT JOIN users u ON u.id = sa.user_id
+         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+           AND ($1 IS NULL OR sc.business_id = $1)
+         GROUP BY 1 ORDER BY avg_rating DESC, responses DESC`,
+        [businessId]
+      ),
+      db.query(
+        `SELECT scr.id, scr.conversation_id, scr.rating, scr.comment, scr.created_at,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name
+         FROM support_conversation_reviews scr
+         JOIN support_conversations sc ON sc.id = scr.conversation_id
+         LEFT JOIN users u ON u.id = sc.customer_id
+         WHERE scr.created_at >= NOW() - INTERVAL '30 days'
+           AND ($1 IS NULL OR sc.business_id = $1)
+         ORDER BY scr.created_at DESC LIMIT 25`,
+        [businessId]
+      ),
+    ]);
+    const summary = summaryResult.rows[0] || {};
+    const surveysSent = Number(summary.surveys_sent || 0);
+    const surveysCompleted = Number(summary.surveys_completed || 0);
+    return res.json({
+      metrics: {
+        csat_score: Number(summary.csat_score || 0),
+        csat_target: 80,
+        survey_response_rate: surveysSent ? Number(((surveysCompleted / surveysSent) * 100).toFixed(1)) : 0,
+        surveys_sent: surveysSent,
+        surveys_completed: surveysCompleted,
+        avg_rating: Number(summary.avg_rating || 0),
+      },
+      csat_trend: trendResult.rows,
+      sentiment_distribution: [],
+      agent_csat: agentResult.rows,
+      recent_feedback: feedbackResult.rows,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/shifts', (req, res) => {
@@ -847,20 +959,89 @@ router.post('/settings/:section', (req, res) => {
   res.json(updated);
 });
 
-router.get('/audit/logs', (req, res) => {
-  res.json({
-    logs: [],
-    stats: {
-      total_entries: 0,
-      users_active: 0,
-      actions_today: 0,
-      last_entry: null,
-    },
-  });
+router.get('/audit/logs', async (req, res, next) => {
+  if (!supportEmployerService.isPlatformAdmin(req.user.role)) return res.status(403).json({ error: 'Access denied' });
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const offset = (page - 1) * limit;
+    const values = [];
+    const conditions = [];
+    if (req.query.action) {
+      values.push(`%${String(req.query.action).slice(0, 100)}%`);
+      conditions.push(`a.action ILIKE $${values.length}`);
+    }
+    if (req.query.target_type) {
+      values.push(String(req.query.target_type).slice(0, 50));
+      conditions.push(`a.target_type = $${values.length}`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const dataValues = [...values, limit, offset];
+    const [rowsResult, countResult, statsResult] = await Promise.all([
+      db.query(
+        `SELECT a.id, a.admin_id, a.action, a.target_type, a.target_id,
+                COALESCE(a.description, a.notes) AS description,
+                a.ip_address, a.user_agent, a.before_state, a.after_state, a.created_at,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'System') AS admin_name
+         FROM admin_audit_log a
+         LEFT JOIN users u ON u.id = a.admin_id
+         ${where}
+         ORDER BY a.created_at DESC
+         LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+        dataValues
+      ),
+      db.query(`SELECT COUNT(*)::int AS total FROM admin_audit_log a ${where}`, values),
+      db.query(
+        `SELECT COUNT(*)::int AS total_entries,
+                COUNT(DISTINCT admin_id)::int AS users_active,
+                COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS actions_today,
+                MAX(created_at) AS last_entry
+         FROM admin_audit_log`
+      ),
+    ]);
+    return res.json({
+      logs: rowsResult.rows,
+      stats: statsResult.rows[0] || { total_entries: 0, users_active: 0, actions_today: 0, last_entry: null },
+      page,
+      limit,
+      total: countResult.rows[0]?.total || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/audit/export', (req, res) => {
-  res.type('text/csv').send('timestamp,actor,action,resource\n');
+router.get('/audit/export', async (req, res, next) => {
+  if (!supportEmployerService.isPlatformAdmin(req.user.role)) return res.status(403).json({ error: 'Access denied' });
+  try {
+    const limit = Math.min(10_000, Math.max(1, Number.parseInt(req.query.limit, 10) || 10_000));
+    const values = [limit];
+    const conditions = [];
+    if (req.query.action) {
+      values.unshift(`%${String(req.query.action).slice(0, 100)}%`);
+      conditions.push('a.action ILIKE $1');
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limitParam = conditions.length + 1;
+    const { rows } = await db.query(
+      `SELECT a.created_at, COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'System') AS admin_name,
+              a.action, a.target_type, a.target_id, COALESCE(a.description, a.notes) AS description
+       FROM admin_audit_log a LEFT JOIN users u ON u.id = a.admin_id
+       ${where} ORDER BY a.created_at DESC LIMIT $${limitParam}`,
+      values
+    );
+    const csvCell = (value) => {
+      const text = String(value ?? '').replace(/^[=+\-@]/, "'$&");
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const lines = [
+      ['timestamp', 'actor', 'action', 'resource_type', 'resource_id', 'description'].map(csvCell).join(','),
+      ...rows.map((row) => [row.created_at, row.admin_name, row.action, row.target_type, row.target_id, row.description].map(csvCell).join(',')),
+    ];
+    return res.type('text/csv').set('Content-Disposition', 'attachment; filename="oxsteed-support-audit.csv"').send(`${lines.join('\n')}\n`);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Create new conversation

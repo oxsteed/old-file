@@ -300,4 +300,48 @@ describe('support routes', () => {
       expect.objectContaining({ conversationId: 'guest-1', status: 'open' })
     );
   });
+
+  test('returns real CSAT analytics to platform admins', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ surveys_sent: 4, surveys_completed: 2, avg_rating: 4.5, csat_score: 100 }] })
+      .mockResolvedValueOnce({ rows: [{ day: '2026-09-09', responses: 2, avg_rating: 4.5 }] })
+      .mockResolvedValueOnce({ rows: [{ agent_name: 'Support', responses: 2, avg_rating: 4.5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', rating: 5, comment: 'Helpful' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/csat/analytics')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.metrics).toMatchObject({ surveys_sent: 4, surveys_completed: 2, csat_score: 100, survey_response_rate: 50 });
+    expect(res.body.recent_feedback).toHaveLength(1);
+  });
+
+  test('does not expose support audit logs to customers', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [authUserRow()] });
+
+    const res = await request(buildApp())
+      .get('/api/support/audit/logs')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+  });
+
+  test('returns bounded support audit logs to platform admins', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'audit-1', action: 'support_reply' }] })
+      .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ total_entries: 1, users_active: 1, actions_today: 1, last_entry: '2026-09-09T00:00:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/audit/logs?limit=10')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.logs).toHaveLength(1);
+    expect(res.body.limit).toBe(10);
+    expect(res.body.total).toBe(1);
+  });
 });
