@@ -256,6 +256,10 @@ describe('support routes', () => {
       .send({ status: 'resolved', resolutionSummary: 'Issue fixed and next steps provided.' });
 
     expect(res.status).toBe(200);
+    expect(mockQuery).toHaveBeenCalledTimes(5);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_conversations/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/UPDATE support_queue/);
+    expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE conversation_assignments/);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
       adminId: ADMIN_ID,
       action: 'support_conversation_status_changed',

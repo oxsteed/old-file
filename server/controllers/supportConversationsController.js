@@ -764,34 +764,39 @@ async function updateConversationStatus(req, res) {
     updateSql += ` WHERE id = $${params.length + 1} RETURNING *`;
     params.push(conversationId);
 
-    const result = await query(updateSql, params);
+    const result = await withTransaction(pool, async (client) => {
+      const updated = await client.query(updateSql, params);
+      if (!updated.rows.length) return null;
 
-    if (status === 'resolved' || status === 'closed') {
-      await query(
-        `UPDATE support_queue
-         SET status = 'removed', removed_at = NOW(), reason_removed = $1
-         WHERE conversation_id = $2 AND status <> 'removed'`,
-        [status, conversationId]
-      );
-      await query(
-        `UPDATE conversation_assignments
-         SET status = 'completed', released_at = COALESCE(released_at, NOW()),
-             duration_seconds = COALESCE(
-               duration_seconds,
-               EXTRACT(EPOCH FROM (NOW() - claimed_at))::integer
-             )
-         WHERE conversation_id = $1 AND status = 'active'`,
-        [conversationId]
-      );
-    } else if (status === 'open') {
-      await query(
-        `UPDATE support_queue
-         SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
-             routed_to_agent_id = NULL
-         WHERE conversation_id = $1`,
-        [conversationId]
-      );
-    }
+      if (status === 'resolved' || status === 'closed') {
+        await client.query(
+          `UPDATE support_queue
+           SET status = 'removed', removed_at = NOW(), reason_removed = $1
+           WHERE conversation_id = $2 AND status <> 'removed'`,
+          [status, conversationId]
+        );
+        await client.query(
+          `UPDATE conversation_assignments
+           SET status = 'completed', released_at = COALESCE(released_at, NOW()),
+               duration_seconds = COALESCE(
+                 duration_seconds,
+                 EXTRACT(EPOCH FROM (NOW() - claimed_at))::integer
+               )
+           WHERE conversation_id = $1 AND status = 'active'`,
+          [conversationId]
+        );
+      } else if (status === 'open') {
+        await client.query(
+          `UPDATE support_queue
+           SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+               routed_to_agent_id = NULL
+           WHERE conversation_id = $1`,
+          [conversationId]
+        );
+      }
+      return updated;
+    }, 'update_support_conversation_status');
+    if (!result) return sendError(res, 409, 'This conversation changed before its status could be updated');
 
     logger.info('Conversation status updated', { conversationId, status });
     await logAdminAction({
