@@ -635,6 +635,23 @@ export default function SupportTickets() {
                 <p className="mt-3 text-sm leading-6 text-gray-400">
                   Review incoming customer issues, claim ownership fast, and move conversations from first response to resolution with clearer operational context.
                 </p>
+                <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare size={16} className="mt-0.5 shrink-0 text-blue-300" />
+                    <div>
+                      <div className="text-sm font-semibold text-blue-100">Looking for real-time customer conversations?</div>
+                      <div className="mt-1 text-xs leading-5 text-blue-200/70">This is the legacy ticket queue. Live customer replies and internal notes are managed in the Live Support workspace.</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin/support/chat')}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/20"
+                  >
+                    Open Live Support
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 self-start">

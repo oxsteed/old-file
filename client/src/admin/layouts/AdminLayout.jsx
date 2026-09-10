@@ -24,6 +24,7 @@ const REGULAR_NAV = [
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
+  { to: '/admin/support/chat',     icon: MessageSquare,   label: 'Live Support'     },
   { to: '/admin/quote-requests',   icon: FileText,        label: 'Quote Requests'   },
   { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops'       },
   { to: '/admin/direct-service-areas', icon: MapPinned,    label: 'Direct Service Areas' },
@@ -190,7 +191,7 @@ export default function AdminLayout() {
               Operations
             </p>
             {visibleRegularNav.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} className={navClass} onClick={closeSidebar}>
+              <NavLink key={to} to={to} end={to === '/admin/support'} className={navClass} onClick={closeSidebar}>
                 <Icon size={16} />
                 {label}
               </NavLink>
