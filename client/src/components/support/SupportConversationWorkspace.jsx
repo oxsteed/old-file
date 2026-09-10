@@ -110,6 +110,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [ownershipFilter, setOwnershipFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [messageFilter, setMessageFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
@@ -322,8 +323,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (ownershipFilter === 'unassigned' && conversation.agent_id) return false;
     if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
     if (messageFilter === 'unread' && Number(conversation.unread_count || 0) < 1) return false;
+    if (categoryFilter !== 'all' && (conversation.category || 'general') !== categoryFilter) return false;
     return true;
-  }), [conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
+  }), [categoryFilter, conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -502,6 +504,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const openCount = conversations.filter((row) => !['resolved', 'closed'].includes(row.status)).length;
   const unassignedCount = conversations.filter((row) => !row.agent_id && !['resolved', 'closed'].includes(row.status)).length;
   const mineCount = conversations.filter((row) => row.agent_user_id === user?.id && !['resolved', 'closed'].includes(row.status)).length;
+  const categories = useMemo(() => Array.from(new Set(conversations.map((row) => row.category || 'general'))).sort(), [conversations]);
 
   return (
     <section className={`${embedded ? '' : 'min-h-[72vh]'} overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/90 text-white shadow-2xl`}>
@@ -591,6 +594,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
             <select value={messageFilter} onChange={(event) => setMessageFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
               <option value="all">All messages</option>
               <option value="unread">Unread customer messages</option>
+            </select>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
+              <option value="all">All categories</option>
+              {categories.map((category) => <option key={category} value={category}>{category.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
 
