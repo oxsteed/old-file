@@ -13,6 +13,7 @@ const WebSocketService = require('../services/websocketService');
 const supportRoutingController = require('../controllers/supportRoutingController');
 const supportConversationsController = require('../controllers/supportConversationsController');
 const conversationAssignmentController = require('../controllers/conversationAssignmentController');
+const supportEmployerService = require('../services/supportEmployerService');
 
 function responseDouble() {
   return {
@@ -554,5 +555,52 @@ describe('live support connection lifecycle', () => {
         }),
       }),
     }));
+  });
+
+  test('loads same-email history for a business-scoped agent with UUID business IDs', async () => {
+    const accessSpy = jest.spyOn(supportEmployerService, 'userCanAccessBusinessConversations').mockResolvedValue(true);
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-current',
+          business_id: '00000000-0000-4000-8000-000000000042',
+          customer_id: 'customer-1',
+          guest_email: null,
+          agent_id: null,
+          customer_email: 'customer@example.com',
+          subject: 'Current request',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'current-message', content: 'Current message' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-previous',
+          business_id: '00000000-0000-4000-8000-000000000042',
+          customer_email: 'customer@example.com',
+          subject: 'Previous request',
+          status: 'resolved',
+          customer_message_count: 1,
+          agent_message_count: 1,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'agent-user-1', role: 'helper' },
+      params: { conversationId: 'ticket-current' },
+    };
+    const res = responseDouble();
+
+    try {
+      await supportConversationsController.getConversation(req, res);
+    } finally {
+      accessSpy.mockRestore();
+    }
+
+    const historyCall = mockQuery.mock.calls.find(([sql]) => /LOWER\(BTRIM\(COALESCE\(u\.email, sc\.guest_email\)\)\)/.test(sql));
+    expect(historyCall[0]).toContain('sc.business_id = $3');
+    expect(historyCall[0]).not.toContain('sc.business_id = $3::integer');
+    expect(historyCall[1]).toEqual(['ticket-current', 'customer@example.com', '00000000-0000-4000-8000-000000000042']);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });

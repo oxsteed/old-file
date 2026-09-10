@@ -241,7 +241,9 @@ async function getConversation(req, res) {
     const customerEmail = String(conversation.customer_email || '').trim().toLowerCase();
     if (!isCustomer && customerEmail) {
       const historyParams = [conversationId, customerEmail];
-      const historyScope = isPlatformAdmin ? '' : ' AND sc.business_id = $3::integer';
+      // Business IDs are UUIDs in the support schema. Keep the parameter
+      // uncast so business-scoped agents can load verified customer history.
+      const historyScope = isPlatformAdmin ? '' : ' AND sc.business_id = $3';
       if (!isPlatformAdmin) historyParams.push(conversation.business_id);
 
       const historyResult = await query(
