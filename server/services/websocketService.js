@@ -27,6 +27,7 @@ class WebSocketService {
     if (this.io) throw new Error('WebSocketService has already been initialized');
 
     this.io = namespace;
+    const service = this;
 
     // ── Customer connections ──
     namespace.on('connection', (socket) => {
@@ -262,27 +263,46 @@ class WebSocketService {
         });
       });
 
-      // Assign ticket to agent
-      socket.on('ticket:assign', (data) => {
+      // Assign ticket to agent. REST remains the source of truth for the
+      // assignment write; this legacy event only delivers notifications after
+      // validating the current ticket and agent scope.
+      socket.on('ticket:assign', validateBeforeHandler(async function(data) {
         if (!['admin', 'super_admin'].includes(socket.userRole)) return;
-        const { ticketId, agentId } = data;
+        const { ticketId, agentId } = data || {};
+        if (!ticketId || !agentId) return;
 
-        // Notify agent of assignment
-        this.notifyAgent(agentId, 'ticket:assigned-to-you', {
+        const conversation = await pool.query(
+          `SELECT id, business_id
+           FROM support_conversations
+           WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+          [ticketId]
+        );
+        const ticket = conversation.rows[0];
+        if (!ticket) return;
+
+        const agent = await pool.query(
+          `SELECT sa.id
+           FROM support_agents sa
+           JOIN support_employers se ON se.id = sa.employer_id
+           WHERE sa.id = $1 AND sa.status = 'active'
+             AND (se.kind = 'platform' OR (se.kind = 'business' AND se.business_id = $2))`,
+          [agentId, ticket.business_id]
+        );
+        if (!agent.rows.length) return;
+
+        const timestamp = new Date().toISOString();
+        service.notifyAgent(agentId, 'ticket:assigned-to-you', {
           ticketId,
-          timestamp: new Date().toISOString(),
+          timestamp,
         });
-
-        // Notify customer that agent joined
-        this.io.to(`ticket:${ticketId}`).emit('agent:joined', {
+        namespace.to(`ticket:${ticketId}`).emit('agent:joined', {
           ticketId,
           agentId,
           message: 'A support agent has joined the conversation.',
-          timestamp: new Date().toISOString(),
+          timestamp,
         });
-
-        logger.info('Ticket assigned via socket', { ticketId, agentId });
-      });
+        logger.info('Ticket assignment notification sent via socket', { ticketId, agentId });
+      }));
 
       // Close ticket. This legacy event remains supported for older dashboards,
       // but it must follow the same authorization and persistence boundary as

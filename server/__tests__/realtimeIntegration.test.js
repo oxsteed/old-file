@@ -273,4 +273,35 @@ describe('shared realtime server', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE conversation_assignments/.test(sql))).toBe(true);
   });
+
+  test('only notifies for an active agent scoped to the ticket business', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'admin' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      if (sql.includes('FROM support_conversations')) return { rows: [{ id: 'ticket-1', business_id: 42 }] };
+      if (sql.includes('FROM support_agents sa')) return { rows: [{ id: 'agent-2' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, deleted_at: null, role: 'admin' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      if (sql.includes('FROM support_conversations')) return { rows: [{ id: 'ticket-1', business_id: 42 }] };
+      if (sql.includes('FROM support_agents sa')) return { rows: [{ id: 'agent-2' }] };
+      return { rows: [] };
+    });
+
+    const token = jwt.sign({ id: 'admin-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const support = await connect(`${baseUrl}/support`, { auth: { token } });
+    clients.push(support);
+    support.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const joinedEvent = once(support, 'agent:joined');
+    support.emit('ticket:assign', { ticketId: 'ticket-1', agentId: 'agent-2' });
+    await expect(joinedEvent).resolves.toEqual(expect.objectContaining({
+      ticketId: 'ticket-1',
+      agentId: 'agent-2',
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /JOIN support_employers/.test(sql))).toBe(true);
+  });
 });
