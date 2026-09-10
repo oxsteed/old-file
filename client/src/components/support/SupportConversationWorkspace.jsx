@@ -43,13 +43,6 @@ const PRIORITY = {
   low: 'text-slate-500',
 };
 
-const QUICK_REPLIES = [
-  ['greeting', 'Greeting', 'Hi, thanks for reaching out to OxSteed Support. I am reviewing your request now and will help with the next steps.'],
-  ['more-info', 'Request details', 'To help us resolve this quickly, please share any relevant order, booking, invoice, or conversation ID and the outcome you expected.'],
-  ['follow-up', 'Follow-up', 'I am following up on your support request. Please reply here with any new details and we will continue helping you.'],
-  ['resolved', 'Resolution check', 'We believe this is resolved. Please let us know if anything is still blocked so we can keep working with you.'],
-];
-
 function statusBadge(status) {
   const [label, className] = STATUS[status] || [status || 'Unknown', 'border-slate-700 bg-slate-800 text-slate-300'];
   return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{label}</span>;
@@ -113,6 +106,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
+  const [responseTemplates, setResponseTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [internalNote, setInternalNote] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -196,11 +191,28 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, [businessId, isPlatformAdmin]);
 
+  const loadResponseTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const { data } = await api.get(
+        businessId ? '/support/templates/available' : '/support/templates',
+        { params: businessId ? { business_id: businessId } : { active: 'true' } }
+      );
+      const rows = data?.templates || data?.data || [];
+      setResponseTemplates(Array.isArray(rows) ? rows.filter((row) => row.is_active !== false) : []);
+    } catch {
+      setResponseTemplates([]);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [businessId]);
+
   useEffect(() => {
     loadConversations();
     loadAgents();
     loadAgentEmployment();
-  }, [loadAgentEmployment, loadAgents, loadConversations]);
+    loadResponseTemplates();
+  }, [loadAgentEmployment, loadAgents, loadConversations, loadResponseTemplates]);
 
   useEffect(() => {
     loadDetail(selectedId);
@@ -875,16 +887,16 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <select
                     value={quickReply}
                     onChange={(event) => {
-                      const next = QUICK_REPLIES.find(([value]) => value === event.target.value);
+                      const next = responseTemplates.find((template) => String(template.id) === event.target.value);
                       setQuickReply('');
-                      if (next) setReply((current) => current.trim() ? `${current.trim()}\n\n${next[2]}` : next[2]);
+                      if (next) setReply((current) => current.trim() ? `${current.trim()}\n\n${next.content}` : next.content);
                     }}
                     disabled={!canReply || busy}
                     className="ml-auto max-w-[180px] rounded-xl bg-slate-900 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
                     aria-label="Insert quick reply"
                   >
-                    <option value="">Quick reply…</option>
-                    {QUICK_REPLIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    <option value="">{templatesLoading ? 'Loading saved replies…' : responseTemplates.length ? 'Insert saved reply…' : 'No saved replies'}</option>
+                    {responseTemplates.map((template) => <option key={template.id} value={template.id}>{template.title || template.name}</option>)}
                   </select>
                 </div>
                 {internalNote && (

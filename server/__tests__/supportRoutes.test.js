@@ -454,6 +454,22 @@ describe('support routes', () => {
     expect(res.body.articles[0]).toMatchObject({ id: 'article-1', tags: ['billing'], views: 3 });
   });
 
+  test('returns only active saved replies to authorized support operators', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'reply-1', title: 'Billing update', content: 'I am checking your billing request now.', is_active: true },
+      ] });
+
+    const res = await request(buildApp())
+      .get('/api/support/templates/available?business_id=42&search=billing')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.templates).toHaveLength(1);
+    expect(mockQuery.mock.calls.some(([sql]) => /is_active = true/.test(sql))).toBe(true);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

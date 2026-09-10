@@ -1274,10 +1274,19 @@ router.delete('/kb/:id', async (req, res, next) => {
   }
 });
 
-router.get('/templates', async (req, res, next) => {
+// Read-only template feed for support operators. Unlike the admin CRUD route,
+// this allows an assigned support agent to use only active templates for the
+// business they are authorized to work, without granting management access.
+router.get('/templates/available', async (req, res, next) => {
   try {
     const businessId = await supportBusinessFromRequest(req);
-    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    if (!businessId) return res.status(400).json({ error: 'business_id is required' });
+    const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+      businessId,
+      req.user.id,
+      req.user.role
+    );
+    if (!allowed) return res.status(403).json({ error: 'Access denied' });
     const params = [businessId];
     let searchSql = '';
     if (req.query.search) {
@@ -1288,7 +1297,33 @@ router.get('/templates', async (req, res, next) => {
       `SELECT id, business_id, category, title, title AS name, content, shortcut, language,
               usage_count, usage_count AS use_count, is_active, created_at, updated_at
        FROM canned_responses
-       WHERE business_id = $1 ${searchSql}
+       WHERE business_id = $1 AND is_active = true ${searchSql}
+       ORDER BY category NULLS LAST, title
+       LIMIT 200`,
+      params
+    );
+    return res.json({ templates: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/templates', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
+    const params = [businessId];
+    let searchSql = '';
+    const activeSql = parseBoolean(req.query.active, false) ? ' AND is_active = true' : '';
+    if (req.query.search) {
+      params.push(`%${String(req.query.search).trim().slice(0, 100)}%`);
+      searchSql = `AND (title ILIKE $2 OR content ILIKE $2 OR COALESCE(shortcut, '') ILIKE $2)`;
+    }
+    const { rows } = await db.query(
+      `SELECT id, business_id, category, title, title AS name, content, shortcut, language,
+              usage_count, usage_count AS use_count, is_active, created_at, updated_at
+       FROM canned_responses
+       WHERE business_id = $1 ${activeSql} ${searchSql}
        ORDER BY category NULLS LAST, title
        LIMIT 200`,
       params
