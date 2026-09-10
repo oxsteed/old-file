@@ -20,11 +20,25 @@ async function resolveSupportBusinessId(req) {
   return rows[0]?.id || null;
 }
 
+async function resolveCustomerSupportBusinessId(req) {
+  if (req.user?.role === 'admin' || req.user?.role === 'super_admin') {
+    return resolveSupportBusinessId(req);
+  }
+  const { rows } = await db.query(
+    `SELECT id
+     FROM businesses
+     WHERE is_active = TRUE
+     ORDER BY is_primary DESC, created_at ASC
+     LIMIT 1`
+  );
+  return rows[0]?.id || null;
+}
+
 router.get('/status', requireAuth, supportRoutingController.getStatus);
 
 router.post('/connect', authenticatedLimiter, requireAuth, async (req, res, next) => {
   try {
-    const businessId = await resolveSupportBusinessId(req);
+    const businessId = await resolveCustomerSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });
     req.params.businessId = businessId;
     return supportRoutingController.connectConversation(req, res, next);
@@ -35,7 +49,7 @@ router.post('/connect', authenticatedLimiter, requireAuth, async (req, res, next
 
 router.post('/conversations', conversationMessageLimiter, requireAuth, async (req, res, next) => {
   try {
-    const businessId = await resolveSupportBusinessId(req);
+    const businessId = await resolveCustomerSupportBusinessId(req);
     if (!businessId) return res.status(400).json({ error: 'No support business is available' });
     req.params.businessId = businessId;
     req.body = {
