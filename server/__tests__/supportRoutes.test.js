@@ -47,6 +47,15 @@ function adminAuthHeader() {
   return `Bearer ${accessToken}`;
 }
 
+function supportAgentAuthHeader() {
+  const { accessToken } = generateTokens({
+    id: USER_ID,
+    email: 'agent@example.com',
+    role: 'support_agent',
+  });
+  return `Bearer ${accessToken}`;
+}
+
 function authUserRow() {
   return {
     id: USER_ID,
@@ -458,6 +467,20 @@ describe('support routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.general).toMatchObject({ business_id: '42', support_enabled: false });
+  });
+
+  test('does not let support agents manage business support settings', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), role: 'support_agent', email: 'agent@example.com' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/settings/general?business_id=42')
+      .set('Authorization', supportAgentAuthHeader())
+      .send({ support_enabled: false });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_admin_settings/.test(sql))).toBe(false);
   });
 
   test('reads durable knowledge-base articles for support admins', async () => {

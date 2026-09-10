@@ -181,7 +181,9 @@ async function supportBusinessFromRequest(req) {
 async function canManageSupportBusiness(req, businessId) {
   if (!businessId) return false;
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
-  return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+  // Support agents can work conversations, but management surfaces require
+  // an owner, manager, or representative membership.
+  return supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
 }
 
 function serializeKnowledgeArticle(row) {
