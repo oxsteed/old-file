@@ -20,6 +20,7 @@ const {
 } = require('../controllers/guestChatController');
 const supportRoutingController = require('../controllers/supportRoutingController');
 const supportEmployerService = require('../services/supportEmployerService');
+const SupportRoutingService = require('../services/supportRoutingService');
 
 function responseDouble() {
   return {
@@ -114,5 +115,37 @@ describe('security hardening boundaries', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Validation failed' }));
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('creates the opening conversation records before routing', async () => {
+    jest.spyOn(SupportRoutingService, 'routeTicket').mockResolvedValue({
+      routedTo: 'ai',
+      confidence: 0.9,
+    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', created_at: '2026-09-10T12:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const res = responseDouble();
+    await supportRoutingController.createConversation({
+      user: { id: 'customer-1' },
+      params: { businessId: 42 },
+      body: { message: 'Need help', category: 'technical', priority: 'normal' },
+    }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      ticketId: 'ticket-1',
+      routedTo: 'ai',
+    }));
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO support_conversations/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO support_conversation_messages/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_conversations/);
+    expect(SupportRoutingService.routeTicket).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Need help',
+      category: 'technical',
+      priority: 'normal',
+    }));
   });
 });

@@ -339,17 +339,6 @@ exports.createConversation = async (req, res) => {
       RETURNING id, created_at
     `;
 
-    const conversationResult = await pool.query(conversationQuery, [
-      customerId,
-      businessId,
-      `${normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)} Support Request`,
-      normalizedMessage,
-      normalizedCategory,
-      normalizedPriority,
-    ]);
-
-    const ticketId = conversationResult.rows[0].id;
-
     // Persist the opening message in the canonical conversation message table.
     const messageQuery = `
       INSERT INTO support_conversation_messages
@@ -358,13 +347,29 @@ exports.createConversation = async (req, res) => {
       RETURNING id
     `;
 
-    await pool.query(messageQuery, [ticketId, customerId, normalizedMessage]);
-    await pool.query(
-      `UPDATE support_conversations
-       SET message_count = 1, customer_message_count = 1, updated_at = NOW()
-       WHERE id = $1`,
-      [ticketId]
-    );
+    const createdConversation = await withTransaction(pool, async (client) => {
+      const conversationResult = await client.query(conversationQuery, [
+        customerId,
+        businessId,
+        `${normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)} Support Request`,
+        normalizedMessage,
+        normalizedCategory,
+        normalizedPriority,
+      ]);
+
+      const ticketId = conversationResult.rows[0].id;
+      await client.query(messageQuery, [ticketId, customerId, normalizedMessage]);
+      await client.query(
+        `UPDATE support_conversations
+         SET message_count = 1, customer_message_count = 1, updated_at = NOW()
+         WHERE id = $1`,
+        [ticketId]
+      );
+
+      return conversationResult.rows[0];
+    }, 'create_support_conversation');
+
+    const ticketId = createdConversation.id;
 
     // Layer 1-3 Routing
     const routing = await SupportRoutingService.routeTicket({
