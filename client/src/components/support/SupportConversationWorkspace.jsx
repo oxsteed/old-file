@@ -109,6 +109,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [statusFilter, setStatusFilter] = useState('active');
   const [ownershipFilter, setOwnershipFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [messageFilter, setMessageFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
@@ -320,8 +321,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (ownershipFilter === 'mine' && conversation.agent_user_id !== user?.id) return false;
     if (ownershipFilter === 'unassigned' && conversation.agent_id) return false;
     if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
+    if (messageFilter === 'unread' && Number(conversation.unread_count || 0) < 1) return false;
     return true;
-  }), [conversations, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
+  }), [conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -585,6 +587,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               <option value="high">High</option>
               <option value="normal">Normal</option>
               <option value="low">Low</option>
+            </select>
+            <select value={messageFilter} onChange={(event) => setMessageFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
+              <option value="all">All messages</option>
+              <option value="unread">Unread customer messages</option>
             </select>
           </div>
 
