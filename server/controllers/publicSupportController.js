@@ -12,6 +12,7 @@ const { withTransaction } = require('../utils/transaction');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_EMAIL_LENGTH = 254;
 
 function hash(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -19,6 +20,18 @@ function hash(value) {
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function isValidEmail(value) {
+  return value.length <= MAX_EMAIL_LENGTH && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+}
+
+function hashesMatch(left, right) {
+  const leftBuffer = Buffer.from(String(left || ''), 'hex');
+  const rightBuffer = Buffer.from(String(right || ''), 'hex');
+  return leftBuffer.length === rightBuffer.length
+    && leftBuffer.length > 0
+    && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function randomCode() {
@@ -51,11 +64,8 @@ async function createGuestConversation(req, res) {
     const name = String(visitorName || '').trim();
     const email = normalizeEmail(visitorEmail);
     const content = String(message || '').trim();
-    if (!name || name.length > 255 || !email || email.length > 320 || !content || content.length > 5000) {
+    if (!name || name.length > 255 || !email || !isValidEmail(email) || !content || content.length > 5000) {
       return sendValidationError(res, { visitorName: 'Name is required', visitorEmail: 'Valid email is required', message: 'Message is required and must be 5000 characters or fewer' });
-    }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      return sendValidationError(res, { visitorEmail: 'Valid email is required' });
     }
     const businessId = null;
     client = await pool.connect();
@@ -98,7 +108,7 @@ async function verifyGuestConversation(req, res) {
     const conversationId = req.params.conversationId;
     const email = normalizeEmail(req.body?.visitorEmail);
     const code = String(req.body?.code || '').trim();
-    if (!email || !/^\d{6}$/.test(code)) return sendValidationError(res, { code: 'Enter the six-digit code sent by email' });
+    if (!isValidEmail(email) || !/^\d{6}$/.test(code)) return sendValidationError(res, { code: 'Enter the six-digit code sent by email' });
     client = await pool.connect();
     await client.query('BEGIN');
     const session = await client.query(`SELECT id FROM support_conversations
@@ -119,7 +129,7 @@ async function verifyGuestConversation(req, res) {
       return sendError(res, 401, 'The verification code is invalid or expired');
     }
     const verificationId = rows[0].id;
-    if (hash(code) !== rows[0].code_hash) {
+    if (!hashesMatch(hash(code), rows[0].code_hash)) {
       await client.query('UPDATE support_guest_verifications SET attempts = attempts + 1 WHERE id = $1', [verificationId]);
       await client.query('COMMIT');
       return sendError(res, 401, 'The verification code is invalid or expired');
@@ -169,6 +179,7 @@ async function resendGuestVerification(req, res) {
   try {
     const conversationId = req.params.conversationId;
     const email = normalizeEmail(req.body?.visitorEmail);
+    if (!isValidEmail(email)) return sendValidationError(res, { visitorEmail: 'Valid email is required' });
     const { rows } = await pool.query(
       `SELECT guest_name FROM support_conversations
        WHERE id = $1 AND guest_email = $2 AND guest_verified_at IS NULL`,

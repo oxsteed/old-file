@@ -71,3 +71,21 @@ test('reopens a guest conversation and requeues it atomically', async () => {
   expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE support_conversations/);
   expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_queue/);
 });
+
+test('rejects invalid guest verification email input before database access', async () => {
+  const resendRes = responseDouble();
+  await publicSupport.resendGuestVerification({
+    params: { conversationId: 'ticket-1' },
+    body: { visitorEmail: 'not-an-email' },
+  }, resendRes);
+
+  const verifyRes = responseDouble();
+  await publicSupport.verifyGuestConversation({
+    params: { conversationId: 'ticket-1' },
+    body: { visitorEmail: 'not-an-email', code: '123456' },
+  }, verifyRes);
+
+  expect(resendRes.status).toHaveBeenCalledWith(400);
+  expect(verifyRes.status).toHaveBeenCalledWith(400);
+  expect(mockQuery).not.toHaveBeenCalled();
+});
