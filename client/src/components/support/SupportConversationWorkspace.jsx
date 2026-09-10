@@ -737,6 +737,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('waiting_for_customer')} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-amber-500/50">Waiting for customer</button>}
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('escalated')} className="rounded-xl border border-red-500/30 px-3 py-2 text-xs text-red-200 hover:bg-red-500/10">Escalate</button>}
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('resolved', { resolutionSummary: resolutionSummary.trim() })} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/10"><CheckCircle2 size={13} /> Resolve</button>}
+                    {selected.status === 'resolved' && <button type="button" disabled={busy} onClick={() => updateStatus('closed', { resolutionSummary: selected.resolution_summary || resolutionSummary.trim() })} className="rounded-xl border border-slate-500/40 px-3 py-2 text-xs text-slate-200 hover:bg-slate-500/10">Close case</button>}
                     {isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('open')} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs text-blue-200 hover:bg-blue-500/10">Reopen</button>}
                     </div>
                   </div>
