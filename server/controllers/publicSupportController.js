@@ -412,26 +412,31 @@ async function reopenGuestConversation(req, res) {
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
     if (rows[0].status !== 'resolved') return sendError(res, 409, 'Only resolved conversations can be reopened');
 
-    const { rows: updated } = await pool.query(
-      `UPDATE support_conversations
-       SET status = 'open', resolved_at = NULL, closed_at = NULL,
-           resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
-       WHERE id = $1 AND status = 'resolved'
-       RETURNING id, status, updated_at`,
-      [conversationId]
-    );
-    if (!updated.length) return sendError(res, 409, 'This conversation changed before it could be reopened');
-    await pool.query(
-      `UPDATE support_queue
-       SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
-           routed_to_agent_id = NULL
-       WHERE conversation_id = $1`,
-      [conversationId]
-    );
+    const updated = await withTransaction(pool, async (client) => {
+      const { rows: reopened } = await client.query(
+        `UPDATE support_conversations
+         SET status = 'open', resolved_at = NULL, closed_at = NULL,
+             resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
+         WHERE id = $1 AND status = 'resolved'
+         RETURNING id, status, updated_at`,
+        [conversationId]
+      );
+      if (!reopened.length) return null;
+
+      await client.query(
+        `UPDATE support_queue
+         SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+             routed_to_agent_id = NULL
+         WHERE conversation_id = $1`,
+        [conversationId]
+      );
+      return reopened[0];
+    }, 'reopen_guest_support_conversation');
+    if (!updated) return sendError(res, 409, 'This conversation changed before it could be reopened');
     const payload = { ticketId: conversationId, conversationId, status: 'open', timestamp: new Date().toISOString() };
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
-    return res.json({ success: true, data: updated[0] });
+    return res.json({ success: true, data: updated });
   } catch (err) {
     logger.error('reopenGuestConversation error', { conversationId, error: err.message });
     return sendError(res, 500, 'Failed to reopen conversation');

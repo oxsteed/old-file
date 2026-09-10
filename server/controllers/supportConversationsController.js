@@ -1,7 +1,8 @@
 // Support Conversations Controller
 // Manages support tickets: creation, assignment, status updates, resolution
 
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
@@ -10,6 +11,7 @@ const { logAdminAction } = require('../services/auditService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { withTransaction } = require('../utils/transaction');
 
 function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   const rawUrl = String(attachmentUrl ?? '').trim();
@@ -662,22 +664,27 @@ async function reopenCustomerConversation(req, res) {
       return sendError(res, 409, 'Only resolved conversations can be reopened');
     }
 
-    const result = await query(
-      `UPDATE support_conversations
-       SET status = 'open', resolved_at = NULL, closed_at = NULL,
-           resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
-       WHERE id = $1 AND status = 'resolved'
-       RETURNING *`,
-      [conversationId]
-    );
-    if (!result.rows.length) return sendError(res, 409, 'This conversation changed before it could be reopened');
-    await query(
-      `UPDATE support_queue
-       SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
-           routed_to_agent_id = NULL
-       WHERE conversation_id = $1`,
-      [conversationId]
-    );
+    const result = await withTransaction(pool, async (client) => {
+      const reopened = await client.query(
+        `UPDATE support_conversations
+         SET status = 'open', resolved_at = NULL, closed_at = NULL,
+             resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
+         WHERE id = $1 AND status = 'resolved'
+         RETURNING *`,
+        [conversationId]
+      );
+      if (!reopened.rows.length) return null;
+
+      await client.query(
+        `UPDATE support_queue
+         SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+             routed_to_agent_id = NULL
+         WHERE conversation_id = $1`,
+        [conversationId]
+      );
+      return reopened;
+    }, 'reopen_customer_support_conversation');
+    if (!result) return sendError(res, 409, 'This conversation changed before it could be reopened');
     const payload = { ticketId: conversationId, conversationId, status: 'open', updatedBy: req.user.id, timestamp: new Date().toISOString() };
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', payload);

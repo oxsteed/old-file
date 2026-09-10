@@ -50,3 +50,24 @@ test('persists a guest reply and its counter as one database operation', async (
     expect.objectContaining({ content: 'A follow-up question' })
   );
 });
+
+test('reopens a guest conversation and requeues it atomically', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'resolved' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'open', updated_at: '2026-09-10T12:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+  const res = responseDouble();
+  await publicSupport.reopenGuestConversation({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+  }, res);
+
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    success: true,
+    data: expect.objectContaining({ id: 'ticket-1', status: 'open' }),
+  }));
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE support_conversations/);
+  expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_queue/);
+});

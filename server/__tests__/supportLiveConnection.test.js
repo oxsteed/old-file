@@ -644,4 +644,37 @@ describe('live support connection lifecycle', () => {
     expect(historyCall[1]).toEqual(['ticket-current', 'customer@example.com', '00000000-0000-4000-8000-000000000042']);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
+
+  test('reopens a customer conversation and requeues it atomically', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: null,
+          customer_id: 'customer-1',
+          agent_id: null,
+          status: 'resolved',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'ticket-1', status: 'open', updated_at: '2026-09-10T12:00:00.000Z' }],
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.reopenCustomerConversation(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.objectContaining({ id: 'ticket-1', status: 'open' }),
+    }));
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE support_conversations/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_queue/);
+  });
 });
