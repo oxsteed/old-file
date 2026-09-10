@@ -302,13 +302,32 @@ exports.connectConversation = async (req, res) => {
 // Create support conversation (customer initiates)
 exports.createConversation = async (req, res) => {
   try {
-    const { visitorEmail, visitorName, message, category, priority } = req.body;
+    const { visitorEmail, visitorName, message, category, priority } = req.body || {};
     const customerId = req.user.id;
     const businessId = req.params.businessId;
+    const normalizedMessage = typeof message === 'string' ? message.trim() : '';
+    const normalizedCategory = typeof category === 'string' ? category.trim().toLowerCase() : '';
+    const normalizedPriority = typeof priority === 'string' ? priority.trim().toLowerCase() : 'normal';
+    const normalizedVisitorName = typeof visitorName === 'string' ? visitorName.trim().slice(0, 255) : '';
+    const normalizedVisitorEmail = typeof visitorEmail === 'string' ? visitorEmail.trim().slice(0, 255) : '';
+    const validCategories = new Set(['billing', 'technical', 'sales', 'account', 'general', 'support_request', 'escalation']);
+    const validPriorities = new Set(['low', 'normal', 'high', 'urgent']);
 
     // Validate input
-    if (!message?.trim() || message.length > 5000 || !category) {
-      return sendValidationError(res, { message: 'Message and category required' });
+    if (!normalizedMessage || normalizedMessage.length > 5000 || !validCategories.has(normalizedCategory)) {
+      return sendValidationError(res, {
+        message: 'Message is required and must be 5000 characters or fewer',
+        category: 'Invalid support category',
+      });
+    }
+    if (!validPriorities.has(normalizedPriority)) {
+      return sendValidationError(res, { priority: 'Invalid priority' });
+    }
+    if (visitorEmail != null && (String(visitorEmail).trim().length > 255 || !normalizedVisitorEmail || !/^\S+@\S+\.\S+$/.test(normalizedVisitorEmail))) {
+      return sendValidationError(res, { visitorEmail: 'Must be a valid email address' });
+    }
+    if (visitorName != null && (String(visitorName).trim().length > 255 || !normalizedVisitorName)) {
+      return sendValidationError(res, { visitorName: 'Must not be empty' });
     }
 
     // Create the durable conversation and first message before routing. Both
@@ -323,10 +342,10 @@ exports.createConversation = async (req, res) => {
     const conversationResult = await pool.query(conversationQuery, [
       customerId,
       businessId,
-      `${category.charAt(0).toUpperCase() + category.slice(1)} Support Request`,
-      message.trim(),
-      category,
-      priority || 'normal',
+      `${normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)} Support Request`,
+      normalizedMessage,
+      normalizedCategory,
+      normalizedPriority,
     ]);
 
     const ticketId = conversationResult.rows[0].id;
@@ -339,7 +358,7 @@ exports.createConversation = async (req, res) => {
       RETURNING id
     `;
 
-    await pool.query(messageQuery, [ticketId, customerId, message.trim()]);
+    await pool.query(messageQuery, [ticketId, customerId, normalizedMessage]);
     await pool.query(
       `UPDATE support_conversations
        SET message_count = 1, customer_message_count = 1, updated_at = NOW()
@@ -351,9 +370,9 @@ exports.createConversation = async (req, res) => {
     const routing = await SupportRoutingService.routeTicket({
       customerId,
       businessId,
-      category,
-      message,
-      priority: priority || 'normal',
+      category: normalizedCategory,
+      message: normalizedMessage,
+      priority: normalizedPriority,
     });
 
     let assignedAgentId = null;
@@ -383,17 +402,17 @@ exports.createConversation = async (req, res) => {
       // Notify agent via WebSocket
       WebSocketService.notifyAgent(assignedAgentId, 'ticket:new-assignment', {
         ticketId,
-        customerName: visitorName,
-        customerEmail: visitorEmail,
-        category,
-        message,
+        customerName: normalizedVisitorName,
+        customerEmail: normalizedVisitorEmail,
+        category: normalizedCategory,
+        message: normalizedMessage,
         timestamp: new Date().toISOString(),
       });
 
       logger.info('Ticket routed to agent', {
         ticketId,
         agentId: assignedAgentId,
-        category,
+        category: normalizedCategory,
       });
     } else if (routing.routedTo === 'queue') {
       const { rows: waitingRows } = await pool.query(
@@ -410,7 +429,7 @@ exports.createConversation = async (req, res) => {
         `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
          VALUES ($1, $2, $3, 'waiting', NOW())
          ON CONFLICT DO NOTHING`,
-        [businessId, ticketId, priority || 'normal']
+        [businessId, ticketId, normalizedPriority]
       );
 
       response.message = 'Your request has been queued. An agent will help you shortly.';
@@ -421,7 +440,7 @@ exports.createConversation = async (req, res) => {
       )).rows[0];
       response.waiting = waitingState(waitingConversation);
 
-      logger.info('Ticket queued', { ticketId, category });
+      logger.info('Ticket queued', { ticketId, category: normalizedCategory });
     } else if (routing.routedTo === 'ai') {
       // AI response (handled by customer widget)
       response.message = 'Your request is being analyzed by our AI assistant.';
@@ -430,9 +449,9 @@ exports.createConversation = async (req, res) => {
     // Broadcast to admins
     WebSocketService.broadcastToAdmins('ticket:created', {
       ticketId,
-      customer: { id: customerId, name: visitorName, email: visitorEmail },
-      category,
-      priority,
+      customer: { id: customerId, name: normalizedVisitorName, email: normalizedVisitorEmail },
+      category: normalizedCategory,
+      priority: normalizedPriority,
       routedTo: routing.routedTo,
       timestamp: new Date().toISOString(),
     });

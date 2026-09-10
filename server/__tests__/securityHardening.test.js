@@ -102,4 +102,17 @@ describe('security hardening boundaries', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Access denied' }));
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
+
+  test('legacy routing rejects unsupported categories and priorities before database writes', async () => {
+    const res = responseDouble();
+    await supportRoutingController.createConversation({
+      user: { id: 'customer-1' },
+      params: { businessId: 42 },
+      body: { message: 'Need help', category: 'run_sql', priority: 'critical' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Validation failed' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
 });
