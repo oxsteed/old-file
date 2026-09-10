@@ -24,12 +24,12 @@ function broadcastAssignment(conversationId, event, payload = {}) {
 // Agent claims a conversation from queue
 async function claimConversation(req, res) {
   try {
-    const { conversationId } = req.params;
+    const { businessId, conversationId } = req.params;
 
     // Get conversation
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
-      [conversationId]
+      'SELECT * FROM support_conversations WHERE id = $1 AND ($2::integer IS NULL OR business_id = $2::integer)',
+      [conversationId, businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -76,9 +76,10 @@ async function claimConversation(req, res) {
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $2
            AND agent_id IS NULL
+           AND ($3::integer IS NULL OR business_id = $3::integer)
            AND status NOT IN ('resolved', 'closed', 'pending_verification')
          RETURNING id`,
-        [agent.id, conversationId]
+        [agent.id, conversationId, businessId || null]
       );
       if (!claimedConversation.rows.length) {
         const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
@@ -97,16 +98,16 @@ async function claimConversation(req, res) {
       await client.query(
         `UPDATE support_queue
          SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
-         WHERE conversation_id = $2`,
-        [agent.id, conversationId]
+         WHERE conversation_id = $2 AND business_id = $3`,
+        [agent.id, conversationId, conversation.business_id]
       );
 
       await client.query(
         `INSERT INTO queue_events
          (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
          SELECT id, business_id, $2, 'claimed', $1, 'Agent self-claimed'
-         FROM support_queue WHERE conversation_id = $2`,
-        [agent.id, conversationId]
+         FROM support_queue WHERE conversation_id = $2 AND business_id = $3`,
+        [agent.id, conversationId, conversation.business_id]
       );
 
       return assignResult.rows[0];
@@ -151,7 +152,7 @@ async function claimConversation(req, res) {
 // Manually assign conversation to specific agent
 async function assignToAgent(req, res) {
   try {
-    const { conversationId } = req.params;
+    const { businessId, conversationId } = req.params;
     const { agentId } = req.body;
 
     if (!agentId) {
@@ -160,8 +161,8 @@ async function assignToAgent(req, res) {
 
     // Get conversation
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
-      [conversationId]
+      'SELECT * FROM support_conversations WHERE id = $1 AND ($2::integer IS NULL OR business_id = $2::integer)',
+      [conversationId, businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -199,8 +200,8 @@ async function assignToAgent(req, res) {
       await query(
         `UPDATE conversation_assignments
          SET status = 'completed', released_at = CURRENT_TIMESTAMP
-         WHERE conversation_id = $1 AND status = 'active'`,
-        [conversationId]
+         WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
+        [conversationId, conversation.business_id]
       );
     }
 
@@ -217,8 +218,8 @@ async function assignToAgent(req, res) {
     await query(
       `UPDATE support_conversations
        SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [agentId, conversationId]
+       WHERE id = $2 AND business_id = $3`,
+      [agentId, conversationId, conversation.business_id]
     );
 
     // Update queue
@@ -234,8 +235,8 @@ async function assignToAgent(req, res) {
       `INSERT INTO queue_events
        (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
        SELECT id, business_id, $2, 'routed', $1, 'Manually assigned by admin'
-       FROM support_queue WHERE conversation_id = $2`,
-      [agentId, conversationId]
+       FROM support_queue WHERE conversation_id = $2 AND business_id = $3`,
+      [agentId, conversationId, conversation.business_id]
     );
 
     logger.info('Conversation assigned to agent', {
@@ -273,7 +274,7 @@ async function assignToAgent(req, res) {
 // Reassign to different agent
 async function reassignAgent(req, res) {
   try {
-    const { conversationId } = req.params;
+    const { businessId, conversationId } = req.params;
     const { newAgentId, reason } = req.body;
 
     if (!newAgentId) {
@@ -282,8 +283,8 @@ async function reassignAgent(req, res) {
 
     // Get conversation
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
-      [conversationId]
+      'SELECT * FROM support_conversations WHERE id = $1 AND ($2::integer IS NULL OR business_id = $2::integer)',
+      [conversationId, businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -325,8 +326,8 @@ async function reassignAgent(req, res) {
       `UPDATE conversation_assignments
        SET status = 'completed', released_at = CURRENT_TIMESTAMP,
            duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
-       WHERE conversation_id = $1 AND status = 'active'`,
-      [conversationId]
+         WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'`,
+      [conversationId, conversation.business_id]
     );
 
     // Assign to new agent
@@ -342,8 +343,8 @@ async function reassignAgent(req, res) {
     await query(
       `UPDATE support_conversations
        SET agent_id = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [newAgentId, conversationId]
+       WHERE id = $2 AND business_id = $3`,
+      [newAgentId, conversationId, conversation.business_id]
     );
 
     // Log event
@@ -351,8 +352,8 @@ async function reassignAgent(req, res) {
       `INSERT INTO queue_events
        (queue_id, business_id, conversation_id, event_type, from_agent_id, to_agent_id, event_reason)
        SELECT id, business_id, $2, 'reassigned', $3, $1, $4
-       FROM support_queue WHERE conversation_id = $2`,
-      [newAgentId, conversationId, conversation.agent_id, reason || null]
+       FROM support_queue WHERE conversation_id = $2 AND business_id = $5`,
+      [newAgentId, conversationId, conversation.agent_id, reason || null, conversation.business_id]
     );
 
     logger.info('Conversation reassigned', {
@@ -390,13 +391,13 @@ async function reassignAgent(req, res) {
 // Release conversation (agent stops working on it)
 async function releaseConversation(req, res) {
   try {
-    const { conversationId } = req.params;
+    const { businessId, conversationId } = req.params;
     const { reason } = req.body;
 
     // Get conversation
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
-      [conversationId]
+      'SELECT * FROM support_conversations WHERE id = $1 AND ($2::integer IS NULL OR business_id = $2::integer)',
+      [conversationId, businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -426,9 +427,9 @@ async function releaseConversation(req, res) {
       `UPDATE conversation_assignments
        SET status = 'released', released_at = CURRENT_TIMESTAMP,
            duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - claimed_at))::INTEGER
-       WHERE conversation_id = $1 AND status = 'active'
+       WHERE conversation_id = $1 AND business_id = $2 AND status = 'active'
        RETURNING *`,
-      [conversationId]
+      [conversationId, conversation.business_id]
     );
 
     // Put back in queue (but not back to waiting state if already resolved)
@@ -442,15 +443,15 @@ async function releaseConversation(req, res) {
              live_wait_ended_at = NULL,
              founder_alert_sent_at = NULL,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [conversationId]
+         WHERE id = $1 AND business_id = $2`,
+        [conversationId, conversation.business_id]
       );
 
       await query(
         `UPDATE support_queue
          SET status = 'waiting', routed_to_agent_id = NULL, removed_at = NULL
-         WHERE conversation_id = $1`,
-        [conversationId]
+         WHERE conversation_id = $1 AND business_id = $2`,
+        [conversationId, conversation.business_id]
       );
     }
 
@@ -459,8 +460,8 @@ async function releaseConversation(req, res) {
       `INSERT INTO queue_events
        (queue_id, business_id, conversation_id, event_type, from_agent_id, event_reason)
        SELECT id, business_id, $2, 'released', $1, $3
-       FROM support_queue WHERE conversation_id = $2`,
-      [conversation.agent_id, conversationId, reason || null]
+       FROM support_queue WHERE conversation_id = $2 AND business_id = $4`,
+      [conversation.agent_id, conversationId, reason || null, conversation.business_id]
     );
 
     logger.info('Conversation released', { conversationId });
