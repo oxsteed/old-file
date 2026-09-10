@@ -268,6 +268,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   useEffect(() => {
     loadDetail(selectedId);
     stickToBottomRef.current = true;
+    setInternalNote(false);
+    setReply('');
+    setAttachment(null);
+    setEditingMessageId(null);
+    setEditingContent('');
   }, [loadDetail, selectedId]);
 
   useEffect(() => {
@@ -839,7 +844,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 }}
                 className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] p-5"
               >
-                {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">New messages ↓</button>}
+                {showNewMessages && <button type="button" role="status" aria-live="polite" aria-atomic="true" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">New messages ↓</button>}
                 {customerTyping && <div className="sticky top-2 z-10 mx-auto mb-3 w-fit rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 shadow-lg" role="status" aria-live="polite">Customer is typing…</div>}
                 {detailLoading ? (
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
