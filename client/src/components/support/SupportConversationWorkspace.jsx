@@ -727,7 +727,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   </div>
                 </div>
 
-                {(canReply || isPlatformAdmin) && (
+                {(canReply || isPlatformAdmin || (selected.status === 'resolved' && isAssignedToMe)) && (
                   <div className="mt-4 space-y-3">
                     {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">Resolution summary <span className="text-slate-500">(shown to the customer when resolved)</span>
                       <textarea value={resolutionSummary} onChange={(event) => setResolutionSummary(event.target.value)} maxLength={2000} rows={2} className="mt-1 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500" placeholder="Summarize what was done or what the customer should do next…" />
