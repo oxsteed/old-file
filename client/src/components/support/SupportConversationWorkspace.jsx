@@ -107,6 +107,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [ownershipFilter, setOwnershipFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
@@ -315,8 +316,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (statusFilter !== 'all' && statusFilter !== 'active' && conversation.status !== statusFilter) return false;
     if (ownershipFilter === 'mine' && conversation.agent_user_id !== user?.id) return false;
     if (ownershipFilter === 'unassigned' && conversation.agent_id) return false;
+    if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
     return true;
-  }), [conversations, ownershipFilter, search, statusFilter, user?.id]);
+  }), [conversations, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
   const runAction = async (request, successMessage) => {
     setBusy(true);
@@ -536,6 +538,13 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               <option value="all">All owners</option>
               <option value="mine">Assigned to me</option>
               <option value="unassigned">Unassigned</option>
+            </select>
+            <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
+              <option value="all">All priorities</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
             </select>
           </div>
 
