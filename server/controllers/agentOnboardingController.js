@@ -9,13 +9,14 @@ const supportEmployerService = require('../services/supportEmployerService');
 
 async function applyToBeAgent(req, res) {
   try {
-    const businessId = req.params.businessId || req.body.businessId;
+    const rawBusinessId = req.params.businessId || req.body.businessId;
+    const businessId = Number.parseInt(String(rawBusinessId || ''), 10);
     const { jobTitle, experienceLevel, languages, availability, resumeUrl, coverLetter } = req.body;
 
-    if (!businessId || !jobTitle) {
+    if (!Number.isInteger(businessId) || businessId <= 0 || !String(jobTitle || '').trim() || String(jobTitle).trim().length > 200) {
       return sendValidationError(res, {
-        businessId: 'Required',
-        jobTitle: 'Required'
+        businessId: 'Required and must be a valid business id',
+        jobTitle: 'Required and must be 200 characters or fewer'
       });
     }
 
@@ -23,6 +24,43 @@ async function applyToBeAgent(req, res) {
     if (experienceLevel && !validLevels.includes(experienceLevel)) {
       return sendValidationError(res, { experienceLevel: 'Invalid level' });
     }
+
+    const normalizedLanguages = languages == null ? null : (
+      Array.isArray(languages) && languages.length <= 10 && languages.every((language) => String(language).trim().length <= 50)
+        ? languages.map((language) => String(language).trim()).filter(Boolean)
+        : null
+    );
+    const normalizedAvailability = availability == null ? null : String(availability).trim();
+    const normalizedCoverLetter = coverLetter == null ? null : String(coverLetter).trim();
+    const normalizedResumeUrl = resumeUrl == null ? null : String(resumeUrl).trim();
+    if (
+      (languages != null && normalizedLanguages == null)
+      || (normalizedAvailability && normalizedAvailability.length > 2000)
+      || (normalizedCoverLetter && normalizedCoverLetter.length > 5000)
+      || (normalizedResumeUrl && normalizedResumeUrl.length > 2048)
+    ) {
+      return sendValidationError(res, {
+        languages: 'Use at most 10 languages with 50 characters each',
+        availability: 'Must be 2000 characters or fewer',
+        coverLetter: 'Must be 5000 characters or fewer',
+        resumeUrl: 'Must be 2048 characters or fewer',
+      });
+    }
+    if (normalizedResumeUrl) {
+      try {
+        if (new URL(normalizedResumeUrl).protocol !== 'https:') {
+          return sendValidationError(res, { resumeUrl: 'Must be a valid HTTPS URL' });
+        }
+      } catch {
+        return sendValidationError(res, { resumeUrl: 'Must be a valid HTTPS URL' });
+      }
+    }
+
+    const businessResult = await query(
+      `SELECT id FROM businesses WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
+      [businessId]
+    );
+    if (!businessResult.rows.length) return sendError(res, 404, 'Business not found');
 
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
@@ -52,12 +90,12 @@ async function applyToBeAgent(req, res) {
         employerId,
         businessId,
         req.user.id,
-        jobTitle,
+        String(jobTitle).trim(),
         experienceLevel || 'intermediate',
-        languages ? JSON.stringify(languages) : null,
-        availability || null,
-        resumeUrl || null,
-        coverLetter || null
+        normalizedLanguages ? JSON.stringify(normalizedLanguages) : null,
+        normalizedAvailability || null,
+        normalizedResumeUrl || null,
+        normalizedCoverLetter || null
       ]
     );
 
