@@ -255,7 +255,7 @@ async function getConversation(req, res) {
       `SELECT
         scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
         scm.attachment_url, scm.attachment_name,
-        scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
+        scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
           sender.email
@@ -306,7 +306,7 @@ async function getConversation(req, res) {
           `SELECT
              scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
              scm.attachment_url, scm.attachment_name,
-             scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
+             scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
              COALESCE(
                NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
                sender.email

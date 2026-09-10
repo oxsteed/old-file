@@ -240,7 +240,7 @@ async function loadGuestConversation(req, res) {
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
     const { rows: messages } = await pool.query(
       `SELECT id, content, is_agent, message_type, attachment_url, attachment_name,
-        edited_at, edit_count, created_at
+        read_by_recipient, read_at, edited_at, edit_count, created_at
        FROM support_conversation_messages
        WHERE conversation_id = $1 AND message_type <> 'internal_note'
        ORDER BY created_at ASC`,

@@ -695,6 +695,7 @@ describe('live support connection lifecycle', () => {
 
     const messageCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages scm/.test(sql));
     expect(messageCall[0]).toContain("scm.message_type <> 'internal_note'");
+    expect(messageCall[0]).toContain('scm.read_by_recipient');
     expect(messageCall[1]).toEqual(['ticket-1', true]);
   });
 

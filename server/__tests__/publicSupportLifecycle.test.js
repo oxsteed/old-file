@@ -82,6 +82,34 @@ test('persists a guest image-only reply with non-null content', async () => {
   );
 });
 
+test('returns persisted read receipts when a guest conversation is reloaded', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'open' }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'message-agent-1',
+      content: 'We are looking into this.',
+      is_agent: true,
+      message_type: 'text',
+      read_by_recipient: true,
+      read_at: '2026-09-10T12:00:00.000Z',
+      created_at: '2026-09-10T11:59:00.000Z',
+    }] });
+
+  const res = responseDouble();
+  await publicSupport.loadGuestConversation({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+  }, res);
+
+  const messageCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages/.test(sql));
+  expect(messageCall[0]).toContain('read_by_recipient');
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    data: expect.objectContaining({
+      messages: [expect.objectContaining({ read_by_recipient: true })],
+    }),
+  }));
+});
+
 test('replays a guest retry without incrementing counters or rebroadcasting', async () => {
   const clientMessageId = '11111111-1111-4111-8111-111111111111';
   mockQuery
