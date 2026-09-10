@@ -1645,7 +1645,7 @@ router.post('/team/members', async (req, res, next) => {
     if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
     const email = String(req.body.email || '').trim().toLowerCase();
     const role = String(req.body.role || 'agent').trim().toLowerCase();
-    if (!email || !/^\S+@\S+\.\S+$/.test(email) || !['agent', 'supervisor', 'manager', 'director'].includes(role)) return res.status(400).json({ error: 'A valid support-agent email and role are required' });
+    if (!email || email.length > 254 || !/^\S+@\S+\.\S+$/.test(email) || !['agent', 'supervisor', 'manager', 'director'].includes(role)) return res.status(400).json({ error: 'A valid support-agent email and role are required' });
     const agentResult = await db.query(
       `SELECT sa.id
        FROM support_agents sa
@@ -1689,7 +1689,15 @@ router.put('/team/members/:id', async (req, res, next) => {
     if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
     const role = String(req.body.role || existing.rows[0].role || 'agent').trim().toLowerCase();
     if (!['agent', 'supervisor', 'manager', 'director'].includes(role)) return res.status(400).json({ error: 'Invalid team role' });
-    const { rows } = await db.query('UPDATE team_members SET role = $1 WHERE id = $2 RETURNING id, team_id, agent_id, role, is_active', [role, req.params.id]);
+    const { rows } = await db.query(
+      `UPDATE team_members tm
+       SET role = $1
+       FROM support_teams st
+       WHERE tm.id = $2 AND st.id = tm.team_id AND st.business_id = $3
+       RETURNING tm.id, tm.team_id, tm.agent_id, tm.role, tm.is_active`,
+      [role, req.params.id, existing.rows[0].business_id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Member not found' });
     return res.json({ member: rows[0] });
   } catch (err) {
     next(err);
@@ -1704,7 +1712,13 @@ router.delete('/team/members/:id', async (req, res, next) => {
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Member not found' });
     if (!(await canManageSupportBusiness(req, existing.rows[0].business_id))) return res.status(403).json({ error: 'Access denied' });
-    await db.query('UPDATE team_members SET is_active = false, left_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    await db.query(
+      `UPDATE team_members tm
+       SET is_active = false, left_at = CURRENT_TIMESTAMP
+       FROM support_teams st
+       WHERE tm.id = $1 AND st.id = tm.team_id AND st.business_id = $2`,
+      [req.params.id, existing.rows[0].business_id]
+    );
     return res.json({ success: true });
   } catch (err) {
     next(err);

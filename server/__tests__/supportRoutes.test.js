@@ -483,6 +483,23 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_admin_settings/.test(sql))).toBe(false);
   });
 
+  test('keeps team-member updates constrained to the authorized business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 42, role: 'agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7, team_id: 3, agent_id: 9, role: 'manager', is_active: true }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/team/members/7')
+      .set('Authorization', adminAuthHeader())
+      .send({ role: 'manager' });
+
+    expect(res.status).toBe(200);
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE team_members tm/.test(sql));
+    expect(updateCall?.[0]).toMatch(/st\.business_id = \$3/);
+    expect(updateCall?.[1]).toEqual(['manager', '7', 42]);
+  });
+
   test('does not let customers choose an arbitrary support business', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
