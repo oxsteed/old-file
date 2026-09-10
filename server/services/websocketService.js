@@ -111,7 +111,8 @@ class WebSocketService {
         if (!this.ticketSockets.has(ticketId)) {
           this.ticketSockets.set(ticketId, []);
         }
-        this.ticketSockets.get(ticketId).push(socket.id);
+        const ticketSocketIds = this.ticketSockets.get(ticketId);
+        if (!ticketSocketIds.includes(socket.id)) ticketSocketIds.push(socket.id);
 
         logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
       });
@@ -378,8 +379,16 @@ class WebSocketService {
         const agentId = socket.data.agentId;
 
         if (userId) {
-          this.customerConnections.delete(userId);
+          if (this.customerConnections.get(userId) === socket.id) {
+            this.customerConnections.delete(userId);
+          }
           logger.info('Customer disconnected', { userId });
+        }
+
+        for (const [ticketId, socketIds] of this.ticketSockets.entries()) {
+          const remaining = socketIds.filter((socketId) => socketId !== socket.id);
+          if (remaining.length) this.ticketSockets.set(ticketId, remaining);
+          else this.ticketSockets.delete(ticketId);
         }
 
         if (agentId) {

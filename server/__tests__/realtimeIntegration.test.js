@@ -178,6 +178,32 @@ describe('shared realtime server', () => {
     await expect(typingEvent).resolves.toEqual({ ticketId: 'ticket-1', isTyping: true });
   });
 
+  test('keeps ticket socket bookkeeping unique and removes it on disconnect', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, deleted_at: null, role: 'customer' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      return { rows: [] };
+    });
+
+    const token = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const support = await connect(`${baseUrl}/support`, { auth: { token } });
+    clients.push(support);
+    support.emit('customer:join', { visitorName: 'Customer' });
+    support.emit('ticket:join', { ticketId: 'ticket-1' });
+    support.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(supportService.getConnectionStatus().tickets).toBe(1);
+    support.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(supportService.getConnectionStatus().tickets).toBe(0);
+  });
+
   test('persists legacy Socket.IO customer messages before broadcasting them', async () => {
     pool.query.mockImplementation(async (sql) => {
       if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };
