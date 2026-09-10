@@ -4305,7 +4305,25 @@
       "followUp": "Swivi",
       "email": "Imel",
       "statusLabel": "Estati",
-      "escalated": "Eskale"
+      "escalated": "Eskale",
+      "download": "Telechaje konvèsasyon an",
+      "downloading": "Preparasyon telechajman…",
+      "downloadError": "Nou pa t kapab telechaje konvèsasyon sa a.",
+      "edit": "Modifye",
+      "edited": "Modifye",
+      "editError": "Mesaj sa a pa kapab modifye ankò.",
+      "reviewTitle": "Kijan nou te fè?",
+      "reviewBody": "Tanpri evalye eksperyans sipò ou.",
+      "reviewPlaceholder": "Kòmantè si ou vle",
+      "submitReview": "Voye evalyasyon",
+      "savingReview": "Ap sove…",
+      "reviewThanks": "Mèsi pou fidbak ou.",
+      "reviewSaved": "Evalyasyon ou anrejistre.",
+      "reviewError": "Nou pa t kapab sove evalyasyon ou.",
+      "agentTyping": "Yon ajan sipò ap ekri…",
+      "reopen": "Relouvri konvèsasyon an",
+      "reopening": "Ap relouvri…",
+      "reopenError": "Nou pa t kapab relouvri konvèsasyon sa a."
     }
   },
   "businessHub": {

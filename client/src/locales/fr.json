@@ -4220,7 +4220,25 @@
       "followUp": "Suivi",
       "email": "E-mail",
       "statusLabel": "Statut",
-      "escalated": "Escaladé"
+      "escalated": "Escaladé",
+      "download": "Télécharger la conversation",
+      "downloading": "Préparation du téléchargement…",
+      "downloadError": "Impossible de télécharger cette conversation.",
+      "edit": "Modifier",
+      "edited": "Modifié",
+      "editError": "Ce message ne peut plus être modifié.",
+      "reviewTitle": "Comment s’est passée votre expérience ?",
+      "reviewBody": "Évaluez votre expérience avec l’assistance.",
+      "reviewPlaceholder": "Commentaire facultatif",
+      "submitReview": "Envoyer l’évaluation",
+      "savingReview": "Enregistrement…",
+      "reviewThanks": "Merci pour vos commentaires.",
+      "reviewSaved": "Votre évaluation a été enregistrée.",
+      "reviewError": "Impossible d’enregistrer votre évaluation.",
+      "agentTyping": "Un agent du support écrit…",
+      "reopen": "Rouvrir la conversation",
+      "reopening": "Réouverture…",
+      "reopenError": "Impossible de rouvrir cette conversation."
     }
   },
   "businessHub": {

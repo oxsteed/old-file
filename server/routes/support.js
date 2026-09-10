@@ -46,6 +46,10 @@ router.post('/public/conversations/:conversationId/verify', conversationMessageL
 router.post('/public/conversations/:conversationId/resend-code', conversationMessageLimiter, publicSupport.resendGuestVerification);
 router.get('/public/conversations/:conversationId', publicSupport.guestToken, publicSupport.loadGuestConversation);
 router.post('/public/conversations/:conversationId/messages', conversationMessageLimiter, upload.single('file'), validateFileUpload, publicSupport.guestToken, publicSupport.addGuestMessage);
+router.put('/public/conversations/:conversationId/messages/:messageId', conversationMessageLimiter, publicSupport.guestToken, publicSupport.updateGuestMessage);
+router.get('/public/conversations/:conversationId/download', publicSupport.guestToken, publicSupport.downloadGuestConversation);
+router.post('/public/conversations/:conversationId/review', conversationMessageLimiter, publicSupport.guestToken, publicSupport.createGuestConversationReview);
+router.post('/public/conversations/:conversationId/reopen', conversationMessageLimiter, publicSupport.guestToken, publicSupport.reopenGuestConversation);
 
 // Public/customer ticket entry point. Guests can create tickets, and signed-in
 // users are linked automatically when a valid bearer token is present.
@@ -326,6 +330,7 @@ router.post('/conversations', conversationMessageLimiter, async (req, res, next)
 });
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
+router.get('/conversations/:conversationId/download', supportConversationsController.downloadConversation);
 
 router.post('/conversations/:conversationId/message', conversationMessageLimiter, upload.single('file'), validateFileUpload, (req, res, next) => {
   req.body = {
@@ -337,6 +342,9 @@ router.post('/conversations/:conversationId/message', conversationMessageLimiter
   };
   return supportConversationsController.addMessage(req, res, next);
 });
+router.put('/conversations/:conversationId/messages/:messageId', conversationMessageLimiter, supportConversationsController.updateCustomerMessage);
+router.post('/conversations/:conversationId/review', conversationMessageLimiter, supportConversationsController.createConversationReview);
+router.post('/conversations/:conversationId/reopen', conversationMessageLimiter, supportConversationsController.reopenCustomerConversation);
 router.post('/conversations/:conversationId/email', conversationMessageLimiter, supportConversationsController.sendConversationEmail);
 
 router.put('/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);

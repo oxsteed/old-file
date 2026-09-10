@@ -163,6 +163,17 @@ async function getConversation(req, res) {
     const result = await query(
       `SELECT
         sc.*,
+        (
+          SELECT jsonb_build_object(
+            'id', scr.id,
+            'rating', scr.rating,
+            'comment', scr.comment,
+            'created_at', scr.created_at,
+            'updated_at', scr.updated_at
+          )
+          FROM support_conversation_reviews scr
+          WHERE scr.conversation_id = sc.id
+        ) AS review,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
           u.email, sc.guest_name
@@ -210,7 +221,7 @@ async function getConversation(req, res) {
       `SELECT
         scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
         scm.attachment_url, scm.attachment_name,
-        scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.created_at,
+        scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
           sender.email
@@ -259,7 +270,7 @@ async function getConversation(req, res) {
           `SELECT
              scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
              scm.attachment_url, scm.attachment_name,
-             scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.created_at,
+             scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
              COALESCE(
                NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
                sender.email
@@ -302,6 +313,223 @@ async function getConversation(req, res) {
   } catch (err) {
     logger.error('getConversation error', { error: err.message });
     sendError(res, 500, 'Failed to get conversation');
+  }
+}
+
+async function authorizeConversationAccess(conversationId, req) {
+  const result = await query(
+    `SELECT sc.*,
+            COALESCE(u.email, sc.guest_email) AS customer_email,
+            COALESCE(
+              NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+              u.email, sc.guest_name, 'Customer'
+            ) AS customer_name
+     FROM support_conversations sc
+     LEFT JOIN users u ON u.id = sc.customer_id
+     WHERE sc.id = $1`,
+    [conversationId]
+  );
+  if (!result.rows.length) return { conversation: null, allowed: false };
+
+  const conversation = result.rows[0];
+  const isCustomer = req.user?.id === conversation.customer_id;
+  const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user?.role);
+  let isAssignedAgent = false;
+  if (conversation.agent_id) {
+    const agent = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+    isAssignedAgent = agent.rows[0]?.user_id === req.user?.id;
+  }
+  let canManageBusiness = false;
+  if (!isCustomer && !isAssignedAgent && !isPlatformAdmin && conversation.business_id != null) {
+    canManageBusiness = await supportEmployerService.userCanAccessBusinessConversations(
+      conversation.business_id,
+      req.user.id,
+      req.user.role
+    );
+  }
+
+  return {
+    conversation,
+    isCustomer,
+    isPlatformAdmin,
+    isAssignedAgent,
+    allowed: isCustomer || isPlatformAdmin || isAssignedAgent || canManageBusiness,
+  };
+}
+
+async function updateCustomerMessage(req, res) {
+  const conversationId = req.params.conversationId;
+  const messageId = req.params.messageId;
+  const content = String(req.body?.content ?? req.body?.message ?? '').trim();
+  if (!content || content.length > 5000) {
+    return sendValidationError(res, { content: 'Message is required and must be 5000 characters or fewer' });
+  }
+
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.isCustomer) return sendError(res, 403, 'Only the customer can edit this message');
+    if (['resolved', 'closed'].includes(access.conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be edited');
+    }
+
+    const result = await query(
+      `UPDATE support_conversation_messages
+       SET original_content = COALESCE(original_content, content),
+           content = $1,
+           edited_at = NOW(),
+           edit_count = edit_count + 1,
+           updated_at = NOW()
+       WHERE id = $2
+         AND conversation_id = $3
+         AND sender_id = $4
+         AND is_agent = FALSE
+         AND message_type <> 'internal_note'
+         AND created_at > NOW() - INTERVAL '15 minutes'
+       RETURNING id, content, attachment_url, attachment_name, message_type,
+                 is_agent, edited_at, edit_count, created_at`,
+      [content, messageId, conversationId, req.user.id]
+    );
+    if (!result.rows.length) return sendError(res, 409, 'This message is no longer editable');
+
+    const message = result.rows[0];
+    const payload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: message.id,
+      sender: { type: 'customer', id: req.user.id },
+      content: message.content,
+      attachmentUrl: message.attachment_url,
+      attachmentName: message.attachment_name,
+      messageType: message.message_type,
+      editedAt: message.edited_at,
+      editCount: message.edit_count,
+      timestamp: message.created_at,
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'message:updated', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: message });
+  } catch (err) {
+    logger.error('updateCustomerMessage error', { conversationId, messageId, error: err.message });
+    return sendError(res, 500, 'Failed to edit message');
+  }
+}
+
+function transcriptFilename(subject, conversationId) {
+  const safeSubject = String(subject || 'support-conversation')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'support-conversation';
+  return `oxsteed-${safeSubject}-${String(conversationId).slice(0, 8)}.txt`;
+}
+
+function buildTranscript(conversation, messages) {
+  const lines = [
+    'OxSteed Support Conversation',
+    `Subject: ${conversation.subject || 'Support request'}`,
+    `Started: ${conversation.created_at ? new Date(conversation.created_at).toISOString() : '-'}`,
+    `Status: ${conversation.status || '-'}`,
+    '',
+  ];
+  for (const message of messages) {
+    if (message.message_type === 'internal_note') continue;
+    const sender = message.is_agent ? 'OxSteed Support' : (conversation.customer_name || 'Customer');
+    const timestamp = message.created_at ? new Date(message.created_at).toISOString() : '-';
+    lines.push(`[${timestamp}] ${sender}`);
+    if (message.content) lines.push(String(message.content));
+    if (message.attachment_name) lines.push(`Attachment: ${message.attachment_name}`);
+    lines.push('');
+  }
+  return `${lines.join('\n').trim()}\n`;
+}
+
+async function downloadConversation(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed) return sendError(res, 403, 'Access denied');
+
+    const { rows: messages } = await query(
+      `SELECT content, attachment_name, is_agent, created_at
+       FROM support_conversation_messages
+       WHERE conversation_id = $1
+         AND COALESCE(message_type, 'text') <> 'internal_note'
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="${transcriptFilename(access.conversation.subject, conversationId)}"`);
+    return res.send(buildTranscript(access.conversation, messages));
+  } catch (err) {
+    logger.error('downloadConversation error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to download conversation');
+  }
+}
+
+async function createConversationReview(req, res) {
+  const conversationId = req.params.conversationId;
+  const rating = Number(req.body?.rating);
+  const comment = String(req.body?.comment || '').trim();
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 1000) {
+    return sendValidationError(res, { rating: 'Choose a rating from 1 to 5', comment: 'Feedback must be 1000 characters or fewer' });
+  }
+
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.isCustomer) return sendError(res, 403, 'Only the customer can submit a review');
+    if (!['resolved', 'closed'].includes(access.conversation.status)) {
+      return sendError(res, 409, 'Reviews are available after the conversation is finished');
+    }
+    const result = await query(
+      `INSERT INTO support_conversation_reviews (conversation_id, customer_id, rating, comment)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (conversation_id) DO UPDATE
+       SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, updated_at = NOW()
+       RETURNING id, conversation_id, rating, comment, created_at, updated_at`,
+      [conversationId, req.user.id, rating, comment || null]
+    );
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error('createConversationReview error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to save conversation review');
+  }
+}
+
+async function reopenCustomerConversation(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.isCustomer) return sendError(res, 403, 'Only the customer can reopen this conversation');
+    if (access.conversation.status !== 'resolved') {
+      return sendError(res, 409, 'Only resolved conversations can be reopened');
+    }
+
+    const result = await query(
+      `UPDATE support_conversations
+       SET status = 'open', resolved_at = NULL, closed_at = NULL,
+           resolution_status = NULL, updated_at = NOW()
+       WHERE id = $1 AND status = 'resolved'
+       RETURNING *`,
+      [conversationId]
+    );
+    if (!result.rows.length) return sendError(res, 409, 'This conversation changed before it could be reopened');
+    await query(
+      `UPDATE support_queue
+       SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+           routed_to_agent_id = NULL
+       WHERE conversation_id = $1`,
+      [conversationId]
+    );
+    const payload = { ticketId: conversationId, conversationId, status: 'open', updatedBy: req.user.id, timestamp: new Date().toISOString() };
+    WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error('reopenCustomerConversation error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to reopen conversation');
   }
 }
 
@@ -735,6 +963,10 @@ module.exports = {
   createConversation,
   listConversations,
   getConversation,
+  updateCustomerMessage,
+  downloadConversation,
+  createConversationReview,
+  reopenCustomerConversation,
   updateConversationStatus,
   addMessage,
   sendConversationEmail,

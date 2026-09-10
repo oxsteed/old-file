@@ -4,14 +4,17 @@ import {
   ArrowRight,
   CheckCircle,
   Clock,
+  Download,
   FileText,
   Mail,
   MessageSquare,
   Paperclip,
+  Pencil,
   Phone,
   Send,
   ShieldCheck,
   Sparkles,
+  Star,
   Users,
   X,
 } from 'lucide-react';
@@ -30,6 +33,21 @@ import './SupportEscalationPage.css';
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
 const OXSTEED_SUPPORT_EMAIL = 'support@oxsteed.com';
 
+function ConversationReviewForm({ t, review, rating, setRating, comment, setComment, busy, onSubmit }) {
+  if (review) {
+    return <div className="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><p className="font-semibold text-emerald-200">{t('support.escalation.reviewThanks', { defaultValue: 'Thanks for your feedback.' })}</p><p className="mt-1 text-sm text-slate-300">{t('support.escalation.reviewSaved', { defaultValue: 'Your review has been saved.' })}</p></div>;
+  }
+  return <form onSubmit={onSubmit} className="mb-5 rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
+    <p className="font-semibold text-white">{t('support.escalation.reviewTitle', { defaultValue: 'How did we do?' })}</p>
+    <p className="mt-1 text-sm text-slate-400">{t('support.escalation.reviewBody', { defaultValue: 'Please rate your support experience.' })}</p>
+    <div className="mt-3 flex gap-1" role="radiogroup" aria-label={t('support.escalation.reviewTitle', { defaultValue: 'How did we do?' })}>
+      {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} / 5`} aria-pressed={rating === value} className={`rounded-lg p-1 transition ${value <= rating ? 'text-orange-300' : 'text-slate-600 hover:text-orange-200'}`}><Star size={22} fill="currentColor" /></button>)}
+    </div>
+    <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} rows={2} className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" placeholder={t('support.escalation.reviewPlaceholder', { defaultValue: 'Optional feedback' })} />
+    <button type="submit" disabled={busy || !rating} className="mt-3 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? t('support.escalation.savingReview', { defaultValue: 'Saving…' }) : t('support.escalation.submitReview', { defaultValue: 'Submit review' })}</button>
+  </form>;
+}
+
 function PublicGuestSupport({ t }) {
   const [step, setStep] = useState('start');
   const [name, setName] = useState('');
@@ -41,16 +59,30 @@ function PublicGuestSupport({ t }) {
   const [messages, setMessages] = useState([]);
   const [reply, setReply] = useState('');
   const [replyFile, setReplyFile] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [review, setReview] = useState(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [conversationStatus, setConversationStatus] = useState('');
+  const [agentTyping, setAgentTyping] = useState(false);
+  const [reopenBusy, setReopenBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(null);
   const [now, setNow] = useState(Date.now());
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!conversationId || !token) return;
     const response = await api.get(`/support/public/conversations/${conversationId}`, { headers: { Authorization: `Guest ${token}` } });
     setMessages(normalizeSupportMessages(response.data.data?.messages || []));
+    setConversationStatus(response.data.data?.status || '');
+    setReview(response.data.data?.review || null);
     const state = response.data.data?.waiting;
     if (state) setWaiting({ ...state, localDeadline: Date.now() + state.remainingSeconds * 1000 });
   }, [conversationId, token]);
@@ -67,6 +99,7 @@ function PublicGuestSupport({ t }) {
   useEffect(() => {
     if (!token || !conversationId) return undefined;
     const socket = io(realtimeNamespaceUrl('support'), { transports: ['websocket', 'polling'], auth: { guestToken: token, conversationId } });
+    socketRef.current = socket;
     socket.on('connect', () => {
       socket.emit('customer:join', { visitorName: name, visitorEmail: email });
       socket.emit('ticket:join', { ticketId: conversationId });
@@ -76,14 +109,29 @@ function PublicGuestSupport({ t }) {
     socket.on('message:new', (data) => {
       if (data.ticketId === conversationId) load().catch(() => {});
     });
+    socket.on('message:updated', (data) => {
+      if (data.ticketId === conversationId) load().catch(() => {});
+    });
+    socket.on('agent:typing-indicator', (data) => {
+      if (data.ticketId === conversationId) setAgentTyping(Boolean(data.isTyping));
+    });
+    socket.on('ticket:status-changed', (data) => {
+      if (data.ticketId === conversationId) setConversationStatus(data.status || '');
+    });
     return () => socket.disconnect();
   }, [conversationId, email, name, token, load]);
 
   useEffect(() => {
     if (step === 'chat') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      socketRef.current?.emit('ticket:read', { ticketId: conversationId });
     }
-  }, [messages, step]);
+  }, [conversationId, messages, step]);
+
+  useEffect(() => () => {
+    window.clearTimeout(typingTimerRef.current);
+    socketRef.current?.emit('customer:typing', { ticketId: conversationId, isTyping: false });
+  }, [conversationId]);
 
   const start = async (event) => {
     event.preventDefault(); setBusy(true); setError('');
@@ -111,7 +159,7 @@ function PublicGuestSupport({ t }) {
   };
 
   const send = async (event) => {
-    event.preventDefault(); const content = reply.trim(); if (!content && !replyFile) return; setBusy(true); setError('');
+    event.preventDefault(); const content = reply.trim(); if (!content && !replyFile) return; if (['resolved', 'closed'].includes(conversationStatus)) return; setBusy(true); setError('');
     try {
       const body = new FormData();
       if (content) body.append('message', content);
@@ -121,6 +169,71 @@ function PublicGuestSupport({ t }) {
     }
     catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not send your message.' })); }
     finally { setBusy(false); }
+  };
+
+  const handleReplyChange = (event) => {
+    const value = event.target.value;
+    setReply(value);
+    if (!conversationId || ['resolved', 'closed'].includes(conversationStatus)) return;
+    socketRef.current?.emit('customer:typing', { ticketId: conversationId, isTyping: Boolean(value.trim()) });
+    window.clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = window.setTimeout(() => {
+      socketRef.current?.emit('customer:typing', { ticketId: conversationId, isTyping: false });
+    }, 1500);
+  };
+
+  const download = async () => {
+    if (!conversationId || !token) return;
+    setDownloadBusy(true);
+    try {
+      const response = await api.get(`/support/public/conversations/${conversationId}/download`, {
+        headers: { Authorization: `Guest ${token}` },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `oxsteed-support-${conversationId.slice(0, 8)}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.error || t('support.escalation.downloadError', { defaultValue: 'Could not download this conversation.' }));
+    } finally { setDownloadBusy(false); }
+  };
+
+  const editMessage = async (messageId) => {
+    const content = editingContent.trim();
+    if (!content) return;
+    setBusy(true); setError('');
+    try {
+      await api.put(`/support/public/conversations/${conversationId}/messages/${messageId}`, { content }, { headers: { Authorization: `Guest ${token}` } });
+      setEditingMessageId(null); setEditingContent(''); await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('support.escalation.editError', { defaultValue: 'This message can no longer be edited.' }));
+    } finally { setBusy(false); }
+  };
+
+  const submitReview = async (event) => {
+    event.preventDefault();
+    if (!reviewRating) return;
+    setReviewBusy(true); setError('');
+    try {
+      const response = await api.post(`/support/public/conversations/${conversationId}/review`, { rating: reviewRating, comment: reviewComment }, { headers: { Authorization: `Guest ${token}` } });
+      setReview(response.data.data); setReviewComment('');
+    } catch (err) {
+      setError(err.response?.data?.error || t('support.escalation.reviewError', { defaultValue: 'Could not save your review.' }));
+    } finally { setReviewBusy(false); }
+  };
+
+  const reopen = async () => {
+    if (conversationStatus !== 'resolved' || reopenBusy) return;
+    setReopenBusy(true); setError('');
+    try {
+      await api.post(`/support/public/conversations/${conversationId}/reopen`, {}, { headers: { Authorization: `Guest ${token}` } });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('support.escalation.reopenError', { defaultValue: 'Could not reopen this conversation.' }));
+    } finally { setReopenBusy(false); }
   };
 
   const shell = (children) => (
@@ -197,7 +310,33 @@ function PublicGuestSupport({ t }) {
       <Footer />
     </>
   );
-  if (step === 'chat') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p><div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">{messages.map((item) => <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${item.sender?.type === 'agent' ? 'bg-slate-800' : 'ml-8 bg-orange-600'}`}>{item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}{item.content}</div>)}<div ref={messagesEndRef} /></div>{error && <p className="mb-3 text-red-300">{error}</p>}{replyFile && <p className="mb-2 text-sm text-orange-200">{replyFile.name}</p>}<form onSubmit={send} className="flex gap-2"><label className="cursor-pointer rounded-xl border border-slate-700 px-3 py-3 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}><Paperclip size={18} /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} /></label><input value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || (!reply.trim() && !replyFile)} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form></section>);
+  if (step === 'chat') return shell(
+    <section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h1 className="text-3xl font-bold">{t('support.escalation.liveTitle', { defaultValue: 'OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestChatBody', { defaultValue: 'Your verified support conversation is open.' })}</p></div>
+        <div className="flex flex-wrap gap-2">
+          {conversationStatus === 'resolved' && <button type="button" onClick={reopen} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50">{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
+          <button type="button" onClick={download} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50"><Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}</button>
+        </div>
+      </div>
+      <div className="my-6 max-h-[420px] space-y-3 overflow-y-auto">
+        {messages.map((item) => {
+          const isCustomer = item.sender?.type === 'customer';
+          const canEdit = isCustomer && item.content && !['resolved', 'closed'].includes(conversationStatus) && Date.now() - new Date(item.timestamp).getTime() < 15 * 60 * 1000;
+          return <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${isCustomer ? 'ml-8 bg-orange-600' : 'bg-slate-800'}`}>
+            {item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+            {editingMessageId === item.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editMessage(item.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{item.content && <p className="whitespace-pre-wrap">{item.content}</p>}{item.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content); }} className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
+          </div>;
+        })}
+        <div ref={messagesEndRef} />
+      </div>
+      {['resolved', 'closed'].includes(conversationStatus) && <ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitReview} />}
+      {error && <p className="mb-3 text-red-300">{error}</p>}
+      {agentTyping && <p className="mb-2 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
+      {replyFile && <p className="mb-2 text-sm text-orange-200">{replyFile.name}</p>}
+      <form onSubmit={send} className="flex gap-2"><label className="cursor-pointer rounded-xl border border-slate-700 px-3 py-3 hover:border-orange-500" title={t('support.escalation.attachImage', { defaultValue: 'Attach image' })}><Paperclip size={18} /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} /></label><input value={reply} onChange={handleReplyChange} maxLength={5000} disabled={['resolved', 'closed'].includes(conversationStatus)} className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 disabled:opacity-50" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'Write a message...' })} /><button disabled={busy || ['resolved', 'closed'].includes(conversationStatus) || (!reply.trim() && !replyFile)} className="rounded-xl bg-orange-600 px-4 py-3 disabled:opacity-50"><Send size={18} /></button></form>
+    </section>
+  );
   if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
   return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
 }
@@ -209,6 +348,9 @@ function normalizeSupportMessages(messages = []) {
     content: message.content,
     attachmentUrl: message.attachment_url || message.attachmentUrl,
     attachmentName: message.attachment_name || message.attachmentName,
+    editedAt: message.edited_at || message.editedAt,
+    editCount: message.edit_count || message.editCount || 0,
+    messageType: message.message_type || message.messageType,
     timestamp: message.created_at,
   }));
 }
@@ -239,7 +381,17 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [liveMessages, setLiveMessages] = useState([]);
   const [liveInput, setLiveInput] = useState('');
   const [liveFile, setLiveFile] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
   const [liveSending, setLiveSending] = useState(false);
+  const [conversationStatus, setConversationStatus] = useState('');
+  const [review, setReview] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [agentTyping, setAgentTyping] = useState(false);
+  const [reopenBusy, setReopenBusy] = useState(false);
   const [assignedAgent, setAssignedAgent] = useState(null);
   const [connectionState, setConnectionState] = useState('checking');
   const [waiting, setWaiting] = useState(null);
@@ -255,6 +407,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const ticketIdRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   useEffect(() => {
     ticketIdRef.current = ticketId;
@@ -316,6 +469,23 @@ function AuthenticatedSupportEscalationPage({ user }) {
         ];
       });
     });
+    socket.on('message:updated', (data) => {
+      if (data.ticketId !== ticketIdRef.current) return;
+      setLiveMessages((previous) => previous.map((message) => message.id === data.messageId ? {
+        ...message,
+        content: data.content,
+        attachmentUrl: data.attachmentUrl,
+        attachmentName: data.attachmentName,
+        editedAt: data.editedAt,
+        editCount: data.editCount,
+      } : message));
+    });
+    socket.on('agent:typing-indicator', (data) => {
+      if (data.ticketId === ticketIdRef.current) setAgentTyping(Boolean(data.isTyping));
+    });
+    socket.on('ticket:status-changed', (data) => {
+      if (data.ticketId === ticketIdRef.current) setConversationStatus(data.status || '');
+    });
 
     const connect = async () => {
       try {
@@ -332,6 +502,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setTicketId(nextTicketId);
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
+        setConversationStatus(response.data.status || '');
+        setReview(response.data.review || null);
         const connected = response.data.routedTo === 'agent';
         const nextWaiting = localizeWaitingState(response.data.waiting);
         setWaiting(connected ? null : nextWaiting);
@@ -387,6 +559,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
         setTicketId(nextTicketId);
         setAssignedAgent(response.data.assignedAgent || null);
         setLiveMessages(normalizeSupportMessages(response.data.messages));
+        setConversationStatus(response.data.status || '');
+        setReview(response.data.review || null);
         setWaiting(null);
         setConnectionState('connected');
         setPhase('live-chat');
@@ -425,6 +599,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
         if (!active) return;
         const conversation = response.data.data;
         setLiveMessages(normalizeSupportMessages(conversation.messages));
+        setConversationStatus(conversation.status || '');
+        setReview(conversation.review || null);
         if (conversation.agent_id) {
           setAssignedAgent({
             id: conversation.agent_id,
@@ -458,11 +634,17 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [liveMessages]);
+    if (ticketId) socketRef.current?.emit('ticket:read', { ticketId });
+  }, [liveMessages, ticketId]);
+
+  useEffect(() => () => {
+    window.clearTimeout(typingTimerRef.current);
+    socketRef.current?.emit('customer:typing', { ticketId: ticketIdRef.current, isTyping: false });
+  }, [ticketId]);
 
   const handleSendLiveMessage = useCallback(async () => {
     const content = liveInput.trim();
-    if ((!content && !liveFile) || !ticketId) return;
+    if ((!content && !liveFile) || !ticketId || ['resolved', 'closed'].includes(conversationStatus)) return;
 
     setLiveSending(true);
     try {
@@ -479,6 +661,8 @@ function AuthenticatedSupportEscalationPage({ user }) {
           content,
           attachmentUrl: response.data.data?.attachment_url,
           attachmentName: response.data.data?.attachment_name,
+          messageType: response.data.data?.message_type || 'text',
+          editedAt: response.data.data?.edited_at,
           timestamp: response.data.data?.created_at || new Date().toISOString(),
         },
       ]);
@@ -490,7 +674,76 @@ function AuthenticatedSupportEscalationPage({ user }) {
     } finally {
       setLiveSending(false);
     }
-  }, [liveFile, liveInput, ticketId, t]);
+  }, [conversationStatus, liveFile, liveInput, ticketId, t]);
+
+  const downloadConversation = async () => {
+    if (!ticketId) return;
+    setDownloadBusy(true);
+    try {
+      const response = await api.get(`/support/conversations/${ticketId}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `oxsteed-support-${ticketId.slice(0, 8)}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('support.escalation.downloadError', { defaultValue: 'Could not download this conversation.' }));
+    } finally { setDownloadBusy(false); }
+  };
+
+  const editCustomerMessage = async (messageId) => {
+    const content = editingContent.trim();
+    if (!content || !ticketId) return;
+    setLiveSending(true);
+    try {
+      await api.put(`/support/conversations/${ticketId}/messages/${messageId}`, { content });
+      setLiveMessages((previous) => previous.map((message) => message.id === messageId ? {
+        ...message,
+        content,
+        editedAt: new Date().toISOString(),
+        editCount: (message.editCount || 0) + 1,
+      } : message));
+      setEditingMessageId(null); setEditingContent('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('support.escalation.editError', { defaultValue: 'This message can no longer be edited.' }));
+    } finally { setLiveSending(false); }
+  };
+
+  const handleLiveInputChange = (event) => {
+    const value = event.target.value;
+    setLiveInput(value);
+    if (!ticketId || ['resolved', 'closed'].includes(conversationStatus)) return;
+    socketRef.current?.emit('customer:typing', { ticketId, isTyping: Boolean(value.trim()) });
+    window.clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = window.setTimeout(() => {
+      socketRef.current?.emit('customer:typing', { ticketId, isTyping: false });
+    }, 1500);
+  };
+
+  const reopenConversation = async () => {
+    if (!ticketId || conversationStatus !== 'resolved' || reopenBusy) return;
+    setReopenBusy(true);
+    try {
+      const response = await api.post(`/support/conversations/${ticketId}/reopen`);
+      setConversationStatus(response.data.data?.status || 'open');
+      setWaiting(null);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('support.escalation.reopenError', { defaultValue: 'Could not reopen this conversation.' }));
+    } finally { setReopenBusy(false); }
+  };
+
+  const submitConversationReview = async (event) => {
+    event.preventDefault();
+    if (!ticketId || !reviewRating) return;
+    setReviewBusy(true);
+    try {
+      const response = await api.post(`/support/conversations/${ticketId}/review`, { rating: reviewRating, comment: reviewComment });
+      setReview(response.data.data); setReviewComment('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('support.escalation.reviewError', { defaultValue: 'Could not save your review.' }));
+    } finally { setReviewBusy(false); }
+  };
 
   const handleSubmitTicket = async (event) => {
     event.preventDefault();
@@ -686,6 +939,12 @@ function AuthenticatedSupportEscalationPage({ user }) {
                       </p>
                     </div>
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                    {conversationStatus === 'resolved' && <button type="button" onClick={reopenConversation} disabled={reopenBusy} className="inline-flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-2 text-sm text-orange-200 hover:border-orange-400 disabled:opacity-50">{reopenBusy ? t('support.escalation.reopening', { defaultValue: 'Reopening…' }) : t('support.escalation.reopen', { defaultValue: 'Reopen conversation' })}</button>}
+                    <button type="button" onClick={downloadConversation} disabled={downloadBusy || !ticketId} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-orange-500 disabled:opacity-50">
+                      <Download size={16} />{downloadBusy ? t('support.escalation.downloading', { defaultValue: 'Preparing…' }) : t('support.escalation.download', { defaultValue: 'Download' })}
+                    </button>
+                  </div>
                   <button
                     onClick={handleClose}
                     className="p-2 text-slate-500 hover:text-white rounded-xl hover:bg-slate-800 transition"
@@ -707,8 +966,11 @@ function AuthenticatedSupportEscalationPage({ user }) {
                       </div>
                     </div>
                   ) : (
-                    liveMessages.map((msg, idx) => (
-                      <div key={idx} className={`flex ${msg.sender.type === 'customer' ? 'justify-end' : 'justify-start'}`}>
+                    liveMessages.map((msg, idx) => {
+                      const isCustomerMessage = msg.sender.type === 'customer';
+                      const canEdit = isCustomerMessage && msg.content && !['resolved', 'closed'].includes(conversationStatus)
+                        && Date.now() - new Date(msg.timestamp).getTime() < 15 * 60 * 1000;
+                      return <div key={msg.id || idx} className={`flex ${isCustomerMessage ? 'justify-end' : 'justify-start'}`}>
                         <div
                           className={`max-w-md px-4 py-3 rounded-2xl ${
                             msg.sender.type === 'customer'
@@ -719,7 +981,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                           }`}
                         >
                           {msg.attachmentUrl && <img src={msg.attachmentUrl} alt={msg.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
-                          {msg.content && <p className="break-words leading-6">{msg.content}</p>}
+                          {editingMessageId === msg.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editCustomerMessage(msg.id)} disabled={liveSending || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{msg.content && <p className="break-words leading-6 whitespace-pre-wrap">{msg.content}</p>}{msg.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(msg.id); setEditingContent(msg.content); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
                           {msg.timestamp && (
                             <span className="text-xs opacity-70 mt-2 block">
                               {new Date(msg.timestamp).toLocaleTimeString(i18n.language || 'en', {
@@ -729,12 +991,14 @@ function AuthenticatedSupportEscalationPage({ user }) {
                             </span>
                           )}
                         </div>
-                      </div>
-                    ))
+                      </div>;
+                    })
                   )}
                   <div ref={messagesEndRef} />
                 </div>
 
+                {['resolved', 'closed'].includes(conversationStatus) && <div className="px-6 pt-4"><ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitConversationReview} /></div>}
+                {agentTyping && <p className="px-6 pt-3 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
                 {liveFile && <div className="px-6 pt-3 text-sm text-orange-200">{liveFile.name}</div>}
                 <form
                   onSubmit={(event) => {
@@ -750,14 +1014,14 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   <input
                     type="text"
                     value={liveInput}
-                    onChange={(event) => setLiveInput(event.target.value)}
+                    onChange={handleLiveInputChange}
                     placeholder={t('support.escalation.messagePlaceholder')}
                     className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition"
-                    disabled={liveSending || !ticketId}
+                    disabled={liveSending || !ticketId || ['resolved', 'closed'].includes(conversationStatus)}
                   />
                   <button
                     type="submit"
-                    disabled={liveSending || !ticketId || (!liveInput.trim() && !liveFile)}
+                    disabled={liveSending || !ticketId || ['resolved', 'closed'].includes(conversationStatus) || (!liveInput.trim() && !liveFile)}
                     className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition disabled:opacity-50 flex-shrink-0"
                     aria-label={t('common.send')}
                   >

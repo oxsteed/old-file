@@ -4181,7 +4181,25 @@
       "followUp": "Follow-up",
       "email": "Email",
       "statusLabel": "Status",
-      "escalated": "Escalated"
+      "escalated": "Escalated",
+      "download": "Download conversation",
+      "downloading": "Preparing download…",
+      "downloadError": "Could not download this conversation.",
+      "edit": "Edit",
+      "edited": "Edited",
+      "editError": "This message can no longer be edited.",
+      "reviewTitle": "How did we do?",
+      "reviewBody": "Please rate your support experience.",
+      "reviewPlaceholder": "Optional feedback",
+      "submitReview": "Submit review",
+      "savingReview": "Saving review…",
+      "reviewThanks": "Thanks for your feedback.",
+      "reviewSaved": "Your review has been saved.",
+      "reviewError": "Could not save your review.",
+      "agentTyping": "A support agent is typing…",
+      "reopen": "Reopen conversation",
+      "reopening": "Reopening…",
+      "reopenError": "Could not reopen this conversation."
     }
   },
   "businessHub": {

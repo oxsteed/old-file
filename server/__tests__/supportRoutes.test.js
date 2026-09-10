@@ -179,4 +179,125 @@ describe('support routes', () => {
       expect.objectContaining({ isInternal: false })
     );
   });
+
+  test('lets a customer edit their own recent message', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', content: 'Corrected message', message_type: 'text', is_agent: false, edited_at: '2026-09-09T00:01:00.000Z', edit_count: 1, created_at: '2026-09-09T00:00:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/messages/message-1')
+      .set('Authorization', authHeader())
+      .send({ content: 'Corrected message' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.content).toBe('Corrected message');
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'message:updated',
+      expect.objectContaining({ messageId: 'message-1', content: 'Corrected message' })
+    );
+  });
+
+  test('blocks reviews until the customer conversation is finished', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: null }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/review')
+      .set('Authorization', authHeader())
+      .send({ rating: 5, comment: 'Helpful' });
+
+    expect(res.status).toBe(409);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_reviews/.test(sql))).toBe(false);
+  });
+
+  test('downloads only customer-visible messages', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, subject: 'Account help', status: 'closed', agent_id: null, created_at: '2026-09-09T00:00:00.000Z', customer_name: 'Mobile User' }] })
+      .mockResolvedValueOnce({ rows: [
+        { content: 'Public reply', is_agent: true, created_at: '2026-09-09T00:01:00.000Z' },
+        { content: 'Private note', is_agent: true, message_type: 'internal_note', created_at: '2026-09-09T00:02:00.000Z' },
+      ] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations/conversation-1/download')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/plain/);
+    expect(res.text).toContain('Public reply');
+    expect(res.text).not.toContain('Private note');
+  });
+
+  test('lets a verified guest download the conversation transcript', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', subject: 'Guest request', status: 'closed', guest_name: 'Guest User', created_at: '2026-09-09T00:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ content: 'Guest-visible message', is_agent: false, created_at: '2026-09-09T00:01:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/public/conversations/guest-1/download')
+      .set('Authorization', 'Guest verified-guest-token');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('oxsteed-support-guest-1.txt');
+    expect(res.text).toContain('Guest-visible message');
+  });
+
+  test('lets a verified guest review a finished conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', guest_email: 'guest@example.com', status: 'resolved' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', conversation_id: 'guest-1', rating: 5, comment: 'Helpful', created_at: '2026-09-09T00:05:00.000Z', updated_at: '2026-09-09T00:05:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/public/conversations/guest-1/review')
+      .set('Authorization', 'Guest verified-guest-token')
+      .send({ rating: 5, comment: 'Helpful' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.rating).toBe(5);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_reviews/.test(sql))).toBe(true);
+  });
+
+  test('lets a customer reopen a resolved conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'resolved', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/reopen')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('open');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(true);
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'ticket:status-changed',
+      expect.objectContaining({ status: 'open' })
+    );
+  });
+
+  test('lets a verified guest reopen a resolved conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', status: 'resolved' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/public/conversations/guest-1/reopen')
+      .set('Authorization', 'Guest verified-guest-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('open');
+    expect(WebSocketService.broadcastToAdmins).toHaveBeenCalledWith(
+      'support:conversation-updated',
+      expect.objectContaining({ conversationId: 'guest-1', status: 'open' })
+    );
+  });
 });

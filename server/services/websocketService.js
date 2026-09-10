@@ -104,6 +104,40 @@ class WebSocketService {
         logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
       });
 
+      // Customer typing presence is ephemeral and only broadcasts inside an
+      // already-authorized ticket room. It is intentionally never persisted.
+      socket.on('customer:typing', (data) => {
+        const { ticketId, isTyping } = data || {};
+        if (!ticketId || !socket.rooms.has(`ticket:${ticketId}`)) return;
+        namespace.to(`ticket:${ticketId}`).emit('customer:typing-indicator', {
+          ticketId,
+          isTyping: Boolean(isTyping),
+        });
+      });
+
+      // Mark agent messages as read for a customer or verified guest. Room
+      // membership is the authorization boundary for this realtime action.
+      socket.on('ticket:read', async (data) => {
+        const { ticketId } = data || {};
+        if (!ticketId || !socket.rooms.has(`ticket:${ticketId}`)) return;
+        if (socket.guestConversationId !== ticketId && socket.userRole !== 'customer') return;
+        try {
+          await pool.query(
+            `UPDATE support_conversation_messages
+             SET read_by_recipient = TRUE, read_at = COALESCE(read_at, NOW()), status = 'read'
+             WHERE conversation_id = $1 AND is_agent = TRUE AND COALESCE(read_by_recipient, FALSE) = FALSE`,
+            [ticketId]
+          );
+          namespace.to(`ticket:${ticketId}`).emit('ticket:read', {
+            ticketId,
+            readerType: socket.guestConversationId ? 'guest' : 'customer',
+            readAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          logger.warn('ticket:read failed', { ticketId, error: err.message });
+        }
+      });
+
       // Customer sends message
       socket.on('message:send', (data) => {
         const { ticketId, content, timestamp } = data;
@@ -159,8 +193,10 @@ class WebSocketService {
       // Agent typing indicator
       socket.on('agent:typing', (data) => {
         const { ticketId, isTyping } = data;
-        const agentId = socket.data.agentId;
+        const agentId = socket.data.agentId
+          || (['admin', 'super_admin'].includes(socket.userRole) ? socket.userId : null);
 
+        if (!agentId || !ticketId || !socket.rooms.has(`ticket:${ticketId}`)) return;
         namespace.to(`ticket:${ticketId}`).emit('agent:typing-indicator', {
           ticketId,
           agentId,

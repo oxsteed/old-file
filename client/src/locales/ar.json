@@ -4220,7 +4220,25 @@
       "followUp": "المتابعة",
       "email": "البريد الإلكتروني",
       "statusLabel": "الحالة",
-      "escalated": "تم التصعيد"
+      "escalated": "تم التصعيد",
+      "download": "تنزيل المحادثة",
+      "downloading": "جارٍ تجهيز التنزيل…",
+      "downloadError": "تعذر تنزيل هذه المحادثة.",
+      "edit": "تعديل",
+      "edited": "تم التعديل",
+      "editError": "لم يعد بالإمكان تعديل هذه الرسالة.",
+      "reviewTitle": "كيف كانت تجربتك؟",
+      "reviewBody": "يرجى تقييم تجربتك مع الدعم.",
+      "reviewPlaceholder": "ملاحظات اختيارية",
+      "submitReview": "إرسال التقييم",
+      "savingReview": "جارٍ الحفظ…",
+      "reviewThanks": "شكرًا على ملاحظاتك.",
+      "reviewSaved": "تم حفظ تقييمك.",
+      "reviewError": "تعذر حفظ تقييمك.",
+      "agentTyping": "يكتب أحد موظفي الدعم الآن…",
+      "reopen": "إعادة فتح المحادثة",
+      "reopening": "جارٍ إعادة الفتح…",
+      "reopenError": "تعذر إعادة فتح هذه المحادثة."
     }
   },
   "businessHub": {

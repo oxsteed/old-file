@@ -4220,7 +4220,25 @@
       "followUp": "Seguimiento",
       "email": "Correo",
       "statusLabel": "Estado",
-      "escalated": "Escalado"
+      "escalated": "Escalado",
+      "download": "Descargar conversación",
+      "downloading": "Preparando descarga…",
+      "downloadError": "No se pudo descargar esta conversación.",
+      "edit": "Editar",
+      "edited": "Editado",
+      "editError": "Este mensaje ya no se puede editar.",
+      "reviewTitle": "¿Cómo lo hicimos?",
+      "reviewBody": "Califica tu experiencia con el soporte.",
+      "reviewPlaceholder": "Comentarios opcionales",
+      "submitReview": "Enviar reseña",
+      "savingReview": "Guardando reseña…",
+      "reviewThanks": "Gracias por tus comentarios.",
+      "reviewSaved": "Tu reseña se guardó.",
+      "reviewError": "No se pudo guardar tu reseña.",
+      "agentTyping": "Un agente de soporte está escribiendo…",
+      "reopen": "Reabrir conversación",
+      "reopening": "Reabriendo…",
+      "reopenError": "No se pudo reabrir esta conversación."
     }
   },
   "businessHub": {

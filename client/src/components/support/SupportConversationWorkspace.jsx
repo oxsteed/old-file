@@ -79,6 +79,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -174,7 +175,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   }, [loadConversations, loadDetail, selectedId]);
 
   useEffect(() => {
-    if (isPlatformAdmin || !agentEmployment?.is_available || !agentEmployment?.agent_id) {
+    if (!isPlatformAdmin && (!agentEmployment?.is_available || !agentEmployment?.agent_id)) {
       agentSocketRef.current?.disconnect();
       agentSocketRef.current = null;
       return undefined;
@@ -199,11 +200,18 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       reconnection: true,
       auth: { token: localStorage.getItem('accessToken') },
     });
-    socket.on('connect', () => socket.emit('agent:join'));
-    const refreshWorkspace = () => loadConversations({ quiet: true });
+    socket.on('connect', () => {
+      socket.emit(isPlatformAdmin ? 'admin:join' : 'agent:join');
+      if (selectedId) socket.emit('ticket:join', { ticketId: selectedId });
+    });
+    const refreshWorkspace = () => {
+      loadConversations({ quiet: true });
+      if (selectedId) loadDetail(selectedId, { quiet: true });
+    };
     socket.on('ticket:new-assignment', refreshWorkspace);
     socket.on('ticket:created', refreshWorkspace);
     socket.on('message:new', refreshWorkspace);
+    socket.on('support:conversation-updated', refreshWorkspace);
     agentSocketRef.current = socket;
 
     return () => {
@@ -212,7 +220,12 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       socket.disconnect();
       if (agentSocketRef.current === socket) agentSocketRef.current = null;
     };
-  }, [agentEmployment?.agent_id, agentEmployment?.is_available, isPlatformAdmin, loadConversations]);
+  }, [agentEmployment?.agent_id, agentEmployment?.is_available, isPlatformAdmin, loadConversations, loadDetail, selectedId]);
+
+  useEffect(() => () => {
+    window.clearTimeout(typingTimerRef.current);
+    if (selectedId) agentSocketRef.current?.emit('agent:typing', { ticketId: selectedId, isTyping: false });
+  }, [selectedId]);
 
   const selected = detail || conversations.find((row) => row.id === selectedId) || null;
   const isAssignedToMe = selected?.agent_user_id === user?.id;
@@ -293,6 +306,17 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
+  const handleAgentReplyChange = (event) => {
+    const value = event.target.value;
+    setReply(value);
+    if (!selectedId || !canReply || internalNote) return;
+    agentSocketRef.current?.emit('agent:typing', { ticketId: selectedId, isTyping: Boolean(value.trim()) });
+    window.clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = window.setTimeout(() => {
+      agentSocketRef.current?.emit('agent:typing', { ticketId: selectedId, isTyping: false });
+    }, 1500);
+  };
+
   const sendMessage = async (event) => {
     event.preventDefault();
     const content = reply.trim();
@@ -310,6 +334,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         loadConversations({ quiet: true }),
         loadDetail(selected.id, { quiet: true }),
       ]);
+      agentSocketRef.current?.emit('agent:typing', { ticketId: selected.id, isTyping: false });
+      window.clearTimeout(typingTimerRef.current);
       toast.success(internalNote ? 'Internal note saved.' : 'Reply sent to the customer.');
     } catch (error) {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.');
@@ -491,6 +517,18 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (
                   <div className="space-y-4">
+                    {selected.review && (
+                      <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-emerald-200">Customer review</span>
+                          <span className="text-lg text-orange-300" aria-label={`${selected.review.rating} out of 5 stars`}>
+                            {'★'.repeat(Number(selected.review.rating || 0))}{'☆'.repeat(Math.max(0, 5 - Number(selected.review.rating || 0)))}
+                          </span>
+                        </div>
+                        {selected.review.comment && <p className="mt-2 text-sm text-slate-200">{selected.review.comment}</p>}
+                        <p className="mt-2 text-[11px] text-slate-500">Submitted {formatWhen(selected.review.updated_at || selected.review.created_at)}</p>
+                      </section>
+                    )}
                     {selected.customerHistory?.previousConversationCount > 0 && (
                       <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -530,6 +568,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                                       </div>
                                       {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-40 max-w-full rounded-lg object-contain" />}
                                       {messageBody(message) && <div className="whitespace-pre-wrap leading-5">{messageBody(message)}</div>}
+                                      {message.edited_at && <div className="mt-1 text-[10px] opacity-60">Edited {formatWhen(message.edited_at)}</div>}
                                     </div>
                                   );
                                 })}
@@ -554,6 +593,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                             </div>
                             {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
                             {messageBody(message) && <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>}
+                            {message.edited_at && <div className="mt-2 text-[11px] opacity-60">Edited {formatWhen(message.edited_at)}</div>}
                             <div className="mt-2 flex items-center gap-1 text-[11px] opacity-60"><Clock3 size={11} /> {formatWhen(message.created_at)}</div>
                           </div>
                         </div>
@@ -581,7 +621,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   </label>
                   <textarea
                     value={reply}
-                    onChange={(event) => setReply(event.target.value)}
+                    onChange={handleAgentReplyChange}
+                    onBlur={() => {
+                      window.clearTimeout(typingTimerRef.current);
+                      if (selectedId) agentSocketRef.current?.emit('agent:typing', { ticketId: selectedId, isTyping: false });
+                    }}
                     disabled={!canReply || busy}
                     rows={3}
                     placeholder={internalNote ? 'Add private context for the next operator…' : 'Write a clear response to the customer…'}

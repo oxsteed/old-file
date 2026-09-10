@@ -192,15 +192,27 @@ async function loadGuestConversation(req, res) {
   const conversationId = req.params.conversationId;
   try {
     const { rows } = await pool.query(
-      `SELECT id, status, category, priority, guest_name, created_at, updated_at, agent_id,
-        live_wait_started_at, live_wait_expires_at, live_wait_ended_at
+      `SELECT id, status, category, priority, guest_name, subject, created_at, updated_at, agent_id,
+        live_wait_started_at, live_wait_expires_at, live_wait_ended_at,
+        (
+          SELECT jsonb_build_object(
+            'id', scr.id,
+            'rating', scr.rating,
+            'comment', scr.comment,
+            'created_at', scr.created_at,
+            'updated_at', scr.updated_at
+          )
+          FROM support_conversation_reviews scr
+          WHERE scr.conversation_id = support_conversations.id
+        ) AS review
        FROM support_conversations
        WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
       [conversationId, hash(req.guestToken)]
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
     const { rows: messages } = await pool.query(
-      `SELECT id, content, is_agent, message_type, attachment_url, attachment_name, created_at
+      `SELECT id, content, is_agent, message_type, attachment_url, attachment_name,
+        edited_at, edit_count, created_at
        FROM support_conversation_messages
        WHERE conversation_id = $1 AND message_type <> 'internal_note'
        ORDER BY created_at ASC`,
@@ -255,6 +267,172 @@ async function addGuestMessage(req, res) {
   }
 }
 
+async function updateGuestMessage(req, res) {
+  const conversationId = req.params.conversationId;
+  const messageId = req.params.messageId;
+  const content = String(req.body?.content ?? req.body?.message ?? '').trim();
+  if (!content || content.length > 5000) {
+    return sendValidationError(res, { content: 'Message is required and must be 5000 characters or fewer' });
+  }
+  try {
+    const { rows: conversations } = await pool.query(
+      `SELECT id, status FROM support_conversations
+       WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
+      [conversationId, hash(req.guestToken)]
+    );
+    if (!conversations.length) return sendError(res, 404, 'Support conversation not found or expired');
+    if (['resolved', 'closed'].includes(conversations[0].status)) {
+      return sendError(res, 409, 'Closed conversations cannot be edited');
+    }
+    const { rows } = await pool.query(
+      `UPDATE support_conversation_messages
+       SET original_content = COALESCE(original_content, content),
+           content = $1,
+           edited_at = NOW(),
+           edit_count = edit_count + 1,
+           updated_at = NOW()
+       WHERE id = $2 AND conversation_id = $3 AND sender_id IS NULL
+         AND is_agent = FALSE AND message_type <> 'internal_note'
+         AND created_at > NOW() - INTERVAL '15 minutes'
+       RETURNING id, content, attachment_url, attachment_name, message_type,
+                 edited_at, edit_count, created_at`,
+      [content, messageId, conversationId]
+    );
+    if (!rows.length) return sendError(res, 409, 'This message is no longer editable');
+    const message = rows[0];
+    const payload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: message.id,
+      sender: { type: 'customer' },
+      content: message.content,
+      attachmentUrl: message.attachment_url,
+      attachmentName: message.attachment_name,
+      messageType: message.message_type,
+      editedAt: message.edited_at,
+      editCount: message.edit_count,
+      timestamp: message.created_at,
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'message:updated', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: message });
+  } catch (err) {
+    logger.error('updateGuestMessage error', { conversationId, messageId, error: err.message });
+    return sendError(res, 500, 'Failed to edit support message');
+  }
+}
+
+async function downloadGuestConversation(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const { rows: conversations } = await pool.query(
+      `SELECT id, subject, status, guest_name, created_at
+       FROM support_conversations
+       WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
+      [conversationId, hash(req.guestToken)]
+    );
+    if (!conversations.length) return sendError(res, 404, 'Support conversation not found or expired');
+    const { rows: messages } = await pool.query(
+      `SELECT content, attachment_name, is_agent, message_type, created_at
+       FROM support_conversation_messages
+       WHERE conversation_id = $1
+         AND COALESCE(message_type, 'text') <> 'internal_note'
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+    const conversation = conversations[0];
+    const lines = [
+      'OxSteed Support Conversation',
+      `Subject: ${conversation.subject || 'Support request'}`,
+      `Started: ${conversation.created_at ? new Date(conversation.created_at).toISOString() : '-'}`,
+      `Status: ${conversation.status || '-'}`,
+      '',
+    ];
+    messages.forEach((message) => {
+      if (message.message_type === 'internal_note') return;
+      lines.push(`[${message.created_at ? new Date(message.created_at).toISOString() : '-'}] ${message.is_agent ? 'OxSteed Support' : (conversation.guest_name || 'Customer')}`);
+      if (message.content) lines.push(String(message.content));
+      if (message.attachment_name) lines.push(`Attachment: ${message.attachment_name}`);
+      lines.push('');
+    });
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="oxsteed-support-${String(conversationId).slice(0, 8)}.txt"`);
+    return res.send(`${lines.join('\n').trim()}\n`);
+  } catch (err) {
+    logger.error('downloadGuestConversation error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to download support conversation');
+  }
+}
+
+async function createGuestConversationReview(req, res) {
+  const conversationId = req.params.conversationId;
+  const rating = Number(req.body?.rating);
+  const comment = String(req.body?.comment || '').trim();
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 1000) {
+    return sendValidationError(res, { rating: 'Choose a rating from 1 to 5', comment: 'Feedback must be 1000 characters or fewer' });
+  }
+  try {
+    const { rows: conversations } = await pool.query(
+      `SELECT id, guest_email, status FROM support_conversations
+       WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
+      [conversationId, hash(req.guestToken)]
+    );
+    if (!conversations.length) return sendError(res, 404, 'Support conversation not found or expired');
+    if (!['resolved', 'closed'].includes(conversations[0].status)) {
+      return sendError(res, 409, 'Reviews are available after the conversation is finished');
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO support_conversation_reviews (conversation_id, guest_email, rating, comment)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (conversation_id) DO UPDATE
+       SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, updated_at = NOW()
+       RETURNING id, conversation_id, rating, comment, created_at, updated_at`,
+      [conversationId, conversations[0].guest_email, rating, comment || null]
+    );
+    return res.status(201).json({ success: true, data: rows[0] });
+  } catch (err) {
+    logger.error('createGuestConversationReview error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to save conversation review');
+  }
+}
+
+async function reopenGuestConversation(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, status FROM support_conversations
+       WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()`,
+      [conversationId, hash(req.guestToken)]
+    );
+    if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
+    if (rows[0].status !== 'resolved') return sendError(res, 409, 'Only resolved conversations can be reopened');
+
+    const { rows: updated } = await pool.query(
+      `UPDATE support_conversations
+       SET status = 'open', resolved_at = NULL, closed_at = NULL,
+           resolution_status = NULL, updated_at = NOW()
+       WHERE id = $1 AND status = 'resolved'
+       RETURNING id, status, updated_at`,
+      [conversationId]
+    );
+    if (!updated.length) return sendError(res, 409, 'This conversation changed before it could be reopened');
+    await pool.query(
+      `UPDATE support_queue
+       SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+           routed_to_agent_id = NULL
+       WHERE conversation_id = $1`,
+      [conversationId]
+    );
+    const payload = { ticketId: conversationId, conversationId, status: 'open', timestamp: new Date().toISOString() };
+    WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: updated[0] });
+  } catch (err) {
+    logger.error('reopenGuestConversation error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to reopen conversation');
+  }
+}
+
 function guestToken(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Guest ') ? header.slice(6).trim() : '';
@@ -263,4 +441,15 @@ function guestToken(req, res, next) {
   next();
 }
 
-module.exports = { createGuestConversation, verifyGuestConversation, resendGuestVerification, loadGuestConversation, addGuestMessage, guestToken };
+module.exports = {
+  createGuestConversation,
+  verifyGuestConversation,
+  resendGuestVerification,
+  loadGuestConversation,
+  addGuestMessage,
+  updateGuestMessage,
+  downloadGuestConversation,
+  createGuestConversationReview,
+  reopenGuestConversation,
+  guestToken,
+};
