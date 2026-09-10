@@ -1274,6 +1274,42 @@ router.delete('/kb/:id', async (req, res, next) => {
   }
 });
 
+// Published help articles for support operators. This is intentionally
+// separate from the admin knowledge-base feed so drafts never enter replies.
+router.get('/kb/available', async (req, res, next) => {
+  try {
+    const businessId = await supportBusinessFromRequest(req);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required' });
+    const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+      businessId,
+      req.user.id,
+      req.user.role
+    );
+    if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const params = [businessId];
+    let searchSql = '';
+    if (search) {
+      params.push(`%${search}%`);
+      searchSql = `AND (kba.title ILIKE $2 OR kba.content ILIKE $2 OR COALESCE(kba.excerpt, '') ILIKE $2)`;
+    }
+    const { rows } = await db.query(
+      `SELECT kba.id, kba.business_id, kba.title, kba.slug, kba.content, kba.excerpt,
+              kba.keywords, kba.language, kba.is_published, kba.view_count,
+              kba.updated_at, COALESCE(kbc.category_name, 'general') AS category
+       FROM knowledge_base_articles kba
+       LEFT JOIN knowledge_base_categories kbc ON kbc.id = kba.category_id
+       WHERE kba.business_id = $1 AND kba.is_published = true ${searchSql}
+       ORDER BY kba.updated_at DESC
+       LIMIT 50`,
+      params
+    );
+    return res.json({ articles: rows.map(serializeKnowledgeArticle) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Read-only template feed for support operators. Unlike the admin CRUD route,
 // this allows an assigned support agent to use only active templates for the
 // business they are authorized to work, without granting management access.

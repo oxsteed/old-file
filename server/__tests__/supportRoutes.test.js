@@ -454,6 +454,20 @@ describe('support routes', () => {
     expect(res.body.articles[0]).toMatchObject({ id: 'article-1', tags: ['billing'], views: 3 });
   });
 
+  test('returns published help articles to authorized support operators', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'article-2', title: 'Refund timing', content: 'Refunds take 5 days.', is_published: true }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/kb/available?business_id=42&search=refund')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.articles[0]).toMatchObject({ id: 'article-2', title: 'Refund timing' });
+    expect(mockQuery.mock.calls.some(([sql]) => /is_published = true/.test(sql))).toBe(true);
+  });
+
   test('returns only active saved replies to authorized support operators', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

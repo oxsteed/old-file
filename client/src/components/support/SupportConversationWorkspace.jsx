@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import io from 'socket.io-client';
 import {
   AlertTriangle,
+  BookOpen,
   CheckCircle2,
   Clock3,
   Copy,
@@ -108,6 +109,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [quickReply, setQuickReply] = useState('');
   const [responseTemplates, setResponseTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [knowledgeSearch, setKnowledgeSearch] = useState('');
+  const [knowledgeArticles, setKnowledgeArticles] = useState([]);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [internalNote, setInternalNote] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -207,6 +212,21 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, [businessId]);
 
+  const loadKnowledgeArticles = useCallback(async () => {
+    setKnowledgeLoading(true);
+    try {
+      const { data } = await api.get('/support/kb/available', {
+        params: { ...(businessId ? { business_id: businessId } : {}), search: knowledgeSearch.trim() },
+      });
+      const rows = data?.articles || data?.data || [];
+      setKnowledgeArticles(Array.isArray(rows) ? rows : []);
+    } catch {
+      setKnowledgeArticles([]);
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, [businessId, knowledgeSearch]);
+
   useEffect(() => {
     loadConversations();
     loadAgents();
@@ -239,6 +259,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setQuickReply('');
     setAttachment(null);
     setInternalNote(false);
+    setKnowledgeOpen(false);
+    setKnowledgeSearch('');
+    setKnowledgeArticles([]);
     setResolutionSummary('');
     setEditingMessageId(null);
     setEditingContent('');
@@ -898,7 +921,63 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     <option value="">{templatesLoading ? 'Loading saved replies…' : responseTemplates.length ? 'Insert saved reply…' : 'No saved replies'}</option>
                     {responseTemplates.map((template) => <option key={template.id} value={template.id}>{template.title || template.name}</option>)}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextOpen = !knowledgeOpen;
+                      setKnowledgeOpen(nextOpen);
+                      if (nextOpen) loadKnowledgeArticles();
+                    }}
+                    disabled={!canReply || busy || knowledgeLoading}
+                    className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-semibold ${knowledgeOpen ? 'bg-blue-500/15 text-blue-200' : 'bg-slate-900 text-slate-400'} disabled:opacity-50`}
+                    aria-expanded={knowledgeOpen}
+                  >
+                    <BookOpen size={13} /> Help center
+                  </button>
                 </div>
+                {knowledgeOpen && (
+                  <div className="mb-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={knowledgeSearch}
+                        onChange={(event) => setKnowledgeSearch(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            loadKnowledgeArticles();
+                          }
+                        }}
+                        placeholder="Search published help articles"
+                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-400"
+                        aria-label="Search published help articles"
+                      />
+                      <button type="button" onClick={loadKnowledgeArticles} disabled={knowledgeLoading} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs font-semibold text-blue-200 disabled:opacity-50">
+                        {knowledgeLoading ? 'Searching…' : 'Search'}
+                      </button>
+                    </div>
+                    <div className="mt-2 max-h-48 space-y-2 overflow-y-auto">
+                      {!knowledgeLoading && knowledgeArticles.length === 0 && <p className="px-1 py-2 text-xs text-slate-500">No published help articles match this search.</p>}
+                      {knowledgeArticles.map((article) => (
+                        <div key={article.id} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-semibold text-slate-200">{article.title}</div>
+                            <button
+                              type="button"
+                              onClick={() => setReply((current) => {
+                                const content = String(article.content || article.excerpt || '').slice(0, 10000);
+                                return current.trim() ? `${current.trim()}\n\n${content}` : content;
+                              })}
+                              className="rounded-lg border border-blue-500/30 px-2 py-1 text-[11px] font-semibold text-blue-200 hover:bg-blue-500/10"
+                            >
+                              Insert into reply
+                            </button>
+                          </div>
+                          {article.excerpt && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">{article.excerpt}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {internalNote && (
                   <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="status">
                     <Lock size={13} /> Internal note mode: this message is visible only to authorized support staff.
