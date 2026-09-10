@@ -692,6 +692,36 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /WHERE id = \$1 AND conversation_id = \$2/.test(sql))).toBe(true);
   });
 
+  test('blocks legacy agent skill changes for users without employer access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', employer_id: 'employer-1', user_id: 'other-user', business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/agents/agent-1/skills')
+      .set('Authorization', authHeader())
+      .send({ skillName: 'billing' });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO agent_skills/.test(sql))).toBe(false);
+  });
+
+  test('limits legacy agent availability history to the authorized business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', employer_id: 'employer-1', user_id: 'other-user', business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'availability-1', status: 'available' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/agents/agent-1/availability-log?limit=500')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    const logQuery = mockQuery.mock.calls.find(([sql]) => /FROM agent_availability_log/.test(sql));
+    expect(logQuery[1][1]).toBe(100);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

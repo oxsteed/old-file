@@ -6,6 +6,16 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function canManageAgent(req, agent) {
+  if (req.user.id === agent.user_id) return true;
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanManageEmployer(
+    agent.employer_id,
+    req.user.id,
+    req.user.role
+  );
+}
+
 async function listAgents(req, res) {
   try {
     const { businessId } = req.params;
@@ -270,10 +280,12 @@ async function addAgentSkill(req, res) {
     }
 
     const agentResult = await query(
-      'SELECT id FROM support_agents WHERE id = $1',
-      [agentId]
+      'SELECT id, employer_id, user_id, business_id FROM support_agents WHERE id = $1 AND business_id = $2',
+      [agentId, req.params.businessId]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
+    const agent = agentResult.rows[0];
+    if (!(await canManageAgent(req, agent))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO agent_skills (agent_id, skill_name, proficiency_level, years_of_experience)
@@ -297,14 +309,21 @@ async function addAgentSkill(req, res) {
 async function getAvailabilityLog(req, res) {
   try {
     const { agentId } = req.params;
-    const { limit = 50 } = req.query;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const agentResult = await query(
+      'SELECT id, employer_id, user_id FROM support_agents WHERE id = $1 AND business_id = $2',
+      [agentId, req.params.businessId]
+    );
+    if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
+    const agent = agentResult.rows[0];
+    if (!(await canManageAgent(req, agent))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT * FROM agent_availability_log
        WHERE agent_id = $1
        ORDER BY status_changed_at DESC
        LIMIT $2`,
-      [agentId, parseInt(limit, 10)]
+      [agentId, limit]
     );
 
     res.json({ success: true, data: result.rows });
