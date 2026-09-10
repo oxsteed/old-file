@@ -6,6 +6,12 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function canManageBusiness(req, businessId) {
+  if (!businessId) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user?.role)) return true;
+  return supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
+}
+
 async function canManageAgent(req, agent) {
   if (req.user.id === agent.user_id) return true;
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
@@ -21,7 +27,7 @@ async function listAgents(req, res) {
     const { businessId } = req.params;
     const { status, role, department } = req.query;
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
@@ -85,22 +91,16 @@ async function getAgent(req, res) {
         sa.avg_rating, sa.created_at, sa.updated_at
       FROM support_agents sa
       JOIN users u ON sa.user_id = u.id
-      WHERE sa.id = $1`,
-      [agentId]
+      WHERE sa.id = $1
+        AND ($2 IS NULL OR sa.business_id = $2)`,
+      [agentId, req.params.businessId || null]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Agent not found');
 
     const agent = result.rows[0];
 
-    if (req.user.id !== agent.user_id) {
-      const canManage = await supportEmployerService.userCanManageEmployer(
-        agent.employer_id,
-        req.user.id,
-        req.user.role
-      );
-      if (!canManage) return sendError(res, 403, 'Access denied');
-    }
+    if (!(await canManageAgent(req, agent))) return sendError(res, 403, 'Access denied');
 
     const skillsResult = await query(
       `SELECT skill_name, proficiency_level, years_of_experience, verified
@@ -130,7 +130,7 @@ async function hireAgent(req, res) {
       return sendValidationError(res, { businessId: 'Required' });
     }
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
@@ -189,23 +189,18 @@ async function updateAgentStatus(req, res) {
     }
 
     const agentResult = await query(
-      'SELECT employer_id FROM support_agents WHERE id = $1',
-      [agentId]
+      'SELECT employer_id, user_id FROM support_agents WHERE id = $1 AND ($2 IS NULL OR business_id = $2)',
+      [agentId, req.params.businessId || null]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
 
     const { employer_id: employerId } = agentResult.rows[0];
-    const canManage = await supportEmployerService.userCanManageEmployer(
-      employerId,
-      req.user.id,
-      req.user.role
-    );
-    if (!canManage) return sendError(res, 403, 'Access denied');
+    if (!(await canManageAgent(req, { ...agentResult.rows[0], employer_id: employerId }))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `UPDATE support_agents SET status = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 RETURNING *`,
-      [status, agentId]
+      WHERE id = $2 AND ($3 IS NULL OR business_id = $3) RETURNING *`,
+      [status, agentId, req.params.businessId || null]
     );
 
     logger.info('Agent status updated', { agentId, status });
@@ -225,35 +220,31 @@ async function setAgentAvailability(req, res) {
     if (typeof isAvailable !== 'boolean') {
       return sendValidationError(res, { isAvailable: 'Must be boolean' });
     }
+    if (reason != null && String(reason).length > 500) {
+      return sendValidationError(res, { reason: 'Must be 500 characters or fewer' });
+    }
 
     const agentResult = await query(
-      'SELECT * FROM support_agents WHERE id = $1',
-      [agentId]
+      'SELECT * FROM support_agents WHERE id = $1 AND ($2 IS NULL OR business_id = $2)',
+      [agentId, req.params.businessId || null]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
 
     const agent = agentResult.rows[0];
 
-    if (req.user.id !== agent.user_id) {
-      const canManage = await supportEmployerService.userCanManageEmployer(
-        agent.employer_id,
-        req.user.id,
-        req.user.role
-      );
-      if (!canManage) return sendError(res, 403, 'Access denied');
-    }
+    if (!(await canManageAgent(req, agent))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `UPDATE support_agents SET is_available = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 RETURNING *`,
-      [isAvailable, agentId]
+      WHERE id = $2 AND ($3 IS NULL OR business_id = $3) RETURNING *`,
+      [isAvailable, agentId, req.params.businessId || null]
     );
 
     const status = isAvailable ? 'available' : 'offline';
     await query(
       `INSERT INTO agent_availability_log (agent_id, status, reason)
        VALUES ($1, $2, $3)`,
-      [agentId, status, reason || null]
+      [agentId, status, reason ? String(reason).trim() : null]
     );
 
     logger.info('Agent availability changed', { agentId, isAvailable });
@@ -270,13 +261,17 @@ async function addAgentSkill(req, res) {
     const { agentId } = req.params;
     const { skillName, proficiencyLevel, yearsOfExperience } = req.body;
 
-    if (!skillName) {
-      return sendValidationError(res, { skillName: 'Required' });
+    if (!skillName || String(skillName).trim().length > 100) {
+      return sendValidationError(res, { skillName: 'Required and must be 100 characters or fewer' });
     }
 
     const validLevels = ['beginner', 'intermediate', 'expert'];
-    if (proficiencyLevel && !validLevels.includes(proficiencyLevel)) {
+    if (proficiencyLevel && !validLevels.includes(String(proficiencyLevel).toLowerCase())) {
       return sendValidationError(res, { proficiencyLevel: 'Invalid level' });
+    }
+    const years = yearsOfExperience == null ? null : Number(yearsOfExperience);
+    if (years != null && (!Number.isFinite(years) || years < 0 || years > 80)) {
+      return sendValidationError(res, { yearsOfExperience: 'Must be between 0 and 80 years' });
     }
 
     const agentResult = await query(
@@ -294,7 +289,7 @@ async function addAgentSkill(req, res) {
         proficiency_level = $3,
         years_of_experience = $4
        RETURNING *`,
-      [agentId, skillName, proficiencyLevel || 'intermediate', yearsOfExperience || null]
+      [agentId, String(skillName).trim(), proficiencyLevel ? String(proficiencyLevel).toLowerCase() : 'intermediate', years]
     );
 
     logger.info('Skill added to agent', { agentId, skillName });
