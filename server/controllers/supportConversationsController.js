@@ -702,6 +702,8 @@ async function updateConversationStatus(req, res) {
     const { status, resolutionStatus, internalNotes } = req.body;
     const rawResolutionSummary = req.body?.resolutionSummary ?? req.body?.resolution_summary;
     const resolutionSummary = rawResolutionSummary == null ? null : String(rawResolutionSummary).trim();
+    const normalizedResolutionStatus = resolutionStatus == null ? null : String(resolutionStatus).trim();
+    const normalizedInternalNotes = internalNotes == null ? null : String(internalNotes).trim();
 
     if (!status) {
       return sendValidationError(res, { status: 'Required' });
@@ -713,6 +715,12 @@ async function updateConversationStatus(req, res) {
     }
     if (resolutionSummary && resolutionSummary.length > 2000) {
       return sendValidationError(res, { resolutionSummary: 'Must be 2000 characters or fewer' });
+    }
+    if (normalizedResolutionStatus && normalizedResolutionStatus.length > 100) {
+      return sendValidationError(res, { resolutionStatus: 'Must be 100 characters or fewer' });
+    }
+    if (normalizedInternalNotes && normalizedInternalNotes.length > 5000) {
+      return sendValidationError(res, { internalNotes: 'Must be 5000 characters or fewer' });
     }
 
     // Get conversation
@@ -744,11 +752,11 @@ async function updateConversationStatus(req, res) {
 
     if (status === 'resolved') {
       updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
-      params.push(resolutionStatus || 'resolved');
+      params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
     } else if (status === 'closed') {
       updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
-      params.push(resolutionStatus || 'resolved');
+      params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
     } else if (status === 'open') {
       updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL`;
@@ -756,9 +764,9 @@ async function updateConversationStatus(req, res) {
       updateSql += `, resolved_at = NULL, closed_at = NULL`;
     }
 
-    if (internalNotes) {
+    if (normalizedInternalNotes) {
       updateSql += `, internal_notes = $${params.length + 1}`;
-      params.push(internalNotes);
+      params.push(normalizedInternalNotes);
     }
 
     updateSql += ` WHERE id = $${params.length + 1} RETURNING *`;

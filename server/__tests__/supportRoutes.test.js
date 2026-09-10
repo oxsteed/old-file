@@ -275,6 +275,19 @@ describe('support routes', () => {
     );
   });
 
+  test('rejects oversized status metadata before loading the conversation', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'resolved', internalNotes: 'x'.repeat(5001) });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
+  });
+
   test('marks customer-visible messages read for the authorized conversation participant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
