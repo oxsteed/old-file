@@ -31,6 +31,7 @@ const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const { authenticate, requireRole } = require('./middleware/auth');
+const { requireAdmin } = require('./middleware/adminAuth');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 
 // ── ROUTES ───────────────────────────────────────────────────
@@ -382,8 +383,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Pool health metrics endpoint (used by monitoring systems)
-app.get('/api/health/pool', (req, res) => {
+// Detailed pool metrics are operational telemetry and must not be public.
+// Use /health or /ready for unauthenticated process/load-balancer checks.
+app.get('/api/health/pool', requireAdmin, (req, res) => {
   res.json(poolMonitor.getMetrics());
 });
 

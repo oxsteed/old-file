@@ -41,16 +41,24 @@ In `server/index.js`:
 const { pool, poolMonitor } = require('./db');
 
 // Add health metrics endpoint
-app.get('/api/health/pool', (req, res) => {
+const { requireAdmin } = require('./middleware/adminAuth');
+
+app.get('/api/health/pool', requireAdmin, (req, res) => {
   res.json(poolMonitor.getMetrics());
 });
 ```
+
+The detailed endpoint is admin-only because it exposes connection counts, query
+volumes, timing data, and process uptime. Use `/health` or `/ready` for public
+load-balancer and uptime checks.
 
 ### 3. Monitor from Client
 
 ```javascript
 // Check pool health
-const response = await fetch('/api/health/pool');
+const response = await fetch('/api/health/pool', {
+  headers: { Authorization: `Bearer ${adminAccessToken}` },
+});
 const metrics = await response.json();
 
 console.log(metrics);
