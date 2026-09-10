@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
+  Copy,
   Download,
   Headphones,
   History,
@@ -385,6 +386,16 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
+  const copyContextValue = async (value, label) => {
+    if (!value || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(String(value));
+      toast.success(`${label} copied.`);
+    } catch {
+      toast.error(`Could not copy ${label.toLowerCase()}.`);
+    }
+  };
+
   const toggleAvailability = async () => {
     if (!agentEmployment) return;
     setAvailabilityBusy(true);
@@ -602,7 +613,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       <span className={`text-xs font-semibold uppercase ${PRIORITY[selected.priority] || 'text-slate-400'}`}>{selected.priority || 'normal'} priority</span>
                     </div>
                     <h3 className="mt-3 text-xl font-semibold">{selected.subject}</h3>
-                    <div className="mt-2 text-sm text-slate-400">{selected.customer_name || 'Customer'} · {selected.customer_email || 'No email'}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                      <span>{selected.customer_name || 'Customer'} · {selected.customer_email || 'No email'}</span>
+                      {selected.customer_email && <button type="button" onClick={() => copyContextValue(selected.customer_email, 'Email')} className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-orange-500/50" title="Copy customer email"><Copy size={11} /> Email</button>}
+                      <button type="button" onClick={() => copyContextValue(selected.id, 'Conversation ID')} className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-orange-500/50" title="Copy conversation ID"><Copy size={11} /> ID</button>
+                    </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                       <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
                         {selected.customerHistory?.previousConversationCount > 0
