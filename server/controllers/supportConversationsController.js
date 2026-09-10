@@ -14,6 +14,46 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { withTransaction } = require('../utils/transaction');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+async function notifyCustomerOfAgentReply(conversation, message) {
+  const recipient = String(conversation.customer_email || '').trim();
+  if (!recipient || conversation.customer_email_notifications === false) return;
+
+  const subject = String(conversation.subject || 'Support conversation')
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 180);
+  const content = String(message.content || '').trim();
+  const safeName = escapeHtml(conversation.customer_name || 'there');
+  const safeContent = escapeHtml(content).replace(/\n/g, '<br>');
+  const attachmentLine = message.attachment_url
+    ? '<p style="color:#6b7280">Your support reply also includes an attachment. Open your OxSteed support conversation to view it.</p>'
+    : '';
+
+  const result = await sendEmail({
+    to: recipient,
+    from: EMAIL_ADDRESSES.support,
+    fromName: 'OxSteed Support',
+    subject: `OxSteed Support: ${subject}`,
+    text: `Hi ${conversation.customer_name || 'there'},\n\nOxSteed Support replied to your conversation:\n\n${content}\n\nOpen your OxSteed support conversation to continue the discussion.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#ea580c">OxSteed Support</h2>
+      <p>Hi ${safeName},</p>
+      <p>OxSteed Support replied to your conversation:</p>
+      <p style="line-height:1.7">${safeContent}</p>
+      ${attachmentLine}
+      <p>Open your OxSteed support conversation to continue the discussion.</p>
+      <p style="margin-top:28px;color:#6b7280">OxSteed Support<br>+1 (937) 408-5169</p>
+    </div>`,
+    idempotencyKey: `support-reply-${message.id}`,
+  });
+  if (!result?.success) {
+    logger.warn('Customer support reply email was not delivered', {
+      conversationId: conversation.id,
+      messageId: message.id,
+      error: result?.error || 'unknown error',
+    });
+  }
+}
+
 function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   const rawUrl = String(attachmentUrl ?? '').trim();
   const rawName = String(attachmentName ?? '').trim();
@@ -726,7 +766,14 @@ async function updateConversationStatus(req, res) {
 
     // Get conversation
     const convResult = await query(
-      'SELECT * FROM support_conversations WHERE id = $1',
+      `SELECT sc.*, COALESCE(u.email, sc.guest_email) AS customer_email,
+              COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+                u.email, sc.guest_name, 'Customer') AS customer_name,
+              COALESCE(np.email_notifications, TRUE) AS customer_email_notifications
+       FROM support_conversations sc
+       LEFT JOIN users u ON u.id = sc.customer_id
+       LEFT JOIN notification_preferences np ON np.user_id = sc.customer_id
+       WHERE sc.id = $1`,
       [conversationId]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
@@ -1039,6 +1086,17 @@ async function addMessage(req, res) {
       WebSocketService.broadcastToTicket(conversationId, 'message:new', eventPayload);
     }
     if (!result.duplicate) WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);
+    if (isAgent && !isInternalMessage && !result.duplicate) {
+      // Realtime delivery is primary; email is the durable fallback for a
+      // customer who is offline or has missed the live event.
+      void notifyCustomerOfAgentReply(conversation, message).catch((error) => {
+        logger.warn('Customer support reply email failed', {
+          conversationId,
+          messageId: message.id,
+          error: error.message,
+        });
+      });
+    }
 
     res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {

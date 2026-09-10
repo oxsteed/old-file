@@ -20,6 +20,7 @@ const supportConversationsController = require('../controllers/supportConversati
 const conversationAssignmentController = require('../controllers/conversationAssignmentController');
 const supportEmployerService = require('../services/supportEmployerService');
 const storage = require('../utils/storage');
+const email = require('../utils/email');
 
 function responseDouble() {
   return {
@@ -284,6 +285,50 @@ describe('live support connection lifecycle', () => {
         content: 'I can help with that.',
       })
     );
+  });
+
+  test('sends a durable email fallback for a public agent reply', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-email',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          customer_email: 'customer@example.com',
+          customer_name: 'Customer One',
+          customer_email_notifications: true,
+          agent_id: 'agent-1',
+          status: 'in_progress',
+          subject: 'Payment question',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-email-1',
+          content: 'I can help with that.',
+          message_type: 'text',
+          created_at: '2026-08-13T00:01:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-email' },
+      body: { content: 'I can help with that.' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'customer@example.com',
+      subject: 'OxSteed Support: Payment question',
+      idempotencyKey: 'support-reply-message-email-1',
+    }));
+    expect(email.sendEmail.mock.calls[0][0].html).toContain('I can help with that.');
   });
 
   test('treats the multipart legacy fields as a public agent reply when requested', async () => {
