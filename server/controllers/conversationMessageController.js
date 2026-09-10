@@ -111,15 +111,20 @@ async function deleteMessage(req, res) {
       return sendError(res, 403, 'Access denied');
     }
 
-    await query(
-      'DELETE FROM support_conversation_messages WHERE id = $1 AND conversation_id = $2',
-      [messageId, message.conversation_id]
-    );
+    const deleted = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        'DELETE FROM support_conversation_messages WHERE id = $1 AND conversation_id = $2 RETURNING id',
+        [messageId, message.conversation_id]
+      );
+      if (!result.rows.length) return null;
 
-    await query(
-      'UPDATE support_conversations SET message_count = message_count - 1 WHERE id = $1',
-      [message.conversation_id]
-    );
+      await client.query(
+        'UPDATE support_conversations SET message_count = GREATEST(message_count - 1, 0) WHERE id = $1',
+        [message.conversation_id]
+      );
+      return result.rows[0];
+    }, 'delete_support_conversation_message');
+    if (!deleted) return sendError(res, 404, 'Message not found');
 
     broadcastToConversation(message.conversation_id, 'message_deleted', { messageId });
 
@@ -133,10 +138,10 @@ async function deleteMessage(req, res) {
 async function editMessage(req, res) {
   try {
     const { messageId } = req.params;
-    const { content } = req.body;
+    const content = String(req.body?.content ?? '').trim();
 
-    if (!content) {
-      return sendValidationError(res, { content: 'Required' });
+    if (!content || content.length > 5000) {
+      return sendValidationError(res, { content: 'Message is required and must be 5000 characters or fewer' });
     }
 
     const message = await loadAuthorizedMessage(req, messageId);
@@ -148,11 +153,14 @@ async function editMessage(req, res) {
     if (!isOwner && !isPlatformAdmin) {
       return sendError(res, 403, 'Access denied');
     }
+    if (message.message_type === 'internal_note') {
+      return sendError(res, 403, 'Internal notes cannot be edited through this route');
+    }
 
     const result = await query(
       `UPDATE support_conversation_messages
        SET content = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND conversation_id = $3
+       WHERE id = $2 AND conversation_id = $3 AND message_type <> 'internal_note'
        RETURNING *`,
       [content, messageId, message.conversation_id]
     );

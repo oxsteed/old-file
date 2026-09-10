@@ -780,6 +780,50 @@ describe('support routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
+  test('rejects oversized legacy message edits before loading the message', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/messages/message-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ content: 'x'.repeat(5001) });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not allow the legacy edit route to modify internal notes', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', business_id: 42, sender_id: ADMIN_ID, message_type: 'internal_note' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/messages/message-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ content: 'Changed private note' });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversation_messages/.test(sql))).toBe(false);
+  });
+
+  test('deletes a legacy message and decrements its counter in one transaction', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', business_id: 42, sender_id: ADMIN_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .delete('/api/support/42/messages/message-1')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    const deleteIndex = mockQuery.mock.calls.findIndex(([sql]) => /DELETE FROM support_conversation_messages/.test(sql));
+    const counterIndex = mockQuery.mock.calls.findIndex(([sql]) => /UPDATE support_conversations SET message_count/.test(sql));
+    expect(counterIndex).toBe(deleteIndex + 1);
+    expect(mockQuery.mock.calls[counterIndex][0]).toMatch(/GREATEST\(message_count - 1, 0\)/);
+  });
+
   test('blocks legacy message edits when the caller lacks business access', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
