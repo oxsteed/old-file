@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 const { waitingState, processWaiting } = require('../services/supportWaitService');
 const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
@@ -268,6 +268,7 @@ async function addGuestMessage(req, res) {
   if (req.file && (!req.file.mimetype || !req.file.mimetype.startsWith('image/'))) {
     return sendValidationError(res, { file: 'Only image attachments are allowed' });
   }
+  let uploadedKey = null;
   try {
     const { rows } = await pool.query(
       `SELECT id FROM support_conversations
@@ -279,8 +280,8 @@ async function addGuestMessage(req, res) {
     let attachmentUrl = null;
     let attachmentName = null;
     if (req.file) {
-      const key = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
-      attachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);
+      uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
+      attachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
       attachmentName = req.file.originalname;
     }
     // The message content column is non-nullable; represent an image-only
@@ -313,10 +314,30 @@ async function addGuestMessage(req, res) {
       return { rows: messageRows, duplicate: false };
     }, 'add_guest_support_message');
     const message = result.rows[0];
+    if (result.duplicate && uploadedKey) {
+      // A concurrent retry may upload before the unique request key wins.
+      // Remove that unused object instead of leaving an orphan in storage.
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up duplicate guest support attachment', {
+          conversationId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content: message.content || messageContent, attachmentUrl: message.attachment_url || attachmentUrl, attachmentName: message.attachment_name || attachmentName, messageType: message.message_type || (req.file ? 'image' : 'text'), timestamp: message.created_at };
     if (!result.duplicate) WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
     return res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up failed guest support attachment', {
+          conversationId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.error('addGuestMessage error', { error: err.message });
     return sendError(res, 500, 'Failed to send support message');
   }

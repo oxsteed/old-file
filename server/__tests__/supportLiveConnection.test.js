@@ -10,6 +10,7 @@ jest.mock('../services/websocketService', () => ({
 jest.mock('../utils/storage', () => ({
   uploadFile: jest.fn().mockResolvedValue('support-conversations/test-image.png'),
   getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/support-conversations/test-image.png'),
+  deleteFile: jest.fn().mockResolvedValue(undefined),
 }));
 
 const SupportRoutingService = require('../services/supportRoutingService');
@@ -407,6 +408,46 @@ describe('live support connection lifecycle', () => {
       data: expect.objectContaining({ id: 'message-existing' }),
     }));
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
+    expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+  });
+
+  test('cleans up a raced authenticated attachment when the request is replayed', async () => {
+    const clientMessageId = '44444444-4444-4444-8444-444444444444';
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: 'agent-1',
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'message-existing',
+        sender_id: 'admin-1',
+        content: 'Original image',
+        message_type: 'image',
+        attachment_url: '/api/storage/files/original.png',
+        attachment_name: 'original.png',
+        client_message_id: clientMessageId,
+        created_at: '2026-09-10T12:00:00.000Z',
+      }] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-1' },
+      body: { clientMessageId },
+      file: { buffer: Buffer.from('retry-image'), mimetype: 'image/png', originalname: 'retry.png' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(storage.deleteFile).toHaveBeenCalledWith('support-conversations/test-image.png');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ idempotent: true }));
     expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
   });
 

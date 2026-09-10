@@ -9,6 +9,7 @@ jest.mock('../services/websocketService', () => ({
 jest.mock('../utils/storage', () => ({
   uploadFile: jest.fn().mockResolvedValue('support-conversations/test-image.png'),
   getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/support-conversations/test-image.png'),
+  deleteFile: jest.fn().mockResolvedValue(undefined),
 }));
 
 const publicSupport = require('../controllers/publicSupportController');
@@ -106,6 +107,34 @@ test('replays a guest retry without incrementing counters or rebroadcasting', as
     data: expect.objectContaining({ id: 'message-existing' }),
   }));
   expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
+  expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+});
+
+test('cleans up a raced guest attachment when the request is replayed', async () => {
+  const clientMessageId = '33333333-3333-4333-8333-333333333333';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'message-existing',
+      content: 'Original image',
+      message_type: 'image',
+      attachment_url: '/api/storage/files/original.png',
+      attachment_name: 'original.png',
+      client_message_id: clientMessageId,
+      created_at: '2026-09-10T12:00:00.000Z',
+    }] });
+
+  const res = responseDouble();
+  await publicSupport.addGuestMessage({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+    body: { clientMessageId },
+    file: { buffer: Buffer.from('retry-image'), mimetype: 'image/png', originalname: 'retry.png' },
+  }, res);
+
+  expect(storage.deleteFile).toHaveBeenCalledWith('support-conversations/test-image.png');
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ idempotent: true }));
   expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
 });
 

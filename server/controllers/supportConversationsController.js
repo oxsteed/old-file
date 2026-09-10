@@ -10,7 +10,7 @@ const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -839,6 +839,7 @@ async function updateConversationStatus(req, res) {
 
 // Add message to conversation
 async function addMessage(req, res) {
+  let uploadedKey = null;
   try {
     const { conversationId } = req.params;
     const {
@@ -914,8 +915,8 @@ async function addMessage(req, res) {
     let storedAttachmentUrl = attachment.url;
     let storedAttachmentName = attachment.name;
     if (req.file) {
-      const key = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
-      storedAttachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);
+      uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
+      storedAttachmentUrl = await getSignedDownloadUrl(uploadedKey, 7 * 24 * 60 * 60);
       storedAttachmentName = req.file.originalname;
     }
 
@@ -979,6 +980,17 @@ async function addMessage(req, res) {
     }, 'add_support_conversation_message');
 
     const message = result.rows[0];
+    if (result.duplicate && uploadedKey) {
+      // A concurrent retry may upload before the unique request key wins.
+      // Remove that unused object instead of leaving an orphan in storage.
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up duplicate support attachment', {
+          conversationId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.info('Message added to conversation', {
       conversationId,
       isAgent,
@@ -1030,6 +1042,15 @@ async function addMessage(req, res) {
 
     res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {
+    if (uploadedKey) {
+      await deleteFile(uploadedKey).catch((cleanupError) => {
+        logger.warn('Failed to clean up failed support attachment', {
+          conversationId: req.params.conversationId,
+          key: uploadedKey,
+          error: cleanupError.message,
+        });
+      });
+    }
     logger.error('addMessage error', { error: err.message });
     if (err.statusCode) return sendError(res, err.statusCode, err.message);
     sendError(res, 500, 'Failed to add message');
