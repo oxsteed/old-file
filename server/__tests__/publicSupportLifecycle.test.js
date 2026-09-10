@@ -9,6 +9,7 @@ jest.mock('../services/websocketService', () => ({
 
 const publicSupport = require('../controllers/publicSupportController');
 const WebSocketService = require('../services/websocketService');
+const emailService = require('../utils/email');
 
 function responseDouble() {
   return {
@@ -88,4 +89,41 @@ test('rejects invalid guest verification email input before database access', as
   expect(resendRes.status).toHaveBeenCalledWith(400);
   expect(verifyRes.status).toHaveBeenCalledWith(400);
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('serializes guest verification resends and honors the throttle inside the lock', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ guest_name: 'Guest User' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'verification-1' }] });
+
+  const res = responseDouble();
+  await publicSupport.resendGuestVerification({
+    params: { conversationId: 'ticket-1' },
+    body: { visitorEmail: 'guest@example.com' },
+  }, res);
+
+  expect(res.status).toHaveBeenCalledWith(429);
+  expect(res.json).toHaveBeenCalledWith({ error: 'Please wait before requesting another code' });
+  expect(mockQuery.mock.calls[0][0]).toMatch(/FOR UPDATE/);
+  expect(emailService.sendEmail).not.toHaveBeenCalled();
+});
+
+test('sends a guest verification code only after the locked throttle check passes', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ guest_name: 'Guest User' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+    .mockResolvedValueOnce({ rows: [{ id: 'verification-2' }] });
+
+  const res = responseDouble();
+  await publicSupport.resendGuestVerification({
+    params: { conversationId: 'ticket-1' },
+    body: { visitorEmail: 'guest@example.com' },
+  }, res);
+
+  expect(res.json).toHaveBeenCalledWith({ success: true });
+  expect(emailService.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+    to: 'guest@example.com',
+  }));
+  expect(mockQuery.mock.calls[0][0]).toMatch(/FOR UPDATE/);
 });

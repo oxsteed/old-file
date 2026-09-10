@@ -176,26 +176,40 @@ async function verifyGuestConversation(req, res) {
 }
 
 async function resendGuestVerification(req, res) {
+  const conversationId = req.params.conversationId;
+  let outcome;
   try {
-    const conversationId = req.params.conversationId;
     const email = normalizeEmail(req.body?.visitorEmail);
     if (!isValidEmail(email)) return sendValidationError(res, { visitorEmail: 'Valid email is required' });
-    const { rows } = await pool.query(
-      `SELECT guest_name FROM support_conversations
-       WHERE id = $1 AND guest_email = $2 AND guest_verified_at IS NULL`,
-      [conversationId, email]
-    );
-    if (!rows.length) return sendError(res, 404, 'Support verification request not found');
-    const { rows: recent } = await pool.query(
-      `SELECT id FROM support_guest_verifications
-       WHERE conversation_id = $1 AND created_at > NOW() - INTERVAL '60 seconds'`,
-      [conversationId]
-    );
-    if (recent.length) return sendError(res, 429, 'Please wait before requesting another code');
-    await sendVerification(conversationId, email, rows[0].guest_name);
+
+    // Serialize resend attempts per conversation. Without the row lock, two
+    // concurrent requests can both pass the throttle check and send codes.
+    outcome = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `SELECT guest_name FROM support_conversations
+         WHERE id = $1 AND guest_email = $2 AND guest_verified_at IS NULL
+         FOR UPDATE`,
+        [conversationId, email]
+      );
+      if (!rows.length) return 'missing';
+
+      const { rows: recent } = await client.query(
+        `SELECT id FROM support_guest_verifications
+         WHERE conversation_id = $1 AND created_at > NOW() - INTERVAL '60 seconds'
+         LIMIT 1`,
+        [conversationId]
+      );
+      if (recent.length) return 'throttled';
+
+      await sendVerification(conversationId, email, rows[0].guest_name, client);
+      return 'sent';
+    }, 'resend_guest_support_verification');
+
+    if (outcome === 'missing') return sendError(res, 404, 'Support verification request not found');
+    if (outcome === 'throttled') return sendError(res, 429, 'Please wait before requesting another code');
     return res.json({ success: true });
   } catch (err) {
-    logger.error('resendGuestVerification error', { error: err.message });
+    logger.error('resendGuestVerification error', { conversationId, error: err.message });
     return sendError(res, 500, 'Failed to resend verification code');
   }
 }
