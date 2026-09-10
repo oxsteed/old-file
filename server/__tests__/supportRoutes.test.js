@@ -662,6 +662,36 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
   });
 
+  test('blocks legacy message edits when the caller lacks business access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/messages/message-1')
+      .set('Authorization', authHeader())
+      .send({ content: 'Unauthorized edit' });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversation_messages/.test(sql))).toBe(false);
+  });
+
+  test('keeps legacy read receipts scoped to the requested business conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', business_id: 42, sender_id: 'customer-1', read_by_recipient: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', read_by_recipient: true, status: 'read' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/messages/message-1/read')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /sc\.business_id = \$2/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /WHERE id = \$1 AND conversation_id = \$2/.test(sql))).toBe(true);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

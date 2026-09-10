@@ -55,7 +55,11 @@ jest.mock('../utils/email',  () => ({
   EMAIL_ADDRESSES: { support: 'support@oxsteed.com' },
 }));
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
-jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
+jest.mock('../services/socketService', () => ({
+  init: jest.fn(),
+  emit: jest.fn(),
+  broadcastToConversation: jest.fn(),
+}));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
 jest.mock('../services/tokenRevocationService', () => ({
   isRevoked: jest.fn().mockResolvedValue(false),
