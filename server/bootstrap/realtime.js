@@ -8,6 +8,7 @@ const { bindChatNamespace, createChatAuthenticator } = require('../realtime/chat
 const { bindRestaurantDisplayNamespace } = require('../realtime/restaurantDisplayNamespace');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const tokenRevocationService = require('../services/tokenRevocationService');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
 
@@ -71,6 +72,13 @@ function createRealtimeServer({
       if (!token) return next(new Error('Authentication required'));
       try {
         const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
+        if (decoded.isMfaToken || decoded.type === 'refresh') {
+          return next(new Error('Invalid support token'));
+        }
+        const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+        if (await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat)) {
+          return next(new Error('Token has been revoked'));
+        }
         const { rows } = await pool.query(
           'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
           [decoded.id]
@@ -78,6 +86,8 @@ function createRealtimeServer({
         if (!rows[0]?.is_active) return next(new Error('Account suspended'));
         socket.userId = decoded.id;
         socket.userRole = rows[0].role;
+        socket.accessToken = token;
+        socket.tokenIssuedAt = decoded.iat;
         return next();
       } catch (err) {
         return next(new Error(err.name === 'JsonWebTokenError' ? 'Invalid token' : 'Auth check failed'));

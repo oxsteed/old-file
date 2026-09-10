@@ -6,6 +6,7 @@ const { io: createClient } = require('socket.io-client');
 const { mockQuery, resetMocks } = require('./setup');
 const { createRealtimeServer } = require('../bootstrap/realtime');
 const supportService = require('../services/websocketService');
+const tokenRevocationService = require('../services/tokenRevocationService');
 
 const silentLogger = {
   debug: jest.fn(),
@@ -119,6 +120,14 @@ describe('shared realtime server', () => {
     const display = await connect(`${baseUrl}/restaurant-display`);
     clients.push(display);
     expect(display.connected).toBe(true);
+  });
+
+  test('rejects revoked access tokens during support socket handshake', async () => {
+    tokenRevocationService.isRevoked.mockResolvedValueOnce(true);
+    const token = jwt.sign({ id: 'revoked-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+
+    await expect(connect(`${baseUrl}/support`, { auth: { token } }))
+      .rejects.toThrow('Token has been revoked');
   });
 
   test('keeps an active support agent online until their final workspace disconnects', async () => {
@@ -240,6 +249,7 @@ describe('shared realtime server', () => {
 
     expect(mockQuery.mock.calls.some(([sql]) => /SELECT is_active, deleted_at, role FROM users/.test(sql))).toBe(true);
     expect(support.connected).toBe(true);
+    expect(tokenRevocationService.isRevoked).toHaveBeenCalled();
   });
 
   test('persists an authorized legacy ticket close before broadcasting it', async () => {

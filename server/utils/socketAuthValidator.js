@@ -3,6 +3,8 @@
 
 const pool = require('../db');
 const logger = require('./logger');
+const crypto = require('crypto');
+const tokenRevocationService = require('../services/tokenRevocationService');
 
 /**
  * Re-validate socket user's token and account status
@@ -14,6 +16,13 @@ async function validateSocketUser(socket) {
   if (!socket.userId) return false;
 
   try {
+    if (socket.accessToken) {
+      const tokenId = crypto.createHash('sha256').update(socket.accessToken).digest('hex');
+      if (await tokenRevocationService.isRevoked(tokenId, socket.userId, socket.tokenIssuedAt)) {
+        logger.warn('Socket auth failed: token revoked', { userId: socket.userId });
+        return false;
+      }
+    }
     const { rows } = await pool.query(
       `SELECT is_active, deleted_at, role FROM users WHERE id = $1`,
       [socket.userId]
