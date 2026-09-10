@@ -722,6 +722,49 @@ describe('support routes', () => {
     expect(logQuery[1][1]).toBe(100);
   });
 
+  test('blocks legacy shift reads when the caller cannot access the business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', employer_id: 'employer-1', business_id: 42, user_id: 'other-user' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/agents/agent-1/shifts?startDate=2026-09-01&endDate=2026-09-30')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(404);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM agent_shifts/.test(sql))).toBe(false);
+  });
+
+  test('allows platform admins to create shifts only for the route business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', employer_id: 'employer-1', business_id: 42, user_id: 'other-user' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'shift-1', business_id: 42, agent_id: 'agent-1' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/agents/agent-1/shifts')
+      .set('Authorization', adminAuthHeader())
+      .send({ businessId: 42, shiftDate: '2026-09-10', scheduledStart: '09:00', scheduledEnd: '17:00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: 'shift-1', business_id: 42 });
+    const insertQuery = mockQuery.mock.calls.find(([sql]) => /INSERT INTO agent_shifts/.test(sql));
+    expect(insertQuery[1][1]).toBe('42');
+  });
+
+  test('rejects a shift body that targets a different business than the route', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/agents/agent-1/shifts')
+      .set('Authorization', adminAuthHeader())
+      .send({ businessId: 99, shiftDate: '2026-09-10', scheduledStart: '09:00', scheduledEnd: '17:00' });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO agent_shifts/.test(sql))).toBe(false);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

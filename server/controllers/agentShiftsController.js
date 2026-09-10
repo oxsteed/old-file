@@ -6,6 +6,36 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function loadAuthorizedAgent(req, { manage = false } = {}) {
+  const { businessId, agentId } = req.params;
+  const result = await query(
+    `SELECT id, employer_id, business_id, user_id
+     FROM support_agents
+     WHERE id = $1 AND business_id = $2`,
+    [agentId, businessId]
+  );
+  if (!result.rows.length) return null;
+
+  const agent = result.rows[0];
+  if (req.user.id === agent.user_id || supportEmployerService.isPlatformAdmin(req.user.role)) {
+    return agent;
+  }
+
+  const allowed = manage
+    ? await supportEmployerService.userCanManageEmployer(agent.employer_id, req.user.id, req.user.role)
+    : await supportEmployerService.userCanAccessBusinessConversations(
+      businessId,
+      req.user.id,
+      req.user.role
+    );
+  return allowed ? agent : null;
+}
+
+function hasMismatchedBusinessBody(req) {
+  const bodyBusinessId = req.body?.businessId || req.body?.business_id;
+  return bodyBusinessId != null && String(bodyBusinessId) !== String(req.params.businessId);
+}
+
 // Get agent's shifts for a date range
 async function getAgentShifts(req, res) {
   try {
@@ -19,13 +49,16 @@ async function getAgentShifts(req, res) {
       });
     }
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 404, 'Agent not found');
+
     const result = await query(
       `SELECT * FROM agent_shifts
-       WHERE agent_id = $1
-       AND shift_date BETWEEN $2 AND $3
+       WHERE agent_id = $1 AND business_id = $2
+       AND shift_date BETWEEN $3 AND $4
        ORDER BY shift_date DESC
-       LIMIT $4`,
-      [agentId, startDate, endDate, parseInt(limit)]
+       LIMIT $5`,
+      [agentId, req.params.businessId, startDate, endDate, Math.min(100, Math.max(1, parseInt(limit, 10) || 30))]
     );
 
     res.json({ success: true, data: result.rows });
@@ -50,15 +83,12 @@ async function createShift(req, res) {
       });
     }
 
-    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+    if (hasMismatchedBusinessBody(req)) {
+      return sendValidationError(res, { businessId: 'Must match the route business' });
+    }
 
-    const agent = await query(
-      'SELECT * FROM support_agents WHERE id = $1 AND employer_id = $2',
-      [agentId, employerId]
-    );
-    if (!agent.rows.length) return sendError(res, 404, 'Agent not found');
-
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const agent = await loadAuthorizedAgent(req, { manage: true });
+    if (!agent) return sendError(res, 403, 'Access denied');
 
     // Create shift
     const result = await query(
@@ -66,7 +96,7 @@ async function createShift(req, res) {
        (agent_id, business_id, shift_date, scheduled_start, scheduled_end, status)
        VALUES ($1, $2, $3, $4, $5, 'scheduled')
        RETURNING *`,
-      [agentId, businessId, shiftDate, scheduledStart, scheduledEnd]
+      [agentId, req.params.businessId, shiftDate, scheduledStart, scheduledEnd]
     );
 
     logger.info('Shift created', { agentId, shiftDate });
@@ -83,19 +113,16 @@ async function clockIn(req, res) {
   try {
     const { agentId } = req.params;
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 403, 'Access denied');
+
     // Get or create today's shift
     const today = new Date().toISOString().split('T')[0];
-
-    const agentRowResult = await query(
-      'SELECT business_id FROM support_agents WHERE id = $1',
-      [agentId]
-    );
-    if (!agentRowResult.rows.length) return sendError(res, 404, 'Agent not found');
-    const contextBizId = agentRowResult.rows[0].business_id;
+    const contextBizId = agent.business_id;
 
     let shift = await query(
-      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND shift_date = $2',
-      [agentId, today]
+      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND business_id = $2 AND shift_date = $3',
+      [agentId, req.params.businessId, today]
     );
 
     if (!shift.rows.length) {
@@ -149,11 +176,14 @@ async function clockOut(req, res) {
   try {
     const { agentId } = req.params;
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 403, 'Access denied');
+
     const today = new Date().toISOString().split('T')[0];
 
     const shift = await query(
-      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND shift_date = $2',
-      [agentId, today]
+      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND business_id = $2 AND shift_date = $3',
+      [agentId, req.params.businessId, today]
     );
 
     if (!shift.rows.length || !shift.rows[0].actual_clock_in) {
@@ -205,11 +235,14 @@ async function startBreak(req, res) {
     const { agentId } = req.params;
     const { reason } = req.body;
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 403, 'Access denied');
+
     const today = new Date().toISOString().split('T')[0];
 
     const shift = await query(
-      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND shift_date = $2',
-      [agentId, today]
+      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND business_id = $2 AND shift_date = $3',
+      [agentId, req.params.businessId, today]
     );
 
     if (!shift.rows.length || !shift.rows[0].actual_clock_in) {
@@ -250,11 +283,14 @@ async function endBreak(req, res) {
   try {
     const { agentId } = req.params;
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 403, 'Access denied');
+
     const today = new Date().toISOString().split('T')[0];
 
     const shift = await query(
-      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND shift_date = $2',
-      [agentId, today]
+      'SELECT * FROM agent_shifts WHERE agent_id = $1 AND business_id = $2 AND shift_date = $3',
+      [agentId, req.params.businessId, today]
     );
 
     if (!shift.rows.length || !shift.rows[0].break_start) {
@@ -298,9 +334,12 @@ async function getShiftTemplate(req, res) {
   try {
     const { agentId } = req.params;
 
+    const agent = await loadAuthorizedAgent(req);
+    if (!agent) return sendError(res, 404, 'Agent not found');
+
     const result = await query(
-      'SELECT * FROM shift_templates WHERE agent_id = $1 ORDER BY day_of_week',
-      [agentId]
+      'SELECT * FROM shift_templates WHERE agent_id = $1 AND business_id = $2 ORDER BY day_of_week',
+      [agentId, req.params.businessId]
     );
 
     res.json({ success: true, data: result.rows });
@@ -328,14 +367,12 @@ async function setShiftTemplate(req, res) {
       return sendValidationError(res, { dayOfWeek: 'Must be 0-6' });
     }
 
-    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+    if (!businessId || String(businessId) !== String(req.params.businessId)) {
+      return sendValidationError(res, { businessId: 'Must match the route business' });
+    }
 
-    // Verify agent
-    const agent = await query(
-      'SELECT id FROM support_agents WHERE id = $1 AND employer_id = $2',
-      [agentId, employerId]
-    );
-    if (!agent.rows.length) return sendError(res, 404, 'Agent not found');
+    const agent = await loadAuthorizedAgent(req, { manage: true });
+    if (!agent) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO shift_templates
