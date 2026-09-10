@@ -45,6 +45,8 @@ const PRIORITY = {
   low: 'text-slate-500',
 };
 
+const CONVERSATION_PAGE_SIZE = 100;
+
 function statusBadge(status) {
   const [label, className] = STATUS[status] || [status || 'Unknown', 'border-slate-700 bg-slate-800 text-slate-300'];
   return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{label}</span>;
@@ -120,6 +122,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -140,32 +144,54 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const detailRequestRef = useRef(0);
   const conversationLoadingRequestRef = useRef(null);
   const detailLoadingRequestRef = useRef(null);
+  const conversationOffsetRef = useRef(0);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
-  const loadConversations = useCallback(async ({ quiet = false } = {}) => {
+  const loadConversations = useCallback(async ({ quiet = false, append = false } = {}) => {
     const requestId = conversationRequestRef.current + 1;
     conversationRequestRef.current = requestId;
-    if (!quiet) {
+    if (append) {
+      setLoadingMore(true);
+    } else if (!quiet) {
       conversationLoadingRequestRef.current = requestId;
       setLoading(true);
     }
     try {
-      const params = businessId ? { business_id: businessId } : {};
+      const params = {
+        ...(businessId ? { business_id: businessId } : {}),
+        limit: CONVERSATION_PAGE_SIZE,
+        offset: append ? conversationOffsetRef.current : 0,
+      };
       const { data } = await api.get('/support/conversations', { params });
       if (requestId !== conversationRequestRef.current) return;
       const rows = data?.conversations || data?.data || [];
-      setConversations(Array.isArray(rows) ? rows : []);
-      setSelectedId((current) => {
-        if (current && rows.some((row) => row.id === current)) return current;
-        return rows[0]?.id || null;
-      });
+      const nextRows = Array.isArray(rows) ? rows : [];
+      if (append) {
+        setConversations((currentRows) => {
+          const byId = new Map(currentRows.map((row) => [row.id, row]));
+          nextRows.forEach((row) => byId.set(row.id, row));
+          return Array.from(byId.values());
+        });
+        conversationOffsetRef.current += nextRows.length;
+      } else {
+        setConversations(nextRows);
+        conversationOffsetRef.current = nextRows.length;
+        setSelectedId((current) => {
+          if (current && nextRows.some((row) => row.id === current)) return current;
+          return nextRows[0]?.id || null;
+        });
+      }
+      setHasMoreConversations(nextRows.length === CONVERSATION_PAGE_SIZE);
     } catch (error) {
-      if (requestId === conversationRequestRef.current && !quiet) {
+      if (requestId === conversationRequestRef.current && (append || !quiet)) {
         toast.error(error?.response?.data?.error || 'Could not load the support queue.');
       }
     } finally {
-      if (!quiet && conversationLoadingRequestRef.current === requestId) {
+      if (append) {
+        setLoadingMore(false);
+      }
+      if (!append && !quiet && conversationLoadingRequestRef.current === requestId) {
         conversationLoadingRequestRef.current = null;
         setLoading(false);
       }
@@ -735,6 +761,16 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 </div>
               </button>
             ))}
+            {hasMoreConversations && (
+              <button
+                type="button"
+                onClick={() => loadConversations({ quiet: true, append: true })}
+                disabled={loadingMore}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-orange-500/50 disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading more conversations…' : 'Load more conversations'}
+              </button>
+            )}
           </div>
         </aside>
 
