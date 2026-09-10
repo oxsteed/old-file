@@ -108,7 +108,11 @@ class WebSocketService {
       // already-authorized ticket room. It is intentionally never persisted.
       socket.on('customer:typing', (data) => {
         const { ticketId, isTyping } = data || {};
-        if (!ticketId || !socket.rooms.has(`ticket:${ticketId}`)) return;
+        if (
+          !ticketId
+          || !socket.rooms.has(`ticket:${ticketId}`)
+          || (socket.data.type !== 'customer' && !socket.guestConversationId)
+        ) return;
         namespace.to(`ticket:${ticketId}`).emit('customer:typing-indicator', {
           ticketId,
           isTyping: Boolean(isTyping),

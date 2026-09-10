@@ -122,10 +122,12 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [showNewMessages, setShowNewMessages] = useState(false);
+  const [customerTyping, setCustomerTyping] = useState(false);
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const customerTypingTimerRef = useRef(null);
   const messageListRef = useRef(null);
   const queueSearchRef = useRef(null);
   const replyInputRef = useRef(null);
@@ -226,6 +228,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setInternalNote(false);
     setEditingMessageId(null);
     setEditingContent('');
+    setCustomerTyping(false);
+    window.clearTimeout(customerTypingTimerRef.current);
   }, [selectedId]);
 
   useEffect(() => {
@@ -279,6 +283,15 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     socket.on('ticket:created', refreshWorkspace);
     socket.on('message:new', refreshWorkspace);
     socket.on('support:conversation-updated', refreshWorkspace);
+    socket.on('customer:typing-indicator', (data) => {
+      if (data?.ticketId !== selectedId) return;
+      const isTyping = Boolean(data.isTyping);
+      setCustomerTyping(isTyping);
+      window.clearTimeout(customerTypingTimerRef.current);
+      if (isTyping) {
+        customerTypingTimerRef.current = window.setTimeout(() => setCustomerTyping(false), 4_000);
+      }
+    });
     socket.on('ticket:read', (data) => {
       if (data.ticketId !== selectedId) return;
       setDetail((current) => current ? {
@@ -293,6 +306,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     return () => {
       active = false;
       window.clearInterval(heartbeatTimer);
+      window.clearTimeout(customerTypingTimerRef.current);
       socket.disconnect();
       if (agentSocketRef.current === socket) agentSocketRef.current = null;
     };
@@ -732,6 +746,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] p-5"
               >
                 {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">New messages ↓</button>}
+                {customerTyping && <div className="sticky top-2 z-10 mx-auto mb-3 w-fit rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 shadow-lg" role="status" aria-live="polite">Customer is typing…</div>}
                 {detailLoading ? (
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (

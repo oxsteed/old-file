@@ -141,6 +141,34 @@ describe('shared realtime server', () => {
     expect(supportService.isAgentOnline('agent-1')).toBe(false);
   });
 
+  test('delivers customer typing presence to another authorized ticket-room socket', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'helper' }] };
+      if (sql.includes('FROM support_agents')) return { rows: [{ id: 'agent-1' }] };
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => (
+      sql.includes('FROM support_conversations sc') ? { rows: [{ id: 'ticket-1' }] } : { rows: [] }
+    ));
+
+    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const observerToken = jwt.sign({ id: 'observer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
+    const observer = await connect(`${baseUrl}/support`, { auth: { token: observerToken } });
+    clients.push(customer, observer);
+
+    customer.emit('customer:join', { visitorName: 'Customer' });
+    observer.emit('customer:join', { visitorName: 'Observer' });
+    customer.emit('ticket:join', { ticketId: 'ticket-1' });
+    observer.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const typingEvent = once(observer, 'customer:typing-indicator');
+    customer.emit('customer:typing', { ticketId: 'ticket-1', isTyping: true });
+    await expect(typingEvent).resolves.toEqual({ ticketId: 'ticket-1', isTyping: true });
+  });
+
   test('prevents a second Socket.IO server from attaching to the same HTTP server', () => {
     expect(() => createRealtimeServer({
       httpServer,
