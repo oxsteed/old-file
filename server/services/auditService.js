@@ -31,8 +31,8 @@ exports.logAdminAction = async ({
       targetType,
       targetId,
       description,
-      req ? req.ip : null,
-      req ? req.headers['user-agent'] : null,
+      req?.ip || null,
+      req?.headers?.['user-agent'] || null,
       before ? JSON.stringify(before) : null,
       after  ? JSON.stringify(after)  : null
     ]);

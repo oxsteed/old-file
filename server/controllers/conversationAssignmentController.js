@@ -7,6 +7,7 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
+const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
 
 function broadcastAssignment(conversationId, event, payload = {}) {
@@ -114,6 +115,16 @@ async function claimConversation(req, res) {
     logger.info('Conversation claimed by agent', {
       conversationId,
       agentId: agent.id
+    });
+    void logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversation_assignment_changed',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: 'Support conversation claimed by agent',
+      before: { agentId: null },
+      after: { agentId: agent.id },
+      req,
     });
 
     broadcastAssignment(conversationId, 'agent:joined', {
@@ -232,6 +243,16 @@ async function assignToAgent(req, res) {
       agentId,
       assignedBy: req.user.id
     });
+    void logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversation_assignment_changed',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: 'Support conversation assigned to agent',
+      before: { agentId: conversation.agent_id || null },
+      after: { agentId },
+      req,
+    });
 
     WebSocketService.notifyAgent(agentId, 'ticket:new-assignment', {
       ticketId: conversationId,
@@ -339,6 +360,16 @@ async function reassignAgent(req, res) {
       fromAgentId: conversation.agent_id,
       toAgentId: newAgentId
     });
+    void logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversation_assignment_changed',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: 'Support conversation reassigned to another agent',
+      before: { agentId: conversation.agent_id },
+      after: { agentId: newAgentId },
+      req,
+    });
 
     WebSocketService.notifyAgent(newAgentId, 'ticket:new-assignment', {
       ticketId: conversationId,
@@ -433,6 +464,16 @@ async function releaseConversation(req, res) {
     );
 
     logger.info('Conversation released', { conversationId });
+    void logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversation_assignment_changed',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: 'Support conversation released back to the queue',
+      before: { agentId: conversation.agent_id || null },
+      after: { agentId: null },
+      req,
+    });
 
     broadcastAssignment(conversationId, 'agent:left', {
       previousAgentId: conversation.agent_id,
