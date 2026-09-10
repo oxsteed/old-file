@@ -347,6 +347,21 @@ describe('live support connection lifecycle', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
   });
 
+  test('rejects customer attempts to use internal message types', async () => {
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'This should remain public.', messageType: 'internal_note' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Validation failed' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('lets a platform admin leave a private note without broadcasting it to the customer', async () => {
     mockQuery
       .mockResolvedValueOnce({

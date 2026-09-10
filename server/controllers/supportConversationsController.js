@@ -828,15 +828,19 @@ async function addMessage(req, res) {
       attachmentName,
       isInternal,
       is_internal: snakeCaseInternal,
-    } = req.body;
+    } = req.body || {};
 
     const normalizedContent = String(content ?? message ?? '').trim();
+    const normalizedMessageType = typeof messageType === 'string' ? messageType.trim().toLowerCase() : '';
     const internalRequested = isInternal ?? snakeCaseInternal;
     const isInternalMessage = ['true', '1', 'yes', 'on'].includes(
       String(internalRequested || '').toLowerCase()
     );
     if ((!normalizedContent && !req.file) || normalizedContent.length > 5000) {
       return sendValidationError(res, { content: 'Required' });
+    }
+    if (!['text', 'image'].includes(normalizedMessageType)) {
+      return sendValidationError(res, { messageType: 'Must be text or image' });
     }
 
     // Get conversation
@@ -886,7 +890,7 @@ async function addMessage(req, res) {
       storedAttachmentName = req.file.originalname;
     }
 
-    const storedMessageType = isInternalMessage ? 'internal_note' : (req.file ? 'image' : messageType);
+    const storedMessageType = isInternalMessage ? 'internal_note' : (req.file ? 'image' : normalizedMessageType);
 
     // Add message
     const result = await query(
