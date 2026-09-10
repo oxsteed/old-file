@@ -1,8 +1,10 @@
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { broadcastToConversation } = require('../services/socketService');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { withTransaction } = require('../utils/transaction');
 
 async function loadAuthorizedConversation(req, conversationId) {
   const { businessId } = req.params;
@@ -170,10 +172,14 @@ async function editMessage(req, res) {
 async function addAttachment(req, res) {
   try {
     const { conversationId } = req.params;
-    const { attachmentUrl, attachmentName } = req.body;
+    const { attachmentUrl, attachmentName } = req.body || {};
+    const normalizedAttachmentName = String(attachmentName || '').trim();
 
     if (!attachmentUrl || String(attachmentUrl).length > 2048) {
       return sendValidationError(res, { attachmentUrl: 'Required' });
+    }
+    if (normalizedAttachmentName.length > 255) {
+      return sendValidationError(res, { attachmentName: 'Must be 255 characters or fewer' });
     }
     let parsedUrl;
     try {
@@ -187,23 +193,28 @@ async function addAttachment(req, res) {
     const conversation = await loadAuthorizedConversation(req, conversationId);
     if (!conversation) return sendError(res, 403, 'Access denied');
 
-    const result = await query(
-      `INSERT INTO support_conversation_messages
-       (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
-       VALUES ($1, $2, 'attachment', $3, $4, $5, false)
-       RETURNING *`,
-      [conversationId, req.user.id, attachmentName || 'File', String(attachmentUrl), attachmentName || 'Attachment']
-    );
+    const storedAttachmentName = normalizedAttachmentName || 'Attachment';
+    const normalizedAttachmentUrl = parsedUrl.toString();
+    const result = await withTransaction(pool, async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO support_conversation_messages
+         (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
+         VALUES ($1, $2, 'attachment', $3, $4, $5, false)
+         RETURNING *`,
+        [conversationId, req.user.id, normalizedAttachmentName || 'File', normalizedAttachmentUrl, storedAttachmentName]
+      );
 
-    await query(
-      'UPDATE support_conversations SET message_count = message_count + 1 WHERE id = $1',
-      [conversationId]
-    );
+      await client.query(
+        'UPDATE support_conversations SET message_count = message_count + 1 WHERE id = $1',
+        [conversationId]
+      );
+      return inserted;
+    }, 'add_support_conversation_attachment');
 
     broadcastToConversation(conversationId, 'attachment_uploaded', {
       messageId: result.rows[0].id,
-      attachmentUrl,
-      attachmentName
+      attachmentUrl: normalizedAttachmentUrl,
+      attachmentName: storedAttachmentName,
     });
 
     res.json({ success: true, data: result.rows[0] });

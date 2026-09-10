@@ -742,6 +742,44 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
   });
 
+  test('bounds attachment names and stores the attachment with its counter atomically', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'attachment-1', conversation_id: 'conversation-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/conversations/conversation-1/attachment')
+      .set('Authorization', adminAuthHeader())
+      .send({ attachmentUrl: 'https://cdn.example.com/image.png', attachmentName: 'proof.png' });
+
+    expect(res.status).toBe(200);
+    const insertIndex = mockQuery.mock.calls.findIndex(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    const counterIndex = mockQuery.mock.calls.findIndex(([sql]) => /UPDATE support_conversations SET message_count/.test(sql));
+    expect(insertIndex).toBeGreaterThan(-1);
+    expect(counterIndex).toBe(insertIndex + 1);
+    expect(mockQuery.mock.calls[insertIndex][1]).toEqual([
+      'conversation-1',
+      ADMIN_ID,
+      'proof.png',
+      'https://cdn.example.com/image.png',
+      'proof.png',
+    ]);
+  });
+
+  test('rejects oversized attachment names before authorization or database writes', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/conversations/conversation-1/attachment')
+      .set('Authorization', adminAuthHeader())
+      .send({ attachmentUrl: 'https://cdn.example.com/image.png', attachmentName: 'x'.repeat(256) });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('blocks legacy message edits when the caller lacks business access', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
