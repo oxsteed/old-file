@@ -8,7 +8,13 @@ const supportEmployerService = require('../services/supportEmployerService');
 
 async function canManageBusiness(req, businessId) {
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
-  return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+  return supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id);
+}
+
+function boundedHours(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 24;
+  return Math.min(168, Math.max(1, parsed));
 }
 
 // Get queue status for a business
@@ -196,16 +202,16 @@ async function routeNextConversation(req, res) {
     await query(
       `UPDATE support_conversations
        SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [agent.id, conversation_id]
+       WHERE id = $2 AND business_id = $3`,
+      [agent.id, conversation_id, businessId]
     );
 
     // Update queue
     await query(
       `UPDATE support_queue
        SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
-       WHERE conversation_id = $2`,
-      [agent.id, conversation_id]
+       WHERE conversation_id = $2 AND business_id = $3`,
+      [agent.id, conversation_id, businessId]
     );
 
     logger.info('Conversation routed to agent', {
@@ -234,13 +240,16 @@ async function removeFromQueue(req, res) {
     const { reason } = req.body;
 
     if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
+    if (reason != null && String(reason).length > 500) {
+      return sendValidationError(res, { reason: 'Must be 500 characters or fewer' });
+    }
 
     const result = await query(
       `UPDATE support_queue
        SET status = 'removed', removed_at = CURRENT_TIMESTAMP, reason_removed = $1
        WHERE conversation_id = $2 AND business_id = $3
        RETURNING *`,
-      [reason || 'unknown', conversationId, businessId]
+      [reason ? String(reason).trim() : 'unknown', conversationId, businessId]
     );
 
     if (!result.rows.length) {
@@ -264,6 +273,7 @@ async function getQueueAnalytics(req, res) {
 
     const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
+    const reportHours = boundedHours(hours);
 
     // Get analytics
     const analytics = await query(
@@ -278,7 +288,7 @@ async function getQueueAnalytics(req, res) {
       FROM support_queue
       WHERE business_id = $1
       AND claimed_at > CURRENT_TIMESTAMP - INTERVAL '1 hour' * $2`,
-      [businessId, parseInt(hours)]
+      [businessId, reportHours]
     );
 
     res.json({ success: true, data: analytics.rows[0] });
