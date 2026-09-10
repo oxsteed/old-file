@@ -268,11 +268,6 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   useEffect(() => {
     loadDetail(selectedId);
     stickToBottomRef.current = true;
-    setInternalNote(false);
-    setReply('');
-    setAttachment(null);
-    setEditingMessageId(null);
-    setEditingContent('');
   }, [loadDetail, selectedId]);
 
   useEffect(() => {
@@ -312,6 +307,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setEditingMessageId(null);
     setEditingContent('');
     setCustomerTyping(false);
+    setShowNewMessages(false);
+    stickToBottomRef.current = true;
     renderedConversationRef.current = { id: selectedId, messageCount: 0 };
     window.clearTimeout(customerTypingTimerRef.current);
   }, [selectedId]);
