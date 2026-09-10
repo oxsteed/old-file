@@ -899,41 +899,43 @@ async function addMessage(req, res) {
 
     const storedMessageType = isInternalMessage ? 'internal_note' : (req.file ? 'image' : normalizedMessageType);
 
-    // Add message
-    const result = await query(
-      `INSERT INTO support_conversation_messages
-       (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [conversationId, req.user.id, storedMessageType, normalizedContent || null, storedAttachmentUrl, storedAttachmentName, isAgent]
-    );
-
-    // Update conversation message counts
-    const countCol = isAgent ? 'agent_message_count' : 'customer_message_count';
-    await query(
-      `UPDATE support_conversations
-       SET message_count = message_count + 1,
-           ${countCol} = ${countCol} + 1,
-           updated_at = NOW(),
-           first_response_at = CASE
-             WHEN $2::boolean AND first_response_at IS NULL THEN NOW()
-             ELSE first_response_at
-           END,
-           status = CASE
-             WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
-             ELSE status
-           END
-       WHERE id = $1`,
-      [conversationId, isAgent]
-    );
-
-    // Auto-transition status if customer sends message while waiting_for_customer
-    if (!isAgent && conversation.status === 'waiting_for_customer') {
-      await query(
-        'UPDATE support_conversations SET status = $1 WHERE id = $2',
-        ['in_progress', conversationId]
+    // Keep the message, counters, and customer re-entry transition together so
+    // a failed counter update cannot leave the conversation partially written.
+    const result = await withTransaction(pool, async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO support_conversation_messages
+         (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [conversationId, req.user.id, storedMessageType, normalizedContent || null, storedAttachmentUrl, storedAttachmentName, isAgent]
       );
-    }
+
+      const countCol = isAgent ? 'agent_message_count' : 'customer_message_count';
+      await client.query(
+        `UPDATE support_conversations
+         SET message_count = message_count + 1,
+             ${countCol} = ${countCol} + 1,
+             updated_at = NOW(),
+             first_response_at = CASE
+               WHEN $2::boolean AND first_response_at IS NULL THEN NOW()
+               ELSE first_response_at
+             END,
+             status = CASE
+               WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
+               ELSE status
+             END
+         WHERE id = $1`,
+        [conversationId, isAgent]
+      );
+
+      if (!isAgent && conversation.status === 'waiting_for_customer') {
+        await client.query(
+          'UPDATE support_conversations SET status = $1 WHERE id = $2',
+          ['in_progress', conversationId]
+        );
+      }
+      return inserted;
+    }, 'add_support_conversation_message');
 
     logger.info('Message added to conversation', {
       conversationId,

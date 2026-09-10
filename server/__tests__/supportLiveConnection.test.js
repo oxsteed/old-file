@@ -323,6 +323,39 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('keeps a customer reply and waiting-state transition atomic', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: null,
+          status: 'waiting_for_customer',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'message-customer-1', content: 'I have one more detail.', created_at: '2026-08-13T00:04:00.000Z' }],
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const req = {
+      user: { id: 'customer-1', name: 'Customer One', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'I have one more detail.' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    expect(mockQuery).toHaveBeenCalledTimes(4);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO support_conversation_messages/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_conversations/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/SET status = \$1/);
+  });
+
   test('rejects unsafe caller-supplied attachment references', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{
