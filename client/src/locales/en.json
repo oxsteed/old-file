@@ -4127,6 +4127,8 @@
       "queuedDescription": "Send your issue now. It will be waiting for the specialist who accepts your conversation.",
       "noMessages": "No messages yet. Start the conversation!",
       "messagePlaceholder": "Type your message...",
+      "newMessages": "New messages",
+      "read": "Read",
       "noAgentsTitle": "Our agents are currently unavailable",
       "noAgentsMessage": "We apologize for the inconvenience. Our support team is currently busy or offline. We'd love to help! Please submit a ticket below and one of our agents will get back to you as soon as possible, typically within a few hours.",
       "ticketCTA": "Fill out the form below to create a support ticket.",

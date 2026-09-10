@@ -4166,6 +4166,8 @@
       "queuedDescription": "Envía tu problema ahora. Estará listo para el especialista que acepte tu conversación.",
       "noMessages": "Sin mensajes aún. ¡Inicia la conversación!",
       "messagePlaceholder": "Escribe tu mensaje...",
+      "newMessages": "Nuevos mensajes",
+      "read": "Leído",
       "noAgentsTitle": "Nuestros agentes no están disponibles actualmente",
       "noAgentsMessage": "Disculpa las molestias. Nuestro equipo de soporte está ocupado o fuera de línea. ¡Nos encantaría ayudarte! Envía un ticket abajo y uno de nuestros agentes te responderá lo antes posible, generalmente en pocas horas.",
       "ticketCTA": "Completa el formulario de abajo para crear un ticket de soporte.",

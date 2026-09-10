@@ -4166,6 +4166,8 @@
       "queuedDescription": "Envoyez votre problème maintenant. Il attendra le spécialiste qui acceptera votre conversation.",
       "noMessages": "Pas encore de messages. Commencez la conversation !",
       "messagePlaceholder": "Tapez votre message...",
+      "newMessages": "Nouveaux messages",
+      "read": "Lu",
       "noAgentsTitle": "Nos agents ne sont actuellement pas disponibles",
       "noAgentsMessage": "Nous nous excusons du désagrément. Notre équipe d'assistance est actuellement occupée ou hors ligne. Nous aimerions vraiment vous aider ! Veuillez soumettre un ticket ci-dessous et l'un de nos agents vous répondra dès que possible, généralement dans quelques heures.",
       "ticketCTA": "Remplissez le formulaire ci-dessous pour créer un ticket d'assistance.",
