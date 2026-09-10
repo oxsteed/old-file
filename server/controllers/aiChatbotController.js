@@ -1,13 +1,35 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
+
+const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+
+async function authorizeBusinessConversation(req, conversation) {
+  if (!conversation || String(conversation.business_id) !== String(req.params.businessId)) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanAccessBusinessConversations(
+    req.params.businessId,
+    req.user.id,
+    req.user.role
+  );
+}
+
+async function canAccessBusiness(req) {
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanAccessBusinessConversations(
+    req.params.businessId,
+    req.user.id,
+    req.user.role
+  );
+}
 
 async function sendMessage(req, res) {
   try {
     const { businessId, conversationId } = req.params;
     const { content, language } = req.body;
 
-    if (!content) {
+    if (!content || String(content).trim().length > 5000) {
       return sendValidationError(res, { content: 'Required' });
     }
 
@@ -15,9 +37,16 @@ async function sendMessage(req, res) {
     if (!conv.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = conv.rows[0];
+    if (!(await authorizeBusinessConversation(req, conversation))) {
+      return sendError(res, 403, 'Access denied');
+    }
+    const selectedLanguage = String(language || 'en').trim().toLowerCase();
+    if (!SUPPORTED_LANGUAGES.has(selectedLanguage)) {
+      return sendValidationError(res, { language: 'Unsupported language' });
+    }
 
     try {
-      const response = await callOpenRouter(content, language || 'en');
+      const response = await callOpenRouter(String(content).trim(), selectedLanguage);
 
       const msgResult = await query(
         `INSERT INTO support_conversation_messages
@@ -50,11 +79,15 @@ async function checkNeedsHandoff(req, res) {
 
     const conv = await query('SELECT * FROM support_conversations WHERE id = $1', [conversationId]);
     if (!conv.rows.length) return sendError(res, 404, 'Conversation not found');
+    if (!(await authorizeBusinessConversation(req, conv.rows[0]))) {
+      return sendError(res, 403, 'Access denied');
+    }
 
     let needsHandoff = false;
     const reasons = [];
 
-    if (messageCount > 3) {
+    const normalizedMessageCount = Number(messageCount);
+    if (Number.isFinite(normalizedMessageCount) && normalizedMessageCount > 3) {
       needsHandoff = true;
       reasons.push('Multiple messages exchanged');
     }
@@ -83,9 +116,10 @@ async function suggestKBArticles(req, res) {
     const { businessId, conversationId } = req.params;
     const { query: messageContent } = req.query;
 
-    if (!messageContent) {
+    if (!messageContent || String(messageContent).trim().length > 500) {
       return sendValidationError(res, { query: 'Required' });
     }
+    if (!(await canAccessBusiness(req))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT kba.* FROM knowledge_base_articles kba
@@ -93,7 +127,7 @@ async function suggestKBArticles(req, res) {
        WHERE kba.business_id = $1 AND kba.is_published = true
        AND to_tsvector('english', kbsi.search_text) @@ plainto_tsquery('english', $2)
        ORDER BY kba.view_count DESC LIMIT 5`,
-      [businessId, messageContent]
+      [businessId, String(messageContent).trim()]
     );
 
     res.json({ success: true, data: result.rows });
@@ -108,11 +142,17 @@ async function suggestResponses(req, res) {
     const { businessId } = req.params;
     const { query: messageContent, language } = req.query;
 
-    if (!messageContent) {
+    if (!messageContent || String(messageContent).trim().length > 500) {
       return sendValidationError(res, { query: 'Required' });
     }
+    if (!(await canAccessBusiness(req))) return sendError(res, 403, 'Access denied');
 
-    const words = messageContent.toLowerCase().split(/\s+/);
+    const selectedLanguage = String(language || 'en').trim().toLowerCase();
+    if (!SUPPORTED_LANGUAGES.has(selectedLanguage)) {
+      return sendValidationError(res, { language: 'Unsupported language' });
+    }
+
+    const words = String(messageContent).trim().toLowerCase().split(/\s+/).slice(0, 50);
     const categories = await query(
       `SELECT DISTINCT category FROM canned_responses
        WHERE business_id = $1 AND is_active = true
@@ -127,7 +167,7 @@ async function suggestResponses(req, res) {
         `SELECT * FROM canned_responses
          WHERE business_id = $1 AND category = $2 AND is_active = true
          AND language = $3 LIMIT 2`,
-        [businessId, cat.category, language || 'en']
+        [businessId, cat.category, selectedLanguage]
       );
       responses = [...responses, ...catResponses.rows];
     }
@@ -174,7 +214,11 @@ async function callOpenRouter(content, language) {
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    const generated = data?.choices?.[0]?.message?.content;
+    if (typeof generated !== 'string' || !generated.trim()) {
+      throw new Error('OpenRouter returned an invalid response');
+    }
+    return generated.trim();
   } catch (err) {
     logger.error('OpenRouter API call failed', { error: err.message });
     throw err;

@@ -851,6 +851,47 @@ describe('support routes', () => {
     expect(assignmentQuery[1][1]).toBe('42');
   });
 
+  test('blocks AI handoff checks when the URL business does not own the conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 99 }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/ai/check-handoff')
+      .set('Authorization', authHeader())
+      .send({ messageCount: 4, sentiment: 'negative' });
+
+    expect(res.status).toBe(403);
+  });
+
+  test('allows platform-admin AI handoff checks for the matching business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 42 }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/ai/check-handoff')
+      .set('Authorization', adminAuthHeader())
+      .send({ messageCount: 4, sentiment: 'negative' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.needsHandoff).toBe(true);
+  });
+
+  test('requires business access before suggesting knowledge-base articles', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/ai/suggest-articles/conversation-1?query=billing')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM knowledge_base_articles/.test(sql))).toBe(false);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
