@@ -125,6 +125,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const agentSocketRef = useRef(null);
   const typingTimerRef = useRef(null);
   const messageListRef = useRef(null);
+  const queueSearchRef = useRef(null);
+  const replyInputRef = useRef(null);
   const stickToBottomRef = useRef(true);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
@@ -320,6 +322,31 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
     return true;
   }), [conversations, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
+
+  useEffect(() => {
+    const handleShortcut = (event) => {
+      const tagName = event.target?.tagName;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tagName) || event.target?.isContentEditable) return;
+      if (event.key === '/') {
+        event.preventDefault();
+        queueSearchRef.current?.focus();
+        return;
+      }
+      if (event.key === 'r' && canReply) {
+        event.preventDefault();
+        replyInputRef.current?.focus();
+        return;
+      }
+      if (!['j', 'k'].includes(event.key) || visibleConversations.length === 0) return;
+      const currentIndex = visibleConversations.findIndex((conversation) => conversation.id === selectedId);
+      const nextIndex = event.key === 'j'
+        ? Math.min(visibleConversations.length - 1, currentIndex < 0 ? 0 : currentIndex + 1)
+        : Math.max(0, currentIndex <= 0 ? visibleConversations.length - 1 : currentIndex - 1);
+      setSelectedId(visibleConversations[nextIndex].id);
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [canReply, selectedId, visibleConversations]);
 
   const runAction = async (request, successMessage) => {
     setBusy(true);
@@ -529,12 +556,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
+              ref={queueSearchRef}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search customer, subject, or message"
               className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-10 pr-3 text-sm outline-none focus:border-orange-500"
             />
           </div>
+          <p className="mt-2 text-[11px] text-slate-600">Shortcuts: <span className="text-slate-400">/</span> search · <span className="text-slate-400">j/k</span> move · <span className="text-slate-400">r</span> reply</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
               <option value="active">Active</option>
@@ -833,6 +862,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] || null)} />
                   </label>
                   <textarea
+                    ref={replyInputRef}
                     value={reply}
                     onChange={handleAgentReplyChange}
                     onBlur={() => {
