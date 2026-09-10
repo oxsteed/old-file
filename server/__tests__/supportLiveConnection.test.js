@@ -103,6 +103,8 @@ describe('live support connection lifecycle', () => {
     expect(listSql).toContain('u.last_name');
     expect(listSql).toContain('au.first_name');
     expect(listSql).toContain('au.last_name');
+    expect(listSql).toContain('unread_count');
+    expect(listSql).toContain("COALESCE(unread_scm.message_type, 'text') <> 'internal_note'");
     expect(listSql).not.toMatch(/\b(?:u|au)\.name\b/);
     expect(res.json).toHaveBeenCalledWith({ success: true, data: [] });
   });

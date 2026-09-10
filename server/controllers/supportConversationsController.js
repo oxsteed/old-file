@@ -123,7 +123,15 @@ async function listConversations(req, res) {
         ) as agent_name,
         sc.message_count, sc.customer_message_count, sc.agent_message_count,
         sc.created_at, sc.updated_at, sc.resolved_at,
-        sc.sla_first_response_breached, sc.sla_resolution_breached
+        sc.sla_first_response_breached, sc.sla_resolution_breached,
+        (
+          SELECT COUNT(*)::int
+          FROM support_conversation_messages unread_scm
+          WHERE unread_scm.conversation_id = sc.id
+            AND unread_scm.is_agent = FALSE
+            AND COALESCE(unread_scm.message_type, 'text') <> 'internal_note'
+            AND unread_scm.read_by_recipient = FALSE
+        ) AS unread_count
       FROM support_conversations sc
       LEFT JOIN users u ON sc.customer_id = u.id
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id

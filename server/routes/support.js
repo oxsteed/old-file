@@ -290,6 +290,11 @@ router.get('/conversations', async (req, res, next) => {
              sc.description,
              ''
            ) AS last_message
+           ,COUNT(scm.id) FILTER (
+             WHERE scm.is_agent = FALSE
+               AND COALESCE(scm.message_type, 'text') <> 'internal_note'
+               AND scm.read_by_recipient = FALSE
+           )::int AS unread_count
          FROM support_conversations sc
          LEFT JOIN users cu ON cu.id = sc.customer_id
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id

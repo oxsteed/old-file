@@ -519,7 +519,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 </div>
                 <div className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{conversation.last_message || conversation.description || 'No message preview.'}</div>
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  {statusBadge(conversation.status)}
+                  <div className="flex items-center gap-2">
+                    {statusBadge(conversation.status)}
+                    {Number(conversation.unread_count || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[11px] font-semibold text-orange-200" aria-label={`${conversation.unread_count} unread customer messages`}>
+                        <MessageSquare size={11} /> {conversation.unread_count} new
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[11px] text-slate-600">{formatWhen(conversation.updated_at || conversation.created_at)}</span>
                 </div>
               </button>
