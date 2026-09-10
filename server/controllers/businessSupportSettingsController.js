@@ -24,6 +24,29 @@ function normalizeLanguages(value) {
     .slice(0, 20);
 }
 
+function boundedInteger(value, min, max) {
+  if (value === undefined || value === null || value === '' || !/^-?\d+$/.test(String(value).trim())) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+function boundedText(value, max) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  return normalized && normalized.length <= max ? normalized : null;
+}
+
+function boundedJson(value, max = 10000) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) return null;
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length <= max ? serialized : null;
+  } catch {
+    return null;
+  }
+}
+
 async function canManageBusiness(req, businessId) {
   if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
   return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
@@ -74,18 +97,21 @@ async function getSupportSettings(req, res) {
 async function setSLATarget(req, res) {
   try {
     const { businessId } = req.params;
-    const { priority, firstResponseTargetMinutes, resolutionTargetHours } = req.body;
+    const { priority, firstResponseTargetMinutes, resolutionTargetHours } = req.body || {};
+    const normalizedPriority = typeof priority === 'string' ? priority.trim().toLowerCase() : '';
+    const responseMinutes = boundedInteger(firstResponseTargetMinutes, 1, 10080);
+    const resolutionHours = boundedInteger(resolutionTargetHours, 1, 8760);
 
-    if (!priority || !firstResponseTargetMinutes || !resolutionTargetHours) {
+    if (!normalizedPriority || responseMinutes === null || resolutionHours === null) {
       return sendValidationError(res, {
         priority: 'Required',
-        firstResponseTargetMinutes: 'Required',
-        resolutionTargetHours: 'Required'
+        firstResponseTargetMinutes: 'Must be an integer from 1 to 10080',
+        resolutionTargetHours: 'Must be an integer from 1 to 8760'
       });
     }
 
     const validPriorities = ['low', 'normal', 'high', 'urgent'];
-    if (!validPriorities.includes(priority)) {
+    if (!validPriorities.includes(normalizedPriority)) {
       return sendValidationError(res, { priority: 'Invalid priority' });
     }
 
@@ -102,10 +128,10 @@ async function setSLATarget(req, res) {
         resolution_target_hours = $4,
         updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
-      [businessId, priority, parseInt(firstResponseTargetMinutes), parseInt(resolutionTargetHours)]
+      [businessId, normalizedPriority, responseMinutes, resolutionHours]
     );
 
-    logger.info('SLA target updated', { businessId, priority });
+    logger.info('SLA target updated', { businessId, priority: normalizedPriority });
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -118,12 +144,16 @@ async function setSLATarget(req, res) {
 async function createBreakType(req, res) {
   try {
     const { businessId } = req.params;
-    const { breakName, durationMinutes, maxPerShift } = req.body;
+    const { breakName, durationMinutes, maxPerShift } = req.body || {};
+    const normalizedName = boundedText(breakName, 100);
+    const duration = boundedInteger(durationMinutes, 1, 1440);
+    const maximumPerShift = maxPerShift === undefined ? 1 : boundedInteger(maxPerShift, 1, 100);
 
-    if (!breakName || !durationMinutes) {
+    if (!normalizedName || duration === null || maximumPerShift === null) {
       return sendValidationError(res, {
-        breakName: 'Required',
-        durationMinutes: 'Required'
+        breakName: 'Required and must be 100 characters or fewer',
+        durationMinutes: 'Must be an integer from 1 to 1440',
+        maxPerShift: 'Must be an integer from 1 to 100'
       });
     }
 
@@ -136,10 +166,10 @@ async function createBreakType(req, res) {
        (business_id, break_name, duration_minutes, max_per_shift, active)
        VALUES ($1, $2, $3, $4, true)
        RETURNING *`,
-      [businessId, breakName, parseInt(durationMinutes), parseInt(maxPerShift) || 1]
+      [businessId, normalizedName, duration, maximumPerShift]
     );
 
-    logger.info('Break type created', { businessId, breakName });
+    logger.info('Break type created', { businessId, breakName: normalizedName });
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -152,17 +182,25 @@ async function createBreakType(req, res) {
 async function createRoutingRule(req, res) {
   try {
     const { businessId } = req.params;
-    const { ruleName, ruleType, condition, action, priority } = req.body;
+    const { ruleName, ruleType, condition, action, priority } = req.body || {};
+    const normalizedName = boundedText(ruleName, 150);
+    const normalizedType = typeof ruleType === 'string' ? ruleType.trim().toLowerCase() : '';
+    const normalizedCondition = boundedJson(condition);
+    const normalizedAction = boundedJson(action);
+    const normalizedPriority = priority === undefined ? 0 : boundedInteger(priority, 0, 1000);
 
-    if (!ruleName || !ruleType) {
+    if (!normalizedName || !normalizedType || normalizedPriority === null || (condition != null && normalizedCondition === null) || (action != null && normalizedAction === null)) {
       return sendValidationError(res, {
-        ruleName: 'Required',
-        ruleType: 'Required'
+        ruleName: 'Required and must be 150 characters or fewer',
+        ruleType: 'Required',
+        priority: 'Must be an integer from 0 to 1000',
+        condition: 'Must be a JSON object of 10000 characters or fewer',
+        action: 'Must be a JSON object of 10000 characters or fewer'
       });
     }
 
     const validRuleTypes = ['skill_based', 'availability', 'language', 'team', 'manual'];
-    if (!validRuleTypes.includes(ruleType)) {
+    if (!validRuleTypes.includes(normalizedType)) {
       return sendValidationError(res, { ruleType: 'Invalid type' });
     }
 
@@ -177,16 +215,16 @@ async function createRoutingRule(req, res) {
        RETURNING *`,
       [
         businessId,
-        ruleName,
-        ruleType,
-        condition ? JSON.stringify(condition) : null,
-        action ? JSON.stringify(action) : null,
-        parseInt(priority) || 0,
+        normalizedName,
+        normalizedType,
+        normalizedCondition,
+        normalizedAction,
+        normalizedPriority,
         req.user.id
       ]
     );
 
-    logger.info('Routing rule created', { businessId, ruleName });
+    logger.info('Routing rule created', { businessId, ruleName: normalizedName });
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -200,7 +238,17 @@ async function updateRoutingRule(req, res) {
   try {
     const { businessId } = req.params;
     const { ruleId } = req.params;
-    const { ruleName, isActive, priority } = req.body;
+    const { ruleName, isActive, priority } = req.body || {};
+    const normalizedName = ruleName === undefined ? null : boundedText(ruleName, 150);
+    const normalizedPriority = priority === undefined ? null : boundedInteger(priority, 0, 1000);
+
+    if ((ruleName !== undefined && normalizedName === null) || (priority !== undefined && normalizedPriority === null) || (isActive !== undefined && typeof isActive !== 'boolean')) {
+      return sendValidationError(res, {
+        ruleName: 'Must be 150 characters or fewer',
+        isActive: 'Must be a boolean',
+        priority: 'Must be an integer from 0 to 1000'
+      });
+    }
 
     if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
@@ -212,7 +260,7 @@ async function updateRoutingRule(req, res) {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $4 AND business_id = $5
        RETURNING *`,
-      [ruleName || null, isActive !== undefined ? isActive : null, priority !== undefined ? priority : null, ruleId, businessId]
+      [normalizedName, isActive !== undefined ? isActive : null, normalizedPriority, ruleId, businessId]
     );
 
     if (!result.rows.length) {
@@ -259,6 +307,9 @@ async function getSupportStatistics(req, res) {
   try {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
+    const boundedDays = boundedInteger(days, 1, 365);
+
+    if (boundedDays === null) return sendValidationError(res, { days: 'Must be an integer from 1 to 365' });
 
     // Verify access
     const can = await canManageBusiness(req, businessId);
@@ -274,7 +325,7 @@ async function getSupportStatistics(req, res) {
         COUNT(DISTINCT agent_id) as total_agents_used
       FROM support_conversations
       WHERE business_id = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2`,
-      [businessId, parseInt(days)]
+      [businessId, boundedDays]
     );
 
     // Get SLA compliance
@@ -284,7 +335,7 @@ async function getSupportStatistics(req, res) {
         ROUND(100.0 * SUM(CASE WHEN sla_resolution_breached = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) as resolution_compliance_percent
       FROM support_conversations
       WHERE business_id = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2`,
-      [businessId, parseInt(days)]
+      [businessId, boundedDays]
     );
 
     res.json({
