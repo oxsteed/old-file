@@ -33,6 +33,14 @@ import './SupportEscalationPage.css';
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
 const OXSTEED_SUPPORT_EMAIL = 'support@oxsteed.com';
 
+function scheduleChatScroll(element, behavior = 'smooth') {
+  if (!element) return undefined;
+  const frame = window.requestAnimationFrame(() => {
+    element.scrollTo({ top: element.scrollHeight, behavior });
+  });
+  return () => window.cancelAnimationFrame(frame);
+}
+
 function ConversationReviewForm({ t, review, rating, setRating, comment, setComment, busy, onSubmit }) {
   if (review) {
     return <div className="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><p className="font-semibold text-emerald-200">{t('support.escalation.reviewThanks', { defaultValue: 'Thanks for your feedback.' })}</p><p className="mt-1 text-sm text-slate-300">{t('support.escalation.reviewSaved', { defaultValue: 'Your review has been saved.' })}</p></div>;
@@ -146,8 +154,10 @@ function PublicGuestSupport({ t }) {
   useEffect(() => {
     if (step === 'chat') {
       if (stickToBottomRef.current) {
-        messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+        const cancelScroll = scheduleChatScroll(messageListRef.current);
         setShowNewMessages(false);
+        socketRef.current?.emit('ticket:read', { ticketId: conversationId });
+        return cancelScroll;
       } else if (messages.length > 0) {
         setShowNewMessages(true);
       }
@@ -356,12 +366,12 @@ function PublicGuestSupport({ t }) {
         }}
         className="my-6 max-h-[420px] space-y-3 overflow-y-auto"
       >
-        {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
+        {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
         {messages.map((item) => {
           const isCustomer = item.sender?.type === 'customer';
           const canEdit = isCustomer && item.content && !['resolved', 'closed'].includes(conversationStatus) && Date.now() - new Date(item.timestamp).getTime() < 15 * 60 * 1000;
           return <div key={item.id || `${item.timestamp}-${item.content}`} className={`rounded-2xl px-4 py-3 ${isCustomer ? 'ml-8 bg-orange-600' : 'bg-slate-800'}`}>
-            {item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+            {item.attachmentUrl && <img src={item.attachmentUrl} alt={item.attachmentName || 'Support attachment'} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
             {editingMessageId === item.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editMessage(item.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{item.content && <p className="whitespace-pre-wrap">{item.content}</p>}{item.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content); }} className="mt-2 inline-flex items-center gap-1 text-xs text-white/75 hover:text-white"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
             {item.readByRecipient && isCustomer && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
           </div>;
@@ -691,8 +701,10 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
   useEffect(() => {
     if (stickToBottomRef.current) {
-      messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+      const cancelScroll = scheduleChatScroll(messageListRef.current);
       setShowNewMessages(false);
+      if (ticketId) socketRef.current?.emit('ticket:read', { ticketId });
+      return cancelScroll;
     } else if (liveMessages.length > 0) {
       setShowNewMessages(true);
     }
@@ -1030,7 +1042,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   }}
                   className="h-[520px] overflow-y-auto px-6 py-5 space-y-4 bg-slate-950/30"
                 >
-                  {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' }); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
+                  {showNewMessages && <button type="button" onClick={() => { stickToBottomRef.current = true; setShowNewMessages(false); scheduleChatScroll(messageListRef.current); }} className="sticky top-2 z-10 mx-auto block rounded-full border border-orange-500/40 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-orange-200 shadow-lg">{t('support.escalation.newMessages', { defaultValue: 'New messages' })} ↓</button>}
                   {liveMessages.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-center">
                       <div>
@@ -1056,7 +1068,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                               : 'bg-slate-800 text-slate-100'
                           }`}
                         >
-                          {msg.attachmentUrl && <img src={msg.attachmentUrl} alt={msg.attachmentName || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
+                          {msg.attachmentUrl && <img src={msg.attachmentUrl} alt={msg.attachmentName || 'Support attachment'} onLoad={() => { if (stickToBottomRef.current) scheduleChatScroll(messageListRef.current, 'auto'); }} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
                           {editingMessageId === msg.id ? <div className="space-y-2"><textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" /><div className="flex gap-2"><button type="button" onClick={() => editCustomerMessage(msg.id)} disabled={liveSending || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">{t('common.save', { defaultValue: 'Save' })}</button><button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">{t('common.cancel', { defaultValue: 'Cancel' })}</button></div></div> : <>{msg.content && <p className="break-words leading-6 whitespace-pre-wrap">{msg.content}</p>}{msg.editedAt && <span className="mt-2 block text-xs opacity-70">{t('support.escalation.edited', { defaultValue: 'Edited' })}</span>}{canEdit && <button type="button" onClick={() => { setEditingMessageId(msg.id); setEditingContent(msg.content); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} />{t('support.escalation.edit', { defaultValue: 'Edit' })}</button>}</>}
                           {msg.readByRecipient && msg.sender.type === 'customer' && <span className="mt-2 block text-right text-[11px] opacity-70">{t('support.escalation.read', { defaultValue: 'Read' })}</span>}
                           {msg.timestamp && (
