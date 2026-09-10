@@ -7,6 +7,10 @@ jest.mock('../services/websocketService', () => ({
   broadcastToAdmins: jest.fn(),
   broadcastToTicket: jest.fn(),
 }));
+jest.mock('../utils/storage', () => ({
+  uploadFile: jest.fn().mockResolvedValue('support-conversations/test-image.png'),
+  getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/support-conversations/test-image.png'),
+}));
 
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
@@ -14,6 +18,7 @@ const supportRoutingController = require('../controllers/supportRoutingControlle
 const supportConversationsController = require('../controllers/supportConversationsController');
 const conversationAssignmentController = require('../controllers/conversationAssignmentController');
 const supportEmployerService = require('../services/supportEmployerService');
+const storage = require('../utils/storage');
 
 function responseDouble() {
   return {
@@ -320,6 +325,48 @@ describe('live support connection lifecycle', () => {
         content: 'Public follow-up.',
         isInternal: false,
       })
+    );
+  });
+
+  test('persists an authenticated image-only reply with non-null content', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: 'agent-1',
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'admin-1' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-image-1',
+          content: 'Attachment',
+          message_type: 'image',
+          created_at: '2026-09-10T12:00:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', name: 'Ava Agent', role: 'admin' },
+      params: { conversationId: 'ticket-1' },
+      body: {},
+      file: { buffer: Buffer.from('image'), mimetype: 'image/png', originalname: 'proof.png' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    expect(insertCall[1][3]).toBe('Attachment');
+    expect(storage.uploadFile).toHaveBeenCalled();
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'ticket-1',
+      'message:new',
+      expect.objectContaining({ content: 'Attachment', messageType: 'image' })
     );
   });
 

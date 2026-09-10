@@ -274,12 +274,15 @@ async function addGuestMessage(req, res) {
       attachmentUrl = await getSignedDownloadUrl(key, 7 * 24 * 60 * 60);
       attachmentName = req.file.originalname;
     }
+    // The message content column is non-nullable; represent an image-only
+    // reply with a stable text label while the attachment carries the detail.
+    const messageContent = content || 'Attachment';
     const message = await withTransaction(pool, async (client) => {
       const { rows: messageRows } = await client.query(
         `INSERT INTO support_conversation_messages
           (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
          VALUES ($1, NULL, $2, $3, $4, $5, FALSE) RETURNING id, created_at, attachment_url, attachment_name`,
-        [conversationId, req.file ? 'image' : 'text', content || null, attachmentUrl, attachmentName]
+        [conversationId, req.file ? 'image' : 'text', messageContent, attachmentUrl, attachmentName]
       );
       await client.query(
         `UPDATE support_conversations SET message_count = message_count + 1,
@@ -288,7 +291,7 @@ async function addGuestMessage(req, res) {
       );
       return messageRows[0];
     }, 'add_guest_support_message');
-    const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content, attachmentUrl, attachmentName, messageType: req.file ? 'image' : 'text', timestamp: message.created_at };
+    const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content: messageContent, attachmentUrl, attachmentName, messageType: req.file ? 'image' : 'text', timestamp: message.created_at };
     WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
     return res.json({ success: true, data: message });
   } catch (err) {

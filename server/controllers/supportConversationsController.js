@@ -911,6 +911,9 @@ async function addMessage(req, res) {
     }
 
     const storedMessageType = isInternalMessage ? 'internal_note' : (req.file ? 'image' : normalizedMessageType);
+    // Image-only replies are valid, but the database content column is not
+    // nullable. Keep a stable label alongside the attachment metadata.
+    const messageContent = normalizedContent || 'Attachment';
 
     // Keep the message, counters, and customer re-entry transition together so
     // a failed counter update cannot leave the conversation partially written.
@@ -920,7 +923,7 @@ async function addMessage(req, res) {
          (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [conversationId, req.user.id, storedMessageType, normalizedContent || null, storedAttachmentUrl, storedAttachmentName, isAgent]
+        [conversationId, req.user.id, storedMessageType, messageContent, storedAttachmentUrl, storedAttachmentName, isAgent]
       );
 
       const countCol = isAgent ? 'agent_message_count' : 'customer_message_count';
@@ -985,7 +988,7 @@ async function addMessage(req, res) {
           || req.user.email
           || (isAgent ? 'Support specialist' : 'Customer'),
       },
-      content: normalizedContent,
+      content: messageContent,
       attachmentUrl: storedAttachmentUrl,
       attachmentName: storedAttachmentName,
       messageType: storedMessageType,

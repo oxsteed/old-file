@@ -6,10 +6,15 @@ jest.mock('../services/websocketService', () => ({
   broadcastToTicket: jest.fn(),
   broadcastToAdmins: jest.fn(),
 }));
+jest.mock('../utils/storage', () => ({
+  uploadFile: jest.fn().mockResolvedValue('support-conversations/test-image.png'),
+  getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/support-conversations/test-image.png'),
+}));
 
 const publicSupport = require('../controllers/publicSupportController');
 const WebSocketService = require('../services/websocketService');
 const emailService = require('../utils/email');
+const storage = require('../utils/storage');
 
 function responseDouble() {
   return {
@@ -49,6 +54,30 @@ test('persists a guest reply and its counter as one database operation', async (
     'ticket-1',
     'message:new',
     expect.objectContaining({ content: 'A follow-up question' })
+  );
+});
+
+test('persists a guest image-only reply with non-null content', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'message-image-1', created_at: '2026-09-10T12:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+  const res = responseDouble();
+  await publicSupport.addGuestMessage({
+    params: { conversationId: 'ticket-1' },
+    guestToken: 'guest-token',
+    body: {},
+    file: { buffer: Buffer.from('image'), mimetype: 'image/png', originalname: 'proof.png' },
+  }, res);
+
+  const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+  expect(insertCall[1][2]).toBe('Attachment');
+  expect(storage.uploadFile).toHaveBeenCalled();
+  expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+    'ticket-1',
+    'message:new',
+    expect.objectContaining({ content: 'Attachment', messageType: 'image' })
   );
 });
 
