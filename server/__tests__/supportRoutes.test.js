@@ -503,6 +503,77 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /is_active = true/.test(sql))).toBe(true);
   });
 
+  test('blocks legacy saved-reply reads for users without business access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/responses')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /SELECT \* FROM canned_responses/.test(sql))).toBe(false);
+  });
+
+  test('keeps legacy saved-reply mutations scoped to the requested business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/responses/response-1')
+      .set('Authorization', authHeader())
+      .send({ title: 'Cross-business update' });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /SELECT business_id FROM canned_responses/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE canned_responses/.test(sql))).toBe(false);
+  });
+
+  test('rejects a legacy saved reply whose row belongs to another business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ business_id: 99 }] });
+
+    const res = await request(buildApp())
+      .delete('/api/support/42/responses/response-1')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE canned_responses/.test(sql))).toBe(false);
+  });
+
+  test('allows platform admins to update a legacy saved reply in its own business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ business_id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'response-1', business_id: 42, title: 'Updated', content: 'Updated content' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/responses/response-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ title: 'Updated', content: 'Updated content' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: 'response-1', business_id: 42, title: 'Updated' });
+    expect(mockQuery.mock.calls.some(([sql]) => /WHERE id = \$3 AND business_id = \$4/.test(sql))).toBe(true);
+  });
+
+  test('rejects oversized legacy saved-reply content before insert', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/responses')
+      .set('Authorization', adminAuthHeader())
+      .send({ title: 'Too large', content: 'x'.repeat(10001), shortcut: '/large' });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO canned_responses/.test(sql))).toBe(false);
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

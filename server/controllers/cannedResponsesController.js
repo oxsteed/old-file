@@ -1,15 +1,43 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
+
+async function canAccessBusiness(req, businessId, manage = false) {
+  if (!businessId || !req.user?.id) return false;
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return manage
+    ? supportEmployerService.userCanManageBusiness(businessId, req.user.id)
+    : supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role);
+}
+
+function validateResponseFields({ title, content, shortcut, language, category }, requireRequiredFields = false) {
+  const errors = {};
+  if (requireRequiredFields && !title) errors.title = 'Required';
+  if (requireRequiredFields && !content) errors.content = 'Required';
+  if (requireRequiredFields && !shortcut) errors.shortcut = 'Required';
+  if (title && title.length > 255) errors.title = 'Must be 255 characters or fewer';
+  if (content && content.length > 10000) errors.content = 'Must be 10000 characters or fewer';
+  if (shortcut && shortcut.length > 100) errors.shortcut = 'Must be 100 characters or fewer';
+  if (language && language.length > 10) errors.language = 'Must be 10 characters or fewer';
+  if (category && category.length > 100) errors.category = 'Must be 100 characters or fewer';
+  return errors;
+}
 
 async function createResponse(req, res) {
   try {
     const { businessId } = req.params;
     const { category, title, content, shortcut, language } = req.body;
 
-    if (!title || !content || !shortcut) {
-      return sendValidationError(res, { title: 'Required', content: 'Required', shortcut: 'Required' });
-    }
+    if (!(await canAccessBusiness(req, businessId, true))) return sendError(res, 403, 'Access denied');
+    const validationErrors = validateResponseFields({
+      title: typeof title === 'string' ? title : '',
+      content: typeof content === 'string' ? content : '',
+      shortcut: typeof shortcut === 'string' ? shortcut : '',
+      language: typeof language === 'string' ? language : '',
+      category: typeof category === 'string' ? category : '',
+    }, true);
+    if (Object.keys(validationErrors).length) return sendValidationError(res, validationErrors);
 
     const result = await query(
       `INSERT INTO canned_responses
@@ -29,6 +57,8 @@ async function listResponses(req, res) {
   try {
     const { businessId } = req.params;
     const { category, language } = req.query;
+
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     let sql = 'SELECT * FROM canned_responses WHERE business_id = $1 AND is_active = true';
     const params = [businessId];
@@ -54,14 +84,25 @@ async function listResponses(req, res) {
 
 async function updateResponse(req, res) {
   try {
+    const { businessId } = req.params;
     const { responseId } = req.params;
     const { title, content } = req.body;
+    if (!(await canAccessBusiness(req, businessId, true))) return sendError(res, 403, 'Access denied');
+    const existing = await query('SELECT business_id FROM canned_responses WHERE id = $1', [responseId]);
+
+    if (!existing.rows.length) return sendError(res, 404, 'Response not found');
+    if (String(existing.rows[0].business_id) !== String(businessId)) return sendError(res, 403, 'Access denied');
+    const validationErrors = validateResponseFields({
+      title: typeof title === 'string' ? title : '',
+      content: typeof content === 'string' ? content : '',
+    });
+    if (Object.keys(validationErrors).length) return sendValidationError(res, validationErrors);
 
     const result = await query(
       `UPDATE canned_responses
        SET title = COALESCE($1, title), content = COALESCE($2, content), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3 RETURNING *`,
-      [title || null, content || null, responseId]
+       WHERE id = $3 AND business_id = $4 RETURNING *`,
+      [title || null, content || null, responseId, existing.rows[0].business_id]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Response not found');
@@ -74,11 +115,17 @@ async function updateResponse(req, res) {
 
 async function deleteResponse(req, res) {
   try {
+    const { businessId } = req.params;
     const { responseId } = req.params;
+    if (!(await canAccessBusiness(req, businessId, true))) return sendError(res, 403, 'Access denied');
+    const existing = await query('SELECT business_id FROM canned_responses WHERE id = $1', [responseId]);
+
+    if (!existing.rows.length) return sendError(res, 404, 'Response not found');
+    if (String(existing.rows[0].business_id) !== String(businessId)) return sendError(res, 403, 'Access denied');
 
     const result = await query(
-      'UPDATE canned_responses SET is_active = false WHERE id = $1 RETURNING *',
-      [responseId]
+      'UPDATE canned_responses SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND business_id = $2 RETURNING *',
+      [responseId, existing.rows[0].business_id]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Response not found');
@@ -93,6 +140,8 @@ async function expandShortcut(req, res) {
   try {
     const { businessId } = req.params;
     const { shortcut, language } = req.query;
+
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     if (!shortcut) {
       return sendValidationError(res, { shortcut: 'Required' });
@@ -123,6 +172,8 @@ async function expandShortcut(req, res) {
 async function getCategories(req, res) {
   try {
     const { businessId } = req.params;
+
+    if (!(await canAccessBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT DISTINCT category FROM canned_responses
