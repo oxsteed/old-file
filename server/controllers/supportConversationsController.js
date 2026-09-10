@@ -6,6 +6,7 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
+const { logAdminAction } = require('../services/auditService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
@@ -733,6 +734,16 @@ async function updateConversationStatus(req, res) {
     }
 
     logger.info('Conversation status updated', { conversationId, status });
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversation_status_changed',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: `Support conversation status changed to ${status}`,
+      before: { status: conversation.status },
+      after: { status: result.rows[0]?.status || status, resolutionStatus: result.rows[0]?.resolution_status || null },
+      req,
+    });
 
     const statusPayload = {
       ticketId: conversationId,

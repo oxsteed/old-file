@@ -10,9 +10,13 @@ jest.mock('../services/websocketService', () => ({
   broadcastToAdmins: jest.fn(),
   broadcastToTicket: jest.fn(),
 }));
+jest.mock('../services/auditService', () => ({
+  logAdminAction: jest.fn().mockResolvedValue(undefined),
+}));
 
 const supportRoutes = require('../routes/support');
 const WebSocketService = require('../services/websocketService');
+const { logAdminAction } = require('../services/auditService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000888';
 const ADMIN_ID = '00000000-0000-4000-8000-000000000889';
@@ -219,6 +223,30 @@ describe('support routes', () => {
       'message:updated',
       expect.objectContaining({ messageId: 'message-1', content: 'Updated reply' })
     );
+  });
+
+  test('audits support conversation status changes', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: null, customer_id: USER_ID, status: 'open', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'resolved', resolution_status: 'resolved' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'resolved' });
+
+    expect(res.status).toBe(200);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      adminId: ADMIN_ID,
+      action: 'support_conversation_status_changed',
+      targetType: 'support_conversation',
+      targetId: 'conversation-1',
+      before: { status: 'open' },
+      after: { status: 'resolved', resolutionStatus: 'resolved' },
+    }));
   });
 
   test('marks customer-visible messages read for the authorized conversation participant', async () => {
