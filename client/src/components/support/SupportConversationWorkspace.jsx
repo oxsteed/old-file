@@ -12,6 +12,7 @@ import {
   Lock,
   MessageSquare,
   Paperclip,
+  Pencil,
   RefreshCw,
   Search,
   Send,
@@ -101,6 +102,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [ownershipFilter, setOwnershipFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [internalNote, setInternalNote] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -204,6 +207,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setReply('');
     setAttachment(null);
     setInternalNote(false);
+    setEditingMessageId(null);
+    setEditingContent('');
   }, [selectedId]);
 
   useEffect(() => {
@@ -410,6 +415,23 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       toast.success(internalNote ? 'Internal note saved.' : 'Reply sent to the customer.');
     } catch (error) {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const editAgentMessage = async (messageId) => {
+    const content = editingContent.trim();
+    if (!content || !selected?.id || busy) return;
+    setBusy(true);
+    try {
+      await api.put(`/support/conversations/${selected.id}/agent-messages/${messageId}`, { content });
+      await loadDetail(selected.id, { quiet: true });
+      setEditingMessageId(null);
+      setEditingContent('');
+      toast.success('Reply updated.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'This reply can no longer be edited.');
     } finally {
       setBusy(false);
     }
@@ -674,6 +696,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {(selected.messages || []).map((message) => {
                       const fromAgent = Boolean(message.is_agent || message.is_from_agent);
                       const isNote = message.message_type === 'internal_note';
+                      const canEdit = fromAgent && !isNote && !isClosed
+                        && (isPlatformAdmin || message.sender_id === user?.id)
+                        && Date.now() - new Date(message.created_at).getTime() < 15 * 60 * 1000;
                       return (
                         <div key={message.id} className={`flex ${fromAgent ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[84%] rounded-2xl border px-4 py-3 ${isNote ? 'border-amber-500/30 bg-amber-500/10 text-amber-100' : fromAgent ? 'border-orange-500/20 bg-orange-600 text-white' : 'border-slate-800 bg-slate-900 text-slate-200'}`}>
@@ -682,7 +707,20 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                               {isNote && <span className="rounded-full border border-amber-400/30 px-2 py-0.5">Internal note</span>}
                             </div>
                             {message.attachment_url && <img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} className="mb-2 max-h-64 max-w-full rounded-xl object-contain" />}
-                            {messageBody(message) && <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>}
+                            {editingMessageId === message.id ? (
+                              <div className="space-y-2">
+                                <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} maxLength={5000} rows={3} className="w-full rounded-xl bg-slate-900 px-3 py-2 text-white" />
+                                <div className="flex gap-2">
+                                  <button type="button" onClick={() => editAgentMessage(message.id)} disabled={busy || !editingContent.trim()} className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold">Save</button>
+                                  <button type="button" onClick={() => setEditingMessageId(null)} className="rounded-lg px-3 py-1.5 text-xs text-white/70">Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {messageBody(message) && <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>}
+                                {canEdit && <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingContent(messageBody(message)); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} /> Edit reply</button>}
+                              </>
+                            )}
                             {message.edited_at && <div className="mt-2 text-[11px] opacity-60">Edited {formatWhen(message.edited_at)}</div>}
                             <div className="mt-2 flex items-center gap-1 text-[11px] opacity-60"><Clock3 size={11} /> {formatWhen(message.created_at)}</div>
                           </div>

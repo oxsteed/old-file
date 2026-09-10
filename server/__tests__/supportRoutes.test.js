@@ -200,6 +200,27 @@ describe('support routes', () => {
     );
   });
 
+  test('lets support staff edit their own recent public reply', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: 'agent-1' }] })
+      .mockResolvedValueOnce({ rows: [{ user_id: ADMIN_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', sender_id: ADMIN_ID, content: 'Updated reply', message_type: 'text', is_agent: true, edited_at: '2026-09-09T00:01:00.000Z', edit_count: 1, created_at: '2026-09-09T00:00:00.000Z' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/agent-messages/message-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ content: 'Updated reply' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.content).toBe('Updated reply');
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'message:updated',
+      expect.objectContaining({ messageId: 'message-1', content: 'Updated reply' })
+    );
+  });
+
   test('marks customer-visible messages read for the authorized conversation participant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })

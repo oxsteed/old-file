@@ -428,6 +428,64 @@ async function updateCustomerMessage(req, res) {
   }
 }
 
+async function updateAgentMessage(req, res) {
+  const conversationId = req.params.conversationId;
+  const messageId = req.params.messageId;
+  const content = String(req.body?.content ?? req.body?.message ?? '').trim();
+  if (!content || content.length > 5000) {
+    return sendValidationError(res, { content: 'Message is required and must be 5000 characters or fewer' });
+  }
+
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can edit this message');
+    if (['resolved', 'closed'].includes(access.conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be edited');
+    }
+
+    const result = await query(
+      `UPDATE support_conversation_messages
+       SET original_content = COALESCE(original_content, content),
+           content = $1,
+           edited_at = NOW(),
+           edit_count = edit_count + 1,
+           updated_at = NOW()
+       WHERE id = $2
+         AND conversation_id = $3
+         AND is_agent = TRUE
+         AND message_type <> 'internal_note'
+         AND created_at > NOW() - INTERVAL '15 minutes'
+         AND (sender_id = $4 OR $5::boolean = TRUE)
+       RETURNING id, content, attachment_url, attachment_name, message_type,
+                 is_agent, edited_at, edit_count, created_at, sender_id` ,
+      [content, messageId, conversationId, req.user.id, access.isPlatformAdmin]
+    );
+    if (!result.rows.length) return sendError(res, 409, 'This message is no longer editable');
+
+    const message = result.rows[0];
+    const payload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: message.id,
+      sender: { type: 'agent', id: message.sender_id },
+      content: message.content,
+      attachmentUrl: message.attachment_url,
+      attachmentName: message.attachment_name,
+      messageType: message.message_type,
+      editedAt: message.edited_at,
+      editCount: message.edit_count,
+      timestamp: message.created_at,
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'message:updated', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: message });
+  } catch (err) {
+    logger.error('updateAgentMessage error', { conversationId, messageId, error: err.message });
+    return sendError(res, 500, 'Failed to edit message');
+  }
+}
+
 async function markConversationRead(req, res) {
   const conversationId = req.params.conversationId;
   try {
@@ -1014,6 +1072,7 @@ module.exports = {
   listConversations,
   getConversation,
   updateCustomerMessage,
+  updateAgentMessage,
   markConversationRead,
   downloadConversation,
   createConversationReview,

@@ -361,6 +361,7 @@ router.post('/conversations/:conversationId/message', conversationMessageLimiter
   return supportConversationsController.addMessage(req, res, next);
 });
 router.put('/conversations/:conversationId/messages/:messageId', conversationMessageLimiter, supportConversationsController.updateCustomerMessage);
+router.put('/conversations/:conversationId/agent-messages/:messageId', conversationMessageLimiter, supportConversationsController.updateAgentMessage);
 router.post('/conversations/:conversationId/review', conversationMessageLimiter, supportConversationsController.createConversationReview);
 router.post('/conversations/:conversationId/reopen', conversationMessageLimiter, supportConversationsController.reopenCustomerConversation);
 router.post('/conversations/:conversationId/email', conversationMessageLimiter, supportConversationsController.sendConversationEmail);
