@@ -809,6 +809,48 @@ describe('support routes', () => {
     expect(deleteQuery[1][1]).toBe('42');
   });
 
+  test('blocks queue inspection and removal without business access', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const nextAgentRes = await request(buildApp())
+      .get('/api/support/42/queue/next-agent')
+      .set('Authorization', authHeader());
+
+    expect(nextAgentRes.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM support_agents/.test(sql))).toBe(false);
+
+    resetMocks();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const removeRes = await request(buildApp())
+      .post('/api/support/42/queue/remove/conversation-1')
+      .set('Authorization', authHeader())
+      .send({ reason: 'Unauthorized removal' });
+
+    expect(removeRes.status).toBe(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(false);
+  });
+
+  test('scopes agent assignment reads to the requested business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', user_id: 'other-user', employer_id: 'employer-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1', agent_id: 'agent-1', business_id: 42 }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/42/agents/agent-1/assignments')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    const assignmentQuery = mockQuery.mock.calls.find(([sql]) => /FROM conversation_assignments ca/.test(sql));
+    expect(assignmentQuery[0]).toMatch(/ca\.business_id = \$2/);
+    expect(assignmentQuery[1][1]).toBe('42');
+  });
+
   test('reads durable escalation rules and real daily escalation counts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

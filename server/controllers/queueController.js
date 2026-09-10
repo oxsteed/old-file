@@ -6,12 +6,17 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+async function canManageBusiness(req, businessId) {
+  if (supportEmployerService.isPlatformAdmin(req.user.role)) return true;
+  return supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+}
+
 // Get queue status for a business
 async function getQueueStatus(req, res) {
   try {
     const { businessId } = req.params;
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
@@ -81,6 +86,7 @@ async function getQueueStatus(req, res) {
 async function getNextAvailableAgent(req, res) {
   try {
     const { businessId } = req.params;
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
     const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const agents = await query(
@@ -119,6 +125,7 @@ async function getNextAvailableAgent(req, res) {
 async function routeNextConversation(req, res) {
   try {
     const { businessId } = req.params;
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     // Get next waiting conversation (by priority, then FIFO)
     const convResult = await query(
@@ -222,15 +229,18 @@ async function routeNextConversation(req, res) {
 // Remove conversation from queue
 async function removeFromQueue(req, res) {
   try {
+    const { businessId } = req.params;
     const { conversationId } = req.params;
     const { reason } = req.body;
+
+    if (!(await canManageBusiness(req, businessId))) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `UPDATE support_queue
        SET status = 'removed', removed_at = CURRENT_TIMESTAMP, reason_removed = $1
-       WHERE conversation_id = $2
+       WHERE conversation_id = $2 AND business_id = $3
        RETURNING *`,
-      [reason || 'unknown', conversationId]
+      [reason || 'unknown', conversationId, businessId]
     );
 
     if (!result.rows.length) {
@@ -252,7 +262,7 @@ async function getQueueAnalytics(req, res) {
     const { businessId } = req.params;
     const { hours = 24 } = req.query;
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await canManageBusiness(req, businessId);
     if (!can) return sendError(res, 403, 'Access denied');
 
     // Get analytics

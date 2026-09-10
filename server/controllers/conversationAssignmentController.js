@@ -490,7 +490,25 @@ async function releaseConversation(req, res) {
 // Get agent's active assignments
 async function getAgentAssignments(req, res) {
   try {
-    const { agentId } = req.params;
+    const { businessId, agentId } = req.params;
+
+    const agentResult = await query(
+      `SELECT id, user_id, employer_id
+       FROM support_agents
+       WHERE id = $1 AND business_id = $2`,
+      [agentId, businessId]
+    );
+    if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
+
+    const agent = agentResult.rows[0];
+    const isSelf = agent.user_id === req.user.id;
+    const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
+    const canManage = isSelf || isPlatformAdmin || await supportEmployerService.userCanManageEmployer(
+      agent.employer_id,
+      req.user.id,
+      req.user.role
+    );
+    if (!canManage) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT
@@ -505,9 +523,12 @@ async function getAgentAssignments(req, res) {
       FROM conversation_assignments ca
       JOIN support_conversations sc ON ca.conversation_id = sc.id
       LEFT JOIN users u ON sc.customer_id = u.id
-      WHERE ca.agent_id = $1 AND ca.status = 'active'
+      WHERE ca.agent_id = $1
+        AND ca.business_id = $2
+        AND sc.business_id = $2
+        AND ca.status = 'active'
       ORDER BY ca.claimed_at ASC`,
-      [agentId]
+      [agentId, businessId]
     );
 
     res.json({ success: true, data: result.rows });
