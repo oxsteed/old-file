@@ -6,6 +6,11 @@ function formatWhen(value) {
   return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
+function isPreviewableImage(item) {
+  const name = String(item?.attachment_name || '').toLowerCase();
+  return /\.(?:png|jpe?g|gif|webp)$/i.test(name);
+}
+
 function Count({ label, value, icon: Icon }) {
   return <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3"><Icon size={14} className="text-orange-300" /><div className="mt-2 text-lg font-semibold text-white">{value}</div><div className="text-[11px] text-slate-500">{label}</div></div>;
 }
@@ -70,7 +75,43 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
           <div className="mt-3 space-y-2">
             {attachments.slice(0, 8).map((item) => (
               <div key={item.id} className="rounded-lg bg-slate-900 p-2 text-xs">
-                <div className="font-semibold text-slate-200">{item.attachment_name || 'Support attachment'}</div>
+                {item.attachment_url && isPreviewableImage(item) && (
+                  <a
+                    href={item.attachment_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mb-2 block overflow-hidden rounded-md border border-slate-700 bg-slate-950"
+                  >
+                    <img
+                      src={item.attachment_url}
+                      alt={item.attachment_name || 'Support attachment preview'}
+                      loading="lazy"
+                      className="max-h-32 w-full object-contain"
+                    />
+                  </a>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{item.attachment_name || 'Support attachment'}</div>
+                  {item.attachment_url && (
+                    <span className="flex items-center gap-2">
+                      <a
+                        href={item.attachment_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-300 hover:text-blue-200 hover:underline"
+                      >
+                        Open
+                      </a>
+                      <a
+                        href={item.attachment_url}
+                        download={item.attachment_name || true}
+                        className="text-orange-300 hover:text-orange-200 hover:underline"
+                      >
+                        Download
+                      </a>
+                    </span>
+                  )}
+                </div>
                 <div className="mt-1 text-slate-500">{item.subject || 'Support conversation'} · {formatWhen(item.created_at)}</div>
               </div>
             ))}
