@@ -14,7 +14,9 @@ describe('incidentStore', () => {
   });
 
   test('upserts an open incident instead of creating duplicate alert rows', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, occurrence_count: 2 }] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 7, occurrence_count: 2 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 7, notification_count: 1 }] });
 
     const result = await incidentStore.recordIncident({
       type: 'HIGH_ERROR_RATE',
@@ -24,11 +26,32 @@ describe('incidentStore', () => {
       dedupeKey: 'HIGH_ERROR_RATE',
     });
 
-    expect(result).toEqual({ persisted: true, incident: { id: 7, occurrence_count: 2 } });
+    expect(result).toEqual({
+      persisted: true,
+      incident: { id: 7, occurrence_count: 2 },
+      notificationClaimed: true,
+    });
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('ON CONFLICT (dedupe_key)'),
       expect.arrayContaining(['HIGH_ERROR_RATE', 'critical', 'Error rate is high', JSON.stringify({ total: 10 }), 'HIGH_ERROR_RATE'])
     );
+  });
+
+  test('suppresses a notification when another replica already claimed the window', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 7, occurrence_count: 3 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await incidentStore.recordIncident({
+      type: 'HIGH_ERROR_RATE',
+      severity: 'critical',
+      message: 'Error rate is still high',
+      dedupeKey: 'HIGH_ERROR_RATE',
+    });
+
+    expect(result.notificationClaimed).toBe(false);
+    expect(mockQuery.mock.calls[1][0]).toContain('last_notified_at');
+    expect(mockQuery.mock.calls[1][1]).toEqual([7, incidentStore.DEFAULT_NOTIFICATION_COOLDOWN_MINUTES]);
   });
 
   test('caps durable incident list queries', async () => {

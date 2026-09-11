@@ -46,7 +46,8 @@ class IncidentAlertService {
 
     if (alerts.length > 0) {
       alerts.forEach(alert => {
-        this._triggerAlert(alert.type, alert.severity, alert.message);
+        this._triggerAlert(alert.type, alert.severity, alert.message)
+          .catch((error) => logger.error('Incident alert processing failed', { error: error.message }));
       });
     }
   }
@@ -73,6 +74,13 @@ class IncidentAlertService {
       dedupeKey: type,
     });
 
+    // Persist every occurrence, but dispatch only when this replica owns the
+    // current notification window. If durability is unavailable during a
+    // rollout, retain the previous best-effort notification behavior.
+    if (durable.persisted && !durable.notificationClaimed) {
+      return { ...incident, durable, notificationsSuppressed: true };
+    }
+
     // Send to all channels
     this.alertChannels.forEach(channel => {
       Promise.resolve()
@@ -82,7 +90,7 @@ class IncidentAlertService {
         });
     });
 
-    return { ...incident, durable };
+    return { ...incident, durable, notificationsSuppressed: false };
   }
 
   /**

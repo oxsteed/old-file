@@ -5,6 +5,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 
 const MAX_LIST_LIMIT = 500;
+const DEFAULT_NOTIFICATION_COOLDOWN_MINUTES = 15;
 
 function incidentDedupeKey(type, severity, suppliedKey) {
   const key = String(suppliedKey || '').trim();
@@ -42,7 +43,8 @@ async function recordIncident({ type, severity, message, details = {}, dedupeKey
          last_seen_at = NOW()
        RETURNING id, type, severity, message, details, dedupe_key,
                  occurrence_count, created_at, last_seen_at,
-                 acknowledged_at, acknowledged_by, resolved_at, resolution_notes`,
+                 acknowledged_at, acknowledged_by, resolved_at, resolution_notes,
+                 last_notified_at, notification_count`,
       [
         normalizedType,
         normalizedSeverity,
@@ -51,7 +53,24 @@ async function recordIncident({ type, severity, message, details = {}, dedupeKey
         incidentDedupeKey(normalizedType, normalizedSeverity, dedupeKey),
       ]
     );
-    return { persisted: true, incident: result.rows[0] || null };
+    const incident = result.rows[0] || null;
+    if (!incident?.id) return { persisted: true, incident, notificationClaimed: false };
+
+    // Claiming is conditional, so only one replica can dispatch notifications
+    // during the cooldown window for a given open incident.
+    const claim = await db.query(
+      `UPDATE incident_log
+       SET last_notified_at = NOW(), notification_count = notification_count + 1
+       WHERE id = $1 AND resolved_at IS NULL
+         AND (last_notified_at IS NULL OR last_notified_at <= NOW() - ($2::integer * INTERVAL '1 minute'))
+       RETURNING id, last_notified_at, notification_count`,
+      [incident.id, DEFAULT_NOTIFICATION_COOLDOWN_MINUTES]
+    );
+    return {
+      persisted: true,
+      incident,
+      notificationClaimed: Boolean(claim.rows[0]),
+    };
   } catch (error) {
     // Monitoring must never take down the request or alert loop when the
     // optional durability migration is still rolling out.
@@ -69,7 +88,8 @@ async function listIncidents({ hours = 24, limit = 100 } = {}) {
   const result = await db.query(
     `SELECT id, type, severity, message, details, dedupe_key,
             occurrence_count, created_at, last_seen_at,
-            acknowledged_at, acknowledged_by, resolved_at, resolution_notes
+            acknowledged_at, acknowledged_by, resolved_at, resolution_notes,
+            last_notified_at, notification_count
      FROM incident_log
      WHERE last_seen_at >= NOW() - ($1::integer * INTERVAL '1 hour')
      ORDER BY last_seen_at DESC, id DESC
@@ -87,7 +107,8 @@ async function acknowledgeIncident(id, adminId) {
      WHERE id = $1 AND resolved_at IS NULL
      RETURNING id, type, severity, message, details, dedupe_key,
                occurrence_count, created_at, last_seen_at,
-               acknowledged_at, acknowledged_by, resolved_at, resolution_notes`,
+               acknowledged_at, acknowledged_by, resolved_at, resolution_notes,
+               last_notified_at, notification_count`,
     [id, adminId]
   );
   return result.rows[0] || null;
@@ -103,13 +124,15 @@ async function resolveIncident(id, adminId, resolutionNotes = null) {
      WHERE id = $1 AND resolved_at IS NULL
      RETURNING id, type, severity, message, details, dedupe_key,
                occurrence_count, created_at, last_seen_at,
-               acknowledged_at, acknowledged_by, resolved_at, resolution_notes`,
+               acknowledged_at, acknowledged_by, resolved_at, resolution_notes,
+               last_notified_at, notification_count`,
     [id, resolutionNotes == null ? '' : String(resolutionNotes), adminId]
   );
   return result.rows[0] || null;
 }
 
 module.exports = {
+  DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
   incidentDedupeKey,
   recordIncident,
   listIncidents,
