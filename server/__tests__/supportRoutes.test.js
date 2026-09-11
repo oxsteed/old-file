@@ -344,6 +344,7 @@ describe('support routes', () => {
     expect(res.status).toBe(200);
     expect(mockQuery).toHaveBeenCalledTimes(5);
     expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_conversations/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/AND status = \$\d+ RETURNING \*/);
     expect(mockQuery.mock.calls[3][0]).toMatch(/UPDATE support_queue/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/UPDATE conversation_assignments/);
     expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
@@ -381,6 +382,21 @@ describe('support routes', () => {
       before: { status: 'in_progress' },
       after: expect.objectContaining({ status: 'pending' }),
     }));
+  });
+
+  test('rejects unsafe lifecycle jumps from terminal states', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: null, customer_id: USER_ID, status: 'closed', agent_id: null }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'open' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain("'closed' to 'open'");
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
   });
 
   test('notifies the customer once when a conversation is resolved', async () => {

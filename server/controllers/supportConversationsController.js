@@ -13,6 +13,7 @@ const { sendSupportEmail, retryFailedSupportEmails } = require('../services/supp
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
+const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function notifyCustomerOfAgentReply(conversation, message) {
@@ -1330,8 +1331,8 @@ async function updateConversationStatus(req, res) {
       return sendValidationError(res, { status: 'Required' });
     }
 
-    const validStatuses = ['open', 'pending', 'reopened', 'in_progress', 'waiting_for_customer', 'waiting_for_agent', 'resolved', 'closed', 'escalated'];
-    if (!validStatuses.includes(status)) {
+    const normalizedStatus = String(status).trim().toLowerCase();
+    if (!supportConversationStateMachine.isValidStatus(normalizedStatus)) {
       return sendValidationError(res, { status: 'Invalid status' });
     }
     if (resolutionSummary && resolutionSummary.length > 2000) {
@@ -1366,7 +1367,11 @@ async function updateConversationStatus(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
-    const statusChanged = conversation.status !== status;
+    const currentStatus = String(conversation.status || '').trim().toLowerCase();
+    if (!supportConversationStateMachine.canTransition(currentStatus, normalizedStatus)) {
+      return sendError(res, 409, supportConversationStateMachine.transitionError(currentStatus, normalizedStatus));
+    }
+    const statusChanged = currentStatus !== normalizedStatus;
 
     const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
     let isAssignedAgent = false;
@@ -1384,21 +1389,21 @@ async function updateConversationStatus(req, res) {
       UPDATE support_conversations
       SET status = $1, updated_at = CURRENT_TIMESTAMP
     `;
-    const params = [status];
+    const params = [normalizedStatus];
 
-    if (status === 'resolved') {
+    if (normalizedStatus === 'resolved') {
       updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, ''), resolution_reason_code = $${params.length + 3}`;
       params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
       params.push(resolutionReasonCode || 'other');
-    } else if (status === 'closed') {
+    } else if (normalizedStatus === 'closed') {
       updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, ''), resolution_reason_code = $${params.length + 3}`;
       params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
       params.push(resolutionReasonCode || 'other');
-    } else if (status === 'open' || status === 'reopened') {
+    } else if (normalizedStatus === 'open' || normalizedStatus === 'reopened') {
       updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL, resolution_reason_code = NULL`;
-    } else if (status === 'in_progress') {
+    } else if (normalizedStatus === 'in_progress') {
       updateSql += `, resolved_at = NULL, closed_at = NULL`;
     }
 
@@ -1407,14 +1412,17 @@ async function updateConversationStatus(req, res) {
       params.push(normalizedInternalNotes);
     }
 
-    updateSql += ` WHERE id = $${params.length + 1} RETURNING *`;
+    // The status predicate prevents a stale operator screen from overwriting
+    // a transition committed by another agent between the read and update.
+    updateSql += ` WHERE id = $${params.length + 1} AND status = $${params.length + 2} RETURNING *`;
     params.push(conversationId);
+    params.push(currentStatus);
 
     const result = await withTransaction(pool, async (client) => {
       const updated = await client.query(updateSql, params);
       if (!updated.rows.length) return null;
 
-      if (status === 'resolved' || status === 'closed') {
+      if (normalizedStatus === 'resolved' || normalizedStatus === 'closed') {
         await client.query(
           `UPDATE support_queue
            SET status = 'removed', removed_at = NOW(), reason_removed = $1
@@ -1431,7 +1439,7 @@ async function updateConversationStatus(req, res) {
            WHERE conversation_id = $1 AND status = 'active'`,
           [conversationId]
         );
-      } else if (status === 'open' || status === 'pending' || status === 'reopened') {
+      } else if (normalizedStatus === 'open' || normalizedStatus === 'pending' || normalizedStatus === 'reopened') {
         await client.query(
           `UPDATE support_queue
            SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
@@ -1444,16 +1452,16 @@ async function updateConversationStatus(req, res) {
     }, 'update_support_conversation_status');
     if (!result) return sendError(res, 409, 'This conversation changed before its status could be updated');
 
-    logger.info('Conversation status updated', { conversationId, status });
+    logger.info('Conversation status updated', { conversationId, status: normalizedStatus });
     await logAdminAction({
       adminId: req.user.id,
       action: 'support_conversation_status_changed',
       targetType: 'support_conversation',
       targetId: conversationId,
-      description: `Support conversation status changed to ${status}`,
-      before: { status: conversation.status },
+      description: `Support conversation status changed to ${normalizedStatus}`,
+      before: { status: currentStatus },
       after: {
-        status: result.rows[0]?.status || status,
+        status: result.rows[0]?.status || normalizedStatus,
         resolutionStatus: result.rows[0]?.resolution_status || null,
         resolutionReasonCode: result.rows[0]?.resolution_reason_code || null,
       },
@@ -1463,7 +1471,7 @@ async function updateConversationStatus(req, res) {
     const statusPayload = {
       ticketId: conversationId,
       conversationId,
-      status,
+      status: normalizedStatus,
       resolutionSummary: result.rows[0]?.resolution_summary || null,
       updatedBy: req.user.id,
       timestamp: new Date().toISOString(),
@@ -1471,19 +1479,19 @@ async function updateConversationStatus(req, res) {
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', statusPayload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', statusPayload);
 
-    if (statusChanged && (status === 'resolved' || status === 'closed')) {
+    if (statusChanged && (normalizedStatus === 'resolved' || normalizedStatus === 'closed')) {
       // Realtime status delivery is primary; email is a durable fallback for
       // customers who are offline. Never let provider failure block the case
       // transition that was already committed above.
       void notifyCustomerOfConversationStatus(
         conversation,
-        status,
+        normalizedStatus,
         result.rows[0]?.resolution_summary,
-        status === 'closed' ? result.rows[0]?.closed_at : result.rows[0]?.resolved_at
+        normalizedStatus === 'closed' ? result.rows[0]?.closed_at : result.rows[0]?.resolved_at
       ).catch((error) => {
         logger.warn('Customer support status email failed', {
           conversationId,
-          status,
+          status: normalizedStatus,
           error: error.message,
         });
       });
