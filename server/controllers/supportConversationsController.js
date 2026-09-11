@@ -125,6 +125,7 @@ function normalizeAttachmentReference(attachmentUrl, attachmentName) {
 async function createConversation(req, res) {
   try {
     const { businessId, subject, description, category, priority } = req.body;
+    const channel = String(req.body?.channel || 'web_chat').trim().toLowerCase();
 
     if (!businessId || !subject || String(subject).trim().length > 200 || String(description || '').length > 5000) {
       return sendValidationError(res, {
@@ -142,6 +143,11 @@ async function createConversation(req, res) {
     const validPriorities = ['low', 'normal', 'high', 'urgent'];
     if (priority && !validPriorities.includes(priority)) {
       return sendValidationError(res, { priority: 'Invalid priority' });
+    }
+
+    const validChannels = ['web_chat', 'email', 'sms', 'phone', 'social'];
+    if (!validChannels.includes(channel)) {
+      return sendValidationError(res, { channel: 'Invalid support channel' });
     }
 
     // Get SLA targets for this priority
@@ -166,8 +172,8 @@ async function createConversation(req, res) {
     const result = await query(
       `INSERT INTO support_conversations
        (business_id, customer_id, subject, description, category, priority,
-        status, sla_first_response_target, sla_resolution_target)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, $8)
+        channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9)
        RETURNING *`,
       [
         businessId,
@@ -176,6 +182,7 @@ async function createConversation(req, res) {
         description || null,
         category || 'general',
         priority || 'normal',
+        channel,
         slaFirstResponseTarget,
         slaResolutionTarget
       ]
@@ -226,7 +233,7 @@ async function listConversations(req, res) {
           u.email, sc.guest_name
         ) as customer_name,
         u.email as customer_email,
-        sc.subject, sc.description, sc.category, sc.priority,
+        sc.subject, sc.description, sc.category, sc.priority, sc.channel,
         sc.status, sc.agent_id, sa.user_id as agent_user_id,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
@@ -263,6 +270,14 @@ async function listConversations(req, res) {
     if (agentId) {
       sql += ` AND sc.agent_id = $${params.length + 1}`;
       params.push(agentId);
+    }
+    const channel = String(req.query.channel || '').trim().toLowerCase();
+    if (channel) {
+      if (!['web_chat', 'email', 'sms', 'phone', 'social'].includes(channel)) {
+        return sendValidationError(res, { channel: 'Invalid support channel' });
+      }
+      sql += ` AND sc.channel = $${params.length + 1}`;
+      params.push(channel);
     }
 
     sql += ` ORDER BY sc.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -354,7 +369,7 @@ async function getConversation(req, res) {
     // Get messages
     const messages = await query(
       `SELECT
-        scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
+        scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.channel, scm.content,
         scm.attachment_url, scm.attachment_name,
         scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.redacted_at, scm.created_at,
         COALESCE(
@@ -405,7 +420,7 @@ async function getConversation(req, res) {
       if (historyIds.length) {
         const historyMessagesResult = await query(
           `SELECT
-             scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
+             scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.channel, scm.content,
              scm.attachment_url, scm.attachment_name,
              scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.redacted_at, scm.created_at,
              COALESCE(
@@ -1471,11 +1486,11 @@ async function addMessage(req, res) {
     const result = await withTransaction(pool, async (client) => {
       const inserted = await client.query(
         `INSERT INTO support_conversation_messages
-         (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent, client_message_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent, client_message_id, channel)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING *`,
-        [conversationId, req.user.id, storedMessageType, messageContent, storedAttachmentUrl, storedAttachmentName, isAgent, clientMessageId]
+        [conversationId, req.user.id, storedMessageType, messageContent, storedAttachmentUrl, storedAttachmentName, isAgent, clientMessageId, conversation.channel || 'web_chat']
       );
 
       if (!inserted.rows.length) {
@@ -1498,6 +1513,7 @@ async function addMessage(req, res) {
         `UPDATE support_conversations
          SET message_count = message_count + 1,
              ${countCol} = ${countCol} + 1,
+             last_channel_message_at = NOW(),
              updated_at = NOW(),
              first_response_at = CASE
                WHEN $2::boolean AND first_response_at IS NULL THEN NOW()

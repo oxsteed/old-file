@@ -73,16 +73,16 @@ async function createGuestConversation(req, res) {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO support_conversations
-        (business_id, customer_id, guest_name, guest_email, subject, description, category, priority, status)
-       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'pending_verification')
+        (business_id, customer_id, guest_name, guest_email, subject, description, category, priority, channel, status, last_channel_message_at)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'web_chat', 'pending_verification', CURRENT_TIMESTAMP)
        RETURNING id`,
       [businessId, name, email, `${category} support request`, content, category, priority]
     );
     const conversationId = rows[0].id;
     await client.query(
       `INSERT INTO support_conversation_messages
-        (conversation_id, sender_id, message_type, content, is_agent)
-       VALUES ($1, NULL, 'text', $2, FALSE)`,
+        (conversation_id, sender_id, message_type, content, channel, is_agent)
+       VALUES ($1, NULL, 'text', $2, 'web_chat', FALSE)`,
       [conversationId, content]
     );
     await client.query(
@@ -220,7 +220,7 @@ async function loadGuestConversation(req, res) {
   try {
     const { rows } = await pool.query(
       `SELECT id, status, category, priority, guest_name, subject, created_at, updated_at, agent_id,
-        resolution_summary,
+        resolution_summary, channel,
         live_wait_started_at, live_wait_expires_at, live_wait_ended_at,
         (
           SELECT jsonb_build_object(
@@ -239,7 +239,7 @@ async function loadGuestConversation(req, res) {
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
     const { rows: messages } = await pool.query(
-      `SELECT id, content, is_agent, message_type, attachment_url, attachment_name,
+      `SELECT id, content, is_agent, message_type, channel, attachment_url, attachment_name,
         read_by_recipient, read_at, edited_at, edit_count, created_at
        FROM support_conversation_messages
        WHERE conversation_id = $1 AND message_type <> 'internal_note'
@@ -290,8 +290,8 @@ async function addGuestMessage(req, res) {
     const result = await withTransaction(pool, async (client) => {
       const { rows: messageRows } = await client.query(
         `INSERT INTO support_conversation_messages
-          (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent, client_message_id)
-         VALUES ($1, NULL, $2, $3, $4, $5, FALSE, $6)
+          (conversation_id, sender_id, message_type, content, channel, attachment_url, attachment_name, is_agent, client_message_id)
+         VALUES ($1, NULL, $2, $3, 'web_chat', $4, $5, FALSE, $6)
          ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING id, created_at, content, message_type, attachment_url, attachment_name, client_message_id`,
         [conversationId, req.file ? 'image' : 'text', messageContent, attachmentUrl, attachmentName, clientMessageId]
@@ -308,7 +308,8 @@ async function addGuestMessage(req, res) {
       }
       await client.query(
         `UPDATE support_conversations SET message_count = message_count + 1,
-          customer_message_count = customer_message_count + 1, updated_at = NOW()
+          customer_message_count = customer_message_count + 1,
+          last_channel_message_at = NOW(), updated_at = NOW()
          WHERE id = $1`, [conversationId]
       );
       return { rows: messageRows, duplicate: false };

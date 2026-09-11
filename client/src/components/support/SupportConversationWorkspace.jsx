@@ -112,6 +112,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [messageFilter, setMessageFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [channelFilter, setChannelFilter] = useState('all');
   const [reply, setReply] = useState('');
   const [quickReply, setQuickReply] = useState('');
   const [responseTemplates, setResponseTemplates] = useState([]);
@@ -529,8 +530,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
     if (messageFilter === 'unread' && Number(conversation.unread_count || 0) < 1) return false;
     if (categoryFilter !== 'all' && (conversation.category || 'general') !== categoryFilter) return false;
+    if (channelFilter !== 'all' && (conversation.channel || 'web_chat') !== channelFilter) return false;
     return true;
-  }), [categoryFilter, conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
+  }), [categoryFilter, channelFilter, conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
   useEffect(() => {
     const handleShortcut = (event) => {
@@ -970,6 +972,14 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               <option value="all">All categories</option>
               {categories.map((category) => <option key={category} value={category}>{category.replace(/_/g, ' ')}</option>)}
             </select>
+            <select value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
+              <option value="all">All channels</option>
+              <option value="web_chat">Web chat</option>
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="phone">Phone</option>
+              <option value="social">Social</option>
+            </select>
           </div>
 
           <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
@@ -996,6 +1006,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {statusBadge(conversation.status)}
+                    <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{conversation.channel || 'web_chat'}</span>
                     {Number(conversation.unread_count || 0) > 0 && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[11px] font-semibold text-orange-200" aria-label={`${conversation.unread_count} unread customer messages`}>
                         <MessageSquare size={11} /> {conversation.unread_count} new
@@ -1049,6 +1060,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       </span>
                       <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
                         {selected.category || 'general'}
+                      </span>
+                      <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-blue-200">
+                        Channel · {selected.channel || 'web_chat'}
                       </span>
                       <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
                         {selected.customer_message_count || 0} customer · {selected.agent_message_count || 0} support messages
