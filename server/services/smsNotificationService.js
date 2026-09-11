@@ -7,6 +7,10 @@ const client = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
   : null;
 const fromNumber = process.env.TWILIO_PHONE_NUMBER || '+1234567890';
 
+function isTwilioConfigured() {
+  return Boolean(client && process.env.TWILIO_PHONE_NUMBER);
+}
+
 // Send SMS if user opted in
 async function sendOrderCreatedSMS(userId, orderId, orderAmount) {
   const message = `Order #${orderId} confirmed. Total: $${(orderAmount / 100).toFixed(2)}. View: oxsteed.com/orders/${orderId}`;
@@ -275,6 +279,18 @@ async function sendDirectSMS(phoneNumber, messageBody) {
   }
 }
 
+// Support channel delivery must never use the legacy mock fallback. Returning
+// a provider error lets the caller persist an honest failed attempt instead of
+// telling an agent that an SMS was sent when Twilio is unavailable.
+async function sendConfiguredSMS(phoneNumber, messageBody) {
+  if (!isTwilioConfigured()) {
+    const error = new Error('Twilio is not configured');
+    error.code = 'provider_not_configured';
+    throw error;
+  }
+  return sendTwilioSMS(phoneNumber, messageBody);
+}
+
 module.exports = {
   sendOrderCreatedSMS,
   sendPaymentConfirmedSMS,
@@ -283,6 +299,8 @@ module.exports = {
   sendOrderRefundedSMS,
   sendSMSIfOptedIn,
   sendDirectSMS,
+  sendConfiguredSMS,
+  isTwilioConfigured,
   requestPhoneVerification,
   verifyPhoneWithOTP,
   getSMSLogs,

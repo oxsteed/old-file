@@ -57,14 +57,21 @@ function parsePayload(req) {
   const eventId = normalize(payload.eventId || payload.event_id || req.get?.('x-event-id'), 255);
   const externalThreadId = normalize(payload.externalThreadId || payload.external_thread_id || payload.threadId, 255);
   const externalMessageId = normalize(payload.externalMessageId || payload.external_message_id || payload.messageId, 255) || null;
-  const customerEmail = normalize(payload.customerEmail || payload.customer_email || payload.from, 320).toLowerCase();
+  const customerEmail = normalize(payload.customerEmail || payload.customer_email || (channel === 'email' ? payload.from : ''), 320).toLowerCase();
+  const customerPhone = normalize(payload.customerPhone || payload.customer_phone || (channel === 'sms' || channel === 'phone' ? payload.from : ''), 40);
   const content = normalize(payload.content || payload.message || payload.text, 5000);
   const subject = normalize(payload.subject, 200) || `${channel} support request`;
   const customerName = normalize(payload.customerName || payload.customer_name || payload.fromName, 255) || 'Customer';
   const metadata = payload.metadata && typeof payload.metadata === 'object' && !Array.isArray(payload.metadata) ? payload.metadata : {};
 
-  if (!eventId || !externalThreadId || !customerEmail || !EMAIL_PATTERN.test(customerEmail) || !content) {
-    return { error: 'eventId, externalThreadId, customerEmail, and content are required' };
+  const validPhone = customerPhone.replace(/[^0-9]/g, '').length >= 7;
+  const hasIdentity = channel === 'email'
+    ? EMAIL_PATTERN.test(customerEmail)
+    : channel === 'sms' || channel === 'phone'
+      ? validPhone
+      : Boolean(customerEmail || externalThreadId);
+  if (!eventId || !externalThreadId || !hasIdentity || !content) {
+    return { error: 'eventId, externalThreadId, a valid channel identity, and content are required' };
   }
   if (JSON.stringify(metadata).length > 10000) return { error: 'Channel metadata is too large' };
 
@@ -74,7 +81,8 @@ function parsePayload(req) {
     eventId,
     externalThreadId,
     externalMessageId,
-    customerEmail,
+    customerEmail: customerEmail || null,
+    customerPhone: customerPhone || null,
     customerName,
     subject,
     content,
@@ -113,6 +121,10 @@ async function ingestChannelWebhook(req, res) {
         return { duplicate: true, conversationId: existing.rows[0]?.conversation_id || null };
       }
 
+      const channelMetadata = {
+        ...payload.metadata,
+        ...(payload.customerPhone ? { customerPhone: payload.customerPhone } : {}),
+      };
       const conversationResult = await client.query(
         `INSERT INTO support_conversations
            (business_id, customer_id, guest_name, guest_email, guest_verified_at,
@@ -123,7 +135,7 @@ async function ingestChannelWebhook(req, res) {
            WHERE external_thread_id IS NOT NULL
          DO UPDATE SET
            guest_name = COALESCE(NULLIF(EXCLUDED.guest_name, ''), support_conversations.guest_name),
-           guest_email = EXCLUDED.guest_email,
+           guest_email = COALESCE(EXCLUDED.guest_email, support_conversations.guest_email),
            channel_metadata = support_conversations.channel_metadata || EXCLUDED.channel_metadata,
            status = CASE WHEN support_conversations.status IN ('resolved', 'closed') THEN 'open' ELSE support_conversations.status END,
            resolved_at = CASE WHEN support_conversations.status IN ('resolved', 'closed') THEN NULL ELSE support_conversations.resolved_at END,
@@ -131,7 +143,7 @@ async function ingestChannelWebhook(req, res) {
            updated_at = NOW(),
            last_channel_message_at = NOW()
          RETURNING id, status`,
-        [businessId, payload.customerName, payload.customerEmail, payload.subject, payload.content, payload.channel, payload.externalThreadId, JSON.stringify(payload.metadata)]
+        [businessId, payload.customerName, payload.customerEmail, payload.subject, payload.content, payload.channel, payload.externalThreadId, JSON.stringify(channelMetadata)]
       );
       const conversation = conversationResult.rows[0];
 

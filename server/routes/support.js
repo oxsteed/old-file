@@ -429,6 +429,9 @@ router.post('/conversations/:conversationId/reopen', conversationMessageLimiter,
 router.post('/conversations/:conversationId/merge', conversationMessageLimiter, supportConversationsController.mergeConversation);
 router.post('/conversations/:conversationId/email', conversationMessageLimiter, supportConversationsController.sendConversationEmail);
 router.post('/conversations/:conversationId/email/retry-failed', conversationMessageLimiter, supportConversationsController.retryConversationEmailDelivery);
+router.post('/conversations/:conversationId/channel-message', conversationMessageLimiter, supportConversationsController.sendConversationChannelMessage);
+router.get('/conversations/:conversationId/channel-deliveries', supportConversationsController.listConversationChannelDeliveries);
+router.post('/conversations/:conversationId/channel-deliveries/:deliveryId/retry', conversationMessageLimiter, supportConversationsController.retryConversationChannelDelivery);
 
 router.put('/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
 router.post('/conversations/:conversationId/claim', conversationAssignmentController.claimConversation);

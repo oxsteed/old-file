@@ -147,6 +147,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [emailRetryBusy, setEmailRetryBusy] = useState(false);
+  const [channelDeliveries, setChannelDeliveries] = useState([]);
+  const [channelRetryBusy, setChannelRetryBusy] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergeReason, setMergeReason] = useState('');
   const [mergeBusy, setMergeBusy] = useState(false);
@@ -306,6 +308,19 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, []);
 
+  const loadChannelDeliveries = useCallback(async (conversationId) => {
+    if (!conversationId) {
+      setChannelDeliveries([]);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/support/conversations/${conversationId}/channel-deliveries`);
+      setChannelDeliveries(Array.isArray(data?.data) ? data.data : []);
+    } catch {
+      setChannelDeliveries([]);
+    }
+  }, []);
+
   const loadAgents = useCallback(async () => {
     if (!isPlatformAdmin) return;
     try {
@@ -378,9 +393,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     loadDetail(selectedId);
     loadCustomer360(selectedId);
     loadFollowUpReminders(selectedId);
+    loadChannelDeliveries(selectedId);
     setAiDraft(null);
     stickToBottomRef.current = true;
-  }, [loadCustomer360, loadDetail, loadFollowUpReminders, selectedId]);
+  }, [loadChannelDeliveries, loadCustomer360, loadDetail, loadFollowUpReminders, selectedId]);
 
   useEffect(() => {
     if (!selectedId || detailLoading) return;
@@ -420,6 +436,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setResolutionSummary('');
     setResolutionReasonCode('other');
     setFollowUpReminders([]);
+    setChannelDeliveries([]);
     setFollowUpDueAt('');
     setFollowUpNote('');
     setEditingMessageId(null);
@@ -533,6 +550,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const isAssignedToMe = selected?.agent_user_id === user?.id;
   const isClosed = ['resolved', 'closed', 'merged'].includes(selected?.status);
   const canReply = Boolean(selected) && !isClosed && (isPlatformAdmin || isAssignedToMe);
+  const isExternalChannel = Boolean(selected?.channel && selected.channel !== 'web_chat');
   const mergeTargets = useMemo(() => {
     if (!selected?.customer_email || isClosed) return [];
     const email = String(selected.customer_email).trim().toLowerCase();
@@ -707,6 +725,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
+  const retryChannelDelivery = async (deliveryId) => {
+    if (!selected?.id || !deliveryId || channelRetryBusy) return;
+    setChannelRetryBusy(true);
+    try {
+      await api.post(`/support/conversations/${selected.id}/channel-deliveries/${deliveryId}/retry`);
+      await Promise.all([
+        loadChannelDeliveries(selected.id),
+        loadDetail(selected.id, { quiet: true }),
+      ]);
+      toast.success('Channel reply delivered.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not retry this channel reply.');
+      await loadChannelDeliveries(selected.id);
+    } finally {
+      setChannelRetryBusy(false);
+    }
+  };
+
   const mergeSelectedConversation = async () => {
     if (!selected?.id || !mergeTargetId || mergeBusy) return;
     setMergeBusy(true);
@@ -774,15 +810,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setBusy(true);
     setSendError('');
     stickToBottomRef.current = true;
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     try {
-      const body = new FormData();
-      if (content) body.append('content', content);
-      if (attachment) body.append('file', attachment);
-      body.append('isInternal', String(internalNote));
-      const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
-      pendingMessageIdRef.current = clientMessageId;
-      body.append('clientMessageId', clientMessageId);
-      await api.post(`/support/conversations/${selected.id}/message`, body);
+      if (!internalNote && isExternalChannel) {
+        await api.post(`/support/conversations/${selected.id}/channel-message`, {
+          channel: selected.channel,
+          content,
+          subject: selected.subject,
+          requestId: clientMessageId,
+        });
+      } else {
+        const body = new FormData();
+        if (content) body.append('content', content);
+        if (attachment) body.append('file', attachment);
+        body.append('isInternal', String(internalNote));
+        body.append('clientMessageId', clientMessageId);
+        await api.post(`/support/conversations/${selected.id}/message`, body);
+      }
       pendingMessageIdRef.current = null;
       setReply('');
       setAttachment(null);
@@ -795,6 +840,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       window.clearTimeout(typingTimerRef.current);
       toast.success(internalNote ? 'Internal note saved.' : 'Reply sent to the customer.');
     } catch (error) {
+      if (isExternalChannel && !internalNote) pendingMessageIdRef.current = null;
       const message = error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.';
       setSendError(message);
       toast.error(message);
@@ -1116,6 +1162,12 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                           Email retry queued · {selected.emailDelivery.pending} pending
                         </span>
                       )}
+                      {channelDeliveries.filter((delivery) => ['failed', 'not_configured'].includes(delivery.status)).map((delivery) => (
+                        <span key={delivery.id} className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-red-200" title={delivery.error_message || 'Channel delivery needs attention'}>
+                          {delivery.channel.toUpperCase()} delivery {delivery.status === 'not_configured' ? 'not configured' : 'failed'}
+                          <button type="button" onClick={() => retryChannelDelivery(delivery.id)} disabled={channelRetryBusy} className="font-semibold underline disabled:opacity-50">Retry</button>
+                        </span>
+                      ))}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
                       <span>Opened {formatWhen(selected.created_at)}</span>
@@ -1471,6 +1523,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     <Lock size={13} /> Internal note mode: this message is visible only to authorized support staff.
                   </div>
                 )}
+                {!internalNote && isExternalChannel && (
+                  <div className="mb-3 rounded-xl border border-blue-500/25 bg-blue-500/10 px-3 py-2 text-xs text-blue-100" role="status">
+                    This reply will be delivered through {selected.channel === 'sms' ? 'SMS' : selected.channel === 'email' ? 'email' : selected.channel}. Provider failures are recorded and never reported as sent.
+                  </div>
+                )}
                 {sendError && (
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-100" role="alert">
                     <span>{sendError} Your draft is still here.</span>
@@ -1486,9 +1543,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 )}
                 {attachment && <div className="mb-2 flex items-center gap-2 text-xs text-orange-200">{attachment.name}<button type="button" onClick={() => setAttachment(null)} className="text-slate-400 hover:text-white">Remove</button></div>}
                 <div className="flex gap-3">
-                  <label className="cursor-pointer rounded-2xl border border-slate-700 p-3 text-slate-300 hover:border-orange-500" title="Attach image">
+                  <label className={`rounded-2xl border border-slate-700 p-3 text-slate-300 ${isExternalChannel && !internalNote ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:border-orange-500'}`} title={isExternalChannel && !internalNote ? 'External channel attachments are not supported yet' : 'Attach image'}>
                     <Paperclip size={18} />
-                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] || null)} />
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" disabled={isExternalChannel && !internalNote} className="hidden" onChange={(event) => setAttachment(event.target.files?.[0] || null)} />
                   </label>
                   <textarea
                     ref={replyInputRef}

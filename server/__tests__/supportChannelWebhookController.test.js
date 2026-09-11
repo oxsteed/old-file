@@ -9,7 +9,7 @@ jest.mock('../services/websocketService', () => ({
   broadcastToAdmins: jest.fn(),
 }));
 
-const { ingestChannelWebhook } = require('../controllers/supportChannelWebhookController');
+const { ingestChannelWebhook, parsePayload } = require('../controllers/supportChannelWebhookController');
 const WebSocketService = require('../services/websocketService');
 
 const SECRET = 'test-support-channel-secret';
@@ -50,6 +50,17 @@ afterAll(() => {
 });
 
 describe('support channel webhook ingestion', () => {
+  test('accepts a signed SMS identity without requiring an email address', () => {
+    const payload = parsePayload({
+      body: Buffer.from(JSON.stringify({
+        eventId: 'sms-event', externalThreadId: 'sms-thread', from: '+19375550100', content: 'Text support',
+      })),
+      params: { channel: 'sms' },
+      get() { return undefined; },
+    });
+    expect(payload).toMatchObject({ channel: 'sms', customerPhone: '+19375550100', customerEmail: null });
+  });
+
   test('rejects an invalid signature before opening a transaction', async () => {
     const payload = {
       eventId: 'evt-invalid',

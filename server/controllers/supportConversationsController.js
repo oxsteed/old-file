@@ -14,6 +14,7 @@ const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
+const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function notifyCustomerOfAgentReply(conversation, message) {
@@ -743,6 +744,10 @@ async function authorizeConversationAccess(conversationId, req) {
   const result = await query(
     `SELECT sc.*,
             COALESCE(u.email, sc.guest_email) AS customer_email,
+            COALESCE(u.phone_number, u.phone,
+              sc.channel_metadata->>'customerPhone',
+              sc.channel_metadata->>'customer_phone',
+              sc.channel_metadata->>'phone') AS customer_phone,
             COALESCE(
               NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
               u.email, sc.guest_name, 'Customer'
@@ -778,6 +783,250 @@ async function authorizeConversationAccess(conversationId, req) {
     isAssignedAgent,
     allowed: isCustomer || isPlatformAdmin || isAssignedAgent || canManageBusiness,
   };
+}
+
+function maskChannelRecipient(channel, value) {
+  const recipient = String(value || '');
+  if (channel === 'email') return recipient.replace(/^(.{2}).*(@.*)$/, '$1***$2');
+  const digits = recipient.replace(/\D/g, '');
+  return digits.length >= 4 ? `***${digits.slice(-4)}` : '***';
+}
+
+function channelDeliveryHttpStatus(status) {
+  if (status === 'not_configured') return 503;
+  if (status === 'unsupported') return 501;
+  if (status === 'failed') return 502;
+  return 200;
+}
+
+async function updateChannelDelivery(deliveryId, messageId, result) {
+  const status = result.status;
+  await query(
+    `UPDATE support_channel_deliveries
+     SET status = $1, provider_message_id = $2, error_code = $3,
+         error_message = $4, sent_at = CASE WHEN $1 = 'sent' THEN NOW() ELSE sent_at END,
+         updated_at = NOW()
+     WHERE id = $5`,
+    [status, result.providerMessageId || null, result.errorCode || null, result.error || null, deliveryId]
+  );
+  await query(
+    `UPDATE support_conversation_messages SET status = $1, updated_at = NOW() WHERE id = $2`,
+    [status === 'sent' ? 'sent' : 'failed', messageId]
+  );
+}
+
+async function sendConversationChannelMessage(req, res) {
+  const conversationId = req.params.conversationId;
+  const channel = supportChannelDeliveryService.normalizeChannel(req.body?.channel);
+  const content = String(req.body?.content || req.body?.message || '').trim();
+  const subject = String(req.body?.subject || '').trim();
+  const requestId = String(req.body?.requestId || req.body?.clientMessageId || '').trim();
+
+  if (!supportChannelDeliveryService.EXTERNAL_CHANNELS.has(channel)) {
+    return sendValidationError(res, { channel: 'Only email, SMS, phone, and social channels are supported here' });
+  }
+  if (!content || content.length > 5000) {
+    return sendValidationError(res, { content: 'Message is required and must be 5000 characters or fewer' });
+  }
+  if (subject.length > 200 || /[\r\n]/.test(subject)) {
+    return sendValidationError(res, { subject: 'Subject must be one line and 200 characters or fewer' });
+  }
+  if (!CLIENT_MESSAGE_ID_PATTERN.test(requestId)) {
+    return sendValidationError(res, { requestId: 'A valid request identifier is required' });
+  }
+
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can send channel replies');
+    const conversationChannel = String(access.conversation.channel || 'web_chat').trim().toLowerCase();
+    if (conversationChannel !== channel) {
+      return sendError(res, 409, `This conversation is assigned to ${conversationChannel}; channel replies must use that channel`);
+    }
+    if (['resolved', 'closed', 'merged'].includes(access.conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot receive channel replies');
+    }
+    if (req.body?.attachmentUrl || req.body?.attachmentName || req.body?.attachments) {
+      return sendValidationError(res, { attachment: 'Attachments are not supported on external channel replies yet' });
+    }
+
+    const recipient = channel === 'email' ? access.conversation.customer_email : access.conversation.customer_phone;
+    if (!recipient) return sendError(res, 409, 'A verified customer destination is not available for this channel');
+
+    const created = await withTransaction(pool, async (client) => {
+      const inserted = await client.query(
+        `INSERT INTO support_conversation_messages
+           (conversation_id, sender_id, message_type, content, is_agent, status, channel, client_message_id)
+         VALUES ($1, $2, 'outbound_channel', $3, TRUE, 'sending', $4, $5)
+         ON CONFLICT (conversation_id, client_message_id) WHERE client_message_id IS NOT NULL
+         DO NOTHING RETURNING id, created_at`,
+        [conversationId, req.user.id, content, channel, requestId]
+      );
+      if (!inserted.rows.length) {
+        const existing = await client.query(
+          `SELECT id, status, created_at FROM support_conversation_messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, requestId]
+        );
+        const delivery = await client.query(
+          `SELECT id, status, provider, error_code, error_message
+           FROM support_channel_deliveries WHERE idempotency_key = $1`,
+          [requestId]
+        );
+        return { duplicate: true, message: existing.rows[0] || null, delivery: delivery.rows[0] || null };
+      }
+      await client.query(
+        `INSERT INTO support_channel_deliveries
+           (conversation_id, message_id, channel, provider, recipient, status, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, 'sending', $6)`,
+        [conversationId, inserted.rows[0].id, channel, channel === 'email' ? 'resend' : 'twilio', recipient, requestId]
+      );
+      await client.query(
+        `UPDATE support_conversations
+         SET message_count = message_count + 1, agent_message_count = agent_message_count + 1,
+             last_channel_message_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [conversationId]
+      );
+      return { duplicate: false, message: inserted.rows[0] };
+    }, 'create_support_channel_delivery');
+
+    if (created.duplicate) {
+      const deliveryStatus = created.delivery?.status || created.message?.status || 'sending';
+      if (deliveryStatus === 'sent') return res.json({ success: true, duplicate: true, data: created.delivery });
+      return sendError(
+        res,
+        deliveryStatus === 'sending' ? 409 : channelDeliveryHttpStatus(deliveryStatus),
+        deliveryStatus === 'sending'
+          ? 'This channel message is already being delivered'
+          : (created.delivery?.error_message || 'The previous channel delivery failed; retry it')
+      );
+    }
+
+    const deliveryIdResult = await query(
+      'SELECT id FROM support_channel_deliveries WHERE idempotency_key = $1',
+      [requestId]
+    );
+    if (!deliveryIdResult.rows[0]?.id) {
+      throw new Error('Support channel delivery record could not be recovered');
+    }
+    const deliveryResult = await supportChannelDeliveryService.deliverSupportChannel({
+      channel,
+      recipient,
+      content,
+      subject: subject || access.conversation.subject,
+      idempotencyKey: requestId,
+    });
+    await updateChannelDelivery(deliveryIdResult.rows[0].id, created.message.id, deliveryResult);
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_channel_delivery_attempted',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: `Outbound ${channel} support reply ${deliveryResult.status}`,
+      after: { channel, provider: deliveryResult.provider, status: deliveryResult.status, messageId: created.message.id },
+      req,
+    });
+
+    const deliveryPayload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: created.message.id,
+      channel,
+      status: deliveryResult.status,
+      timestamp: created.message.created_at,
+    };
+    WebSocketService.broadcastToAdmins('support:conversation-updated', deliveryPayload);
+    if (deliveryResult.status === 'sent') {
+      WebSocketService.broadcastToTicket(conversationId, 'message:new', {
+        ...deliveryPayload,
+        sender: { type: 'agent', id: req.user.id },
+        content,
+        messageType: 'outbound_channel',
+      });
+    }
+    if (deliveryResult.status !== 'sent') {
+      return sendError(res, channelDeliveryHttpStatus(deliveryResult.status), deliveryResult.error || 'The channel provider rejected this message');
+    }
+    return res.status(201).json({
+      success: true,
+      data: { id: created.message.id, status: 'sent', channel, recipient: maskChannelRecipient(channel, recipient), created_at: created.message.created_at },
+    });
+  } catch (err) {
+    logger.error('sendConversationChannelMessage error', { conversationId, channel, error: err.message });
+    return sendError(res, 500, 'Failed to send support channel reply');
+  }
+}
+
+async function listConversationChannelDeliveries(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can view channel delivery details');
+    const result = await query(
+      `SELECT id, message_id, channel, provider, recipient, status, provider_message_id,
+              attempt_count, error_code, error_message, sent_at, created_at, updated_at
+       FROM support_channel_deliveries WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [conversationId]
+    );
+    return res.json({ success: true, data: result.rows.map((row) => ({ ...row, recipient: maskChannelRecipient(row.channel, row.recipient) })) });
+  } catch (err) {
+    logger.error('listConversationChannelDeliveries error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to load channel delivery history');
+  }
+}
+
+async function retryConversationChannelDelivery(req, res) {
+  const conversationId = req.params.conversationId;
+  const deliveryId = req.params.deliveryId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can retry channel delivery');
+    const current = await query(
+      `SELECT id, message_id, channel, provider, recipient, status, idempotency_key
+       FROM support_channel_deliveries WHERE id = $1 AND conversation_id = $2`,
+      [deliveryId, conversationId]
+    );
+    if (!current.rows.length) return sendError(res, 404, 'Channel delivery not found');
+    if (current.rows[0].status === 'sent') return res.json({ success: true, duplicate: true, data: current.rows[0] });
+    if (!['failed', 'not_configured'].includes(current.rows[0].status)) return sendError(res, 409, 'This channel delivery is already in progress');
+    const claimed = await query(
+      `UPDATE support_channel_deliveries
+       SET status = 'sending', attempt_count = attempt_count + 1,
+           error_code = NULL, error_message = NULL, updated_at = NOW()
+       WHERE id = $1 AND status IN ('failed', 'not_configured')
+       RETURNING id, message_id, channel, recipient, idempotency_key`,
+      [deliveryId]
+    );
+    if (!claimed.rows.length) return sendError(res, 409, 'This channel delivery changed before it could be retried');
+    const row = claimed.rows[0];
+    const message = await query('SELECT content FROM support_conversation_messages WHERE id = $1', [row.message_id]);
+    const result = await supportChannelDeliveryService.deliverSupportChannel({
+      channel: row.channel,
+      recipient: row.recipient,
+      content: message.rows[0]?.content,
+      subject: access.conversation.subject,
+      idempotencyKey: row.idempotency_key,
+    });
+    await updateChannelDelivery(row.id, row.message_id, result);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_channel_delivery_retried',
+      targetType: 'support_channel_delivery',
+      targetId: row.id,
+      description: `Retried outbound ${row.channel} support reply: ${result.status}`,
+      after: { channel: row.channel, status: result.status, messageId: row.message_id },
+      req,
+    });
+    if (result.status !== 'sent') return sendError(res, channelDeliveryHttpStatus(result.status), result.error || 'The channel provider rejected this message');
+    return res.json({ success: true, data: { id: row.id, status: 'sent', channel: row.channel } });
+  } catch (err) {
+    logger.error('retryConversationChannelDelivery error', { conversationId, deliveryId, error: err.message });
+    return sendError(res, 500, 'Failed to retry support channel delivery');
+  }
 }
 
 async function updateCustomerMessage(req, res) {
@@ -1952,5 +2201,8 @@ module.exports = {
   addMessage,
   sendConversationEmail,
   retryConversationEmailDelivery,
+  sendConversationChannelMessage,
+  listConversationChannelDeliveries,
+  retryConversationChannelDelivery,
   getConversationStats
 };
