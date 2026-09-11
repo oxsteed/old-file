@@ -16,6 +16,8 @@ export default function Customer360Panel({ data, loading }) {
   const profile = data.profile || {};
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || 'Customer';
   const orders = [...(data.orders?.marketplace || []), ...(data.orders?.food || [])];
+  const supportConversations = data.supportConversations || [];
+  const attachments = data.attachments || [];
 
   return (
     <section className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4" aria-labelledby="customer-360-title">
@@ -35,7 +37,22 @@ export default function Customer360Panel({ data, loading }) {
         <Count label="Attachments" value={data.summary?.attachments || 0} icon={FileImage} />
         <Count label="Internal notes" value={data.summary?.internalNotes || 0} icon={History} />
       </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">Conversation history</summary>
+          <div className="mt-3 space-y-2">
+            {supportConversations.slice(0, 8).map((conversation) => (
+              <div key={conversation.id} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{conversation.subject || 'Support conversation'}</div>
+                  {conversation.review_rating != null && <span className="text-amber-200">{conversation.review_rating}/5</span>}
+                </div>
+                <div className="mt-1 text-slate-500">{conversation.status || 'open'} · {conversation.agent_name || 'Unassigned'} · {formatWhen(conversation.updated_at || conversation.created_at)}</div>
+              </div>
+            ))}
+            {!supportConversations.length && <p className="text-xs text-slate-500">No prior conversations found.</p>}
+          </div>
+        </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">Recent jobs</summary>
           <div className="mt-3 space-y-2">{(data.jobs || []).slice(0, 5).map((job) => <div key={job.id} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{job.title}</div><div className="mt-1 text-slate-500">{job.status} · {formatWhen(job.updated_at || job.created_at)}</div></div>)}{!data.jobs?.length && <p className="text-xs text-slate-500">No jobs found.</p>}</div>
@@ -47,6 +64,18 @@ export default function Customer360Panel({ data, loading }) {
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">Prior agents and internal notes</summary>
           <div className="mt-3 space-y-2">{(data.priorAgents || []).map((agent) => <div key={agent.id} className="text-xs text-slate-300">{agent.name}</div>)}{(data.internalNotes || []).slice(0, 4).map((note) => <div key={note.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-xs text-amber-100"><div className="font-semibold">{note.subject || 'Support note'}</div><div className="mt-1 whitespace-pre-wrap">{note.content}</div><div className="mt-1 text-[10px] text-amber-200/60">{note.author_name} · {formatWhen(note.created_at)}</div></div>)}{!data.priorAgents?.length && !data.internalNotes?.length && <p className="text-xs text-slate-500">No prior agents or internal notes.</p>}</div>
+        </details>
+        <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">Recent attachments</summary>
+          <div className="mt-3 space-y-2">
+            {attachments.slice(0, 8).map((item) => (
+              <div key={item.id} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="font-semibold text-slate-200">{item.attachment_name || 'Support attachment'}</div>
+                <div className="mt-1 text-slate-500">{item.subject || 'Support conversation'} · {formatWhen(item.created_at)}</div>
+              </div>
+            ))}
+            {!attachments.length && <p className="text-xs text-slate-500">No active attachments found.</p>}
+          </div>
         </details>
       </div>
     </section>
