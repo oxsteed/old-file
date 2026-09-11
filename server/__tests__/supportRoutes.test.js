@@ -558,6 +558,55 @@ describe('support routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
+  test('merges two staff conversations without losing message history', async () => {
+    const sourceId = '00000000-0000-4000-8000-000000000901';
+    const targetId = '00000000-0000-4000-8000-000000000902';
+    const source = { id: sourceId, customer_id: USER_ID, customer_email: 'customer@example.com', business_id: 42, status: 'open', agent_id: null };
+    const target = { id: targetId, customer_id: USER_ID, customer_email: 'customer@example.com', business_id: 42, status: 'in_progress', agent_id: null };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [source] })
+      .mockResolvedValueOnce({ rows: [target] })
+      .mockResolvedValueOnce({ rows: [source, target] })
+      .mockResolvedValueOnce({ rowCount: 3, rows: [] })
+      .mockResolvedValueOnce({ rows: [{ message_count: 3, customer_message_count: 2, agent_message_count: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: targetId, status: 'in_progress', message_count: 3, customer_message_count: 2, agent_message_count: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: sourceId, status: 'merged', merged_into_conversation_id: targetId, merged_at: '2026-09-11T00:00:00.000Z', merge_reason: 'Duplicate request' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post(`/api/support/conversations/${sourceId}/merge`)
+      .set('Authorization', adminAuthHeader())
+      .send({ targetConversationId: targetId, reason: 'Duplicate request' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.movedMessages).toBe(3);
+    expect(res.body.data.source.status).toBe('merged');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversation_messages/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'removed'/.test(sql))).toBe(true);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'support_conversations_merged', targetId: sourceId }));
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(sourceId, 'ticket:merged', expect.any(Object));
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(targetId, 'ticket:merged', expect.any(Object));
+  });
+
+  test('does not allow customers to merge conversations', async () => {
+    const sourceId = '00000000-0000-4000-8000-000000000903';
+    const targetId = '00000000-0000-4000-8000-000000000904';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: sourceId, customer_id: USER_ID, customer_email: 'mobile@example.com', business_id: 42, status: 'open', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: targetId, customer_id: USER_ID, customer_email: 'mobile@example.com', business_id: 42, status: 'open', agent_id: null }] });
+
+    const res = await request(buildApp())
+      .post(`/api/support/conversations/${sourceId}/merge`)
+      .set('Authorization', authHeader())
+      .send({ targetConversationId: targetId });
+
+    expect(res.status).toBe(403);
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
   test('returns real CSAT analytics to platform admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })

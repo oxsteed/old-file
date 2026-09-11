@@ -972,6 +972,163 @@ async function reopenCustomerConversation(req, res) {
   }
 }
 
+async function mergeConversation(req, res) {
+  const sourceConversationId = req.params.conversationId;
+  const targetConversationId = String(
+    req.body?.targetConversationId || req.body?.target_conversation_id || ''
+  ).trim();
+  const mergeReason = String(req.body?.reason || '').trim();
+
+  if (!targetConversationId || targetConversationId === sourceConversationId) {
+    return sendValidationError(res, { targetConversationId: 'Choose a different target conversation' });
+  }
+  if (mergeReason.length > 1000) {
+    return sendValidationError(res, { reason: 'Merge reason must be 1000 characters or fewer' });
+  }
+
+  try {
+    const sourceAccess = await authorizeConversationAccess(sourceConversationId, req);
+    const targetAccess = await authorizeConversationAccess(targetConversationId, req);
+    if (!sourceAccess.conversation || !targetAccess.conversation) {
+      return sendError(res, 404, 'Conversation not found');
+    }
+    if (
+      sourceAccess.isCustomer || targetAccess.isCustomer
+      || !sourceAccess.allowed || !targetAccess.allowed
+    ) {
+      return sendError(res, 403, 'Only authorized support staff can merge conversations');
+    }
+
+    const source = sourceAccess.conversation;
+    const target = targetAccess.conversation;
+    const sameBusiness = source.business_id == null || target.business_id == null
+      ? source.business_id === target.business_id
+      : String(source.business_id) === String(target.business_id);
+    const sameCustomer = source.customer_id && target.customer_id
+      ? String(source.customer_id) === String(target.customer_id)
+      : String(source.customer_email || '').trim().toLowerCase() === String(target.customer_email || '').trim().toLowerCase()
+        && Boolean(String(source.customer_email || '').trim());
+
+    if (!sameBusiness || !sameCustomer) {
+      return sendError(res, 409, 'Conversations must belong to the same customer and business');
+    }
+    if (source.merged_into_conversation_id) {
+      return sendError(res, 409, 'This conversation has already been merged');
+    }
+    if (['resolved', 'closed', 'merged'].includes(target.status)) {
+      return sendError(res, 409, 'The target conversation must still be active');
+    }
+
+    const result = await withTransaction(pool, async (client) => {
+      const locked = await client.query(
+        `SELECT id, business_id, customer_id, status, message_count,
+                customer_message_count, agent_message_count,
+                merged_into_conversation_id
+         FROM support_conversations
+         WHERE id IN ($1, $2)
+         ORDER BY id
+         FOR UPDATE`,
+        [sourceConversationId, targetConversationId]
+      );
+      const lockedById = new Map(locked.rows.map((row) => [String(row.id), row]));
+      const lockedSource = lockedById.get(String(sourceConversationId));
+      const lockedTarget = lockedById.get(String(targetConversationId));
+      if (!lockedSource || !lockedTarget) return null;
+      if (lockedSource.merged_into_conversation_id || ['resolved', 'closed', 'merged'].includes(lockedTarget.status)) {
+        return { conflict: true };
+      }
+
+      const movedMessages = await client.query(
+        `UPDATE support_conversation_messages
+         SET conversation_id = $2, updated_at = NOW()
+         WHERE conversation_id = $1`,
+        [sourceConversationId, targetConversationId]
+      );
+      const counts = await client.query(
+        `SELECT COUNT(*)::int AS message_count,
+                COUNT(*) FILTER (WHERE is_agent = FALSE AND message_type <> 'internal_note')::int AS customer_message_count,
+                COUNT(*) FILTER (WHERE is_agent = TRUE AND message_type <> 'internal_note')::int AS agent_message_count
+         FROM support_conversation_messages
+         WHERE conversation_id = $1`,
+        [targetConversationId]
+      );
+      const updatedTarget = await client.query(
+        `UPDATE support_conversations
+         SET message_count = $2,
+             customer_message_count = $3,
+             agent_message_count = $4,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, status, message_count, customer_message_count, agent_message_count`,
+        [
+          targetConversationId,
+          counts.rows[0]?.message_count || 0,
+          counts.rows[0]?.customer_message_count || 0,
+          counts.rows[0]?.agent_message_count || 0,
+        ]
+      );
+      const updatedSource = await client.query(
+        `UPDATE support_conversations
+         SET status = 'merged', merged_into_conversation_id = $2,
+             merged_at = NOW(), merged_by = $3, merge_reason = NULLIF($4, ''),
+             agent_id = NULL, assigned_at = NULL, updated_at = NOW()
+         WHERE id = $1 AND merged_into_conversation_id IS NULL
+         RETURNING id, status, merged_into_conversation_id, merged_at, merge_reason`,
+        [sourceConversationId, targetConversationId, req.user.id, mergeReason]
+      );
+      if (!updatedSource.rows.length || !updatedTarget.rows.length) return { conflict: true };
+
+      await client.query(
+        `UPDATE support_queue
+         SET status = 'removed', removed_at = NOW(), reason_removed = 'merged'
+         WHERE conversation_id = $1 AND status <> 'removed'`,
+        [sourceConversationId]
+      );
+      await client.query(
+        `UPDATE conversation_assignments
+         SET status = 'completed', released_at = COALESCE(released_at, NOW()),
+             duration_seconds = COALESCE(duration_seconds, EXTRACT(EPOCH FROM (NOW() - claimed_at))::integer)
+         WHERE conversation_id = $1 AND status = 'active'`,
+        [sourceConversationId]
+      );
+      return {
+        source: updatedSource.rows[0],
+        target: updatedTarget.rows[0],
+        movedMessages: movedMessages.rowCount || 0,
+      };
+    }, 'merge_support_conversations');
+
+    if (!result) return sendError(res, 404, 'Conversation not found');
+    if (result.conflict) return sendError(res, 409, 'This conversation changed before it could be merged');
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_conversations_merged',
+      targetType: 'support_conversation',
+      targetId: sourceConversationId,
+      description: `Merged support conversation into ${targetConversationId}`,
+      before: { status: source.status, targetConversationId },
+      after: { status: 'merged', targetConversationId, movedMessages: result.movedMessages, reason: mergeReason || null },
+      req,
+    });
+    const payload = {
+      ticketId: targetConversationId,
+      conversationId: targetConversationId,
+      mergedConversationId: sourceConversationId,
+      movedMessages: result.movedMessages,
+      updatedBy: req.user.id,
+      timestamp: new Date().toISOString(),
+    };
+    WebSocketService.broadcastToTicket(sourceConversationId, 'ticket:merged', payload);
+    WebSocketService.broadcastToTicket(targetConversationId, 'ticket:merged', payload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error('mergeConversation error', { sourceConversationId, targetConversationId, error: err.message });
+    return sendError(res, 500, 'Failed to merge conversations');
+  }
+}
+
 // Update conversation status
 async function updateConversationStatus(req, res) {
   try {
@@ -1579,6 +1736,7 @@ module.exports = {
   downloadConversation,
   createConversationReview,
   reopenCustomerConversation,
+  mergeConversation,
   updateConversationStatus,
   addMessage,
   sendConversationEmail,

@@ -37,6 +37,7 @@ const STATUS = {
   escalated: ['Escalated', 'border-red-500/30 bg-red-500/10 text-red-200'],
   resolved: ['Resolved', 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'],
   closed: ['Closed', 'border-slate-500/30 bg-slate-500/10 text-slate-300'],
+  merged: ['Merged', 'border-violet-500/30 bg-violet-500/10 text-violet-200'],
 };
 
 const PRIORITY = {
@@ -131,6 +132,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [emailRetryBusy, setEmailRetryBusy] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergeBusy, setMergeBusy] = useState(false);
   const [showNewMessages, setShowNewMessages] = useState(false);
   const [customerTyping, setCustomerTyping] = useState(false);
   const [agentEmployment, setAgentEmployment] = useState(null);
@@ -365,6 +369,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setResolutionSummary('');
     setEditingMessageId(null);
     setEditingContent('');
+    setMergeTargetId('');
+    setMergeReason('');
     setCustomerTyping(false);
     setShowNewMessages(false);
     stickToBottomRef.current = true;
@@ -459,8 +465,18 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
   const selected = detail || conversations.find((row) => row.id === selectedId) || null;
   const isAssignedToMe = selected?.agent_user_id === user?.id;
-  const isClosed = ['resolved', 'closed'].includes(selected?.status);
+  const isClosed = ['resolved', 'closed', 'merged'].includes(selected?.status);
   const canReply = Boolean(selected) && !isClosed && (isPlatformAdmin || isAssignedToMe);
+  const mergeTargets = useMemo(() => {
+    if (!selected?.customer_email || isClosed) return [];
+    const email = String(selected.customer_email).trim().toLowerCase();
+    return conversations.filter((conversation) => (
+      conversation.id !== selected.id
+      && String(conversation.customer_email || '').trim().toLowerCase() === email
+      && String(conversation.business_id ?? '') === String(selected.business_id ?? '')
+      && !['resolved', 'closed', 'merged'].includes(conversation.status)
+    ));
+  }, [conversations, isClosed, selected]);
 
   const visibleConversations = useMemo(() => conversations.filter((conversation) => {
     const haystack = [
@@ -470,7 +486,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       conversation.last_message,
       conversation.description,
     ].filter(Boolean).join(' ').toLowerCase();
-    if (statusFilter === 'active' && ['resolved', 'closed'].includes(conversation.status)) return false;
+    if (statusFilter === 'active' && ['resolved', 'closed', 'merged'].includes(conversation.status)) return false;
     if (statusFilter !== 'all' && statusFilter !== 'active' && conversation.status !== statusFilter) return false;
     if (ownershipFilter === 'mine' && conversation.agent_user_id !== user?.id) return false;
     if (ownershipFilter === 'unassigned' && conversation.agent_id) return false;
@@ -584,6 +600,27 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       toast.error(error?.response?.data?.error || 'Could not retry customer notifications.');
     } finally {
       setEmailRetryBusy(false);
+    }
+  };
+
+  const mergeSelectedConversation = async () => {
+    if (!selected?.id || !mergeTargetId || mergeBusy) return;
+    setMergeBusy(true);
+    try {
+      await api.post(`/support/conversations/${selected.id}/merge`, {
+        targetConversationId: mergeTargetId,
+        reason: mergeReason.trim(),
+      });
+      const targetId = mergeTargetId;
+      setMergeTargetId('');
+      setMergeReason('');
+      await loadConversations({ quiet: true });
+      setSelectedId(targetId);
+      toast.success('Conversations merged and history preserved.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not merge these conversations.');
+    } finally {
+      setMergeBusy(false);
     }
   };
 
@@ -753,6 +790,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               <option value="waiting_for_customer">Waiting for customer</option>
               <option value="escalated">Escalated</option>
               <option value="resolved">Resolved</option>
+              <option value="merged">Merged</option>
             </select>
             <select value={ownershipFilter} onChange={(event) => setOwnershipFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
               <option value="all">All owners</option>
@@ -913,6 +951,21 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     )}
                   </div>
                 </div>
+
+                {(isPlatformAdmin || isAssignedToMe) && mergeTargets.length > 0 && !isClosed && (
+                  <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+                    <label className="min-w-[220px] flex-1 text-xs text-slate-400">Merge duplicate into
+                      <select value={mergeTargetId} onChange={(event) => setMergeTargetId(event.target.value)} disabled={mergeBusy} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200">
+                        <option value="">Choose a conversation</option>
+                        {mergeTargets.map((conversation) => <option key={conversation.id} value={conversation.id}>{conversation.subject} · {conversation.status}</option>)}
+                      </select>
+                    </label>
+                    <label className="min-w-[220px] flex-1 text-xs text-slate-400">Reason (optional)
+                      <input value={mergeReason} onChange={(event) => setMergeReason(event.target.value)} maxLength={1000} disabled={mergeBusy} placeholder="Duplicate request" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200" />
+                    </label>
+                    <button type="button" onClick={mergeSelectedConversation} disabled={mergeBusy || !mergeTargetId} className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 hover:bg-violet-500/20 disabled:opacity-50">{mergeBusy ? 'Merging…' : 'Merge safely'}</button>
+                  </div>
+                )}
 
                 {(canReply || isPlatformAdmin || (selected.status === 'resolved' && isAssignedToMe)) && (
                   <div className="mt-4 space-y-3">
