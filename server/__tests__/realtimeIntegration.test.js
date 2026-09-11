@@ -214,10 +214,15 @@ describe('shared realtime server', () => {
         resolve(data);
       });
     });
+    const viewerDetails = new Promise((resolve) => firstAgent.once('ticket:viewer-details', resolve));
     secondAgent.emit('ticket:join', { ticketId: 'ticket-1' });
 
     await expect(firstPresence).resolves.toEqual({ ticketId: 'ticket-1', viewerCount: 2 });
     await expect(customerPresence).resolves.toBeNull();
+    const details = await viewerDetails;
+    expect(details.ticketId).toBe('ticket-1');
+    expect(details.viewers).toHaveLength(2);
+    expect(details.viewers.map((viewer) => viewer.id)).toEqual(expect.arrayContaining(['agent-user-1', 'agent-user-2']));
   });
 
   test('keeps ticket socket bookkeeping unique and removes it on disconnect', async () => {

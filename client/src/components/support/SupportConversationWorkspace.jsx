@@ -153,6 +153,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [showNewMessages, setShowNewMessages] = useState(false);
   const [customerTyping, setCustomerTyping] = useState(false);
   const [ticketViewerCount, setTicketViewerCount] = useState(0);
+  const [ticketViewers, setTicketViewers] = useState([]);
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
@@ -425,6 +426,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setMergeTargetId('');
     setMergeReason('');
     setCustomerTyping(false);
+    setTicketViewers([]);
     setShowNewMessages(false);
     stickToBottomRef.current = true;
     renderedConversationRef.current = { id: selectedId, messageCount: 0 };
@@ -446,6 +448,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
   useEffect(() => {
     setTicketViewerCount(0);
+    setTicketViewers([]);
     if (!isPlatformAdmin && (!agentEmployment?.is_available || !agentEmployment?.agent_id)) {
       agentSocketRef.current?.disconnect();
       agentSocketRef.current = null;
@@ -486,6 +489,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     socket.on('ticket:viewer-presence', (data) => {
       if (data?.ticketId !== selectedId) return;
       setTicketViewerCount(Number(data.viewerCount) || 0);
+    });
+    socket.on('ticket:viewer-details', (data) => {
+      if (data?.ticketId !== selectedId) return;
+      setTicketViewers(Array.isArray(data.viewers) ? data.viewers : []);
     });
     socket.on('customer:typing-indicator', (data) => {
       if (data?.ticketId !== selectedId) return;
@@ -1241,6 +1248,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {ticketViewerCount > 1 && (
                       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-100" role="status" aria-live="polite">
                         Another support staff member is viewing this conversation ({ticketViewerCount} active viewers). Coordinate before sending a reply.
+                        {ticketViewers.length > 0 && <span className="mt-1 block font-normal text-amber-100/80">Currently viewing: {ticketViewers.map((viewer) => viewer.name).filter(Boolean).join(', ')}</span>}
                       </div>
                     )}
                     <Customer360Panel data={customer360} loading={customer360Loading} lifecycle={lifecycle} lifecycleLoading={lifecycleLoading} />

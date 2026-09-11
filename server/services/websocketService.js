@@ -26,14 +26,38 @@ class WebSocketService {
       ticketId,
       viewerCount: viewers?.size || 0,
     });
+    this.io.to(`staff-ticket:${ticketId}`).emit('ticket:viewer-details', {
+      ticketId,
+      viewers: Array.from(viewers?.values() || []),
+    });
   }
 
-  registerTicketViewer(socket, ticketId) {
+  async registerTicketViewer(socket, ticketId) {
     if (!socket.userId || socket.guestConversationId || socket.userRole === 'customer') return;
     const room = `staff-ticket:${ticketId}`;
     socket.join(room);
+    let viewer = { id: socket.userId, name: 'Support staff', role: socket.userRole || 'support' };
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, first_name, last_name, email, role
+         FROM users
+         WHERE id = $1
+         LIMIT 1`,
+        [socket.userId]
+      );
+      const user = rows[0];
+      if (user) {
+        viewer = {
+          id: user.id,
+          name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || 'Support staff',
+          role: user.role || socket.userRole || 'support',
+        };
+      }
+    } catch (error) {
+      logger.warn('Could not resolve support viewer name', { ticketId, userId: socket.userId, error: error.message });
+    }
     const viewers = this.ticketViewers.get(ticketId) || new Map();
-    viewers.set(socket.id, true);
+    viewers.set(socket.id, viewer);
     this.ticketViewers.set(ticketId, viewers);
     this.broadcastTicketViewerPresence(ticketId);
   }
@@ -148,7 +172,7 @@ class WebSocketService {
         // Staff-only collision awareness. The customer remains in the normal
         // ticket room, while agent/admin viewers use a separate room so no
         // internal presence signal can reach the customer client.
-        this.registerTicketViewer(socket, ticketId);
+        await this.registerTicketViewer(socket, ticketId);
 
         logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
       });
