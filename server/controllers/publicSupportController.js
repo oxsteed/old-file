@@ -487,7 +487,8 @@ async function reopenGuestConversation(req, res) {
       const { rows: reopened } = await client.query(
         `UPDATE support_conversations
          SET status = 'open', resolved_at = NULL, closed_at = NULL,
-             resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
+             resolution_status = NULL, resolution_summary = NULL,
+             resolution_reason_code = NULL, updated_at = NOW()
          WHERE id = $1 AND status = 'resolved'
          RETURNING id, status, updated_at`,
         [conversationId]

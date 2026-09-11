@@ -305,7 +305,7 @@ describe('support routes', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: null, customer_id: USER_ID, status: 'open', agent_id: null }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'resolved', resolution_status: 'resolved', resolution_summary: 'Issue fixed and next steps provided.' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'resolved', resolution_status: 'resolved', resolution_reason_code: 'other', resolution_summary: 'Issue fixed and next steps provided.' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -325,7 +325,7 @@ describe('support routes', () => {
       targetType: 'support_conversation',
       targetId: 'conversation-1',
       before: { status: 'open' },
-      after: { status: 'resolved', resolutionStatus: 'resolved' },
+      after: { status: 'resolved', resolutionStatus: 'resolved', resolutionReasonCode: 'other' },
     }));
     expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
       'conversation-1',
@@ -369,6 +369,19 @@ describe('support routes', () => {
       subject: 'OxSteed Support: Support conversation resolved',
       idempotencyKey: expect.stringMatching(/^support-status-conversation-1-resolved-\d+$/),
     }));
+  });
+
+  test('rejects unsupported support resolution reason codes', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'resolved', resolutionReasonCode: 'made_up_reason' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.fields.resolutionReasonCode).toBe('Invalid resolution reason code');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_conversations/.test(sql))).toBe(false);
   });
 
   test('rejects oversized status metadata before loading the conversation', async () => {

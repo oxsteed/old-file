@@ -121,6 +121,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [internalNote, setInternalNote] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
+  const [resolutionReasonCode, setResolutionReasonCode] = useState('other');
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
@@ -369,6 +370,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setKnowledgeSearch('');
     setKnowledgeArticles([]);
     setResolutionSummary('');
+    setResolutionReasonCode('other');
     setEditingMessageId(null);
     setEditingContent('');
     setMergeTargetId('');
@@ -739,9 +741,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
-  const openCount = conversations.filter((row) => !['resolved', 'closed'].includes(row.status)).length;
-  const unassignedCount = conversations.filter((row) => !row.agent_id && !['resolved', 'closed'].includes(row.status)).length;
-  const mineCount = conversations.filter((row) => row.agent_user_id === user?.id && !['resolved', 'closed'].includes(row.status)).length;
+  const openCount = conversations.filter((row) => !['resolved', 'closed', 'merged'].includes(row.status)).length;
+  const unassignedCount = conversations.filter((row) => !row.agent_id && !['resolved', 'closed', 'merged'].includes(row.status)).length;
+  const mineCount = conversations.filter((row) => row.agent_user_id === user?.id && !['resolved', 'closed', 'merged'].includes(row.status)).length;
   const categories = useMemo(() => Array.from(new Set(conversations.map((row) => row.category || 'general'))).sort(), [conversations]);
 
   return (
@@ -998,12 +1000,25 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">Resolution summary <span className="text-slate-500">(shown to the customer when resolved)</span>
                       <textarea value={resolutionSummary} onChange={(event) => setResolutionSummary(event.target.value)} maxLength={2000} rows={2} className="mt-1 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500" placeholder="Summarize what was done or what the customer should do next…" />
                     </label>}
-                    {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">Resolution summary:</span> {selected.resolution_summary}</div>}
+                    {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">Resolution summary:</span> {selected.resolution_summary}{selected.resolution_reason_code && <span className="ml-2 text-orange-200/70">({selected.resolution_reason_code})</span>}</div>}
+                    {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">Resolution reason
+                      <select value={resolutionReasonCode} onChange={(event) => setResolutionReasonCode(event.target.value)} disabled={busy} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500">
+                        <option value="resolved">Resolved</option>
+                        <option value="bug_fixed">Bug fixed</option>
+                        <option value="billing">Billing</option>
+                        <option value="how_to">How-to guidance</option>
+                        <option value="duplicate">Duplicate</option>
+                        <option value="customer_no_response">Customer no response</option>
+                        <option value="not_supported">Not supported</option>
+                        <option value="spam">Spam</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </label>}
                     <div className="flex flex-wrap gap-2">
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('waiting_for_customer')} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-amber-500/50">Waiting for customer</button>}
                     {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('escalated')} className="rounded-xl border border-red-500/30 px-3 py-2 text-xs text-red-200 hover:bg-red-500/10">Escalate</button>}
-                    {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('resolved', { resolutionSummary: resolutionSummary.trim() })} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/10"><CheckCircle2 size={13} /> Resolve</button>}
-                    {selected.status === 'resolved' && <button type="button" disabled={busy} onClick={() => updateStatus('closed', { resolutionSummary: selected.resolution_summary || resolutionSummary.trim() })} className="rounded-xl border border-slate-500/40 px-3 py-2 text-xs text-slate-200 hover:bg-slate-500/10">Close case</button>}
+                    {!isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('resolved', { resolutionSummary: resolutionSummary.trim(), resolutionReasonCode })} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-500/10"><CheckCircle2 size={13} /> Resolve</button>}
+                    {selected.status === 'resolved' && <button type="button" disabled={busy} onClick={() => updateStatus('closed', { resolutionSummary: selected.resolution_summary || resolutionSummary.trim(), resolutionReasonCode: selected.resolution_reason_code || resolutionReasonCode })} className="rounded-xl border border-slate-500/40 px-3 py-2 text-xs text-slate-200 hover:bg-slate-500/10">Close case</button>}
                     {isClosed && <button type="button" disabled={busy} onClick={() => updateStatus('open')} className="rounded-xl border border-blue-500/30 px-3 py-2 text-xs text-blue-200 hover:bg-blue-500/10">Reopen</button>}
                     </div>
                   </div>

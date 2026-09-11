@@ -1010,7 +1010,8 @@ async function reopenCustomerConversation(req, res) {
       const reopened = await client.query(
         `UPDATE support_conversations
          SET status = 'open', resolved_at = NULL, closed_at = NULL,
-             resolution_status = NULL, resolution_summary = NULL, updated_at = NOW()
+             resolution_status = NULL, resolution_summary = NULL,
+             resolution_reason_code = NULL, updated_at = NOW()
          WHERE id = $1 AND status = 'resolved'
          RETURNING *`,
         [conversationId]
@@ -1203,6 +1204,9 @@ async function updateConversationStatus(req, res) {
     const resolutionSummary = rawResolutionSummary == null ? null : String(rawResolutionSummary).trim();
     const normalizedResolutionStatus = resolutionStatus == null ? null : String(resolutionStatus).trim();
     const normalizedInternalNotes = internalNotes == null ? null : String(internalNotes).trim();
+    const resolutionReasonCode = String(
+      req.body?.resolutionReasonCode ?? req.body?.resolution_reason_code ?? ''
+    ).trim().toLowerCase();
 
     if (!status) {
       return sendValidationError(res, { status: 'Required' });
@@ -1220,6 +1224,13 @@ async function updateConversationStatus(req, res) {
     }
     if (normalizedInternalNotes && normalizedInternalNotes.length > 5000) {
       return sendValidationError(res, { internalNotes: 'Must be 5000 characters or fewer' });
+    }
+    const validResolutionReasonCodes = [
+      'resolved', 'duplicate', 'how_to', 'bug_fixed', 'billing',
+      'customer_no_response', 'not_supported', 'spam', 'other',
+    ];
+    if (resolutionReasonCode && !validResolutionReasonCodes.includes(resolutionReasonCode)) {
+      return sendValidationError(res, { resolutionReasonCode: 'Invalid resolution reason code' });
     }
 
     // Get conversation
@@ -1258,15 +1269,17 @@ async function updateConversationStatus(req, res) {
     const params = [status];
 
     if (status === 'resolved') {
-      updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
+      updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, ''), resolution_reason_code = $${params.length + 3}`;
       params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
+      params.push(resolutionReasonCode || 'other');
     } else if (status === 'closed') {
-      updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, '')`;
+      updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}, resolution_summary = NULLIF($${params.length + 2}, ''), resolution_reason_code = $${params.length + 3}`;
       params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
+      params.push(resolutionReasonCode || 'other');
     } else if (status === 'open') {
-      updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL`;
+      updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL, resolution_reason_code = NULL`;
     } else if (status === 'in_progress') {
       updateSql += `, resolved_at = NULL, closed_at = NULL`;
     }
@@ -1321,7 +1334,11 @@ async function updateConversationStatus(req, res) {
       targetId: conversationId,
       description: `Support conversation status changed to ${status}`,
       before: { status: conversation.status },
-      after: { status: result.rows[0]?.status || status, resolutionStatus: result.rows[0]?.resolution_status || null },
+      after: {
+        status: result.rows[0]?.status || status,
+        resolutionStatus: result.rows[0]?.resolution_status || null,
+        resolutionReasonCode: result.rows[0]?.resolution_reason_code || null,
+      },
       req,
     });
 
