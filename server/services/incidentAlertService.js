@@ -4,6 +4,7 @@
 const logger = require('../utils/logger');
 const metricsService = require('./metricsService');
 const { sendSecurityAlertEmail } = require('../utils/email');
+const incidentStore = require('./incidentStore');
 
 class IncidentAlertService {
   constructor() {
@@ -31,9 +32,10 @@ class IncidentAlertService {
    */
   startMonitoring() {
     // Check every 5 minutes
-    setInterval(() => {
+    this.monitorTimer = setInterval(() => {
       this._checkIncidents();
     }, 5 * 60 * 1000);
+    this.monitorTimer.unref?.();
   }
 
   /**
@@ -52,15 +54,24 @@ class IncidentAlertService {
   /**
    * Trigger alert across all channels
    */
-  _triggerAlert(type, severity, message) {
+  async _triggerAlert(type, severity, message, details = {}) {
     const incident = {
       type,
       severity, // 'critical', 'warning'
       message,
+      details,
       timestamp: new Date().toISOString(),
     };
 
     logger.warn('INCIDENT ALERT', incident);
+
+    const durable = await incidentStore.recordIncident({
+      type,
+      severity,
+      message,
+      details,
+      dedupeKey: type,
+    });
 
     // Send to all channels
     this.alertChannels.forEach(channel => {
@@ -70,6 +81,8 @@ class IncidentAlertService {
           logger.error('Alert channel failed', { channel: channel.name, error: err.message });
         });
     });
+
+    return { ...incident, durable };
   }
 
   /**
@@ -149,20 +162,8 @@ class IncidentAlertService {
 
     logger.warn('INCIDENT REPORT', incident);
 
-    // Store in database for audit trail
-    try {
-      const pool = require('../db');
-      await pool.query(
-        `INSERT INTO incident_log (type, severity, message, details, created_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [type, severity, message, JSON.stringify(details)]
-      );
-    } catch (err) {
-      logger.error('Failed to log incident', { error: err.message });
-    }
-
     // Trigger alerts
-    this._triggerAlert(type, severity, message);
+    await this._triggerAlert(type, severity, message, details);
 
     return incident;
   }
@@ -172,14 +173,7 @@ class IncidentAlertService {
    */
   async getRecentIncidents(hours = 24) {
     try {
-      const pool = require('../db');
-      const { rows } = await pool.query(
-        `SELECT * FROM incident_log
-         WHERE created_at > NOW() - INTERVAL '${hours} hours'
-         ORDER BY created_at DESC`,
-        []
-      );
-      return rows;
+      return await incidentStore.listIncidents({ hours, limit: 500 });
     } catch (err) {
       logger.error('Failed to fetch incidents', { error: err.message });
       return [];

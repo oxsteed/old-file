@@ -142,4 +142,80 @@ describe('monitoring routes', () => {
     });
     expect(res.body).not.toHaveProperty('events');
   });
+
+  test('includes durable incident alerts alongside runtime security events', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 42,
+        type: 'FAILED_LOGIN_SPIKE',
+        severity: 'warning',
+        message: '101 failed login attempts detected',
+        details: { source: 'monitor' },
+        occurrence_count: 3,
+        created_at: '2026-09-11T00:00:00.000Z',
+        last_seen_at: '2026-09-11T00:05:00.000Z',
+        acknowledged_at: null,
+        resolved_at: null,
+      }] });
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/security-events?hours=6')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      durableIncidents: 1,
+      totalEvents: 1,
+      summary: { warningCount: 1 },
+      byType: {
+        warning: [{
+          id: 42,
+          source: 'durable',
+          occurrenceCount: 3,
+          acknowledgedAt: null,
+        }],
+      },
+    });
+    expect(mockQuery.mock.calls.some(([sql, params]) => /FROM incident_log/.test(sql) && params[0] === 6)).toBe(true);
+  });
+
+  test('acknowledges an open incident and audits the action', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 42,
+        type: 'HIGH_ERROR_RATE',
+        severity: 'critical',
+        message: 'Error rate is high',
+        occurrence_count: 1,
+        created_at: '2026-09-11T00:00:00.000Z',
+        last_seen_at: '2026-09-11T00:00:00.000Z',
+        acknowledged_at: '2026-09-11T00:10:00.000Z',
+        acknowledged_by: ADMIN_ID,
+        resolved_at: null,
+      }] });
+
+    const res = await request(buildApp())
+      .post('/api/monitoring/incidents/42/acknowledge')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ success: true, incident: { id: 42, acknowledged_by: ADMIN_ID } });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE incident_log/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO admin_audit_log/.test(sql))).toBe(true);
+  });
+
+  test('rejects malformed incident ids before touching incident storage', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] });
+
+    const res = await request(buildApp())
+      .post('/api/monitoring/incidents/not-an-id/resolve')
+      .set('Authorization', adminAuthHeader())
+      .send({ resolutionNotes: 'not used' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Validation failed' });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
 });

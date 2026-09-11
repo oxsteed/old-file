@@ -7,6 +7,9 @@ const metricsService = require('../services/metricsService');
 const backupMonitor = require('../services/backupMonitor');
 const complianceAuditLogger = require('../services/complianceAuditLogger');
 const fileScanService = require('../services/fileScanService');
+const incidentStore = require('../services/incidentStore');
+const { sendError, sendValidationError } = require('../utils/apiError');
+const { logAdminAction } = require('../services/auditService');
 
 /**
  * GET /api/monitoring/health
@@ -105,7 +108,30 @@ exports.getSecurityEvents = async (req, res, next) => {
     const hours = Math.min(parseInt(req.query.hours) || 1, 24); // Max 24 hours
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-    const events = metricsService.getSecurityEvents(since);
+    const inMemoryEvents = metricsService.getSecurityEvents(since);
+    let durableIncidents = [];
+    try {
+      durableIncidents = await incidentStore.listIncidents({ hours, limit: 500 });
+    } catch (error) {
+      logger.warn('Durable security events unavailable', { error: error.message });
+    }
+
+    const events = [
+      ...durableIncidents.map((incident) => ({
+        id: incident.id,
+        timestamp: incident.last_seen_at || incident.created_at,
+        createdAt: incident.created_at,
+        type: incident.type,
+        severity: incident.severity,
+        userId: null,
+        details: incident.details || {},
+        occurrenceCount: Number(incident.occurrence_count || 1),
+        acknowledgedAt: incident.acknowledged_at,
+        resolvedAt: incident.resolved_at,
+        source: 'durable',
+      })),
+      ...inMemoryEvents.map((event) => ({ ...event, source: 'runtime' })),
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     // Group by severity
     const grouped = {
@@ -123,6 +149,7 @@ exports.getSecurityEvents = async (req, res, next) => {
         warningCount: grouped.warning.length,
         infoCount: grouped.info.length,
       },
+      durableIncidents: durableIncidents.length,
     });
   } catch (err) {
     logger.error('Security events query error', { error: err.message });
@@ -334,9 +361,18 @@ exports.getIncidentSummary = async (req, res, next) => {
       new Date(Date.now() - hours * 60 * 60 * 1000)
     );
 
+    let recentIncidents = [];
+    try {
+      recentIncidents = await incidentStore.listIncidents({ hours, limit: 200 });
+    } catch (error) {
+      logger.warn('Durable incident summary unavailable', { error: error.message });
+    }
+
     const incidents = {
       activeAlerts: alerts,
       securityEventsCount: securityEvents.length,
+      durableIncidentCount: recentIncidents.length,
+      recentIncidents,
       topSecurityTypes: _countEventTypes(securityEvents),
       failedLoginCount: metricsService.getCounter('auth.failed_login'),
       rateLimitHits: metricsService.getCounter('ratelimit.exceeded'),
@@ -347,6 +383,58 @@ exports.getIncidentSummary = async (req, res, next) => {
   } catch (err) {
     logger.error('Incident summary error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch incident summary' });
+  }
+};
+
+function parseIncidentId(value) {
+  const id = Number.parseInt(value, 10);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+exports.acknowledgeIncident = async (req, res) => {
+  const incidentId = parseIncidentId(req.params.incidentId);
+  if (!incidentId) return sendValidationError(res, { incidentId: 'Must be a positive integer' });
+
+  try {
+    const incident = await incidentStore.acknowledgeIncident(incidentId, req.user.id);
+    if (!incident) return sendError(res, 404, 'Open incident not found');
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'monitoring_incident_acknowledged',
+      targetType: 'incident_log',
+      targetId: incidentId,
+      description: 'Security incident acknowledged',
+      req,
+    });
+    return res.json({ success: true, incident });
+  } catch (error) {
+    logger.error('Acknowledge incident error', { incidentId, error: error.message });
+    return sendError(res, 500, 'Failed to acknowledge incident');
+  }
+};
+
+exports.resolveIncident = async (req, res) => {
+  const incidentId = parseIncidentId(req.params.incidentId);
+  if (!incidentId) return sendValidationError(res, { incidentId: 'Must be a positive integer' });
+  const notes = req.body?.resolutionNotes == null ? '' : String(req.body.resolutionNotes).trim();
+  if (notes.length > 2000) return sendValidationError(res, { resolutionNotes: 'Must be 2000 characters or fewer' });
+
+  try {
+    const incident = await incidentStore.resolveIncident(incidentId, req.user.id, notes);
+    if (!incident) return sendError(res, 404, 'Open incident not found');
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'monitoring_incident_resolved',
+      targetType: 'incident_log',
+      targetId: incidentId,
+      description: 'Security incident resolved',
+      after: { notesProvided: Boolean(notes) },
+      req,
+    });
+    return res.json({ success: true, incident });
+  } catch (error) {
+    logger.error('Resolve incident error', { incidentId, error: error.message });
+    return sendError(res, 500, 'Failed to resolve incident');
   }
 };
 

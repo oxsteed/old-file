@@ -43,4 +43,9 @@ router.get('/compliance-report', monitoringController.getComplianceReport);
 // Recent incidents and anomalies
 router.get('/incident-summary', monitoringController.getIncidentSummary);
 
+// Incident state is admin-controlled and audited; the public app never sees
+// operational alert details.
+router.post('/incidents/:incidentId/acknowledge', monitoringController.acknowledgeIncident);
+router.post('/incidents/:incidentId/resolve', monitoringController.resolveIncident);
+
 module.exports = router;
