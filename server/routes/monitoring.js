@@ -19,6 +19,9 @@ router.get('/security-events', monitoringController.getSecurityEvents);
 // User's audit trail
 router.get('/audit-trail', monitoringController.getAuditTrail);
 
+// Tamper-evident audit chain integrity
+router.get('/audit-integrity', monitoringController.getAuditIntegrity);
+
 // Database performance metrics
 router.get('/database-health', monitoringController.getDatabaseHealth);
 

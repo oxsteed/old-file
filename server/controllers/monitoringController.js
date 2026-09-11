@@ -89,6 +89,51 @@ exports.getAuditTrail = async (req, res, next) => {
 };
 
 /**
+ * GET /api/monitoring/audit-integrity
+ * Verify the append-only admin audit hash chain.
+ */
+exports.getAuditIntegrity = async (req, res, next) => {
+  try {
+    const [verification, head] = await Promise.all([
+      pool.query('SELECT * FROM verify_admin_audit_hash_chain()'),
+      pool.query(`
+        SELECT entry_hash, created_at
+        FROM admin_audit_log
+        WHERE entry_hash IS NOT NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `),
+    ]);
+
+    const result = verification.rows[0] || {
+      valid: true,
+      checked_count: 0,
+      broken_count: 0,
+      first_broken_id: null,
+      first_broken_sequence: null,
+    };
+
+    res.status(result.valid ? 200 : 503).json({
+      status: result.valid ? 'healthy' : 'integrity_failure',
+      checkedCount: Number(result.checked_count || 0),
+      brokenCount: Number(result.broken_count || 0),
+      firstBrokenId: result.first_broken_id || null,
+      firstBrokenSequence: result.first_broken_sequence == null
+        ? null
+        : Number(result.first_broken_sequence),
+      chainHead: head.rows[0] || null,
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error('Audit integrity check error', { error: err.message });
+    res.status(503).json({
+      status: 'unavailable',
+      error: 'Audit integrity check unavailable',
+    });
+  }
+};
+
+/**
  * GET /api/monitoring/database-health
  * Database performance and connection pool metrics
  */
