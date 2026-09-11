@@ -600,7 +600,7 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, customer_email: 'customer@example.com', business_id: 42, agent_id: null }] })
       .mockResolvedValueOnce({ rows: [{ id: USER_ID, email: 'customer@example.com', first_name: 'Casey', last_name: 'Customer', preferred_language: 'en' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', subject: 'Current request', status: 'open', agent_id: 'agent-1', agent_name: 'Ava Agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', subject: 'Current request', status: 'open', channel: 'web_chat', agent_id: 'agent-1', agent_name: 'Ava Agent' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'message-2', conversation_id: 'conversation-1', is_agent: false, is_ai: false, message_type: 'text', content: 'I still need help with the repair.', sender_name: 'Casey Customer' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'note-1', conversation_id: 'conversation-1', content: 'Prior context', subject: 'Current request', author_name: 'Ava Agent' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'job-1', title: 'Repair', status: 'completed' }] })
@@ -608,7 +608,8 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 2, status: 'completed', total_cents: 2500 }] })
       .mockResolvedValueOnce({ rows: [{ id: 3, status: 'ready', total_cents: 1800 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', attachment_name: 'photo.png', attachment_url: '/api/storage/files/photo.png' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'email-1', conversation_id: 'conversation-1', kind: 'agent_reply', recipient: 'customer@example.com', subject: 'Support follow-up', status: 'sent', attempts: 1 }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'email-1', conversation_id: 'conversation-1', kind: 'agent_reply', recipient: 'customer@example.com', subject: 'Support follow-up', status: 'sent', attempts: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1', conversation_id: 'conversation-1', agent_id: 'agent-2', agent_name: 'Bri Agent', assignment_type: 'manual', status: 'completed', claimed_at: '2026-09-08T10:00:00.000Z' }] });
 
     const res = await request(buildApp())
       .get('/api/support/conversations/conversation-1/customer-360')
@@ -617,7 +618,12 @@ describe('support routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.profile.email).toBe('customer@example.com');
     expect(res.body.data.summary).toEqual({ conversations: 1, jobs: 1, payments: 1, orders: 2, attachments: 1, internalNotes: 1 });
-    expect(res.body.data.priorAgents).toEqual([{ id: 'agent-1', name: 'Ava Agent' }]);
+    expect(res.body.data.priorAgents).toEqual([
+      { id: 'agent-1', name: 'Ava Agent' },
+      { id: 'agent-2', name: 'Bri Agent' },
+    ]);
+    expect(res.body.data.supportConversations[0].channel).toBe('web_chat');
+    expect(res.body.data.assignmentHistory).toEqual([expect.objectContaining({ agent_name: 'Bri Agent', status: 'completed' })]);
     expect(res.body.data.conversationMessages).toEqual([expect.objectContaining({ id: 'message-2', content: 'I still need help with the repair.' })]);
     expect(res.body.data.emailHistory).toEqual([expect.objectContaining({ id: 'email-1', status: 'sent' })]);
     expect(res.body.data.emailHistory[0]).not.toHaveProperty('payload');

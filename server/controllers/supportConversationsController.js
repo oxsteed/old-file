@@ -506,9 +506,10 @@ async function getCustomer360(req, res) {
       [customerId, customerEmail]
     );
 
-    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory] = await Promise.all([
+    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory, assignmentHistory] = await Promise.all([
       queryOptional(
-        `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.created_at, sc.updated_at,
+        `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.channel, sc.external_thread_id,
+                sc.created_at, sc.updated_at,
                 sc.resolved_at, sc.message_count, sc.customer_message_count, sc.agent_message_count,
                 sa.id AS agent_id,
                 COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email) AS agent_name,
@@ -637,13 +638,34 @@ async function getCustomer360(req, res) {
         supportParams,
         'support email history'
       ),
+      queryOptional(
+        `SELECT ca.id, ca.conversation_id, ca.agent_id, ca.assignment_type, ca.status,
+                ca.claimed_at, ca.released_at,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email, 'Support team') AS agent_name
+         FROM conversation_assignments ca
+         JOIN support_conversations sc ON sc.id = ca.conversation_id
+         JOIN support_agents sa ON sa.id = ca.agent_id
+         LEFT JOIN users cu ON cu.id = sc.customer_id
+         LEFT JOIN users au ON au.id = sa.user_id
+         WHERE (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(cu.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY ca.claimed_at DESC
+         LIMIT 100`,
+        supportParams,
+        'support assignment history'
+      ),
     ]);
 
-    const priorAgents = Array.from(new Map(
-      supportConversations
+    const priorAgents = Array.from(new Map([
+      ...supportConversations
         .filter((row) => row.agent_id && row.agent_name)
-        .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }])
-    ).values());
+        .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }]),
+      ...assignmentHistory
+        .filter((row) => row.agent_id && row.agent_name)
+        .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }]),
+    ]).values());
 
     return res.json({
       success: true,
@@ -665,6 +687,7 @@ async function getCustomer360(req, res) {
         orders: { marketplace: marketplaceOrders, food: foodOrders },
         attachments,
         emailHistory,
+        assignmentHistory,
         priorAgents,
         summary: {
           conversations: supportConversations.length,

@@ -24,6 +24,7 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
   const supportConversations = data.supportConversations || [];
   const conversationMessages = data.conversationMessages || [];
   const attachments = data.attachments || [];
+  const assignmentHistory = data.assignmentHistory || [];
   const messagesByConversation = conversationMessages.reduce((groups, message) => {
     const messages = groups.get(message.conversation_id) || [];
     messages.push(message);
@@ -59,7 +60,7 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                   <div className="font-semibold text-slate-200">{conversation.subject || 'Support conversation'}</div>
                   {conversation.review_rating != null && <span className="text-amber-200">{conversation.review_rating}/5</span>}
                 </div>
-                <div className="mt-1 text-slate-500">{conversation.status || 'open'} · {conversation.agent_name || 'Unassigned'} · {formatWhen(conversation.updated_at || conversation.created_at)}</div>
+                <div className="mt-1 text-slate-500">{conversation.status || 'open'} · {conversation.agent_name || 'Unassigned'} · {conversation.channel || 'web_chat'} · {formatWhen(conversation.updated_at || conversation.created_at)}</div>
                 {(messagesByConversation.get(conversation.id) || []).slice(0, 4).map((message) => (
                   <div key={message.id} className="mt-2 border-l-2 border-slate-700 pl-2 text-slate-400">
                     <div className="text-[10px] uppercase tracking-wide text-slate-500">{message.is_agent ? (message.is_ai ? 'AI support' : message.sender_name || 'Agent') : 'Customer'} · {formatWhen(message.created_at)}</div>
@@ -98,7 +99,12 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">Prior agents and internal notes</summary>
-          <div className="mt-3 space-y-2">{(data.priorAgents || []).map((agent) => <div key={agent.id} className="text-xs text-slate-300">{agent.name}</div>)}{(data.internalNotes || []).slice(0, 4).map((note) => <div key={note.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-xs text-amber-100"><div className="font-semibold">{note.subject || 'Support note'}</div><div className="mt-1 whitespace-pre-wrap">{note.content}</div><div className="mt-1 text-[10px] text-amber-200/60">{note.author_name} · {formatWhen(note.created_at)}</div></div>)}{!data.priorAgents?.length && !data.internalNotes?.length && <p className="text-xs text-slate-500">No prior agents or internal notes.</p>}</div>
+          <div className="mt-3 space-y-2">
+            {(data.priorAgents || []).map((agent) => <div key={agent.id} className="text-xs text-slate-300">{agent.name}</div>)}
+            {assignmentHistory.slice(0, 8).map((assignment) => <div key={assignment.id} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{assignment.agent_name}</div><div className="mt-1 text-slate-500">{assignment.assignment_type || 'assignment'} · {assignment.status || 'active'} · {formatWhen(assignment.claimed_at)}</div></div>)}
+            {(data.internalNotes || []).slice(0, 4).map((note) => <div key={note.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-xs text-amber-100"><div className="font-semibold">{note.subject || 'Support note'}</div><div className="mt-1 whitespace-pre-wrap">{note.content}</div><div className="mt-1 text-[10px] text-amber-200/60">{note.author_name} · {formatWhen(note.created_at)}</div></div>)}
+            {!data.priorAgents?.length && !assignmentHistory.length && !data.internalNotes?.length && <p className="text-xs text-slate-500">No prior agents or internal notes.</p>}
+          </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">Recent attachments</summary>
