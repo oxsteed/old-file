@@ -133,6 +133,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
+  const [sendError, setSendError] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
@@ -390,6 +391,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setCustomer360(null);
     setQuickReply('');
     setAttachment(null);
+    setSendError('');
     setInternalNote(false);
     setKnowledgeOpen(false);
     setKnowledgeSearch('');
@@ -739,10 +741,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   };
 
   const sendMessage = async (event) => {
-    event.preventDefault();
+    event?.preventDefault?.();
     const content = reply.trim();
     if ((!content && !attachment) || !selected || !canReply) return;
     setBusy(true);
+    setSendError('');
     stickToBottomRef.current = true;
     try {
       const body = new FormData();
@@ -765,7 +768,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       window.clearTimeout(typingTimerRef.current);
       toast.success(internalNote ? 'Internal note saved.' : 'Reply sent to the customer.');
     } catch (error) {
-      toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.');
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.';
+      setSendError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -1433,6 +1438,19 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 {internalNote && (
                   <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="status">
                     <Lock size={13} /> Internal note mode: this message is visible only to authorized support staff.
+                  </div>
+                )}
+                {sendError && (
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-100" role="alert">
+                    <span>{sendError} Your draft is still here.</span>
+                    <button
+                      type="button"
+                      onClick={() => sendMessage({ preventDefault: () => {} })}
+                      disabled={busy || !canReply || (!reply.trim() && !attachment)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-400/40 px-2.5 py-1.5 font-semibold text-red-100 hover:bg-red-500/15 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} /> Retry
+                    </button>
                   </div>
                 )}
                 {attachment && <div className="mb-2 flex items-center gap-2 text-xs text-orange-200">{attachment.name}<button type="button" onClick={() => setAttachment(null)} className="text-slate-400 hover:text-white">Remove</button></div>}
