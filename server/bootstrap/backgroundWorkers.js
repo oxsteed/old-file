@@ -26,6 +26,7 @@ const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperat
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
+const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -76,6 +77,12 @@ class BackgroundWorkers {
       cron.schedule('* * * * *', () => {
         processSupportEmailOutbox().catch((error) => {
           this.log.warn('Support email outbox worker failed', { error: error.message });
+        });
+      });
+
+      cron.schedule('* * * * *', () => {
+        recoverStaleSupportChannelDeliveries().catch((error) => {
+          this.log.warn('Support channel delivery recovery failed', { error: error.message });
         });
       });
 
