@@ -153,17 +153,24 @@ async function editMessage(req, res) {
     if (!isOwner && !isPlatformAdmin) {
       return sendError(res, 403, 'Access denied');
     }
-    if (message.message_type === 'internal_note') {
+    if (message.message_type === 'internal_note' || message.redacted_at) {
       return sendError(res, 403, 'Internal notes cannot be edited through this route');
     }
 
     const result = await query(
       `UPDATE support_conversation_messages
-       SET content = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND conversation_id = $3 AND message_type <> 'internal_note'
+       SET original_content = COALESCE(original_content, content),
+           content = $1,
+           edited_at = CURRENT_TIMESTAMP,
+           edit_count = edit_count + 1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND conversation_id = $3
+         AND message_type <> 'internal_note'
+         AND redacted_at IS NULL
        RETURNING *`,
       [content, messageId, message.conversation_id]
     );
+    if (!result.rows.length) return sendError(res, 409, 'This message is no longer editable');
 
     broadcastToConversation(result.rows[0].conversation_id, 'message_edited', {
       messageId: result.rows[0].id,

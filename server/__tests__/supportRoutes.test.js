@@ -1021,6 +1021,25 @@ describe('support routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
+  test('preserves edit history on the legacy message edit route', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', business_id: 42, sender_id: ADMIN_ID, message_type: 'text' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', content: 'Updated reply', edited_at: '2026-09-09T00:01:00.000Z', edit_count: 1 }] });
+
+    const res = await request(buildApp())
+      .put('/api/support/42/messages/message-1')
+      .set('Authorization', adminAuthHeader())
+      .send({ content: 'Updated reply' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ content: 'Updated reply', edit_count: 1 });
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE support_conversation_messages/.test(sql));
+    expect(updateCall[0]).toMatch(/original_content = COALESCE\(original_content, content\)/);
+    expect(updateCall[0]).toMatch(/edited_at = CURRENT_TIMESTAMP/);
+    expect(updateCall[0]).toMatch(/edit_count = edit_count \+ 1/);
+  });
+
   test('does not allow the legacy edit route to modify internal notes', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
