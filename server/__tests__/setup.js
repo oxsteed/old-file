@@ -124,6 +124,8 @@ jest.mock('stripe', () => {
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
     get: jest.fn(), set: jest.fn(), del: jest.fn(), on: jest.fn(),
+    lpush: jest.fn(), rpop: jest.fn(), zadd: jest.fn(), zrangebyscore: jest.fn(),
+    zrem: jest.fn(), setex: jest.fn(), ping: jest.fn(), quit: jest.fn(),
   }));
 });
 jest.mock('file-type', () => ({

@@ -12,6 +12,8 @@ const {
   getNextJob,
   retryJob,
   completeJob,
+  promoteDueRetries,
+  isJobCompleted,
   closeQueue,
 } = require('./services/paymentQueue');
 const {
@@ -51,6 +53,10 @@ const processJob = async (queueKey, job) => {
   }
 
   try {
+    if (await isJobCompleted(job.id)) {
+      logger.info('Skipping already completed job', { queueKey, jobId: job.id });
+      return;
+    }
     const result = await processor(job);
     await completeJob(queueKey, job.id);
     logger.info('Job processed successfully', { queueKey, jobId: job.id, result });
@@ -77,6 +83,7 @@ const pollQueue = async (queueKey) => {
   }
 
   try {
+    await promoteDueRetries(queueKey);
     const job = await getNextJob(queueKey);
     if (!job) return; // Queue is empty
 

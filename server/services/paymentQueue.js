@@ -28,6 +28,7 @@ const QUEUES = {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
+const JOB_MARKER_TTL_SECONDS = 86400;
 
 /**
  * Add a job to a queue (FIFO with retry support)
@@ -37,6 +38,8 @@ const RETRY_DELAY_MS = 2000;
  * @returns {Promise<string>} Job ID
  */
 const addJob = async (queueKey, jobData, jobId) => {
+  if (!queueKey || !jobId) throw new Error('Queue key and job ID are required');
+  const markerKey = `job:${jobId}:enqueued`;
   try {
     const job = {
       id: jobId,
@@ -46,13 +49,45 @@ const addJob = async (queueKey, jobData, jobId) => {
       status: 'pending',
     };
 
-    await redis.lpush(queueKey, JSON.stringify(job));
+    // NX makes enqueue idempotent across API retries and multiple replicas.
+    const reserved = await redis.set(markerKey, '1', 'EX', JOB_MARKER_TTL_SECONDS, 'NX');
+    if (reserved !== 'OK') {
+      logger.info('Duplicate job suppressed', { queueKey, jobId });
+      return jobId;
+    }
+    try {
+      await redis.lpush(queueKey, JSON.stringify(job));
+    } catch (error) {
+      await redis.del(markerKey).catch(() => {});
+      throw error;
+    }
     logger.info('Job queued', { queueKey, jobId });
     return jobId;
   } catch (err) {
     logger.error('Failed to queue job', { queueKey, jobId, error: err.message });
     throw err;
   }
+};
+
+/**
+ * Move due retry jobs back to the live queue. zrem is the atomic ownership
+ * check: when several workers promote at once, only one can remove a payload.
+ */
+const promoteDueRetries = async (queueKey, limit = 25) => {
+  const delayedQueueKey = `${queueKey}:delayed`;
+  const due = await redis.zrangebyscore(delayedQueueKey, 0, Date.now(), 'LIMIT', 0, limit);
+  let promoted = 0;
+  for (const jobStr of due || []) {
+    if (await redis.zrem(delayedQueueKey, jobStr) !== 1) continue;
+    await redis.lpush(queueKey, jobStr);
+    promoted += 1;
+  }
+  return promoted;
+};
+
+const isJobCompleted = async (jobId) => {
+  if (!jobId) return false;
+  return (await redis.get(`job:${jobId}:complete`)) === '1';
 };
 
 /**
@@ -122,6 +157,8 @@ module.exports = {
 
   // Job management
   addJob,
+  promoteDueRetries,
+  isJobCompleted,
   getNextJob,
   retryJob,
   completeJob,
