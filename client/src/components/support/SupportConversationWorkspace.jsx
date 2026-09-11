@@ -27,6 +27,7 @@ import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
 import { realtimeNamespaceUrl } from '../../lib/realtime';
 import { createMessageRequestId } from '../../lib/messageRequestId';
+import Customer360Panel from './Customer360Panel';
 
 const STATUS = {
   open: ['Open', 'border-blue-500/30 bg-blue-500/10 text-blue-200'],
@@ -125,6 +126,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [customer360, setCustomer360] = useState(null);
+  const [customer360Loading, setCustomer360Loading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [emailRetryBusy, setEmailRetryBusy] = useState(false);
@@ -143,6 +146,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const renderedConversationRef = useRef({ id: null, messageCount: 0 });
   const conversationRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
+  const customer360RequestRef = useRef(0);
   const conversationLoadingRequestRef = useRef(null);
   const detailLoadingRequestRef = useRef(null);
   const conversationOffsetRef = useRef(0);
@@ -229,6 +233,27 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, []);
 
+  const loadCustomer360 = useCallback(async (conversationId) => {
+    const requestId = customer360RequestRef.current + 1;
+    customer360RequestRef.current = requestId;
+    if (!conversationId) {
+      setCustomer360(null);
+      setCustomer360Loading(false);
+      return;
+    }
+    setCustomer360Loading(true);
+    try {
+      const { data } = await api.get(`/support/conversations/${conversationId}/customer-360`);
+      if (requestId !== customer360RequestRef.current) return;
+      setCustomer360(data?.data || null);
+    } catch {
+      if (requestId !== customer360RequestRef.current) return;
+      setCustomer360(null);
+    } finally {
+      if (requestId === customer360RequestRef.current) setCustomer360Loading(false);
+    }
+  }, []);
+
   const loadAgents = useCallback(async () => {
     if (!isPlatformAdmin) return;
     try {
@@ -299,8 +324,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
 
   useEffect(() => {
     loadDetail(selectedId);
+    loadCustomer360(selectedId);
     stickToBottomRef.current = true;
-  }, [loadDetail, selectedId]);
+  }, [loadCustomer360, loadDetail, selectedId]);
 
   useEffect(() => {
     if (!selectedId || detailLoading) return;
@@ -329,6 +355,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   // selection cannot silently carry over to the next customer.
   useEffect(() => {
     setReply('');
+    setCustomer360(null);
     setQuickReply('');
     setAttachment(null);
     setInternalNote(false);
@@ -486,6 +513,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       await Promise.all([
         loadConversations({ quiet: true }),
         selectedId ? loadDetail(selectedId, { quiet: true }) : Promise.resolve(),
+        selectedId ? loadCustomer360(selectedId) : Promise.resolve(),
       ]);
     } catch (error) {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'The support action failed.');
@@ -619,6 +647,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       await Promise.all([
         loadConversations({ quiet: true }),
         loadDetail(selected.id, { quiet: true }),
+        loadCustomer360(selected.id),
       ]);
       agentSocketRef.current?.emit('agent:typing', { ticketId: selected.id, isTyping: false });
       window.clearTimeout(typingTimerRef.current);
@@ -918,6 +947,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (
                   <div className="space-y-4">
+                    <Customer360Panel data={customer360} loading={customer360Loading} />
                     {selected.review && (
                       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -454,6 +454,180 @@ async function getConversation(req, res) {
   }
 }
 
+async function getCustomer360(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can view customer context');
+
+    const customerId = access.conversation.customer_id || null;
+    const customerEmail = String(access.conversation.customer_email || '').trim().toLowerCase();
+    const businessId = access.conversation.business_id || null;
+    const businessScope = access.isPlatformAdmin ? '' : ' AND sc.business_id = $3';
+    const supportParams = access.isPlatformAdmin
+      ? [customerId, customerEmail]
+      : [customerId, customerEmail, businessId];
+
+    const queryOptional = async (sql, params, label) => {
+      try {
+        const result = await query(sql, params);
+        return result.rows || [];
+      } catch (error) {
+        // A missing optional product table should not take the support console down.
+        logger.warn('Customer 360 optional source unavailable', { source: label, error: error.message });
+        return [];
+      }
+    };
+
+    const profileResult = await query(
+      `SELECT id, email, first_name, last_name, phone, preferred_language,
+              email_verified, is_verified, created_at
+       FROM users
+       WHERE ($1::uuid IS NOT NULL AND id = $1)
+          OR ($2::text <> '' AND LOWER(email) = $2)
+       ORDER BY CASE WHEN $1::uuid IS NOT NULL AND id = $1 THEN 0 ELSE 1 END
+       LIMIT 1`,
+      [customerId, customerEmail]
+    );
+
+    const [supportConversations, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments] = await Promise.all([
+      queryOptional(
+        `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.created_at, sc.updated_at,
+                sc.resolved_at, sc.message_count, sc.customer_message_count, sc.agent_message_count,
+                sa.id AS agent_id,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email) AS agent_name,
+                scr.rating AS review_rating
+         FROM support_conversations sc
+         LEFT JOIN users u ON u.id = sc.customer_id
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         LEFT JOIN users au ON au.id = sa.user_id
+         LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
+         WHERE (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(u.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY sc.updated_at DESC, sc.created_at DESC
+         LIMIT 50`,
+        supportParams,
+        'support conversations'
+      ),
+      queryOptional(
+        `SELECT scm.id, scm.conversation_id, scm.content, scm.created_at,
+                sc.subject,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Support team') AS author_name
+         FROM support_conversation_messages scm
+         JOIN support_conversations sc ON sc.id = scm.conversation_id
+         LEFT JOIN users cu ON cu.id = sc.customer_id
+         LEFT JOIN users u ON u.id = scm.sender_id
+         WHERE scm.message_type = 'internal_note'
+           AND (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(cu.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY scm.created_at DESC
+         LIMIT 100`,
+        supportParams,
+        'internal notes'
+      ),
+      queryOptional(
+        `SELECT j.id, j.title, j.status, j.budget_min, j.budget_max, j.job_value,
+                j.customer_total, j.created_at, j.updated_at, j.location_city, j.location_state
+         FROM jobs j
+         WHERE j.client_id = $1
+         ORDER BY j.updated_at DESC, j.created_at DESC
+         LIMIT 50`,
+        [customerId],
+        'jobs'
+      ),
+      queryOptional(
+        `SELECT p.id, p.job_id, p.amount, p.currency, p.status, p.escrow_status,
+                p.created_at, p.updated_at
+         FROM payments p
+         WHERE p.payer_id = $1
+         ORDER BY p.updated_at DESC, p.created_at DESC
+         LIMIT 50`,
+        [customerId],
+        'payments'
+      ),
+      queryOptional(
+        `SELECT mo.id, mo.status, mo.total_cents, mo.created_at, mo.updated_at
+         FROM marketplace_orders mo
+         WHERE mo.customer_id = $1
+         ORDER BY mo.updated_at DESC, mo.created_at DESC
+         LIMIT 50`,
+        [customerId],
+        'marketplace orders'
+      ),
+      queryOptional(
+        `SELECT fo.id, fo.status, fo.payment_status, fo.total_cents, fo.currency_code,
+                fo.created_at, fo.updated_at
+         FROM food_orders fo
+         WHERE fo.customer_id = $1
+         ORDER BY fo.updated_at DESC, fo.created_at DESC
+         LIMIT 50`,
+        [customerId],
+        'food orders'
+      ),
+      queryOptional(
+        `SELECT scm.id, scm.conversation_id, scm.attachment_url, scm.attachment_name,
+                scm.created_at, sc.subject
+         FROM support_conversation_messages scm
+         JOIN support_conversations sc ON sc.id = scm.conversation_id
+         LEFT JOIN users u ON u.id = sc.customer_id
+         WHERE scm.attachment_url IS NOT NULL
+           AND (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(u.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY scm.created_at DESC
+         LIMIT 100`,
+        supportParams,
+        'support attachments'
+      ),
+    ]);
+
+    const priorAgents = Array.from(new Map(
+      supportConversations
+        .filter((row) => row.agent_id && row.agent_name)
+        .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }])
+    ).values());
+
+    return res.json({
+      success: true,
+      data: {
+        profile: profileResult.rows[0] || {
+          id: customerId,
+          email: access.conversation.customer_email || null,
+          first_name: null,
+          last_name: null,
+          phone: null,
+          preferred_language: null,
+        },
+        currentConversationId: conversationId,
+        supportConversations,
+        internalNotes,
+        jobs,
+        payments,
+        orders: { marketplace: marketplaceOrders, food: foodOrders },
+        attachments,
+        priorAgents,
+        summary: {
+          conversations: supportConversations.length,
+          jobs: jobs.length,
+          payments: payments.length,
+          orders: marketplaceOrders.length + foodOrders.length,
+          attachments: attachments.length,
+          internalNotes: internalNotes.length,
+        },
+      },
+    });
+  } catch (err) {
+    logger.error('getCustomer360 error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to load customer context');
+  }
+}
+
 async function authorizeConversationAccess(conversationId, req) {
   const result = await query(
     `SELECT sc.*,
@@ -1398,6 +1572,7 @@ module.exports = {
   createConversation,
   listConversations,
   getConversation,
+  getCustomer360,
   updateCustomerMessage,
   updateAgentMessage,
   markConversationRead,

@@ -522,6 +522,42 @@ describe('support routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
+  test('returns a staff-only customer 360 context across support and commerce sources', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, customer_email: 'customer@example.com', business_id: 42, agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, email: 'customer@example.com', first_name: 'Casey', last_name: 'Customer', preferred_language: 'en' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', subject: 'Current request', status: 'open', agent_id: 'agent-1', agent_name: 'Ava Agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'note-1', conversation_id: 'conversation-1', content: 'Prior context', subject: 'Current request', author_name: 'Ava Agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'job-1', title: 'Repair', status: 'completed' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, job_id: 'job-1', amount: '100.00', status: 'captured' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, status: 'completed', total_cents: 2500 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 3, status: 'ready', total_cents: 1800 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', attachment_name: 'photo.png', attachment_url: '/api/storage/files/photo.png' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations/conversation-1/customer-360')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.profile.email).toBe('customer@example.com');
+    expect(res.body.data.summary).toEqual({ conversations: 1, jobs: 1, payments: 1, orders: 2, attachments: 1, internalNotes: 1 });
+    expect(res.body.data.priorAgents).toEqual([{ id: 'agent-1', name: 'Ava Agent' }]);
+  });
+
+  test('does not expose customer 360 context to the customer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'open', agent_id: null }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations/conversation-1/customer-360')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
   test('returns real CSAT analytics to platform admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
