@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
+const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
 const { pollTranslationJobs } = require('../modules/jobs/translationJobWorker');
 const { startWeeklySummaryJob } = require('../jobs/weeklySummary');
 const { startPlannedNeedsScheduler } = require('../jobs/plannedNeedsScheduler');
@@ -112,6 +113,13 @@ class BackgroundWorkers {
         } catch (err) {
           this.log.error('Support message cleanup job failed', { error: err.message });
         }
+      });
+
+      // The active support conversation table uses a separate, lock-protected
+      // retention worker. Keep the legacy message cleanup above for old data.
+      cron.schedule('15 2 * * *', async () => {
+        const result = await cleanupExpiredSupportMessages();
+        if (!result.success) this.log.error('Support conversation retention job failed', result);
       });
 
       const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/30 * * * * *';
