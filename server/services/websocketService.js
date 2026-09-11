@@ -56,6 +56,7 @@ class WebSocketService {
     } catch (error) {
       logger.warn('Could not resolve support viewer name', { ticketId, userId: socket.userId, error: error.message });
     }
+    if (!socket.connected || !socket.rooms.has(room)) return;
     const viewers = this.ticketViewers.get(ticketId) || new Map();
     viewers.set(socket.id, viewer);
     this.ticketViewers.set(ticketId, viewers);
