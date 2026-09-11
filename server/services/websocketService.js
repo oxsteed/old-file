@@ -16,6 +16,35 @@ class WebSocketService {
     this.customerConnections = new Map(); // userId -> socketId
     this.agentConnections = new Map(); // agentId -> Set<socketId>
     this.ticketSockets = new Map(); // ticketId -> [socketIds]
+    this.ticketViewers = new Map(); // ticketId -> Map<socketId, true>
+  }
+
+  broadcastTicketViewerPresence(ticketId) {
+    if (!this.io) return;
+    const viewers = this.ticketViewers.get(ticketId);
+    this.io.to(`staff-ticket:${ticketId}`).emit('ticket:viewer-presence', {
+      ticketId,
+      viewerCount: viewers?.size || 0,
+    });
+  }
+
+  registerTicketViewer(socket, ticketId) {
+    if (!socket.userId || socket.guestConversationId || socket.userRole === 'customer') return;
+    const room = `staff-ticket:${ticketId}`;
+    socket.join(room);
+    const viewers = this.ticketViewers.get(ticketId) || new Map();
+    viewers.set(socket.id, true);
+    this.ticketViewers.set(ticketId, viewers);
+    this.broadcastTicketViewerPresence(ticketId);
+  }
+
+  unregisterTicketViewer(socket, ticketId) {
+    const viewers = this.ticketViewers.get(ticketId);
+    if (!viewers?.delete(socket.id)) return;
+    if (viewers.size) this.ticketViewers.set(ticketId, viewers);
+    else this.ticketViewers.delete(ticketId);
+    socket.leave(`staff-ticket:${ticketId}`);
+    this.broadcastTicketViewerPresence(ticketId);
   }
 
   /**
@@ -115,6 +144,11 @@ class WebSocketService {
         }
         const ticketSocketIds = this.ticketSockets.get(ticketId);
         if (!ticketSocketIds.includes(socket.id)) ticketSocketIds.push(socket.id);
+
+        // Staff-only collision awareness. The customer remains in the normal
+        // ticket room, while agent/admin viewers use a separate room so no
+        // internal presence signal can reach the customer client.
+        this.registerTicketViewer(socket, ticketId);
 
         logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
       });
@@ -384,6 +418,7 @@ class WebSocketService {
           };
           namespace.to(`ticket:${ticketId}`).emit('ticket:status-changed', payload);
           namespace.to(`ticket:${ticketId}`).emit('ticket:closed', payload);
+          this.unregisterTicketViewer(socket, ticketId);
           socket.leave(`ticket:${ticketId}`);
           logger.info('Ticket closed', { ticketId, closedBy: socket.userId });
         } catch (err) {
@@ -408,6 +443,10 @@ class WebSocketService {
           const remaining = socketIds.filter((socketId) => socketId !== socket.id);
           if (remaining.length) this.ticketSockets.set(ticketId, remaining);
           else this.ticketSockets.delete(ticketId);
+        }
+
+        for (const ticketId of this.ticketViewers.keys()) {
+          this.unregisterTicketViewer(socket, ticketId);
         }
 
         if (agentId) {
@@ -440,6 +479,7 @@ class WebSocketService {
     this.customerConnections.clear();
     this.agentConnections.clear();
     this.ticketSockets.clear();
+    this.ticketViewers.clear();
     this.io = null;
   }
 

@@ -137,6 +137,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [mergeBusy, setMergeBusy] = useState(false);
   const [showNewMessages, setShowNewMessages] = useState(false);
   const [customerTyping, setCustomerTyping] = useState(false);
+  const [ticketViewerCount, setTicketViewerCount] = useState(0);
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
@@ -392,6 +393,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   }, [loadConversations, loadDetail, selectedId]);
 
   useEffect(() => {
+    setTicketViewerCount(0);
     if (!isPlatformAdmin && (!agentEmployment?.is_available || !agentEmployment?.agent_id)) {
       agentSocketRef.current?.disconnect();
       agentSocketRef.current = null;
@@ -429,6 +431,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     socket.on('ticket:created', refreshWorkspace);
     socket.on('message:new', refreshWorkspace);
     socket.on('support:conversation-updated', refreshWorkspace);
+    socket.on('ticket:viewer-presence', (data) => {
+      if (data?.ticketId !== selectedId) return;
+      setTicketViewerCount(Number(data.viewerCount) || 0);
+    });
     socket.on('customer:typing-indicator', (data) => {
       if (data?.ticketId !== selectedId) return;
       const isTyping = Boolean(data.isTyping);
@@ -1000,6 +1006,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   <div className="flex h-full items-center justify-center"><RefreshCw className="animate-spin text-orange-400" /></div>
                 ) : (
                   <div className="space-y-4">
+                    {ticketViewerCount > 1 && (
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-100" role="status" aria-live="polite">
+                        Another support staff member is viewing this conversation ({ticketViewerCount} active viewers). Coordinate before sending a reply.
+                      </div>
+                    )}
                     <Customer360Panel data={customer360} loading={customer360Loading} />
                     {selected.review && (
                       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">

@@ -178,6 +178,48 @@ describe('shared realtime server', () => {
     await expect(typingEvent).resolves.toEqual({ ticketId: 'ticket-1', isTyping: true });
   });
 
+  test('shows staff collision presence without exposing it to the customer room', async () => {
+    pool.query.mockImplementation(async (sql, params = []) => {
+      if (sql.includes('FROM users')) {
+        return { rows: [{ is_active: true, role: params[0] === 'customer-user-1' ? 'customer' : 'helper' }] };
+      }
+      if (sql.includes('FROM support_conversations sc')) return { rows: [{ id: 'ticket-1' }] };
+      if (sql.includes('FROM support_agents')) return { rows: [{ id: 'agent-1' }] };
+      return { rows: [] };
+    });
+    mockQuery.mockImplementation(async (sql) => (
+      sql.includes('FROM support_conversations sc') ? { rows: [{ id: 'ticket-1' }] } : { rows: [] }
+    ));
+
+    const firstAgentToken = jwt.sign({ id: 'agent-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const secondAgentToken = jwt.sign({ id: 'agent-user-2' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const customerToken = jwt.sign({ id: 'customer-user-1' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const firstAgent = await connect(`${baseUrl}/support`, { auth: { token: firstAgentToken } });
+    const secondAgent = await connect(`${baseUrl}/support`, { auth: { token: secondAgentToken } });
+    const customer = await connect(`${baseUrl}/support`, { auth: { token: customerToken } });
+    clients.push(firstAgent, secondAgent, customer);
+
+    firstAgent.emit('agent:join');
+    secondAgent.emit('agent:join');
+    firstAgent.emit('ticket:join', { ticketId: 'ticket-1' });
+    customer.emit('customer:join', { visitorName: 'Customer' });
+    customer.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const firstPresence = once(firstAgent, 'ticket:viewer-presence');
+    const customerPresence = new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), 100);
+      customer.once('ticket:viewer-presence', (data) => {
+        clearTimeout(timer);
+        resolve(data);
+      });
+    });
+    secondAgent.emit('ticket:join', { ticketId: 'ticket-1' });
+
+    await expect(firstPresence).resolves.toEqual({ ticketId: 'ticket-1', viewerCount: 2 });
+    await expect(customerPresence).resolves.toBeNull();
+  });
+
   test('keeps ticket socket bookkeeping unique and removes it on disconnect', async () => {
     pool.query.mockImplementation(async (sql) => {
       if (sql.includes('FROM users')) return { rows: [{ is_active: true, role: 'customer' }] };
