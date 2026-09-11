@@ -17,6 +17,7 @@ jest.mock('../services/auditService', () => ({
 const supportRoutes = require('../routes/support');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
+const email = require('../utils/email');
 
 const USER_ID = '00000000-0000-4000-8000-000000000888';
 const ADMIN_ID = '00000000-0000-4000-8000-000000000889';
@@ -293,6 +294,43 @@ describe('support routes', () => {
       'ticket:status-changed',
       expect.objectContaining({ resolutionSummary: 'Issue fixed and next steps provided.' })
     );
+  });
+
+  test('notifies the customer once when a conversation is resolved', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'conversation-1',
+        business_id: null,
+        customer_id: USER_ID,
+        customer_email: 'customer@example.com',
+        customer_name: 'Casey Customer',
+        customer_email_notifications: true,
+        status: 'in_progress',
+        agent_id: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'conversation-1',
+        status: 'resolved',
+        resolution_status: 'resolved',
+        resolution_summary: 'The account issue was corrected.',
+        resolved_at: '2026-09-10T12:00:00.000Z',
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'resolved', resolutionSummary: 'The account issue was corrected.' });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(res.status).toBe(200);
+    expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'customer@example.com',
+      subject: 'OxSteed Support: Support conversation resolved',
+      idempotencyKey: expect.stringMatching(/^support-status-conversation-1-resolved-\d+$/),
+    }));
   });
 
   test('rejects oversized status metadata before loading the conversation', async () => {

@@ -54,6 +54,49 @@ async function notifyCustomerOfAgentReply(conversation, message) {
   }
 }
 
+async function notifyCustomerOfConversationStatus(conversation, status, resolutionSummary, transitionAt) {
+  const recipient = String(conversation.customer_email || '').trim();
+  if (!recipient || conversation.customer_email_notifications === false) return;
+
+  const subject = String(conversation.subject || 'Support conversation')
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 180);
+  const customerName = String(conversation.customer_name || 'there').trim();
+  const safeName = escapeHtml(customerName);
+  const safeStatus = status === 'closed' ? 'closed' : 'resolved';
+  const safeSummary = String(resolutionSummary || '').trim();
+  const summaryLine = safeSummary
+    ? `\nResolution summary:\n${safeSummary}\n`
+    : '';
+  const summaryHtml = safeSummary
+    ? `<p><strong>Resolution summary</strong></p><p style="line-height:1.7">${escapeHtml(safeSummary).replace(/\n/g, '<br>')}</p>`
+    : '';
+
+  const result = await sendEmail({
+    to: recipient,
+    from: EMAIL_ADDRESSES.support,
+    fromName: 'OxSteed Support',
+    subject: `OxSteed Support: ${subject} ${safeStatus}`,
+    text: `Hi ${customerName},\n\nYour OxSteed support conversation has been ${safeStatus}.${summaryLine}\nIf you still need help, reply through your OxSteed support conversation or contact support.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#ea580c">OxSteed Support</h2>
+      <p>Hi ${safeName},</p>
+      <p>Your support conversation has been ${safeStatus}.</p>
+      ${summaryHtml}
+      <p>If you still need help, reply through your OxSteed support conversation or contact support.</p>
+      <p style="margin-top:28px;color:#6b7280">OxSteed Support<br>+1 (937) 408-5169</p>
+    </div>`,
+    idempotencyKey: `support-status-${conversation.id}-${safeStatus}-${new Date(transitionAt || Date.now()).getTime()}`,
+  });
+  if (!result?.success) {
+    logger.warn('Customer support status email was not delivered', {
+      conversationId: conversation.id,
+      status: safeStatus,
+      error: result?.error || 'unknown error',
+    });
+  }
+}
+
 function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   const rawUrl = String(attachmentUrl ?? '').trim();
   const rawName = String(attachmentName ?? '').trim();
@@ -779,6 +822,7 @@ async function updateConversationStatus(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
+    const statusChanged = conversation.status !== status;
 
     const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
     let isAssignedAgent = false;
@@ -876,6 +920,24 @@ async function updateConversationStatus(req, res) {
     };
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', statusPayload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', statusPayload);
+
+    if (statusChanged && (status === 'resolved' || status === 'closed')) {
+      // Realtime status delivery is primary; email is a durable fallback for
+      // customers who are offline. Never let provider failure block the case
+      // transition that was already committed above.
+      void notifyCustomerOfConversationStatus(
+        conversation,
+        status,
+        result.rows[0]?.resolution_summary,
+        status === 'closed' ? result.rows[0]?.closed_at : result.rows[0]?.resolved_at
+      ).catch((error) => {
+        logger.warn('Customer support status email failed', {
+          conversationId,
+          status,
+          error: error.message,
+        });
+      });
+    }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
