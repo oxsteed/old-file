@@ -1,5 +1,6 @@
 const { fileTypeFromBuffer } = require('file-type');
 const logger = require('../utils/logger');
+const fileScanService = require('../services/fileScanService');
 
 /**
  * Middleware to validate uploaded files using magic-bytes (content sniffing).
@@ -33,33 +34,49 @@ const validateFileUpload = async (req, res, next) => {
         // We check the extension as fallback but default to rejection for binary-expected fields
         const safeTextExtensions = ['.txt', '.csv', '.json', '.w9'];
         const ext = require('path').extname(file.originalname).toLowerCase();
-        if (safeTextExtensions.includes(ext)) continue;
+        if (!safeTextExtensions.includes(ext)) {
+          logger.warn('File type detection failed', { filename: file.originalname, size: file.size });
+          return res.status(400).json({ error: 'Security check failed: Could not determine file type.' });
+        }
+      } else {
+        // Check for discrepancies between detected MIME and what the browser/multer reported.
+        // If browser says image/jpeg but magic bytes say application/x-php, reject.
+        if (file.mimetype && file.mimetype !== detected.mime) {
+          const normalizedMime = file.mimetype.replace('x-', '');
+          const normalizedDetected = detected.mime.replace('x-', '');
 
-        logger.warn('File type detection failed', { filename: file.originalname, size: file.size });
-        return res.status(400).json({ error: 'Security check failed: Could not determine file type.' });
-      }
-
-      // Check for discrepancies between detected MIME and what the browser/multer reported
-      // If browser says image/jpeg but magic bytes say application/x-php, we must reject.
-      if (file.mimetype && file.mimetype !== detected.mime) {
-        // Minor variations like audio/wav vs audio/x-wav are usually fine
-        const normalizedMime = file.mimetype.replace('x-', '');
-        const normalizedDetected = detected.mime.replace('x-', '');
-        
-        if (normalizedMime !== normalizedDetected) {
-            logger.error('File MIME mismatch identified (Spoofing attempt?)', { 
-                filename: file.originalname, 
-                reported: file.mimetype, 
-                detected: detected.mime 
+          if (normalizedMime !== normalizedDetected) {
+            logger.error('File MIME mismatch identified (Spoofing attempt?)', {
+              filename: file.originalname,
+              reported: file.mimetype,
+              detected: detected.mime,
             });
             return res.status(400).json({ error: 'Security check failed: File content does not match the reported type.' });
+          }
+        }
+
+        // Final allowlist check for sensitive binary types.
+        const blockedMimes = ['application/x-msdownload', 'application/x-sh', 'text/javascript', 'application/javascript'];
+        if (blockedMimes.includes(detected.mime)) {
+          return res.status(400).json({ error: 'Security violation: Executable or script files are not permitted.' });
         }
       }
 
-      // Final allowlist check for sensitive binary types
-      const blockedMimes = ['application/x-msdownload', 'application/x-sh', 'text/javascript', 'application/javascript'];
-      if (blockedMimes.includes(detected.mime)) {
-          return res.status(400).json({ error: 'Security violation: Executable or script files are not permitted.' });
+      try {
+        const scan = await fileScanService.scanBuffer(file.buffer);
+        if (!scan.clean) {
+          logger.warn('Malware scanner rejected upload', {
+            filename: file.originalname,
+            provider: scan.provider,
+          });
+          return res.status(400).json({ error: 'Security check failed: The uploaded file was rejected.' });
+        }
+      } catch (scanError) {
+        logger.error('Malware scanner unavailable', {
+          filename: file.originalname,
+          error: scanError.message,
+        });
+        return res.status(503).json({ error: 'File security scanning is temporarily unavailable. Please try again.' });
       }
     }
     next();
