@@ -22,6 +22,9 @@ router.get('/audit-trail', monitoringController.getAuditTrail);
 // Tamper-evident audit chain integrity
 router.get('/audit-integrity', monitoringController.getAuditIntegrity);
 
+// Upload scanning policy and provider status
+router.get('/upload-security', monitoringController.getUploadSecurity);
+
 // Database performance metrics
 router.get('/database-health', monitoringController.getDatabaseHealth);
 

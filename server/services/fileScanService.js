@@ -6,6 +6,12 @@ const DEFAULT_PORT = 3310;
 const DEFAULT_TIMEOUT_MS = 5000;
 const CHUNK_SIZE = 64 * 1024;
 
+function malwareScanRequired() {
+  return /^(1|true|yes|on)$/i.test(String(
+    process.env.FILE_SCAN_REQUIRE_MALWARE || process.env.REQUIRE_MALWARE_SCAN || ''
+  ).trim());
+}
+
 function scannerConfig() {
   const host = String(process.env.CLAMAV_HOST || '').trim();
   if (!host) return null;
@@ -21,7 +27,12 @@ function scannerConfig() {
  */
 function scanBuffer(buffer) {
   const config = scannerConfig();
-  if (!config) return Promise.resolve({ clean: true, skipped: true, provider: 'static' });
+  if (!config) {
+    if (malwareScanRequired()) {
+      return Promise.reject(new Error('Malware scanner is required but not configured'));
+    }
+    return Promise.resolve({ clean: true, skipped: true, provider: 'static' });
+  }
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
     return Promise.reject(new Error('A non-empty upload buffer is required for malware scanning'));
   }
@@ -74,4 +85,16 @@ function isConfigured() {
   return Boolean(scannerConfig());
 }
 
-module.exports = { scanBuffer, isConfigured };
+function getStatus() {
+  const configured = isConfigured();
+  const required = malwareScanRequired();
+  return {
+    provider: configured ? 'clamav' : 'static',
+    configured,
+    required,
+    failClosed: configured || required,
+    mode: configured ? 'clamav_fail_closed' : required ? 'blocked_until_configured' : 'static_validation_only',
+  };
+}
+
+module.exports = { scanBuffer, isConfigured, getStatus, malwareScanRequired };

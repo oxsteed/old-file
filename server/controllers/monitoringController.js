@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const metricsService = require('../services/metricsService');
 const backupMonitor = require('../services/backupMonitor');
 const complianceAuditLogger = require('../services/complianceAuditLogger');
+const fileScanService = require('../services/fileScanService');
 
 /**
  * GET /api/monitoring/health
@@ -19,6 +20,7 @@ exports.getSystemHealth = async (req, res, next) => {
       backupMonitor.getStatus(),
       _readAuditIntegrity(),
     ]);
+    const uploadSecurity = fileScanService.getStatus();
     const poolStats = req.app.locals.poolMonitor?.getStats() || {};
     const healthAlerts = [...alerts];
     if (auditIntegrity.status === 'integrity_failure') {
@@ -26,6 +28,15 @@ exports.getSystemHealth = async (req, res, next) => {
         type: 'AUDIT_CHAIN_INTEGRITY_FAILURE',
         severity: 'critical',
         message: `${auditIntegrity.brokenCount} admin audit chain entr${auditIntegrity.brokenCount === 1 ? 'y is' : 'ies are'} invalid`,
+      });
+    }
+    if (!uploadSecurity.configured) {
+      healthAlerts.push({
+        type: 'UPLOAD_MALWARE_SCANNER_NOT_CONFIGURED',
+        severity: uploadSecurity.required ? 'critical' : 'warning',
+        message: uploadSecurity.required
+          ? 'Uploads are blocked until the required malware scanner is configured'
+          : 'Uploads currently use static validation only; configure ClamAV for malware scanning',
       });
     }
 
@@ -38,11 +49,24 @@ exports.getSystemHealth = async (req, res, next) => {
       database: poolStats,
       backup: backupStatus,
       auditIntegrity,
+      uploadSecurity,
     });
   } catch (err) {
     logger.error('Health check error', { error: err.message });
     res.status(500).json({ error: 'Health check failed' });
   }
+};
+
+/**
+ * GET /api/monitoring/upload-security
+ * Report the active upload scanning policy without exposing scanner settings.
+ */
+exports.getUploadSecurity = async (_req, res) => {
+  const status = fileScanService.getStatus();
+  return res.status(status.required && !status.configured ? 503 : 200).json({
+    ...status,
+    checkedAt: new Date().toISOString(),
+  });
 };
 
 /**

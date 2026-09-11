@@ -35,6 +35,23 @@ function adminAuthHeader() {
 beforeEach(() => resetMocks());
 
 describe('monitoring routes', () => {
+  test('reports upload scanning policy without exposing scanner configuration', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] });
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/upload-security')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      provider: 'static',
+      configured: false,
+      required: false,
+      mode: 'static_validation_only',
+    });
+    expect(res.body).not.toHaveProperty('host');
+  });
+
   test('reports a healthy tamper-evident audit chain', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] })
