@@ -1072,6 +1072,7 @@ router.get('/csat/analytics', async (req, res, next) => {
            (SELECT COUNT(*)::int FROM finished) AS surveys_sent,
            COUNT(scr.id)::int AS surveys_completed,
            COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
+           ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
            COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE scr.rating >= 4) / NULLIF(COUNT(scr.id), 0), 1), 0)::float AS csat_score
          FROM finished f
          LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = f.id
@@ -1081,7 +1082,8 @@ router.get('/csat/analytics', async (req, res, next) => {
       db.query(
         `SELECT DATE_TRUNC('day', scr.created_at)::date AS day,
                 COUNT(*)::int AS responses,
-                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating
+                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
+                ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
          WHERE scr.created_at >= NOW() - INTERVAL '30 days'
@@ -1103,7 +1105,7 @@ router.get('/csat/analytics', async (req, res, next) => {
         [businessId]
       ),
       db.query(
-        `SELECT scr.id, scr.conversation_id, scr.rating, scr.comment, scr.created_at,
+        `SELECT scr.id, scr.conversation_id, scr.rating, scr.nps_score, scr.comment, scr.created_at,
                 COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
@@ -1125,6 +1127,7 @@ router.get('/csat/analytics', async (req, res, next) => {
         surveys_sent: surveysSent,
         surveys_completed: surveysCompleted,
         avg_rating: Number(summary.avg_rating || 0),
+        avg_nps: summary.avg_nps == null ? null : Number(summary.avg_nps),
       },
       csat_trend: trendResult.rows,
       sentiment_distribution: [],

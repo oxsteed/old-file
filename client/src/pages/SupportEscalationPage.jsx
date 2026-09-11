@@ -42,7 +42,7 @@ function scheduleChatScroll(element, behavior = 'smooth') {
   return () => window.cancelAnimationFrame(frame);
 }
 
-function ConversationReviewForm({ t, review, rating, setRating, comment, setComment, busy, onSubmit }) {
+function ConversationReviewForm({ t, review, rating, setRating, npsScore, setNpsScore, comment, setComment, busy, onSubmit }) {
   if (review) {
     return <div className="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><p className="font-semibold text-emerald-200">{t('support.escalation.reviewThanks', { defaultValue: 'Thanks for your feedback.' })}</p><p className="mt-1 text-sm text-slate-300">{t('support.escalation.reviewSaved', { defaultValue: 'Your review has been saved.' })}</p></div>;
   }
@@ -52,8 +52,12 @@ function ConversationReviewForm({ t, review, rating, setRating, comment, setComm
     <div className="mt-3 flex gap-1" role="radiogroup" aria-label={t('support.escalation.reviewTitle', { defaultValue: 'How did we do?' })}>
       {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} / 5`} aria-pressed={rating === value} className={`rounded-lg p-1 transition ${value <= rating ? 'text-orange-300' : 'text-slate-600 hover:text-orange-200'}`}><Star size={22} fill="currentColor" /></button>)}
     </div>
+    <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('support.escalation.npsQuestion', { defaultValue: 'How likely are you to recommend OxSteed?' })}</p>
+    <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-11" role="radiogroup" aria-label={t('support.escalation.npsQuestion', { defaultValue: 'How likely are you to recommend OxSteed?' })}>
+      {Array.from({ length: 11 }, (_, value) => <button key={value} type="button" onClick={() => setNpsScore(value)} aria-label={`${value} / 10`} aria-pressed={npsScore === value} className={`rounded-lg border px-1.5 py-1 text-xs font-semibold transition ${npsScore === value ? 'border-orange-400 bg-orange-500 text-white' : 'border-slate-700 text-slate-400 hover:border-orange-300 hover:text-orange-200'}`}>{value}</button>)}
+    </div>
     <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} rows={2} className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" placeholder={t('support.escalation.reviewPlaceholder', { defaultValue: 'Optional feedback' })} />
-    <button type="submit" disabled={busy || !rating} className="mt-3 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? t('support.escalation.savingReview', { defaultValue: 'Saving…' }) : t('support.escalation.submitReview', { defaultValue: 'Submit review' })}</button>
+    <button type="submit" disabled={busy || !rating || npsScore === null} className="mt-3 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? t('support.escalation.savingReview', { defaultValue: 'Saving...' }) : t('support.escalation.submitReview', { defaultValue: 'Submit review' })}</button>
   </form>;
 }
 
@@ -79,6 +83,7 @@ function PublicGuestSupport({ t }) {
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
+  const [reviewNpsScore, setReviewNpsScore] = useState(null);
   const [reviewComment, setReviewComment] = useState('');
   const [review, setReview] = useState(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -265,7 +270,7 @@ function PublicGuestSupport({ t }) {
     if (!reviewRating) return;
     setReviewBusy(true); setError('');
     try {
-      const response = await api.post(`/support/public/conversations/${conversationId}/review`, { rating: reviewRating, comment: reviewComment }, { headers: { Authorization: `Guest ${token}` } });
+      const response = await api.post(`/support/public/conversations/${conversationId}/review`, { rating: reviewRating, npsScore: reviewNpsScore, comment: reviewComment }, { headers: { Authorization: `Guest ${token}` } });
       setReview(response.data.data); setReviewComment('');
     } catch (err) {
       setError(err.response?.data?.error || t('support.escalation.reviewError', { defaultValue: 'Could not save your review.' }));
@@ -392,7 +397,7 @@ function PublicGuestSupport({ t }) {
         <div ref={messagesEndRef} />
       </div>
       {['resolved', 'closed'].includes(conversationStatus) && <ResolutionSummary t={t} summary={resolutionSummary} />}
-      {['resolved', 'closed'].includes(conversationStatus) && <ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitReview} />}
+      {['resolved', 'closed'].includes(conversationStatus) && <ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} npsScore={reviewNpsScore} setNpsScore={setReviewNpsScore} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitReview} />}
       {error && <p className="mb-3 text-red-300">{error}</p>}
       {agentTyping && <p className="mb-2 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
       {replyFile && <p className="mb-2 text-sm text-orange-200">{replyFile.name}</p>}
@@ -452,6 +457,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [review, setReview] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
+  const [reviewNpsScore, setReviewNpsScore] = useState(null);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -838,7 +844,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
     if (!ticketId || !reviewRating) return;
     setReviewBusy(true);
     try {
-      const response = await api.post(`/support/conversations/${ticketId}/review`, { rating: reviewRating, comment: reviewComment });
+      const response = await api.post(`/support/conversations/${ticketId}/review`, { rating: reviewRating, npsScore: reviewNpsScore, comment: reviewComment });
       setReview(response.data.data); setReviewComment('');
     } catch (err) {
       toast.error(err.response?.data?.error || t('support.escalation.reviewError', { defaultValue: 'Could not save your review.' }));
@@ -1111,7 +1117,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {['resolved', 'closed'].includes(conversationStatus) && <div className="px-6 pt-4"><ResolutionSummary t={t} summary={resolutionSummary} /><ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitConversationReview} /></div>}
+                {['resolved', 'closed'].includes(conversationStatus) && <div className="px-6 pt-4"><ResolutionSummary t={t} summary={resolutionSummary} /><ConversationReviewForm t={t} review={review} rating={reviewRating} setRating={setReviewRating} npsScore={reviewNpsScore} setNpsScore={setReviewNpsScore} comment={reviewComment} setComment={setReviewComment} busy={reviewBusy} onSubmit={submitConversationReview} /></div>}
                 {agentTyping && <p className="px-6 pt-3 text-xs text-slate-400" role="status">{t('support.escalation.agentTyping', { defaultValue: 'A support agent is typing…' })}</p>}
                 {liveFile && <div className="px-6 pt-3 text-sm text-orange-200">{liveFile.name}</div>}
                 <form

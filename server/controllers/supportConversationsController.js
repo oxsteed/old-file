@@ -304,6 +304,7 @@ async function getConversation(req, res) {
           SELECT jsonb_build_object(
             'id', scr.id,
             'rating', scr.rating,
+            'nps_score', scr.nps_score,
             'comment', scr.comment,
             'created_at', scr.created_at,
             'updated_at', scr.updated_at
@@ -1077,9 +1078,15 @@ async function downloadConversation(req, res) {
 async function createConversationReview(req, res) {
   const conversationId = req.params.conversationId;
   const rating = Number(req.body?.rating);
+  const hasNpsScore = req.body?.npsScore !== undefined && req.body?.npsScore !== null && req.body?.npsScore !== '';
+  const npsScore = hasNpsScore ? Number(req.body.npsScore) : null;
   const comment = String(req.body?.comment || '').trim();
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 1000) {
-    return sendValidationError(res, { rating: 'Choose a rating from 1 to 5', comment: 'Feedback must be 1000 characters or fewer' });
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || (hasNpsScore && (!Number.isInteger(npsScore) || npsScore < 0 || npsScore > 10)) || comment.length > 1000) {
+    return sendValidationError(res, {
+      ...(!Number.isInteger(rating) || rating < 1 || rating > 5 ? { rating: 'Choose a rating from 1 to 5' } : {}),
+      ...(hasNpsScore && (!Number.isInteger(npsScore) || npsScore < 0 || npsScore > 10) ? { npsScore: 'Must be an integer from 0 to 10' } : {}),
+      ...(comment.length > 1000 ? { comment: 'Feedback must be 1000 characters or fewer' } : {}),
+    });
   }
 
   try {
@@ -1090,12 +1097,15 @@ async function createConversationReview(req, res) {
       return sendError(res, 409, 'Reviews are available after the conversation is finished');
     }
     const result = await query(
-      `INSERT INTO support_conversation_reviews (conversation_id, customer_id, rating, comment)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO support_conversation_reviews (conversation_id, customer_id, rating, nps_score, comment)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (conversation_id) DO UPDATE
-       SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, updated_at = NOW()
-       RETURNING id, conversation_id, rating, comment, created_at, updated_at`,
-      [conversationId, req.user.id, rating, comment || null]
+       SET rating = EXCLUDED.rating,
+           nps_score = COALESCE(EXCLUDED.nps_score, support_conversation_reviews.nps_score),
+           comment = EXCLUDED.comment,
+           updated_at = NOW()
+       RETURNING id, conversation_id, rating, nps_score, comment, created_at, updated_at`,
+      [conversationId, req.user.id, rating, npsScore, comment || null]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {

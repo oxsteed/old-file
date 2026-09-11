@@ -536,15 +536,16 @@ describe('support routes', () => {
   test('lets a verified guest review a finished conversation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'guest-1', guest_email: 'guest@example.com', status: 'resolved' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', conversation_id: 'guest-1', rating: 5, comment: 'Helpful', created_at: '2026-09-09T00:05:00.000Z', updated_at: '2026-09-09T00:05:00.000Z' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', conversation_id: 'guest-1', rating: 5, nps_score: 9, comment: 'Helpful', created_at: '2026-09-09T00:05:00.000Z', updated_at: '2026-09-09T00:05:00.000Z' }] });
 
     const res = await request(buildApp())
       .post('/api/support/public/conversations/guest-1/review')
       .set('Authorization', 'Guest verified-guest-token')
-      .send({ rating: 5, comment: 'Helpful' });
+      .send({ rating: 5, npsScore: 9, comment: 'Helpful' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.rating).toBe(5);
+    expect(res.body.data.nps_score).toBe(9);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_reviews/.test(sql))).toBe(true);
   });
 

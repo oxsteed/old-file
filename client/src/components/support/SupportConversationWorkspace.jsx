@@ -1262,6 +1262,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                           </span>
                         </div>
                         {selected.review.comment && <p className="mt-2 text-sm text-slate-200">{selected.review.comment}</p>}
+                        {selected.review.nps_score != null && <p className="mt-2 text-xs text-slate-300">NPS: <span className="font-semibold text-orange-200">{selected.review.nps_score}/10</span></p>}
                         <p className="mt-2 text-[11px] text-slate-500">Submitted {formatWhen(selected.review.updated_at || selected.review.created_at)}</p>
                       </section>
                     )}

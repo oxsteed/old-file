@@ -4193,6 +4193,7 @@
       "editError": "This message can no longer be edited.",
       "reviewTitle": "How did we do?",
       "reviewBody": "Please rate your support experience.",
+      "npsQuestion": "How likely are you to recommend OxSteed?",
       "reviewPlaceholder": "Optional feedback",
       "submitReview": "Submit review",
       "savingReview": "Saving review…",
