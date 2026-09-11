@@ -172,6 +172,7 @@ export default function SupportCSATAnalytics() {
   const sentimentDistribution = csatData.sentiment_distribution || [];
   const agentCSAT = csatData.agent_csat || [];
   const recentFeedback = csatData.recent_feedback || [];
+  const averageNps = csatMetrics.avg_nps == null ? null : Number(csatMetrics.avg_nps);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -204,7 +205,7 @@ export default function SupportCSATAnalytics() {
       </div>
 
       {/* Main Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <CSATScoreCard
           score={csatMetrics.csat_score || 0}
           target={csatMetrics.csat_target || 80}
@@ -227,6 +228,15 @@ export default function SupportCSATAnalytics() {
           <div className="flex items-center gap-2 text-gray-400 text-xs">
             <Heart size={14} className="text-red-400" />
             <span>Out of 5.0</span>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+          <p className="text-gray-400 text-sm mb-2">Average NPS</p>
+          <p className="text-white text-3xl font-bold mb-3">{averageNps == null ? 'N/A' : averageNps.toFixed(1)}</p>
+          <div className="flex items-center gap-2 text-gray-400 text-xs">
+            <TrendingUp size={14} className="text-blue-400" />
+            <span>{averageNps == null ? 'No NPS responses yet' : 'Out of 10.0'}</span>
           </div>
         </div>
       </div>
