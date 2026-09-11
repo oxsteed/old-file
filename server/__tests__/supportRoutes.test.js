@@ -725,7 +725,7 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ surveys_sent: 4, surveys_completed: 2, avg_rating: 4.5, avg_nps: 9, nps_index: 100, csat_score: 100 }] })
       .mockResolvedValueOnce({ rows: [{ day: '2026-09-09', responses: 2, avg_rating: 4.5, avg_nps: 9 }] })
       .mockResolvedValueOnce({ rows: [{ agent_name: 'Support', responses: 2, avg_rating: 4.5, avg_nps: 9, nps_index: 100 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', rating: 5, comment: 'Helpful' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', rating: 5, comment: 'Helpful', customer_name: 'Casey Customer', conversation_subject: 'Billing question', agent_name: 'Support' }] });
 
     const res = await request(buildApp())
       .get('/api/support/csat/analytics')
@@ -735,6 +735,7 @@ describe('support routes', () => {
     expect(res.body.metrics).toMatchObject({ surveys_sent: 4, surveys_completed: 2, csat_score: 100, survey_response_rate: 50, avg_nps: 9, nps_index: 100 });
     expect(res.body.csat_trend[0]).toMatchObject({ avg_nps: 9 });
     expect(res.body.agent_csat[0]).toMatchObject({ avg_nps: 9, nps_index: 100 });
+    expect(res.body.recent_feedback[0]).toMatchObject({ customer_name: 'Casey Customer', conversation_subject: 'Billing question', agent_name: 'Support' });
     expect(res.body.recent_feedback).toHaveLength(1);
   });
 

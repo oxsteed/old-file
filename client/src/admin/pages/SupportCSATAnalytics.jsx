@@ -73,8 +73,8 @@ function FeedbackItem({ feedback }) {
     <div className="bg-gray-700 rounded-lg p-4">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <p className="text-white font-medium">{feedback.agent_name}</p>
-          <p className="text-gray-400 text-sm">{feedback.conversation_subject}</p>
+          <p className="text-white font-medium">{feedback.customer_name || 'Customer'}</p>
+          <p className="text-gray-400 text-sm">{feedback.conversation_subject || 'Support conversation'} · {feedback.agent_name || 'Support team'}</p>
         </div>
         <div className={`text-2xl font-bold ${getRatingColor(feedback.rating)}`}>
           {feedback.rating}★

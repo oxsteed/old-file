@@ -1115,10 +1115,14 @@ router.get('/csat/analytics', async (req, res, next) => {
       ),
       db.query(
         `SELECT scr.id, scr.conversation_id, scr.rating, scr.nps_score, scr.comment, scr.created_at,
-                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name
+                sc.subject AS conversation_subject,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, sc.guest_name, 'Customer') AS customer_name,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email, 'Support team') AS agent_name
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
          LEFT JOIN users u ON u.id = sc.customer_id
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         LEFT JOIN users au ON au.id = sa.user_id
          WHERE scr.created_at >= NOW() - INTERVAL '30 days'
            AND ($1 IS NULL OR sc.business_id = $1)
          ORDER BY scr.created_at DESC LIMIT 25`,
