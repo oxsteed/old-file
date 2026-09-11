@@ -21,6 +21,7 @@ exports.getSystemHealth = async (req, res, next) => {
       _readAuditIntegrity(),
     ]);
     const uploadSecurity = fileScanService.getStatus();
+    const securityPosture = await _readSecurityPosture();
     const poolStats = req.app.locals.poolMonitor?.getStats() || {};
     const healthAlerts = [...alerts];
     if (auditIntegrity.status === 'integrity_failure') {
@@ -39,6 +40,13 @@ exports.getSystemHealth = async (req, res, next) => {
           : 'Uploads currently use static validation only; configure ClamAV for malware scanning',
       });
     }
+    if (securityPosture.status !== 'healthy') {
+      healthAlerts.push({
+        type: 'SECURITY_POSTURE_DEGRADED',
+        severity: securityPosture.status === 'critical' ? 'critical' : 'warning',
+        message: securityPosture.summary,
+      });
+    }
 
     res.json({
       status: healthAlerts.length > 0 ? 'degraded' : 'healthy',
@@ -50,10 +58,29 @@ exports.getSystemHealth = async (req, res, next) => {
       backup: backupStatus,
       auditIntegrity,
       uploadSecurity,
+      securityPosture,
     });
   } catch (err) {
     logger.error('Health check error', { error: err.message });
     res.status(500).json({ error: 'Health check failed' });
+  }
+};
+
+/**
+ * GET /api/monitoring/security-posture
+ * Return safe, actionable security readiness signals. Never return secret
+ * values or provider credentials from this endpoint.
+ */
+exports.getSecurityPosture = async (_req, res) => {
+  try {
+    const posture = await _readSecurityPosture();
+    return res.status(posture.status === 'critical' ? 503 : 200).json({
+      ...posture,
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error('Security posture check error', { error: err.message });
+    return res.status(503).json({ status: 'unavailable', error: 'Security posture unavailable' });
   }
 };
 
@@ -402,4 +429,48 @@ async function _readAuditIntegrity() {
     logger.warn('Audit integrity health check unavailable', { error: err.message });
     return { status: 'unavailable', checkedCount: 0, brokenCount: 0 };
   }
+}
+
+async function _readSecurityPosture() {
+  const jwtConfigured = Boolean(String(process.env.JWT_SECRET || '').trim());
+  const jwtStrong = String(process.env.JWT_SECRET || '').trim().length >= 32;
+  const encryptionConfigured = Boolean(String(process.env.ENCRYPTION_KEY || '').trim());
+  const encryptionValid = /^[a-fA-F0-9]{64}$/.test(String(process.env.ENCRYPTION_KEY || '').trim());
+
+  let adminMfa = { status: 'unavailable', total: 0, enabled: 0, missing: 0 };
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE totp_enabled = TRUE)::int AS enabled
+      FROM users
+      WHERE role IN ('admin', 'super_admin') AND is_active = TRUE
+    `);
+    const total = Number(result.rows[0]?.total || 0);
+    const enabled = Number(result.rows[0]?.enabled || 0);
+    adminMfa = {
+      status: total === 0 || enabled === total ? 'healthy' : 'warning',
+      total,
+      enabled,
+      missing: Math.max(0, total - enabled),
+    };
+  } catch (err) {
+    logger.warn('Admin MFA posture check unavailable', { error: err.message });
+  }
+
+  const checks = {
+    jwtSecret: { status: jwtConfigured && jwtStrong ? 'healthy' : 'critical' },
+    encryptionKey: { status: encryptionConfigured && encryptionValid ? 'healthy' : 'critical' },
+    adminMfa,
+  };
+  const critical = Object.values(checks).some((check) => check.status === 'critical');
+  const warning = Object.values(checks).some((check) => check.status === 'warning' || check.status === 'unavailable');
+  const status = critical ? 'critical' : warning ? 'warning' : 'healthy';
+  const summary = critical
+    ? 'One or more required security secrets are missing or invalid'
+    : warning
+      ? 'One or more security controls need attention'
+      : 'Required secrets and active-admin MFA coverage are healthy';
+
+  return { status, summary, checks };
 }

@@ -35,6 +35,44 @@ function adminAuthHeader() {
 beforeEach(() => resetMocks());
 
 describe('monitoring routes', () => {
+  test('reports safe security posture signals without returning secret values', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] })
+      .mockResolvedValueOnce({ rows: [{ total: 2, enabled: 2 }] });
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/security-posture')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'healthy',
+      checks: {
+        jwtSecret: { status: 'healthy' },
+        encryptionKey: { status: 'healthy' },
+        adminMfa: { status: 'healthy', total: 2, enabled: 2, missing: 0 },
+      },
+    });
+    expect(JSON.stringify(res.body)).not.toContain(process.env.JWT_SECRET);
+    expect(JSON.stringify(res.body)).not.toContain(process.env.ENCRYPTION_KEY);
+  });
+
+  test('warns when an active admin has not enrolled in MFA', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] })
+      .mockResolvedValueOnce({ rows: [{ total: 3, enabled: 2 }] });
+
+    const res = await request(buildApp())
+      .get('/api/monitoring/security-posture')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'warning',
+      checks: { adminMfa: { status: 'warning', total: 3, enabled: 2, missing: 1 } },
+    });
+  });
+
   test('reports upload scanning policy without exposing scanner configuration', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, role: 'super_admin', is_active: true, totp_enabled: true }] });
 

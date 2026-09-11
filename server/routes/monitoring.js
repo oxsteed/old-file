@@ -13,6 +13,9 @@ router.use(requireAdmin);
 // System health overview
 router.get('/health', monitoringController.getSystemHealth);
 
+// Safe security posture signals; secrets and credentials are never returned.
+router.get('/security-posture', monitoringController.getSecurityPosture);
+
 // Security events (last 1-24 hours)
 router.get('/security-events', monitoringController.getSecurityEvents);
 

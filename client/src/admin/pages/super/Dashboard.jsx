@@ -374,12 +374,13 @@ export default function SuperDashboard() {
         <section>
           <SectionHeading>Platform Health</SectionHeading>
           <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
               {[
                 { label: 'API', status: health ? 'ok' : 'unknown', note: health ? 'Monitoring endpoint responding' : 'Health data unavailable' },
                 { label: 'Database', status: health?.database?.totalSize > 0 ? 'ok' : health ? 'warn' : 'unknown', note: health?.database?.totalSize > 0 ? 'Connection pool active' : 'Check database health' },
                 { label: 'Audit chain', status: health?.auditIntegrity?.status === 'healthy' ? 'ok' : health ? 'error' : 'unknown', note: health?.auditIntegrity?.status === 'healthy' ? `${health.auditIntegrity.checkedCount || 0} entries verified` : health?.auditIntegrity?.status || 'Not checked' },
                 { label: 'Upload scanning', status: health?.uploadSecurity?.configured ? 'ok' : health?.uploadSecurity?.required ? 'error' : health ? 'warn' : 'unknown', note: health?.uploadSecurity?.configured ? 'Malware scanner configured' : health?.uploadSecurity?.required ? 'Required but unavailable' : health ? 'Static validation only' : 'Not checked' },
+                { label: 'Security posture', status: health?.securityPosture?.status === 'healthy' ? 'ok' : health?.securityPosture?.status === 'critical' ? 'error' : health ? 'warn' : 'unknown', note: health?.securityPosture?.summary || 'Not checked' },
               ].map(({ label, status, note }) => (
                 <div key={label} className="flex items-center gap-2.5">
                   <HealthDot status={status} />
