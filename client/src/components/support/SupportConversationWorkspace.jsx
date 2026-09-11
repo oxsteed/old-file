@@ -551,6 +551,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const isClosed = ['resolved', 'closed', 'merged'].includes(selected?.status);
   const canReply = Boolean(selected) && !isClosed && (isPlatformAdmin || isAssignedToMe);
   const isExternalChannel = Boolean(selected?.channel && selected.channel !== 'web_chat');
+  const channelDeliveryByMessageId = useMemo(
+    () => new Map(channelDeliveries.map((delivery) => [delivery.message_id, delivery])),
+    [channelDeliveries]
+  );
   const mergeTargets = useMemo(() => {
     if (!selected?.customer_email || isClosed) return [];
     const email = String(selected.customer_email).trim().toLowerCase();
@@ -1373,6 +1377,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {(selected.messages || []).map((message) => {
                       const fromAgent = Boolean(message.is_agent || message.is_from_agent);
                       const isNote = message.message_type === 'internal_note';
+                      const channelDelivery = channelDeliveryByMessageId.get(message.id);
+                      const isChannelReply = message.message_type === 'outbound_channel';
+                      const channelDeliveryStatus = channelDelivery?.status || message.status;
                       const canEdit = fromAgent && !isNote && !isClosed
                         && (isPlatformAdmin || message.sender_id === user?.id)
                         && Date.now() - new Date(message.created_at).getTime() < 15 * 60 * 1000;
@@ -1383,6 +1390,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                             <div className="mb-2 flex items-center gap-2 text-[11px] opacity-70">
                               <span>{message.sender_name || (fromAgent ? 'Support team' : selected.customer_name || 'Customer')}</span>
                               {isNote && <span className="rounded-full border border-amber-400/30 px-2 py-0.5">Internal note</span>}
+                              {isChannelReply && channelDeliveryStatus === 'sending' && <span className="rounded-full border border-blue-400/30 px-2 py-0.5 text-blue-100">Delivering via {message.channel || selected.channel}</span>}
+                              {isChannelReply && channelDeliveryStatus === 'failed' && <span className="rounded-full border border-red-400/30 px-2 py-0.5 text-red-100">Delivery failed</span>}
                             </div>
                             {message.attachment_url && <a href={message.attachment_url} download={message.attachment_name || undefined} target="_blank" rel="noreferrer" className="group relative mb-2 block w-fit" aria-label={`Download ${message.attachment_name || 'support attachment'}`}><img src={message.attachment_url} alt={message.attachment_name || 'Support attachment'} onLoad={() => { if (stickToBottomRef.current) messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'auto' }); }} className="max-h-64 max-w-full rounded-xl object-contain transition group-hover:opacity-90" /><span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow transition group-hover:opacity-100 group-focus-visible:opacity-100"><Download size={12} /> Download</span></a>}
                             {editingMessageId === message.id ? (
@@ -1399,6 +1408,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                                 <div className="mt-2 flex flex-wrap gap-3">
                                   {canEdit && <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingContent(messageBody(message)); }} className="inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} /> Edit reply</button>}
                                   {canRedact && <button type="button" onClick={() => redactMessage(message)} disabled={busy} className="inline-flex items-center gap-1 text-xs text-red-200/80 opacity-80 hover:opacity-100 disabled:opacity-40"><Trash2 size={12} /> Redact</button>}
+                                  {isChannelReply && channelDelivery && channelDeliveryStatus !== 'sent' && ['failed', 'not_configured'].includes(channelDeliveryStatus) && <button type="button" onClick={() => retryChannelDelivery(channelDelivery.id)} disabled={channelRetryBusy} className="inline-flex items-center gap-1 text-xs font-semibold text-red-100 underline disabled:opacity-40"><RefreshCw size={12} /> Retry delivery</button>}
                                 </div>
                               </>
                             )}
