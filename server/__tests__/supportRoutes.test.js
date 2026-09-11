@@ -263,6 +263,44 @@ describe('support routes', () => {
     }));
   });
 
+  test('lets support staff redact a message without deleting its audit identity', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'message-1',
+        sender_id: USER_ID,
+        content: '[Message redacted by support staff]',
+        attachment_url: null,
+        attachment_name: null,
+        message_type: 'text',
+        is_agent: false,
+        redacted_at: '2026-09-09T00:01:00.000Z',
+        created_at: '2026-09-09T00:00:00.000Z',
+      }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/messages/message-1/redact')
+      .set('Authorization', adminAuthHeader())
+      .send({ reason: 'Customer requested removal of sensitive details' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: 'message-1', content: '[Message redacted by support staff]', attachment_url: null });
+    expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
+      'conversation-1',
+      'message:updated',
+      expect.objectContaining({ messageId: 'message-1', redacted: true, attachmentUrl: null })
+    );
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      adminId: ADMIN_ID,
+      action: 'support_message_redacted',
+      targetId: 'message-1',
+      after: { redacted: true, reasonProvided: true, isPublic: true },
+    }));
+    const updateCall = mockQuery.mock.calls.find(([sql]) => /redacted_at = COALESCE/.test(sql));
+    expect(updateCall?.[1]).toEqual(['message-1', 'conversation-1', ADMIN_ID, 'Customer requested removal of sensitive details']);
+  });
+
   test('audits support conversation status changes', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })

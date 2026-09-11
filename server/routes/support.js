@@ -403,6 +403,7 @@ router.post('/conversations/:conversationId/message', conversationMessageLimiter
 });
 router.put('/conversations/:conversationId/messages/:messageId', conversationMessageLimiter, supportConversationsController.updateCustomerMessage);
 router.put('/conversations/:conversationId/agent-messages/:messageId', conversationMessageLimiter, supportConversationsController.updateAgentMessage);
+router.post('/conversations/:conversationId/messages/:messageId/redact', conversationMessageLimiter, supportConversationsController.redactSupportMessage);
 router.post('/conversations/:conversationId/review', conversationMessageLimiter, supportConversationsController.createConversationReview);
 router.post('/conversations/:conversationId/reopen', conversationMessageLimiter, supportConversationsController.reopenCustomerConversation);
 router.post('/conversations/:conversationId/merge', conversationMessageLimiter, supportConversationsController.mergeConversation);

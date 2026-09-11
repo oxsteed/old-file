@@ -356,7 +356,7 @@ async function getConversation(req, res) {
       `SELECT
         scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
         scm.attachment_url, scm.attachment_name,
-        scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
+        scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.redacted_at, scm.created_at,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
           sender.email
@@ -407,7 +407,7 @@ async function getConversation(req, res) {
           `SELECT
              scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
              scm.attachment_url, scm.attachment_name,
-             scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.created_at,
+             scm.is_agent, scm.is_ai, scm.status, scm.read_by_recipient, scm.read_at, scm.edited_at, scm.edit_count, scm.redacted_at, scm.created_at,
              COALESCE(
                NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
                sender.email
@@ -576,6 +576,7 @@ async function getCustomer360(req, res) {
          JOIN support_conversations sc ON sc.id = scm.conversation_id
          LEFT JOIN users u ON u.id = sc.customer_id
          WHERE scm.attachment_url IS NOT NULL
+           AND scm.redacted_at IS NULL
            AND (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
              OR ($2::text <> '' AND LOWER(COALESCE(u.email, sc.guest_email)) = $2))
            AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
@@ -793,6 +794,70 @@ async function updateAgentMessage(req, res) {
   } catch (err) {
     logger.error('updateAgentMessage error', { conversationId, messageId, error: err.message });
     return sendError(res, 500, 'Failed to edit message');
+  }
+}
+
+async function redactSupportMessage(req, res) {
+  const conversationId = req.params.conversationId;
+  const messageId = req.params.messageId;
+  const reason = String(req.body?.reason || req.body?.redactionReason || '').trim();
+  if (reason.length > 1000) {
+    return sendValidationError(res, { reason: 'Reason must be 1000 characters or fewer' });
+  }
+
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can redact this message');
+
+    const result = await query(
+      `UPDATE support_conversation_messages
+       SET original_content = COALESCE(original_content, content),
+           content = '[Message redacted by support staff]',
+           attachment_url = NULL,
+           attachment_name = NULL,
+           redacted_at = COALESCE(redacted_at, NOW()),
+           redacted_by = COALESCE(redacted_by, $3),
+           redaction_reason = COALESCE(redaction_reason, NULLIF($4, '')),
+           updated_at = NOW()
+       WHERE id = $1 AND conversation_id = $2 AND redacted_at IS NULL
+       RETURNING id, content, attachment_url, attachment_name, message_type,
+                 is_agent, redacted_at, edited_at, edit_count, created_at, sender_id`,
+      [messageId, conversationId, req.user.id, reason]
+    );
+    if (!result.rows.length) return sendError(res, 409, 'This message is already redacted or was not found');
+
+    const message = result.rows[0];
+    const payload = {
+      ticketId: conversationId,
+      conversationId,
+      messageId: message.id,
+      sender: { type: message.is_agent ? 'agent' : 'customer', id: message.sender_id },
+      content: message.content,
+      attachmentUrl: null,
+      attachmentName: null,
+      messageType: message.message_type,
+      redacted: true,
+      redactedAt: message.redacted_at,
+      timestamp: message.created_at,
+    };
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_message_redacted',
+      targetType: 'support_conversation_message',
+      targetId: message.id,
+      description: 'Support message content and attachment references redacted',
+      after: { redacted: true, reasonProvided: Boolean(reason), isPublic: message.message_type !== 'internal_note' },
+      req,
+    });
+    if (message.message_type !== 'internal_note') {
+      WebSocketService.broadcastToTicket(conversationId, 'message:updated', payload);
+    }
+    WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
+    return res.json({ success: true, data: message });
+  } catch (err) {
+    logger.error('redactSupportMessage error', { conversationId, messageId, error: err.message });
+    return sendError(res, 500, 'Failed to redact message');
   }
 }
 
@@ -1732,6 +1797,7 @@ module.exports = {
   getCustomer360,
   updateCustomerMessage,
   updateAgentMessage,
+  redactSupportMessage,
   markConversationRead,
   downloadConversation,
   createConversationReview,

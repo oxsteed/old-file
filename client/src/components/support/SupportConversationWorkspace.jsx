@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Trash2,
   Unlock,
   UserRound,
   Wifi,
@@ -719,6 +720,25 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
+  const redactMessage = async (message) => {
+    if (!selected?.id || !message?.id || busy || message.redacted_at) return;
+    const reason = window.prompt('Reason for redacting this message (optional):', 'Sensitive information');
+    if (reason === null) return;
+    setBusy(true);
+    try {
+      await api.post(`/support/conversations/${selected.id}/messages/${message.id}/redact`, { reason });
+      await Promise.all([
+        loadDetail(selected.id, { quiet: true }),
+        loadCustomer360(selected.id),
+      ]);
+      toast.success('Message redacted from future conversation views.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'This message could not be redacted.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openCount = conversations.filter((row) => !['resolved', 'closed'].includes(row.status)).length;
   const unassignedCount = conversations.filter((row) => !row.agent_id && !['resolved', 'closed'].includes(row.status)).length;
   const mineCount = conversations.filter((row) => row.agent_user_id === user?.id && !['resolved', 'closed'].includes(row.status)).length;
@@ -1082,6 +1102,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       const canEdit = fromAgent && !isNote && !isClosed
                         && (isPlatformAdmin || message.sender_id === user?.id)
                         && Date.now() - new Date(message.created_at).getTime() < 15 * 60 * 1000;
+                      const canRedact = !isClosed && !message.redacted_at;
                       return (
                         <div key={message.id} className={`flex ${fromAgent ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[84%] rounded-2xl border px-4 py-3 ${isNote ? 'border-amber-500/30 bg-amber-500/10 text-amber-100' : fromAgent ? 'border-orange-500/20 bg-orange-600 text-white' : 'border-slate-800 bg-slate-900 text-slate-200'}`}>
@@ -1101,7 +1122,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                             ) : (
                               <>
                                 {messageBody(message) && <div className="whitespace-pre-wrap text-sm leading-6">{messageBody(message)}</div>}
-                                {canEdit && <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingContent(messageBody(message)); }} className="mt-2 inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} /> Edit reply</button>}
+                                <div className="mt-2 flex flex-wrap gap-3">
+                                  {canEdit && <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingContent(messageBody(message)); }} className="inline-flex items-center gap-1 text-xs opacity-75 hover:opacity-100"><Pencil size={12} /> Edit reply</button>}
+                                  {canRedact && <button type="button" onClick={() => redactMessage(message)} disabled={busy} className="inline-flex items-center gap-1 text-xs text-red-200/80 opacity-80 hover:opacity-100 disabled:opacity-40"><Trash2 size={12} /> Redact</button>}
+                                </div>
                               </>
                             )}
                             {fromAgent && message.read_by_recipient && <div className="mt-2 text-[11px] opacity-60">Read by customer</div>}
