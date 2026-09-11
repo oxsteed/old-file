@@ -87,9 +87,9 @@ function FeedbackItem({ feedback }) {
 
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{new Date(feedback.created_at).toLocaleDateString()}</span>
-        <span className="flex items-center gap-1">
-          <ThumbsUp size={12} />
-          {feedback.helpful_count} found helpful
+        <span className="flex items-center gap-3">
+          {feedback.nps_score != null && <span className="text-blue-300">NPS {feedback.nps_score}/10</span>}
+          {feedback.helpful_count != null && <span className="flex items-center gap-1"><ThumbsUp size={12} />{feedback.helpful_count} found helpful</span>}
         </span>
       </div>
     </div>
@@ -173,6 +173,7 @@ export default function SupportCSATAnalytics() {
   const agentCSAT = csatData.agent_csat || [];
   const recentFeedback = csatData.recent_feedback || [];
   const averageNps = csatMetrics.avg_nps == null ? null : Number(csatMetrics.avg_nps);
+  const npsIndex = csatMetrics.nps_index == null ? null : Number(csatMetrics.nps_index);
   const averageRating = csatMetrics.avg_rating == null ? null : Number(csatMetrics.avg_rating);
 
   return (
@@ -233,11 +234,11 @@ export default function SupportCSATAnalytics() {
         </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <p className="text-gray-400 text-sm mb-2">Average NPS</p>
+          <p className="text-gray-400 text-sm mb-2">NPS Score</p>
           <p className="text-white text-3xl font-bold mb-3">{averageNps == null ? 'N/A' : averageNps.toFixed(1)}</p>
           <div className="flex items-center gap-2 text-gray-400 text-xs">
             <TrendingUp size={14} className="text-blue-400" />
-            <span>{averageNps == null ? 'No NPS responses yet' : 'Out of 10.0'}</span>
+            <span>{npsIndex == null ? 'No NPS responses yet' : `Index ${npsIndex > 0 ? '+' : ''}${npsIndex}`}</span>
           </div>
         </div>
       </div>
@@ -354,7 +355,7 @@ export default function SupportCSATAnalytics() {
       </div>
 
       {/* Agent CSAT Comparison */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8">
         <h3 className="text-white font-bold text-lg mb-6">CSAT by Agent</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -369,8 +370,27 @@ export default function SupportCSATAnalytics() {
               <Bar dataKey="avg_rating" fill="#F97316" name="Avg CSAT Score" />
             </BarChart>
           </ResponsiveContainer>
+          </div>
+          {agentCSAT.length > 0 && (
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs uppercase tracking-wider text-gray-500">
+                  <tr><th className="pb-2">Agent</th><th className="pb-2">CSAT</th><th className="pb-2">NPS score</th><th className="pb-2">NPS index</th></tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700/70">
+                  {agentCSAT.map((agent) => (
+                    <tr key={agent.agent_name} className="text-gray-300">
+                      <td className="py-2">{agent.agent_name}</td>
+                      <td className="py-2">{agent.avg_rating == null ? 'N/A' : `${Number(agent.avg_rating).toFixed(1)}/5`}</td>
+                      <td className="py-2">{agent.avg_nps == null ? 'N/A' : `${Number(agent.avg_nps).toFixed(1)}/10`}</td>
+                      <td className="py-2">{agent.nps_index == null ? 'N/A' : `${agent.nps_index > 0 ? '+' : ''}${agent.nps_index}`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
 
       {/* Recent Feedback */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">

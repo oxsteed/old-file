@@ -1073,6 +1073,10 @@ router.get('/csat/analytics', async (req, res, next) => {
            COUNT(scr.id)::int AS surveys_completed,
            COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
            ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
+           ROUND(100.0 * (
+             COUNT(*) FILTER (WHERE scr.nps_score >= 9)
+             - COUNT(*) FILTER (WHERE scr.nps_score <= 6)
+           ) / NULLIF(COUNT(scr.nps_score), 0), 1)::float AS nps_index,
            COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE scr.rating >= 4) / NULLIF(COUNT(scr.id), 0), 1), 0)::float AS csat_score
          FROM finished f
          LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = f.id
@@ -1095,7 +1099,11 @@ router.get('/csat/analytics', async (req, res, next) => {
         `SELECT COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Support team') AS agent_name,
                 COUNT(scr.id)::int AS responses,
                 COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
-                ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps
+                ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps,
+                ROUND(100.0 * (
+                  COUNT(*) FILTER (WHERE scr.nps_score >= 9)
+                  - COUNT(*) FILTER (WHERE scr.nps_score <= 6)
+                ) / NULLIF(COUNT(scr.nps_score), 0), 1)::float AS nps_index
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
@@ -1129,6 +1137,7 @@ router.get('/csat/analytics', async (req, res, next) => {
         surveys_completed: surveysCompleted,
         avg_rating: Number(summary.avg_rating || 0),
         avg_nps: summary.avg_nps == null ? null : Number(summary.avg_nps),
+        nps_index: summary.nps_index == null ? null : Number(summary.nps_index),
       },
       csat_trend: trendResult.rows,
       sentiment_distribution: [],
