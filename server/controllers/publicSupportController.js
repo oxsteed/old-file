@@ -487,7 +487,7 @@ async function reopenGuestConversation(req, res) {
     const updated = await withTransaction(pool, async (client) => {
       const { rows: reopened } = await client.query(
         `UPDATE support_conversations
-         SET status = 'open', resolved_at = NULL, closed_at = NULL,
+         SET status = 'reopened', resolved_at = NULL, closed_at = NULL,
              resolution_status = NULL, resolution_summary = NULL,
              resolution_reason_code = NULL, updated_at = NOW()
          WHERE id = $1 AND status = 'resolved'
@@ -506,7 +506,7 @@ async function reopenGuestConversation(req, res) {
       return reopened[0];
     }, 'reopen_guest_support_conversation');
     if (!updated) return sendError(res, 409, 'This conversation changed before it could be reopened');
-    const payload = { ticketId: conversationId, conversationId, status: 'open', timestamp: new Date().toISOString() };
+    const payload = { ticketId: conversationId, conversationId, status: 'reopened', timestamp: new Date().toISOString() };
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
     return res.json({ success: true, data: updated });

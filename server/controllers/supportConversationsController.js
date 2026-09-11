@@ -1056,7 +1056,7 @@ async function reopenCustomerConversation(req, res) {
     const result = await withTransaction(pool, async (client) => {
       const reopened = await client.query(
         `UPDATE support_conversations
-         SET status = 'open', resolved_at = NULL, closed_at = NULL,
+         SET status = 'reopened', resolved_at = NULL, closed_at = NULL,
              resolution_status = NULL, resolution_summary = NULL,
              resolution_reason_code = NULL, updated_at = NOW()
          WHERE id = $1 AND status = 'resolved'
@@ -1075,7 +1075,7 @@ async function reopenCustomerConversation(req, res) {
       return reopened;
     }, 'reopen_customer_support_conversation');
     if (!result) return sendError(res, 409, 'This conversation changed before it could be reopened');
-    const payload = { ticketId: conversationId, conversationId, status: 'open', updatedBy: req.user.id, timestamp: new Date().toISOString() };
+    const payload = { ticketId: conversationId, conversationId, status: 'reopened', updatedBy: req.user.id, timestamp: new Date().toISOString() };
     WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', payload);
     WebSocketService.broadcastToAdmins('support:conversation-updated', payload);
     return res.json({ success: true, data: result.rows[0] });
@@ -1259,7 +1259,7 @@ async function updateConversationStatus(req, res) {
       return sendValidationError(res, { status: 'Required' });
     }
 
-    const validStatuses = ['open', 'in_progress', 'waiting_for_customer', 'waiting_for_agent', 'resolved', 'closed', 'escalated'];
+    const validStatuses = ['open', 'pending', 'reopened', 'in_progress', 'waiting_for_customer', 'waiting_for_agent', 'resolved', 'closed', 'escalated'];
     if (!validStatuses.includes(status)) {
       return sendValidationError(res, { status: 'Invalid status' });
     }
@@ -1325,7 +1325,7 @@ async function updateConversationStatus(req, res) {
       params.push(normalizedResolutionStatus || 'resolved');
       params.push(resolutionSummary || '');
       params.push(resolutionReasonCode || 'other');
-    } else if (status === 'open') {
+    } else if (status === 'open' || status === 'reopened') {
       updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL, resolution_status = NULL, resolution_summary = NULL, resolution_reason_code = NULL`;
     } else if (status === 'in_progress') {
       updateSql += `, resolved_at = NULL, closed_at = NULL`;
@@ -1360,7 +1360,7 @@ async function updateConversationStatus(req, res) {
            WHERE conversation_id = $1 AND status = 'active'`,
           [conversationId]
         );
-      } else if (status === 'open') {
+      } else if (status === 'open' || status === 'pending' || status === 'reopened') {
         await client.query(
           `UPDATE support_queue
            SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
@@ -1552,7 +1552,7 @@ async function addMessage(req, res) {
                ELSE first_response_at
              END,
              status = CASE
-               WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
+               WHEN $2::boolean AND status IN ('open', 'pending', 'reopened', 'waiting_for_agent') THEN 'in_progress'
                ELSE status
              END
          WHERE id = $1`,

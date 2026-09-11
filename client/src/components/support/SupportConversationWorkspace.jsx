@@ -33,6 +33,8 @@ import Customer360Panel from './Customer360Panel';
 
 const STATUS = {
   open: ['Open', 'border-blue-500/30 bg-blue-500/10 text-blue-200'],
+  pending: ['Pending', 'border-amber-500/30 bg-amber-500/10 text-amber-200'],
+  reopened: ['Reopened', 'border-orange-500/30 bg-orange-500/10 text-orange-200'],
   in_progress: ['In progress', 'border-orange-500/30 bg-orange-500/10 text-orange-200'],
   waiting_for_customer: ['Waiting for customer', 'border-amber-500/30 bg-amber-500/10 text-amber-200'],
   waiting_for_agent: ['Waiting for agent', 'border-purple-500/30 bg-purple-500/10 text-purple-200'],
@@ -967,6 +969,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
               <option value="active">Active</option>
               <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="reopened">Reopened</option>
               <option value="waiting_for_agent">Waiting for agent</option>
               <option value="in_progress">In progress</option>
               <option value="waiting_for_customer">Waiting for customer</option>

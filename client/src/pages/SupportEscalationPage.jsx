@@ -826,7 +826,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
     setReopenBusy(true);
     try {
       const response = await api.post(`/support/conversations/${ticketId}/reopen`);
-      setConversationStatus(response.data.data?.status || 'open');
+      setConversationStatus(response.data.data?.status || 'reopened');
       setWaiting(null);
     } catch (err) {
       toast.error(err.response?.data?.error || t('support.escalation.reopenError', { defaultValue: 'Could not reopen this conversation.' }));

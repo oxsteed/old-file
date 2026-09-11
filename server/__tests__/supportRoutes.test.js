@@ -334,6 +334,28 @@ describe('support routes', () => {
     );
   });
 
+  test('supports explicit pending and reopened lifecycle states', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: null, customer_id: USER_ID, status: 'in_progress', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .put('/api/support/conversations/conversation-1/status')
+      .set('Authorization', adminAuthHeader())
+      .send({ status: 'pending' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('pending');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(true);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'support_conversation_status_changed',
+      before: { status: 'in_progress' },
+      after: expect.objectContaining({ status: 'pending' }),
+    }));
+  });
+
   test('notifies the customer once when a conversation is resolved', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
@@ -503,7 +525,7 @@ describe('support routes', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [authUserRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'resolved', agent_id: null }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', status: 'reopened' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp())
@@ -511,19 +533,19 @@ describe('support routes', () => {
       .set('Authorization', authHeader());
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('open');
+    expect(res.body.data.status).toBe('reopened');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_queue/.test(sql))).toBe(true);
     expect(WebSocketService.broadcastToTicket).toHaveBeenCalledWith(
       'conversation-1',
       'ticket:status-changed',
-      expect.objectContaining({ status: 'open' })
+      expect.objectContaining({ status: 'reopened' })
     );
   });
 
   test('lets a verified guest reopen a resolved conversation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'guest-1', status: 'resolved' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-1', status: 'reopened' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp())
@@ -531,10 +553,10 @@ describe('support routes', () => {
       .set('Authorization', 'Guest verified-guest-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('open');
+    expect(res.body.data.status).toBe('reopened');
     expect(WebSocketService.broadcastToAdmins).toHaveBeenCalledWith(
       'support:conversation-updated',
-      expect.objectContaining({ conversationId: 'guest-1', status: 'open' })
+      expect.objectContaining({ conversationId: 'guest-1', status: 'reopened' })
     );
   });
 
