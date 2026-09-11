@@ -59,7 +59,7 @@ async function listReminders(req, res) {
     const limitParam = `$${params.push(Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50)))}`;
     const { rows } = await db.query(
       `SELECT r.id, r.conversation_id, r.created_by, r.assigned_to, r.due_at,
-              r.note, r.status, r.completed_at, r.completed_by, r.created_at, r.updated_at,
+              r.note, r.status, r.notified_at, r.completed_at, r.completed_by, r.created_at, r.updated_at,
               COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email, sc.guest_name, 'Customer') AS customer_name,
               sc.subject,
               COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email, 'Unassigned') AS assigned_to_name
@@ -105,7 +105,7 @@ async function createReminder(req, res) {
       `INSERT INTO support_follow_up_reminders
          (conversation_id, created_by, assigned_to, due_at, note)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, conversation_id, created_by, assigned_to, due_at, note, status, completed_at, completed_by, created_at, updated_at`,
+       RETURNING id, conversation_id, created_by, assigned_to, due_at, note, status, notified_at, completed_at, completed_by, created_at, updated_at`,
       [conversationId, req.user.id, assignedTo, dueAt.toISOString(), note || null]
     );
     await logAdminAction({
@@ -148,7 +148,7 @@ async function updateReminder(req, res) {
            completed_by = CASE WHEN $1 = 'completed' THEN $2 ELSE NULL END,
            updated_at = NOW()
        WHERE id = $3
-       RETURNING id, conversation_id, created_by, assigned_to, due_at, note, status, completed_at, completed_by, created_at, updated_at`,
+       RETURNING id, conversation_id, created_by, assigned_to, due_at, note, status, notified_at, completed_at, completed_by, created_at, updated_at`,
       [status, req.user.id, reminderId]
     );
     await logAdminAction({

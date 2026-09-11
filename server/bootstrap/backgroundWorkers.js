@@ -24,6 +24,7 @@ const { releaseExpiredInventoryReservations } = require('../services/restaurantI
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
+const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -74,6 +75,12 @@ class BackgroundWorkers {
       cron.schedule('* * * * *', () => {
         processSupportEmailOutbox().catch((error) => {
           this.log.warn('Support email outbox worker failed', { error: error.message });
+        });
+      });
+
+      cron.schedule('* * * * *', () => {
+        processSupportFollowUpReminders().catch((error) => {
+          this.log.warn('Support follow-up reminder worker failed', { error: error.message });
         });
       });
 
