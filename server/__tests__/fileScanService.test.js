@@ -41,4 +41,18 @@ describe('file scan service policy', () => {
     });
     await expect(service.scanBuffer(Buffer.from('test'))).rejects.toThrow('required but not configured');
   });
+
+  test('rejects the EICAR antivirus test signature in static mode', async () => {
+    delete process.env.CLAMAV_HOST;
+    delete process.env.FILE_SCAN_REQUIRE_MALWARE;
+    jest.resetModules();
+    const service = require('../services/fileScanService');
+    const eicar = Buffer.from('prefix-X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*-suffix', 'ascii');
+
+    await expect(service.scanBuffer(eicar)).resolves.toMatchObject({
+      clean: false,
+      provider: 'static',
+      signature: 'eicar-test-signature',
+    });
+  });
 });

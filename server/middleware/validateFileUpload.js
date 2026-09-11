@@ -64,10 +64,14 @@ const validateFileUpload = async (req, res, next) => {
 
       try {
         const scan = await fileScanService.scanBuffer(file.buffer);
+        if (!scan || typeof scan.clean !== 'boolean' || typeof scan.provider !== 'string') {
+          throw new Error('Malware scanner returned an invalid result');
+        }
         if (!scan.clean) {
           logger.warn('Malware scanner rejected upload', {
             filename: file.originalname,
             provider: scan.provider,
+            signature: scan.signature || undefined,
           });
           return res.status(400).json({ error: 'Security check failed: The uploaded file was rejected.' });
         }

@@ -68,3 +68,14 @@ test('fails closed when the configured scanner is unavailable', async () => {
   expect(res.status).toHaveBeenCalledWith(503);
   expect(res.json).toHaveBeenCalledWith({ error: expect.stringContaining('scanning is temporarily unavailable') });
 });
+
+test('fails closed when a scanner returns a malformed result', async () => {
+  fileScanService.scanBuffer.mockResolvedValue({ clean: true });
+  const req = { file: { buffer: Buffer.from('image'), originalname: 'photo.jpg', mimetype: 'image/jpeg', size: 5 } };
+  const res = response();
+
+  await validateFileUpload(req, res, jest.fn());
+
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith({ error: expect.stringContaining('scanning is temporarily unavailable') });
+});

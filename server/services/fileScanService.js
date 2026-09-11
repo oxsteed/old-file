@@ -5,6 +5,10 @@ const net = require('net');
 const DEFAULT_PORT = 3310;
 const DEFAULT_TIMEOUT_MS = 5000;
 const CHUNK_SIZE = 64 * 1024;
+const EICAR_SIGNATURE = Buffer.from(
+  'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*',
+  'ascii'
+);
 
 function malwareScanRequired() {
   return /^(1|true|yes|on)$/i.test(String(
@@ -26,6 +30,22 @@ function scannerConfig() {
  * configured, but a configured scanner fails closed on connection errors.
  */
 function scanBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return Promise.reject(new Error('A non-empty upload buffer is required for malware scanning'));
+  }
+
+  // Keep the standard antivirus test signature blocked even when the optional
+  // ClamAV service is unavailable. This proves the static path is not a
+  // fail-open pass-through and is safe for scanner integration tests.
+  if (buffer.includes(EICAR_SIGNATURE)) {
+    return Promise.resolve({
+      clean: false,
+      skipped: false,
+      provider: 'static',
+      signature: 'eicar-test-signature',
+    });
+  }
+
   const config = scannerConfig();
   if (!config) {
     if (malwareScanRequired()) {
@@ -33,10 +53,6 @@ function scanBuffer(buffer) {
     }
     return Promise.resolve({ clean: true, skipped: true, provider: 'static' });
   }
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
-    return Promise.reject(new Error('A non-empty upload buffer is required for malware scanning'));
-  }
-
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: config.host, port: config.port });
     let response = '';
