@@ -144,6 +144,7 @@ export default function SuperDashboard() {
 
   const [geo,         setGeo]         = useState({ userGeo: [], jobGeo: [] });
   const [geoLoading,  setGeoLoading]  = useState(true);
+  const [health,      setHealth]      = useState(null);
 
   // Fetch main stats (re-runs on period change)
   const fetchStats = useCallback(async (p) => {
@@ -181,8 +182,18 @@ export default function SuperDashboard() {
     finally { setGeoLoading(false); }
   }, [isSuper]);
 
+  const fetchHealth = useCallback(async () => {
+    if (!isSuper) return;
+    try {
+      const { data } = await adminApi.get('/monitoring/health');
+      setHealth(data);
+    } catch (_) {
+      setHealth(null);
+    }
+  }, [isSuper]);
+
   useEffect(() => { fetchStats(period); }, [period, fetchStats]);
-  useEffect(() => { fetchActivity(); fetchGeo(); }, [fetchActivity, fetchGeo]);
+  useEffect(() => { fetchActivity(); fetchGeo(); fetchHealth(); }, [fetchActivity, fetchGeo, fetchHealth]);
 
   const handlePeriod = (p) => { if (p !== period) setPeriod(p); };
 
@@ -229,7 +240,7 @@ export default function SuperDashboard() {
             </div>
           )}
           <button
-            onClick={() => { fetchStats(period); fetchActivity(); fetchGeo(); }}
+            onClick={() => { fetchStats(period); fetchActivity(); fetchGeo(); fetchHealth(); }}
             disabled={loading}
             className="p-2 rounded-lg bg-[#111318] border border-gray-800 text-gray-500 hover:text-gray-300 transition disabled:opacity-40"
             title="Refresh"
@@ -365,10 +376,10 @@ export default function SuperDashboard() {
           <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'API',              status: 'ok',      note: 'Responding normally' },
-                { label: 'Database',         status: 'ok',      note: 'Connected' },
-                { label: 'Stripe',           status: 'unknown', note: 'Check dashboard' },
-                { label: 'Email (Resend)',   status: 'unknown', note: 'Check dashboard' },
+                { label: 'API', status: health ? 'ok' : 'unknown', note: health ? 'Monitoring endpoint responding' : 'Health data unavailable' },
+                { label: 'Database', status: health?.database?.totalSize > 0 ? 'ok' : health ? 'warn' : 'unknown', note: health?.database?.totalSize > 0 ? 'Connection pool active' : 'Check database health' },
+                { label: 'Audit chain', status: health?.auditIntegrity?.status === 'healthy' ? 'ok' : health ? 'error' : 'unknown', note: health?.auditIntegrity?.status === 'healthy' ? `${health.auditIntegrity.checkedCount || 0} entries verified` : health?.auditIntegrity?.status || 'Not checked' },
+                { label: 'Upload scanning', status: health?.uploadSecurity?.configured ? 'ok' : health?.uploadSecurity?.required ? 'error' : health ? 'warn' : 'unknown', note: health?.uploadSecurity?.configured ? 'Malware scanner configured' : health?.uploadSecurity?.required ? 'Required but unavailable' : health ? 'Static validation only' : 'Not checked' },
               ].map(({ label, status, note }) => (
                 <div key={label} className="flex items-center gap-2.5">
                   <HealthDot status={status} />
