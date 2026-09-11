@@ -158,6 +158,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [customerTyping, setCustomerTyping] = useState(false);
   const [ticketViewerCount, setTicketViewerCount] = useState(0);
   const [ticketViewers, setTicketViewers] = useState([]);
+  const [realtimeStatus, setRealtimeStatus] = useState('offline');
   const [agentEmployment, setAgentEmployment] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const agentSocketRef = useRef(null);
@@ -484,9 +485,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   useEffect(() => {
     setTicketViewerCount(0);
     setTicketViewers([]);
+    setRealtimeStatus('connecting');
     if (!isPlatformAdmin && (!agentEmployment?.is_available || !agentEmployment?.agent_id)) {
       agentSocketRef.current?.disconnect();
       agentSocketRef.current = null;
+      setRealtimeStatus('offline');
       return undefined;
     }
 
@@ -509,10 +512,19 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       reconnection: true,
       auth: { token: localStorage.getItem('accessToken') },
     });
+    const setActiveRealtimeStatus = (status) => {
+      if (active) setRealtimeStatus(status);
+    };
     socket.on('connect', () => {
+      setActiveRealtimeStatus('connected');
       socket.emit(isPlatformAdmin ? 'admin:join' : 'agent:join');
       if (selectedId) socket.emit('ticket:join', { ticketId: selectedId });
     });
+    socket.on('connect_error', () => setActiveRealtimeStatus('reconnecting'));
+    socket.on('disconnect', (reason) => {
+      setActiveRealtimeStatus(reason === 'io client disconnect' ? 'offline' : 'reconnecting');
+    });
+    socket.io.on('reconnect_attempt', () => setActiveRealtimeStatus('reconnecting'));
     const refreshWorkspace = () => {
       loadConversations({ quiet: true });
       if (selectedId) loadDetail(selectedId, { quiet: true });
@@ -554,6 +566,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       window.clearInterval(heartbeatTimer);
       window.clearTimeout(customerTypingTimerRef.current);
       socket.disconnect();
+      setRealtimeStatus('offline');
       if (agentSocketRef.current === socket) agentSocketRef.current = null;
     };
   }, [agentEmployment?.agent_id, agentEmployment?.is_available, isPlatformAdmin, loadConversations, loadDetail, selectedId]);
@@ -989,8 +1002,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       <div className="border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-orange-300">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-orange-300">
               <Headphones size={16} /> Live support workspace
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${
+                  realtimeStatus === 'connected'
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                    : realtimeStatus === 'reconnecting' || realtimeStatus === 'connecting'
+                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                      : 'border-slate-700 bg-slate-900 text-slate-400'
+                }`}
+                aria-live="polite"
+                title="Live updates connection status"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  realtimeStatus === 'connected' ? 'bg-emerald-400' : realtimeStatus === 'offline' ? 'bg-slate-500' : 'bg-amber-400'
+                }`} />
+                {realtimeStatus === 'connected' ? 'Live updates on' : realtimeStatus === 'offline' ? 'Live updates off' : 'Reconnecting live updates'}
+              </span>
             </div>
             <h2 className="mt-2 text-2xl font-semibold">Respond, coordinate, and resolve in one place</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
