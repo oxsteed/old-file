@@ -59,6 +59,23 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
           </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">Email history</summary>
+          <div className="mt-3 space-y-2">
+            {(data.emailHistory || []).slice(0, 10).map((email) => (
+              <div key={email.id} className="rounded-lg bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-200">{email.subject || 'Support email'}</div>
+                  <span className={email.status === 'sent' ? 'text-emerald-300' : email.status === 'failed' ? 'text-red-300' : 'text-amber-300'}>{email.status}</span>
+                </div>
+                <div className="mt-1 text-slate-500">{email.kind || 'support'} · {email.recipient} · {formatWhen(email.sent_at || email.created_at)}</div>
+                {Number(email.attempts || 0) > 0 && <div className="mt-1 text-slate-500">Attempts: {email.attempts}</div>}
+                {email.last_error && <div className="mt-1 text-red-300/80">{email.last_error}</div>}
+              </div>
+            ))}
+            {!data.emailHistory?.length && <p className="text-xs text-slate-500">No support email history found.</p>}
+          </div>
+        </details>
+        <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-200">Recent jobs</summary>
           <div className="mt-3 space-y-2">{(data.jobs || []).slice(0, 5).map((job) => <div key={job.id} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{job.title}</div><div className="mt-1 text-slate-500">{job.status} · {formatWhen(job.updated_at || job.created_at)}</div></div>)}{!data.jobs?.length && <p className="text-xs text-slate-500">No jobs found.</p>}</div>
         </details>

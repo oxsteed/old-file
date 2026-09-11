@@ -606,7 +606,8 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 1, job_id: 'job-1', amount: '100.00', status: 'captured' }] })
       .mockResolvedValueOnce({ rows: [{ id: 2, status: 'completed', total_cents: 2500 }] })
       .mockResolvedValueOnce({ rows: [{ id: 3, status: 'ready', total_cents: 1800 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', attachment_name: 'photo.png', attachment_url: '/api/storage/files/photo.png' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', attachment_name: 'photo.png', attachment_url: '/api/storage/files/photo.png' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'email-1', conversation_id: 'conversation-1', kind: 'agent_reply', recipient: 'customer@example.com', subject: 'Support follow-up', status: 'sent', attempts: 1 }] });
 
     const res = await request(buildApp())
       .get('/api/support/conversations/conversation-1/customer-360')
@@ -616,6 +617,8 @@ describe('support routes', () => {
     expect(res.body.data.profile.email).toBe('customer@example.com');
     expect(res.body.data.summary).toEqual({ conversations: 1, jobs: 1, payments: 1, orders: 2, attachments: 1, internalNotes: 1 });
     expect(res.body.data.priorAgents).toEqual([{ id: 'agent-1', name: 'Ava Agent' }]);
+    expect(res.body.data.emailHistory).toEqual([expect.objectContaining({ id: 'email-1', status: 'sent' })]);
+    expect(res.body.data.emailHistory[0]).not.toHaveProperty('payload');
   });
 
   test('does not expose customer 360 context to the customer', async () => {

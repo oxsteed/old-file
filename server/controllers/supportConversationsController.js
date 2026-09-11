@@ -506,7 +506,7 @@ async function getCustomer360(req, res) {
       [customerId, customerEmail]
     );
 
-    const [supportConversations, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments] = await Promise.all([
+    const [supportConversations, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory] = await Promise.all([
       queryOptional(
         `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.created_at, sc.updated_at,
                 sc.resolved_at, sc.message_count, sc.customer_message_count, sc.agent_message_count,
@@ -601,6 +601,22 @@ async function getCustomer360(req, res) {
         supportParams,
         'support attachments'
       ),
+      queryOptional(
+        `SELECT seo.id, seo.conversation_id, seo.kind, seo.recipient, seo.subject,
+                seo.status, seo.attempts, seo.sent_at, seo.last_error,
+                seo.created_at, seo.updated_at
+         FROM support_email_outbox seo
+         JOIN support_conversations sc ON sc.id = seo.conversation_id
+         LEFT JOIN users cu ON cu.id = sc.customer_id
+         WHERE (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(cu.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY seo.created_at DESC
+         LIMIT 100`,
+        supportParams,
+        'support email history'
+      ),
     ]);
 
     const priorAgents = Array.from(new Map(
@@ -627,6 +643,7 @@ async function getCustomer360(req, res) {
         payments,
         orders: { marketplace: marketplaceOrders, food: foodOrders },
         attachments,
+        emailHistory,
         priorAgents,
         summary: {
           conversations: supportConversations.length,
