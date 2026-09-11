@@ -10,7 +10,7 @@ function Count({ label, value, icon: Icon }) {
   return <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3"><Icon size={14} className="text-orange-300" /><div className="mt-2 text-lg font-semibold text-white">{value}</div><div className="text-[11px] text-slate-500">{label}</div></div>;
 }
 
-export default function Customer360Panel({ data, loading }) {
+export default function Customer360Panel({ data, loading, lifecycle = [], lifecycleLoading = false }) {
   if (loading) return <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 text-sm text-slate-400">Loading customer context…</section>;
   if (!data) return null;
   const profile = data.profile || {};
@@ -75,6 +75,22 @@ export default function Customer360Panel({ data, loading }) {
               </div>
             ))}
             {!attachments.length && <p className="text-xs text-slate-500">No active attachments found.</p>}
+          </div>
+        </details>
+        <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-200">Lifecycle timeline</summary>
+          <div className="mt-3 space-y-2">
+            {lifecycleLoading && <p className="text-xs text-slate-500">Loading lifecycle…</p>}
+            {!lifecycleLoading && lifecycle.slice(-12).map((event) => (
+              <div key={event.id} className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs">
+                <div className="font-semibold text-slate-200">
+                  {event.status_from ? `${event.status_from} → ` : ''}{event.status_to}
+                </div>
+                <div className="mt-1 text-slate-500">{event.changed_by_name || 'System'} · {formatWhen(event.changed_at)}</div>
+                {event.change_reason && <div className="mt-1 text-slate-400">{event.change_reason}</div>}
+              </div>
+            ))}
+            {!lifecycleLoading && !lifecycle.length && <p className="text-xs text-slate-500">No lifecycle events recorded yet.</p>}
           </div>
         </details>
       </div>

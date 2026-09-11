@@ -140,6 +140,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [detailLoading, setDetailLoading] = useState(false);
   const [customer360, setCustomer360] = useState(null);
   const [customer360Loading, setCustomer360Loading] = useState(false);
+  const [lifecycle, setLifecycle] = useState([]);
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [emailRetryBusy, setEmailRetryBusy] = useState(false);
@@ -254,19 +256,34 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     customer360RequestRef.current = requestId;
     if (!conversationId) {
       setCustomer360(null);
+      setLifecycle([]);
       setCustomer360Loading(false);
+      setLifecycleLoading(false);
       return;
     }
     setCustomer360Loading(true);
+    setLifecycleLoading(true);
     try {
-      const { data } = await api.get(`/support/conversations/${conversationId}/customer-360`);
+      const [customerResult, lifecycleResult] = await Promise.allSettled([
+        api.get(`/support/conversations/${conversationId}/customer-360`),
+        api.get(`/support/conversations/${conversationId}/lifecycle`),
+      ]);
       if (requestId !== customer360RequestRef.current) return;
-      setCustomer360(data?.data || null);
+      setCustomer360(customerResult.status === 'fulfilled' ? customerResult.value.data?.data || null : null);
+      setLifecycle(
+        lifecycleResult.status === 'fulfilled' && Array.isArray(lifecycleResult.value.data?.data)
+          ? lifecycleResult.value.data.data
+          : []
+      );
     } catch {
       if (requestId !== customer360RequestRef.current) return;
       setCustomer360(null);
+      setLifecycle([]);
     } finally {
-      if (requestId === customer360RequestRef.current) setCustomer360Loading(false);
+      if (requestId === customer360RequestRef.current) {
+        setCustomer360Loading(false);
+        setLifecycleLoading(false);
+      }
     }
   }, []);
 
@@ -1222,7 +1239,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                         Another support staff member is viewing this conversation ({ticketViewerCount} active viewers). Coordinate before sending a reply.
                       </div>
                     )}
-                    <Customer360Panel data={customer360} loading={customer360Loading} />
+                    <Customer360Panel data={customer360} loading={customer360Loading} lifecycle={lifecycle} lifecycleLoading={lifecycleLoading} />
                     {selected.review && (
                       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
