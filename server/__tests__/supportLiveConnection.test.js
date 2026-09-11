@@ -744,6 +744,45 @@ describe('live support connection lifecycle', () => {
     expect(messageCall[1]).toEqual(['ticket-1', true]);
   });
 
+  test('keeps support email delivery metadata staff-only', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: null,
+          email_delivery: { pending: 1, failed: 0, sent: 2 },
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const customerResponse = responseDouble();
+    await supportConversationsController.getConversation({
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+    }, customerResponse);
+    expect(customerResponse.json.mock.calls[0][0].data.emailDelivery).toBeUndefined();
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: null,
+          email_delivery: { pending: 1, failed: 0, sent: 2 },
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    const staffResponse = responseDouble();
+    await supportConversationsController.getConversation({
+      user: { id: 'admin-1', role: 'super_admin' },
+      params: { conversationId: 'ticket-1' },
+    }, staffResponse);
+    expect(staffResponse.json.mock.calls[0][0].data.emailDelivery).toEqual({ pending: 1, failed: 0, sent: 2 });
+  });
+
   test('returns same-email support history with internal notes to authorized staff only', async () => {
     mockQuery
       .mockResolvedValueOnce({

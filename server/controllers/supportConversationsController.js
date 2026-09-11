@@ -307,6 +307,15 @@ async function getConversation(req, res) {
           NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
           au.email
         ) as agent_name
+        ,(
+          SELECT jsonb_build_object(
+            'pending', COUNT(*) FILTER (WHERE seo.status IN ('pending', 'sending')),
+            'failed', COUNT(*) FILTER (WHERE seo.status = 'failed'),
+            'sent', COUNT(*) FILTER (WHERE seo.status = 'sent')
+          )
+          FROM support_email_outbox seo
+          WHERE seo.conversation_id = sc.id
+        ) AS email_delivery
       FROM support_conversations sc
       LEFT JOIN users u ON sc.customer_id = u.id
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
@@ -318,6 +327,10 @@ async function getConversation(req, res) {
     if (!result.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = result.rows[0];
+    const emailDelivery = conversation.email_delivery;
+    // Delivery state is operational metadata for authorized support staff, not
+    // customer-facing conversation content.
+    delete conversation.email_delivery;
 
     const isCustomer = req.user.id === conversation.customer_id;
     const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
@@ -431,6 +444,7 @@ async function getConversation(req, res) {
       data: {
         ...conversation,
         messages: messages.rows,
+        ...(!isCustomer && emailDelivery ? { emailDelivery } : {}),
         ...(customerHistory ? { customerHistory } : {}),
       }
     });

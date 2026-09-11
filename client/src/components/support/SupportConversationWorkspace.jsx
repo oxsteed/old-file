@@ -817,6 +817,16 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                           Reviewed · {selected.review.rating}/5
                         </span>
                       )}
+                      {selected.emailDelivery && Number(selected.emailDelivery.failed || 0) > 0 && (
+                        <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-red-200" title="Customer notification delivery needs attention">
+                          Email delivery issue · {selected.emailDelivery.failed} failed
+                        </span>
+                      )}
+                      {selected.emailDelivery && Number(selected.emailDelivery.pending || 0) > 0 && (
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-200" title="Customer notification is queued for delivery">
+                          Email retry queued · {selected.emailDelivery.pending} pending
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
                       <span>Opened {formatWhen(selected.created_at)}</span>
