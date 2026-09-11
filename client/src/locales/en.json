@@ -14864,6 +14864,7 @@
     "searchToolsAria": "Search tools",
     "availableWhenScheduled": "Available when scheduled",
     "noTools": "No published tools match your search.",
+    "toolsComingSoon": "Tools and equipment are coming soon.",
     "serviceCoverage": "Service coverage",
     "coverageCopy": "{{city}} and surrounding locations within the active Direct coverage areas.",
     "coverageConfiguring": "Coverage areas are being configured.",

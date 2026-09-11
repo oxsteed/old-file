@@ -14780,6 +14780,7 @@
     "searchToolsAria": "Buscar herramientas",
     "availableWhenScheduled": "Disponible al programar",
     "noTools": "No hay herramientas publicadas que coincidan con tu búsqueda.",
+    "toolsComingSoon": "Las herramientas y el equipo estarán disponibles próximamente.",
     "serviceCoverage": "Cobertura del servicio",
     "coverageCopy": "{{city}} y las zonas cercanas dentro de las áreas activas de cobertura Direct.",
     "coverageConfiguring": "Las áreas de cobertura se están configurando.",

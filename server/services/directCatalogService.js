@@ -156,7 +156,7 @@ async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
     : ` WHERE t.is_active = TRUE AND t.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`;
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
     db.query(`SELECT * FROM direct_catalog_categories c ${includeUnpublished ? '' : `WHERE c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})`} ORDER BY COALESCE(c.display_order, c.sort_order), c.created_at`),
-    db.query(`SELECT s.*, c.slug AS category_slug FROM direct_catalog_services s JOIN direct_catalog_categories c ON c.id = s.category_id WHERE 1=1 ${visibility} ORDER BY c.sort_order, s.sort_order, s.created_at`),
+    db.query(`SELECT s.*, c.slug AS category_slug FROM direct_catalog_services s JOIN direct_catalog_categories c ON c.id = s.category_id WHERE 1=1 ${visibility} ORDER BY COALESCE(c.display_order, c.sort_order), COALESCE(s.display_order, s.sort_order), s.created_at`),
     db.query(`SELECT * FROM direct_catalog_tools t${toolVisibility} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
@@ -192,9 +192,9 @@ async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
 
 async function getAdminCatalog() {
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
-    db.query('SELECT * FROM direct_catalog_categories ORDER BY sort_order, created_at'),
-    db.query('SELECT * FROM direct_catalog_services ORDER BY sort_order, created_at'),
-    db.query('SELECT * FROM direct_catalog_tools ORDER BY sort_order, created_at'),
+    db.query('SELECT * FROM direct_catalog_categories ORDER BY COALESCE(display_order, sort_order), created_at'),
+    db.query('SELECT * FROM direct_catalog_services ORDER BY COALESCE(display_order, sort_order), created_at'),
+    db.query('SELECT * FROM direct_catalog_tools ORDER BY COALESCE(display_order, sort_order), created_at'),
   ]);
   return { categories: categories.map(adminCategory), services: services.map(adminService), tools: tools.map(adminTool), locales: LOCALES, icons: [...ICONS] };
 }
@@ -240,7 +240,7 @@ function parseEntity(entity, body) {
     availabilityDays: normalizeDays(data.availableDays ?? data.availabilityDays),
     sortOrder: Number.isInteger(Number(data.sortOrder)) && Number(data.sortOrder) >= 0 ? Number(data.sortOrder) : 0,
     lifecycleStatus,
-    isActive: data.isActive !== false,
+    isActive: lifecycleStatus !== 'retired' && data.isActive !== false,
     isPublished: ['coming_soon', 'live', 'paused'].includes(lifecycleStatus),
     isOperationallyAvailable: parseBoolean(data.isOperationallyAvailable, lifecycleStatus === 'live' && data.isPublished === true),
     isBookable: parseBoolean(data.isBookable, false),

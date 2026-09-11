@@ -14763,6 +14763,7 @@
     "searchToolsAria": "Rechercher des outils",
     "availableWhenScheduled": "Disponible sur planification",
     "noTools": "Aucun outil publié ne correspond à votre recherche.",
+    "toolsComingSoon": "Les outils et l'équipement seront bientôt disponibles.",
     "serviceCoverage": "Zone de service",
     "coverageCopy": "{{city}} et les zones voisines situées dans les zones de couverture Direct actives.",
     "coverageConfiguring": "Les zones de couverture sont en cours de configuration.",
