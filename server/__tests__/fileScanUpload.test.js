@@ -7,6 +7,7 @@ jest.mock('../services/fileScanService', () => ({
 const { resetMocks } = require('./setup');
 const fileScanService = require('../services/fileScanService');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const { fileTypeFromBuffer } = require('file-type');
 
 function response() {
   return {
@@ -34,6 +35,7 @@ test('runs the malware scanner after static file validation', async () => {
 });
 
 test('also scans text uploads accepted by the safe extension fallback', async () => {
+  fileTypeFromBuffer.mockResolvedValueOnce(undefined);
   fileScanService.scanBuffer.mockResolvedValue({ clean: true, provider: 'clamav' });
   const req = { file: { buffer: Buffer.from('name,value'), originalname: 'data.csv', mimetype: 'text/csv', size: 10 } };
   const res = response();
