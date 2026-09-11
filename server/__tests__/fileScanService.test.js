@@ -55,4 +55,16 @@ describe('file scan service policy', () => {
       signature: 'eicar-test-signature',
     });
   });
+
+  test('reports when the optional scanner is not configured', async () => {
+    delete process.env.CLAMAV_HOST;
+    delete process.env.FILE_SCAN_REQUIRE_MALWARE;
+    jest.resetModules();
+    const service = require('../services/fileScanService');
+
+    await expect(service.checkHealth()).resolves.toEqual({
+      status: 'not_configured',
+      provider: 'static',
+    });
+  });
 });

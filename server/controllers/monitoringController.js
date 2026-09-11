@@ -93,8 +93,15 @@ exports.getSecurityPosture = async (_req, res) => {
  */
 exports.getUploadSecurity = async (_req, res) => {
   const status = fileScanService.getStatus();
-  return res.status(status.required && !status.configured ? 503 : 200).json({
+  const health = await fileScanService.checkHealth();
+  const unavailable = (status.required && !status.configured)
+    || (status.configured && health.status !== 'healthy');
+  return res.status(unavailable ? 503 : 200).json({
     ...status,
+    health: {
+      status: health.status,
+      provider: health.provider,
+    },
     checkedAt: new Date().toISOString(),
   });
 };

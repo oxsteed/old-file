@@ -86,6 +86,7 @@ describe('monitoring routes', () => {
       configured: false,
       required: false,
       mode: 'static_validation_only',
+      health: { status: 'not_configured', provider: 'static' },
     });
     expect(res.body).not.toHaveProperty('host');
   });

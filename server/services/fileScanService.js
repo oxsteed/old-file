@@ -101,6 +101,38 @@ function isConfigured() {
   return Boolean(scannerConfig());
 }
 
+function checkHealth() {
+  const config = scannerConfig();
+  if (!config) {
+    return Promise.resolve({
+      status: malwareScanRequired() ? 'blocked' : 'not_configured',
+      provider: 'static',
+    });
+  }
+
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: config.host, port: config.port });
+    let settled = false;
+    const finish = (status, error) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({
+        status,
+        provider: 'clamav',
+        ...(error ? { error: error.message } : {}),
+      });
+    };
+
+    socket.setTimeout(config.timeoutMs, () => finish('unreachable', new Error('Malware scanner health check timed out')));
+    socket.once('connect', () => finish('healthy'));
+    socket.once('error', (error) => finish('unreachable', error));
+    socket.once('close', () => {
+      if (!settled) finish('unreachable', new Error('Malware scanner closed during health check'));
+    });
+  });
+}
+
 function getStatus() {
   const configured = isConfigured();
   const required = malwareScanRequired();
@@ -113,4 +145,4 @@ function getStatus() {
   };
 }
 
-module.exports = { scanBuffer, isConfigured, getStatus, malwareScanRequired };
+module.exports = { scanBuffer, isConfigured, getStatus, checkHealth, malwareScanRequired };
