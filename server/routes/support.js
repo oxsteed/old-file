@@ -27,6 +27,7 @@ const supportFollowUpReminderController = require('../controllers/supportFollowU
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
+const { sendValidationError } = require('../utils/apiError');
 const publicSupport = require('../controllers/publicSupportController');
 const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
@@ -282,6 +283,10 @@ router.get('/conversations', async (req, res, next) => {
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
     const offset = Math.max(0, Number.parseInt(req.query.offset, 10) || 0);
     const search = String(req.query.search || '').trim().slice(0, 200);
+    const channel = String(req.query.channel || '').trim().toLowerCase();
+    if (channel && !['web_chat', 'email', 'sms', 'phone', 'social'].includes(channel)) {
+      return sendValidationError(res, { channel: 'Invalid support channel' });
+    }
 
     if (isPlatformAdmin || platformAgent) {
       const params = [];
@@ -301,6 +306,9 @@ router.get('/conversations', async (req, res, next) => {
               AND search_scm.content ILIKE ${searchParam}
           )
         )`;
+      }
+      if (channel) {
+        where += ` AND sc.channel = $${params.push(channel)}`;
       }
       const limitParam = `$${params.push(limit)}`;
       const offsetParam = `$${params.push(offset)}`;

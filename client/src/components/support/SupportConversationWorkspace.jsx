@@ -189,6 +189,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         limit: CONVERSATION_PAGE_SIZE,
         offset: append ? conversationOffsetRef.current : 0,
         ...(search.trim() ? { search: search.trim() } : {}),
+        ...(channelFilter !== 'all' ? { channel: channelFilter } : {}),
       };
       const { data } = await api.get('/support/conversations', { params });
       if (requestId !== conversationRequestRef.current) return;
@@ -223,7 +224,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         setLoading(false);
       }
     }
-  }, [businessId, search]);
+  }, [businessId, channelFilter, search]);
 
   const loadDetail = useCallback(async (conversationId, { quiet = false } = {}) => {
     const requestId = detailRequestRef.current + 1;

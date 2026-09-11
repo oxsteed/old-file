@@ -124,6 +124,33 @@ describe('support routes', () => {
     expect(res.body.pagination).toEqual({ limit: 25, offset: 50, returned: 1, hasMore: false });
   });
 
+  test('filters the platform conversation queue by support channel', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'email-conversation' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations?channel=email&limit=10')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    const listCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversations sc/.test(sql));
+    expect(listCall[0]).toContain('sc.channel = $1');
+    expect(listCall[1]).toEqual(['email', 10, 0]);
+  });
+
+  test('rejects an invalid platform conversation channel filter', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations?channel=carrier-pigeon')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
   test('creates a public support ticket for guest or mobile support requests', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
