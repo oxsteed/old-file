@@ -77,6 +77,42 @@ describe('Direct catalog', () => {
     expect(catalog.tools[0]).not.toHaveProperty('isActive');
   });
 
+  test('marks categories without live inventory as coming soon and live unavailable services as non-requestable', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { id: 'cat-1', slug: 'electrical', name_i18n: { en: 'Electrical' }, icon_key: 'zap', sort_order: 1, lifecycle_status: 'live', is_active: true, is_published: true },
+        { id: 'cat-2', slug: 'plumbing', name_i18n: { en: 'Plumbing' }, icon_key: 'droplets', sort_order: 2, lifecycle_status: 'live', is_active: true, is_published: true },
+      ], rowCount: 2 })
+      .mockResolvedValueOnce({ rows: [{ id: 'svc-1', category_id: 'cat-1', slug: 'fan', name_i18n: { en: 'Fan' }, description_i18n: { en: 'Install fan.' }, price_cents: null, currency_code: 'USD', available_days: ['Monday'], lifecycle_status: 'live', is_operationally_available: false, is_active: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const catalog = await getCatalog({ locale: 'en' });
+
+    expect(catalog.categories[0]).toEqual(expect.objectContaining({ lifecycleStatus: 'live', liveServiceCount: 1, availableServiceCount: 0 }));
+    expect(catalog.categories[0].services[0]).toEqual(expect.objectContaining({ lifecycleStatus: 'live', isOperationallyAvailable: false, requestable: false }));
+    expect(catalog.categories[1]).toEqual(expect.objectContaining({ lifecycleStatus: 'coming_soon', liveServiceCount: 0, availableServiceCount: 0 }));
+  });
+
+  test('requires the lifecycle path for customer-visible records', () => {
+    expect(() => parseEntity('service', {
+      slug: 'fan',
+      categoryId: 'category-1',
+      nameI18n: completeName,
+      descriptionI18n: completeDescription,
+      lifecycleStatus: 'not-a-phase',
+    })).toThrow(/lifecycleStatus must be one of/);
+
+    const planned = parseEntity('service', {
+      slug: 'future-fan',
+      categoryId: 'category-1',
+      nameI18n: { en: 'Future fan' },
+      descriptionI18n: { en: 'Planned service.' },
+      lifecycleStatus: 'planned',
+    });
+    expect(planned.lifecycleStatus).toBe('planned');
+    expect(planned.isPublished).toBe(false);
+  });
+
   test('updates records and audit events in one transaction', async () => {
     const row = { id: 'tool-1', is_published: false };
     mockQuery

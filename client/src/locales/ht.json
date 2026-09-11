@@ -14776,6 +14776,11 @@
     "retry": "Eseye ankò",
     "viewAllCategories": "Gade tout konpetans yo",
     "viewAllServices": "Gade tout sèvis yo",
-    "viewAllTools": "Gade tout zouti yo"
+    "viewAllTools": "Gade tout zouti yo",
+    "comingSoon": "Talè konsa",
+    "paused": "Pa disponib pou yon ti tan",
+    "currentlyUnavailable": "Pa disponib kounye a",
+    "categoryComingSoon": "Sèvis ki nan kategori sa a ap disponib talè konsa.",
+    "categoryPaused": "Kategori sa a pa disponib pou yon ti tan."
   }
 }

@@ -14793,6 +14793,11 @@
     "retry": "Intentar de nuevo",
     "viewAllCategories": "Ver todas las habilidades",
     "viewAllServices": "Ver todos los servicios",
-    "viewAllTools": "Ver todas las herramientas"
+    "viewAllTools": "Ver todas las herramientas",
+    "comingSoon": "Próximamente",
+    "paused": "No disponible temporalmente",
+    "currentlyUnavailable": "No disponible actualmente",
+    "categoryComingSoon": "Los servicios de esta categoría estarán disponibles próximamente.",
+    "categoryPaused": "Esta categoría no está disponible temporalmente."
   }
 }

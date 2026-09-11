@@ -14779,6 +14779,11 @@
     "retry": "حاول مرة أخرى",
     "viewAllCategories": "عرض كل المهارات",
     "viewAllServices": "عرض كل الخدمات",
-    "viewAllTools": "عرض كل الأدوات"
+    "viewAllTools": "عرض كل الأدوات",
+    "comingSoon": "قريبًا",
+    "paused": "غير متاحة مؤقتًا",
+    "currentlyUnavailable": "غير متاحة حاليًا",
+    "categoryComingSoon": "ستتوفر الخدمات في هذه الفئة قريبًا.",
+    "categoryPaused": "هذه الفئة غير متاحة مؤقتًا."
   }
 }

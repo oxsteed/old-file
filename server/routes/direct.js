@@ -45,6 +45,7 @@ router.patch('/admin/catalog/services/:id', authenticate, requireAdmin, generalL
 router.post('/admin/catalog/tools', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogTool);
 router.patch('/admin/catalog/tools/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogTool);
 router.patch('/admin/catalog/:entity/:id/archive', authenticate, requireAdmin, generalLimiter, ctrl.archiveAdminCatalogEntity);
+router.post('/admin/catalog/bulk-transition', authenticate, requireAdmin, generalLimiter, ctrl.bulkTransitionAdminCatalog);
 router.post('/admin/catalog/ai/preview', authenticate, requireAdmin, generalLimiter, ctrl.previewAdminCatalogAI);
 router.post('/admin/catalog/ai/apply', authenticate, requireAdmin, generalLimiter, ctrl.applyAdminCatalogAI);
 router.get('/admin/service-areas', authenticate, requireAdmin, ctrl.getAdminServiceAreas);

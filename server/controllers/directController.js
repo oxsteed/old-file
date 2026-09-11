@@ -21,6 +21,7 @@ const {
   getAdminCatalog,
   saveEntity,
   removeEntity,
+  bulkTransition,
   parseEntity,
   audit: auditCatalog,
 } = require('../services/directCatalogService');
@@ -579,6 +580,23 @@ exports.archiveAdminCatalogEntity = async (req, res) => {
     return res.json({ success: true, catalog: await getAdminCatalog() });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to archive catalog record' });
+  }
+};
+
+exports.bulkTransitionAdminCatalog = async (req, res) => {
+  const entity = catalogEntityName(req.body?.entity);
+  if (!entity) return res.status(400).json({ error: 'Unsupported catalog entity' });
+  try {
+    const result = await bulkTransition(
+      entity,
+      req.body?.ids,
+      req.body?.lifecycleStatus,
+      req.user?.id,
+      req.body?.reason
+    );
+    return res.json({ success: true, ...result, catalog: await getAdminCatalog() });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to transition catalog records' });
   }
 };
 

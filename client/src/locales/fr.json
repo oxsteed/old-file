@@ -14776,6 +14776,11 @@
     "retry": "Réessayer",
     "viewAllCategories": "Voir toutes les compétences",
     "viewAllServices": "Voir tous les services",
-    "viewAllTools": "Voir tous les outils"
+    "viewAllTools": "Voir tous les outils",
+    "comingSoon": "Bientôt disponible",
+    "paused": "Temporairement indisponible",
+    "currentlyUnavailable": "Actuellement indisponible",
+    "categoryComingSoon": "Les services de cette catégorie seront bientôt disponibles.",
+    "categoryPaused": "Cette catégorie est temporairement indisponible."
   }
 }

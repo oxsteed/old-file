@@ -14877,6 +14877,11 @@
     "retry": "Try again",
     "viewAllCategories": "View all skills",
     "viewAllServices": "View all services",
-    "viewAllTools": "View all tools"
+    "viewAllTools": "View all tools",
+    "comingSoon": "Coming soon",
+    "paused": "Temporarily unavailable",
+    "currentlyUnavailable": "Currently unavailable",
+    "categoryComingSoon": "Services in this category are coming soon.",
+    "categoryPaused": "This category is temporarily unavailable."
   }
 }
