@@ -2016,7 +2016,9 @@ router.get('/:businessId/response-categories', cannedResponsesController.getCate
 // AI CHATBOT (Phase 2)
 // ============================================
 
-router.post('/:businessId/ai/message', aiChatbotController.sendMessage);
+router.post('/:businessId/ai/message', conversationMessageLimiter, aiChatbotController.sendMessage);
+router.post('/:businessId/ai/drafts/:draftId/apply', conversationMessageLimiter, aiChatbotController.applyDraft);
+router.post('/:businessId/ai/drafts/:draftId/discard', conversationMessageLimiter, aiChatbotController.discardDraft);
 router.post('/:businessId/ai/check-handoff', aiChatbotController.checkNeedsHandoff);
 router.get('/:businessId/ai/suggest-articles/:conversationId', aiChatbotController.suggestKBArticles);
 router.get('/:businessId/ai/suggest-responses', aiChatbotController.suggestResponses);

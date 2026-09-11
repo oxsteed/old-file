@@ -1,7 +1,11 @@
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const WebSocketService = require('../services/websocketService');
+const { logAdminAction } = require('../services/auditService');
+const { withTransaction } = require('../utils/transaction');
 
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -26,17 +30,27 @@ async function canAccessBusiness(req) {
 
 async function sendMessage(req, res) {
   try {
-    const { businessId, conversationId } = req.params;
+    const { businessId } = req.params;
+    const conversationId = req.params.conversationId || req.body?.conversationId;
     const { content, language } = req.body;
 
-    if (!content || String(content).trim().length > 5000) {
-      return sendValidationError(res, { content: 'Required' });
+    if (!conversationId) {
+      return sendValidationError(res, { conversationId: 'Required' });
+    }
+    if (!content || !String(content).trim() || String(content).trim().length > 5000) {
+      return sendValidationError(res, { content: 'Required and must be 5000 characters or fewer' });
     }
 
-    const conv = await query('SELECT * FROM support_conversations WHERE id = $1', [conversationId]);
+    const conv = await query(
+      'SELECT * FROM support_conversations WHERE id = $1 AND business_id = $2',
+      [conversationId, businessId]
+    );
     if (!conv.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = conv.rows[0];
+    if (['resolved', 'closed', 'merged'].includes(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot receive AI drafts');
+    }
     if (!(await authorizeBusinessConversation(req, conversation))) {
       return sendError(res, 403, 'Access denied');
     }
@@ -47,28 +61,159 @@ async function sendMessage(req, res) {
 
     try {
       const response = await callOpenRouter(String(content).trim(), selectedLanguage);
-
-      const msgResult = await query(
-        `INSERT INTO support_conversation_messages
-         (conversation_id, sender_id, message_type, content, is_ai, ai_model, is_agent)
-         VALUES ($1, (SELECT id FROM users WHERE email = 'system@oxsteed.com'), 'text', $2, true, 'openrouter', false)
-         RETURNING *`,
-        [conversationId, response]
+      const draft = await query(
+        `INSERT INTO support_ai_reply_drafts
+         (business_id, conversation_id, requested_by, source_content, draft_content, language)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, business_id, conversation_id, requested_by, source_content,
+                   draft_content, language, ai_model, status, created_at, updated_at`,
+        [businessId, conversationId, req.user.id, String(content).trim(), response, selectedLanguage]
       );
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'support_ai_reply_draft_previewed',
+        targetType: 'support_conversation',
+        targetId: conversationId,
+        description: 'AI support reply draft generated for human review',
+        after: { draftId: draft.rows[0]?.id, language: selectedLanguage, isPublic: false },
+        req,
+      });
 
-      await query(
-        'UPDATE support_conversations SET message_count = message_count + 1, agent_message_count = agent_message_count + 1 WHERE id = $1',
-        [conversationId]
-      );
-
-      res.json({ success: true, data: msgResult.rows[0] });
+      res.status(201).json({
+        success: true,
+        draft: true,
+        data: draft.rows[0],
+        message: 'AI draft ready for review; it has not been sent to the customer.',
+      });
     } catch (aiErr) {
       logger.error('AI call failed', { error: aiErr.message });
-      sendError(res, 500, 'Failed to get AI response');
+      sendError(res, 503, 'AI draft is unavailable; use manual reply instead');
     }
   } catch (err) {
     logger.error('sendMessage error', { error: err.message });
     sendError(res, 500, 'Failed to send message');
+  }
+}
+
+async function applyDraft(req, res) {
+  try {
+    const { businessId, draftId } = req.params;
+    if (req.user.role === 'customer') return sendError(res, 403, 'Only support staff can apply AI drafts');
+
+    const result = await withTransaction(pool, async (client) => {
+      const draftResult = await client.query(
+        `SELECT d.*, c.status AS conversation_status, c.customer_id, c.agent_id
+         FROM support_ai_reply_drafts d
+         JOIN support_conversations c ON c.id = d.conversation_id
+         WHERE d.id = $1 AND d.business_id = $2
+         FOR UPDATE`,
+        [draftId, businessId]
+      );
+      if (!draftResult.rows.length) return { notFound: true };
+      const draft = draftResult.rows[0];
+      const conversation = {
+        id: draft.conversation_id,
+        business_id: businessId,
+        customer_id: draft.customer_id,
+        agent_id: draft.agent_id,
+      };
+      if (!(await authorizeBusinessConversation(req, conversation))) return { forbidden: true };
+      if (draft.status !== 'pending') return { invalidState: true, status: draft.status };
+      if (['resolved', 'closed', 'merged'].includes(draft.conversation_status)) return { closed: true };
+
+      const messageResult = await client.query(
+        `INSERT INTO support_conversation_messages
+         (conversation_id, sender_id, message_type, content, is_ai, ai_model, is_agent)
+         VALUES ($1, $2, 'text', $3, true, $4, true)
+         RETURNING *`,
+        [draft.conversation_id, req.user.id, draft.draft_content, draft.ai_model]
+      );
+      const message = messageResult.rows[0];
+
+      await client.query(
+        `UPDATE support_ai_reply_drafts
+         SET status = 'applied', applied_by = $1, applied_message_id = $2,
+             applied_at = NOW(), updated_at = NOW()
+         WHERE id = $3 AND status = 'pending'`,
+        [req.user.id, message.id, draftId]
+      );
+      await client.query(
+        `UPDATE support_conversations
+         SET message_count = message_count + 1,
+             agent_message_count = agent_message_count + 1,
+             first_response_at = COALESCE(first_response_at, NOW()),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [draft.conversation_id]
+      );
+      return { draft, message };
+    }, 'apply_support_ai_reply_draft');
+
+    if (result.notFound) return sendError(res, 404, 'AI draft not found');
+    if (result.forbidden) return sendError(res, 403, 'Access denied');
+    if (result.invalidState) return sendError(res, 409, `AI draft is already ${result.status}`);
+    if (result.closed) return sendError(res, 409, 'Closed conversations cannot receive AI replies');
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_ai_reply_draft_applied',
+      targetType: 'support_conversation',
+      targetId: result.draft.conversation_id,
+      description: 'Human-approved AI support draft sent as a public reply',
+      after: { draftId, messageId: result.message.id, isPublic: true },
+      req,
+    });
+    WebSocketService.broadcastToTicket(result.draft.conversation_id, 'message:new', {
+      ticketId: result.draft.conversation_id,
+      conversationId: result.draft.conversation_id,
+      messageId: result.message.id,
+      content: result.message.content,
+      isInternal: false,
+      isAI: true,
+      timestamp: result.message.created_at,
+    });
+    return res.status(201).json({ success: true, data: result.message });
+  } catch (err) {
+    logger.error('applyDraft error', { error: err.message });
+    return sendError(res, 500, 'Failed to apply AI draft');
+  }
+}
+
+async function discardDraft(req, res) {
+  try {
+    const { businessId, draftId } = req.params;
+    if (req.user.role === 'customer') return sendError(res, 403, 'Only support staff can discard AI drafts');
+    const draftResult = await query(
+      `SELECT d.*, c.customer_id, c.agent_id
+       FROM support_ai_reply_drafts d
+       JOIN support_conversations c ON c.id = d.conversation_id
+       WHERE d.id = $1 AND d.business_id = $2`,
+      [draftId, businessId]
+    );
+    if (!draftResult.rows.length) return sendError(res, 404, 'AI draft not found');
+    const draft = draftResult.rows[0];
+    if (!(await authorizeBusinessConversation(req, { ...draft, business_id: businessId }))) return sendError(res, 403, 'Access denied');
+    const result = await query(
+      `UPDATE support_ai_reply_drafts
+       SET status = 'discarded', updated_at = NOW()
+       WHERE id = $1 AND business_id = $2 AND status = 'pending'
+       RETURNING id, status, updated_at`,
+      [draftId, businessId]
+    );
+    if (!result.rows.length) return sendError(res, 409, 'AI draft is no longer pending');
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_ai_reply_draft_discarded',
+      targetType: 'support_conversation',
+      targetId: draft.conversation_id,
+      description: 'AI support draft discarded by support staff',
+      after: { draftId },
+      req,
+    });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error('discardDraft error', { error: err.message });
+    return sendError(res, 500, 'Failed to discard AI draft');
   }
 }
 
@@ -215,10 +360,14 @@ async function callOpenRouter(content, language) {
 
     const data = await response.json();
     const generated = data?.choices?.[0]?.message?.content;
-    if (typeof generated !== 'string' || !generated.trim()) {
+    if (typeof generated !== 'string' || !generated.trim() || generated.trim().length > 5000) {
       throw new Error('OpenRouter returned an invalid response');
     }
-    return generated.trim();
+    const normalized = generated.trim();
+    if (/<\/?[a-z][^>]*>/i.test(normalized)) {
+      throw new Error('OpenRouter returned unsupported markup');
+    }
+    return normalized;
   } catch (err) {
     logger.error('OpenRouter API call failed', { error: err.message });
     throw err;
@@ -226,5 +375,5 @@ async function callOpenRouter(content, language) {
 }
 
 module.exports = {
-  sendMessage, checkNeedsHandoff, suggestKBArticles, suggestResponses
+  sendMessage, applyDraft, discardDraft, checkNeedsHandoff, suggestKBArticles, suggestResponses
 };
