@@ -1094,7 +1094,8 @@ router.get('/csat/analytics', async (req, res, next) => {
       db.query(
         `SELECT COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Support team') AS agent_name,
                 COUNT(scr.id)::int AS responses,
-                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating
+                COALESCE(ROUND(AVG(scr.rating)::numeric, 2), 0)::float AS avg_rating,
+                ROUND(AVG(scr.nps_score)::numeric, 1)::float AS avg_nps
          FROM support_conversation_reviews scr
          JOIN support_conversations sc ON sc.id = scr.conversation_id
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id

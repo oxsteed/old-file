@@ -173,6 +173,7 @@ export default function SupportCSATAnalytics() {
   const agentCSAT = csatData.agent_csat || [];
   const recentFeedback = csatData.recent_feedback || [];
   const averageNps = csatMetrics.avg_nps == null ? null : Number(csatMetrics.avg_nps);
+  const averageRating = csatMetrics.avg_rating == null ? null : Number(csatMetrics.avg_rating);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -224,10 +225,10 @@ export default function SupportCSATAnalytics() {
 
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <p className="text-gray-400 text-sm mb-2">Avg Rating</p>
-          <p className="text-white text-3xl font-bold mb-3">{csatMetrics.avg_rating?.toFixed(1)}★</p>
+          <p className="text-white text-3xl font-bold mb-3">{averageRating == null ? 'N/A' : `${averageRating.toFixed(1)}★`}</p>
           <div className="flex items-center gap-2 text-gray-400 text-xs">
             <Heart size={14} className="text-red-400" />
-            <span>Out of 5.0</span>
+            <span>{averageRating == null ? 'No ratings yet' : 'Out of 5.0'}</span>
           </div>
         </div>
 
@@ -250,8 +251,9 @@ export default function SupportCSATAnalytics() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={csatTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                <XAxis dataKey="day" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
                 <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 5]} />
+                <YAxis yAxisId="right" orientation="right" stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151' }}
                   labelStyle={{ color: '#F3F4F6' }}
@@ -276,6 +278,39 @@ export default function SupportCSATAnalytics() {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* NPS Trend */}
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+          <h3 className="text-white font-bold text-lg mb-6">NPS Score Trend</h3>
+          <div className="h-64">
+            {csatTrend.some((point) => point.avg_nps != null) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={csatTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="day" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} domain={[0, 10]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151' }}
+                    labelStyle={{ color: '#F3F4F6' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="avg_nps"
+                    stroke="#60A5FA"
+                    strokeWidth={2}
+                    name="Average NPS score"
+                    dot={{ fill: '#60A5FA' }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                No NPS responses in this period
+              </div>
+            )}
           </div>
         </div>
 
@@ -331,7 +366,7 @@ export default function SupportCSATAnalytics() {
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151' }}
                 labelStyle={{ color: '#F3F4F6' }}
               />
-              <Bar dataKey="avg_csat" fill="#F97316" name="Avg CSAT Score" />
+              <Bar dataKey="avg_rating" fill="#F97316" name="Avg CSAT Score" />
             </BarChart>
           </ResponsiveContainer>
         </div>
