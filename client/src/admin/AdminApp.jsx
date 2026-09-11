@@ -112,6 +112,7 @@ import SupportTemplates from './pages/SupportTemplates';
 import SupportMetricsDashboard from './pages/SupportMetricsDashboard';
 import SupportSLADashboard from './pages/SupportSLADashboard';
 import SupportPerformanceAnalytics from './pages/SupportPerformanceAnalytics';
+import SupportQAReviews from './pages/SupportQAReviews';
 import AdminLegalAcceptancesPage from './pages/AdminLegalAcceptancesPage';
 import AdminLegalAuditLogPage from './pages/AdminLegalAuditLogPage';
 import AdminComplianceMetricsPage from './pages/AdminComplianceMetricsPage';
@@ -212,6 +213,7 @@ export default function AdminApp() {
           <Route path="support/sla" element={<SupportSLADashboard />} />
           <Route path="support/performance" element={<SupportPerformanceAnalytics />} />
           <Route path="support/csat" element={<SupportCSATAnalytics />} />
+          <Route path="support/qa" element={<SupportQAReviews />} />
           <Route path="support/escalations" element={<SupportEscalationManager />} />
           <Route path="support/team-hierarchy" element={<SupportTeamHierarchy />} />
           <Route path="support/settings" element={<SupportSettingsPage />} />

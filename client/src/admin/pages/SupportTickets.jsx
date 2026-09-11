@@ -29,6 +29,7 @@ import {
   Filter,
   ChevronRight,
   X,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const STATUS_LABELS = {
@@ -59,6 +60,7 @@ const SUPPORT_TOOLS = [
   { label: 'SLA', to: '/admin/support/sla', icon: AlertCircle },
   { label: 'Performance', to: '/admin/support/performance', icon: TrendingUp },
   { label: 'CSAT', to: '/admin/support/csat', icon: BarChart3 },
+  { label: 'QA Reviews', to: '/admin/support/qa', icon: ClipboardCheck },
   { label: 'Escalations', to: '/admin/support/escalations', icon: AlertTriangle },
   { label: 'Hierarchy', to: '/admin/support/team-hierarchy', icon: Layers },
   { label: 'Settings', to: '/admin/support/settings', icon: Settings },

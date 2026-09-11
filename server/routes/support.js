@@ -22,6 +22,7 @@ const escalationPoliciesController = require('../controllers/escalationPoliciesC
 const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
 const supportAgentPortalController = require('../controllers/supportAgentPortalController');
+const supportQualityController = require('../controllers/supportQualityController');
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
@@ -369,6 +370,11 @@ router.get('/conversations', async (req, res, next) => {
     next(err);
   }
 });
+
+// QA review queue for completed conversations. Results are scoped to the
+// caller's platform or business support access and never expose to customers.
+router.get('/qa/reviews', supportQualityController.listReviews);
+router.post('/qa/reviews/:conversationId', conversationMessageLimiter, supportQualityController.saveReview);
 
 router.post('/conversations', conversationMessageLimiter, async (req, res, next) => {
   try {
