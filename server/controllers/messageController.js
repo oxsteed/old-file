@@ -3,7 +3,7 @@ const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { sendNotification } = require('../services/notificationService');
-const { uploadFile, getSignedDownloadUrl, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
@@ -1138,7 +1138,7 @@ module.exports = {
  * POST /api/messages/conversations/:conversationId/attachments
  * Upload a file attachment for a conversation message.
  * Returns { url, key, name, size, mimeType } for the frontend to send as a message.
- * Images are returned as public S3 URLs; other files as signed 1-hour download URLs.
+ * Every stored attachment uses a short-lived private download URL.
  */
 async function uploadAttachment(req, res) {
   try {
@@ -1178,10 +1178,7 @@ async function uploadAttachment(req, res) {
       });
     }
 
-    const isImage = mimetype.startsWith('image/');
-    const url = isImage
-      ? getPublicUrl(key)
-      : await getSignedDownloadUrl(key, 3600);
+    const url = await getSignedDownloadUrl(key, 3600);
 
     return res.json({ url, key, name: originalname, size, mimeType: mimetype });
   } catch (err) {

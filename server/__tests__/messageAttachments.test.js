@@ -3,12 +3,17 @@
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue(true),
 }));
+jest.mock('../utils/storage', () => ({
+  uploadFile: jest.fn().mockResolvedValue('chat-attachments/private-photo.jpg'),
+  getSignedDownloadUrl: jest.fn().mockResolvedValue('/api/storage/files/chat-attachments/private-photo.jpg?exp=1&sig=test'),
+}));
 
 const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const socketService = require('../services/socketService');
 const messageController = require('../controllers/messageController');
+const storage = require('../utils/storage');
 
 socketService.broadcastToConversation = jest.fn();
 socketService.broadcastToUser = jest.fn();
@@ -38,6 +43,36 @@ beforeEach(() => {
 });
 
 describe('message attachments', () => {
+  test('returns a private signed URL for uploaded images', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ customer_id: 'customer-456', helper_id: 'user-123', business_id: null }],
+    });
+
+    const uploadApp = express();
+    uploadApp.use(express.json());
+    uploadApp.use((req, _res, next) => {
+      req.user = { id: 'user-123' };
+      next();
+    });
+    uploadApp.post('/api/messages/conversations/:conversationId/attachments', (req, _res, next) => {
+      req.file = {
+        buffer: Buffer.from('image bytes'),
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        size: 11,
+      };
+      next();
+    }, messageController.uploadAttachment);
+
+    const res = await request(uploadApp)
+      .post('/api/messages/conversations/conv-1/attachments');
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toContain('/api/storage/files/');
+    expect(res.body.url).not.toContain('s3.amazonaws.com');
+    expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith('chat-attachments/private-photo.jpg', 3600);
+  });
+
   test('POST /messages/conversations/:id accepts attachment-only messages', async () => {
     const attachment = {
       url: 'https://cdn.example.com/chat/photo.jpg',
