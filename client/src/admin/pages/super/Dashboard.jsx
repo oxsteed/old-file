@@ -145,6 +145,10 @@ export default function SuperDashboard() {
   const [geo,         setGeo]         = useState({ userGeo: [], jobGeo: [] });
   const [geoLoading,  setGeoLoading]  = useState(true);
   const [health,      setHealth]      = useState(null);
+  const [incidents,   setIncidents]   = useState([]);
+  const [incidentLoading, setIncidentLoading] = useState(true);
+  const [incidentError, setIncidentError] = useState(null);
+  const [incidentActionId, setIncidentActionId] = useState(null);
 
   // Fetch main stats (re-runs on period change)
   const fetchStats = useCallback(async (p) => {
@@ -192,8 +196,42 @@ export default function SuperDashboard() {
     }
   }, [isSuper]);
 
+  const fetchIncidents = useCallback(async () => {
+    if (!isSuper) return;
+    setIncidentLoading(true);
+    setIncidentError(null);
+    try {
+      const { data } = await adminApi.get('/monitoring/security-events?hours=24');
+      const grouped = data?.byType || {};
+      const openIncidents = Object.values(grouped)
+        .flat()
+        .filter((incident) => incident.source === 'durable' && !incident.resolvedAt)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setIncidents(openIncidents);
+    } catch (_) {
+      setIncidentError('Security incident data is temporarily unavailable.');
+    } finally {
+      setIncidentLoading(false);
+    }
+  }, [isSuper]);
+
+  const updateIncident = async (incidentId, action) => {
+    setIncidentActionId(incidentId);
+    try {
+      const body = action === 'resolve'
+        ? { resolutionNotes: 'Resolved from the Super Admin dashboard.' }
+        : undefined;
+      await adminApi.post(`/monitoring/incidents/${incidentId}/${action}`, body);
+      await Promise.all([fetchIncidents(), fetchHealth()]);
+    } catch (err) {
+      setIncidentError(err?.response?.data?.error || 'Could not update this incident.');
+    } finally {
+      setIncidentActionId(null);
+    }
+  };
+
   useEffect(() => { fetchStats(period); }, [period, fetchStats]);
-  useEffect(() => { fetchActivity(); fetchGeo(); fetchHealth(); }, [fetchActivity, fetchGeo, fetchHealth]);
+  useEffect(() => { fetchActivity(); fetchGeo(); fetchHealth(); fetchIncidents(); }, [fetchActivity, fetchGeo, fetchHealth, fetchIncidents]);
 
   const handlePeriod = (p) => { if (p !== period) setPeriod(p); };
 
@@ -240,7 +278,7 @@ export default function SuperDashboard() {
             </div>
           )}
           <button
-            onClick={() => { fetchStats(period); fetchActivity(); fetchGeo(); fetchHealth(); }}
+            onClick={() => { fetchStats(period); fetchActivity(); fetchGeo(); fetchHealth(); fetchIncidents(); }}
             disabled={loading}
             className="p-2 rounded-lg bg-[#111318] border border-gray-800 text-gray-500 hover:text-gray-300 transition disabled:opacity-40"
             title="Refresh"
@@ -392,6 +430,44 @@ export default function SuperDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Durable security incidents ─────────────────────────────────── */}
+      {isSuper && (
+        <section>
+          <div className="flex items-center justify-between gap-3">
+            <SectionHeading>Security Incidents</SectionHeading>
+            {incidents.length > 0 && <span className="mb-3 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">{incidents.length} open</span>}
+          </div>
+          <div className="bg-[#111318] border border-gray-800 rounded-2xl p-4 sm:p-5">
+            {incidentLoading && <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-gray-600" /></div>}
+            {!incidentLoading && incidentError && <p className="py-3 text-sm text-red-300">{incidentError}</p>}
+            {!incidentLoading && !incidentError && incidents.length === 0 && <p className="py-3 text-sm text-gray-600">No open durable security incidents.</p>}
+            {!incidentLoading && incidents.length > 0 && (
+              <div className="space-y-3">
+                {incidents.slice(0, 10).map((incident) => (
+                  <div key={incident.id} className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 sm:p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <AlertTriangle size={17} className="mt-0.5 shrink-0 text-red-400" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white">{incident.type}</p>
+                          <p className="mt-1 text-sm text-gray-300">{incident.message}</p>
+                          <p className="mt-1 text-xs text-gray-500">{incident.occurrenceCount || 1} occurrence{Number(incident.occurrenceCount || 1) === 1 ? '' : 's'} · last seen {fmtRelative(incident.timestamp)}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-2 sm:pt-0.5">
+                        {!incident.acknowledgedAt && <button type="button" onClick={() => updateIncident(incident.id, 'acknowledge')} disabled={incidentActionId === incident.id} className="rounded-lg border border-yellow-500/30 px-2.5 py-1.5 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/10 disabled:opacity-50">Acknowledge</button>}
+                        <button type="button" onClick={() => updateIncident(incident.id, 'resolve')} disabled={incidentActionId === incident.id} className="rounded-lg border border-emerald-500/30 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50">{incidentActionId === incident.id ? 'Updating…' : 'Resolve'}</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {incidents.length > 10 && <p className="pt-1 text-xs text-gray-500">Showing the 10 most recent incidents. Use monitoring tools for the complete history.</p>}
+              </div>
+            )}
           </div>
         </section>
       )}
