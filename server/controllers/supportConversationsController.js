@@ -9,7 +9,7 @@ const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
-const { sendSupportEmail } = require('../services/supportEmailOutbox');
+const { sendSupportEmail, retryFailedSupportEmails } = require('../services/supportEmailOutbox');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
@@ -1339,6 +1339,30 @@ async function sendConversationEmail(req, res) {
   }
 }
 
+async function retryConversationEmailDelivery(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can retry customer notifications');
+
+    const result = await retryFailedSupportEmails(conversationId);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'support_email_delivery_retried',
+      targetType: 'support_conversation',
+      targetId: conversationId,
+      description: `Queued ${result.queued} failed customer notification${result.queued === 1 ? '' : 's'} for retry`,
+      after: { queued: result.queued },
+      req,
+    });
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error('retryConversationEmailDelivery error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to retry customer notifications');
+  }
+}
+
 // Get conversation stats for a business
 async function getConversationStats(req, res) {
   try {
@@ -1383,5 +1407,6 @@ module.exports = {
   updateConversationStatus,
   addMessage,
   sendConversationEmail,
+  retryConversationEmailDelivery,
   getConversationStats
 };

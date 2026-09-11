@@ -7,6 +7,7 @@ const {
   enqueueSupportEmail,
   sendSupportEmail,
   processSupportEmailOutbox,
+  retryFailedSupportEmails,
 } = require('../services/supportEmailOutbox');
 
 beforeEach(() => {
@@ -60,5 +61,15 @@ describe('support email outbox', () => {
 
     await expect(processSupportEmailOutbox()).resolves.toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
     expect(mockQuery.mock.calls[1][1][0]).toBe('failed');
+  });
+
+  test('resets only terminal failures for an immediate retry', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }, { id: 'outbox-2' }] });
+
+    await expect(retryFailedSupportEmails('conversation-1')).resolves.toEqual({ queued: 2 });
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("SET status = 'pending', attempts = 0"),
+      ['conversation-1']
+    );
   });
 });

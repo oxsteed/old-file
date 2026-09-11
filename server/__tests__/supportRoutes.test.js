@@ -487,6 +487,41 @@ describe('support routes', () => {
     );
   });
 
+  test('lets authorized staff retry failed customer notifications', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }, { id: 'outbox-2' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/email/retry-failed')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ queued: 2 });
+    expect(mockQuery.mock.calls[2][0]).toMatch(/UPDATE support_email_outbox/);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      adminId: ADMIN_ID,
+      action: 'support_email_delivery_retried',
+      targetType: 'support_conversation',
+      targetId: 'conversation-1',
+      after: { queued: 2 },
+    }));
+  });
+
+  test('does not let customers retry staff notification delivery', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, agent_id: null }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations/conversation-1/email/retry-failed')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
   test('returns real CSAT analytics to platform admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })

@@ -405,6 +405,7 @@ router.put('/conversations/:conversationId/agent-messages/:messageId', conversat
 router.post('/conversations/:conversationId/review', conversationMessageLimiter, supportConversationsController.createConversationReview);
 router.post('/conversations/:conversationId/reopen', conversationMessageLimiter, supportConversationsController.reopenCustomerConversation);
 router.post('/conversations/:conversationId/email', conversationMessageLimiter, supportConversationsController.sendConversationEmail);
+router.post('/conversations/:conversationId/email/retry-failed', conversationMessageLimiter, supportConversationsController.retryConversationEmailDelivery);
 
 router.put('/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
 router.post('/conversations/:conversationId/claim', conversationAssignmentController.claimConversation);

@@ -127,6 +127,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [emailRetryBusy, setEmailRetryBusy] = useState(false);
   const [showNewMessages, setShowNewMessages] = useState(false);
   const [customerTyping, setCustomerTyping] = useState(false);
   const [agentEmployment, setAgentEmployment] = useState(null);
@@ -543,6 +544,21 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   };
 
+  const retryFailedEmails = async () => {
+    if (!selected?.id || emailRetryBusy || Number(selected.emailDelivery?.failed || 0) < 1) return;
+    setEmailRetryBusy(true);
+    try {
+      const response = await api.post(`/support/conversations/${selected.id}/email/retry-failed`);
+      await loadDetail(selected.id, { quiet: true });
+      const queued = Number(response.data?.data?.queued || 0);
+      toast.success(queued ? `${queued} customer notification${queued === 1 ? '' : 's'} queued for retry.` : 'No failed customer notifications need a retry.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not retry customer notifications.');
+    } finally {
+      setEmailRetryBusy(false);
+    }
+  };
+
   const copyContextValue = async (value, label) => {
     if (!value || !navigator.clipboard?.writeText) return;
     try {
@@ -843,6 +859,11 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     <button type="button" onClick={() => downloadTranscript(true)} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200 hover:border-amber-400/60 disabled:opacity-50" title="Download full case record including internal notes">
                       <Download size={13} /> Case record
                     </button>
+                    {Number(selected.emailDelivery?.failed || 0) > 0 && (
+                      <button type="button" onClick={retryFailedEmails} disabled={emailRetryBusy} className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-200 hover:border-red-400/60 disabled:opacity-50" title="Queue failed customer notifications for immediate retry">
+                        <RefreshCw size={13} className={emailRetryBusy ? 'animate-spin' : ''} /> {emailRetryBusy ? 'Retrying…' : 'Retry email'}
+                      </button>
+                    )}
                     {!selected.agent_id && !isClosed && (
                       <button type="button" onClick={claim} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-3 py-2 text-xs font-semibold hover:bg-orange-500 disabled:opacity-50">
                         <Lock size={13} /> Claim

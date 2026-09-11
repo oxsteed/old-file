@@ -117,9 +117,22 @@ async function processSupportEmailOutbox() {
   return { claimed: rows.length, sent, retried, failed };
 }
 
+async function retryFailedSupportEmails(conversationId) {
+  const result = await db.query(
+    `UPDATE support_email_outbox
+     SET status = 'pending', attempts = 0, next_attempt_at = NOW(),
+         locked_at = NULL, last_error = NULL, updated_at = NOW()
+     WHERE conversation_id = $1 AND status = 'failed'
+     RETURNING id`,
+    [conversationId]
+  );
+  return { queued: result.rows.length };
+}
+
 module.exports = {
   MAX_ATTEMPTS,
   enqueueSupportEmail,
   sendSupportEmail,
   processSupportEmailOutbox,
+  retryFailedSupportEmails,
 };
