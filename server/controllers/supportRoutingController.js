@@ -12,6 +12,10 @@ const { waitingState } = require('../services/supportWaitService');
 const supportConversationsController = require('./supportConversationsController');
 const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
+const {
+  TERMINAL_CONVERSATION_STATUS_SQL,
+  isTerminalConversationStatus,
+} = require('../services/supportConversationTerminal');
 
 async function canViewConversation(conversation, user) {
   if (!conversation || !user) return false;
@@ -154,12 +158,12 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
          SET agent_id = $1, status = 'in_progress', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
          WHERE id = $2
            AND agent_id IS NULL
-           AND status NOT IN ('resolved', 'closed')
+           AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
            AND (
              SELECT COUNT(*)
              FROM support_conversations active_conversations
              WHERE active_conversations.agent_id = $1
-               AND active_conversations.status NOT IN ('resolved', 'closed')
+               AND active_conversations.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
                AND active_conversations.id <> $2
            ) < COALESCE((
              SELECT max_concurrent_chats FROM support_agents WHERE id = $1
@@ -536,7 +540,7 @@ exports.updateStatus = async (req, res) => {
     }
 
     const conversationResult = await pool.query(
-      'SELECT id, business_id, customer_id, agent_id FROM support_conversations WHERE id = $1',
+      'SELECT id, business_id, customer_id, agent_id, status FROM support_conversations WHERE id = $1',
       [ticketId]
     );
     if (!conversationResult.rows.length) {
@@ -544,6 +548,9 @@ exports.updateStatus = async (req, res) => {
     }
     if (!(await canManageConversation(conversationResult.rows[0], req.user))) {
       return sendError(res, 403, 'Access denied');
+    }
+    if (isTerminalConversationStatus(conversationResult.rows[0].status)) {
+      return sendError(res, 409, 'Closed conversations cannot change status');
     }
 
     const query = `
@@ -579,7 +586,7 @@ exports.assignToAgent = async (req, res) => {
     const { agentId } = req.body;
 
     const conversationResult = await pool.query(
-      'SELECT id, business_id, customer_id, agent_id FROM support_conversations WHERE id = $1',
+      'SELECT id, business_id, customer_id, agent_id, status FROM support_conversations WHERE id = $1',
       [ticketId]
     );
     if (!conversationResult.rows.length) {
@@ -591,6 +598,9 @@ exports.assignToAgent = async (req, res) => {
         req.user.id
       );
     if (!canAssign) return sendError(res, 403, 'Access denied');
+    if (isTerminalConversationStatus(conversationResult.rows[0].status)) {
+      return sendError(res, 409, 'Closed conversations cannot be assigned');
+    }
 
     // Manual assignment must use the same connected, fresh, capacity-aware
     // eligibility view as automatic routing.
@@ -619,11 +629,12 @@ exports.assignToAgent = async (req, res) => {
       UPDATE support_conversations
       SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
       WHERE id = $2
+        AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
         AND (
           SELECT COUNT(*)
           FROM support_conversations active_conversations
           WHERE active_conversations.agent_id = $1
-            AND active_conversations.status NOT IN ('resolved', 'closed')
+            AND active_conversations.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
             AND active_conversations.id <> $2
         ) < COALESCE((
           SELECT max_concurrent_chats FROM support_agents WHERE id = $1

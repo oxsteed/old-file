@@ -4,6 +4,7 @@
  */
 
 const logger = require('../utils/logger');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('./supportConversationTerminal');
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
@@ -234,7 +235,7 @@ class WebSocketService {
           const conversation = await pool.query(
             `SELECT id, status
              FROM support_conversations
-             WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+             WHERE id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
             [ticketId]
           );
           if (!conversation.rows.length) return;
@@ -272,7 +273,7 @@ class WebSocketService {
                      WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
                      ELSE status
                    END
-               WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+               WHERE id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
               [ticketId, isAgent]
             );
             if (!updated.rowCount) return null;
@@ -353,7 +354,7 @@ class WebSocketService {
         const conversation = await pool.query(
           `SELECT id, business_id
            FROM support_conversations
-           WHERE id = $1 AND status NOT IN ('resolved', 'closed')`,
+           WHERE id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
           [ticketId]
         );
         const ticket = conversation.rows[0];
@@ -407,7 +408,7 @@ class WebSocketService {
                SET status = 'closed',
                    closed_at = COALESCE(closed_at, CURRENT_TIMESTAMP),
                    updated_at = CURRENT_TIMESTAMP
-               WHERE id = $1 AND status NOT IN ('resolved', 'closed')
+               WHERE id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
                RETURNING id, status, closed_at`,
               [ticketId]
             );

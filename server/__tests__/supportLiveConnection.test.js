@@ -287,6 +287,36 @@ describe('live support connection lifecycle', () => {
     );
   });
 
+  test('rejects an authorized message to a merged conversation before uploading', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'merged-ticket',
+        business_id: 'business-1',
+        customer_id: 'customer-1',
+        status: 'merged',
+        merged_into_conversation_id: 'surviving-ticket',
+      }],
+    });
+
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'merged-ticket' },
+      body: { content: 'This should stay on the surviving conversation.' },
+      file: {
+        buffer: Buffer.from('image'),
+        mimetype: 'image/png',
+        originalname: 'stale-client.png',
+      },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(storage.uploadFile).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('sends a durable email fallback for a public agent reply', async () => {
     mockQuery
       .mockResolvedValueOnce({
@@ -661,7 +691,7 @@ describe('live support connection lifecycle', () => {
 
     const claimUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE support_conversations/.test(sql));
     expect(claimUpdate[0]).toContain('agent_id IS NULL');
-    expect(claimUpdate[0]).toContain("status NOT IN ('resolved', 'closed', 'pending_verification')");
+    expect(claimUpdate[0]).toContain("status NOT IN ('resolved', 'closed', 'merged', 'pending_verification')");
     expect(res.json).toHaveBeenCalledWith({ success: true, data: { id: 'assignment-1' } });
     expect(WebSocketService.broadcastToAdmins).toHaveBeenCalled();
   });

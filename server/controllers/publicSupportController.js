@@ -9,6 +9,10 @@ const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
+const {
+  TERMINAL_CONVERSATION_STATUS_SQL,
+  isTerminalConversationStatus,
+} = require('../services/supportConversationTerminal');
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -274,7 +278,7 @@ async function addGuestMessage(req, res) {
     const { rows } = await pool.query(
       `SELECT id FROM support_conversations
        WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()
-         AND status NOT IN ('resolved', 'closed')`,
+         AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
       [conversationId, hash(req.guestToken)]
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
@@ -359,7 +363,7 @@ async function updateGuestMessage(req, res) {
       [conversationId, hash(req.guestToken)]
     );
     if (!conversations.length) return sendError(res, 404, 'Support conversation not found or expired');
-    if (['resolved', 'closed'].includes(conversations[0].status)) {
+    if (isTerminalConversationStatus(conversations[0].status)) {
       return sendError(res, 409, 'Closed conversations cannot be edited');
     }
     const { rows } = await pool.query(

@@ -7,6 +7,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const WebSocketService = require('./websocketService');
 const supportTriageAI = require('./supportTriageAI');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('./supportConversationTerminal');
 
 function routableAgents(agents) {
   // A database availability flag alone must never promise a live reply. The
@@ -58,7 +59,7 @@ class SupportRoutingService {
           (
             SELECT COUNT(*) FROM support_conversations
             WHERE agent_id = a.id
-            AND status NOT IN ('resolved', 'closed')
+            AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
           )::int AS current_chats
         FROM support_agents a
         JOIN users u ON u.id = a.user_id
@@ -261,7 +262,7 @@ class SupportRoutingService {
     try {
       const query = `
         SELECT
-          COUNT(*) FILTER (WHERE status NOT IN ('resolved', 'closed')) as active_chats,
+          COUNT(*) FILTER (WHERE status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})) as active_chats,
           COUNT(*) FILTER (WHERE status = 'waiting_for_customer') as waiting,
           COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour') as past_hour
         FROM support_conversations

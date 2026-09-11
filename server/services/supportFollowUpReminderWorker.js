@@ -4,6 +4,7 @@ const pool = require('../db');
 const WebSocketService = require('./websocketService');
 const { sendNotification } = require('./notificationService');
 const logger = require('../utils/logger');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('./supportConversationTerminal');
 
 const ADVISORY_LOCK_KEY = 379;
 const ADVISORY_LOCK_SCOPE = 4;
@@ -35,7 +36,7 @@ async function processSupportFollowUpReminders() {
        WHERE r.status = 'pending'
          AND r.due_at <= NOW()
          AND r.notified_at IS NULL
-         AND sc.status NOT IN ('closed', 'merged')
+         AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
        ORDER BY r.due_at ASC
        LIMIT ${BATCH_SIZE}`
     );

@@ -36,6 +36,7 @@ test('marks each newly breached SLA once and alerts the assigned agent', async (
 
   expect(mockQuery.mock.calls[1][0]).toContain('UPDATE support_conversations');
   expect(mockQuery.mock.calls[1][0]).toContain('LIMIT 100');
+  expect(mockQuery.mock.calls[1][0]).toContain("status NOT IN ('resolved', 'closed', 'merged')");
   expect(WebSocketService.broadcastToAdmins).toHaveBeenCalledWith(
     'support:sla-breached',
     expect.objectContaining({ conversationId: 'conversation-1', firstResponseBreach: true })

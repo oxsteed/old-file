@@ -70,6 +70,7 @@ describe('SupportRoutingService', () => {
     expect(sql).toMatch(/a\.is_available = true/);
     expect(sql).toMatch(/u\.is_available_for_support = true/);
     expect(sql).toMatch(/support_available_at > NOW\(\) - INTERVAL '2 minutes'/);
+    expect(sql).toContain("status NOT IN ('resolved', 'closed', 'merged')");
     expect(params).toEqual([8, ['technical']]);
   });
 

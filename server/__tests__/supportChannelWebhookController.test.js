@@ -115,4 +115,48 @@ describe('support channel webhook ingestion', () => {
     expect(res.result.body).toMatchObject({ success: true, idempotent: true, conversationId: 'conversation-1', messageId: null });
     expect(WebSocketService.broadcastToAdmins).not.toHaveBeenCalled();
   });
+
+  test('redirects inbound messages from a merged thread to its surviving conversation', async () => {
+    const payload = {
+      eventId: 'evt-merged',
+      externalThreadId: 'thread-merged',
+      externalMessageId: 'message-merged',
+      customerEmail: 'customer@example.com',
+      customerName: 'Customer One',
+      content: 'A follow-up after the merge.',
+    };
+    const queries = [
+      { rows: [{ id: 'event-merged' }] },
+      { rows: [] },
+      { rows: [{ id: 'source-thread', status: 'merged', merged_into_conversation_id: 'surviving-thread' }] },
+      { rows: [{ id: 'surviving-thread', status: 'open', merged_into_conversation_id: null }] },
+      { rows: [{ id: 'surviving-thread' }] },
+      { rows: [{ id: 'message-merged' }] },
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+    ];
+    const client = { query: jest.fn().mockImplementation(async () => queries.shift() || { rows: [] }) };
+    mockWithTransaction.mockImplementation(async (_pool, operation) => operation(client));
+    const res = response();
+
+    await ingestChannelWebhook(requestFor(payload, signatureFor(payload)), res);
+
+    expect(res.result.status).toBe(202);
+    expect(res.result.body).toMatchObject({
+      success: true,
+      conversationId: 'surviving-thread',
+      messageId: 'message-merged',
+    });
+    const messageInsert = client.query.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    expect(messageInsert[1][0]).toBe('surviving-thread');
+    const sourceUpdate = client.query.mock.calls.find(([sql]) => /UPDATE support_conversations/.test(sql));
+    expect(sourceUpdate[1][0]).toBe('surviving-thread');
+    expect(WebSocketService.broadcastToAdmins).toHaveBeenCalledWith(
+      'support:conversation-updated',
+      expect.objectContaining({ conversationId: 'surviving-thread' })
+    );
+  });
 });

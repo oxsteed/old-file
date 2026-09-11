@@ -4,6 +4,7 @@ const pool = require('../db');
 const WebSocketService = require('./websocketService');
 const { sendNotification } = require('./notificationService');
 const logger = require('../utils/logger');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('./supportConversationTerminal');
 
 const ADVISORY_LOCK_KEY = 379;
 const ADVISORY_LOCK_SCOPE = 3;
@@ -34,7 +35,7 @@ async function runSupportSlaMonitor() {
               (sc.first_response_at IS NOT NULL AND sc.first_response_at > sc.sla_first_response_target)
               OR (
                 sc.first_response_at IS NULL
-                AND sc.status NOT IN ('resolved', 'closed')
+                AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
                 AND sc.sla_first_response_target < NOW()
               )
             )
@@ -46,20 +47,20 @@ async function runSupportSlaMonitor() {
               (sc.resolved_at IS NOT NULL AND sc.resolved_at > sc.sla_resolution_target)
               OR (
                 sc.resolved_at IS NULL
-                AND sc.status NOT IN ('resolved', 'closed')
+                AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
                 AND sc.sla_resolution_target < NOW()
               )
             )
           ) AS resolution_breach
         FROM support_conversations sc
-        WHERE sc.status NOT IN ('closed')
+        WHERE sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
           AND (
             (
               COALESCE(sc.sla_first_response_breached, FALSE) = FALSE
               AND sc.sla_first_response_target IS NOT NULL
               AND (
                 (sc.first_response_at IS NOT NULL AND sc.first_response_at > sc.sla_first_response_target)
-                OR (sc.first_response_at IS NULL AND sc.status NOT IN ('resolved', 'closed') AND sc.sla_first_response_target < NOW())
+                OR (sc.first_response_at IS NULL AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) AND sc.sla_first_response_target < NOW())
               )
             )
             OR (
@@ -67,7 +68,7 @@ async function runSupportSlaMonitor() {
               AND sc.sla_resolution_target IS NOT NULL
               AND (
                 (sc.resolved_at IS NOT NULL AND sc.resolved_at > sc.sla_resolution_target)
-                OR (sc.resolved_at IS NULL AND sc.status NOT IN ('resolved', 'closed') AND sc.sla_resolution_target < NOW())
+                OR (sc.resolved_at IS NULL AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) AND sc.sla_resolution_target < NOW())
               )
             )
           )

@@ -9,6 +9,10 @@ const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
+const {
+  TERMINAL_CONVERSATION_STATUS_SQL,
+  isTerminalConversationStatus,
+} = require('../services/supportConversationTerminal');
 
 function broadcastAssignment(conversationId, event, payload = {}) {
   const data = {
@@ -34,12 +38,14 @@ async function claimConversation(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
-
     const agent = await supportEmployerService.findAgentForConversationBusiness(
       conversation.business_id,
       req.user.id
     );
     if (!agent) return sendError(res, 403, 'Not an agent for this support queue');
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be assigned');
+    }
 
     const assignment = await withTransaction(pool, async (client) => {
       // Locking both records serializes capacity checks and competing claims.
@@ -77,7 +83,7 @@ async function claimConversation(req, res) {
          WHERE id = $2
            AND agent_id IS NULL
            AND ($3::integer IS NULL OR business_id = $3::integer)
-           AND status NOT IN ('resolved', 'closed', 'pending_verification')
+           AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}, 'pending_verification')
          RETURNING id`,
         [agent.id, conversationId, businessId || null]
       );
@@ -167,10 +173,12 @@ async function assignToAgent(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
-
     const canManage = supportEmployerService.isPlatformAdmin(req.user.role)
       || await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id);
     if (!canManage) return sendError(res, 403, 'Access denied');
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be assigned');
+    }
 
     const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
       conversation.business_id
@@ -289,10 +297,12 @@ async function reassignAgent(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
-
     const canManage = supportEmployerService.isPlatformAdmin(req.user.role)
       || await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id);
     if (!canManage) return sendError(res, 403, 'Access denied');
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be assigned');
+    }
 
     if (!conversation.agent_id) {
       return sendError(res, 400, 'Conversation not assigned');
@@ -402,7 +412,6 @@ async function releaseConversation(req, res) {
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
     const conversation = convResult.rows[0];
-
     let allowed = false;
     if (conversation.agent_id) {
       const ag = await query(
@@ -421,6 +430,9 @@ async function releaseConversation(req, res) {
       );
     }
     if (!allowed) return sendError(res, 403, 'Access denied');
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot be assigned');
+    }
 
     // Complete assignment
     const assignment = await query(
@@ -433,7 +445,7 @@ async function releaseConversation(req, res) {
     );
 
     // Put back in queue (but not back to waiting state if already resolved)
-    if (conversation.status !== 'resolved' && conversation.status !== 'closed') {
+    if (!isTerminalConversationStatus(conversation.status)) {
       await query(
         `UPDATE support_conversations
          SET agent_id = NULL,

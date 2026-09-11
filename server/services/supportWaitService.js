@@ -4,6 +4,10 @@ const pool = require('../db');
 const email = require('../utils/email');
 const sockets = require('./websocketService');
 const logger = require('../utils/logger');
+const {
+  TERMINAL_CONVERSATION_STATUS_SQL,
+  isTerminalConversationStatus,
+} = require('./supportConversationTerminal');
 
 const WAIT_SECONDS = 300;
 const ALERT_SECONDS = 120;
@@ -12,7 +16,7 @@ function waitingState(conversation, now = Date.now()) {
   const expires = new Date(conversation.live_wait_expires_at).getTime();
   const remaining = conversation.live_wait_expires_at ? Math.max(0, Math.ceil((expires - now) / 1000)) : 0;
   return {
-    state: ['resolved', 'closed'].includes(conversation.status) ? 'closed'
+    state: isTerminalConversationStatus(conversation.status) ? 'closed'
       : conversation.agent_id ? 'connected'
         : remaining > 0 && !conversation.live_wait_ended_at ? 'waiting' : 'message',
     remainingSeconds: remaining,
@@ -53,12 +57,12 @@ async function processWaiting() {
               AND u.is_active = TRUE AND u.is_available_for_support = TRUE
               AND u.support_available_at > NOW() - INTERVAL '2 minutes'
             ORDER BY (SELECT COUNT(*) FROM support_conversations sc WHERE sc.agent_id = a.id
-              AND sc.status NOT IN ('closed','resolved')), a.created_at
+              AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})), a.created_at
             FOR UPDATE OF a SKIP LOCKED`);
           for (const agent of agents) {
             if (!sockets.isInitialized() || !sockets.isAgentOnline(agent.id)) continue;
             const workload = await client.query(`SELECT COUNT(*)::int AS total FROM support_conversations
-              WHERE agent_id = $1 AND status NOT IN ('closed','resolved')`, [agent.id]);
+              WHERE agent_id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`, [agent.id]);
             if (workload.rows[0].total >= Number(agent.max_concurrent_chats || 3)) continue;
             if (!sockets.isAgentOnline(agent.id)) continue;
             await client.query(`UPDATE support_conversations SET agent_id = $2, status = 'in_progress',

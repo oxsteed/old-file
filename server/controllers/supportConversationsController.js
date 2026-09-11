@@ -15,6 +15,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
+const { isTerminalConversationStatus } = require('../services/supportConversationTerminal');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function notifyCustomerOfAgentReply(conversation, message) {
@@ -1059,7 +1060,7 @@ async function updateCustomerMessage(req, res) {
     const access = await authorizeConversationAccess(conversationId, req);
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.isCustomer) return sendError(res, 403, 'Only the customer can edit this message');
-    if (['resolved', 'closed'].includes(access.conversation.status)) {
+    if (isTerminalConversationStatus(access.conversation.status)) {
       return sendError(res, 409, 'Closed conversations cannot be edited');
     }
 
@@ -1117,7 +1118,7 @@ async function updateAgentMessage(req, res) {
     const access = await authorizeConversationAccess(conversationId, req);
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can edit this message');
-    if (['resolved', 'closed'].includes(access.conversation.status)) {
+    if (isTerminalConversationStatus(access.conversation.status)) {
       return sendError(res, 409, 'Closed conversations cannot be edited');
     }
 
@@ -1837,6 +1838,12 @@ async function addMessage(req, res) {
       return sendError(res, 403, 'Only support staff can add internal notes');
     }
 
+    // Merged sources are historical records. Check after authorization, but
+    // before any upload, so stale clients cannot add work or orphan an object.
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot receive messages');
+    }
+
     if (req.file && (!req.file.mimetype || !req.file.mimetype.startsWith('image/'))) {
       return sendValidationError(res, { file: 'Only image attachments are allowed' });
     }
@@ -2050,6 +2057,9 @@ async function sendConversationEmail(req, res) {
     }
     if (!conversation.customer_email || (!conversation.customer_id && !conversation.guest_verified_at)) {
       return sendError(res, 409, 'A verified customer email is not available');
+    }
+    if (isTerminalConversationStatus(conversation.status)) {
+      return sendError(res, 409, 'Closed conversations cannot receive email replies');
     }
 
     const adminName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim()

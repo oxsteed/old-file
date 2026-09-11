@@ -2,6 +2,7 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
 
 async function canAccessBusiness(req, businessId, manage = false) {
   if (!businessId) return false;
@@ -34,7 +35,8 @@ async function getSLADashboard(req, res) {
         ROUND(100.0 * SUM(CASE WHEN sla_first_response_breached = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) as first_response_compliance,
         ROUND(100.0 * SUM(CASE WHEN sla_resolution_breached = false THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) as resolution_compliance
       FROM support_conversations
-      WHERE business_id = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2`,
+      WHERE business_id = $1 AND status <> 'merged'
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2`,
       [businessId, boundedDays]
     );
 
@@ -65,6 +67,7 @@ async function getSLABreaches(req, res) {
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
       LEFT JOIN users u ON sa.user_id = u.id
       WHERE sc.business_id = $1
+      AND sc.status <> 'merged'
       AND sc.created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2
       AND (sc.sla_first_response_breached = true OR sc.sla_resolution_breached = true)
       ORDER BY sc.created_at DESC`,
@@ -94,7 +97,8 @@ async function getSLAByPriority(req, res) {
         SUM(CASE WHEN sc.sla_first_response_breached = false THEN 1 ELSE 0 END) as first_response_met,
         SUM(CASE WHEN sc.sla_resolution_breached = false THEN 1 ELSE 0 END) as resolution_met
       FROM support_conversations sc
-      WHERE sc.business_id = $1 AND sc.created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2
+      WHERE sc.business_id = $1 AND sc.status <> 'merged'
+        AND sc.created_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2
       GROUP BY sc.priority
       ORDER BY CASE sc.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END`,
       [businessId, boundedDays]
@@ -125,7 +129,7 @@ async function getUpcomingBreaches(req, res) {
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
       LEFT JOIN users u ON sa.user_id = u.id
       WHERE sc.business_id = $1
-      AND sc.status NOT IN ('resolved', 'closed')
+      AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
       AND (
         (sc.sla_first_response_target IS NOT NULL AND sc.sla_first_response_target < CURRENT_TIMESTAMP + INTERVAL '1 hour' * $2)
         OR (sc.sla_resolution_target IS NOT NULL AND sc.sla_resolution_target < CURRENT_TIMESTAMP + INTERVAL '1 hour' * $2)

@@ -32,6 +32,7 @@ const publicSupport = require('../controllers/publicSupportController');
 const SupportRoutingService = require('../services/supportRoutingService');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
 const DAY_NAMES = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
 
 function parseBoolean(value, fallback = false) {
@@ -225,12 +226,15 @@ async function supportConversationStats(businessId) {
     params.push(businessId);
     conditions.push(`business_id = $${params.length}`);
   }
+  // Merged sources are retained for history but must not affect operational
+  // volume, SLA, or resolution-rate metrics.
+  conditions.push(`status <> 'merged'`);
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const { rows } = await db.query(
     `SELECT
        COUNT(*)::int AS total_conversations,
        COALESCE(SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS resolved_conversations,
-       COALESCE(SUM(CASE WHEN status NOT IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS active_conversations,
+       COALESCE(SUM(CASE WHEN status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) THEN 1 ELSE 0 END), 0)::int AS active_conversations,
        COALESCE(SUM(CASE WHEN priority IN ('high','urgent') THEN 1 ELSE 0 END), 0)::int AS priority_conversations,
        COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(first_response_at, updated_at) - created_at)))::numeric), 0)::int AS avg_response_time_seconds,
        COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(resolved_at, updated_at) - created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours,
@@ -523,7 +527,7 @@ router.get('/agents/dashboard', async (req, res, next) => {
        LEFT JOIN users cu ON cu.id = sc.customer_id
        LEFT JOIN support_agents sa ON sa.id = sc.agent_id
        LEFT JOIN users au ON au.id = sa.user_id
-       WHERE sc.status NOT IN ('resolved', 'closed')
+       WHERE sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
          AND ($1::integer IS NULL OR sc.business_id = $1::integer)
        ORDER BY CASE sc.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END,
                 sc.updated_at DESC
@@ -557,6 +561,7 @@ router.get('/agents/dashboard', async (req, res, next) => {
        LEFT JOIN users cu ON cu.id = sc.customer_id
        WHERE sc.live_wait_ended_at IS NOT NULL
          AND sc.status <> 'pending_verification'
+         AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
          AND ($1::integer IS NULL OR sc.business_id = $1::integer)
        ORDER BY sc.live_wait_ended_at DESC
        LIMIT 50`,
@@ -704,6 +709,7 @@ router.get('/metrics', async (req, res, next) => {
            ON sc.created_at >= day
           AND sc.created_at < day + INTERVAL '1 day'
           AND ${scope}
+          AND sc.status <> 'merged'
          GROUP BY day
          ORDER BY day ASC`,
         businessId ? [businessId] : []
@@ -717,6 +723,7 @@ router.get('/metrics', async (req, res, next) => {
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
          WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
            AND ${scope}
+           AND sc.status <> 'merged'
          GROUP BY COALESCE(NULLIF(BTRIM(sa.department), ''), 'general')
          ORDER BY conversations DESC`,
         businessId ? [businessId] : []
@@ -727,6 +734,7 @@ router.get('/metrics', async (req, res, next) => {
          FROM support_conversations sc
          WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
            AND ${scope}
+           AND sc.status <> 'merged'
          GROUP BY COALESCE(NULLIF(BTRIM(sc.category), ''), 'general')
          ORDER BY count DESC`,
         businessId ? [businessId] : []
@@ -745,6 +753,7 @@ router.get('/metrics', async (req, res, next) => {
            ON sc.agent_id = sa.id
           AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
           AND ${scope}
+          AND sc.status <> 'merged'
          LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
          WHERE ${agentScope}
          GROUP BY sa.id, u.id
@@ -814,6 +823,7 @@ router.get('/sla', async (req, res, next) => {
            ON sc.created_at >= day
           AND sc.created_at < day + INTERVAL '1 day'
           AND ${scope}
+          AND sc.status <> 'merged'
          GROUP BY day
          ORDER BY day ASC`,
         businessId ? [businessId] : []
@@ -840,6 +850,7 @@ router.get('/sla', async (req, res, next) => {
          LEFT JOIN support_agents sa ON sa.id = sc.agent_id
          WHERE sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
            AND ${scope}
+           AND sc.status <> 'merged'
          GROUP BY COALESCE(NULLIF(BTRIM(sa.department), ''), 'general')
          ORDER BY eligible DESC`,
         businessId ? [businessId] : []
@@ -871,7 +882,7 @@ router.get('/sla', async (req, res, next) => {
              WHEN 'low' THEN INTERVAL '24 hours'
              ELSE INTERVAL '4 hours'
            END),
-           ('resolution', sc.status NOT IN ('resolved', 'closed') AND NOW() - sc.created_at > CASE sc.priority
+           ('resolution', sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL}) AND NOW() - sc.created_at > CASE sc.priority
              WHEN 'urgent' THEN INTERVAL '12 hours'
              WHEN 'high' THEN INTERVAL '24 hours'
              WHEN 'low' THEN INTERVAL '96 hours'
@@ -880,6 +891,7 @@ router.get('/sla', async (req, res, next) => {
          ) AS violation(violation_type, is_violation)
          WHERE violation.is_violation
            AND ${scope}
+           AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})
          ORDER BY sc.updated_at DESC
          LIMIT 100`,
         businessId ? [businessId] : []
@@ -956,6 +968,7 @@ router.get('/performance', async (req, res, next) => {
        LEFT JOIN support_conversations sc
          ON sc.agent_id = sa.id
         AND ($1::integer IS NULL OR sc.business_id = $1::integer)
+        AND sc.status <> 'merged'
        LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
        WHERE ($1::integer IS NULL OR se.kind = 'platform' OR se.business_id = $1::integer)
          ${searchSql}
@@ -995,6 +1008,7 @@ router.get('/performance/:agentId', async (req, res, next) => {
          ON sc.agent_id = sa.id
         AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
         AND ($2::integer IS NULL OR sc.business_id = $2::integer)
+        AND sc.status <> 'merged'
        LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
        WHERE sa.id = $1`,
       [req.params.agentId, businessId || null]
@@ -1021,6 +1035,7 @@ router.get('/performance/:agentId', async (req, res, next) => {
          WHERE sc.agent_id = $1
            AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
            AND ($2::integer IS NULL OR sc.business_id = $2::integer)
+           AND sc.status <> 'merged'
          GROUP BY sc.created_at::date
          ORDER BY date ASC`,
         [req.params.agentId, businessId || null]

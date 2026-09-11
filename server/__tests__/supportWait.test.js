@@ -45,6 +45,7 @@ test.each([[0,300,'waiting'],[119,181,'waiting'],[120,180,'waiting'],[299,1,'wai
 test('assigned or closed overrides countdown', () => {
   expect(waitingState(conversation(30, { agent_id: 'agent' }), now).state).toBe('connected');
   expect(waitingState(conversation(30, { status: 'closed' }), now).state).toBe('closed');
+  expect(waitingState(conversation(30, { status: 'merged' }), now).state).toBe('closed');
 });
 test('no founder email before two minutes', async () => {
   mockClient(conversation(119)); await processWaiting(); expect(email.sendEmail).not.toHaveBeenCalled();

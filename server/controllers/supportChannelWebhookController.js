@@ -142,10 +142,56 @@ async function ingestChannelWebhook(req, res) {
            closed_at = CASE WHEN support_conversations.status IN ('resolved', 'closed') THEN NULL ELSE support_conversations.closed_at END,
            updated_at = NOW(),
            last_channel_message_at = NOW()
-         RETURNING id, status`,
+         WHERE support_conversations.status <> 'merged'
+         RETURNING id, status, merged_into_conversation_id`,
         [businessId, payload.customerName, payload.customerEmail, payload.subject, payload.content, payload.channel, payload.externalThreadId, JSON.stringify(channelMetadata)]
       );
-      const conversation = conversationResult.rows[0];
+      let conversation = conversationResult.rows[0];
+      if (!conversation) {
+        // A merged external thread is immutable. Read it separately so the
+        // inbound event can be redirected without rewriting the source row.
+        const mergedSource = await client.query(
+          `SELECT id, status, merged_into_conversation_id
+           FROM support_conversations
+           WHERE business_id = $1 AND channel = $2 AND external_thread_id = $3
+           FOR UPDATE`,
+          [businessId, payload.channel, payload.externalThreadId]
+        );
+        conversation = mergedSource.rows[0];
+      }
+      if (!conversation) throw new Error('Support channel conversation could not be recovered');
+      let destinationConversationId = conversation.id;
+      const visitedConversationIds = new Set();
+      while (conversation.status === 'merged') {
+        if (!conversation.merged_into_conversation_id || visitedConversationIds.has(String(conversation.id))) {
+          throw new Error('Merged support conversation target is invalid');
+        }
+        visitedConversationIds.add(String(conversation.id));
+        // Keep the merged source immutable while allowing a later inbound
+        // channel message to continue on the surviving conversation.
+        destinationConversationId = conversation.merged_into_conversation_id;
+        const destination = await client.query(
+          `SELECT id, status, merged_into_conversation_id
+           FROM support_conversations WHERE id = $1 FOR UPDATE`,
+          [destinationConversationId]
+        );
+        if (!destination.rows.length) throw new Error('Merged support conversation target is unavailable');
+        conversation = destination.rows[0];
+      }
+      if (visitedConversationIds.size) {
+        await client.query(
+          `UPDATE support_conversations
+           SET guest_name = COALESCE(NULLIF($2, ''), guest_name),
+               guest_email = COALESCE($3, guest_email),
+               channel_metadata = channel_metadata || $4::jsonb,
+               status = CASE WHEN status IN ('resolved', 'closed') THEN 'open' ELSE status END,
+               resolved_at = CASE WHEN status IN ('resolved', 'closed') THEN NULL ELSE resolved_at END,
+               closed_at = CASE WHEN status IN ('resolved', 'closed') THEN NULL ELSE closed_at END,
+               updated_at = NOW(), last_channel_message_at = NOW()
+           WHERE id = $1 AND status <> 'merged'`,
+          [destinationConversationId, payload.customerName, payload.customerEmail, JSON.stringify(channelMetadata)]
+        );
+      }
 
       const message = await client.query(
         `INSERT INTO support_conversation_messages
@@ -155,7 +201,7 @@ async function ingestChannelWebhook(req, res) {
            WHERE external_message_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
-        [conversation.id, payload.content, payload.channel, payload.externalMessageId]
+        [destinationConversationId, payload.content, payload.channel, payload.externalMessageId]
       );
 
       if (message.rows.length) {
@@ -166,7 +212,7 @@ async function ingestChannelWebhook(req, res) {
                updated_at = NOW(),
                last_channel_message_at = NOW()
            WHERE id = $1`,
-          [conversation.id]
+          [destinationConversationId]
         );
       }
 
@@ -175,27 +221,27 @@ async function ingestChannelWebhook(req, res) {
          SET status = 'waiting', removed_at = NULL, reason_removed = NULL, queued_at = NOW()
          WHERE conversation_id = $1 AND status = 'removed'
          RETURNING id`,
-        [conversation.id]
+        [destinationConversationId]
       );
       if (!existingQueue.rows.length) {
         const activeQueue = await client.query(
           `SELECT id FROM support_queue WHERE conversation_id = $1 AND status <> 'removed' LIMIT 1`,
-          [conversation.id]
+          [destinationConversationId]
         );
         if (!activeQueue.rows.length) {
           await client.query(
             `INSERT INTO support_queue (business_id, conversation_id, priority, status)
              VALUES ($1, $2, 'normal', 'waiting')`,
-            [businessId, conversation.id]
+            [businessId, destinationConversationId]
           );
         }
       }
 
       await client.query(
         `UPDATE support_channel_events SET conversation_id = $1 WHERE channel = $2 AND event_id = $3`,
-        [conversation.id, payload.channel, payload.eventId]
+        [destinationConversationId, payload.channel, payload.eventId]
       );
-      return { duplicate: false, conversationId: conversation.id, messageId: message.rows[0]?.id || null };
+      return { duplicate: false, conversationId: destinationConversationId, messageId: message.rows[0]?.id || null };
     }, 'ingest_support_channel_webhook');
 
     if (!result.duplicate) {
