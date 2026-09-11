@@ -601,6 +601,7 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, customer_email: 'customer@example.com', business_id: 42, agent_id: null }] })
       .mockResolvedValueOnce({ rows: [{ id: USER_ID, email: 'customer@example.com', first_name: 'Casey', last_name: 'Customer', preferred_language: 'en' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', subject: 'Current request', status: 'open', agent_id: 'agent-1', agent_name: 'Ava Agent' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-2', conversation_id: 'conversation-1', is_agent: false, is_ai: false, message_type: 'text', content: 'I still need help with the repair.', sender_name: 'Casey Customer' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'note-1', conversation_id: 'conversation-1', content: 'Prior context', subject: 'Current request', author_name: 'Ava Agent' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'job-1', title: 'Repair', status: 'completed' }] })
       .mockResolvedValueOnce({ rows: [{ id: 1, job_id: 'job-1', amount: '100.00', status: 'captured' }] })
@@ -617,6 +618,7 @@ describe('support routes', () => {
     expect(res.body.data.profile.email).toBe('customer@example.com');
     expect(res.body.data.summary).toEqual({ conversations: 1, jobs: 1, payments: 1, orders: 2, attachments: 1, internalNotes: 1 });
     expect(res.body.data.priorAgents).toEqual([{ id: 'agent-1', name: 'Ava Agent' }]);
+    expect(res.body.data.conversationMessages).toEqual([expect.objectContaining({ id: 'message-2', content: 'I still need help with the repair.' })]);
     expect(res.body.data.emailHistory).toEqual([expect.objectContaining({ id: 'email-1', status: 'sent' })]);
     expect(res.body.data.emailHistory[0]).not.toHaveProperty('payload');
   });

@@ -506,7 +506,7 @@ async function getCustomer360(req, res) {
       [customerId, customerEmail]
     );
 
-    const [supportConversations, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory] = await Promise.all([
+    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory] = await Promise.all([
       queryOptional(
         `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.created_at, sc.updated_at,
                 sc.resolved_at, sc.message_count, sc.customer_message_count, sc.agent_message_count,
@@ -526,6 +526,26 @@ async function getCustomer360(req, res) {
          LIMIT 50`,
         supportParams,
         'support conversations'
+      ),
+      queryOptional(
+        `SELECT scm.id, scm.conversation_id, scm.is_agent, scm.is_ai,
+                scm.message_type, LEFT(scm.content, 500) AS content,
+                scm.status, scm.created_at, sc.subject,
+                COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email, 'Customer') AS sender_name
+         FROM support_conversation_messages scm
+         JOIN support_conversations sc ON sc.id = scm.conversation_id
+         LEFT JOIN users cu ON cu.id = sc.customer_id
+         LEFT JOIN users u ON u.id = scm.sender_id
+         WHERE scm.message_type <> 'internal_note'
+           AND scm.redacted_at IS NULL
+           AND (( $1::uuid IS NOT NULL AND sc.customer_id = $1)
+             OR ($2::text <> '' AND LOWER(COALESCE(cu.email, sc.guest_email)) = $2))
+           AND (sc.customer_id IS NOT NULL OR sc.guest_verified_at IS NOT NULL)
+           ${businessScope}
+         ORDER BY scm.created_at DESC
+         LIMIT 200`,
+        supportParams,
+        'support message history'
       ),
       queryOptional(
         `SELECT scm.id, scm.conversation_id, scm.content, scm.created_at,
@@ -639,6 +659,7 @@ async function getCustomer360(req, res) {
         currentConversationId: conversationId,
         supportConversations,
         internalNotes,
+        conversationMessages,
         jobs,
         payments,
         orders: { marketplace: marketplaceOrders, food: foodOrders },

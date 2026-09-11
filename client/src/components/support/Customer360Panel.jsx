@@ -22,7 +22,14 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || 'Customer';
   const orders = [...(data.orders?.marketplace || []), ...(data.orders?.food || [])];
   const supportConversations = data.supportConversations || [];
+  const conversationMessages = data.conversationMessages || [];
   const attachments = data.attachments || [];
+  const messagesByConversation = conversationMessages.reduce((groups, message) => {
+    const messages = groups.get(message.conversation_id) || [];
+    messages.push(message);
+    groups.set(message.conversation_id, messages);
+    return groups;
+  }, new Map());
 
   return (
     <section className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4" aria-labelledby="customer-360-title">
@@ -53,6 +60,12 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                   {conversation.review_rating != null && <span className="text-amber-200">{conversation.review_rating}/5</span>}
                 </div>
                 <div className="mt-1 text-slate-500">{conversation.status || 'open'} · {conversation.agent_name || 'Unassigned'} · {formatWhen(conversation.updated_at || conversation.created_at)}</div>
+                {(messagesByConversation.get(conversation.id) || []).slice(0, 4).map((message) => (
+                  <div key={message.id} className="mt-2 border-l-2 border-slate-700 pl-2 text-slate-400">
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">{message.is_agent ? (message.is_ai ? 'AI support' : message.sender_name || 'Agent') : 'Customer'} · {formatWhen(message.created_at)}</div>
+                    <div className="mt-0.5 whitespace-pre-wrap">{message.content || `[${message.message_type || 'message'}]`}</div>
+                  </div>
+                ))}
               </div>
             ))}
             {!supportConversations.length && <p className="text-xs text-slate-500">No prior conversations found.</p>}
