@@ -799,6 +799,24 @@ function channelDeliveryHttpStatus(status) {
   return 200;
 }
 
+async function getSupportChannelCapabilities(req, res) {
+  try {
+    const businessId = String(req.query?.business_id || req.query?.businessId || '').trim();
+    if (!supportEmployerService.isPlatformAdmin(req.user?.role)) {
+      const allowed = businessId
+        ? await supportEmployerService.userCanAccessBusinessConversations(businessId, req.user.id, req.user.role)
+        : Boolean(await supportEmployerService.findPlatformAgent(req.user.id));
+      if (!allowed) return sendError(res, 403, 'Only support staff can view channel capabilities');
+    }
+
+    // Return readiness metadata only. Provider credentials never leave the server.
+    return res.json({ success: true, data: supportChannelDeliveryService.channelCapabilities() });
+  } catch (err) {
+    logger.error('getSupportChannelCapabilities error', { error: err.message });
+    return sendError(res, 500, 'Failed to load support channel capabilities');
+  }
+}
+
 async function updateChannelDelivery(deliveryId, messageId, result) {
   const status = result.status;
   await query(
@@ -2204,5 +2222,6 @@ module.exports = {
   sendConversationChannelMessage,
   listConversationChannelDeliveries,
   retryConversationChannelDelivery,
+  getSupportChannelCapabilities,
   getConversationStats
 };

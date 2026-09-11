@@ -74,6 +74,7 @@ router.patch('/agent/me/availability', supportAgentPortalController.patchMyAvail
 router.get('/agent/opportunities', supportAgentPortalController.getAgentOpportunities);
 router.get('/agent/applications', supportAgentPortalController.getMyApplications);
 router.get('/hiring/my-businesses', businessSupportSettingsController.listMyHiringProfiles);
+router.get('/channel-capabilities', supportConversationsController.getSupportChannelCapabilities);
 
 // ============================================
 // SUPPORT EMPLOYERS (multi-tenant hiring scope)

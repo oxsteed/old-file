@@ -104,6 +104,35 @@ function authUserRow() {
 beforeEach(() => resetMocks());
 
 describe('support routes', () => {
+  test('returns provider readiness metadata to platform support staff without exposing credentials', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/channel-capabilities')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(expect.objectContaining({
+      email: expect.objectContaining({ supported: true, provider: 'resend' }),
+      sms: expect.objectContaining({ supported: true, provider: 'twilio' }),
+      phone: expect.objectContaining({ supported: false, configured: false }),
+      social: expect.objectContaining({ supported: false, configured: false }),
+    }));
+    expect(JSON.stringify(res.body)).not.toMatch(/OPENAI|OPENROUTER|re_[A-Za-z0-9]{10,}|AC[a-f0-9]{20,}/i);
+  });
+
+  test('does not expose channel readiness to an unrelated customer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/support/channel-capabilities')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(403);
+  });
+
   test('paginates and searches the platform conversation queue', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

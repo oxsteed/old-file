@@ -148,6 +148,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [emailRetryBusy, setEmailRetryBusy] = useState(false);
   const [channelDeliveries, setChannelDeliveries] = useState([]);
+  const [channelCapabilities, setChannelCapabilities] = useState(null);
+  const [channelCapabilitiesLoading, setChannelCapabilitiesLoading] = useState(false);
   const [channelRetryBusy, setChannelRetryBusy] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergeReason, setMergeReason] = useState('');
@@ -321,6 +323,20 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, []);
 
+  const loadChannelCapabilities = useCallback(async () => {
+    setChannelCapabilitiesLoading(true);
+    try {
+      const { data } = await api.get('/support/channel-capabilities', {
+        params: businessId ? { business_id: businessId } : undefined,
+      });
+      setChannelCapabilities(data?.data || null);
+    } catch {
+      setChannelCapabilities(null);
+    } finally {
+      setChannelCapabilitiesLoading(false);
+    }
+  }, [businessId]);
+
   const loadAgents = useCallback(async () => {
     if (!isPlatformAdmin) return;
     try {
@@ -382,7 +398,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     loadAgents();
     loadAgentEmployment();
     loadResponseTemplates();
-  }, [loadAgentEmployment, loadAgents, loadResponseTemplates]);
+    loadChannelCapabilities();
+  }, [loadAgentEmployment, loadAgents, loadChannelCapabilities, loadResponseTemplates]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => loadConversations(), search.trim() ? 250 : 0);
@@ -551,6 +568,13 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const isClosed = ['resolved', 'closed', 'merged'].includes(selected?.status);
   const canReply = Boolean(selected) && !isClosed && (isPlatformAdmin || isAssignedToMe);
   const isExternalChannel = Boolean(selected?.channel && selected.channel !== 'web_chat');
+  const channelCapability = isExternalChannel ? channelCapabilities?.[selected.channel] : null;
+  const channelNotReady = Boolean(
+    !internalNote
+      && isExternalChannel
+      && channelCapability
+      && (!channelCapability.supported || !channelCapability.configured)
+  );
   const channelDeliveryByMessageId = useMemo(
     () => new Map(channelDeliveries.map((delivery) => [delivery.message_id, delivery])),
     [channelDeliveries]
@@ -810,7 +834,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const sendMessage = async (event) => {
     event?.preventDefault?.();
     const content = reply.trim();
-    if ((!content && !attachment) || !selected || !canReply) return;
+    if ((!content && !attachment) || !selected || !canReply || channelNotReady) return;
     setBusy(true);
     setSendError('');
     stickToBottomRef.current = true;
@@ -1538,6 +1562,18 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     This reply will be delivered through {selected.channel === 'sms' ? 'SMS' : selected.channel === 'email' ? 'email' : selected.channel}. Provider failures are recorded and never reported as sent.
                   </div>
                 )}
+                {!internalNote && isExternalChannel && channelCapabilitiesLoading && (
+                  <div className="mb-3 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-400" role="status">
+                    Checking {selected.channel} delivery readiness…
+                  </div>
+                )}
+                {!internalNote && isExternalChannel && channelNotReady && (
+                  <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="alert">
+                    {channelCapability.supported
+                      ? `${channelCapability.provider || selected.channel} is not configured for outbound replies. Configure it before sending.`
+                      : `Outbound ${selected.channel} replies are not available yet. Use an internal note or the supported web chat channel.`}
+                  </div>
+                )}
                 {sendError && (
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-100" role="alert">
                     <span>{sendError} Your draft is still here.</span>
@@ -1573,7 +1609,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) sendMessage(event);
                     }}
                   />
-                  <button type="submit" disabled={!canReply || busy || (!reply.trim() && !attachment)} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} /></button>
+                  <button type="submit" disabled={!canReply || busy || channelNotReady || (!reply.trim() && !attachment)} className="self-end rounded-2xl bg-orange-600 p-4 text-white hover:bg-orange-500 disabled:opacity-40"><Send size={18} /></button>
                 </div>
               </form>
             </>
