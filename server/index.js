@@ -29,7 +29,7 @@ const correlationId = require('./middleware/correlationId');
 const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
-const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channelWebhookLimiter } = require('./middleware/rateLimiter');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -82,6 +82,7 @@ const businessIntegrationsRoutes    = require('./routes/businessIntegrations');
 const restaurantSupportRoutes       = require('./routes/restaurantSupport');
 const adminRestaurantSupportRoutes  = require('./routes/adminRestaurantSupport');
 const supportRoutes = require('./routes/support');
+const supportChannelWebhookRoutes = require('./routes/supportChannelWebhooks');
 const supportChatRoutes = require('./routes/supportChat');
 const supportRoutingRoutes = require('./routes/supportRouting');
 const supportAgentsRoutes = require('./routes/supportAgents');
@@ -249,6 +250,10 @@ const { handleWebhook: diditWebhook } = require('./controllers/diditController')
 app.post('/api/verification/webhooks/checkr', express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
 app.post('/api/verification/webhooks/identity', express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
 app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditWebhook);
+
+// Provider-agnostic support channel ingress uses its own bounded limiter and
+// raw body so HMAC signatures cover the exact bytes sent by the provider.
+app.use('/api/support/webhooks', channelWebhookLimiter, express.raw({ type: 'application/json', limit: '64kb' }), supportChannelWebhookRoutes);
 
 // ── RATE LIMITING ────────────────────────────────────────────
 // Unauthenticated requests: 200 req / 15 min / IP

@@ -154,6 +154,21 @@ const conversationMessageLimiter = rateLimit({
   },
 });
 
+// Signed provider webhooks are unauthenticated by design, so keep a separate
+// bounded bucket instead of allowing them to bypass all abuse protection.
+const channelWebhookLimiter = rateLimit({
+  ...createStoreOption('rl:support_channel_webhook:'),
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  keyGenerator: (req) => `channel:${req.params?.channel || 'unknown'}:${req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many support channel webhook requests. Please retry later.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Profile chat limiter: 5 messages per minute per user
 // Prevents spam in guest inquiry and helper contact flows
 const profileChatLimiter = rateLimit({
@@ -350,6 +365,7 @@ module.exports = {
   passwordResetLimiter,
   chatLimiter,
   conversationMessageLimiter,
+  channelWebhookLimiter,
   profileChatLimiter,
   userChatLimiter,
   discoverLimiter,
