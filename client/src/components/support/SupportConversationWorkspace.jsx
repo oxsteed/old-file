@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  Sparkles,
   Trash2,
   Unlock,
   UserRound,
@@ -119,6 +120,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [knowledgeSearch, setKnowledgeSearch] = useState('');
   const [knowledgeArticles, setKnowledgeArticles] = useState([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [aiDraft, setAiDraft] = useState(null);
+  const [aiDraftBusy, setAiDraftBusy] = useState(false);
   const [internalNote, setInternalNote] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [resolutionReasonCode, setResolutionReasonCode] = useState('other');
@@ -352,6 +355,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     loadDetail(selectedId);
     loadCustomer360(selectedId);
     loadFollowUpReminders(selectedId);
+    setAiDraft(null);
     stickToBottomRef.current = true;
   }, [loadCustomer360, loadDetail, loadFollowUpReminders, selectedId]);
 
@@ -762,6 +766,72 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Could not send the message.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const generateAIDraft = async () => {
+    if (!selected?.id || (!canReply && !isPlatformAdmin) || isClosed || aiDraftBusy) return;
+    const sourceMessage = [...(detail?.messages || [])]
+      .reverse()
+      .find((message) => !message.is_agent && message.message_type !== 'internal_note');
+    const sourceContent = String(sourceMessage?.content || selected.description || '').trim();
+    if (!sourceContent) {
+      toast.error('There is no customer message to draft a reply for.');
+      return;
+    }
+    const targetBusinessId = selected.business_id || businessId;
+    if (!targetBusinessId) {
+      toast.error('This conversation is missing a support business.');
+      return;
+    }
+    setAiDraftBusy(true);
+    try {
+      const { data } = await api.post(`/support/${targetBusinessId}/ai/message`, {
+        conversationId: selected.id,
+        content: sourceContent,
+        language: user?.preferred_language || 'en',
+      });
+      setAiDraft(data?.data || null);
+      toast.success('AI draft ready for your review. It was not sent.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'AI drafting is unavailable. Use a manual reply instead.');
+    } finally {
+      setAiDraftBusy(false);
+    }
+  };
+
+  const applyAIDraft = async () => {
+    if (!aiDraft?.id || aiDraftBusy || !selected?.business_id && !businessId) return;
+    const targetBusinessId = selected.business_id || businessId;
+    setAiDraftBusy(true);
+    try {
+      await api.post(`/support/${targetBusinessId}/ai/drafts/${aiDraft.id}/apply`);
+      setAiDraft(null);
+      await Promise.all([
+        loadConversations({ quiet: true }),
+        loadDetail(selected.id, { quiet: true }),
+        loadCustomer360(selected.id),
+      ]);
+      toast.success('Approved AI draft sent to the customer.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'This AI draft could not be applied.');
+    } finally {
+      setAiDraftBusy(false);
+    }
+  };
+
+  const discardAIDraft = async () => {
+    if (!aiDraft?.id || aiDraftBusy || !selected?.business_id && !businessId) return;
+    const targetBusinessId = selected.business_id || businessId;
+    setAiDraftBusy(true);
+    try {
+      await api.post(`/support/${targetBusinessId}/ai/drafts/${aiDraft.id}/discard`);
+      setAiDraft(null);
+      toast.success('AI draft discarded.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'This AI draft could not be discarded.');
+    } finally {
+      setAiDraftBusy(false);
     }
   };
 
@@ -1277,7 +1347,32 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                   >
                     <BookOpen size={13} /> Help center
                   </button>
+                  <button
+                    type="button"
+                    onClick={generateAIDraft}
+                    disabled={!canReply && !isPlatformAdmin || busy || aiDraftBusy || isClosed}
+                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+                  >
+                    <Sparkles size={13} /> {aiDraftBusy ? 'Drafting…' : 'Draft with AI'}
+                  </button>
                 </div>
+                {aiDraft && (
+                  <div className="mb-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3" role="status" aria-label="AI draft awaiting approval">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-emerald-200">AI draft · review before sending</div>
+                        <div className="mt-1 text-[11px] text-slate-500">This draft is private until you explicitly apply it.</div>
+                      </div>
+                      <span className="rounded-full border border-emerald-500/30 px-2 py-1 text-[11px] text-emerald-200">Pending approval</span>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/70 p-3 text-sm leading-6 text-slate-200">{aiDraft.draft_content}</p>
+                    <div className="mt-3 flex flex-wrap justify-end gap-2">
+                      <button type="button" onClick={discardAIDraft} disabled={aiDraftBusy} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-red-400/50 disabled:opacity-50">Discard</button>
+                      <button type="button" onClick={() => setReply(aiDraft.draft_content || '')} disabled={aiDraftBusy} className="rounded-xl border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/10 disabled:opacity-50">Edit in composer</button>
+                      <button type="button" onClick={applyAIDraft} disabled={aiDraftBusy || !canReply && !isPlatformAdmin} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{aiDraftBusy ? 'Applying…' : 'Approve and send'}</button>
+                    </div>
+                  </div>
+                )}
                 {knowledgeOpen && (
                   <div className="mb-3 rounded-2xl border border-blue-500/25 bg-blue-500/5 p-3">
                     <div className="flex flex-col gap-2 sm:flex-row">
