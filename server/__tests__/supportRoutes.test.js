@@ -675,6 +675,34 @@ describe('support routes', () => {
     expect(res.body.recent_feedback).toHaveLength(1);
   });
 
+  test('returns an append-only lifecycle timeline to support staff', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'conversation-1',
+        business_id: 42,
+        customer_id: USER_ID,
+        customer_email: 'customer@example.com',
+        customer_name: 'Casey Customer',
+        status: 'resolved',
+      }] })
+      .mockResolvedValueOnce({ rows: [
+        { id: 'event-1', status_from: null, status_to: 'open', changed_at: '2026-09-11T00:00:00.000Z' },
+        { id: 'event-2', status_from: 'open', status_to: 'in_progress', changed_at: '2026-09-11T00:01:00.000Z' },
+        { id: 'event-3', status_from: 'in_progress', status_to: 'resolved', changed_at: '2026-09-11T00:02:00.000Z' },
+      ] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations/conversation-1/lifecycle')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data.map((event) => event.status_to)).toEqual(['open', 'in_progress', 'resolved']);
+    expect(mockQuery.mock.calls[2][0]).toContain('support_conversation_lifecycle_events');
+    expect(mockQuery.mock.calls[2][0]).toContain('LIMIT 200');
+  });
+
   test('does not expose support audit logs to customers', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [authUserRow()] });
 

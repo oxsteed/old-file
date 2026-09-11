@@ -644,6 +644,38 @@ async function getCustomer360(req, res) {
   }
 }
 
+async function getConversationLifecycle(req, res) {
+  const conversationId = req.params.conversationId;
+  try {
+    const access = await authorizeConversationAccess(conversationId, req);
+    if (!access.conversation) return sendError(res, 404, 'Conversation not found');
+    if (!access.allowed || access.isCustomer) {
+      return sendError(res, 403, 'Only support staff can view conversation lifecycle history');
+    }
+
+    const result = await query(
+      `SELECT
+         e.id, e.conversation_id, e.status_from, e.status_to,
+         e.changed_by, e.change_reason, e.metadata, e.changed_at,
+         COALESCE(
+           NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+           u.email
+         ) AS changed_by_name
+       FROM support_conversation_lifecycle_events e
+       LEFT JOIN users u ON u.id = e.changed_by
+       WHERE e.conversation_id = $1
+       ORDER BY e.changed_at ASC, e.id ASC
+       LIMIT 200`,
+      [conversationId]
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    logger.error('getConversationLifecycle error', { conversationId, error: err.message });
+    return sendError(res, 500, 'Failed to load conversation lifecycle');
+  }
+}
+
 async function authorizeConversationAccess(conversationId, req) {
   const result = await query(
     `SELECT sc.*,
@@ -1827,6 +1859,7 @@ module.exports = {
   createConversation,
   listConversations,
   getConversation,
+  getConversationLifecycle,
   getCustomer360,
   updateCustomerMessage,
   updateAgentMessage,

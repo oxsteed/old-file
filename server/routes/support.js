@@ -398,6 +398,7 @@ router.post('/conversations', conversationMessageLimiter, async (req, res, next)
 });
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
+router.get('/conversations/:conversationId/lifecycle', supportConversationsController.getConversationLifecycle);
 router.get('/conversations/:conversationId/customer-360', supportConversationsController.getCustomer360);
 router.get('/conversations/:conversationId/download', supportConversationsController.downloadConversation);
 router.post('/conversations/:conversationId/mark-all-read', conversationMessageLimiter, supportConversationsController.markConversationRead);
