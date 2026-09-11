@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import api, { clearStoredSession, persistSessionPayload } from '../../api/auth';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
@@ -24,6 +25,7 @@ export default function AdminLogin() {
   const [approvedIdentity, setApprovedIdentity] = useState(null);
   const [gateEnforced, setGateEnforced] = useState(false);
   const [gateReady, setGateReady] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const isLocked = lockedUntil && Date.now() < lockedUntil;
 
@@ -262,6 +264,31 @@ export default function AdminLogin() {
     }
   }
 
+  async function handlePasskeySubmit() {
+    if (!mfaToken || passkeyBusy || !window.PublicKeyCredential) return;
+    setError('');
+    setPasskeyBusy(true);
+    try {
+      const { data: optionsData } = await api.post('/auth/login/passkey/options', { mfaToken });
+      const response = await startAuthentication({ optionsJSON: optionsData.options });
+      const { data } = await api.post('/auth/login/passkey', { mfaToken, response });
+      if (!['admin', 'super_admin'].includes(data.user?.role)) {
+        clearStoredSession();
+        setUser(null);
+        throw new Error('Access denied. Admin privileges required.');
+      }
+      persistSessionPayload(data);
+      setUser(data.user);
+      navigate('/admin/dashboard', { replace: true });
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') {
+        setError(err.response?.data?.error || err.message || 'Passkey sign-in failed. Use your authenticator code instead.');
+      }
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
+
   if (!gateReady || authLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
@@ -320,6 +347,16 @@ export default function AdminLogin() {
               >
                 {loading ? 'Verifying...' : 'Verify'}
               </button>
+              {typeof window !== 'undefined' && window.PublicKeyCredential && (
+                <button
+                  type="button"
+                  onClick={handlePasskeySubmit}
+                  disabled={loading || passkeyBusy}
+                  className="w-full border border-orange-500/60 text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 font-semibold py-3 rounded-lg transition"
+                >
+                  {passkeyBusy ? 'Checking passkey...' : 'Use a passkey instead'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => { setRequires2FA(false); setTwoFACode(''); setMfaToken(null); setError(''); }}

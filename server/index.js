@@ -52,6 +52,7 @@ const consentRoutes = require('./routes/consent');
 const privacyRoutes = require('./routes/privacy');
 const configRoutes = require('./routes/config');
 const twoFactorRoutes = require('./routes/twoFactor');
+const passkeyRoutes = require('./routes/passkeys');
 const helperRegistrationRoutes = require('./routes/helperRegistration');
 const feeConfigRoutes = require('./routes/feeConfig');
 const pricingOverridesRoutes = require('./routes/pricingOverrides');
@@ -429,6 +430,7 @@ app.use('/api/consent', consentRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/2fa/passkeys', passkeyRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
 app.use('/api/auth/helper/register', helperRegistrationRoutes); // alias for frontend
 app.use('/api/subscription/background-check', verificationRoutes);

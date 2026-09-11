@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { twoFactorAPI } from '../../api/twoFactor';
+import { startRegistration } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
 import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'lucide-react';
 import Navbar from '../../components/Navbar';
@@ -16,8 +17,10 @@ export default function TwoFactorSetup({ adminSetup = false }) {
   const [disableCode, setDisableCode] = useState('');
   const [backupCodes, setBackupCodes] = useState(null);
   const [step, setStep] = useState('status');
+  const [passkeys, setPasskeys] = useState([]);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
-  useEffect(() => { fetchStatus(); }, []);
+  useEffect(() => { fetchStatus(); if (adminSetup) fetchPasskeys(); }, [adminSetup]);
 
   const fetchStatus = async () => {
     try {
@@ -28,6 +31,52 @@ export default function TwoFactorSetup({ adminSetup = false }) {
       toast.error(t('twoFactor.failedLoad'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPasskeys = async () => {
+    try {
+      const { data } = await twoFactorAPI.listPasskeys();
+      setPasskeys(Array.isArray(data?.passkeys) ? data.passkeys : []);
+    } catch {
+      setPasskeys([]);
+    }
+  };
+
+  const handleRegisterPasskey = async () => {
+    if (!window.PublicKeyCredential || passkeyBusy) {
+      toast.error('This browser does not support passkeys.');
+      return;
+    }
+    setPasskeyBusy(true);
+    try {
+      const deviceName = (window.prompt('Name this passkey (for example, MacBook Touch ID):') || '').trim();
+      if (!deviceName) return;
+      const { data } = await twoFactorAPI.passkeyRegistrationOptions();
+      const response = await startRegistration({ optionsJSON: data.options });
+      await twoFactorAPI.verifyPasskeyRegistration(response, deviceName);
+      await fetchPasskeys();
+      toast.success('Passkey registered. TOTP and backup codes remain available.');
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') {
+        toast.error(err.response?.data?.error || 'Could not register this passkey.');
+      }
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
+  const handleRevokePasskey = async (passkey) => {
+    if (!passkey?.id || passkeyBusy || !window.confirm(`Revoke ${passkey.deviceName || 'this passkey'}?`)) return;
+    setPasskeyBusy(true);
+    try {
+      await twoFactorAPI.revokePasskey(passkey.id);
+      await fetchPasskeys();
+      toast.success('Passkey revoked.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not revoke this passkey.');
+    } finally {
+      setPasskeyBusy(false);
     }
   };
 
@@ -211,6 +260,30 @@ export default function TwoFactorSetup({ adminSetup = false }) {
                   </div>
                 </form>
               </div>
+              {adminSetup && (
+                <div className="space-y-3 border-t border-gray-800 pt-5">
+                  <div>
+                    <h3 className="text-white font-medium">Passkeys</h3>
+                    <p className="text-gray-400 text-sm">Use Touch ID, Face ID, Windows Hello, or a security key after password sign-in. TOTP remains your fallback.</p>
+                  </div>
+                  {passkeys.length > 0 && (
+                    <div className="space-y-2">
+                      {passkeys.map((passkey) => (
+                        <div key={passkey.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-800/60 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-white">{passkey.deviceName}</p>
+                            <p className="text-xs text-gray-500">Added {passkey.createdAt ? new Date(passkey.createdAt).toLocaleDateString() : 'recently'}</p>
+                          </div>
+                          <button type="button" onClick={() => handleRevokePasskey(passkey)} disabled={passkeyBusy} className="shrink-0 text-xs text-red-400 hover:text-red-300 disabled:opacity-50">Revoke</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" onClick={handleRegisterPasskey} disabled={passkeyBusy} className="w-full rounded-xl border border-orange-500/60 px-4 py-2.5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50">
+                    {passkeyBusy ? 'Working...' : 'Register a passkey'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

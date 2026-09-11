@@ -33,12 +33,15 @@ const {
   switchRole,
 } = require('../controllers/authController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
+const passkeyCtrl = require('../controllers/passkeyController');
 const { errorHandler } = require('../middleware/errorHandler');
 
 // Original routes
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
 router.post('/login/2fa', authLimiter, loginWith2FA);
+router.post('/login/passkey/options', strictLimiter, passkeyCtrl.authenticationOptions);
+router.post('/login/passkey', strictLimiter, passkeyCtrl.verifyAuthentication);
 router.get('/internal-access/config', logisticsInternalAccessCtrl.getRouteConfig);
 router.post('/internal-access/verify', strictLimiter, logisticsInternalAccessCtrl.verifyInternalAccess);
 router.post('/internal-access/login', authLimiter, logisticsInternalAccessCtrl.loginWithInternalAccess);

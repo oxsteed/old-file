@@ -20,6 +20,10 @@ export const twoFactorAPI = {
 
   // Regenerate backup codes
   regenerateBackupCodes: (token) => api.post('/2fa/regenerate-backup', { token }),
+  listPasskeys: () => api.get('/2fa/passkeys'),
+  passkeyRegistrationOptions: () => api.post('/2fa/passkeys/registration/options'),
+  verifyPasskeyRegistration: (response, deviceName) => api.post('/2fa/passkeys/registration/verify', { response, deviceName }),
+  revokePasskey: (id) => api.delete(`/2fa/passkeys/${id}`),
 };
 
 export default twoFactorAPI;
