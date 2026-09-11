@@ -122,6 +122,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [internalNote, setInternalNote] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [resolutionReasonCode, setResolutionReasonCode] = useState('other');
+  const [followUpReminders, setFollowUpReminders] = useState([]);
+  const [followUpDueAt, setFollowUpDueAt] = useState('');
+  const [followUpNote, setFollowUpNote] = useState('');
+  const [followUpBusy, setFollowUpBusy] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
   const [attachment, setAttachment] = useState(null);
@@ -261,6 +265,21 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, []);
 
+  const loadFollowUpReminders = useCallback(async (conversationId) => {
+    if (!conversationId) {
+      setFollowUpReminders([]);
+      return;
+    }
+    try {
+      const { data } = await api.get('/support/follow-up-reminders', {
+        params: { conversation_id: conversationId, status: 'all' },
+      });
+      setFollowUpReminders(Array.isArray(data?.reminders) ? data.reminders : []);
+    } catch {
+      setFollowUpReminders([]);
+    }
+  }, []);
+
   const loadAgents = useCallback(async () => {
     if (!isPlatformAdmin) return;
     try {
@@ -332,8 +351,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   useEffect(() => {
     loadDetail(selectedId);
     loadCustomer360(selectedId);
+    loadFollowUpReminders(selectedId);
     stickToBottomRef.current = true;
-  }, [loadCustomer360, loadDetail, selectedId]);
+  }, [loadCustomer360, loadDetail, loadFollowUpReminders, selectedId]);
 
   useEffect(() => {
     if (!selectedId || detailLoading) return;
@@ -371,6 +391,9 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setKnowledgeArticles([]);
     setResolutionSummary('');
     setResolutionReasonCode('other');
+    setFollowUpReminders([]);
+    setFollowUpDueAt('');
+    setFollowUpNote('');
     setEditingMessageId(null);
     setEditingContent('');
     setMergeTargetId('');
@@ -570,6 +593,43 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     () => api.put(`/support/conversations/${selected.id}/status`, { status, ...extra }),
     'Conversation status updated.'
   );
+
+  const createFollowUpReminder = async (event) => {
+    event.preventDefault();
+    if (!selected?.id || !followUpDueAt || followUpBusy) return;
+    const dueAt = new Date(followUpDueAt);
+    if (Number.isNaN(dueAt.getTime())) return;
+    setFollowUpBusy(true);
+    try {
+      await api.post(`/support/conversations/${selected.id}/follow-up-reminders`, {
+        dueAt: dueAt.toISOString(),
+        note: followUpNote.trim() || null,
+        assignedTo: selected.agent_user_id || null,
+      });
+      setFollowUpDueAt('');
+      setFollowUpNote('');
+      await loadFollowUpReminders(selected.id);
+      toast.success('Follow-up reminder created.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not create follow-up reminder.');
+    } finally {
+      setFollowUpBusy(false);
+    }
+  };
+
+  const updateFollowUpReminder = async (reminderId, status) => {
+    if (!reminderId || followUpBusy) return;
+    setFollowUpBusy(true);
+    try {
+      await api.patch(`/support/follow-up-reminders/${reminderId}`, { status });
+      await loadFollowUpReminders(selected.id);
+      toast.success(status === 'completed' ? 'Follow-up marked complete.' : 'Follow-up cancelled.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not update follow-up reminder.');
+    } finally {
+      setFollowUpBusy(false);
+    }
+  };
 
   const downloadTranscript = async (includeInternal = false) => {
     if (!selected?.id || downloadBusy) return;
@@ -992,6 +1052,33 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       <input value={mergeReason} onChange={(event) => setMergeReason(event.target.value)} maxLength={1000} disabled={mergeBusy} placeholder="Duplicate request" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200" />
                     </label>
                     <button type="button" onClick={mergeSelectedConversation} disabled={mergeBusy || !mergeTargetId} className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 hover:bg-violet-500/20 disabled:opacity-50">{mergeBusy ? 'Merging…' : 'Merge safely'}</button>
+                  </div>
+                )}
+
+                {(canReply || isPlatformAdmin) && !isClosed && (
+                  <div className="mt-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-blue-200">Next actions</div>
+                        <div className="mt-1 text-xs text-slate-400">Track a follow-up so the customer does not disappear between shifts.</div>
+                      </div>
+                      {followUpReminders.filter((reminder) => reminder.status === 'pending').length > 0 && <span className="rounded-full border border-blue-500/30 px-2 py-1 text-xs text-blue-200">{followUpReminders.filter((reminder) => reminder.status === 'pending').length} pending</span>}
+                    </div>
+                    {followUpReminders.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {followUpReminders.map((reminder) => (
+                          <div key={reminder.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs">
+                            <div className="min-w-0"><span className="font-medium text-slate-200">{formatWhen(reminder.due_at)}</span><span className="ml-2 capitalize text-slate-500">{reminder.status}</span>{reminder.note && <div className="mt-1 truncate text-slate-400">{reminder.note}</div>}</div>
+                            {reminder.status === 'pending' && <div className="flex gap-2"><button type="button" disabled={followUpBusy} onClick={() => updateFollowUpReminder(reminder.id, 'completed')} className="rounded-lg border border-emerald-500/30 px-2 py-1 text-emerald-200 hover:bg-emerald-500/10">Complete</button><button type="button" disabled={followUpBusy} onClick={() => updateFollowUpReminder(reminder.id, 'cancelled')} className="rounded-lg border border-slate-700 px-2 py-1 text-slate-400 hover:text-slate-200">Cancel</button></div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <form onSubmit={createFollowUpReminder} className="mt-3 grid gap-2 sm:grid-cols-[180px_1fr_auto] sm:items-end">
+                      <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Due at<input type="datetime-local" required value={followUpDueAt} onChange={(event) => setFollowUpDueAt(event.target.value)} disabled={followUpBusy} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-2 text-xs text-slate-200" /></label>
+                      <label className="text-[11px] font-medium uppercase tracking-wider text-slate-500">Note<input value={followUpNote} onChange={(event) => setFollowUpNote(event.target.value)} maxLength={2000} disabled={followUpBusy} placeholder="Call customer about next steps" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-2 text-xs text-slate-200" /></label>
+                      <button type="submit" disabled={followUpBusy || !followUpDueAt} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50">{followUpBusy ? 'Saving…' : 'Add follow-up'}</button>
+                    </form>
                   </div>
                 )}
 

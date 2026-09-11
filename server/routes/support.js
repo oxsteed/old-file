@@ -23,6 +23,7 @@ const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
 const supportAgentPortalController = require('../controllers/supportAgentPortalController');
 const supportQualityController = require('../controllers/supportQualityController');
+const supportFollowUpReminderController = require('../controllers/supportFollowUpReminderController');
 const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
 const { authenticatedLimiter, conversationMessageLimiter } = require('../middleware/rateLimiter');
@@ -375,6 +376,10 @@ router.get('/conversations', async (req, res, next) => {
 // caller's platform or business support access and never expose to customers.
 router.get('/qa/reviews', supportQualityController.listReviews);
 router.post('/qa/reviews/:conversationId', conversationMessageLimiter, supportQualityController.saveReview);
+
+router.get('/follow-up-reminders', supportFollowUpReminderController.listReminders);
+router.post('/conversations/:conversationId/follow-up-reminders', conversationMessageLimiter, supportFollowUpReminderController.createReminder);
+router.patch('/follow-up-reminders/:reminderId', conversationMessageLimiter, supportFollowUpReminderController.updateReminder);
 
 router.post('/conversations', conversationMessageLimiter, async (req, res, next) => {
   try {
