@@ -15,17 +15,29 @@ exports.getSystemHealth = async (req, res, next) => {
   try {
     const snapshot = metricsService.getHealthSnapshot();
     const alerts = metricsService.checkAlerts();
-    const backupStatus = await backupMonitor.getStatus();
+    const [backupStatus, auditIntegrity] = await Promise.all([
+      backupMonitor.getStatus(),
+      _readAuditIntegrity(),
+    ]);
     const poolStats = req.app.locals.poolMonitor?.getStats() || {};
+    const healthAlerts = [...alerts];
+    if (auditIntegrity.status === 'integrity_failure') {
+      healthAlerts.push({
+        type: 'AUDIT_CHAIN_INTEGRITY_FAILURE',
+        severity: 'critical',
+        message: `${auditIntegrity.brokenCount} admin audit chain entr${auditIntegrity.brokenCount === 1 ? 'y is' : 'ies are'} invalid`,
+      });
+    }
 
     res.json({
-      status: alerts.length > 0 ? 'degraded' : 'healthy',
+      status: healthAlerts.length > 0 ? 'degraded' : 'healthy',
       timestamp: new Date().toISOString(),
-      alerts,
+      alerts: healthAlerts,
       metrics: snapshot.counters,
       latency: snapshot.latency,
       database: poolStats,
       backup: backupStatus,
+      auditIntegrity,
     });
   } catch (err) {
     logger.error('Health check error', { error: err.message });
@@ -351,4 +363,19 @@ function _countEventTypes(events) {
     counts[e.type] = (counts[e.type] || 0) + 1;
   });
   return counts;
+}
+
+async function _readAuditIntegrity() {
+  try {
+    const { rows } = await pool.query('SELECT * FROM verify_admin_audit_hash_chain()');
+    const result = rows[0];
+    return {
+      status: result?.valid === false ? 'integrity_failure' : 'healthy',
+      checkedCount: Number(result?.checked_count || 0),
+      brokenCount: Number(result?.broken_count || 0),
+    };
+  } catch (err) {
+    logger.warn('Audit integrity health check unavailable', { error: err.message });
+    return { status: 'unavailable', checkedCount: 0, brokenCount: 0 };
+  }
 }
