@@ -103,6 +103,26 @@ function authUserRow() {
 beforeEach(() => resetMocks());
 
 describe('support routes', () => {
+  test('paginates and searches the platform conversation queue', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-older' }] });
+
+    const res = await request(buildApp())
+      .get('/api/support/conversations?search=refund&limit=25&offset=50')
+      .set('Authorization', adminAuthHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.conversations).toHaveLength(1);
+    const listCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversations sc/.test(sql));
+    expect(listCall[0]).toContain('EXISTS');
+    expect(listCall[0]).toContain('ILIKE');
+    expect(listCall[0]).toContain('LIMIT $2 OFFSET $3');
+    expect(listCall[1]).toEqual(['%refund%', 25, 50]);
+    expect(res.body.pagination).toEqual({ limit: 25, offset: 50, returned: 1, hasMore: false });
+  });
+
   test('creates a public support ticket for guest or mobile support requests', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })

@@ -162,6 +162,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         ...(businessId ? { business_id: businessId } : {}),
         limit: CONVERSATION_PAGE_SIZE,
         offset: append ? conversationOffsetRef.current : 0,
+        ...(search.trim() ? { search: search.trim() } : {}),
       };
       const { data } = await api.get('/support/conversations', { params });
       if (requestId !== conversationRequestRef.current) return;
@@ -196,7 +197,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         setLoading(false);
       }
     }
-  }, [businessId]);
+  }, [businessId, search]);
 
   const loadDetail = useCallback(async (conversationId, { quiet = false } = {}) => {
     const requestId = detailRequestRef.current + 1;
@@ -285,11 +286,15 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   }, [businessId, knowledgeSearch]);
 
   useEffect(() => {
-    loadConversations();
     loadAgents();
     loadAgentEmployment();
     loadResponseTemplates();
-  }, [loadAgentEmployment, loadAgents, loadConversations, loadResponseTemplates]);
+  }, [loadAgentEmployment, loadAgents, loadResponseTemplates]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadConversations(), search.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadConversations, search]);
 
   useEffect(() => {
     loadDetail(selectedId);
@@ -437,7 +442,6 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       conversation.last_message,
       conversation.description,
     ].filter(Boolean).join(' ').toLowerCase();
-    if (search && !haystack.includes(search.trim().toLowerCase())) return false;
     if (statusFilter === 'active' && ['resolved', 'closed'].includes(conversation.status)) return false;
     if (statusFilter !== 'all' && statusFilter !== 'active' && conversation.status !== statusFilter) return false;
     if (ownershipFilter === 'mine' && conversation.agent_user_id !== user?.id) return false;

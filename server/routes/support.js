@@ -277,12 +277,31 @@ router.get('/conversations', async (req, res, next) => {
     const platformAgent = isPlatformAdmin
       ? null
       : await supportEmployerService.findPlatformAgent(req.user.id);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const offset = Math.max(0, Number.parseInt(req.query.offset, 10) || 0);
+    const search = String(req.query.search || '').trim().slice(0, 200);
 
     if (isPlatformAdmin || platformAgent) {
       const params = [];
-      const where = req.query.business_id || req.query.businessId
+      let where = req.query.business_id || req.query.businessId
         ? `WHERE sc.business_id = $${params.push(businessId)}`
         : "WHERE sc.status <> 'pending_verification'";
+      if (search) {
+        const searchParam = `$${params.push(`%${search}%`)}`;
+        where += ` AND (
+          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email, sc.guest_name, '') ILIKE ${searchParam}
+          OR COALESCE(cu.email, sc.guest_email, '') ILIKE ${searchParam}
+          OR COALESCE(sc.subject, '') ILIKE ${searchParam}
+          OR COALESCE(sc.description, '') ILIKE ${searchParam}
+          OR EXISTS (
+            SELECT 1 FROM support_conversation_messages search_scm
+            WHERE search_scm.conversation_id = sc.id
+              AND search_scm.content ILIKE ${searchParam}
+          )
+        )`;
+      }
+      const limitParam = `$${params.push(limit)}`;
+      const offsetParam = `$${params.push(offset)}`;
       const { rows } = await db.query(
         `SELECT
            sc.*,
@@ -321,10 +340,13 @@ router.get('/conversations', async (req, res, next) => {
          ${where}
          GROUP BY sc.id, cu.id, au.id, sa.id
          ORDER BY sc.updated_at DESC, sc.created_at DESC
-         LIMIT 100`,
+         LIMIT ${limitParam} OFFSET ${offsetParam}`,
         params
       );
-      return res.json({ conversations: rows });
+      return res.json({
+        conversations: rows,
+        pagination: { limit, offset, returned: rows.length, hasMore: rows.length === limit },
+      });
     }
 
     if (businessId && (req.query.business_id || req.query.businessId)) {
