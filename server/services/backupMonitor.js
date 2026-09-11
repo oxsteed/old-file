@@ -60,6 +60,14 @@ class BackupMonitor {
       });
     }
 
+    await this.logToDatabase(backupId, success, {
+      eventType: 'backup',
+      filename,
+      sizeBytes,
+      durationMs: duration,
+      error,
+    });
+
     return event;
   }
 
@@ -104,20 +112,45 @@ class BackupMonitor {
   /**
    * Get backup health status
    */
-  getStatus() {
+  async getStatus() {
+    let persistedBackups = [];
+    try {
+      const { rows } = await pool.query(
+        `SELECT backup_id, success, details, created_at
+         FROM backup_log
+         ORDER BY created_at DESC
+         LIMIT 1000`
+      );
+      persistedBackups = rows;
+    } catch (err) {
+      logger.warn('Persistent backup status unavailable; using process history', { error: err.message });
+    }
+
     const now = new Date();
-    const hoursSinceBackup = this.lastBackupTime
-      ? (now - this.lastBackupTime) / (1000 * 60 * 60)
+    const latestPersisted = persistedBackups[0];
+    const lastBackupTime = latestPersisted?.created_at || this.lastBackupTime;
+    const lastBackupSuccess = latestPersisted ? latestPersisted.success : this.lastBackupSuccess;
+    const hoursSinceBackup = lastBackupTime
+      ? (now - new Date(lastBackupTime)) / (1000 * 60 * 60)
       : null;
+    const recentBackups = persistedBackups.length
+      ? persistedBackups.slice(0, 10).map((row) => ({
+        timestamp: row.created_at,
+        backupId: row.backup_id,
+        filename: row.details?.filename || null,
+        sizeBytes: row.details?.sizeBytes || 0,
+        durationMs: row.details?.durationMs || 0,
+        success: row.success,
+        error: row.details?.error || null,
+      }))
+      : this.backupHistory.filter(e => e.filename).slice(-10);
 
     return {
-      lastBackupTime: this.lastBackupTime?.toISOString(),
-      lastBackupSuccess: this.lastBackupSuccess,
+      lastBackupTime: lastBackupTime ? new Date(lastBackupTime).toISOString() : undefined,
+      lastBackupSuccess,
       hoursSinceBackup: hoursSinceBackup?.toFixed(2),
-      backupHealthy: this.lastBackupSuccess === true && hoursSinceBackup < 25, // Should backup daily
-      recentBackups: this.backupHistory
-        .filter(e => e.filename) // Backup events have filename
-        .slice(-10),
+      backupHealthy: lastBackupSuccess === true && hoursSinceBackup < 25, // Should backup daily
+      recentBackups,
       alerts: this._checkAlerts(hoursSinceBackup),
     };
   }
@@ -185,13 +218,35 @@ class BackupMonitor {
   /**
    * Get backup statistics for compliance reporting
    */
-  getComplianceStats(days = 30) {
+  async getComplianceStats(days = 30) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
-    const recentBackups = this.backupHistory.filter(e =>
-      e.filename && new Date(e.timestamp) > cutoff
-    );
+    let recentBackups = [];
+    try {
+      const { rows } = await pool.query(
+        `SELECT backup_id, success, details, created_at
+         FROM backup_log
+         WHERE created_at > $1
+         ORDER BY created_at ASC
+         LIMIT 10000`,
+        [cutoff.toISOString()]
+      );
+      recentBackups = rows.map((row) => ({
+        filename: row.details?.filename || null,
+        timestamp: row.created_at,
+        success: row.success,
+        durationMs: row.details?.durationMs || 0,
+        sizeBytes: row.details?.sizeBytes || 0,
+      }));
+    } catch (err) {
+      logger.warn('Persistent backup compliance unavailable; using process history', { error: err.message });
+      recentBackups = this.backupHistory.filter(e =>
+        e.filename && new Date(e.timestamp) > cutoff
+      );
+    }
+
+    recentBackups = recentBackups.filter(e => e.filename);
 
     const successCount = recentBackups.filter(e => e.success).length;
     const failureCount = recentBackups.filter(e => !e.success).length;

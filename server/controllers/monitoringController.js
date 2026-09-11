@@ -15,7 +15,7 @@ exports.getSystemHealth = async (req, res, next) => {
   try {
     const snapshot = metricsService.getHealthSnapshot();
     const alerts = metricsService.checkAlerts();
-    const backupStatus = backupMonitor.getStatus();
+    const backupStatus = await backupMonitor.getStatus();
     const poolStats = req.app.locals.poolMonitor?.getStats() || {};
 
     res.json({
@@ -127,8 +127,8 @@ exports.getDatabaseHealth = async (req, res, next) => {
  */
 exports.getBackupStatus = async (req, res, next) => {
   try {
-    const status = backupMonitor.getStatus();
-    const complianceStats = backupMonitor.getComplianceStats(30);
+    const status = await backupMonitor.getStatus();
+    const complianceStats = await backupMonitor.getComplianceStats(30);
 
     res.json({
       status,
@@ -179,7 +179,7 @@ exports.getComplianceReport = async (req, res, next) => {
     const highsCount = auditEvents.filter(e => e.severity === 'high').length;
 
     // Backup compliance
-    const backupStats = backupMonitor.getComplianceStats(days);
+    const backupStats = await backupMonitor.getComplianceStats(days);
 
     // Security events
     const securityEvents = metricsService.getSecurityEvents();
