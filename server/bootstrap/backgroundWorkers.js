@@ -22,6 +22,7 @@ const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
+const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -60,6 +61,12 @@ class BackgroundWorkers {
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });
+        });
+      });
+
+      cron.schedule('* * * * *', () => {
+        runSupportSlaMonitor().catch((error) => {
+          this.log.error('Support SLA monitor failed', { error: error.message });
         });
       });
 

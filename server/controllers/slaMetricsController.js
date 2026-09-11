@@ -58,7 +58,8 @@ async function getSLABreaches(req, res) {
         EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - sc.sla_first_response_target))/3600 as hours_until_first_response_breach,
         EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - sc.sla_resolution_target))/3600 as hours_until_resolution_breach,
         sc.sla_first_response_breached, sc.sla_resolution_breached,
-        sa.user_id, u.name as agent_name,
+        sa.user_id,
+        COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS agent_name,
         sc.created_at
       FROM support_conversations sc
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
@@ -118,7 +119,8 @@ async function getUpcomingBreaches(req, res) {
         sc.id, sc.subject, sc.priority,
         EXTRACT(EPOCH FROM (sc.sla_first_response_target - CURRENT_TIMESTAMP))/3600 as hours_to_first_response_breach,
         EXTRACT(EPOCH FROM (sc.sla_resolution_target - CURRENT_TIMESTAMP))/3600 as hours_to_resolution_breach,
-        sa.user_id, u.name as agent_name
+        sa.user_id,
+        COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS agent_name
       FROM support_conversations sc
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
       LEFT JOIN users u ON sa.user_id = u.id
