@@ -9,6 +9,7 @@ const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
+const { sendSupportEmail } = require('../services/supportEmailOutbox');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
@@ -28,7 +29,9 @@ async function notifyCustomerOfAgentReply(conversation, message) {
     ? '<p style="color:#6b7280">Your support reply also includes an attachment. Open your OxSteed support conversation to view it.</p>'
     : '';
 
-  const result = await sendEmail({
+  const result = await sendSupportEmail({
+    conversationId: conversation.id,
+    kind: 'agent_reply',
     to: recipient,
     from: EMAIL_ADDRESSES.support,
     fromName: 'OxSteed Support',
@@ -72,7 +75,9 @@ async function notifyCustomerOfConversationStatus(conversation, status, resoluti
     ? `<p><strong>Resolution summary</strong></p><p style="line-height:1.7">${escapeHtml(safeSummary).replace(/\n/g, '<br>')}</p>`
     : '';
 
-  const result = await sendEmail({
+  const result = await sendSupportEmail({
+    conversationId: conversation.id,
+    kind: 'conversation_status',
     to: recipient,
     from: EMAIL_ADDRESSES.support,
     fromName: 'OxSteed Support',

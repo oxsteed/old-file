@@ -23,6 +23,7 @@ const { startCustomerReengagementJob } = require('../jobs/customerReengagementJo
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
+const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -67,6 +68,12 @@ class BackgroundWorkers {
       cron.schedule('* * * * *', () => {
         runSupportSlaMonitor().catch((error) => {
           this.log.error('Support SLA monitor failed', { error: error.message });
+        });
+      });
+
+      cron.schedule('* * * * *', () => {
+        processSupportEmailOutbox().catch((error) => {
+          this.log.warn('Support email outbox worker failed', { error: error.message });
         });
       });
 
