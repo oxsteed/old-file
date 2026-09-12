@@ -136,6 +136,11 @@ async function main() {
       ['431_oxsteed_credit_audit_immutability.sql']
     );
     checks.auditImmutabilityMigrationApplied = auditImmutabilityMigrationRows.length === 1;
+    const { rows: transactionTypeMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['432_oxsteed_credit_transaction_type_integrity.sql']
+    );
+    checks.transactionTypeIntegrityMigrationApplied = transactionTypeMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -172,7 +177,7 @@ async function main() {
         WHERE NOT tgisinternal
           AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass)
           AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_entry_immutable_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard', 'oxsteed_credit_audit_immutable_guard']]
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_entry_immutable_guard', 'oxsteed_credit_transaction_type_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard', 'oxsteed_credit_audit_immutable_guard']]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
     checks.missingIntegrityTriggers = [
@@ -181,6 +186,7 @@ async function main() {
       'oxsteed_credit_transaction_entries_guard',
       'oxsteed_credit_transaction_immutable_guard',
       'oxsteed_credit_entry_immutable_guard',
+      'oxsteed_credit_transaction_type_guard',
       'oxsteed_credit_hold_integrity_guard',
       'oxsteed_credit_account_integrity_guard',
       'oxsteed_credit_settlement_integrity_guard',
@@ -235,6 +241,32 @@ async function main() {
         WHERE t.currency_code IS DISTINCT FROM p.settlement_currency_code`,
     );
     checks.invalidTransactionCurrencies = Number(transactionCurrencyRows[0]?.invalid_count || 0);
+
+    const { rows: transactionTypeRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+         JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+        WHERE (t.transaction_type = 'load'
+               AND (debit_account.account_type <> 'platform_treasury'
+                 OR credit_account.account_type <> 'customer_wallet'
+                 OR t.partner_id IS NOT NULL OR t.agreement_id IS NOT NULL))
+           OR (t.transaction_type = 'purchase'
+               AND (debit_account.account_type <> 'customer_wallet'
+                 OR credit_account.account_type <> 'partner_payable'))
+           OR (t.transaction_type = 'refund'
+               AND (debit_account.account_type <> 'partner_payable'
+                 OR credit_account.account_type <> 'customer_wallet'))
+           OR (t.transaction_type = 'transfer'
+               AND (debit_account.account_type <> 'customer_wallet'
+                 OR credit_account.account_type <> 'customer_wallet'
+                 OR t.partner_id IS NOT NULL OR t.agreement_id IS NOT NULL))
+           OR (t.transaction_type = 'settlement'
+               AND (debit_account.account_type <> 'partner_payable'
+                 OR credit_account.account_type <> 'platform_treasury'
+                 OR t.partner_id IS NULL OR t.agreement_id IS NULL))`,
+    );
+    checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
 
     const { rows: settlementIntegrityRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -292,6 +324,7 @@ async function main() {
       !checks.settlementIntegrityMigrationApplied,
       !checks.entryImmutabilityMigrationApplied,
       !checks.auditImmutabilityMigrationApplied,
+      !checks.transactionTypeIntegrityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -301,6 +334,7 @@ async function main() {
       checks.invalidPurchases > 0,
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
+      checks.invalidTransactionTypes > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,
