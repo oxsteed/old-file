@@ -26,75 +26,79 @@ function previousUtcDay(now = new Date()) {
   return { start, end };
 }
 
-async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode = CURRENCY_CODE } = {}) {
-  const period = previousUtcDay(now);
-  const outcome = { locked: false, run: null, error: null, incident: null };
-
-  await withJobLock(JOB_NAME, async () => {
-    outcome.locked = true;
-    try {
-      const result = await reconcileCreditLedger({
-        currencyCode,
-        periodStart: period.start,
-        periodEnd: period.end,
-        actorUserId: null,
-      });
-      outcome.run = result.run;
-
-      if (result.run.status === 'difference') {
-        const alert = await incidentStore.recordIncident({
-          type: 'oxsteed_credit_reconciliation_difference',
-          severity: 'critical',
-          message: 'OxSteed Credit ledger reconciliation found a balance difference',
-          dedupeKey: `oxsteed-credit-reconciliation:${currencyCode}`,
-          details: {
-            runId: result.run.id,
-            currencyCode: result.run.currencyCode,
-            periodStart: result.run.periodStart,
-            periodEnd: result.run.periodEnd,
-            accountBalanceCents: result.run.accountBalanceCents,
-            journalBalanceCents: result.run.journalBalanceCents,
-            differenceCents: result.run.differenceCents,
-            accountCount: result.run.accountCount,
-            entryCount: result.run.entryCount,
-          },
-        });
-        outcome.incident = alert;
-        logger.error('OxSteed Credit reconciliation difference', {
-          runId: result.run.id,
-          differenceCents: result.run.differenceCents,
-        });
-      } else {
-        logger.info('OxSteed Credit reconciliation balanced', {
-          runId: result.run.id,
-          accountCount: result.run.accountCount,
-          entryCount: result.run.entryCount,
-        });
-      }
-    } catch (error) {
-      outcome.error = error;
-      await incidentStore.recordIncident({
-        type: 'oxsteed_credit_reconciliation_failed',
+async function reconcileCurrency({ currencyCode, period }) {
+  try {
+    const result = await reconcileCreditLedger({
+      currencyCode,
+      periodStart: period.start,
+      periodEnd: period.end,
+      actorUserId: null,
+    });
+    const run = result.run;
+    let incident = null;
+    if (run.status === 'difference') {
+      incident = await incidentStore.recordIncident({
+        type: 'oxsteed_credit_reconciliation_difference',
         severity: 'critical',
-        message: 'OxSteed Credit ledger reconciliation failed to complete',
-        dedupeKey: `oxsteed-credit-reconciliation-failed:${currencyCode}`,
+        message: 'OxSteed Credit ledger reconciliation found a balance difference',
+        dedupeKey: `oxsteed-credit-reconciliation:${currencyCode}`,
         details: {
-          currencyCode,
-          periodStart: period.start.toISOString(),
-          periodEnd: period.end.toISOString(),
-          error: error.message,
+          runId: run.id,
+          currencyCode: run.currencyCode,
+          periodStart: run.periodStart,
+          periodEnd: run.periodEnd,
+          accountBalanceCents: run.accountBalanceCents,
+          journalBalanceCents: run.journalBalanceCents,
+          differenceCents: run.differenceCents,
+          accountCount: run.accountCount,
+          entryCount: run.entryCount,
         },
       });
-      logger.error('OxSteed Credit reconciliation failed', { error: error.message });
+      logger.error('OxSteed Credit reconciliation difference', {
+        runId: run.id,
+        differenceCents: run.differenceCents,
+      });
+    } else {
+      logger.info('OxSteed Credit reconciliation balanced', {
+        runId: run.id,
+        accountCount: run.accountCount,
+        entryCount: run.entryCount,
+      });
     }
+    return { currencyCode, run, error: null, incident };
+  } catch (error) {
+    const incident = await incidentStore.recordIncident({
+      type: 'oxsteed_credit_reconciliation_failed',
+      severity: 'critical',
+      message: 'OxSteed Credit ledger reconciliation failed to complete',
+      dedupeKey: `oxsteed-credit-reconciliation-failed:${currencyCode}`,
+      details: {
+        currencyCode,
+        periodStart: period.start.toISOString(),
+        periodEnd: period.end.toISOString(),
+        error: error.message,
+      },
+    });
+    logger.error('OxSteed Credit reconciliation failed', { error: error.message });
+    return { currencyCode, run: null, error: error.message, incident };
+  }
+}
+
+async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode = CURRENCY_CODE } = {}) {
+  const period = previousUtcDay(now);
+  let result = { currencyCode, run: null, error: null, incident: null };
+  let locked = false;
+  await withJobLock(JOB_NAME, async () => {
+    locked = true;
+    result = await reconcileCurrency({ currencyCode, period });
   }, 300);
 
   return {
     currencyCode,
-    locked: outcome.locked,
-    run: outcome.run,
-    error: outcome.error ? outcome.error.message : null,
-    incident: outcome.incident,
+    locked,
+    run: result.run,
+    error: result.error,
+    incident: result.incident,
     period: {
       start: period.start.toISOString(),
       end: period.end.toISOString(),
@@ -102,17 +106,25 @@ async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode =
   };
 }
 
-async function runOxsteedCreditReconciliations({ now = new Date() } = {}) {
-  const runs = [];
-  for (const currencyCode of CURRENCY_CODES) {
-    runs.push(await runOxsteedCreditReconciliation({ now, currencyCode }));
-  }
+async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes = CURRENCY_CODES } = {}) {
+  const period = previousUtcDay(now);
+  const results = [];
+  let locked = false;
+  await withJobLock(JOB_NAME, async () => {
+    locked = true;
+    for (const currencyCode of currencyCodes) {
+      results.push(await reconcileCurrency({ currencyCode, period }));
+    }
+  }, 300);
   return {
-    locked: runs.some((result) => result.locked),
-    runs: runs.flatMap((result) => result.run ? [result.run] : []),
-    errors: runs.flatMap((result) => result.error ? [{ currencyCode: result.currencyCode, error: result.error }] : []),
-    incidents: runs.flatMap((result) => result.incident ? [result.incident] : []),
-    period: runs[0]?.period || previousUtcDay(now),
+    locked,
+    runs: results.flatMap((result) => result.run ? [result.run] : []),
+    errors: results.flatMap((result) => result.error ? [{ currencyCode: result.currencyCode, error: result.error }] : []),
+    incidents: results.flatMap((result) => result.incident ? [result.incident] : []),
+    period: {
+      start: period.start.toISOString(),
+      end: period.end.toISOString(),
+    },
   };
 }
 

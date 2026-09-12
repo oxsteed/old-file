@@ -18,6 +18,7 @@ const {
   CRON_TIMEZONE,
   previousUtcDay,
   runOxsteedCreditReconciliation,
+  runOxsteedCreditReconciliations,
 } = require('../jobs/oxsteedCreditReconciliation');
 
 beforeEach(() => {
@@ -103,6 +104,21 @@ test('returns an unlocked result when another worker owns the lease', async () =
 
   expect(result.locked).toBe(false);
   expect(reconcileCreditLedger).not.toHaveBeenCalled();
+});
+
+test('runs all configured currencies under one distributed lock', async () => {
+  reconcileCreditLedger
+    .mockResolvedValueOnce({ run: { id: 'usd-run', status: 'balanced', currencyCode: 'USD', accountCount: 1, entryCount: 2 } })
+    .mockResolvedValueOnce({ run: { id: 'eur-run', status: 'balanced', currencyCode: 'EUR', accountCount: 1, entryCount: 2 } });
+
+  const result = await runOxsteedCreditReconciliations({
+    now: '2026-09-12T04:00:00.000Z',
+    currencyCodes: ['USD', 'EUR'],
+  });
+
+  expect(result).toMatchObject({ locked: true, runs: [{ id: 'usd-run' }, { id: 'eur-run' }] });
+  expect(withJobLock).toHaveBeenCalledTimes(1);
+  expect(reconcileCreditLedger.mock.calls.map(([input]) => input.currencyCode)).toEqual(['USD', 'EUR']);
 });
 
 test('exports a deterministic UTC schedule', () => {
