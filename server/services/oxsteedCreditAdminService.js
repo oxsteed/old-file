@@ -405,6 +405,12 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     const agreement = agreementRows[0];
     if (!agreement) throw new AppError('Credit agreement not found for settlement', 404, 'credit_agreement_not_found');
     if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
+    // Serialize settlement periods for one agreement so concurrent admins cannot
+    // both pass the overlap check before either transaction inserts a row.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+      [`oxsteed-credit-settlement:${normalizedPartnerId}:${agreementId}`]
+    );
     const { rows: existingRows } = await client.query(`SELECT s.*, p.restaurant_id, fr.display_name AS restaurant_name FROM oxsteed_credit_settlements s JOIN oxsteed_credit_partners p ON p.id = s.partner_id JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE s.idempotency_key = $1 FOR UPDATE`, [normalizedIdempotencyKey]);
     if (existingRows[0]) return { settlement: formatSettlement(existingRows[0]), replayed: true };
     const { rows: overlapRows } = await client.query(

@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -41,4 +41,53 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD']);
+});
+
+test('serializes settlement creation per partner agreement before checking overlap', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      partner_status: 'active',
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ gross_cents: '2500', refund_cents: '0', fee_cents: '0' }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'settlement-1',
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      currency_code: 'USD',
+      period_start: '2026-09-01T00:00:00.000Z',
+      period_end: '2026-09-02T00:00:00.000Z',
+      gross_cents: '2500',
+      refund_cents: '0',
+      fee_cents: '0',
+      net_cents: '2500',
+      status: 'pending',
+      payment_reference: null,
+      metadata: {},
+      created_at: '2026-09-02T00:00:00.000Z',
+      updated_at: '2026-09-02T00:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-1',
+    periodStart: '2026-09-01T00:00:00.000Z',
+    periodEnd: '2026-09-02T00:00:00.000Z',
+    idempotencyKey: 'settlement-1',
+    actorUserId: null,
+  });
+
+  expect(result.settlement.id).toBe('settlement-1');
+  expect(mockQuery.mock.calls[1][0]).toContain('pg_advisory_xact_lock');
+  expect(mockQuery.mock.calls[1][1]).toEqual(['oxsteed-credit-settlement:41:agreement-1']);
+  expect(mockQuery.mock.calls[2][0]).toContain('s.idempotency_key');
+  expect(mockQuery.mock.calls[3][0]).toContain('period_start < $4');
 });
