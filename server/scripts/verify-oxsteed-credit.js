@@ -111,6 +111,11 @@ async function main() {
       ['426_oxsteed_credit_hold_integrity.sql']
     );
     checks.holdIntegrityMigrationApplied = holdIntegrityMigrationRows.length === 1;
+    const { rows: accountIntegrityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['427_oxsteed_credit_account_integrity.sql']
+    );
+    checks.accountIntegrityMigrationApplied = accountIntegrityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -145,9 +150,9 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass)
            AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_hold_integrity_guard']]
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard']]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
     checks.missingIntegrityTriggers = [
@@ -155,6 +160,7 @@ async function main() {
       'oxsteed_credit_transaction_entries_guard',
       'oxsteed_credit_transaction_immutable_guard',
       'oxsteed_credit_hold_integrity_guard',
+      'oxsteed_credit_account_integrity_guard',
     ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
@@ -236,6 +242,7 @@ async function main() {
       !checks.databaseIntegrityMigrationApplied,
       !checks.transactionImmutabilityMigrationApplied,
       !checks.holdIntegrityMigrationApplied,
+      !checks.accountIntegrityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
