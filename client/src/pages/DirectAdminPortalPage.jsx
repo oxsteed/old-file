@@ -713,6 +713,7 @@ function DirectAdminCalendarView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
+  const [customerContext, setCustomerContext] = useState(null);
   const [actionSaving, setActionSaving] = useState(false);
   const [actionError, setActionError] = useState('');
   const [blocks, setBlocks] = useState([]);
@@ -782,6 +783,16 @@ function DirectAdminCalendarView() {
   useEffect(() => {
     getDirectAdminAssignees().then((response) => setAssignees(response?.members || [])).catch(() => setAssignees([]));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setCustomerContext(null);
+    if (!selectedJob?.user_id) return undefined;
+    getDirectAdminCustomer(selectedJob.user_id)
+      .then((response) => { if (active) setCustomerContext(response?.customer || null); })
+      .catch(() => { if (active) setCustomerContext(null); });
+    return () => { active = false; };
+  }, [selectedJob?.user_id]);
 
   const jobs = data?.upcoming || [];
   const conflictIds = useMemo(() => {
@@ -1034,6 +1045,11 @@ function DirectAdminCalendarView() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>
             <p className="mt-2 text-xs text-slate-500">Double-booking protection allows one overlapping job per assigned dispatch member. Unassigned jobs share a provisional capacity slot.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <InfoRow label="Customer email" value={selectedJob.email} />
+              <InfoRow label="Customer phone" value={selectedJob.phone || selectedJob.on_site_contact_phone} />
+            </div>
+            {selectedJob.user_id && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm"><Link to={`/direct/admin/customers/${selectedJob.user_id}`} className="font-semibold text-orange-300 hover:text-orange-200">Open customer history <ChevronRight size={15} className="inline" /></Link><span className="text-slate-500">{customerContext ? `${customerContext.requests?.length || 0} prior Direct request${customerContext.requests?.length === 1 ? '' : 's'} · ${customerContext.locations?.length || 0} saved location${customerContext.locations?.length === 1 ? '' : 's'}` : 'Loading customer context…'}</span></div>}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">Mark complete</button>
               <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">Cancel job</button>

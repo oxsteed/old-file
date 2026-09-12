@@ -1605,7 +1605,8 @@ exports.getAdminDashboard = async (req, res) => {
         WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'`
       ),
       db.query(
-        `SELECT id, first_name, last_name, service_category, service_city, service_location,
+        `SELECT id, user_id, first_name, last_name, email, phone, on_site_contact_name, on_site_contact_phone,
+                service_category, service_city, service_location,
                 scheduled_start_at, scheduled_end_at, status, payment_status,
                 assigned_to, assigned_at,
                 assignee.first_name AS assignee_first_name,
