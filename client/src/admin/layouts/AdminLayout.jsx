@@ -28,7 +28,7 @@ const REGULAR_NAV = [
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
   { to: '/admin/support/chat',     icon: MessageSquare,   label: 'Live Support'     },
   { to: '/admin/quote-requests',   icon: FileText,        label: 'Quote Requests'   },
-  { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops'       },
+  { to: '/direct/admin',           icon: HeartHandshake,   label: 'Direct Ops',        external: true },
   { to: '/admin/direct-service-areas', icon: MapPinned,    label: 'Direct Service Areas' },
   { to: '/admin/direct-catalog',       icon: Package,      label: 'Direct Catalog'       },
   { to: '/admin/messages',         icon: MessageSquare,   label: 'Messages'         },
@@ -253,11 +253,18 @@ export default function AdminLayout() {
                           tracking-wider px-3 mb-2">
               Operations
             </p>
-            {visibleRegularNav.map(({ to, icon: Icon, label }) => (
-              <NavLink key={to} to={to} end={to === '/admin/support'} className={navClass} onClick={closeSidebar}>
-                <Icon size={16} />
-                {label}
-              </NavLink>
+            {visibleRegularNav.map(({ to, icon: Icon, label, external }) => (
+              external ? (
+                <a key={to} href={to} className={navClass} onClick={closeSidebar}>
+                  <Icon size={16} />
+                  {label}
+                </a>
+              ) : (
+                <NavLink key={to} to={to} end={to === '/admin/support'} className={navClass} onClick={closeSidebar}>
+                  <Icon size={16} />
+                  {label}
+                </NavLink>
+              )
             ))}
           </>
         )}
