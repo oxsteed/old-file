@@ -554,6 +554,8 @@ export default function SupportTickets() {
   const [stats, setStats] = useState(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [selected, setSelected] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
@@ -573,6 +575,7 @@ export default function SupportTickets() {
     ticketRequestRef.current = requestId;
     ticketLoadingRequestRef.current = requestId;
     setLoading(true);
+    setLoadError(null);
     try {
       const params = {};
       if (search) params.search = search;
@@ -589,11 +592,13 @@ export default function SupportTickets() {
       setTickets(ticketResponse.data.tickets || []);
       setTotal(ticketResponse.data.total || 0);
       setStats(statsResponse.data || null);
-    } catch {
+      setLastUpdated(new Date());
+    } catch (error) {
       if (requestId !== ticketRequestRef.current) return;
       setTickets([]);
       setStats(null);
       setTotal(0);
+      setLoadError(error?.response?.data?.error || 'Could not load the support inbox.');
     } finally {
       if (ticketLoadingRequestRef.current === requestId) {
         ticketLoadingRequestRef.current = null;
@@ -766,6 +771,7 @@ export default function SupportTickets() {
                   <div className="mt-1 text-sm text-gray-500">
                     {total} ticket{total === 1 ? '' : 's'} matching the current view.
                   </div>
+                  {lastUpdated && <div className="mt-1 text-xs text-gray-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
                 </div>
                 <div className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-gray-400">
                   {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}
@@ -828,6 +834,12 @@ export default function SupportTickets() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {loadError && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  <span>{loadError}</span>
+                  <button type="button" onClick={loadTickets} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+                </div>
+              )}
               {loading && !tickets.length ? (
                 <div className="flex h-32 items-center justify-center text-sm text-gray-500">
                   <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
@@ -838,7 +850,7 @@ export default function SupportTickets() {
                   <div className="mb-4 rounded-2xl border border-gray-800 bg-gray-900 p-4 text-gray-500">
                     <CheckCircle size={28} />
                   </div>
-                  <div className="text-base font-medium text-gray-200">No tickets match this view</div>
+                  <div className="text-base font-medium text-gray-200">{loadError ? 'Support inbox unavailable' : 'No tickets match this view'}</div>
                   <div className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
                     Try widening the filters, switching assignment scope, or searching for a different customer or subject.
                   </div>
