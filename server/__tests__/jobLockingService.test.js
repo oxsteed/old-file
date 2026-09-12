@@ -47,3 +47,14 @@ test('skips the handler when another non-expired lease is active', async () => {
   expect(handler).not.toHaveBeenCalled();
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
+
+test('releases the lease and surfaces handler failures to the worker caller', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ lock_id: 'job_lock:test-job' }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+  const handler = jest.fn().mockRejectedValue(new Error('database unavailable'));
+
+  await expect(withJobLock('test-job', handler, 60)).rejects.toThrow('database unavailable');
+
+  expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM cron_job_locks/);
+});

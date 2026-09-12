@@ -93,6 +93,7 @@ async function withJobLock(jobName, handler, ttlSeconds = 300) {
     await handler();
   } catch (err) {
     logger.error(`Job ${jobName} failed`, { error: err.message });
+    throw err;
   } finally {
     clearInterval(renewalTimer);
     await releaseJobLock(jobName, lockValue);
