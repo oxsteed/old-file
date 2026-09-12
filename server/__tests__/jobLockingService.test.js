@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { acquireJobLock, withJobLock } = require('../jobs/jobLockingService');
+const { acquireJobLock, refreshJobLock, withJobLock } = require('../jobs/jobLockingService');
 
 beforeEach(() => resetMocks());
 
@@ -25,6 +25,17 @@ test('runs a scheduled handler only while its lock is held and releases the leas
 
   expect(handler).toHaveBeenCalledTimes(1);
   expect(mockQuery.mock.calls[1][0]).toMatch(/DELETE FROM cron_job_locks/);
+});
+
+test('renews only the lease owned by the current worker', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ lock_id: 'job_lock:test-job' }] });
+
+  const refreshed = await refreshJobLock('test-job', 'host-123-456-789', 120);
+
+  expect(refreshed).toBe(true);
+  expect(mockQuery.mock.calls[0][0]).toContain('lock_value = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain('expires_at > NOW()');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['job_lock:test-job', 'host-123-456-789', 120]);
 });
 
 test('skips the handler when another non-expired lease is active', async () => {

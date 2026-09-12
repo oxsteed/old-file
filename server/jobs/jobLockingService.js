@@ -51,6 +51,23 @@ async function releaseJobLock(jobName, lockValue) {
   }
 }
 
+async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
+  if (!lockValue) return false;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE cron_job_locks
+          SET expires_at = NOW() + INTERVAL '1 second' * $3
+        WHERE lock_id = $1 AND lock_value = $2 AND expires_at > NOW()
+        RETURNING lock_id`,
+      [`job_lock:${jobName}`, lockValue, ttlSeconds]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    logger.warn('Lock renewal failed', { jobName, error: err.message });
+    return false;
+  }
+}
+
 /**
  * Wrapper for cron jobs with automatic locking
  */
@@ -62,17 +79,29 @@ async function withJobLock(jobName, handler, ttlSeconds = 300) {
     return;
   }
 
+  const renewalIntervalMs = Math.max(1000, Math.floor(Number(ttlSeconds) * 1000 / 3));
+  const renewalTimer = setInterval(() => {
+    refreshJobLock(jobName, lockValue, ttlSeconds).then((refreshed) => {
+      if (!refreshed) logger.warn(`Lost ${jobName} lease before handler completed`);
+    }).catch((err) => {
+      logger.warn('Unexpected lock renewal failure', { jobName, error: err.message });
+    });
+  }, renewalIntervalMs);
+  renewalTimer.unref?.();
+
   try {
     await handler();
   } catch (err) {
     logger.error(`Job ${jobName} failed`, { error: err.message });
   } finally {
+    clearInterval(renewalTimer);
     await releaseJobLock(jobName, lockValue);
   }
 }
 
 module.exports = {
   acquireJobLock,
+  refreshJobLock,
   releaseJobLock,
   withJobLock
 };
