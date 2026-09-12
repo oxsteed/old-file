@@ -26,6 +26,7 @@ const {
   audit: auditCatalog,
 } = require('../services/directCatalogService');
 const { createDraft: createCatalogDraft } = require('../services/directCatalogAI');
+const { recordDirectCalendarAudit } = require('../services/directCalendarAudit');
 const crypto = require('crypto');
 
 const DEFAULT_PROFILE = {
@@ -1890,6 +1891,12 @@ exports.createAdminCalendarBlock = async (req, res) => {
                  created_by, created_at, updated_at`,
       [input.blockType, input.title, input.startsAt, input.endsAt, input.city, input.notes, req.user?.id || null]
     );
+    await recordDirectCalendarAudit({
+      blockId: rows[0].id,
+      action: 'block_created',
+      actorId: req.user?.id,
+      afterData: serializeCalendarBlock(rows[0]),
+    });
     return res.status(201).json({ block: serializeCalendarBlock(rows[0]) });
   } catch (err) {
     logger.error('createAdminCalendarBlock error', { error: err.message, adminId: req.user?.id });
@@ -1905,6 +1912,15 @@ exports.updateAdminCalendarBlock = async (req, res) => {
   if (validationError) return res.status(400).json({ error: validationError });
 
   try {
+    const beforeResult = await db.query(
+      `SELECT id, block_type, title, starts_at, ends_at, city, notes,
+              created_by, created_at, updated_at
+         FROM direct_calendar_blocks
+        WHERE id = $1
+        LIMIT 1`,
+      [id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'Calendar block not found' });
     const { rows } = await db.query(
       `UPDATE direct_calendar_blocks
           SET block_type = $1,
@@ -1919,7 +1935,13 @@ exports.updateAdminCalendarBlock = async (req, res) => {
                   created_by, created_at, updated_at`,
       [input.blockType, input.title, input.startsAt, input.endsAt, input.city, input.notes, id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Calendar block not found' });
+    await recordDirectCalendarAudit({
+      blockId: id,
+      action: 'block_updated',
+      actorId: req.user?.id,
+      beforeData: serializeCalendarBlock(beforeResult.rows[0]),
+      afterData: serializeCalendarBlock(rows[0]),
+    });
     return res.json({ block: serializeCalendarBlock(rows[0]) });
   } catch (err) {
     logger.error('updateAdminCalendarBlock error', { error: err.message, id, adminId: req.user?.id });
@@ -1932,12 +1954,76 @@ exports.deleteAdminCalendarBlock = async (req, res) => {
   if (!id) return res.status(400).json({ error: 'A valid calendar block id is required' });
 
   try {
+    const beforeResult = await db.query(
+      `SELECT id, block_type, title, starts_at, ends_at, city, notes,
+              created_by, created_at, updated_at
+         FROM direct_calendar_blocks
+        WHERE id = $1
+        LIMIT 1`,
+      [id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'Calendar block not found' });
     const result = await db.query('DELETE FROM direct_calendar_blocks WHERE id = $1', [id]);
-    if (!result.rowCount) return res.status(404).json({ error: 'Calendar block not found' });
+    await recordDirectCalendarAudit({
+      blockId: id,
+      action: 'block_deleted',
+      actorId: req.user?.id,
+      beforeData: serializeCalendarBlock(beforeResult.rows[0]),
+    });
     return res.json({ ok: true });
   } catch (err) {
     logger.error('deleteAdminCalendarBlock error', { error: err.message, id, adminId: req.user?.id });
     return res.status(500).json({ error: 'Failed to delete calendar block' });
+  }
+};
+
+exports.getAdminCalendarAudit = async (req, res) => {
+  try {
+    const requestedFrom = normalizeTimestamp(req.query.from) || new Date(Date.now() - (90 * 24 * 60 * 60 * 1000)).toISOString();
+    const requestedTo = normalizeTimestamp(req.query.to) || new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString();
+    const requestedLimit = normalizeInteger(req.query.limit);
+    const limit = Math.min(200, Math.max(1, requestedLimit || 100));
+    const { rows } = await db.query(
+      `SELECT h.id, h.request_id, h.block_id, h.action, h.before_data, h.after_data,
+              h.reason, h.created_at,
+              u.first_name AS actor_first_name, u.last_name AS actor_last_name, u.email AS actor_email,
+              q.service_category, q.first_name AS customer_first_name, q.last_name AS customer_last_name,
+              b.title AS block_title
+         FROM direct_calendar_audit_history h
+         LEFT JOIN users u ON u.id = h.actor_id
+         LEFT JOIN quote_requests q ON q.id = h.request_id
+         LEFT JOIN direct_calendar_blocks b ON b.id = h.block_id
+        WHERE h.created_at >= $1
+          AND h.created_at < $2
+        ORDER BY h.created_at DESC
+        LIMIT $3`,
+      [requestedFrom, requestedTo, limit]
+    );
+    return res.json({
+      audit: rows.map((item) => ({
+        id: String(item.id),
+        requestId: item.request_id ? String(item.request_id) : null,
+        blockId: item.block_id ? String(item.block_id) : null,
+        action: item.action,
+        beforeData: item.before_data || {},
+        afterData: item.after_data || {},
+        reason: item.reason || null,
+        createdAt: item.created_at,
+        actor: item.actor_id ? {
+          name: `${item.actor_first_name || ''} ${item.actor_last_name || ''}`.trim() || item.actor_email || 'Admin',
+          email: item.actor_email || null,
+        } : null,
+        request: item.request_id ? {
+          serviceCategory: item.service_category || 'Direct service',
+          customerName: `${item.customer_first_name || ''} ${item.customer_last_name || ''}`.trim(),
+        } : null,
+        blockTitle: item.block_title || null,
+      })),
+      range: { from: requestedFrom, to: requestedTo },
+    });
+  } catch (err) {
+    logger.error('getAdminCalendarAudit error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load calendar history' });
   }
 };
 

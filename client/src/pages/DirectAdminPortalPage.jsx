@@ -33,6 +33,7 @@ import {
   deleteDirectAdminCalendarBlock,
   exportDirectAdminCalendar,
   getDirectAdminAssignees,
+  getDirectAdminCalendarAudit,
   getDirectAdminCustomer,
   getDirectAdminCalendarBlocks,
   getDirectAdminDashboard,
@@ -717,6 +718,7 @@ function DirectAdminCalendarView() {
   const [blockError, setBlockError] = useState('');
   const [exportSaving, setExportSaving] = useState(false);
   const [assignees, setAssignees] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
   const [blockForm, setBlockForm] = useState(() => {
     const startsAt = new Date();
     startsAt.setMinutes(0, 0, 0);
@@ -747,12 +749,14 @@ function DirectAdminCalendarView() {
         city: city || undefined,
         search: search.trim() || undefined,
       };
-      const [next, blockData] = await Promise.all([
+      const [next, blockData, auditData] = await Promise.all([
         getDirectAdminDashboard(params),
         getDirectAdminCalendarBlocks(params),
+        getDirectAdminCalendarAudit({ from: params.from, to: params.to, limit: 25 }),
       ]);
       setData(next);
       setBlocks(blockData?.blocks || []);
+      setAuditEntries(auditData?.audit || []);
     } catch (requestError) {
       setError(requestError?.response?.data?.error || 'Failed to load the dispatch calendar.');
     } finally {
@@ -1009,6 +1013,7 @@ function DirectAdminCalendarView() {
             </div>
           ))}
         </div>
+        {auditEntries.length > 0 && <div className="mt-5 border-t border-white/10 pt-4"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recent calendar history</div><div className="mt-2 space-y-2">{auditEntries.slice(0, 8).map((entry) => <div key={entry.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-xs text-slate-400"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-slate-200">{entry.action.replaceAll('_', ' ')}</span><span>{formatDateTime(entry.createdAt)}</span></div><div className="mt-1">{entry.actor?.name || 'System'}{entry.request ? ` · ${entry.request.customerName || entry.request.serviceCategory}` : entry.blockTitle ? ` · ${entry.blockTitle}` : ''}</div></div>)}</div></div>}
       </SectionCard>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">

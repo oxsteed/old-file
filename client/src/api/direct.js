@@ -166,6 +166,11 @@ export async function getDirectAdminAssignees() {
   return response.data;
 }
 
+export async function getDirectAdminCalendarAudit(params = {}) {
+  const response = await api.get('/direct/admin/calendar/audit', { params });
+  return response.data;
+}
+
 export async function createDirectAdminCalendarBlock(payload) {
   const response = await api.post('/direct/admin/calendar/blocks', payload);
   return response.data;

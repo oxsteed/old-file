@@ -43,6 +43,7 @@ router.get('/admin/calendar/assignees', authenticate, requireAdmin, ctrl.getAdmi
 router.post('/admin/calendar/blocks', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCalendarBlock);
 router.patch('/admin/calendar/blocks/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCalendarBlock);
 router.delete('/admin/calendar/blocks/:id', authenticate, requireAdmin, generalLimiter, ctrl.deleteAdminCalendarBlock);
+router.get('/admin/calendar/audit', authenticate, requireAdmin, ctrl.getAdminCalendarAudit);
 router.get('/admin/catalog', authenticate, requireAdmin, ctrl.getAdminCatalog);
 router.post('/admin/catalog/categories', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogCategory);
 router.patch('/admin/catalog/categories/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogCategory);

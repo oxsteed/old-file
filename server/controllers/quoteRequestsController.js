@@ -5,6 +5,7 @@ const {
   generatePublicReference,
   normalizeZipCode,
 } = require('../utils/directQuote');
+const { recordDirectCalendarAudit } = require('../services/directCalendarAudit');
 
 const VALID_CONTACT_METHODS = new Set(['email', 'phone', 'text', 'either']);
 const VALID_STATUSES = new Set([
@@ -390,6 +391,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
     return res.status(400).json({ error: 'A valid assignee is required' });
   }
 
+  let auditBefore = null;
   try {
     if (assignmentProvided && assignedTo) {
       const assignee = await db.query(
@@ -404,7 +406,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
       );
       if (!assignee.rows.length) return res.status(400).json({ error: 'Assignee is not an active dispatch member' });
     }
-    if (scheduledStartAt || scheduledEndAt) {
+    if (scheduledStartAt || scheduledEndAt || assignmentProvided) {
       const current = await db.query(
         `SELECT scheduled_start_at, scheduled_end_at, service_city, service_location
            FROM quote_requests
@@ -415,6 +417,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
       if (!current.rows.length) {
         return res.status(404).json({ error: 'Quote request not found' });
       }
+      auditBefore = current.rows[0];
       const effectiveStart = scheduledStartAt || current.rows[0].scheduled_start_at;
       const effectiveEnd = scheduledEndAt || current.rows[0].scheduled_end_at;
       if (effectiveStart && effectiveEnd && new Date(effectiveEnd).getTime() <= new Date(effectiveStart).getTime()) {
@@ -520,6 +523,17 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
 
     if (!result.rows.length) {
       return res.status(404).json({ error: 'Quote request not found' });
+    }
+
+    if (auditBefore) {
+      await recordDirectCalendarAudit({
+        requestId: id,
+        action: assignmentProvided && (scheduledStartAt || scheduledEndAt) ? 'request_rescheduled_and_assigned'
+          : assignmentProvided ? 'request_assignment_changed' : 'request_rescheduled',
+        actorId: req.user?.id,
+        beforeData: auditBefore,
+        afterData: result.rows[0],
+      });
     }
 
     return res.json({ request: result.rows[0] });
