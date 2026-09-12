@@ -23,6 +23,7 @@ function createCustomerApp() {
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
   app.get('/statement', controller.getMyStatement);
+  app.get('/transactions/:transactionId', controller.getMyTransaction);
   app.post('/holds', controller.createMyHold);
   app.post('/transfers', controller.transferMyCredit);
   app.use(errorHandler);
@@ -140,6 +141,47 @@ test('returns a bounded customer statement with period totals and safe transacti
   }));
   expect(response.body.statement.transactions[0].idempotencyKey).toBeUndefined();
   expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, '2026-09-01', '2026-09-12', 50, 0, 'USD']);
+});
+
+test('keeps legacy customer transaction reads free of ledger secrets', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '700',
+    currency_code: 'USD',
+    reference_type: 'food_order',
+    reference_id: 'order-1',
+    description: 'Lunch',
+    posted_at: '2026-09-10T15:00:00.000Z',
+    created_at: '2026-09-10T15:00:00.000Z',
+    direction: 'debit',
+    related_partner_id: 41,
+    restaurant_name: 'Ox Burger Lab',
+    idempotency_key: 'must-not-leak',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    actor_user_id: ADMIN_ID,
+    metadata: { internal: 'must-not-leak' },
+  }] });
+
+  const response = await request(createCustomerApp())
+    .get('/transactions/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+
+  expect(response.status).toBe(200);
+  expect(response.body.transaction).toMatchObject({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    restaurantName: 'Ox Burger Lab',
+    direction: 'debit',
+    partnerId: '41',
+  });
+  expect(response.body.transaction).not.toHaveProperty('idempotencyKey');
+  expect(response.body.transaction).not.toHaveProperty('debitAccountId');
+  expect(response.body.transaction).not.toHaveProperty('creditAccountId');
+  expect(response.body.transaction).not.toHaveProperty('actorUserId');
+  expect(response.body.transaction).not.toHaveProperty('metadata');
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+  expect(mockQuery.mock.calls[0][0]).not.toContain('SELECT t.*');
 });
 
 test('rejects an invalid or oversized customer statement period before querying', async () => {

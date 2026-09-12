@@ -1167,35 +1167,53 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
   const pageSize = parsePageSize(limit);
   const pageOffset = parseOffset(offset);
   const { rows } = await pool.query(
-    `SELECT t.*, CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
-            CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END AS related_partner_id
+    `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
+            CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
+            CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END AS related_partner_id,
+            fr.display_name AS restaurant_name
        FROM oxsteed_credit_transactions t
        JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
        LEFT JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
        LEFT JOIN oxsteed_credit_accounts pa ON pa.id = t.credit_account_id
+       LEFT JOIN oxsteed_credit_partners p
+         ON p.id = CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
       WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1
       ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
     [customerId, pageSize, pageOffset]
   );
-  return rows.map((row) => ({ ...formatTransaction(row), direction: row.direction, relatedPartnerId: row.related_partner_id ? String(row.related_partner_id) : null }));
+  return rows.map(formatCustomerCreditTransaction);
 }
 
-function formatCustomerStatementTransaction(row) {
+function formatCustomerCreditTransaction(row) {
+  const partnerId = row.related_partner_id === null || row.related_partner_id === undefined
+    ? null
+    : String(row.related_partner_id);
   return {
     id: String(row.id),
     transactionType: row.transaction_type,
     status: row.status,
     amountCents: Number(row.amount_cents || 0),
     currencyCode: normalizeCurrency(row.currency_code),
-    direction: row.direction,
-    partnerId: row.related_partner_id === null || row.related_partner_id === undefined ? null : String(row.related_partner_id),
+    direction: row.direction || null,
+    partnerId,
+    relatedPartnerId: partnerId,
     restaurantName: row.restaurant_name || null,
     description: row.description || null,
     referenceType: row.reference_type || null,
     referenceId: row.reference_id || null,
     postedAt: row.posted_at || row.created_at || null,
+    createdAt: row.created_at || null,
   };
+}
+
+function formatCustomerStatementTransaction(row) {
+  const transaction = formatCustomerCreditTransaction(row);
+  delete transaction.relatedPartnerId;
+  delete transaction.createdAt;
+  return transaction;
 }
 
 async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100 } = {}) {
@@ -1315,7 +1333,8 @@ function customerCreditStatementCsv(statement) {
 
 async function getCustomerCreditTransaction(customerId, transactionId) {
   const { rows } = await pool.query(
-    `SELECT t.*,
+    `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
             CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
             CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END AS related_partner_id,
             fr.display_name AS restaurant_name
@@ -1330,14 +1349,7 @@ async function getCustomerCreditTransaction(customerId, transactionId) {
     [transactionId, customerId]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
-  return {
-    transaction: {
-      ...formatTransaction(rows[0], await loadAccountEntries(pool, rows[0].id)),
-      direction: rows[0].direction,
-      relatedPartnerId: rows[0].related_partner_id ? String(rows[0].related_partner_id) : null,
-      restaurantName: rows[0].restaurant_name || null,
-    },
-  };
+  return { transaction: formatCustomerCreditTransaction(rows[0]) };
 }
 
 function formatDispute(row) {
