@@ -815,7 +815,12 @@ function DirectAdminCalendarView() {
     return () => { active = false; };
   }, [selectedJob?.user_id]);
 
-  const jobs = data?.upcoming || [];
+  const jobs = Array.isArray(data?.upcoming) ? data.upcoming.filter(Boolean) : [];
+  const safeBlocks = Array.isArray(blocks) ? blocks.filter(Boolean) : [];
+  const safeTravelDensity = Array.isArray(data?.travelDensity) ? data.travelDensity.filter(Boolean) : [];
+  const safeRoutePlan = Array.isArray(data?.routePlan) ? data.routePlan.filter(Boolean) : [];
+  const safeAuditEntries = Array.isArray(auditEntries) ? auditEntries.filter(Boolean) : [];
+  const safeTravelCities = Array.isArray(profile.travelCities) ? profile.travelCities.filter(Boolean) : [];
   const conflictIds = useMemo(() => {
     const ids = new Set();
     jobs.forEach((left, leftIndex) => {
@@ -840,16 +845,16 @@ function DirectAdminCalendarView() {
     groups[key].push(item);
     return groups;
   }, {}), [jobs]);
-  const blocksByDay = useMemo(() => blocks.reduce((groups, block) => {
+  const blocksByDay = useMemo(() => safeBlocks.reduce((groups, block) => {
     const key = calendarDateKey(block.startsAt);
     groups[key] = groups[key] || [];
     groups[key].push(block);
     return groups;
-  }, {}), [blocks]);
+  }, {}), [safeBlocks]);
   const cities = useMemo(() => Array.from(new Set([
-    ...(profile.travelCities || []),
-    ...(data?.travelDensity || []).map((item) => item.city),
-  ].filter(Boolean))), [profile.travelCities, data]);
+    ...safeTravelCities,
+    ...safeTravelDensity.map((item) => item.city),
+  ].filter(Boolean))), [safeTravelCities, safeTravelDensity]);
   const moveCursor = (amount) => {
     const next = new Date(cursorDate);
     if (viewMode === 'month') next.setMonth(next.getMonth() + amount);
@@ -1094,23 +1099,23 @@ function DirectAdminCalendarView() {
         </form>
         {blockError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{blockError}</div>}
         <div className="mt-5 space-y-2">
-          {blocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">No availability or blackout blocks overlap this calendar range.</div> : blocks.map((block) => (
+          {safeBlocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">No availability or blackout blocks overlap this calendar range.</div> : safeBlocks.map((block) => (
             <div key={block.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Chip tone={block.blockType === 'availability' ? 'emerald' : 'orange'}>{block.blockType}</Chip><span className="font-semibold text-white">{block.title}</span>{block.city && <span className="text-xs text-slate-500">{block.city}</span>}</div><div className="mt-1 text-xs text-slate-400">{formatDateTime(block.startsAt)} – {formatDateTime(block.endsAt)}{block.notes ? ` · ${block.notes}` : ''}</div></div>
               <div className="flex items-center gap-2"><button type="button" onClick={() => editCalendarBlock(block)} disabled={blockSaving} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 disabled:opacity-50"><Pencil size={13} /> Edit</button><button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Remove</button></div>
             </div>
           ))}
         </div>
-        {auditEntries.length > 0 && <div className="mt-5 border-t border-white/10 pt-4"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recent calendar history</div><div className="mt-2 space-y-2">{auditEntries.slice(0, 8).map((entry) => <div key={entry.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-xs text-slate-400"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-slate-200">{entry.action.replaceAll('_', ' ')}</span><span>{formatDateTime(entry.createdAt)}</span></div><div className="mt-1">{entry.actor?.name || 'System'}{entry.request ? ` · ${entry.request.customerName || entry.request.serviceCategory}` : entry.blockTitle ? ` · ${entry.blockTitle}` : ''}</div></div>)}</div></div>}
+        {safeAuditEntries.length > 0 && <div className="mt-5 border-t border-white/10 pt-4"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Recent calendar history</div><div className="mt-2 space-y-2">{safeAuditEntries.slice(0, 8).map((entry) => <div key={entry.id} className="rounded-xl border border-white/10 bg-slate-900/50 p-3 text-xs text-slate-400"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-slate-200">{String(entry.action || 'calendar_change').replaceAll('_', ' ')}</span><span>{formatDateTime(entry.createdAt)}</span></div><div className="mt-1">{entry.actor?.name || 'System'}{entry.request ? ` · ${entry.request.customerName || entry.request.serviceCategory}` : entry.blockTitle ? ` · ${entry.blockTitle}` : ''}</div></div>)}</div></div>}
       </SectionCard>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard title="Travel density" eyebrow="Route planning">
-          {(data?.travelDensity || []).length === 0 ? <div className="text-sm text-slate-500">No future route data for this range.</div> : <div className="grid gap-2 sm:grid-cols-2">{data.travelDensity.map((item) => <div key={item.city} className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-white">{item.city}</span><Chip tone="emerald">{item.job_count} job{item.job_count === 1 ? '' : 's'}</Chip></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, (Number(item.job_count) / Math.max(1, jobs.length)) * 100)}%` }} /></div></div>)}</div>}
-          {(data?.routePlan || []).length > 0 && <div className="mt-5 space-y-2"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Suggested daily route</div>{data.routePlan.map((plan) => <div key={plan.date} className="rounded-2xl border border-white/10 bg-slate-900/60 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-white">{new Date(`${plan.date}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span><span className="text-xs text-slate-400">{plan.estimatedMiles} mi · about {plan.estimatedDriveMinutes} min</span></div><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300"><span className="text-slate-500">Start: {plan.baseCity || 'Base city'}</span>{plan.stops.map((stop) => <Chip key={`${plan.date}-${stop.city}`} tone={stop.mapped ? 'blue' : 'orange'}>{stop.city} · {stop.jobCount}</Chip>)}</div>{plan.hasUnmappedStops && <div className="mt-2 text-[11px] text-amber-200">Some stops are not mapped to an active service-area coordinate.</div>}</div>)}</div>}
+          {safeTravelDensity.length === 0 ? <div className="text-sm text-slate-500">No future route data for this range.</div> : <div className="grid gap-2 sm:grid-cols-2">{safeTravelDensity.map((item) => <div key={item.city} className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-white">{item.city}</span><Chip tone="emerald">{item.job_count} job{item.job_count === 1 ? '' : 's'}</Chip></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, (Number(item.job_count) / Math.max(1, jobs.length)) * 100)}%` }} /></div></div>)}</div>}
+          {safeRoutePlan.length > 0 && <div className="mt-5 space-y-2"><div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Suggested daily route</div>{safeRoutePlan.map((plan) => <div key={plan.date} className="rounded-2xl border border-white/10 bg-slate-900/60 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold text-white">{new Date(`${plan.date}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span><span className="text-xs text-slate-400">{plan.estimatedMiles} mi · about {plan.estimatedDriveMinutes} min</span></div><div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-300"><span className="text-slate-500">Start: {plan.baseCity || 'Base city'}</span>{(Array.isArray(plan.stops) ? plan.stops.filter(Boolean) : []).map((stop) => <Chip key={`${plan.date}-${stop.city}`} tone={stop.mapped ? 'blue' : 'orange'}>{stop.city} · {stop.jobCount}</Chip>)}</div>{plan.hasUnmappedStops && <div className="mt-2 text-[11px] text-amber-200">Some stops are not mapped to an active service-area coordinate.</div>}</div>)}</div>}
         </SectionCard>
         <SectionCard title="Dispatch summary" eyebrow="Operations">
-          <div className="grid grid-cols-2 gap-3"><MiniStat label="Jobs in range" value={jobs.length} icon={CalendarDays} tone="blue" /><MiniStat label="Cities" value={(data?.travelDensity || []).length} icon={MapPin} tone="emerald" /></div>
+          <div className="grid grid-cols-2 gap-3"><MiniStat label="Jobs in range" value={jobs.length} icon={CalendarDays} tone="blue" /><MiniStat label="Cities" value={safeTravelDensity.length} icon={MapPin} tone="emerald" /></div>
           <p className="mt-4 text-xs leading-5 text-slate-500">Counts exclude completed, canceled, and closed requests. Drive estimates use active service-area coordinates and a planning-speed assumption; confirm live traffic before departure.</p>
         </SectionCard>
       </div>
