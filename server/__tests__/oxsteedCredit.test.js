@@ -125,3 +125,56 @@ test('hashes the same journal payload deterministically', () => {
 
   expect(service.computeEntryHash(payload)).toBe(service.computeEntryHash({ ...payload, metadata: { a: 1, b: 2 } }));
 });
+
+test('replays the winning transaction when a concurrent idempotent insert loses the race', async () => {
+  const existing = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'purchase',
+    status: 'posted',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    amount_cents: '1250',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    idempotency_key: 'purchase-race-1',
+    reference_type: 'food_order',
+    reference_id: 'order-1',
+    metadata: {},
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [
+      { id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '5000', reserved_cents: '0', status: 'active' },
+      { id: 8001, account_type: 'partner_payable', customer_id: null, partner_id: 41, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active' },
+    ] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [existing] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await service.postJournalTransaction({ query: mockQuery }, {
+    transactionType: 'purchase',
+    debitAccountId: 7001,
+    creditAccountId: 8001,
+    amountCents: 1250,
+    currencyCode: 'USD',
+    partnerId: 41,
+    agreementId: existing.agreement_id,
+    idempotencyKey: existing.idempotency_key,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.transaction).toMatchObject({ id: existing.id, amountCents: 1250, replayed: true });
+  expect(mockQuery.mock.calls[2][0]).toContain('ON CONFLICT (idempotency_key) DO NOTHING');
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_transaction_entries'))).toBe(false);
+});
+
+test('fails closed when the OxSteed Credit emergency flag is disabled', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ is_enabled: false }] });
+
+  expect(await service.isCreditRailEnabled({ query: mockQuery })).toBe(false);
+  await expect(service.assertCreditRailEnabled({ query: mockQuery }))
+    .rejects.toMatchObject({ code: 'credit_rail_suspended', status: 503 });
+});

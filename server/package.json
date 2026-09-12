@@ -14,6 +14,7 @@
     "test:food-loyalty": "jest __tests__/foodLoyalty.test.js --runInBand --forceExit",
     "test:food-promotions": "jest __tests__/foodPromotions.test.js --runInBand --forceExit",
     "verify:active-job-statuses": "node scripts/verify-active-job-statuses.js",
+    "verify:credit": "node scripts/verify-oxsteed-credit.js",
     "verify:i18n": "node scripts/verify-server-localization.mjs",
     "translate": "node ../scripts/translate-locales.js",
     "translate:force": "node ../scripts/translate-locales.js --force"

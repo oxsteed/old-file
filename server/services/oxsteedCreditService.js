@@ -67,6 +67,23 @@ function getLedgerSecret() {
   return secret;
 }
 
+async function isCreditRailEnabled(client) {
+  try {
+    const { rows } = await client.query(
+      `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
+    );
+    return rows[0]?.is_enabled === true;
+  } catch (error) {
+    throw new AppError('OxSteed Credit is temporarily unavailable', 503, 'credit_rail_status_unavailable');
+  }
+}
+
+async function assertCreditRailEnabled(client) {
+  if (!(await isCreditRailEnabled(client))) {
+    throw new AppError('OxSteed Credit is temporarily suspended', 503, 'credit_rail_suspended');
+  }
+}
+
 function stableStringify(value) {
   if (value === null || value === undefined) return 'null';
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -280,6 +297,7 @@ async function postJournalTransaction(client, input) {
         partner_id, agreement_id, idempotency_key, correlation_id, reference_type, reference_id,
         description, actor_type, actor_user_id, metadata, posted_at)
      VALUES ($1, 'posted', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, NOW())
+     ON CONFLICT (idempotency_key) DO NOTHING
      RETURNING *`,
     [
       input.transactionType,
@@ -299,6 +317,16 @@ async function postJournalTransaction(client, input) {
       JSON.stringify(normalizeMetadata(input.metadata)),
     ]
   );
+  // A concurrent retry can lose the insert race after the first request
+  // commits. Re-read the winner and return it as a normal idempotent replay.
+  if (!transactionRows[0]) {
+    const existingAfterConflict = await getExistingTransaction(client, idempotencyKey);
+    if (!existingAfterConflict) {
+      throw new AppError('Credit transaction could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+    }
+    assertIdempotencyReplayMatches(existingAfterConflict, requested);
+    return { transaction: { ...formatTransaction(existingAfterConflict, await loadAccountEntries(client, existingAfterConflict.id)), replayed: true }, replayed: true };
+  }
   const transaction = transactionRows[0];
   const accountUpdates = [
     { account: debitAccount, nextBalance: nextDebitBalance, side: 'debit' },
@@ -493,6 +521,10 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
        LEFT JOIN oxsteed_credit_customer_entitlements e
          ON e.agreement_id = a.id AND e.customer_id = $1
       WHERE p.status = 'active' AND fr.status = 'active'
+        AND EXISTS (
+          SELECT 1 FROM feature_flags ff
+           WHERE ff.key = 'oxsteed_credit_enabled' AND ff.is_enabled = TRUE
+        )
         AND p.settlement_currency_code = $2
         AND a.status = 'active' AND a.starts_at <= NOW()
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
@@ -533,6 +565,7 @@ async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, act
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    await assertCreditRailEnabled(client);
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
     if (!(await getExistingTransaction(client, normalizeString(idempotencyKey, 160)))) {
@@ -567,6 +600,7 @@ async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, act
 async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
   const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount });
   const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
@@ -615,6 +649,9 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    await assertCreditRailEnabled(client);
+    const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
     const { rows: recipientRows } = await client.query(
       `SELECT id FROM users WHERE id = $1 AND is_active = TRUE LIMIT 1`,
       [recipientCustomerId]
@@ -692,6 +729,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, idempotenc
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    await assertCreditRailEnabled(client);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
     const agreement = await findSpendAgreement(client, { customerId, partnerId, orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
@@ -1158,6 +1196,8 @@ module.exports = {
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,
   CUSTOMER_TRANSFERS_ENABLED,
+  isCreditRailEnabled,
+  assertCreditRailEnabled,
   computeEntryHash,
   ensureAccount,
   findSpendAgreement,
