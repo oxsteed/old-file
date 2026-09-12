@@ -1,0 +1,111 @@
+.ox-credit-page {
+  min-height: 100vh;
+  color: #10253f;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(244, 132, 27, .15), transparent 28rem),
+    radial-gradient(circle at 94% 18%, rgba(35, 137, 149, .12), transparent 30rem),
+    #f7f3ed;
+}
+
+.ox-credit-shell { width: min(1160px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 82px; }
+.ox-credit-back { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 30px; color: #526473; font-size: 14px; font-weight: 750; text-decoration: none; }
+.ox-credit-back:hover, .ox-credit-secondary-link:hover, .ox-credit-security-note a:hover { color: #da6909; }
+.ox-credit-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
+.ox-credit-eyebrow { margin: 0 0 8px; color: #d66e0c; font-size: 11px; font-weight: 850; letter-spacing: .18em; text-transform: uppercase; }
+.ox-credit-hero h1 { margin: 0 0 10px; color: #10253f; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(42px, 7vw, 72px); font-weight: 500; letter-spacing: -.055em; }
+.ox-credit-hero p:not(.ox-credit-eyebrow) { max-width: 690px; margin: 0; color: #61717e; font-size: 16px; line-height: 1.65; }
+.ox-credit-refresh { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; height: 44px; padding: 0 15px; border: 1px solid rgba(16,37,63,.14); border-radius: 13px; color: #10253f; background: rgba(255,255,255,.82); font-weight: 800; cursor: pointer; }
+.ox-credit-refresh:disabled { opacity: .55; cursor: wait; }
+.ox-credit-spin { animation: ox-credit-spin 1s linear infinite; }
+@keyframes ox-credit-spin { to { transform: rotate(360deg); } }
+.ox-credit-disclaimer { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 18px; padding: 15px 17px; border: 1px solid rgba(35,137,149,.22); border-radius: 16px; color: #276a72; background: rgba(235,249,247,.82); }
+.ox-credit-disclaimer svg { flex: 0 0 auto; margin-top: 1px; }
+.ox-credit-disclaimer div { display: grid; gap: 4px; }
+.ox-credit-disclaimer strong { font-size: 13px; }
+.ox-credit-disclaimer span { color: #49757a; font-size: 12px; line-height: 1.55; }
+.ox-credit-balance-card { position: relative; overflow: hidden; padding: 27px; border-radius: 27px; color: #fff; background: linear-gradient(130deg, #10253f 0%, #173b53 62%, #176d70 100%); box-shadow: 0 24px 70px rgba(16,37,63,.2); }
+.ox-credit-balance-card::after { content: ''; position: absolute; width: 360px; height: 360px; top: -205px; right: -110px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; box-shadow: 0 0 0 42px rgba(255,255,255,.03), 0 0 0 86px rgba(255,255,255,.025); }
+.ox-credit-balance-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; }
+.ox-credit-wallet-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; color: #10253f; background: #ffb341; }
+.ox-credit-balance-top div { display: grid; gap: 3px; }
+.ox-credit-balance-top div span { color: #c9dde1; font-size: 13px; font-weight: 700; }
+.ox-credit-balance-top strong { font-size: clamp(30px, 5vw, 45px); letter-spacing: -.04em; }
+.ox-credit-status { align-self: flex-start; margin-left: auto; padding: 7px 11px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; color: #ffd1b0; background: rgba(255,255,255,.08); font-size: 11px; font-weight: 850; text-transform: capitalize; }
+.ox-credit-status.active { color: #8cf0be; background: rgba(42,180,112,.14); }
+.ox-credit-balance-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+.ox-credit-balance-grid div { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 15px; background: rgba(255,255,255,.055); }
+.ox-credit-balance-grid span { color: #a9c0c8; font-size: 12px; }
+.ox-credit-balance-grid strong { font-size: 18px; }
+.ox-credit-sections { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-top: 18px; }
+.ox-credit-panel { overflow: hidden; border: 1px solid rgba(16,37,63,.1); border-radius: 23px; background: rgba(255,255,255,.86); box-shadow: 0 16px 50px rgba(44,47,50,.06); }
+.ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }
+.ox-credit-panel-heading .ox-credit-eyebrow { margin-bottom: 5px; }
+.ox-credit-panel h2 { margin: 0; color: #10253f; font-size: 23px; letter-spacing: -.025em; }
+.ox-credit-count { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 999px; color: #a6530c; background: #fff0dd; font-size: 12px; font-weight: 850; }
+.ox-credit-panel-copy { margin: 10px 23px 17px; color: #71808c; font-size: 13px; line-height: 1.55; }
+.ox-credit-partner-list, .ox-credit-transaction-list { border-top: 1px solid rgba(16,37,63,.08); }
+.ox-credit-partner { display: flex; gap: 13px; padding: 17px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
+.ox-credit-partner:last-child, .ox-credit-transaction-list article:last-child { border-bottom: 0; }
+.ox-credit-partner-mark { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; overflow: hidden; border-radius: 13px; color: #15727a; background: #e7f6f3; }
+.ox-credit-partner-mark img { width: 100%; height: 100%; object-fit: cover; }
+.ox-credit-partner-content { min-width: 0; flex: 1; }
+.ox-credit-partner-title { display: flex; justify-content: space-between; gap: 10px; }
+.ox-credit-partner-title h3 { margin: 0 0 3px; color: #10253f; font-size: 15px; }
+.ox-credit-partner-title span:not(.ox-credit-eligible) { color: #80909c; font-size: 12px; }
+.ox-credit-eligible { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: #14754d; font-size: 11px; font-weight: 850; }
+.ox-credit-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.ox-credit-tags span { padding: 4px 7px; border-radius: 999px; color: #516e76; background: #edf7f5; font-size: 10px; font-weight: 800; text-transform: capitalize; }
+.ox-credit-partner-content p { margin: 10px 0 7px; color: #647582; font-size: 12px; line-height: 1.5; }
+.ox-credit-partner-meta { display: flex; flex-wrap: wrap; gap: 10px; color: #a06b31; font-size: 11px; font-weight: 800; }
+.ox-credit-secondary-link { display: inline-flex; align-items: center; gap: 7px; margin: 16px 23px 20px; color: #b65a0c; font-size: 12px; font-weight: 850; text-decoration: none; }
+.ox-credit-transaction-list article { display: grid; grid-template-columns: 37px minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 15px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
+.ox-credit-transaction-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; }
+.ox-credit-transaction-icon.positive { color: #14754d; background: #e2f7ec; }
+.ox-credit-transaction-icon.negative { color: #b44b25; background: #fff0e8; }
+.ox-credit-transaction-list article div { display: grid; gap: 3px; min-width: 0; }
+.ox-credit-transaction-list article strong { overflow: hidden; color: #10253f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-credit-transaction-list article div span { overflow: hidden; color: #80909c; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-credit-transaction-list article small { color: #a0abb2; font-size: 10px; }
+.ox-credit-dispute-button { width: fit-content; padding: 0; border: 0; color: #b65a0c; background: transparent; font-size: 10px; font-weight: 850; cursor: pointer; }
+.ox-credit-dispute-button:hover { color: #da6909; text-decoration: underline; }
+.ox-credit-dispute-form { display: grid; gap: 9px; margin: 15px 23px 20px; padding: 14px; border: 1px solid rgba(214,110,12,.24); border-radius: 15px; background: #fff9f0; }
+.ox-credit-dispute-form strong { color: #10253f; font-size: 13px; }
+.ox-credit-dispute-form > span { color: #778793; font-size: 11px; line-height: 1.45; }
+.ox-credit-dispute-form select, .ox-credit-dispute-form textarea { width: 100%; padding: 9px 10px; border: 1px solid rgba(16,37,63,.15); border-radius: 9px; color: #10253f; background: #fff; font: inherit; font-size: 12px; }
+.ox-credit-dispute-form textarea { resize: vertical; }
+.ox-credit-dispute-form > div { display: flex; justify-content: flex-end; gap: 8px; }
+.ox-credit-dispute-form button { padding: 8px 11px; border: 1px solid rgba(16,37,63,.16); border-radius: 8px; color: #526473; background: #fff; font-size: 11px; font-weight: 800; cursor: pointer; }
+.ox-credit-dispute-form button[type='submit'] { border-color: #d66e0c; color: #fff; background: #d66e0c; }
+.ox-credit-dispute-form button:disabled { opacity: .55; cursor: wait; }
+.ox-credit-transaction-list article b { font-size: 13px; white-space: nowrap; }
+.ox-credit-transaction-list article b.positive { color: #14754d; }
+.ox-credit-transaction-list article b.negative { color: #b44b25; }
+.ox-credit-security-note { display: flex; align-items: center; gap: 6px; margin: 15px 23px 20px; color: #7f8c95; font-size: 11px; }
+.ox-credit-security-note a { color: #b65a0c; font-weight: 850; text-decoration: none; }
+.ox-credit-empty, .ox-credit-loading { display: grid; place-items: center; gap: 8px; min-height: 190px; padding: 28px; color: #74838e; text-align: center; }
+.ox-credit-empty svg { color: #e99a42; }
+.ox-credit-empty strong { color: #10253f; font-size: 16px; }
+.ox-credit-empty span { max-width: 360px; font-size: 12px; line-height: 1.55; }
+.ox-credit-loading { min-height: 420px; font-size: 14px; }
+
+@media (max-width: 800px) {
+  .ox-credit-shell { padding-top: 30px; }
+  .ox-credit-hero { align-items: flex-start; flex-direction: column; }
+  .ox-credit-refresh { align-self: stretch; justify-content: center; }
+  .ox-credit-sections { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .ox-credit-shell { width: min(100% - 22px, 1160px); padding-bottom: 50px; }
+  .ox-credit-balance-card { padding: 21px; border-radius: 22px; }
+  .ox-credit-status { font-size: 10px; }
+  .ox-credit-balance-grid { grid-template-columns: 1fr; }
+  .ox-credit-panel-heading, .ox-credit-panel-copy, .ox-credit-partner, .ox-credit-transaction-list article { padding-left: 16px; padding-right: 16px; }
+  .ox-credit-panel-copy { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-secondary-link, .ox-credit-security-note { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-dispute-form { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-partner-title { flex-direction: column; gap: 5px; }
+  .ox-credit-eligible { width: fit-content; }
+  .ox-credit-transaction-list article { grid-template-columns: 34px minmax(0, 1fr); }
+  .ox-credit-transaction-list article b { grid-column: 2; justify-self: start; }
+}

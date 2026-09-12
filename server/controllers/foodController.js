@@ -22,6 +22,10 @@ const {
 const permissionsService = require('../services/permissionsService');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const {
+  purchaseWithCreditInTransaction,
+  refundCreditForReferenceInTransaction,
+} = require('../services/oxsteedCreditService');
+const {
   recordWalletCreditPaymentForOrder,
   recordWalletCreditRefundForOrder,
 } = require('../services/restaurantPosPaymentLedgerService');
@@ -57,6 +61,9 @@ const FOOD_PAYMENT_MODE_ALIASES = {
   pay_at_restaurant: 'pay_at_restaurant',
   wallet_credit: 'restaurant_credit',
   restaurant_credit: 'restaurant_credit',
+  oxsteed_credit: 'oxsteed_credit',
+  oxsteedCredit: 'oxsteed_credit',
+  credit: 'oxsteed_credit',
   pay_now: 'pay_now',
   direct: 'direct_payment',
   direct_payment: 'direct_payment',
@@ -65,6 +72,7 @@ const FOOD_PAYMENT_MODE_ALIASES = {
 const FOOD_PAYMENT_LEGACY_MODE = {
   pay_at_restaurant: 'pay_at_counter',
   restaurant_credit: 'wallet_credit',
+  oxsteed_credit: 'oxsteed_credit',
   pay_now: 'pay_now',
   direct_payment: 'direct_payment',
 };
@@ -198,6 +206,20 @@ function buildWalletPaymentResponse({
   };
 }
 
+function buildOxsteedCreditPaymentResponse({ status, amountCents, currencyCode, transaction = null, replayed = false, reason = null }) {
+  return {
+    mode: 'oxsteed_credit',
+    status,
+    amountCents: Number(amountCents || transaction?.amountCents || 0),
+    amount: Number(amountCents || transaction?.amountCents || 0) / 100,
+    currencyCode: normalizeCurrency(currencyCode || transaction?.currencyCode),
+    transactionId: transaction?.id ? String(transaction.id) : null,
+    transaction: transaction || null,
+    replayed: Boolean(replayed || transaction?.replayed),
+    reason,
+  };
+}
+
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -209,7 +231,7 @@ function normalizeFoodPaymentMode(value) {
   const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
   if (!canonical) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
-      paymentMode: 'Must be pay_now, restaurant_credit, pay_at_restaurant, or direct_payment',
+      paymentMode: 'Must be pay_now, restaurant_credit, oxsteed_credit, pay_at_restaurant, or direct_payment',
     });
   }
   return {
@@ -1844,6 +1866,7 @@ exports.quoteOrder = async (req, res, next) => {
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
     const { rows: menuRows } = await pool.query(
       `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+              fmc.name AS category_name,
               COALESCE((
                 SELECT jsonb_agg(
                   jsonb_build_object(
@@ -1871,6 +1894,7 @@ exports.quoteOrder = async (req, res, next) => {
                   AND mg.menu_item_id = fmi.id
               ), '[]'::jsonb) AS modifier_groups
          FROM food_menu_items fmi
+         LEFT JOIN food_menu_categories fmc ON fmc.id = fmi.category_id
         WHERE fmi.restaurant_id = $1
           AND fmi.id = ANY($2::bigint[])
           AND fmi.publication_status = 'published'
@@ -1969,6 +1993,7 @@ exports.quoteOrder = async (req, res, next) => {
     const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
     const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
+    if (req.user?.id) supportedPaymentModes.push('oxsteed_credit');
     if (stripeStatus.readyForCheckout) supportedPaymentModes.push('pay_now');
 
     const quote = {
@@ -2031,6 +2056,9 @@ exports.createOrder = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
     const paymentMode = paymentContract.legacy;
+    if (paymentContract.canonical === 'oxsteed_credit' && !req.user?.id) {
+      throw new AppError('Sign in to use OxSteed Credit', 401, 'credit_authentication_required');
+    }
 
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (items.length === 0) {
@@ -2143,6 +2171,7 @@ exports.createOrder = async (req, res, next) => {
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
         `SELECT fmi.id, fmi.name, fmi.price_cents, fmi.currency_code, fmi.is_available,
+                fmc.name AS category_name,
                 COALESCE((
                   SELECT jsonb_agg(
                     jsonb_build_object(
@@ -2170,6 +2199,7 @@ exports.createOrder = async (req, res, next) => {
                     AND mg.menu_item_id = fmi.id
                 ), '[]'::jsonb) AS modifier_groups
            FROM food_menu_items fmi
+           LEFT JOIN food_menu_categories fmc ON fmc.id = fmi.category_id
           WHERE fmi.restaurant_id = $1
             AND fmi.id = ANY($2::bigint[])
             AND fmi.publication_status = 'published'
@@ -2355,8 +2385,9 @@ exports.createOrder = async (req, res, next) => {
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
       const shouldDebitWalletImmediately = paymentContract.canonical === 'restaurant_credit' && Boolean(req.user?.id);
-      const initialPaymentStatus = paymentContract.canonical === 'restaurant_credit'
-        ? (shouldDebitWalletImmediately ? 'paid' : 'requires_payment')
+      const shouldDebitOxsteedCreditImmediately = paymentContract.canonical === 'oxsteed_credit' && Boolean(req.user?.id);
+      const initialPaymentStatus = ['restaurant_credit', 'oxsteed_credit'].includes(paymentContract.canonical)
+        ? ((shouldDebitWalletImmediately || shouldDebitOxsteedCreditImmediately) ? 'paid' : 'requires_payment')
         : (paymentContract.canonical === 'pay_now' ? 'requires_payment' : 'unpaid');
 
       const { rows: queueRows } = await client.query(
@@ -2549,6 +2580,7 @@ exports.createOrder = async (req, res, next) => {
       });
 
       let walletPayment = null;
+      let oxsteedCreditPayment = null;
       if (paymentContract.canonical === 'restaurant_credit') {
         if (!shouldDebitWalletImmediately) {
           walletPayment = buildWalletPaymentResponse({
@@ -2610,6 +2642,73 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
+      if (paymentContract.canonical === 'oxsteed_credit') {
+        if (total <= 0) {
+          oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
+            status: 'paid',
+            amountCents: 0,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            reason: 'zero_total_order',
+          });
+        } else {
+          const { rows: partnerRows } = await client.query(
+            `SELECT id
+               FROM oxsteed_credit_partners
+              WHERE restaurant_id = $1 AND status = 'active'
+              LIMIT 1`,
+            [restaurantId]
+          );
+          if (!partnerRows[0]) {
+            throw new AppError('This restaurant does not currently accept OxSteed Credit', 409, 'credit_partner_not_eligible');
+          }
+          const creditResult = await purchaseWithCreditInTransaction(client, {
+            customerId: req.user.id,
+            partnerId: partnerRows[0].id,
+            amountCents: total,
+            idempotencyKey: `food-order:${created.id}:oxsteed-credit`,
+            actorUserId: req.user.id,
+            actorType: 'customer',
+            orderType: fulfillmentType,
+            categories: normalizedItems.map((item) => item.menuItem.category_name).filter(Boolean),
+            menuItemIds: normalizedItems.map((item) => item.menuItem.id),
+            city: restaurant.address_city,
+            state: restaurant.address_state,
+            postalCode: restaurant.address_zip,
+            country: restaurant.address_country,
+            referenceType: 'food_order',
+            referenceId: String(created.id),
+            correlationId: clientOrderId || `food-order:${created.id}:oxsteed-credit`,
+            description: `Order #${created.id} · ${fulfillmentType}`,
+            metadata: {
+              orderId: created.id,
+              restaurantId,
+              fulfillmentType,
+              orderSource,
+              clientOrderId: clientOrderId || null,
+            },
+          });
+          const creditTransactionId = creditResult.transaction?.id || null;
+          await client.query(
+            `UPDATE food_orders
+                SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [JSON.stringify({ oxsteedCreditTransactionId: creditTransactionId }), created.id]
+          );
+          created.metadata = {
+            ...(created.metadata || {}),
+            oxsteedCreditTransactionId: creditTransactionId,
+          };
+          oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
+            status: 'paid',
+            amountCents: total,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            transaction: creditResult.transaction,
+            replayed: Boolean(creditResult.replayed),
+          });
+        }
+      }
+
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
         restaurantId,
         orderId: created.id,
@@ -2655,6 +2754,7 @@ exports.createOrder = async (req, res, next) => {
         runnerTask,
         printerJobs,
         walletPayment,
+        oxsteedCreditPayment,
       };
     }, 'food_create_order');
 
@@ -2670,6 +2770,18 @@ exports.createOrder = async (req, res, next) => {
         currencyCode: order.currency_code,
         replayed: Boolean(createdOrder.replayed),
         reason: createdOrder.replayed ? 'idempotent_order_replay' : null,
+      });
+    }
+    if (responsePaymentMode === 'oxsteed_credit') {
+      payment = createdOrder.oxsteedCreditPayment || buildOxsteedCreditPaymentResponse({
+        status: order.payment_status || 'paid',
+        amountCents: order.total_cents,
+        currencyCode: order.currency_code,
+        replayed: Boolean(createdOrder.replayed),
+        reason: createdOrder.replayed ? 'idempotent_order_replay' : null,
+        transaction: order.metadata?.oxsteedCreditTransactionId
+          ? { id: order.metadata.oxsteedCreditTransactionId }
+          : null,
       });
     }
     if (!createdOrder.replayed && paymentMode === 'pay_now') {
@@ -2968,7 +3080,7 @@ exports.updateOrderStatus = async (req, res, next) => {
                 handed_off_by = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_by, $5) ELSE fo.handed_off_by END,
                 payment_status = CASE
                   WHEN $1 IN ('cancelled', 'refunded')
-                    AND COALESCE(fo.metadata->>'paymentMode', '') = 'wallet_credit'
+                    AND COALESCE(fo.metadata->>'paymentMode', '') IN ('wallet_credit', 'oxsteed_credit')
                     AND fo.payment_status = 'paid'
                     THEN 'refunded'
                   ELSE fo.payment_status
@@ -3128,6 +3240,32 @@ exports.updateOrderStatus = async (req, res, next) => {
           posPayment: posRefundPayment,
           refunded: Boolean(refundResult.refunded),
           reason: refundResult.reason || null,
+        });
+      }
+
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit' && order.customer_id && Number(order.total_cents || 0) > 0) {
+        const refundResult = await refundCreditForReferenceInTransaction(client, {
+          referenceType: 'food_order',
+          referenceId: String(order.id),
+          amountCents: Number(order.total_cents),
+          idempotencyKey: `food-order:${order.id}:oxsteed-credit-refund`,
+          actorUserId: req.user?.id || null,
+          actorType: 'restaurant_staff',
+          reason: `Order ${status}`,
+          correlationId: `food-order-status:${order.id}:${status}`,
+          metadata: {
+            orderId: order.id,
+            orderStatus: status,
+            restaurantId,
+          },
+        });
+        payment = buildOxsteedCreditPaymentResponse({
+          status: 'refunded',
+          amountCents: Number(order.total_cents),
+          currencyCode: normalizeCurrency(order.currency_code),
+          transaction: refundResult.transaction,
+          replayed: Boolean(refundResult.replayed),
+          reason: refundResult.replayed ? 'idempotent_refund_replay' : 'order_status_transition',
         });
       }
 

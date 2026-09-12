@@ -1,0 +1,563 @@
+'use strict';
+
+const pool = require('../db');
+const { AppError } = require('../middleware/errorHandler');
+const {
+  getCustomerCreditAccount,
+  listEligiblePartners,
+  listCustomerCreditTransactions,
+  createCreditHold,
+  captureCreditHold,
+  releaseCreditHold,
+  transferCredit,
+  adjustCustomerCredit,
+  updateCustomerCreditAccountStatus,
+  openCreditDispute,
+  listCreditDisputes,
+  resolveCreditDispute,
+  loadCustomerCredit,
+} = require('../services/oxsteedCreditService');
+const {
+  listPartners,
+  registerPartner,
+  transitionPartner,
+  listAgreements,
+  listSettlements,
+  createSettlement,
+  transitionSettlement,
+  reconcileCreditLedger,
+  createAgreement,
+  transitionAgreement,
+  upsertEntitlement,
+} = require('../services/oxsteedCreditAdminService');
+
+function normalizeString(value, max = 255) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : null;
+}
+
+function parseUuid(value, fieldName) {
+  const normalized = normalizeString(value, 80);
+  if (!normalized || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
+  }
+  return normalized;
+}
+
+function parsePositiveInt(value, fieldName) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
+  return parsed;
+}
+
+function getIdempotencyKey(req) {
+  return normalizeString(req.get('Idempotency-Key') || req.body?.idempotencyKey || req.body?.idempotency_key, 160);
+}
+
+function getRequestContext(req) {
+  return {
+    actorUserId: req.user?.id || null,
+    correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    metadata: { source: 'api', requestPath: req.path },
+  };
+}
+
+async function getMyAccount(req, res, next) {
+  try {
+    const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 3) || 'USD');
+    res.json({ name: 'OxSteed Credit', account });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getEligiblePartners(req, res, next) {
+  try {
+    const partners = await listEligiblePartners({
+      customerId: req.user.id,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      city: req.query.city,
+      state: req.query.state,
+      postalCode: req.query.postalCode || req.query.postal_code,
+      country: req.query.country,
+      orderType: req.query.orderType || req.query.order_type,
+    });
+    res.json({ partners });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyTransactions(req, res, next) {
+  try {
+    const transactions = await listCustomerCreditTransactions(req.user.id, {
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ transactions });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function createMyHold(req, res, next) {
+  try {
+    const partnerId = parsePositiveInt(req.body?.partnerId || req.body?.partner_id, 'partnerId');
+    const result = await createCreditHold({
+      customerId: req.user.id,
+      partnerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      idempotencyKey: getIdempotencyKey(req),
+      ...getRequestContext(req),
+      orderType: req.body?.orderType || req.body?.order_type,
+      category: req.body?.category,
+      menuItemId: req.body?.menuItemId || req.body?.menu_item_id,
+      city: req.body?.city,
+      state: req.body?.state,
+      postalCode: req.body?.postalCode || req.body?.postal_code,
+      country: req.body?.country,
+      purpose: req.body?.purpose,
+      referenceType: req.body?.referenceType || req.body?.reference_type,
+      referenceId: req.body?.referenceId || req.body?.reference_id,
+      expiresAt: req.body?.expiresAt || req.body?.expires_at,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function releaseMyHold(req, res, next) {
+  try {
+    const holdId = parseUuid(req.params.holdId, 'holdId');
+    const result = await releaseCreditHold({
+      customerId: req.user.id,
+      holdId,
+      ...getRequestContext(req),
+      reason: req.body?.reason,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminCaptureHold(req, res, next) {
+  try {
+    const holdId = parseUuid(req.params.holdId, 'holdId');
+    const result = await captureCreditHold({
+      holdId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      actorType: 'admin',
+      orderType: req.body?.orderType || req.body?.order_type,
+      category: req.body?.category,
+      categories: req.body?.categories,
+      menuItemId: req.body?.menuItemId || req.body?.menu_item_id,
+      menuItemIds: req.body?.menuItemIds || req.body?.menu_item_ids,
+      city: req.body?.city,
+      state: req.body?.state,
+      postalCode: req.body?.postalCode || req.body?.postal_code,
+      country: req.body?.country,
+      referenceType: req.body?.referenceType || req.body?.reference_type,
+      referenceId: req.body?.referenceId || req.body?.reference_id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      description: req.body?.description,
+      reason: req.body?.reason,
+      metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
+    });
+    if (result.expired) return res.status(409).json({ ...result, code: 'credit_hold_expired' });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transferMyCredit(req, res, next) {
+  try {
+    const recipientCustomerId = parseUuid(req.body?.recipientCustomerId || req.body?.recipient_customer_id, 'recipientCustomerId');
+    const result = await transferCredit({
+      senderCustomerId: req.user.id,
+      recipientCustomerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      idempotencyKey: getIdempotencyKey(req),
+      ...getRequestContext(req),
+      referenceType: 'customer_transfer',
+      referenceId: normalizeString(req.body?.referenceId || req.body?.reference_id, 160),
+      description: req.body?.description,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function openMyDispute(req, res, next) {
+  try {
+    const transactionId = parseUuid(req.body?.transactionId || req.body?.transaction_id, 'transactionId');
+    const result = await openCreditDispute({
+      customerId: req.user.id,
+      transactionId,
+      reasonCode: req.body?.reasonCode || req.body?.reason_code,
+      description: req.body?.description,
+      actorUserId: req.user.id,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listMyDisputes(req, res, next) {
+  try {
+    res.json({ disputes: await listCreditDisputes({ customerId: req.user.id, status: req.query.status, limit: req.query.limit }) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminLoadCredit(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const referenceId = normalizeString(req.body?.referenceId || req.body?.reference_id || req.body?.fundingReference, 160);
+    if (!referenceId) throw new AppError('A funding reference is required for an administrative credit load', 400, 'credit_funding_reference_required');
+    const result = await loadCustomerCredit({
+      customerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      reason: req.body?.reason,
+      referenceType: 'admin_load',
+      referenceId,
+      metadata: { source: 'super_admin_api', fundingReference: referenceId },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminAdjustCredit(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const referenceId = normalizeString(req.body?.referenceId || req.body?.reference_id, 160);
+    const result = await adjustCustomerCredit({
+      customerId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      direction: req.body?.direction,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      referenceType: 'admin_adjustment',
+      referenceId,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminUpdateCreditAccountStatus(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, actorUserId: req.user.id, reason: req.body?.reason });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listAdminDisputes(req, res, next) {
+  try {
+    res.json({ disputes: await listCreditDisputes({ status: req.query.status, limit: req.query.limit }) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resolveAdminDispute(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const result = await resolveCreditDispute({ disputeId, status: req.body?.status, resolution: req.body?.resolution, actorUserId: req.user.id });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAdminOverview(req, res, next) {
+  try {
+    const [summaryResult, partnersResult, recentResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE account_type = 'customer_wallet')::int AS customer_accounts,
+          COALESCE(SUM(balance_cents) FILTER (WHERE account_type = 'customer_wallet'), 0) AS customer_balance_cents,
+          COALESCE(SUM(reserved_cents) FILTER (WHERE account_type = 'customer_wallet'), 0) AS customer_reserved_cents,
+          COUNT(*) FILTER (WHERE account_type = 'partner_payable')::int AS partner_accounts,
+          COALESCE(SUM(balance_cents) FILTER (WHERE account_type = 'partner_payable'), 0) AS partner_payable_cents,
+          COUNT(*) FILTER (WHERE status <> 'active')::int AS inactive_accounts
+        FROM oxsteed_credit_accounts`),
+      pool.query(`
+        SELECT p.id AS partner_id, p.restaurant_id, fr.display_name AS restaurant_name,
+               p.status, COUNT(a.id)::int AS agreement_count,
+               COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
+                 AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count
+          FROM oxsteed_credit_partners p
+          JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          LEFT JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
+         GROUP BY p.id, p.restaurant_id, fr.display_name, p.status, p.updated_at
+         ORDER BY p.updated_at DESC, p.id DESC
+         LIMIT 100`),
+      pool.query(`
+        SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+               t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
+               t.posted_at, t.created_at,
+               da.customer_id AS debit_customer_id, ca.customer_id AS credit_customer_id
+          FROM oxsteed_credit_transactions t
+          JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
+          JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
+         ORDER BY t.created_at DESC
+         LIMIT 100`),
+    ]);
+    const summary = summaryResult.rows[0] || {};
+    res.json({
+      name: 'OxSteed Credit',
+      summary: {
+        customerAccounts: Number(summary.customer_accounts || 0),
+        customerBalanceCents: Number(summary.customer_balance_cents || 0),
+        customerReservedCents: Number(summary.customer_reserved_cents || 0),
+        customerAvailableCents: Math.max(0, Number(summary.customer_balance_cents || 0) - Number(summary.customer_reserved_cents || 0)),
+        partnerAccounts: Number(summary.partner_accounts || 0),
+        partnerPayableCents: Number(summary.partner_payable_cents || 0),
+        inactiveAccounts: Number(summary.inactive_accounts || 0),
+      },
+      partners: partnersResult.rows.map((row) => ({
+        partnerId: String(row.partner_id),
+        restaurantId: String(row.restaurant_id),
+        restaurantName: row.restaurant_name,
+        status: row.status,
+        agreementCount: Number(row.agreement_count || 0),
+        activeAgreementCount: Number(row.active_agreement_count || 0),
+      })),
+      recentTransactions: recentResult.rows.map((row) => ({
+        id: String(row.id),
+        transactionType: row.transaction_type,
+        status: row.status,
+        amountCents: Number(row.amount_cents || 0),
+        currencyCode: row.currency_code,
+        partnerId: row.partner_id ? String(row.partner_id) : null,
+        agreementId: row.agreement_id || null,
+        referenceType: row.reference_type || null,
+        referenceId: row.reference_id || null,
+        debitCustomerId: row.debit_customer_id || null,
+        creditCustomerId: row.credit_customer_id || null,
+        postedAt: row.posted_at || null,
+        createdAt: row.created_at || null,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listAdminPartners(req, res, next) {
+  try {
+    const partners = await listPartners({ search: req.query.search || req.query.q, status: req.query.status });
+    res.json({ partners });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listAdminAgreements(req, res, next) {
+  try {
+    const agreements = await listAgreements({
+      partnerId: req.query.partnerId || req.query.partner_id,
+      status: req.query.status,
+    });
+    res.json({ agreements });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function registerAdminPartner(req, res, next) {
+  try {
+    const result = await registerPartner({
+      restaurantId: req.body?.restaurantId || req.body?.restaurant_id,
+      businessId: req.body?.businessId || req.body?.business_id,
+      settlementCurrencyCode: req.body?.settlementCurrencyCode || req.body?.settlement_currency_code,
+      notes: req.body?.notes,
+      actorUserId: req.user.id,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transitionAdminPartner(req, res, next) {
+  try {
+    const result = await transitionPartner({
+      partnerId: req.params.partnerId,
+      targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      reason: req.body?.reason,
+      actorUserId: req.user.id,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function createAdminAgreement(req, res, next) {
+  try {
+    const result = await createAgreement({
+      partnerId: req.params.partnerId,
+      startsAt: req.body?.startsAt || req.body?.starts_at,
+      endsAt: req.body?.endsAt || req.body?.ends_at,
+      customerTerms: req.body?.customerTerms || req.body?.customer_terms,
+      allowedOrderTypes: req.body?.allowedOrderTypes || req.body?.allowed_order_types,
+      allowedCategories: req.body?.allowedCategories || req.body?.allowed_categories,
+      allowedMenuItemIds: req.body?.allowedMenuItemIds || req.body?.allowed_menu_item_ids,
+      geography: req.body?.geography,
+      maxTransactionCents: req.body?.maxTransactionCents ?? req.body?.max_transaction_cents,
+      dailyCustomerLimitCents: req.body?.dailyCustomerLimitCents ?? req.body?.daily_customer_limit_cents,
+      lifetimeCustomerLimitCents: req.body?.lifetimeCustomerLimitCents ?? req.body?.lifetime_customer_limit_cents,
+      metadata: req.body?.metadata,
+      actorUserId: req.user.id,
+    });
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transitionAdminAgreement(req, res, next) {
+  try {
+    const agreementId = parseUuid(req.params.agreementId, 'agreementId');
+    const result = await transitionAgreement({
+      agreementId,
+      targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      reason: req.body?.reason,
+      actorUserId: req.user.id,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function upsertAdminEntitlement(req, res, next) {
+  try {
+    const agreementId = parseUuid(req.params.agreementId, 'agreementId');
+    const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    const result = await upsertEntitlement({
+      agreementId,
+      customerId,
+      status: req.body?.status,
+      startsAt: req.body?.startsAt || req.body?.starts_at,
+      endsAt: req.body?.endsAt || req.body?.ends_at,
+      maxTransactionCents: req.body?.maxTransactionCents ?? req.body?.max_transaction_cents,
+      dailyLimitCents: req.body?.dailyLimitCents ?? req.body?.daily_limit_cents,
+      reason: req.body?.reason,
+      metadata: req.body?.metadata,
+      actorUserId: req.user.id,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listAdminSettlements(req, res, next) {
+  try {
+    const settlements = await listSettlements({ partnerId: req.query.partnerId || req.query.partner_id, status: req.query.status, limit: req.query.limit });
+    res.json({ settlements });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function createAdminSettlement(req, res, next) {
+  try {
+    const agreementId = parseUuid(req.body?.agreementId || req.body?.agreement_id, 'agreementId');
+    const result = await createSettlement({
+      partnerId: req.body?.partnerId || req.body?.partner_id,
+      agreementId,
+      periodStart: req.body?.periodStart || req.body?.period_start,
+      periodEnd: req.body?.periodEnd || req.body?.period_end,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      paymentReference: req.body?.paymentReference || req.body?.payment_reference,
+      metadata: req.body?.metadata,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function transitionAdminSettlement(req, res, next) {
+  try {
+    const settlementId = parseUuid(req.params.settlementId, 'settlementId');
+    const result = await transitionSettlement({
+      settlementId,
+      targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      paymentReference: req.body?.paymentReference || req.body?.payment_reference,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function reconcileAdminCredit(req, res, next) {
+  try {
+    const result = await reconcileCreditLedger({
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      periodStart: req.body?.periodStart || req.body?.period_start,
+      periodEnd: req.body?.periodEnd || req.body?.period_end,
+      actorUserId: req.user.id,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = {
+  getMyAccount,
+  getEligiblePartners,
+  getMyTransactions,
+  createMyHold,
+  adminCaptureHold,
+  releaseMyHold,
+  transferMyCredit,
+  openMyDispute,
+  listMyDisputes,
+  adminLoadCredit,
+  adminAdjustCredit,
+  adminUpdateCreditAccountStatus,
+  listAdminDisputes,
+  resolveAdminDispute,
+  getAdminOverview,
+  listAdminPartners,
+  listAdminAgreements,
+  registerAdminPartner,
+  transitionAdminPartner,
+  createAdminAgreement,
+  transitionAdminAgreement,
+  upsertAdminEntitlement,
+  listAdminSettlements,
+  createAdminSettlement,
+  transitionAdminSettlement,
+  reconcileAdminCredit,
+};

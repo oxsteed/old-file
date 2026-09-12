@@ -22,6 +22,10 @@ import {
   getMyFoodRestaurantWallet,
   formatFoodMoney,
 } from '../../api/food';
+import {
+  getOxsteedCreditAccount,
+  listOxsteedCreditEligiblePartners,
+} from '../../api/oxsteedCredit';
 import { useLiveFoodOrder } from './useLiveFoodOrder';
 import { FOOD_STATUS_KEYS } from './foodShared';
 import Navbar from '../../components/Navbar';
@@ -192,6 +196,8 @@ export default function FoodRestaurantPage() {
   const [proofMethod, setProofMethod] = useState('upload');
   const [proofUploading, setProofUploading] = useState(false);
   const [wallet, setWallet] = useState(null);
+  const [oxsteedCreditAccount, setOxsteedCreditAccount] = useState(null);
+  const [oxsteedCreditPartner, setOxsteedCreditPartner] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [placedTrackingToken, setPlacedTrackingToken] = useState(null);
@@ -240,13 +246,36 @@ export default function FoodRestaurantPage() {
       .catch(() => setWallet(null));
   }, [user, restaurantId]);
 
+  useEffect(() => {
+    if (!user || !restaurantId) {
+      setOxsteedCreditAccount(null);
+      setOxsteedCreditPartner(null);
+      return undefined;
+    }
+    let alive = true;
+    Promise.all([
+      getOxsteedCreditAccount().catch(() => null),
+      listOxsteedCreditEligiblePartners().catch(() => []),
+    ]).then(([account, partners]) => {
+      if (!alive) return;
+      setOxsteedCreditAccount(account?.status === 'active' ? account : null);
+      setOxsteedCreditPartner(
+        (Array.isArray(partners) ? partners : []).find((partner) => String(partner.restaurantId) === String(restaurantId)) || null
+      );
+    });
+    return () => { alive = false; };
+  }, [user, restaurantId]);
+
   // Never leave restaurant_credit selected if the wallet disappears (sign-out,
   // wallet suspended, or restaurant switch).
   useEffect(() => {
     if (paymentMethod === 'restaurant_credit' && !wallet) {
       setPaymentMethod('pay_at_restaurant');
     }
-  }, [paymentMethod, wallet]);
+    if (paymentMethod === 'oxsteed_credit' && !oxsteedCreditAccount) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, wallet, oxsteedCreditAccount]);
 
   // Restore a checkout draft so the same order reappears after sign-in or page
   // refresh. The draft is kept separate from the live tracking token.
@@ -466,6 +495,8 @@ export default function FoodRestaurantPage() {
     const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
     const paymentMode = paymentMethod === 'restaurant_credit'
       ? 'restaurant_credit'
+      : paymentMethod === 'oxsteed_credit'
+        ? 'oxsteed_credit'
       : paymentMethod === 'direct_payment'
         ? 'direct_payment'
         : 'pay_at_restaurant';
@@ -501,7 +532,7 @@ export default function FoodRestaurantPage() {
         fulfillmentType,
         // Canonical restaurant payment contract mode (card checkout is pay_now).
         paymentMode,
-        // Backend currently limits promo codes to restaurant-credit orders.
+        // Promo codes remain limited to the existing restaurant-scoped wallet.
         discountCode: paymentMode === 'restaurant_credit' && promoCode.trim()
           ? promoCode.trim()
           : undefined,
@@ -941,15 +972,21 @@ export default function FoodRestaurantPage() {
     { id: '+30', label: t('food.restaurant.timeSlots.in30'), sub: t('food.restaurant.timeSlots.scheduled') },
     { id: 'later', label: t('food.restaurant.timeSlots.later'), sub: t('food.restaurant.timeSlots.chooseTime') },
   ];
-  // Payment options mirror the launch contract (`pay_at_restaurant`,
-  // `restaurant_credit`, `direct_payment`). Card checkout remains dormant
-  // in backend code, but no launch UI depends on Stripe.
+  // Payment options mirror the launch contract. OxSteed Credit is a separate
+  // signed-in stored-value rail and still requires server-side partner checks.
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
   const walletReservedCents = Number(wallet?.reservedCents || 0);
   const walletAvailableCents = Number(
     wallet?.availableBalanceCents ?? Math.max(0, walletBalanceCents - walletReservedCents)
   );
   const walletCoversOrder = walletAvailableCents >= orderTotalCents;
+  const oxsteedCreditBalanceCents = Number(oxsteedCreditAccount?.balanceCents || 0);
+  const oxsteedCreditReservedCents = Number(oxsteedCreditAccount?.reservedCents || 0);
+  const oxsteedCreditAvailableCents = Number(
+    oxsteedCreditAccount?.availableBalanceCents
+      ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
+  );
+  const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= orderTotalCents;
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
@@ -965,6 +1002,15 @@ export default function FoodRestaurantPage() {
         ? t('food.restaurant.creditAvailable', { amount: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency) })
         : t('food.restaurant.insufficientCredit', { amount: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency) }),
       disabled: !walletCoversOrder,
+    }] : []),
+    ...(oxsteedCreditPartner && oxsteedCreditAccount ? [{
+      id: 'oxsteed_credit',
+      icon: '◎',
+      label: 'OxSteed Credit',
+      sub: oxsteedCreditCoversOrder
+        ? `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`
+        : `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
+      disabled: !oxsteedCreditCoversOrder,
     }] : []),
     ...(externalPaymentEnabled ? [{
       id: 'direct_payment',
@@ -1651,9 +1697,11 @@ export default function FoodRestaurantPage() {
                     {user && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, margin: '-8px 2px 18px', padding: '11px 13px', borderRadius: 12, background: '#fff8ed', border: '1px solid #fed7aa' }}>
                         <div style={{ minWidth: 0 }}>
-                          <strong style={{ display: 'block', color: '#9a4b0c', fontSize: 12 }}>{t('food.restaurant.restaurantCredit')}</strong>
+                          <strong style={{ display: 'block', color: '#9a4b0c', fontSize: 12 }}>{paymentMethod === 'oxsteed_credit' ? 'OxSteed Credit' : t('food.restaurant.restaurantCredit')}</strong>
                           <span style={{ color: '#9a6a3c', fontSize: 11 }}>
-                            {wallet
+                            {paymentMethod === 'oxsteed_credit'
+                              ? `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)} at participating restaurants`
+                              : wallet
                               ? t('food.restaurant.creditSummary', {
                                 available: formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency),
                                 reserved: walletReservedCents > 0 ? t('food.restaurant.creditReserved', { amount: formatFoodMoney(walletReservedCents, wallet.currencyCode || currency) }) : '',
@@ -1662,7 +1710,7 @@ export default function FoodRestaurantPage() {
                           </span>
                         </div>
                         <Link
-                          to={`/restaurant-credit?restaurantId=${restaurantId}`}
+                          to={paymentMethod === 'oxsteed_credit' ? '/oxsteed-credit' : `/restaurant-credit?restaurantId=${restaurantId}`}
                           style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, textDecoration: 'none' }}
                         >
                           {t('food.restaurant.manageCredit')}

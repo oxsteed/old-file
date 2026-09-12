@@ -250,6 +250,7 @@ export default function RestaurantCreditPage() {
             <p>Each balance belongs to one restaurant. It cannot be spent or transferred at another restaurant.</p>
           </div>
           <div className="credit-hero-actions">
+            <Link to="/oxsteed-credit" className="credit-icon-button">OxSteed Credit</Link>
             {wallets.length > 0 && (
               <label>
                 <span>Restaurant</span>

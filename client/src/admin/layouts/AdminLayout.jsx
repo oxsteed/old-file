@@ -56,6 +56,7 @@ const SUPER_NAV = [
   { to: '/admin/super/dashboard',      icon: BarChart2,     label: 'Super Dashboard'  },
   { to: '/admin/super/money',          icon: DollarSign,    label: 'Money'            },
   { to: '/admin/super/restaurant-credit', icon: Wallet,      label: 'Restaurant Credit' },
+  { to: '/admin/super/oxsteed-credit', icon: Wallet,         label: 'OxSteed Credit'     },
   { to: '/admin/super/revenue',        icon: TrendingUp,    label: 'Revenue'          },
   { to: '/admin/super/fees',           icon: DollarSign,    label: 'Fee Config'        },
   { to: '/admin/super/pricing',        icon: DollarSign,    label: 'Pricing Config'    },
@@ -98,6 +99,7 @@ const SIMPLE_REGULAR_NAV = [
 const SIMPLE_SUPER_NAV = [
   '/admin/super/dashboard',
   '/admin/super/restaurant-credit',
+  '/admin/super/oxsteed-credit',
   '/admin/super/conversations',
   '/admin/super/settings',
   '/admin/super/audit-log',

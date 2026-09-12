@@ -15,6 +15,7 @@ const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
+const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 
 // —— Admin live-support availability toggle ——
 router.get('/support/availability', requireAdmin, supportCtrl.getMyAvailability);
@@ -104,6 +105,10 @@ router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAd
 router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, restaurantCreditAdminCtrl.releaseHold);
 router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, restaurantCreditAdminCtrl.approveLoadRequest);
 router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, restaurantCreditAdminCtrl.declineLoadRequest);
+
+// OxSteed Credit holds are captured only by an authorized operator. Customer
+// clients can create and release their own reservations, but never capture value.
+router.post('/super/oxsteed-credit/holds/:holdId/capture', requireSuperAdmin, oxsteedCreditCtrl.adminCaptureHold);
 
 // User management (privileged write)
 // ID / background "confirm" is super-admin only (trust & compliance).
@@ -252,6 +257,26 @@ router.get(   '/super/regions',             requireSuperAdmin, regionCtrl.listRe
 router.post(  '/super/regions',             requireSuperAdmin, regionCtrl.createRegion);
 router.put(   '/super/regions/:regionId',   requireSuperAdmin, regionCtrl.updateRegion);
 router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.deleteRegion);
+
+// OxSteed Credit is a separate globally scoped stored-value rail. Keep
+// issuance and oversight behind the existing Super Admin authentication gate.
+router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
+router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
+router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
+router.post('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.registerAdminPartner);
+router.post('/super/oxsteed-credit/partners/:partnerId/transition', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminPartner);
+router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, oxsteedCreditCtrl.createAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, oxsteedCreditCtrl.upsertAdminEntitlement);
+router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, oxsteedCreditCtrl.adminLoadCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, oxsteedCreditCtrl.adminAdjustCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
+router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, oxsteedCreditCtrl.resolveAdminDispute);
+router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
+router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.createAdminSettlement);
+router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminSettlement);
+router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCreditCtrl.reconcileAdminCredit);
 
 // User-action audit log - super-admin or admins with view_audit_log grant
 router.get(
