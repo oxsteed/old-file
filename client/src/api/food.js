@@ -95,6 +95,21 @@ export const cancelFoodWalletCreditRequest = (restaurantId, requestId) =>
 export const listMerchantFoodWalletCreditRequests = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}/customer-wallet-load-requests`, { params }).then((r) => r.data?.loadRequests || []);
 
+// Partner-facing OxSteed Credit reads are restaurant-scoped and exclude customer PII.
+export const listFoodRestaurantOxsteedCreditSettlements = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/oxsteed-credit/settlements`, { params }).then((r) => ({
+    partnerId: r.data?.partnerId || null,
+    partnerStatus: r.data?.partnerStatus || null,
+    settlements: r.data?.settlements || [],
+  }));
+
+export const listFoodRestaurantOxsteedCreditTransactions = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/oxsteed-credit/transactions`, { params }).then((r) => ({
+    partnerId: r.data?.partnerId || null,
+    partnerStatus: r.data?.partnerStatus || null,
+    transactions: r.data?.transactions || [],
+  }));
+
 export const approveMerchantFoodWalletCreditRequest = (restaurantId, requestId, payload = {}) =>
   api.post(`/food/restaurants/${restaurantId}/customer-wallet-load-requests/${requestId}/approve`, payload).then((r) => r.data);
 

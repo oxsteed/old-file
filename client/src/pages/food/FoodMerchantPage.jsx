@@ -30,6 +30,7 @@ import DeviceSetupChecklist from './FoodDeviceSetupChecklist';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
+import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -1775,6 +1776,7 @@ export default function FoodMerchantPage() {
             {selected && tab === 'store' && (
               <>
                 {canManageCredit && <RestaurantCreditManager restaurant={selected} />}
+                {canManageCredit && <OxsteedCreditPartnerManager restaurant={selected} />}
                 {canViewSettings && (
                   <SettingsTab
                     t={t}
