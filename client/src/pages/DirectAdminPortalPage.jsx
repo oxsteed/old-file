@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardList,
   DollarSign,
+  Download,
   FileText,
   Mail,
   MapPin,
@@ -30,6 +31,7 @@ import {
   confirmDirectProof,
   createDirectAdminCalendarBlock,
   deleteDirectAdminCalendarBlock,
+  exportDirectAdminCalendar,
   getDirectAdminCustomer,
   getDirectAdminCalendarBlocks,
   getDirectAdminDashboard,
@@ -648,6 +650,21 @@ function calendarRangeLabel(viewMode, days) {
   return `${first} – ${last}`;
 }
 
+function googleCalendarUrl(item) {
+  const start = new Date(item.scheduled_start_at);
+  const end = item.scheduled_end_at ? new Date(item.scheduled_end_at) : new Date(start.getTime() + (60 * 60 * 1000));
+  const format = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const title = `${item.service_category || 'Direct service'} - ${item.first_name || ''} ${item.last_name || ''}`.trim();
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: `${format(start)}/${format(end)}`,
+    location: item.service_location || item.service_city || '',
+    details: `OxSteed Direct work order #${item.id}.`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) {
   return (
     <button
@@ -697,6 +714,7 @@ function DirectAdminCalendarView() {
   const [blocks, setBlocks] = useState([]);
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockError, setBlockError] = useState('');
+  const [exportSaving, setExportSaving] = useState(false);
   const [blockForm, setBlockForm] = useState(() => {
     const startsAt = new Date();
     startsAt.setMinutes(0, 0, 0);
@@ -842,12 +860,35 @@ function DirectAdminCalendarView() {
     }
   };
 
+  const exportCalendar = async () => {
+    setExportSaving(true);
+    try {
+      const blob = await exportDirectAdminCalendar({
+        from: rangeStart.toISOString(),
+        to: rangeEnd.toISOString(),
+        status: status || undefined,
+        city: city || undefined,
+        search: search.trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'oxsteed-direct-dispatch.ics';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || 'Could not export this calendar range.');
+    } finally {
+      setExportSaving(false);
+    }
+  };
+
   return (
     <AdminShell
       title="Dispatch calendar"
       subtitle="See upcoming work by date, city, and urgency so you can route travel days without opening every request."
       profile={profile}
-      right={<div className="space-y-3 text-sm leading-6 text-slate-300"><div>Showing future, active scheduled work only.</div><button type="button" onClick={loadCalendar} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button></div>}
+      right={<div className="space-y-3 text-sm leading-6 text-slate-300"><div>Showing future, active scheduled work only.</div><div className="flex flex-wrap gap-2"><button type="button" onClick={loadCalendar} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button><button type="button" onClick={exportCalendar} disabled={exportSaving || loading} className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 font-semibold text-orange-100 disabled:opacity-50"><Download size={15} /> {exportSaving ? 'Exporting…' : 'Export ICS'}</button></div></div>}
     >
       <SectionCard title="Schedule" eyebrow="Calendar">
         <div className="flex flex-col gap-3 border-b border-white/10 pb-4 xl:flex-row xl:items-center xl:justify-between">
@@ -934,6 +975,7 @@ function DirectAdminCalendarView() {
               <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">Mark complete</button>
               <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">Cancel job</button>
               <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open full work order <ChevronRight size={15} /></Link>
+              <a href={googleCalendarUrl(selectedJob)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open in Google Calendar <ChevronRight size={15} /></a>
             </div>
           </div>
         )}

@@ -156,6 +156,11 @@ export async function getDirectAdminCalendarBlocks(params = {}) {
   return response.data;
 }
 
+export async function exportDirectAdminCalendar(params = {}) {
+  const response = await api.get('/direct/admin/calendar/export.ics', { params, responseType: 'blob' });
+  return response.data;
+}
+
 export async function createDirectAdminCalendarBlock(payload) {
   const response = await api.post('/direct/admin/calendar/blocks', payload);
   return response.data;

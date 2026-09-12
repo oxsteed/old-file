@@ -37,6 +37,7 @@ router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
 router.post('/requests/:id/proof-confirm', authenticate, ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, ctrl.getAdminDashboard);
+router.get('/admin/calendar/export.ics', authenticate, requireAdmin, ctrl.exportAdminCalendar);
 router.get('/admin/calendar/blocks', authenticate, requireAdmin, ctrl.getAdminCalendarBlocks);
 router.post('/admin/calendar/blocks', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCalendarBlock);
 router.patch('/admin/calendar/blocks/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCalendarBlock);

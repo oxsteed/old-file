@@ -100,6 +100,18 @@ function normalizeTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function icsDate(value) {
+  return new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+function icsEscape(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n');
+}
+
 function serializeCalendarBlock(row) {
   return {
     id: String(row.id),
@@ -1649,6 +1661,87 @@ exports.getAdminCalendarBlocks = async (req, res) => {
   } catch (err) {
     logger.error('getAdminCalendarBlocks error', { error: err.message });
     return res.status(500).json({ error: 'Failed to load calendar blocks' });
+  }
+};
+
+exports.exportAdminCalendar = async (req, res) => {
+  try {
+    const requestedFrom = normalizeTimestamp(req.query.from) || new Date().toISOString();
+    const requestedTo = normalizeTimestamp(req.query.to);
+    const rangeTo = requestedTo && new Date(requestedTo).getTime() > new Date(requestedFrom).getTime()
+      ? requestedTo
+      : new Date(Date.now() + (60 * 24 * 60 * 60 * 1000)).toISOString();
+    const status = cleanText(req.query.status, 32).toLowerCase();
+    const city = cleanText(req.query.city, 120);
+    const search = cleanText(req.query.search || req.query.q, 120);
+    const params = [requestedFrom, rangeTo];
+    const filters = [
+      `COALESCE(metadata->>'flow', 'direct') = 'direct'`,
+      `scheduled_start_at IS NOT NULL`,
+      `scheduled_start_at >= $1`,
+      `scheduled_start_at < $2`,
+      `status NOT IN ('cancelled', 'closed', 'completed')`,
+    ];
+    if (status && !DIRECT_CALENDAR_EXCLUDED_STATUSES.has(status)) {
+      params.push(status);
+      filters.push(`status = $${params.length}`);
+    }
+    if (city) {
+      params.push(city);
+      filters.push(`LOWER(COALESCE(service_city, service_location, '')) = LOWER($${params.length})`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      filters.push(`(
+        first_name ILIKE $${params.length}
+        OR last_name ILIKE $${params.length}
+        OR service_category ILIKE $${params.length}
+        OR service_city ILIKE $${params.length}
+        OR service_location ILIKE $${params.length}
+      )`);
+    }
+    const { rows } = await db.query(
+      `SELECT id, first_name, last_name, service_category, service_city, service_location,
+              scheduled_start_at, scheduled_end_at, status
+         FROM quote_requests
+        WHERE ${filters.join('\n          AND ')}
+        ORDER BY scheduled_start_at ASC
+        LIMIT 100`,
+      params
+    );
+    const events = rows.map((item) => {
+      const start = new Date(item.scheduled_start_at);
+      const end = item.scheduled_end_at ? new Date(item.scheduled_end_at) : new Date(start.getTime() + (60 * 60 * 1000));
+      const title = `${item.service_category || 'Direct service'} - ${item.first_name || ''} ${item.last_name || ''}`.trim();
+      const location = item.service_location || item.service_city || '';
+      return [
+        'BEGIN:VEVENT',
+        `UID:oxsteed-direct-${item.id}@oxsteed.com`,
+        `DTSTART:${icsDate(start)}`,
+        `DTEND:${icsDate(end)}`,
+        `SUMMARY:${icsEscape(title)}`,
+        location ? `LOCATION:${icsEscape(location)}` : '',
+        `DESCRIPTION:${icsEscape(`OxSteed Direct work order #${item.id}. Status: ${item.status || 'scheduled'}.`)}`,
+        `STATUS:${item.status === 'scheduled' ? 'CONFIRMED' : 'TENTATIVE'}`,
+        `DTSTAMP:${icsDate(new Date())}`,
+        'END:VEVENT',
+      ].filter(Boolean).join('\r\n');
+    });
+    const calendar = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//OxSteed//Direct Dispatch//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      ...events,
+      'END:VCALENDAR',
+    ].join('\r\n');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="oxsteed-direct-dispatch.ics"');
+    return res.send(calendar);
+  } catch (err) {
+    logger.error('exportAdminCalendar error', { error: err.message, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Failed to export calendar' });
   }
 };
 
