@@ -1344,6 +1344,9 @@ exports.scheduleRequest = async (req, res) => {
 
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
+    if (err.code === '23P01' && err.message === 'Direct schedule overlaps an existing booking') {
+      return res.status(409).json({ error: 'This dispatch member already has an overlapping booking.' });
+    }
     logger.error('scheduleRequest error', { error: err.message, id: req.params.id });
     return res.status(500).json({ error: 'Failed to schedule request' });
   }
@@ -1392,6 +1395,9 @@ exports.changeRequest = async (req, res) => {
 
     return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
   } catch (err) {
+    if (err.code === '23P01' && err.message === 'Direct schedule overlaps an existing booking') {
+      return res.status(409).json({ error: 'This dispatch member already has an overlapping booking.' });
+    }
     logger.error('changeRequest error', { error: err.message, id: req.params.id });
     return res.status(500).json({ error: 'Failed to update request' });
   }
