@@ -315,6 +315,18 @@ function assertIdempotencyReplayMatches(existing, requested) {
   }
 }
 
+function assertHoldIdempotencyReplayMatches(existing, requested) {
+  const mismatches = {};
+  for (const field of ['amount_cents', 'partner_id', 'agreement_id', 'currency_code', 'purpose', 'reference_type', 'reference_id']) {
+    const actual = existing[field] === null || existing[field] === undefined ? null : String(existing[field]).toUpperCase();
+    const expectedValue = requested[field] === null || requested[field] === undefined ? null : String(requested[field]).toUpperCase();
+    if (actual !== expectedValue) mismatches[field] = { existing: existing[field], requested: requested[field] };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Credit hold idempotency key was already used for a different hold', 409, 'credit_hold_idempotency_conflict', { mismatches });
+  }
+}
+
 async function ensureAccount(client, { accountType, customerId = null, partnerId = null, currencyCode = CREDIT_CURRENCY }) {
   const currency = normalizeCurrency(currencyCode);
   if (!['customer_wallet', 'partner_payable', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
@@ -910,9 +922,15 @@ async function createCreditHold({ customerId, partnerId, amountCents, idempotenc
       [account.id, normalizeString(idempotencyKey, 160)]
     );
     if (existingRows[0]) {
-      if (Number(existingRows[0].amount_cents) !== amount || String(existingRows[0].partner_id) !== String(partnerId)) {
-        throw new AppError('Credit hold idempotency conflict', 409, 'credit_hold_idempotency_conflict');
-      }
+      assertHoldIdempotencyReplayMatches(existingRows[0], {
+        amount_cents: amount,
+        partner_id: partnerId,
+        agreement_id: agreement.id,
+        currency_code: CREDIT_CURRENCY,
+        purpose: normalizeString(purpose, 100),
+        reference_type: normalizeString(referenceType, 80),
+        reference_id: normalizeString(referenceId, 160),
+      });
       return { hold: formatHold(existingRows[0]), replayed: true };
     }
     if (account.status !== 'active') {

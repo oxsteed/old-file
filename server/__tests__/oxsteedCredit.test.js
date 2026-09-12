@@ -548,11 +548,63 @@ test('does not create a new hold for a suspended credit account', async () => {
     partnerId: 41,
     amountCents: 100,
     idempotencyKey: 'suspended-hold-1',
-    expiresAt: '2026-09-12T13:00:00.000Z',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   })).rejects.toMatchObject({ code: 'credit_account_inactive' });
 
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_holds'))).toBe(false);
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
+});
+
+test('rejects credit hold idempotency reuse for a different agreement or reference', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-current',
+      partner_id: 41,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: [],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      settlement_currency_code: 'USD',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+      entitlement_lifetime_limit_cents: null,
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', balance_cents: '1000', reserved_cents: '0', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'hold-existing',
+      amount_cents: '100',
+      partner_id: 41,
+      agreement_id: 'agreement-old',
+      currency_code: 'USD',
+      purpose: 'Old order',
+      reference_type: 'food_order',
+      reference_id: 'order-old',
+    }] });
+
+  await expect(service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    idempotencyKey: 'hold-replay-conflict-1',
+    purpose: 'New order',
+    referenceType: 'food_order',
+    referenceId: 'order-new',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  })).rejects.toMatchObject({ code: 'credit_hold_idempotency_conflict' });
 });
 
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {

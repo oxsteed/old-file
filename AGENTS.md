@@ -30,6 +30,7 @@
 - Credit holds now validate a configurable maximum lifetime before database work (`OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES`, default 24 hours), preventing indefinite reservation of customer funds.
 - Positive administrative adjustments share the serialized global issuance cap with loads; debit corrections remain available for controlled balance remediation.
 - Optional customer transfers now enforce customer-only sender and recipient scope at the route and database lookup boundary.
+- Hold idempotent retries now compare amount, partner/agreement, currency, purpose, and references so a reused key cannot silently attach to a different order.
 - Migration `433_oxsteed_credit_identity_stability.sql` prevents changing partner restaurant/currency identity, agreement partner identity, or account customer/partner/type/currency identity after financial history exists. `verify:credit` requires the three guards.
 - The production runbook now requires replacement records instead of mutating financial identities after activity begins.
 - Remaining release evidence: apply migrations and run `npm run verify:credit` against the production database; configure managed backups/restore drills, malware scanning, alert routing, and legal/custody approvals before enabling real customer value.
