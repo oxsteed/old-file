@@ -20,6 +20,8 @@ function createCustomerApp() {
   });
   app.get('/account', controller.getMyAccount);
   app.get('/eligible-partners', controller.getEligiblePartners);
+  app.get('/statement.csv', controller.downloadMyStatement);
+  app.get('/statement', controller.getMyStatement);
   app.post('/holds', controller.createMyHold);
   app.post('/transfers', controller.transferMyCredit);
   app.use(errorHandler);
@@ -87,6 +89,85 @@ test('rejects malformed recipient ids before any credit transfer query', async (
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('invalid_recipientCustomerId');
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('returns a bounded customer statement with period totals and safe transaction fields', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    account_id: 7001,
+    currency_code: 'USD',
+    opening_balance_cents: '1000',
+    closing_balance_cents: '800',
+    transaction_count: 2,
+    total_credits_cents: '500',
+    total_debits_cents: '700',
+    transactions: [{
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '700',
+      currency_code: 'USD',
+      direction: 'debit',
+      related_partner_id: 41,
+      restaurant_name: 'Ox Burger Lab',
+      description: 'Lunch',
+      reference_type: 'food_order',
+      reference_id: 'order-1',
+      posted_at: '2026-09-10T15:00:00.000Z',
+    }],
+  }] });
+
+  const response = await request(createCustomerApp())
+    .get('/statement?from=2026-09-01&to=2026-09-12&limit=50');
+
+  expect(response.status).toBe(200);
+  expect(response.body.statement).toMatchObject({
+    accountId: '7001',
+    currencyCode: 'USD',
+    period: { from: '2026-09-01', to: '2026-09-12' },
+    openingBalanceCents: 1000,
+    closingBalanceCents: 800,
+    totalCreditsCents: 500,
+    totalDebitsCents: 700,
+    netChangeCents: -200,
+    transactionCount: 2,
+  });
+  expect(response.body.statement.transactions[0]).toEqual(expect.objectContaining({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    restaurantName: 'Ox Burger Lab',
+    direction: 'debit',
+  }));
+  expect(response.body.statement.transactions[0].idempotencyKey).toBeUndefined();
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, '2026-09-01', '2026-09-12', 50, 0, 'USD']);
+});
+
+test('rejects an invalid or oversized customer statement period before querying', async () => {
+  const response = await request(createCustomerApp())
+    .get('/statement?from=2025-01-01&to=2026-09-12');
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_statement_period_invalid');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('creates a quoted CSV statement without exposing ledger secrets', () => {
+  const csv = service.customerCreditStatementCsv({
+    transactions: [{
+      postedAt: '2026-09-10T15:00:00.000Z',
+      id: 'tx-1',
+      transactionType: 'purchase',
+      description: 'Lunch, "special"',
+      restaurantName: 'Ox Burger Lab',
+      direction: 'debit',
+      amountCents: 700,
+      currencyCode: 'USD',
+      referenceType: 'food_order',
+      referenceId: 'order-1',
+    }],
+  });
+
+  expect(csv).toContain('"Description","Restaurant"');
+  expect(csv).toContain('"Lunch, ""special"""');
+  expect(csv).not.toContain('idempotency');
 });
 
 test('requires a funding reference for Super Admin credit loads', async () => {

@@ -11,6 +11,9 @@ const MAX_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TRANSACTION_CENTS'
 const MAX_CUSTOMER_BALANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS', 1000000);
 const MAX_TOTAL_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS', 5000000);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
+const DEFAULT_STATEMENT_DAYS = 90;
+const MAX_STATEMENT_DAYS = 366;
+const MAX_STATEMENT_EXPORT_ROWS = 5000;
 const LEDGER_HASH_ALGORITHM = 'hmac_sha256_v1';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 
@@ -59,6 +62,40 @@ function parseOffset(value) {
   const parsed = Number.parseInt(String(value || ''), 10);
   if (!Number.isSafeInteger(parsed) || parsed < 0) return 0;
   return Math.min(parsed, 1000000);
+}
+
+function parseStatementPageSize(value, maxRows = 100) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return Math.min(100, maxRows);
+  return Math.min(parsed, maxRows);
+}
+
+function statementDate(value, fieldName, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `credit_statement_${fieldName}_invalid`);
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `credit_statement_${fieldName}_invalid`);
+  }
+  return value;
+}
+
+function statementPeriod(from, to) {
+  const today = new Date();
+  const defaultTo = today.toISOString().slice(0, 10);
+  const defaultFromDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (DEFAULT_STATEMENT_DAYS - 1)));
+  const defaultFrom = defaultFromDate.toISOString().slice(0, 10);
+  const periodEnd = statementDate(to, 'to', defaultTo);
+  const periodStart = statementDate(from, 'from', defaultFrom);
+  const startTime = new Date(`${periodStart}T00:00:00.000Z`).getTime();
+  const endTime = new Date(`${periodEnd}T00:00:00.000Z`).getTime();
+  const dayCount = Math.floor((endTime - startTime) / 86400000) + 1;
+  if (dayCount <= 0 || dayCount > MAX_STATEMENT_DAYS) {
+    throw new AppError(`Statement period must be between 1 and ${MAX_STATEMENT_DAYS} days`, 400, 'credit_statement_period_invalid');
+  }
+  return { from: periodStart, to: periodEnd };
 }
 
 function getLedgerSecret() {
@@ -1132,6 +1169,138 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
   return rows.map((row) => ({ ...formatTransaction(row), direction: row.direction, relatedPartnerId: row.related_partner_id ? String(row.related_partner_id) : null }));
 }
 
+function formatCustomerStatementTransaction(row) {
+  return {
+    id: String(row.id),
+    transactionType: row.transaction_type,
+    status: row.status,
+    amountCents: Number(row.amount_cents || 0),
+    currencyCode: normalizeCurrency(row.currency_code),
+    direction: row.direction,
+    partnerId: row.related_partner_id === null || row.related_partner_id === undefined ? null : String(row.related_partner_id),
+    restaurantName: row.restaurant_name || null,
+    description: row.description || null,
+    referenceType: row.reference_type || null,
+    referenceId: row.reference_id || null,
+    postedAt: row.posted_at || row.created_at || null,
+  };
+}
+
+async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100 } = {}) {
+  const period = statementPeriod(from, to);
+  const pageSize = parseStatementPageSize(limit, Math.min(Number(maxRows) || 100, MAX_STATEMENT_EXPORT_ROWS));
+  const pageOffset = parseOffset(offset);
+  const { rows } = await pool.query(
+    `WITH customer_account AS (
+       SELECT id, currency_code
+         FROM oxsteed_credit_accounts
+        WHERE account_type = 'customer_wallet' AND customer_id = $1
+        LIMIT 1
+     ), filtered_transactions AS (
+       SELECT t.*, ca.id AS customer_account_id,
+              CASE WHEN t.debit_account_id = ca.id THEN 'debit' ELSE 'credit' END AS direction,
+              CASE WHEN t.debit_account_id = ca.id THEN credit_account.partner_id ELSE debit_account.partner_id END AS related_partner_id,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_transactions t
+         JOIN customer_account ca ON (ca.id = t.debit_account_id OR ca.id = t.credit_account_id)
+         LEFT JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+         LEFT JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+         LEFT JOIN oxsteed_credit_partners partner
+           ON partner.id = CASE WHEN t.debit_account_id = ca.id THEN credit_account.partner_id ELSE debit_account.partner_id END
+         LEFT JOIN food_restaurants fr ON fr.id = partner.restaurant_id
+        WHERE t.status = 'posted'
+          AND COALESCE(t.posted_at, t.created_at) >= $2::date
+          AND COALESCE(t.posted_at, t.created_at) < ($3::date + INTERVAL '1 day')
+     ), period_transactions AS (
+       SELECT * FROM filtered_transactions
+        ORDER BY COALESCE(posted_at, created_at) DESC, id DESC
+        LIMIT $4 OFFSET $5
+     ), account_balances AS (
+       SELECT ca.id,
+              COALESCE((
+                SELECT e.balance_after_cents
+                  FROM oxsteed_credit_transaction_entries e
+                  JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
+                 WHERE e.account_id = ca.id AND t.status = 'posted'
+                   AND COALESCE(t.posted_at, t.created_at) < $2::date
+                 ORDER BY COALESCE(t.posted_at, t.created_at) DESC, e.id DESC
+                 LIMIT 1
+              ), 0) AS opening_balance_cents,
+              COALESCE((
+                SELECT e.balance_after_cents
+                  FROM oxsteed_credit_transaction_entries e
+                  JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
+                 WHERE e.account_id = ca.id AND t.status = 'posted'
+                   AND COALESCE(t.posted_at, t.created_at) < ($3::date + INTERVAL '1 day')
+                 ORDER BY COALESCE(t.posted_at, t.created_at) DESC, e.id DESC
+                 LIMIT 1
+              ), 0) AS closing_balance_cents
+         FROM customer_account ca
+     ), totals AS (
+       SELECT
+         COUNT(*)::integer AS transaction_count,
+         COALESCE(SUM(amount_cents) FILTER (WHERE direction = 'credit'), 0) AS total_credits_cents,
+         COALESCE(SUM(amount_cents) FILTER (WHERE direction = 'debit'), 0) AS total_debits_cents
+         FROM filtered_transactions
+     )
+     SELECT
+       COALESCE((SELECT currency_code FROM customer_account), $6) AS currency_code,
+       COALESCE((SELECT id FROM customer_account), NULL) AS account_id,
+       (SELECT opening_balance_cents FROM account_balances) AS opening_balance_cents,
+       (SELECT closing_balance_cents FROM account_balances) AS closing_balance_cents,
+       (SELECT transaction_count FROM totals) AS transaction_count,
+       (SELECT total_credits_cents FROM totals) AS total_credits_cents,
+       (SELECT total_debits_cents FROM totals) AS total_debits_cents,
+       COALESCE((SELECT json_agg(period_transactions ORDER BY COALESCE(posted_at, created_at) DESC, id DESC) FROM period_transactions), '[]'::json) AS transactions`,
+    [customerId, period.from, period.to, pageSize, pageOffset, CREDIT_CURRENCY]
+  );
+  const row = rows[0] || {};
+  const openingBalanceCents = Number(row.opening_balance_cents || 0);
+  const closingBalanceCents = Number(row.closing_balance_cents || 0);
+  const totalCreditsCents = Number(row.total_credits_cents || 0);
+  const totalDebitsCents = Number(row.total_debits_cents || 0);
+  const rawTransactions = Array.isArray(row.transactions) ? row.transactions : [];
+  return {
+    accountId: row.account_id === null || row.account_id === undefined ? null : String(row.account_id),
+    currencyCode: normalizeCurrency(row.currency_code),
+    period,
+    openingBalanceCents,
+    closingBalanceCents,
+    totalCreditsCents,
+    totalDebitsCents,
+    netChangeCents: totalCreditsCents - totalDebitsCents,
+    transactionCount: Number(row.transaction_count || 0),
+    offset: pageOffset,
+    limit: pageSize,
+    hasMore: pageOffset + rawTransactions.length < Number(row.transaction_count || 0),
+    transactions: rawTransactions.map(formatCustomerStatementTransaction),
+  };
+}
+
+function csvCell(value) {
+  const normalized = value === null || value === undefined ? '' : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function customerCreditStatementCsv(statement) {
+  const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Direction', 'Amount (cents)', 'Currency', 'Reference'];
+  const lines = [headers.map(csvCell).join(',')];
+  for (const transaction of statement.transactions) {
+    lines.push([
+      transaction.postedAt,
+      transaction.id,
+      transaction.transactionType,
+      transaction.description,
+      transaction.restaurantName,
+      transaction.direction,
+      transaction.amountCents,
+      transaction.currencyCode,
+      transaction.referenceType && transaction.referenceId ? `${transaction.referenceType}:${transaction.referenceId}` : '',
+    ].map(csvCell).join(','));
+  }
+  return `\ufeff${lines.join('\r\n')}\r\n`;
+}
+
 async function getCustomerCreditTransaction(customerId, transactionId) {
   const { rows } = await pool.query(
     `SELECT t.*,
@@ -1280,6 +1449,7 @@ module.exports = {
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,
+  MAX_STATEMENT_EXPORT_ROWS,
   CUSTOMER_TRANSFERS_ENABLED,
   isCreditRailEnabled,
   assertCreditRailEnabled,
@@ -1294,6 +1464,8 @@ module.exports = {
   getCustomerCreditAccount,
   listEligiblePartners,
   listCustomerCreditTransactions,
+  getCustomerCreditStatement,
+  customerCreditStatementCsv,
   getCustomerCreditTransaction,
   loadCustomerCredit,
   postJournalTransaction,

@@ -6,6 +6,8 @@ const controller = require('../controllers/oxsteedCreditController');
 
 router.get('/account', authenticate, controller.getMyAccount);
 router.get('/eligible-partners', authenticate, controller.getEligiblePartners);
+router.get('/statement.csv', authenticate, controller.downloadMyStatement);
+router.get('/statement', authenticate, controller.getMyStatement);
 router.get('/transactions', authenticate, controller.getMyTransactions);
 router.get('/transactions/:transactionId', authenticate, controller.getMyTransaction);
 router.post('/holds', authenticate, controller.createMyHold);

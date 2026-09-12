@@ -41,8 +41,18 @@
 .ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }
 .ox-credit-panel-heading .ox-credit-eyebrow { margin-bottom: 5px; }
 .ox-credit-panel h2 { margin: 0; color: #10253f; font-size: 23px; letter-spacing: -.025em; }
+.ox-credit-panel-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .ox-credit-count { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 999px; color: #a6530c; background: #fff0dd; font-size: 12px; font-weight: 850; }
+.ox-credit-download { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid rgba(182,90,12,.2); border-radius: 9px; color: #a6530c; background: #fff9f0; font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-download:hover { border-color: rgba(182,90,12,.42); background: #fff0dd; }
+.ox-credit-download:disabled { opacity: .55; cursor: wait; }
 .ox-credit-panel-copy { margin: 10px 23px 17px; color: #71808c; font-size: 13px; line-height: 1.55; }
+.ox-credit-statement-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 23px 17px; }
+.ox-credit-statement-summary div { display: grid; gap: 4px; padding: 10px 11px; border: 1px solid rgba(16,37,63,.08); border-radius: 11px; background: #fbfaf8; }
+.ox-credit-statement-summary span { color: #7d8b94; font-size: 10px; font-weight: 750; }
+.ox-credit-statement-summary strong { color: #10253f; font-size: 13px; }
+.ox-credit-statement-summary strong.positive { color: #14754d; }
+.ox-credit-statement-summary strong.negative { color: #b44b25; }
 .ox-credit-partner-list, .ox-credit-transaction-list { border-top: 1px solid rgba(16,37,63,.08); }
 .ox-credit-partner { display: flex; gap: 13px; padding: 17px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
 .ox-credit-partner:last-child, .ox-credit-transaction-list article:last-child { border-bottom: 0; }
@@ -100,8 +110,11 @@
   .ox-credit-balance-card { padding: 21px; border-radius: 22px; }
   .ox-credit-status { font-size: 10px; }
   .ox-credit-balance-grid { grid-template-columns: 1fr; }
+  .ox-credit-panel-heading { flex-wrap: wrap; }
   .ox-credit-panel-heading, .ox-credit-panel-copy, .ox-credit-partner, .ox-credit-transaction-list article { padding-left: 16px; padding-right: 16px; }
   .ox-credit-panel-copy { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-panel-actions { width: 100%; justify-content: flex-start; }
+  .ox-credit-statement-summary { margin-left: 16px; margin-right: 16px; }
   .ox-credit-secondary-link, .ox-credit-security-note { margin-left: 16px; margin-right: 16px; }
   .ox-credit-dispute-form { margin-left: 16px; margin-right: 16px; }
   .ox-credit-partner-title { flex-direction: column; gap: 5px; }

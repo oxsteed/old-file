@@ -7,6 +7,7 @@ import {
   Building2,
   AlertCircle,
   Clock3,
+  Download,
   RefreshCw,
   ShieldCheck,
   Store,
@@ -18,6 +19,8 @@ import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
   listOxsteedCreditEligiblePartners,
+  getOxsteedCreditStatement,
+  downloadOxsteedCreditStatement,
   listOxsteedCreditTransactions,
   openOxsteedCreditDispute,
 } from '../../api/oxsteedCredit';
@@ -71,8 +74,10 @@ export default function OxsteedCreditPage() {
   const [account, setAccount] = useState(null);
   const [partners, setPartners] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [statement, setStatement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [disputeTransactionId, setDisputeTransactionId] = useState(null);
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
@@ -82,14 +87,21 @@ export default function OxsteedCreditPage() {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
-      const [accountResult, partnerResult, transactionResult] = await Promise.all([
+      const [accountResult, partnerResult, statementResult] = await Promise.all([
         getOxsteedCreditAccount(),
         listOxsteedCreditEligiblePartners(),
-        listOxsteedCreditTransactions({ limit: 50 }),
+        getOxsteedCreditStatement({ limit: 50 }).catch(() => null),
       ]);
       setAccount(accountResult);
       setPartners(Array.isArray(partnerResult) ? partnerResult : []);
-      setTransactions(Array.isArray(transactionResult) ? transactionResult : []);
+      if (statementResult) {
+        setStatement(statementResult);
+        setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
+      } else {
+        const transactionResult = await listOxsteedCreditTransactions({ limit: 50 });
+        setStatement(null);
+        setTransactions(Array.isArray(transactionResult) ? transactionResult : []);
+      }
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -99,6 +111,27 @@ export default function OxsteedCreditPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const downloadStatement = async () => {
+    setDownloading(true);
+    try {
+      const response = await downloadOxsteedCreditStatement(statement?.period || {});
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-statement-${statement?.period?.from || 'recent'}-${statement?.period?.to || 'today'}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Statement downloaded.');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const submitDispute = async (event) => {
     event.preventDefault();
@@ -164,8 +197,9 @@ export default function OxsteedCreditPage() {
                 </section>
 
                 <section className="ox-credit-panel">
-                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Statement</p><h2>Recent activity</h2></div><span className="ox-credit-count">{transactions.length}</span></div>
-                  <p className="ox-credit-panel-copy">Every balance change is recorded in the OxSteed Credit ledger with a timestamp and transaction type.</p>
+                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Statement</p><h2>Recent activity</h2></div><div className="ox-credit-panel-actions"><span className="ox-credit-count">{transactions.length}</span><button type="button" className="ox-credit-download" onClick={downloadStatement} disabled={downloading || !statement}><Download size={14} /> {downloading ? 'Preparing...' : 'Download CSV'}</button></div></div>
+                  <p className="ox-credit-panel-copy">Every balance change is recorded in the OxSteed Credit ledger with a timestamp and transaction type. Showing {statement?.period?.from || 'recent'} through {statement?.period?.to || 'today'}.</p>
+                  {statement && <div className="ox-credit-statement-summary"><div><span>Credits</span><strong className="positive">+{money(statement.totalCreditsCents, currency)}</strong></div><div><span>Debits</span><strong className="negative">-{money(statement.totalDebitsCents, currency)}</strong></div><div><span>Closing balance</span><strong>{money(statement.closingBalanceCents, currency)}</strong></div></div>}
                   {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>No activity yet</strong><span>Your credit activity will appear here when a load, purchase, transfer, or refund is posted.</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction)}</strong><span>{transaction.description || 'OxSteed Credit ledger entry'}</span><small>{dateTime(transaction.postedAt || transaction.createdAt)}</small><button type="button" className="ox-credit-dispute-button" onClick={() => setDisputeTransactionId(transaction.id)}>Report a problem</button></div><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b></article>; })}</div>}
                   {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>Report a transaction problem</strong><span>This creates a review record without changing your balance automatically.</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">Incorrect amount</option><option value="unauthorized">I do not recognize this</option><option value="duplicate">Duplicate transaction</option><option value="restaurant_issue">Restaurant or order issue</option><option value="other">Other</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder="Tell us what happened" rows={3} /><div><button type="button" onClick={() => setDisputeTransactionId(null)}>Cancel</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? 'Submitting...' : 'Submit dispute'}</button></div></form>}
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> Need help with a transaction? <Link to="/support/escalation">Contact support</Link></div>

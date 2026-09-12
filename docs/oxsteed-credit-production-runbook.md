@@ -69,6 +69,12 @@ For a restore drill:
 
 Never restore over the live database as a first response. Preserve the original database for forensic review and use a planned cutover only after the restored copy passes verification.
 
+## Customer Statements
+
+Authenticated customers can retrieve a bounded statement from `GET /api/oxsteed-credit/statement`. The default period is the most recent 90 days; callers may request an inclusive `from` and `to` date window up to 366 days, with pagination for larger histories. Each response includes opening and closing balances, credit and debit totals, net change, transaction count, and customer-safe transaction details.
+
+Customers can download the same period as CSV from `GET /api/oxsteed-credit/statement.csv`. The export is capped at 5,000 transactions and returns a clear error rather than a partial file when the selected period is larger. Exported data intentionally excludes idempotency keys, ledger hashes, internal actor data, and raw transaction metadata.
+
 ## Provider and Compliance Gaps
 
 The application cannot establish licensing, custody, banking status, KYC/AML obligations, consumer disclosures, tax treatment, or partner contract validity by itself. Those are external release requirements. Likewise, managed database backups, malware scanning, alert routing, MFA/passkeys, Sentry or equivalent observability, and browser/concurrency tests must be configured and evidenced in the deployment environment before calling the rail fully production-ready.

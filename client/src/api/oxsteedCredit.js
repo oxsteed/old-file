@@ -11,6 +11,13 @@ export const listOxsteedCreditTransactions = (params = {}) =>
   api.get('/oxsteed-credit/transactions', { params })
     .then((response) => response.data?.transactions || []);
 
+export const getOxsteedCreditStatement = (params = {}) =>
+  api.get('/oxsteed-credit/statement', { params })
+    .then((response) => response.data?.statement || null);
+
+export const downloadOxsteedCreditStatement = (params = {}) =>
+  api.get('/oxsteed-credit/statement.csv', { params, responseType: 'blob' });
+
 export const getOxsteedCreditTransaction = (transactionId) =>
   api.get(`/oxsteed-credit/transactions/${transactionId}`).then((response) => response.data?.transaction || null);
 

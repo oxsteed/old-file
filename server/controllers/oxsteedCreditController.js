@@ -6,6 +6,9 @@ const {
   getCustomerCreditAccount,
   listEligiblePartners,
   listCustomerCreditTransactions,
+  getCustomerCreditStatement,
+  customerCreditStatementCsv,
+  MAX_STATEMENT_EXPORT_ROWS,
   getCustomerCreditTransaction,
   createCreditHold,
   captureCreditHold,
@@ -106,6 +109,45 @@ async function getMyTransactions(req, res, next) {
       offset: req.query.offset,
     });
     res.json({ transactions });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyStatement(req, res, next) {
+  try {
+    const statement = await getCustomerCreditStatement(req.user.id, {
+      from: req.query.from,
+      to: req.query.to,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ statement });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function downloadMyStatement(req, res, next) {
+  try {
+    const statement = await getCustomerCreditStatement(req.user.id, {
+      from: req.query.from,
+      to: req.query.to,
+      // A download is intentionally bounded to the server-side statement cap.
+      limit: MAX_STATEMENT_EXPORT_ROWS,
+      offset: 0,
+      maxRows: MAX_STATEMENT_EXPORT_ROWS,
+    });
+    if (statement.hasMore) {
+      throw new AppError('Statement is too large to export in one file; narrow the date range', 409, 'credit_statement_export_too_large');
+    }
+    const filename = `oxsteed-credit-statement-${statement.period.from}-${statement.period.to}.csv`;
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(customerCreditStatementCsv(statement));
   } catch (error) {
     next(error);
   }
@@ -578,6 +620,8 @@ module.exports = {
   getMyAccount,
   getEligiblePartners,
   getMyTransactions,
+  getMyStatement,
+  downloadMyStatement,
   getMyTransaction,
   createMyHold,
   adminCaptureHold,
