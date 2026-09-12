@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 
@@ -36,6 +36,8 @@ export default function PaymentsList() {
   const [total,      setTotal]      = useState(0);
   const [loading,    setLoading]    = useState(true);
   const [forbidden,  setForbidden]  = useState(false);
+  const [error,      setError]      = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [filters,    setFilters]    = useState({
     status: '', date_from: '', date_to: '', page: 1,
   });
@@ -43,6 +45,7 @@ export default function PaymentsList() {
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     setForbidden(false);
+    setError('');
     try {
       const params = Object.fromEntries(
         Object.entries(filters).filter(([, v]) => v !== '' && v !== 0)
@@ -50,18 +53,20 @@ export default function PaymentsList() {
       const { data } = await adminApi.get('/admin/payments', { params });
       setPayments(data.payments || []);
       setTotal(data.total || 0);
+      setLastUpdated(new Date());
     } catch (err) {
       if (err?.response?.status === 403) {
         setForbidden(true);
         setPayments([]);
       } else {
         console.error('Failed to fetch payments:', err);
+        setError(err?.response?.data?.error || t('common.failedToLoad'));
         setPayments([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => { fetchPayments(); }, [fetchPayments]);
 
@@ -89,13 +94,38 @@ export default function PaymentsList() {
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <CreditCard size={22} className="text-orange-400" />
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-white">{t('adminPaymentsList.title')}</h1>
           <p className="text-gray-400 text-sm mt-0.5">{t('adminPaymentsList.count', { count: total })}</p>
         </div>
+        <div className="flex items-center gap-3">
+          {lastUpdated && !loading && (
+            <span className="hidden sm:inline text-xs text-gray-500">
+              {t('common.updated')} {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={fetchPayments}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            {loading ? t('common.loading') : t('common.refresh')}
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={fetchPayments} className="font-semibold text-red-100 underline underline-offset-2 hover:text-white">
+            {t('common.retry')}
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
