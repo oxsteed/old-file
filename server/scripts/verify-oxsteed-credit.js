@@ -101,6 +101,11 @@ async function main() {
       ['424_oxsteed_credit_database_integrity.sql']
     );
     checks.databaseIntegrityMigrationApplied = integrityMigrationRows.length === 1;
+    const { rows: immutabilityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['425_oxsteed_credit_transaction_immutability.sql']
+    );
+    checks.transactionImmutabilityMigrationApplied = immutabilityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -137,12 +142,13 @@ async function main() {
         WHERE NOT tgisinternal
           AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass)
           AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_entries_guard']]
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard']]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
     checks.missingIntegrityTriggers = [
       'oxsteed_credit_transaction_account_guard',
       'oxsteed_credit_transaction_entries_guard',
+      'oxsteed_credit_transaction_immutable_guard',
     ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
@@ -222,6 +228,7 @@ async function main() {
       !checks.foundationMigrationApplied,
       !checks.emergencyMigrationApplied,
       !checks.databaseIntegrityMigrationApplied,
+      !checks.transactionImmutabilityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
