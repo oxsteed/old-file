@@ -107,8 +107,12 @@ function statementPeriod(from, to) {
 }
 
 function getLedgerSecret() {
-  const secret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET || process.env.JWT_SECRET;
-  if (!secret) throw new Error('Missing OxSteed Credit ledger HMAC secret');
+  const dedicatedSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  if (process.env.NODE_ENV === 'production' && !dedicatedSecret) {
+    throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_SECRET is required in production');
+  }
+  const secret = dedicatedSecret || process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) throw new Error('Missing or weak OxSteed Credit ledger HMAC secret');
   return secret;
 }
 

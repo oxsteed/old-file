@@ -50,7 +50,7 @@ function createAdminApp() {
 
 beforeEach(() => {
   resetMocks();
-  process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-test-ledger-secret';
+  process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-test-ledger-secret-32-chars!!';
 });
 
 afterAll(() => {
@@ -377,6 +377,19 @@ test('hashes the same journal payload deterministically', () => {
   };
 
   expect(service.computeEntryHash(payload)).toBe(service.computeEntryHash({ ...payload, metadata: { a: 1, b: 2 } }));
+});
+
+test('requires a dedicated ledger secret in production', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalLedgerSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  process.env.NODE_ENV = 'production';
+  delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+
+  expect(() => service.computeEntryHash({ transactionId: 'tx-1', accountId: 7, entrySide: 'debit', amountCents: 1 })).toThrow('OXSTEED_CREDIT_LEDGER_HMAC_SECRET');
+
+  process.env.NODE_ENV = originalNodeEnv;
+  if (originalLedgerSecret === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  else process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = originalLedgerSecret;
 });
 
 test('counts active credit holds toward agreement spending limits', async () => {

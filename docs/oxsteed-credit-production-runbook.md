@@ -10,6 +10,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - A custody and funding process exists for every credit load, including who owns the funds and how partner payables are funded.
 - Partner agreements define acceptance, eligible categories and locations, settlement timing, fees, refunds, disputes, termination, and data handling.
 - `OXSTEED_CREDIT_LEDGER_HMAC_SECRET` is set to a high-entropy secret and is protected separately from source control and ordinary application logs.
+- Production ledger verification does not fall back to `JWT_SECRET`; rotate and store the dedicated ledger secret independently from authentication secrets.
 - The database backup schedule is active, backups are stored outside the application host, and a restore test has been completed.
 - The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`.
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
