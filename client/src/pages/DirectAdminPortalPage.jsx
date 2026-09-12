@@ -330,22 +330,32 @@ function DirectAdminDashboardView() {
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError('');
     getDirectAdminDashboard()
       .then((next) => {
-        if (active) setData(next);
+        if (active) {
+          setData(next);
+          setLastUpdated(new Date());
+        }
       })
       .catch((error) => {
-        if (active) toast.error(error?.response?.data?.error || 'Failed to load Direct dashboard');
+        if (active) {
+          setError(error?.response?.data?.error || 'Failed to load Direct dashboard');
+          toast.error(error?.response?.data?.error || 'Failed to load Direct dashboard');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
-      });
+    });
     return () => { active = false; };
-  }, []);
+  }, [reloadKey]);
 
   return (
     <AdminShell
@@ -361,6 +371,9 @@ function DirectAdminDashboardView() {
             <Link to="/direct/admin/inbox" className="rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white text-center">{t('directAdminPortal.openInbox', { defaultValue: 'Open inbox' })}</Link>
             <Link to="/direct/admin/settings" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white text-center">{t('directAdminPortal.settings', { defaultValue: 'Settings' })}</Link>
           </div>
+          <button type="button" onClick={() => setReloadKey((current) => current + 1)} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-orange-500/40 disabled:opacity-50">
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Refreshing…' : 'Refresh dashboard'}
+          </button>
         </div>
       )}
     >
@@ -368,8 +381,16 @@ function DirectAdminDashboardView() {
         <SectionCard title={t('directAdminPortal.loading', { defaultValue: 'Loading…' })} eyebrow={t('directAdminPortal.dashboardEyebrow', { defaultValue: 'Dashboard' })}>
           <div className="text-sm text-slate-400">{t('directAdminPortal.fetchingData', { defaultValue: 'Fetching Direct operations data…' })}</div>
         </SectionCard>
+      ) : error ? (
+        <SectionCard title="Direct dashboard unavailable" eyebrow="Recovery">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-red-200">{error}</p>
+            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="rounded-xl border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/10">Try again</button>
+          </div>
+        </SectionCard>
       ) : (
         <div className="grid gap-4">
+          {lastUpdated && <div className="text-right text-xs text-slate-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <MiniStat label="Total requests" value={data?.totals?.total_requests || 0} icon={ClipboardList} tone="blue" />
             <MiniStat label="Intake" value={data?.totals?.intake_requests || 0} icon={Search} tone="violet" />
