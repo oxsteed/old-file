@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { RefreshCw, RotateCcw, ScrollText } from 'lucide-react';
 import adminApi                from '../../../lib/adminApi';
 
 export default function AuditLog() {
@@ -6,6 +7,7 @@ export default function AuditLog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [page,    setPage]    = useState(1);
   const [filters, setFilters] = useState({
     action: '', target_type: ''
@@ -20,6 +22,7 @@ export default function AuditLog() {
           params: { page, limit: 50, ...filters }
         });
         setLog(data.log || []);
+        setLastLoadedAt(new Date());
       } catch (err) {
         console.error(err);
         setLog([]);
@@ -51,12 +54,33 @@ export default function AuditLog() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2">
+              <ScrollText size={19} className="text-orange-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+          </div>
           <p className="text-gray-400 text-sm mt-1">
             Full record of all admin actions - immutable.
           </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={() => setRetry(value => value + 1)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-sm text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 transition"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Refreshing' : 'Refresh'}
+          </button>
+          {lastLoadedAt && !loading && (
+            <span className="text-[11px] text-gray-600">
+              Updated {lastLoadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
         </div>
       </div>
 
@@ -83,6 +107,16 @@ export default function AuditLog() {
             <option key={t} value={t} className="capitalize">{t}</option>
           ))}
         </select>
+        {(filters.action || filters.target_type) && (
+          <button
+            type="button"
+            onClick={() => { setPage(1); setFilters({ action: '', target_type: '' }); }}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition"
+          >
+            <RotateCcw size={14} />
+            Clear filters
+          </button>
+        )}
       </div>
 
       {error && (
