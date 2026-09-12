@@ -375,6 +375,21 @@ async function getExistingTransaction(client, idempotencyKey) {
   return rows[0] || null;
 }
 
+async function assertIssuanceCapacity(client, amountCents) {
+  // The cap is global, so serialize the outstanding-balance check across all
+  // customers before approving a new positive-value movement.
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['oxsteed-credit:issuance-limit']);
+  const { rows } = await client.query(
+    `SELECT COALESCE(SUM(balance_cents), 0) AS total_cents
+       FROM oxsteed_credit_accounts
+      WHERE account_type = 'customer_wallet' AND currency_code = $1`,
+    [CREDIT_CURRENCY]
+  );
+  if (Number(rows[0]?.total_cents || 0) + amountCents > MAX_TOTAL_ISSUANCE_CENTS) {
+    throw new AppError('OxSteed Credit issuance limit reached', 409, 'credit_total_issuance_limit');
+  }
+}
+
 async function postJournalTransaction(client, input) {
   const amountCents = parseAmountCents(input.amountCents);
   const idempotencyKey = normalizeString(input.idempotencyKey, 160);
@@ -732,20 +747,7 @@ async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, act
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
     const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
-    if (!existing) {
-      // The issuance cap is global, so serialize the outstanding-balance check
-      // across customers before approving a new load.
-      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['oxsteed-credit:issuance-limit']);
-      const { rows } = await client.query(
-        `SELECT COALESCE(SUM(balance_cents), 0) AS total_cents
-           FROM oxsteed_credit_accounts
-          WHERE account_type = 'customer_wallet' AND currency_code = $1`,
-        [CREDIT_CURRENCY]
-      );
-      if (Number(rows[0]?.total_cents || 0) + amount > MAX_TOTAL_ISSUANCE_CENTS) {
-        throw new AppError('OxSteed Credit issuance limit reached', 409, 'credit_total_issuance_limit');
-      }
-    }
+    if (!existing) await assertIssuanceCapacity(client, amount);
     return postJournalTransaction(client, {
       transactionType: 'load',
       debitAccountId: treasuryAccount.id,
@@ -852,6 +854,8 @@ async function adjustCustomerCredit({ customerId, amountCents, direction = 'cred
   return withTransaction(pool, async (client) => {
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
+    const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
+    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount);
     return postJournalTransaction(client, {
       transactionType: 'adjustment',
       debitAccountId: direction === 'credit' ? treasuryAccount.id : customerAccount.id,

@@ -332,6 +332,26 @@ test('serializes the global outstanding issuance cap before a new load', async (
   expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
 });
 
+test('applies the global issuance cap to positive administrative adjustments', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '100', reserved_cents: '0', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 9001, account_type: 'platform_treasury', customer_id: null, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ total_cents: '5000000' }] });
+
+  await expect(service.adjustCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    direction: 'credit',
+    idempotencyKey: 'adjustment-cap-1',
+    reason: 'Cap test',
+  })).rejects.toMatchObject({ code: 'credit_total_issuance_limit' });
+  expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit']);
+});
+
 test('rejects malformed hold capture ids before any database query', async () => {
   const response = await request(createAdminApp())
     .post('/capture/not-a-uuid')
