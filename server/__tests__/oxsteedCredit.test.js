@@ -234,6 +234,93 @@ test('requires a funding reference for Super Admin credit loads', async () => {
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('serializes the global outstanding issuance cap before a new load', async () => {
+  const customerAccount = {
+    id: 7001,
+    account_type: 'customer_wallet',
+    customer_id: CUSTOMER_ID,
+    partner_id: null,
+    currency_code: 'USD',
+    balance_cents: '0',
+    reserved_cents: '0',
+    status: 'active',
+    ledger_version: '0',
+    last_entry_hash: null,
+  };
+  const treasuryAccount = {
+    id: 9001,
+    account_type: 'platform_treasury',
+    customer_id: null,
+    partner_id: null,
+    currency_code: 'USD',
+    balance_cents: '0',
+    reserved_cents: '0',
+    status: 'active',
+    ledger_version: '0',
+    last_entry_hash: null,
+  };
+  const transaction = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'load',
+    status: 'posted',
+    debit_account_id: 9001,
+    credit_account_id: 7001,
+    amount_cents: '100',
+    currency_code: 'USD',
+    partner_id: null,
+    agreement_id: null,
+    idempotency_key: 'issuance-test-1',
+    reference_type: 'admin_load',
+    reference_id: null,
+    posted_at: '2026-09-12T12:00:00.000Z',
+    created_at: '2026-09-12T12:00:00.000Z',
+  };
+  const entry = {
+    id: 1,
+    transaction_id: transaction.id,
+    account_id: 9001,
+    entry_side: 'debit',
+    amount_cents: '100',
+    balance_after_cents: '-100',
+    sequence: '1',
+    previous_entry_hash: null,
+    entry_hash: 'hash-1',
+    metadata: {},
+    created_at: transaction.created_at,
+  };
+  const updatedTreasury = { ...treasuryAccount, balance_cents: '-100', ledger_version: '1', last_entry_hash: 'hash-1' };
+  const updatedCustomer = { ...customerAccount, balance_cents: '100', ledger_version: '1', last_entry_hash: 'hash-2' };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [customerAccount] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [treasuryAccount] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ total_cents: '0' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [customerAccount, treasuryAccount] })
+    .mockResolvedValueOnce({ rows: [transaction] })
+    .mockResolvedValueOnce({ rows: [updatedTreasury] })
+    .mockResolvedValueOnce({ rows: [entry] })
+    .mockResolvedValueOnce({ rows: [updatedCustomer] })
+    .mockResolvedValueOnce({ rows: [{ ...entry, id: 2, account_id: 7001, entry_side: 'credit', balance_after_cents: '100', entry_hash: 'hash-2' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await service.loadCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    idempotencyKey: 'issuance-test-1',
+  });
+
+  expect(result.transaction.amountCents).toBe(100);
+  expect(mockQuery.mock.calls[7][0]).toContain('pg_advisory_xact_lock');
+  expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit']);
+  expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
+});
+
 test('rejects malformed hold capture ids before any database query', async () => {
   const response = await request(createAdminApp())
     .post('/capture/not-a-uuid')

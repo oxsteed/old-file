@@ -708,12 +708,17 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
 
 async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
-  if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
     await assertCreditRailEnabled(client);
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
-    if (!(await getExistingTransaction(client, normalizeString(idempotencyKey, 160)))) {
+    const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
+    if (!existing) {
+      // The issuance cap is global, so serialize the outstanding-balance check
+      // across customers before approving a new load.
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['oxsteed-credit:issuance-limit']);
       const { rows } = await client.query(
         `SELECT COALESCE(SUM(balance_cents), 0) AS total_cents
            FROM oxsteed_credit_accounts
