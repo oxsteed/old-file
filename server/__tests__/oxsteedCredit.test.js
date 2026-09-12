@@ -100,6 +100,7 @@ test('keeps admin credit overview balances separated by currency', async () => {
 
   expect(response.status).toBe(200);
   expect(response.body.summary).toMatchObject({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 });
+  expect(response.body.supportedCurrencies).toEqual(expect.arrayContaining(['USD', 'EUR']));
   expect(response.body.summaryByCurrency).toEqual(expect.arrayContaining([
     expect.objectContaining({ currencyCode: 'EUR', customerBalanceCents: 2500, customerAvailableCents: 2000 }),
     expect.objectContaining({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 }),
