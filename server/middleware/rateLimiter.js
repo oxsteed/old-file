@@ -357,6 +357,58 @@ const connectAccountLimiter = rateLimit({
   },
 });
 
+// OxSteed Credit mutation limiter: holds, transfers, disputes, and releases
+// are financially sensitive even though they are protected by idempotency.
+// Keep this bucket separate from general API traffic so a noisy read client
+// cannot consume the write budget. Redis makes the limit consistent across
+// application instances; the in-memory fallback remains development-only.
+const creditMutationLimiter = rateLimit({
+  ...createStoreOption('rl:oxsteed_credit_mutation:'),
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many OxSteed Credit changes. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Super Admin credit controls can issue, adjust, suspend, and settle value.
+// They use a distinct bucket so operator activity cannot exhaust a customer
+// bucket and so the audit trail remains the primary authorization control.
+const creditAdminMutationLimiter = rateLimit({
+  ...createStoreOption('rl:oxsteed_credit_admin_mutation:'),
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `admin:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many OxSteed Credit administrative changes. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Statements are bounded, but exports can still be expensive and contain
+// sensitive financial history. Limit exports independently of normal reads.
+const creditExportLimiter = rateLimit({
+  ...createStoreOption('rl:oxsteed_credit_export:'),
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many OxSteed Credit exports. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
 module.exports = {
   generalLimiter,
   authenticatedLimiter,
@@ -377,4 +429,7 @@ module.exports = {
   termsLimiter,
   paymentsLimiter,
   connectAccountLimiter,
+  creditMutationLimiter,
+  creditAdminMutationLimiter,
+  creditExportLimiter,
 };

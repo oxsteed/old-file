@@ -16,6 +16,7 @@ const adminMsgCtrl    = require('../controllers/adminMessageController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
+const { creditAdminMutationLimiter } = require('../middleware/rateLimiter');
 
 // —— Admin live-support availability toggle ——
 router.get('/support/availability', requireAdmin, supportCtrl.getMyAvailability);
@@ -108,7 +109,7 @@ router.post('/super/restaurant-credit/load-requests/:requestId/decline', require
 
 // OxSteed Credit holds are captured only by an authorized operator. Customer
 // clients can create and release their own reservations, but never capture value.
-router.post('/super/oxsteed-credit/holds/:holdId/capture', requireSuperAdmin, oxsteedCreditCtrl.adminCaptureHold);
+router.post('/super/oxsteed-credit/holds/:holdId/capture', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminCaptureHold);
 
 // User management (privileged write)
 // ID / background "confirm" is super-admin only (trust & compliance).
@@ -261,25 +262,25 @@ router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.delete
 // OxSteed Credit is a separate globally scoped stored-value rail. Keep
 // issuance and oversight behind the existing Super Admin authentication gate.
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
-router.post('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.updateAdminCreditRail);
+router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
-router.post('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.registerAdminPartner);
-router.post('/super/oxsteed-credit/partners/:partnerId/transition', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminPartner);
-router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, oxsteedCreditCtrl.createAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, oxsteedCreditCtrl.upsertAdminEntitlement);
-router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, oxsteedCreditCtrl.adminLoadCredit);
-router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, oxsteedCreditCtrl.adminAdjustCredit);
-router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
+router.post('/super/oxsteed-credit/partners', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.registerAdminPartner);
+router.post('/super/oxsteed-credit/partners/:partnerId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminPartner);
+router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
+router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
-router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, oxsteedCreditCtrl.resolveAdminDispute);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
-router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.createAdminSettlement);
-router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminSettlement);
-router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCreditCtrl.reconcileAdminCredit);
+router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
+router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
+router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 
 // User-action audit log - super-admin or admins with view_audit_log grant
 router.get(

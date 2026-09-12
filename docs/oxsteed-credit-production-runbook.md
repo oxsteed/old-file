@@ -15,6 +15,22 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
 
+## API Abuse Controls
+
+Credit reads use the normal authenticated API budget. Financially sensitive
+operations use separate user-scoped limits so ordinary browsing cannot consume
+the mutation budget:
+
+- Customer holds, releases, transfers, and disputes: 60 requests per 15 minutes per customer.
+- Super Admin credit writes, partner controls, settlement actions, and reconciliation: 60 requests per 15 minutes per operator.
+- Customer statement CSV exports: 10 requests per hour per customer.
+
+These limits complement, rather than replace, authorization, idempotency keys,
+database constraints, and the immutable audit trail. Configure `REDIS_URL` in
+production so every application replica shares the same rate-limit buckets. The
+in-memory fallback is for local development and is not sufficient for a
+multi-instance deployment.
+
 ## First Deployment
 
 Run these commands from the server directory against the intended database:
