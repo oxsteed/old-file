@@ -11,6 +11,7 @@ import {
   Mail,
   MapPin,
   MessageSquare,
+  Pencil,
   RefreshCw,
   Search,
   Settings,
@@ -42,6 +43,7 @@ import {
   getDirectAdminRequest,
   getDirectAdminSettings,
   getDirectAdminTeam,
+  updateDirectAdminCalendarBlock,
   updateDirectAdminRequest,
   updateDirectAdminSettings,
   sendDirectAdminTestEmail,
@@ -720,6 +722,7 @@ function DirectAdminCalendarView() {
   const [assignees, setAssignees] = useState([]);
   const [auditEntries, setAuditEntries] = useState([]);
   const [calendarPage, setCalendarPage] = useState(1);
+  const [editingBlockId, setEditingBlockId] = useState(null);
   const [blockForm, setBlockForm] = useState(() => {
     const startsAt = new Date();
     startsAt.setMinutes(0, 0, 0);
@@ -848,16 +851,19 @@ function DirectAdminCalendarView() {
     }
   };
 
-  const createCalendarBlock = async (event) => {
+  const saveCalendarBlock = async (event) => {
     event.preventDefault();
     setBlockSaving(true);
     setBlockError('');
     try {
-      await createDirectAdminCalendarBlock({
+      const payload = {
         ...blockForm,
         starts_at: new Date(blockForm.starts_at).toISOString(),
         ends_at: new Date(blockForm.ends_at).toISOString(),
-      });
+      };
+      if (editingBlockId) await updateDirectAdminCalendarBlock(editingBlockId, payload);
+      else await createDirectAdminCalendarBlock(payload);
+      setEditingBlockId(null);
       setBlockForm((current) => ({ ...current, title: '', notes: '' }));
       await loadCalendar();
     } catch (requestError) {
@@ -865,6 +871,25 @@ function DirectAdminCalendarView() {
     } finally {
       setBlockSaving(false);
     }
+  };
+
+  const editCalendarBlock = (block) => {
+    setEditingBlockId(block.id);
+    setBlockForm({
+      block_type: block.blockType,
+      title: block.title || '',
+      starts_at: calendarDateTimeInputValue(block.startsAt),
+      ends_at: calendarDateTimeInputValue(block.endsAt),
+      city: block.city || '',
+      notes: block.notes || '',
+    });
+    setBlockError('');
+  };
+
+  const cancelCalendarBlockEdit = () => {
+    setEditingBlockId(null);
+    setBlockForm((current) => ({ ...current, title: '', notes: '' }));
+    setBlockError('');
   };
 
   const removeCalendarBlock = async (id) => {
@@ -1017,13 +1042,13 @@ function DirectAdminCalendarView() {
 
       <SectionCard title="Availability & blackout blocks" eyebrow="Dispatch rules">
         <p className="text-sm leading-6 text-slate-400">Reserve time for holidays, planned closures, staffing limits, or open availability. Unavailable blocks prevent overlapping schedules.</p>
-        <form onSubmit={createCalendarBlock} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <form onSubmit={saveCalendarBlock} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <Field label="Block type"><Select value={blockForm.block_type} onChange={(event) => setBlockForm((current) => ({ ...current, block_type: event.target.value }))}><option value="unavailable">Unavailable</option><option value="holiday">Holiday</option><option value="blackout">Blackout</option><option value="availability">Availability</option></Select></Field>
           <Field label="Title" required><Input required maxLength={200} value={blockForm.title} onChange={(event) => setBlockForm((current) => ({ ...current, title: event.target.value }))} placeholder="Team day off" /></Field>
           <Field label="Starts" required><Input required type="datetime-local" value={blockForm.starts_at} onChange={(event) => setBlockForm((current) => ({ ...current, starts_at: event.target.value }))} /></Field>
           <Field label="Ends" required><Input required type="datetime-local" value={blockForm.ends_at} onChange={(event) => setBlockForm((current) => ({ ...current, ends_at: event.target.value }))} /></Field>
           <Field label="City"><Input maxLength={120} value={blockForm.city} onChange={(event) => setBlockForm((current) => ({ ...current, city: event.target.value }))} placeholder="All cities" /></Field>
-          <div className="flex items-end"><button type="submit" disabled={blockSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{blockSaving ? 'Saving…' : 'Add block'}</button></div>
+          <div className="flex items-end gap-2"><button type="submit" disabled={blockSaving} className="flex-1 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{blockSaving ? 'Saving…' : editingBlockId ? 'Save changes' : 'Add block'}</button>{editingBlockId && <button type="button" onClick={cancelCalendarBlockEdit} disabled={blockSaving} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-semibold text-slate-300 disabled:opacity-50">Cancel</button>}</div>
           <div className="md:col-span-2 xl:col-span-6"><Field label="Notes"><Textarea rows={2} maxLength={5000} value={blockForm.notes} onChange={(event) => setBlockForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional dispatch note" /></Field></div>
         </form>
         {blockError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{blockError}</div>}
@@ -1031,7 +1056,7 @@ function DirectAdminCalendarView() {
           {blocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">No availability or blackout blocks overlap this calendar range.</div> : blocks.map((block) => (
             <div key={block.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Chip tone={block.blockType === 'availability' ? 'emerald' : 'orange'}>{block.blockType}</Chip><span className="font-semibold text-white">{block.title}</span>{block.city && <span className="text-xs text-slate-500">{block.city}</span>}</div><div className="mt-1 text-xs text-slate-400">{formatDateTime(block.startsAt)} – {formatDateTime(block.endsAt)}{block.notes ? ` · ${block.notes}` : ''}</div></div>
-              <button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Remove</button>
+              <div className="flex items-center gap-2"><button type="button" onClick={() => editCalendarBlock(block)} disabled={blockSaving} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 disabled:opacity-50"><Pencil size={13} /> Edit</button><button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Remove</button></div>
             </div>
           ))}
         </div>
