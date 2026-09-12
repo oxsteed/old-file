@@ -121,6 +121,11 @@ async function main() {
       ['428_oxsteed_credit_transaction_currency_integrity.sql']
     );
     checks.transactionCurrencyIntegrityMigrationApplied = transactionCurrencyMigrationRows.length === 1;
+    const { rows: settlementIntegrityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['429_oxsteed_credit_settlement_integrity.sql']
+    );
+    checks.settlementIntegrityMigrationApplied = settlementIntegrityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -155,9 +160,9 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass)
           AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard']]
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard']]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
     checks.missingIntegrityTriggers = [
@@ -167,6 +172,7 @@ async function main() {
       'oxsteed_credit_transaction_immutable_guard',
       'oxsteed_credit_hold_integrity_guard',
       'oxsteed_credit_account_integrity_guard',
+      'oxsteed_credit_settlement_integrity_guard',
     ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
@@ -218,6 +224,18 @@ async function main() {
     );
     checks.invalidTransactionCurrencies = Number(transactionCurrencyRows[0]?.invalid_count || 0);
 
+    const { rows: settlementIntegrityRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_settlements s
+         LEFT JOIN oxsteed_credit_partner_agreements a ON a.id = s.agreement_id
+         LEFT JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+        WHERE a.id IS NULL
+           OR p.id IS NULL
+           OR s.partner_id IS DISTINCT FROM a.partner_id
+           OR s.currency_code IS DISTINCT FROM p.settlement_currency_code`,
+    );
+    checks.invalidSettlements = Number(settlementIntegrityRows[0]?.invalid_count || 0);
+
     const { rows: hashInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transaction_entries
@@ -259,6 +277,7 @@ async function main() {
       !checks.holdIntegrityMigrationApplied,
       !checks.accountIntegrityMigrationApplied,
       !checks.transactionCurrencyIntegrityMigrationApplied,
+      !checks.settlementIntegrityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -267,6 +286,7 @@ async function main() {
       checks.invalidAccountBalances > 0,
       checks.invalidPurchases > 0,
       checks.invalidTransactionCurrencies > 0,
+      checks.invalidSettlements > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,
