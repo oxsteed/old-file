@@ -15,6 +15,7 @@ const { startConsultingSessionReminders } = require('../jobs/consultingSessionRe
 const { startConsultingPostSessionFollowup } = require('../jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('../jobs/consultingNoShowFollowup');
 const { startCalendarReminderJob } = require('../jobs/calendarReminders');
+const { startDirectCalendarReminderJob } = require('../jobs/directCalendarReminders');
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
@@ -56,6 +57,7 @@ class BackgroundWorkers {
       startConsultingPostSessionFollowup();
       startConsultingNoShowFollowup();
       this.handles.push(startCalendarReminderJob());
+      this.handles.push(startDirectCalendarReminderJob());
       this.handles.push(startAffiliateCommissionBatchJob());
       startScheduledDeletionJob();
       startTemplateExpiryJob();
