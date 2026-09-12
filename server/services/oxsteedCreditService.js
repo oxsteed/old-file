@@ -78,10 +78,95 @@ async function isCreditRailEnabled(client) {
   }
 }
 
+async function lockCreditRail(client) {
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    ['oxsteed-credit-rail-control']
+  );
+}
+
 async function assertCreditRailEnabled(client) {
+  await lockCreditRail(client);
   if (!(await isCreditRailEnabled(client))) {
     throw new AppError('OxSteed Credit is temporarily suspended', 503, 'credit_rail_suspended');
   }
+}
+
+function formatCreditRailStatus(row) {
+  if (!row) return null;
+  return {
+    key: row.key,
+    enabled: row.is_enabled === true,
+    status: row.is_enabled === true ? 'enabled' : 'suspended',
+    description: row.description || null,
+    updatedBy: row.updated_by || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+async function getCreditRailStatus() {
+  try {
+    const { rows } = await pool.query(
+      `SELECT key, is_enabled, description, updated_by, updated_at
+         FROM feature_flags
+        WHERE key = 'oxsteed_credit_enabled'
+        LIMIT 1`
+    );
+    if (!rows[0]) throw new Error('OxSteed Credit feature flag is missing');
+    return formatCreditRailStatus(rows[0]);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('OxSteed Credit is temporarily unavailable', 503, 'credit_rail_status_unavailable');
+  }
+}
+
+async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId }) {
+  if (typeof enabled !== 'boolean') {
+    throw new AppError('Rail enabled must be a boolean', 400, 'credit_rail_enabled_invalid');
+  }
+  const normalizedReason = normalizeString(reason, 1000);
+  if (!normalizedReason) {
+    throw new AppError('A reason is required when changing the OxSteed Credit rail status', 400, 'credit_rail_status_reason_required');
+  }
+  return withTransaction(pool, async (client) => {
+    // Share the lock with every posting path so suspension waits for any
+    // in-flight movement, then prevents new movements before they begin.
+    await lockCreditRail(client);
+    const { rows } = await client.query(
+      `SELECT key, is_enabled, description, updated_by, updated_at
+         FROM feature_flags
+        WHERE key = 'oxsteed_credit_enabled'
+        FOR UPDATE`
+    );
+    const current = rows[0];
+    if (!current) throw new AppError('OxSteed Credit control is not configured', 503, 'credit_rail_status_unavailable');
+    if (current.is_enabled === enabled) {
+      return { rail: formatCreditRailStatus(current), changed: false, replayed: true };
+    }
+    const { rows: updatedRows } = await client.query(
+      `UPDATE feature_flags
+          SET is_enabled = $1, updated_by = $2, updated_at = NOW()
+        WHERE key = 'oxsteed_credit_enabled'
+        RETURNING key, is_enabled, description, updated_by, updated_at`,
+      [enabled, actorUserId || null]
+    );
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, resource_type, resource_id, reason,
+          correlation_id, before_state, after_state, metadata)
+       VALUES ($1, $2, 'credit_rail', 'oxsteed_credit_enabled', $3, $4, $5::jsonb, $6::jsonb, $7::jsonb)`,
+      [
+        enabled ? 'credit.rail.enabled' : 'credit.rail.suspended',
+        actorUserId || null,
+        normalizedReason,
+        normalizeString(correlationId, 160),
+        JSON.stringify({ enabled: current.is_enabled === true }),
+        JSON.stringify({ enabled }),
+        JSON.stringify({ emergencyControl: true }),
+      ]
+    );
+    return { rail: formatCreditRailStatus(updatedRows[0]), changed: true, replayed: false };
+  }, 'credit_set_rail_status');
 }
 
 function stableStringify(value) {
@@ -1198,6 +1283,8 @@ module.exports = {
   CUSTOMER_TRANSFERS_ENABLED,
   isCreditRailEnabled,
   assertCreditRailEnabled,
+  getCreditRailStatus,
+  setCreditRailStatus,
   computeEntryHash,
   ensureAccount,
   findSpendAgreement,

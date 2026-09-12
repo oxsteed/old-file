@@ -6,6 +6,7 @@ import {
   FileCheck2,
   Loader2,
   Plus,
+  Power,
   RefreshCw,
   ShieldCheck,
   Store,
@@ -33,6 +34,7 @@ function dateTime(value) {
 }
 
 function statusClass(status) {
+  if (status === 'enabled') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
   if (status === 'active') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
   if (status === 'pending' || status === 'pending_approval') return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
   if (status === 'suspended') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
@@ -66,6 +68,7 @@ export default function OxsteedCreditAdmin() {
   const [agreements, setAgreements] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [disputes, setDisputes] = useState([]);
+  const [rail, setRail] = useState(null);
   const [reconciliation, setReconciliation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -76,23 +79,26 @@ export default function OxsteedCreditAdmin() {
   const [settlementForm, setSettlementForm] = useState({ partnerId: '', agreementId: '', periodStart: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 16), periodEnd: new Date().toISOString().slice(0, 16), paymentReference: '' });
   const [customerForm, setCustomerForm] = useState({ customerId: '', amount: '', fundingReference: '', reason: '' });
   const [accountStatusForm, setAccountStatusForm] = useState({ customerId: '', status: 'suspended', reason: '' });
+  const [railReason, setRailReason] = useState('');
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     setError('');
     try {
-      const [overviewResponse, partnersResponse, agreementsResponse, settlementsResponse, disputesResponse] = await Promise.all([
+      const [overviewResponse, partnersResponse, agreementsResponse, settlementsResponse, disputesResponse, railResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/overview'),
         adminApi.get('/admin/super/oxsteed-credit/partners'),
         adminApi.get('/admin/super/oxsteed-credit/agreements'),
         adminApi.get('/admin/super/oxsteed-credit/settlements'),
         adminApi.get('/admin/super/oxsteed-credit/disputes'),
+        adminApi.get('/admin/super/oxsteed-credit/rail').catch(() => ({ data: { rail: null } })),
       ]);
       setOverview(overviewResponse.data || null);
       setPartners(partnersResponse.data?.partners || []);
       setAgreements(agreementsResponse.data?.agreements || []);
       setSettlements(settlementsResponse.data?.settlements || []);
       setDisputes((disputesResponse.data?.disputes || []).filter((dispute) => ['open', 'in_review'].includes(dispute.status)));
+      setRail(railResponse.data?.rail || null);
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to load OxSteed Credit administration.');
     } finally {
@@ -248,6 +254,21 @@ export default function OxsteedCreditAdmin() {
     } finally { setBusy(false); }
   };
 
+  const updateRail = async (event) => {
+    event.preventDefault();
+    if (!rail || !railReason.trim()) return setError('Enter an audit reason before changing the credit rail status.');
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/rail', { enabled: !rail.enabled, reason: railReason.trim() });
+      setRail(response.data?.rail || rail);
+      setRailReason('');
+      setNotice(response.data?.rail?.enabled ? 'OxSteed Credit is enabled for approved activity.' : 'OxSteed Credit is suspended. Existing ledger history remains available for recovery and review.');
+      await load({ quiet: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Credit rail status change failed.');
+    } finally { setBusy(false); }
+  };
+
   const resolveDispute = async (dispute, status) => {
     setBusy(true); setNotice(''); setError('');
     try {
@@ -262,6 +283,7 @@ export default function OxsteedCreditAdmin() {
   const summary = overview?.summary || {};
   return <main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
     <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">Super Admin</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> Stored-value control</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">OxSteed Credit</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">Operate a restricted credit network: customers can spend only at restaurants with an active partner agreement, and every movement is journaled, bounded, and auditable.</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh</button></div></header>
+    <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
     {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
     {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric icon={WalletCards} label="Customer balance" value={money(summary.customerBalanceCents)} detail={`${summary.customerAccounts || 0} customer accounts`} /><Metric icon={CreditCard} label="Available" value={money(summary.customerAvailableCents)} detail={`${money(summary.customerReservedCents)} reserved`} tone="text-emerald-300" /><Metric icon={Store} label="Partner payable" value={money(summary.partnerPayableCents)} detail={`${summary.partnerAccounts || 0} partner accounts`} tone="text-sky-300" /><Metric icon={FileCheck2} label="Partner network" value={partners.length} detail={`${partners.filter((partner) => partner.status === 'active').length} active partners`} /><Metric icon={AlertTriangle} label="Inactive accounts" value={summary.inactiveAccounts || 0} detail="Needs review before spending" tone="text-amber-300" /></section>

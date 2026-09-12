@@ -36,6 +36,8 @@ function createAdminApp() {
   });
   app.post('/load/:customerId', controller.adminLoadCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
+  app.get('/rail', controller.getAdminCreditRail);
+  app.post('/rail', controller.updateAdminCreditRail);
   app.use(errorHandler);
   return app;
 }
@@ -177,4 +179,32 @@ test('fails closed when the OxSteed Credit emergency flag is disabled', async ()
   expect(await service.isCreditRailEnabled({ query: mockQuery })).toBe(false);
   await expect(service.assertCreditRailEnabled({ query: mockQuery }))
     .rejects.toMatchObject({ code: 'credit_rail_suspended', status: 503 });
+});
+
+test('rejects a rail status change without a strict boolean', async () => {
+  const response = await request(createAdminApp())
+    .post('/rail')
+    .send({ enabled: 'yes', reason: 'test change' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('invalid_enabled');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('changes the rail status with an audit reason and serialized control lock', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp())
+    .post('/rail')
+    .send({ enabled: true, reason: 'Approved after custody review' });
+
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({ changed: true, rail: { enabled: true, status: 'enabled', updatedBy: ADMIN_ID } });
+  expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
+  expect(mockQuery.mock.calls[2][0]).toContain('UPDATE feature_flags');
+  expect(mockQuery.mock.calls[3][1][0]).toBe('credit.rail.enabled');
 });

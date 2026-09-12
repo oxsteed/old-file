@@ -260,6 +260,8 @@ router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.delete
 
 // OxSteed Credit is a separate globally scoped stored-value rail. Keep
 // issuance and oversight behind the existing Super Admin authentication gate.
+router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
+router.post('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.updateAdminCreditRail);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);

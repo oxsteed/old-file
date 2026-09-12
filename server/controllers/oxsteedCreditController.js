@@ -17,6 +17,8 @@ const {
   listCreditDisputes,
   resolveCreditDispute,
   loadCustomerCredit,
+  getCreditRailStatus,
+  setCreditRailStatus,
 } = require('../services/oxsteedCreditService');
 const {
   listPartners,
@@ -50,6 +52,13 @@ function parsePositiveInt(value, fieldName) {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
   return parsed;
+}
+
+function parseBoolean(value, fieldName) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
 }
 
 function getIdempotencyKey(req) {
@@ -375,6 +384,28 @@ async function getAdminOverview(req, res, next) {
   }
 }
 
+async function getAdminCreditRail(req, res, next) {
+  try {
+    res.json({ rail: await getCreditRailStatus() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateAdminCreditRail(req, res, next) {
+  try {
+    const result = await setCreditRailStatus({
+      enabled: parseBoolean(req.body?.enabled, 'enabled'),
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminPartners(req, res, next) {
   try {
     const partners = await listPartners({ search: req.query.search || req.query.q, status: req.query.status });
@@ -560,6 +591,8 @@ module.exports = {
   listAdminDisputes,
   resolveAdminDispute,
   getAdminOverview,
+  getAdminCreditRail,
+  updateAdminCreditRail,
   listAdminPartners,
   listAdminAgreements,
   registerAdminPartner,
