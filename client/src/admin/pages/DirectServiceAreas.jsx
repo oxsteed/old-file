@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, Loader2, MapPinned, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import adminApi from '../lib/adminApi';
 
@@ -51,6 +51,8 @@ export default function DirectServiceAreas() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const loadAreas = useCallback(async () => {
     setLoading(true);
@@ -65,6 +67,12 @@ export default function DirectServiceAreas() {
   }, []);
 
   useEffect(() => { loadAreas(); }, [loadAreas]);
+
+  const visibleAreas = areas.filter((area) => {
+    const haystack = `${area.label || ''} ${area.anchorZip || ''}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase())
+      && (activeFilter === 'all' || (activeFilter === 'active' ? area.active : !area.active));
+  });
 
   const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -197,13 +205,26 @@ export default function DirectServiceAreas() {
             </div>
             <span className="rounded-full border border-gray-700 px-3 py-1 text-xs font-semibold text-gray-300">{areas.filter((area) => area.active).length} active</span>
           </div>
+          <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="relative block">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search area name or ZIP" className="pl-9" aria-label="Search configured service areas" />
+            </label>
+            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-gray-300 outline-none focus:border-orange-500" aria-label="Filter service areas">
+              <option value="all">All areas</option>
+              <option value="active">Active only</option>
+              <option value="inactive">Inactive only</option>
+            </select>
+          </div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-orange-400"><Loader2 className="animate-spin" /></div>
           ) : areas.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">No service areas configured.</div>
+          ) : visibleAreas.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">No service areas match this view.</div>
           ) : (
             <div className="space-y-3">
-              {areas.map((area) => (
+              {visibleAreas.map((area) => (
                 <article key={area.id} className="rounded-lg border border-gray-800 bg-gray-950/60 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
