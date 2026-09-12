@@ -1553,6 +1553,9 @@ exports.getAdminDashboard = async (req, res) => {
     const status = cleanText(req.query.status, 32).toLowerCase();
     const city = cleanText(req.query.city, 120);
     const search = cleanText(req.query.search || req.query.q, 120);
+    const page = Math.min(1000, Math.max(1, normalizeInteger(req.query.page) || 1));
+    const pageSize = Math.min(100, Math.max(1, normalizeInteger(req.query.pageSize) || 100));
+    const offset = (page - 1) * pageSize;
     const calendarParams = [rangeFrom, rangeTo];
     const calendarFilters = [
       `COALESCE(metadata->>'flow', 'direct') = 'direct'`,
@@ -1580,8 +1583,9 @@ exports.getAdminDashboard = async (req, res) => {
       )`);
     }
     const calendarWhere = calendarFilters.join('\n            AND ');
+    const calendarListParams = [...calendarParams, pageSize, offset];
 
-    const [{ rows: totals }, { rows: upcoming }, { rows: unpaid }, { rows: travelDensity }] = await Promise.all([
+    const [{ rows: totals }, { rows: upcoming }, { rows: travelDensity }, { rows: unpaid }, { rows: calendarCount }] = await Promise.all([
       db.query(
         `SELECT
            COUNT(*)::int AS total_requests,
@@ -1605,8 +1609,9 @@ exports.getAdminDashboard = async (req, res) => {
            LEFT JOIN users assignee ON assignee.id = quote_requests.assigned_to
           WHERE ${calendarWhere}
           ORDER BY scheduled_start_at ASC
-          LIMIT 100`,
-        calendarParams
+          LIMIT $${calendarListParams.length - 1}
+         OFFSET $${calendarListParams.length}`,
+        calendarListParams
       ),
       db.query(
         `SELECT COALESCE(NULLIF(service_city, ''), NULLIF(service_location, ''), 'Unspecified') AS city,
@@ -1625,6 +1630,12 @@ exports.getAdminDashboard = async (req, res) => {
           ORDER BY created_at DESC
           LIMIT 10`
       ),
+      db.query(
+        `SELECT COUNT(*)::int AS total
+           FROM quote_requests
+          WHERE ${calendarWhere}`,
+        calendarParams
+      ),
     ]);
     const [serviceAreas, profile] = await Promise.all([
       listServiceAreas({ activeOnly: true }).catch(() => []),
@@ -1635,6 +1646,12 @@ exports.getAdminDashboard = async (req, res) => {
       totals: totals[0] || {},
       upcoming: upcoming.rows || [],
       range: { from: rangeFrom, to: rangeTo },
+      pagination: {
+        page,
+        pageSize,
+        total: Number(calendarCount[0]?.total || 0),
+        hasNext: offset + (upcoming.rows || []).length < Number(calendarCount[0]?.total || 0),
+      },
       travelDensity: travelDensity.rows || [],
       routePlan: buildTravelPlan(upcoming.rows || [], serviceAreas, profile?.base_city || 'Springfield'),
       unpaid: unpaid.rows || [],

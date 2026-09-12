@@ -719,6 +719,7 @@ function DirectAdminCalendarView() {
   const [exportSaving, setExportSaving] = useState(false);
   const [assignees, setAssignees] = useState([]);
   const [auditEntries, setAuditEntries] = useState([]);
+  const [calendarPage, setCalendarPage] = useState(1);
   const [blockForm, setBlockForm] = useState(() => {
     const startsAt = new Date();
     startsAt.setMinutes(0, 0, 0);
@@ -738,7 +739,7 @@ function DirectAdminCalendarView() {
   const rangeEnd = viewMode === 'month' ? calendarAddDays(rangeStart, 42) : calendarDayEnd(days[days.length - 1] || cursorDate);
   const rangeLabel = calendarRangeLabel(viewMode, days);
 
-  const loadCalendar = async () => {
+  const loadCalendar = async ({ nextPage = 1, append = false } = {}) => {
     setLoading(true);
     setError('');
     try {
@@ -748,13 +749,19 @@ function DirectAdminCalendarView() {
         status: status || undefined,
         city: city || undefined,
         search: search.trim() || undefined,
+        page: nextPage,
+        pageSize: 100,
       };
       const [next, blockData, auditData] = await Promise.all([
         getDirectAdminDashboard(params),
         getDirectAdminCalendarBlocks(params),
         getDirectAdminCalendarAudit({ from: params.from, to: params.to, limit: 25 }),
       ]);
-      setData(next);
+      setData((current) => append && current ? {
+        ...next,
+        upcoming: [...(current.upcoming || []), ...(next.upcoming || [])],
+      } : next);
+      setCalendarPage(next.pagination?.page || nextPage);
       setBlocks(blockData?.blocks || []);
       setAuditEntries(auditData?.audit || []);
     } catch (requestError) {
@@ -765,7 +772,8 @@ function DirectAdminCalendarView() {
   };
 
   useEffect(() => {
-    loadCalendar();
+    setCalendarPage(1);
+    loadCalendar({ nextPage: 1 });
   }, [viewMode, cursorDate, status, city, search]);
 
   useEffect(() => {
@@ -894,6 +902,11 @@ function DirectAdminCalendarView() {
     }
   };
 
+  const loadNextCalendarPage = () => {
+    if (loading || !data?.pagination?.hasNext) return;
+    loadCalendar({ nextPage: Number(data.pagination.page || calendarPage) + 1, append: true });
+  };
+
   return (
     <AdminShell
       title="Dispatch calendar"
@@ -961,6 +974,13 @@ function DirectAdminCalendarView() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {data?.pagination?.total > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
+            <span>Showing {jobs.length} of {data.pagination.total} scheduled jobs</span>
+            {data.pagination.hasNext && <button type="button" onClick={loadNextCalendarPage} disabled={loading} className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 font-semibold text-orange-100 disabled:opacity-50">{loading ? 'Loading…' : 'Load more jobs'}</button>}
           </div>
         )}
 
