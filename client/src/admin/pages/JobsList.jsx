@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Download, Trash2 } from 'lucide-react';
+import { Search, Download, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
 
@@ -25,6 +25,8 @@ export default function JobsList() {
   const [jobs, setJobs] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [filters, setFilters] = useState({ search: '', status: '', page: 1 });
 
   // Delete modal state
@@ -35,14 +37,17 @@ export default function JobsList() {
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
       const { data } = await adminApi.get('/admin/jobs', { params });
       setJobs(data.jobs || []);
       setTotal(data.total || 0);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
       setJobs([]);
+      setError(err.response?.data?.error || 'Could not load jobs.');
     } finally {
       setLoading(false);
     }
@@ -82,16 +87,30 @@ export default function JobsList() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Jobs</h1>
           <p className="text-gray-400 text-sm">{total} total jobs</p>
+          {lastUpdated && <p className="mt-1 text-xs text-gray-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
         </div>
-        <button onClick={exportCSV}
-          className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">
-          <Download size={16} /> Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={fetchJobs} disabled={loading}
+            className="flex items-center gap-2 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50">
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+          <button onClick={exportCSV}
+            className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+            <Download size={16} /> Export CSV
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <span>{error}</span>
+          <button type="button" onClick={fetchJobs} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -128,7 +147,7 @@ export default function JobsList() {
             {loading ? (
               <tr><td colSpan={7} className="text-center text-gray-400 py-12">Loading…</td></tr>
             ) : jobs.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-gray-400 py-12">No jobs found.</td></tr>
+              <tr><td colSpan={7} className="text-center text-gray-400 py-12">{error ? 'Job data is unavailable.' : 'No jobs found.'}</td></tr>
             ) : jobs.map(job => (
               <tr key={job.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                 <td className={`${col} text-white font-medium max-w-[200px]`}>
