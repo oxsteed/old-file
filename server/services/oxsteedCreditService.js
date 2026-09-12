@@ -1395,7 +1395,8 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
       `SELECT t.id, t.partner_id
          FROM oxsteed_credit_transactions t
          JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
-        WHERE t.id = $1 AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+        WHERE t.id = $1 AND t.status = 'posted'
+          AND a.account_type = 'customer_wallet' AND a.customer_id = $2
         FOR SHARE`,
       [transactionId, customerId]
     );
@@ -1415,9 +1416,23 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
       `INSERT INTO oxsteed_credit_disputes
          (transaction_id, customer_id, partner_id, reason_code, description, opened_by)
        VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING
        RETURNING *`,
       [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId]
     );
+    if (!rows[0]) {
+      const { rows: concurrentRows } = await client.query(
+        `SELECT d.*, fr.display_name AS restaurant_name
+           FROM oxsteed_credit_disputes d
+           LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE d.transaction_id = $1 AND d.status IN ('open', 'in_review')
+          FOR UPDATE`,
+        [transaction.id]
+      );
+      if (!concurrentRows[0]) throw new AppError('Credit dispute could not be opened; please try again', 409, 'credit_dispute_conflict');
+      return { dispute: formatDispute(concurrentRows[0]), replayed: true };
+    }
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
          (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, after_state)

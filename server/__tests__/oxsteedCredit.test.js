@@ -26,6 +26,7 @@ function createCustomerApp() {
   app.get('/transactions/:transactionId', controller.getMyTransaction);
   app.post('/holds', controller.createMyHold);
   app.post('/transfers', controller.transferMyCredit);
+  app.post('/disputes', controller.openMyDispute);
   app.use(errorHandler);
   return app;
 }
@@ -242,6 +243,36 @@ test('rejects malformed hold capture ids before any database query', async () =>
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('invalid_holdId');
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('opens disputes only for posted transactions with an atomic duplicate guard', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'tx-1', partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'dispute-1',
+      transaction_id: 'tx-1',
+      customer_id: CUSTOMER_ID,
+      partner_id: 41,
+      status: 'open',
+      reason_code: 'unauthorized',
+      description: 'I do not recognize this purchase',
+      opened_by: CUSTOMER_ID,
+      resolved_by: null,
+      opened_at: '2026-09-12T12:00:00.000Z',
+      resolved_at: null,
+      updated_at: '2026-09-12T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createCustomerApp())
+    .post('/disputes')
+    .send({ transactionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', reasonCode: 'unauthorized', description: 'I do not recognize this purchase' });
+
+  expect(response.status).toBe(201);
+  expect(response.body.dispute).toMatchObject({ id: 'dispute-1', status: 'open' });
+  expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
+  expect(mockQuery.mock.calls[2][0]).toContain("ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING");
 });
 
 test('hashes the same journal payload deterministically', () => {
