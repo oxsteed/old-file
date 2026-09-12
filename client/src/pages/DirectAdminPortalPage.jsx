@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   DollarSign,
@@ -592,51 +593,213 @@ function DirectAdminInboxView() {
   );
 }
 
+function calendarDayStart(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function calendarDayEnd(value) {
+  const date = calendarDayStart(value);
+  date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function calendarStartOfWeek(value) {
+  const date = calendarDayStart(value);
+  date.setDate(date.getDate() - date.getDay());
+  return date;
+}
+
+function calendarAddDays(value, amount) {
+  const date = calendarDayStart(value);
+  date.setDate(date.getDate() + amount);
+  return date;
+}
+
+function calendarDateKey(value) {
+  const date = calendarDayStart(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function calendarDaysForView(viewMode, cursorDate) {
+  if (viewMode === 'day') return [calendarDayStart(cursorDate)];
+  if (viewMode === 'week') return Array.from({ length: 7 }, (_, index) => calendarAddDays(calendarStartOfWeek(cursorDate), index));
+  const monthStart = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), 1);
+  const firstCell = calendarStartOfWeek(monthStart);
+  return Array.from({ length: 42 }, (_, index) => calendarAddDays(firstCell, index));
+}
+
+function calendarRangeLabel(viewMode, days) {
+  if (!days.length) return '';
+  if (viewMode === 'day') return days[0].toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const first = days[0].toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const last = days[days.length - 1].toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${first} – ${last}`;
+}
+
+function CalendarJobCard({ item, compact = false }) {
+  return (
+    <Link
+      to={`/direct/admin/jobs/${item.id}`}
+      className={`block rounded-xl border border-white/10 bg-slate-950/75 transition hover:border-orange-500/40 ${compact ? 'px-2 py-1.5' : 'p-4'}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className={`truncate font-semibold text-white ${compact ? 'text-xs' : 'text-sm'}`}>
+            {item.first_name} {item.last_name}
+          </div>
+          <div className={`mt-1 truncate text-slate-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+            {formatDateTime(item.scheduled_start_at)} · {item.service_city || item.service_location || 'No city'}
+          </div>
+        </div>
+        <Chip tone={item.status === 'scheduled' ? 'orange' : 'blue'}>{statusLabel(item.status)}</Chip>
+      </div>
+      {!compact && (
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+          <span>{item.service_category || 'Direct service'}</span>
+          <span>·</span>
+          <span>{item.payment_status || 'unpaid'}</span>
+          {item.quote_amount_cents != null && <><span>·</span><span>{currencyLabel(item.quote_amount_cents, item.quote_currency_code)}</span></>}
+        </div>
+      )}
+    </Link>
+  );
+}
+
 function DirectAdminCalendarView() {
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
+  const [viewMode, setViewMode] = useState('month');
+  const [cursorDate, setCursorDate] = useState(() => new Date());
+  const [status, setStatus] = useState('');
+  const [city, setCity] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const days = useMemo(() => calendarDaysForView(viewMode, cursorDate), [viewMode, cursorDate]);
+  const rangeStart = days[0] || calendarDayStart(cursorDate);
+  const rangeEnd = viewMode === 'month' ? calendarAddDays(rangeStart, 42) : calendarDayEnd(days[days.length - 1] || cursorDate);
+  const rangeLabel = calendarRangeLabel(viewMode, days);
+
+  const loadCalendar = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const next = await getDirectAdminDashboard({
+        from: rangeStart.toISOString(),
+        to: rangeEnd.toISOString(),
+        status: status || undefined,
+        city: city || undefined,
+        search: search.trim() || undefined,
+      });
+      setData(next);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || 'Failed to load the dispatch calendar.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getDirectAdminDashboard()
-      .then(setData)
-      .catch(() => {});
-  }, []);
+    loadCalendar();
+  }, [viewMode, cursorDate, status, city, search]);
+
+  const jobs = data?.upcoming || [];
+  const jobsByDay = useMemo(() => jobs.reduce((groups, item) => {
+    const key = calendarDateKey(item.scheduled_start_at);
+    groups[key] = groups[key] || [];
+    groups[key].push(item);
+    return groups;
+  }, {}), [jobs]);
+  const cities = useMemo(() => Array.from(new Set([
+    ...(profile.travelCities || []),
+    ...(data?.travelDensity || []).map((item) => item.city),
+  ].filter(Boolean))), [profile.travelCities, data]);
+  const moveCursor = (amount) => {
+    const next = new Date(cursorDate);
+    if (viewMode === 'month') next.setMonth(next.getMonth() + amount);
+    else next.setDate(next.getDate() + (viewMode === 'week' ? amount * 7 : amount));
+    setCursorDate(next);
+  };
+
   return (
     <AdminShell
       title="Dispatch calendar"
       subtitle="See upcoming work by date, city, and urgency so you can route travel days without opening every request."
       profile={profile}
-      right={<div className="text-sm leading-6 text-slate-300">Group jobs by city and fill your Monday through Thursday travel windows.</div>}
+      right={<div className="space-y-3 text-sm leading-6 text-slate-300"><div>Showing future, active scheduled work only.</div><button type="button" onClick={loadCalendar} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button></div>}
     >
-      <div className="grid gap-4 xl:grid-cols-2">
-        <SectionCard title="Upcoming jobs" eyebrow="Calendar">
-          {(data?.upcoming || []).length === 0 ? (
-            <div className="text-sm text-slate-500">No scheduled jobs yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {data.upcoming.map((item) => (
-                <Link key={item.id} to={`/direct/admin/jobs/${item.id}`} className="block rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-white">{formatDateTime(item.scheduled_start_at)}</div>
-                      <div className="mt-1 text-sm text-slate-400">{item.first_name} {item.last_name} · {item.service_city || item.service_location || '—'}</div>
-                    </div>
-                    <Chip tone="blue">{item.service_category}</Chip>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </SectionCard>
+      <SectionCard title="Schedule" eyebrow="Calendar">
+        <div className="flex flex-col gap-3 border-b border-white/10 pb-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setCursorDate(new Date())} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white">Today</button>
+            <button type="button" onClick={() => moveCursor(-1)} aria-label="Previous period" className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronLeft size={17} /></button>
+            <button type="button" onClick={() => moveCursor(1)} aria-label="Next period" className="rounded-xl border border-white/10 bg-white/5 p-2 text-white"><ChevronRight size={17} /></button>
+            <span className="ml-1 text-sm font-semibold text-slate-200">{rangeLabel}</span>
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Calendar view">
+            {['day', 'week', 'month', 'agenda'].map((mode) => (
+              <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-pressed={viewMode === mode} className={`rounded-xl border px-3 py-2 text-xs font-semibold capitalize transition ${viewMode === mode ? 'border-orange-500/40 bg-orange-500/15 text-orange-200' : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'}`}>{mode}</button>
+            ))}
+          </div>
+        </div>
 
-        <SectionCard title="Travel density" eyebrow="Route planning">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(profile.travelCities || []).map((city) => (
-              <div key={city} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                <div className="font-semibold text-white">{city}</div>
-                <div className="mt-1 text-xs text-slate-500">Use this for grouping work orders on travel days.</div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer, service, or city..." aria-label="Search calendar" />
+          <Select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter by status">
+            <option value="">All active statuses</option>
+            {['scheduled', 'accepted', 'en_route', 'started', 'waiting_customer'].map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+          </Select>
+          <Select value={city} onChange={(event) => setCity(event.target.value)} aria-label="Filter by city">
+            <option value="">All service cities</option>
+            {cities.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+        </div>
+
+        {error ? (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200"><span>{error}</span><button type="button" onClick={loadCalendar} className="rounded-xl border border-red-400/30 px-3 py-2 font-semibold text-red-100">Retry</button></div>
+        ) : loading ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-sm text-slate-400"><Loader2 className="mx-auto mb-3 animate-spin text-orange-300" size={20} />Loading scheduled work…</div>
+        ) : viewMode === 'agenda' ? (
+          <div className="mt-4 space-y-4">
+            {jobs.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">No future scheduled jobs match these filters.</div> : Array.from(new Set(jobs.map((item) => calendarDateKey(item.scheduled_start_at))).values()).map((key) => (
+              <div key={key}>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">{new Date(`${key}T12:00:00`).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+                <div className="grid gap-2 lg:grid-cols-2">{(jobsByDay[key] || []).map((item) => <CalendarJobCard key={item.id} item={item} />)}</div>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+            <div className="grid grid-cols-7 border-b border-white/10 bg-white/5 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((item) => <div key={item} className="p-2">{item}</div>)}
+            </div>
+            <div className={`grid grid-cols-7 gap-px bg-white/10 ${viewMode === 'day' ? 'grid-cols-1' : ''}`}>
+              {days.map((day) => {
+                const key = calendarDateKey(day);
+                const dayJobs = jobsByDay[key] || [];
+                const outsideMonth = viewMode === 'month' && day.getMonth() !== cursorDate.getMonth();
+                return (
+                  <div key={key} className={`min-h-[140px] bg-slate-950 p-2 ${outsideMonth ? 'opacity-40' : ''} ${viewMode === 'day' ? 'min-h-[320px]' : ''}`}>
+                    <div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-300">{day.getDate()}</span>{dayJobs.length > 0 && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-200">{dayJobs.length}</span>}</div>
+                    <div className="space-y-1.5">{dayJobs.slice(0, viewMode === 'day' ? 20 : 3).map((item) => <CalendarJobCard key={item.id} item={item} compact={viewMode !== 'day'} />)}</div>
+                    {dayJobs.length > (viewMode === 'day' ? 20 : 3) && <div className="mt-2 text-center text-[10px] text-slate-500">+{dayJobs.length - (viewMode === 'day' ? 20 : 3)} more</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <SectionCard title="Travel density" eyebrow="Route planning">
+          {(data?.travelDensity || []).length === 0 ? <div className="text-sm text-slate-500">No future route data for this range.</div> : <div className="grid gap-2 sm:grid-cols-2">{data.travelDensity.map((item) => <div key={item.city} className="rounded-2xl border border-white/10 bg-white/5 p-4"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-white">{item.city}</span><Chip tone="emerald">{item.job_count} job{item.job_count === 1 ? '' : 's'}</Chip></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-900"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, (Number(item.job_count) / Math.max(1, jobs.length)) * 100)}%` }} /></div></div>)}</div>}
+        </SectionCard>
+        <SectionCard title="Dispatch summary" eyebrow="Operations">
+          <div className="grid grid-cols-2 gap-3"><MiniStat label="Jobs in range" value={jobs.length} icon={CalendarDays} tone="blue" /><MiniStat label="Cities" value={(data?.travelDensity || []).length} icon={MapPin} tone="emerald" /></div>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Counts exclude completed, canceled, and closed requests. Travel time and worker availability will be applied by the next dispatch units.</p>
         </SectionCard>
       </div>
     </AdminShell>

@@ -146,8 +146,8 @@ export async function confirmDirectProof(id, payload) {
   return response.data;
 }
 
-export async function getDirectAdminDashboard() {
-  const response = await api.get('/direct/admin/dashboard');
+export async function getDirectAdminDashboard(params = {}) {
+  const response = await api.get('/direct/admin/dashboard', { params });
   return response.data;
 }
 

@@ -54,6 +54,7 @@ const DEFAULT_PROFILE = {
 };
 
 const VALID_MESSAGE_ROLES = new Set(['customer', 'admin', 'staff', 'system']);
+const DIRECT_CALENDAR_EXCLUDED_STATUSES = new Set(['cancelled', 'closed', 'completed']);
 
 function cleanText(value, maxLen = 255) {
   if (typeof value !== 'string') return '';
@@ -1512,9 +1513,47 @@ exports.updateSettings = async (req, res) => {
   }
 };
 
-exports.getAdminDashboard = async (_req, res) => {
+exports.getAdminDashboard = async (req, res) => {
   try {
-    const [{ rows: totals }, { rows: upcoming }, { rows: unpaid }] = await Promise.all([
+    const requestedFrom = normalizeTimestamp(req.query.from) || new Date().toISOString();
+    const requestedTo = normalizeTimestamp(req.query.to);
+    const defaultTo = new Date(Date.now() + (60 * 24 * 60 * 60 * 1000)).toISOString();
+    const rangeFrom = requestedFrom;
+    const rangeTo = requestedTo && new Date(requestedTo).getTime() > new Date(rangeFrom).getTime()
+      ? requestedTo
+      : defaultTo;
+    const status = cleanText(req.query.status, 32).toLowerCase();
+    const city = cleanText(req.query.city, 120);
+    const search = cleanText(req.query.search || req.query.q, 120);
+    const calendarParams = [rangeFrom, rangeTo];
+    const calendarFilters = [
+      `COALESCE(metadata->>'flow', 'direct') = 'direct'`,
+      `scheduled_start_at IS NOT NULL`,
+      `scheduled_start_at >= $1`,
+      `scheduled_start_at < $2`,
+      `status NOT IN ('cancelled', 'closed', 'completed')`,
+    ];
+    if (status && !DIRECT_CALENDAR_EXCLUDED_STATUSES.has(status)) {
+      calendarParams.push(status);
+      calendarFilters.push(`status = $${calendarParams.length}`);
+    }
+    if (city) {
+      calendarParams.push(city);
+      calendarFilters.push(`LOWER(COALESCE(service_city, service_location, '')) = LOWER($${calendarParams.length})`);
+    }
+    if (search) {
+      calendarParams.push(`%${search}%`);
+      calendarFilters.push(`(
+        first_name ILIKE $${calendarParams.length}
+        OR last_name ILIKE $${calendarParams.length}
+        OR service_category ILIKE $${calendarParams.length}
+        OR service_city ILIKE $${calendarParams.length}
+        OR service_location ILIKE $${calendarParams.length}
+      )`);
+    }
+    const calendarWhere = calendarFilters.join('\n            AND ');
+
+    const [{ rows: totals }, { rows: upcoming }, { rows: unpaid }, { rows: travelDensity }] = await Promise.all([
       db.query(
         `SELECT
            COUNT(*)::int AS total_requests,
@@ -1530,10 +1569,19 @@ exports.getAdminDashboard = async (_req, res) => {
       db.query(
         `SELECT id, first_name, last_name, service_category, service_city, scheduled_start_at, status, quote_amount_cents, quote_currency_code
            FROM quote_requests
-          WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
-            AND scheduled_start_at IS NOT NULL
+          WHERE ${calendarWhere}
           ORDER BY scheduled_start_at ASC
-          LIMIT 10`
+          LIMIT 100`,
+        calendarParams
+      ),
+      db.query(
+        `SELECT COALESCE(NULLIF(service_city, ''), NULLIF(service_location, ''), 'Unspecified') AS city,
+                COUNT(*)::int AS job_count
+           FROM quote_requests
+          WHERE ${calendarWhere}
+          GROUP BY 1
+          ORDER BY job_count DESC, city ASC`,
+        calendarParams
       ),
       db.query(
         `SELECT id, first_name, last_name, service_category, service_location, payment_status, status, quote_amount_cents, quote_currency_code
@@ -1548,6 +1596,8 @@ exports.getAdminDashboard = async (_req, res) => {
     return res.json({
       totals: totals[0] || {},
       upcoming: upcoming.rows || [],
+      range: { from: rangeFrom, to: rangeTo },
+      travelDensity: travelDensity.rows || [],
       unpaid: unpaid.rows || [],
     });
   } catch (err) {
