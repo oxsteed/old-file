@@ -59,7 +59,7 @@ The migration runner applies the OxSteed Credit migrations and the durable `cron
 - Run `npm run verify:credit` after migrations, ledger incidents, or any database maintenance.
 - Confirm the hold-expiry worker is healthy. Expired active holds are non-blocking in the verifier but must not accumulate.
 - A UTC reconciliation worker runs daily at 02:10 UTC under the durable distributed job lock. The owning worker renews its lease while the handler runs, so a slow database operation does not allow a second replica to start the same job. It records a reconciliation run for the prior UTC day and creates a critical durable incident if the account balances and journal differ or the check fails.
-- Generate non-overlapping settlement periods and require a traceable payment reference before marking a settlement paid.
+- Generate non-overlapping settlement periods that end no later than the current time, and require a traceable payment reference before marking a settlement paid.
 - Treat every customer dispute as a review record. Never edit or delete a journal entry to correct a customer balance; post a compensating refund or adjustment with a reason and idempotency key.
 
 ## Emergency Suspension

@@ -119,3 +119,14 @@ test('rejects settlement idempotency reuse for a different period', async () => 
     idempotencyKey: 'settlement-existing-key',
   })).rejects.toMatchObject({ code: 'credit_settlement_idempotency_conflict' });
 });
+
+test('rejects settlement periods that end in the future', async () => {
+  await expect(createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-1',
+    periodStart: '2099-09-01T00:00:00.000Z',
+    periodEnd: '2099-09-02T00:00:00.000Z',
+    idempotencyKey: 'settlement-future-key',
+  })).rejects.toMatchObject({ code: 'credit_settlement_period_future' });
+  expect(mockQuery).not.toHaveBeenCalled();
+});

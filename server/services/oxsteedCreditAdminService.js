@@ -400,6 +400,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
   if (ends <= starts) throw new AppError('Settlement period end must be after its start', 400, 'credit_settlement_dates_invalid');
+  if (ends > new Date()) throw new AppError('Settlement period cannot end in the future', 400, 'credit_settlement_period_future');
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for settlements', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
