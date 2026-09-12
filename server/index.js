@@ -611,8 +611,9 @@ if (process.env.NODE_ENV === 'production') {
 
   app.use(express.static(path.join(__dirname, '../client/dist')));
 
-  // Admin SPA - serve admin.html for all /admin/* routes
-  app.get('/admin/*', (req, res) => {
+  // Admin SPA - serve admin.html for the bare entry point and all nested routes.
+  // Express does not match `/admin` with the `/admin/*` pattern.
+  app.get(['/admin', '/admin/*'], (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
   });
 
