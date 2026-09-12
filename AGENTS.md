@@ -21,6 +21,13 @@
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
 
+## Session progress — OxSteed Credit financial integrity (2026-09-12)
+
+- Settlement retries now serialize per partner agreement and reject idempotency-key reuse for a different period (`18791454`). Dedicated ledger HMAC configuration is required in production.
+- Migration `433_oxsteed_credit_identity_stability.sql` prevents changing partner restaurant/currency identity, agreement partner identity, or account customer/partner/type/currency identity after financial history exists. `verify:credit` requires the three guards.
+- The production runbook now requires replacement records instead of mutating financial identities after activity begins.
+- Remaining release evidence: apply migrations and run `npm run verify:credit` against the production database; configure managed backups/restore drills, malware scanning, alert routing, and legal/custody approvals before enabling real customer value.
+
 ---
 
 ## Session progress — MacBook-local storage + server hardening (2026-08-31)

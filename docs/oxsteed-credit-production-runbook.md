@@ -12,7 +12,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - `OXSTEED_CREDIT_LEDGER_HMAC_SECRET` is set to a high-entropy secret and is protected separately from source control and ordinary application logs.
 - Production ledger verification does not fall back to `JWT_SECRET`; rotate and store the dedicated ledger secret independently from authentication secrets.
 - The database backup schedule is active, backups are stored outside the application host, and a restore test has been completed.
-- The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`.
+- The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`. After financial activity begins, do not change a partner's restaurant/currency, an agreement's partner, or an account's customer/partner/type/currency identity; create a replacement record instead.
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
 
@@ -41,7 +41,7 @@ npm run migrate
 npm run verify:credit
 ```
 
-The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, database-level transaction, transaction-currency, transaction-type, transaction-immutability, journal-entry-immutability, audit-immutability, hold-reference, account-integrity, settlement-integrity, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, established transaction directions are valid, purchases have partner/agreement references, transaction currencies and settlements match their agreements, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, and the scheduled-job lock table is present. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
+The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, database-level transaction, transaction-currency, transaction-type, transaction-immutability, journal-entry-immutability, audit-immutability, hold-reference, account-integrity, settlement-integrity, financial-identity-stability, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, established transaction directions are valid, purchases have partner/agreement references, transaction currencies and settlements match their agreements, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, and the scheduled-job lock table is present. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
 
 ## Enabling a Partner
 
