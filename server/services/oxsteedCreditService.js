@@ -879,6 +879,9 @@ async function createCreditHold({ customerId, partnerId, amountCents, idempotenc
       }
       return { hold: formatHold(existingRows[0]), replayed: true };
     }
+    if (account.status !== 'active') {
+      throw new AppError('Credit account is not active', 409, 'credit_account_inactive');
+    }
     const available = Number(account.balance_cents || 0) - Number(account.reserved_cents || 0);
     if (amount > available) throw new AppError('Insufficient available OxSteed Credit', 409, 'credit_insufficient_funds');
     const { rows: holdRows } = await client.query(

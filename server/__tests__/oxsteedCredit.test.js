@@ -289,6 +289,56 @@ test('counts active credit holds toward agreement spending limits', async () => 
   expect(mockQuery.mock.calls[1][0]).toContain("h.status = 'active'");
 });
 
+test('does not create a new hold for a suspended credit account', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      partner_id: 41,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: [],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      settlement_currency_code: 'USD',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 7001,
+      account_type: 'customer_wallet',
+      customer_id: CUSTOMER_ID,
+      currency_code: 'USD',
+      balance_cents: '1000',
+      reserved_cents: '0',
+      status: 'suspended',
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  await expect(service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    idempotencyKey: 'suspended-hold-1',
+    expiresAt: '2026-09-12T13:00:00.000Z',
+  })).rejects.toMatchObject({ code: 'credit_account_inactive' });
+
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_holds'))).toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
+});
+
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {
   const first = {
     transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
