@@ -14,6 +14,8 @@ import {
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
 } from 'lucide-react';
 
+const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
+
 const REGULAR_NAV = [
   { to: '/admin/dashboard',        icon: LayoutDashboard, label: 'Dashboard'        },
   { to: '/admin/users',            icon: Users,           label: 'Users'            },
@@ -77,6 +79,35 @@ const SUPER_NAV = [
   { to: '/admin/super/mode-approvals',         icon: AlertTriangle, label: 'Mode Approvals'  },
 ];
 
+// Simple mode keeps the operational paths close at hand without removing access
+// to any route. Full mode remains the default for existing admin sessions.
+const SIMPLE_REGULAR_NAV = [
+  '/admin/dashboard',
+  '/admin/users',
+  '/admin/jobs',
+  '/admin/support',
+  '/admin/support/chat',
+  '/direct/admin',
+  '/admin/direct-service-areas',
+  '/admin/direct-catalog',
+  '/admin/payments',
+];
+
+const SIMPLE_SUPER_NAV = [
+  '/admin/super/dashboard',
+  '/admin/super/conversations',
+  '/admin/super/settings',
+  '/admin/super/audit-log',
+];
+
+function readAdminNavMode() {
+  try {
+    return localStorage.getItem(ADMIN_NAV_MODE_KEY) === 'simple';
+  } catch {
+    return false;
+  }
+}
+
 const navClass = ({ isActive }) =>
   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
    transition-all ${
@@ -101,6 +132,7 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [sidebarNavSearch, setSidebarNavSearch] = useState('');
+  const [simpleMode, setSimpleMode] = useState(readAdminNavMode);
   const searchRef = useRef(null);
   const {
     availability: supportAvailable,
@@ -117,6 +149,18 @@ export default function AdminLayout() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  const toggleSimpleMode = () => {
+    setSimpleMode((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem(ADMIN_NAV_MODE_KEY, next ? 'simple' : 'full');
+      } catch {
+        // Keep the switch usable when browser storage is unavailable.
+      }
+      return next;
+    });
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const q = searchInput.trim();
@@ -130,8 +174,14 @@ export default function AdminLayout() {
   const renderSidebar = () => {
     const query = sidebarNavSearch.trim().toLowerCase();
     const matches = ({ label, to }) => !query || `${label} ${to}`.toLowerCase().includes(query);
-    const visibleRegularNav = REGULAR_NAV.filter(matches);
-    const visibleSuperNav = SUPER_NAV.filter(matches);
+    const regularNav = simpleMode
+      ? REGULAR_NAV.filter(({ to }) => SIMPLE_REGULAR_NAV.includes(to))
+      : REGULAR_NAV;
+    const superNav = simpleMode
+      ? SUPER_NAV.filter(({ to }) => SIMPLE_SUPER_NAV.includes(to))
+      : SUPER_NAV;
+    const visibleRegularNav = regularNav.filter(matches);
+    const visibleSuperNav = superNav.filter(matches);
 
     return (
       <>
@@ -161,6 +211,19 @@ export default function AdminLayout() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <div className="sticky top-0 z-10 -mx-3 bg-gray-900 px-3 pb-3">
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
+            <span className="text-xs font-medium text-gray-300">Simple mode</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={simpleMode}
+              aria-label={simpleMode ? 'Turn off simple admin mode' : 'Turn on simple admin mode'}
+              onClick={toggleSimpleMode}
+              className={`relative h-5 w-9 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-700'}`}
+            >
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${simpleMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
           <label className="relative block">
             <span className="sr-only">Find an admin tab</span>
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -217,6 +280,11 @@ export default function AdminLayout() {
         )}
         {!visibleRegularNav.length && !visibleSuperNav.length && (
           <p className="px-3 py-4 text-xs text-gray-500">No admin tabs match.</p>
+        )}
+        {simpleMode && !query && (
+          <p className="px-3 pt-4 text-[10px] leading-4 text-gray-500">
+            Simple mode shows essential operations. Turn it off to access every admin tab.
+          </p>
         )}
       </nav>
 
