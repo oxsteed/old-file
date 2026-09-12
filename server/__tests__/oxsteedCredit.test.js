@@ -11,11 +11,11 @@ const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
 
-function createCustomerApp() {
+function createCustomerApp(role = 'customer') {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = { id: CUSTOMER_ID, role: 'customer' };
+    req.user = { id: CUSTOMER_ID, role };
     req.correlationId = 'request-credit-test';
     next();
   });
@@ -111,6 +111,17 @@ test('rejects malformed recipient ids before any credit transfer query', async (
 
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('invalid_recipientCustomerId');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('keeps credit transfers restricted to customer accounts', async () => {
+  const response = await request(createCustomerApp('helper'))
+    .post('/transfers')
+    .set('Idempotency-Key', 'transfer-helper-1')
+    .send({ recipientCustomerId: '22222222-2222-4222-8222-222222222222', amountCents: 100 });
+
+  expect(response.status).toBe(403);
+  expect(response.body.code).toBe('credit_transfer_customer_only');
   expect(mockQuery).not.toHaveBeenCalled();
 });
 

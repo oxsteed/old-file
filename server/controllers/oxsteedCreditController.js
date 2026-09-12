@@ -239,6 +239,9 @@ async function adminCaptureHold(req, res, next) {
 
 async function transferMyCredit(req, res, next) {
   try {
+    if (req.user.role !== 'customer') {
+      throw new AppError('Only customer accounts can transfer OxSteed Credit', 403, 'credit_transfer_customer_only');
+    }
     const recipientCustomerId = parseUuid(req.body?.recipientCustomerId || req.body?.recipient_customer_id, 'recipientCustomerId');
     const result = await transferCredit({
       senderCustomerId: req.user.id,

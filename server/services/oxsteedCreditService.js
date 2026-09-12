@@ -822,7 +822,7 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
     const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
     const { rows: recipientRows } = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND is_active = TRUE LIMIT 1`,
+      `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
       [recipientCustomerId]
     );
     if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
