@@ -37,6 +37,10 @@ router.post('/requests/:id/proof', authenticate, ctrl.submitProof);
 router.post('/requests/:id/proof-confirm', authenticate, ctrl.confirmProof);
 
 router.get('/admin/dashboard', authenticate, requireAdmin, ctrl.getAdminDashboard);
+router.get('/admin/calendar/blocks', authenticate, requireAdmin, ctrl.getAdminCalendarBlocks);
+router.post('/admin/calendar/blocks', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCalendarBlock);
+router.patch('/admin/calendar/blocks/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCalendarBlock);
+router.delete('/admin/calendar/blocks/:id', authenticate, requireAdmin, generalLimiter, ctrl.deleteAdminCalendarBlock);
 router.get('/admin/catalog', authenticate, requireAdmin, ctrl.getAdminCatalog);
 router.post('/admin/catalog/categories', authenticate, requireAdmin, generalLimiter, ctrl.createAdminCatalogCategory);
 router.patch('/admin/catalog/categories/:id', authenticate, requireAdmin, generalLimiter, ctrl.updateAdminCatalogCategory);

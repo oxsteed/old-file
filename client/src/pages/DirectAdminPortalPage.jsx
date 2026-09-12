@@ -28,7 +28,10 @@ import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
 import {
   confirmDirectProof,
+  createDirectAdminCalendarBlock,
+  deleteDirectAdminCalendarBlock,
   getDirectAdminCustomer,
+  getDirectAdminCalendarBlocks,
   getDirectAdminDashboard,
   getDirectAdminInbox,
   getDirectAdminReports,
@@ -691,6 +694,23 @@ function DirectAdminCalendarView() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [actionSaving, setActionSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [blocks, setBlocks] = useState([]);
+  const [blockSaving, setBlockSaving] = useState(false);
+  const [blockError, setBlockError] = useState('');
+  const [blockForm, setBlockForm] = useState(() => {
+    const startsAt = new Date();
+    startsAt.setMinutes(0, 0, 0);
+    const endsAt = new Date(startsAt);
+    endsAt.setHours(endsAt.getHours() + 1);
+    return {
+      block_type: 'unavailable',
+      title: '',
+      starts_at: calendarDateTimeInputValue(startsAt),
+      ends_at: calendarDateTimeInputValue(endsAt),
+      city: '',
+      notes: '',
+    };
+  });
   const days = useMemo(() => calendarDaysForView(viewMode, cursorDate), [viewMode, cursorDate]);
   const rangeStart = days[0] || calendarDayStart(cursorDate);
   const rangeEnd = viewMode === 'month' ? calendarAddDays(rangeStart, 42) : calendarDayEnd(days[days.length - 1] || cursorDate);
@@ -700,14 +720,19 @@ function DirectAdminCalendarView() {
     setLoading(true);
     setError('');
     try {
-      const next = await getDirectAdminDashboard({
+      const params = {
         from: rangeStart.toISOString(),
         to: rangeEnd.toISOString(),
         status: status || undefined,
         city: city || undefined,
         search: search.trim() || undefined,
-      });
+      };
+      const [next, blockData] = await Promise.all([
+        getDirectAdminDashboard(params),
+        getDirectAdminCalendarBlocks(params),
+      ]);
       setData(next);
+      setBlocks(blockData?.blocks || []);
     } catch (requestError) {
       setError(requestError?.response?.data?.error || 'Failed to load the dispatch calendar.');
     } finally {
@@ -743,6 +768,12 @@ function DirectAdminCalendarView() {
     groups[key].push(item);
     return groups;
   }, {}), [jobs]);
+  const blocksByDay = useMemo(() => blocks.reduce((groups, block) => {
+    const key = calendarDateKey(block.startsAt);
+    groups[key] = groups[key] || [];
+    groups[key].push(block);
+    return groups;
+  }, {}), [blocks]);
   const cities = useMemo(() => Array.from(new Set([
     ...(profile.travelCities || []),
     ...(data?.travelDensity || []).map((item) => item.city),
@@ -776,6 +807,38 @@ function DirectAdminCalendarView() {
       setActionError(requestError?.response?.data?.error || 'Could not update this job.');
     } finally {
       setActionSaving(false);
+    }
+  };
+
+  const createCalendarBlock = async (event) => {
+    event.preventDefault();
+    setBlockSaving(true);
+    setBlockError('');
+    try {
+      await createDirectAdminCalendarBlock({
+        ...blockForm,
+        starts_at: new Date(blockForm.starts_at).toISOString(),
+        ends_at: new Date(blockForm.ends_at).toISOString(),
+      });
+      setBlockForm((current) => ({ ...current, title: '', notes: '' }));
+      await loadCalendar();
+    } catch (requestError) {
+      setBlockError(requestError?.response?.data?.error || 'Could not save this calendar block.');
+    } finally {
+      setBlockSaving(false);
+    }
+  };
+
+  const removeCalendarBlock = async (id) => {
+    setBlockSaving(true);
+    setBlockError('');
+    try {
+      await deleteDirectAdminCalendarBlock(id);
+      setBlocks((current) => current.filter((block) => block.id !== id));
+    } catch (requestError) {
+      setBlockError(requestError?.response?.data?.error || 'Could not remove this calendar block.');
+    } finally {
+      setBlockSaving(false);
     }
   };
 
@@ -839,6 +902,7 @@ function DirectAdminCalendarView() {
                 return (
                   <div key={key} className={`min-h-[140px] bg-slate-950 p-2 ${outsideMonth ? 'opacity-40' : ''} ${viewMode === 'day' ? 'min-h-[320px]' : ''}`}>
                     <div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-300">{day.getDate()}</span>{dayJobs.length > 0 && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-200">{dayJobs.length}</span>}</div>
+                    {(blocksByDay[key] || []).map((block) => <div key={block.id} className="mb-1 truncate rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200" title={`${block.title}${block.city ? ` · ${block.city}` : ''}`}>{block.blockType === 'availability' ? 'Open' : 'Blocked'} · {block.title}</div>)}
                     <div className="space-y-1.5">{dayJobs.slice(0, viewMode === 'day' ? 20 : 3).map((item) => <CalendarJobCard key={item.id} item={item} compact={viewMode !== 'day'} conflict={conflictIds.has(item.id)} onSelect={setSelectedJob} />)}</div>
                     {dayJobs.length > (viewMode === 'day' ? 20 : 3) && <div className="mt-2 text-center text-[10px] text-slate-500">+{dayJobs.length - (viewMode === 'day' ? 20 : 3)} more</div>}
                   </div>
@@ -873,6 +937,28 @@ function DirectAdminCalendarView() {
             </div>
           </div>
         )}
+      </SectionCard>
+
+      <SectionCard title="Availability & blackout blocks" eyebrow="Dispatch rules">
+        <p className="text-sm leading-6 text-slate-400">Reserve time for holidays, planned closures, staffing limits, or open availability. Unavailable blocks prevent overlapping schedules.</p>
+        <form onSubmit={createCalendarBlock} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <Field label="Block type"><Select value={blockForm.block_type} onChange={(event) => setBlockForm((current) => ({ ...current, block_type: event.target.value }))}><option value="unavailable">Unavailable</option><option value="holiday">Holiday</option><option value="blackout">Blackout</option><option value="availability">Availability</option></Select></Field>
+          <Field label="Title" required><Input required maxLength={200} value={blockForm.title} onChange={(event) => setBlockForm((current) => ({ ...current, title: event.target.value }))} placeholder="Team day off" /></Field>
+          <Field label="Starts" required><Input required type="datetime-local" value={blockForm.starts_at} onChange={(event) => setBlockForm((current) => ({ ...current, starts_at: event.target.value }))} /></Field>
+          <Field label="Ends" required><Input required type="datetime-local" value={blockForm.ends_at} onChange={(event) => setBlockForm((current) => ({ ...current, ends_at: event.target.value }))} /></Field>
+          <Field label="City"><Input maxLength={120} value={blockForm.city} onChange={(event) => setBlockForm((current) => ({ ...current, city: event.target.value }))} placeholder="All cities" /></Field>
+          <div className="flex items-end"><button type="submit" disabled={blockSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{blockSaving ? 'Saving…' : 'Add block'}</button></div>
+          <div className="md:col-span-2 xl:col-span-6"><Field label="Notes"><Textarea rows={2} maxLength={5000} value={blockForm.notes} onChange={(event) => setBlockForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional dispatch note" /></Field></div>
+        </form>
+        {blockError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{blockError}</div>}
+        <div className="mt-5 space-y-2">
+          {blocks.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-slate-500">No availability or blackout blocks overlap this calendar range.</div> : blocks.map((block) => (
+            <div key={block.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Chip tone={block.blockType === 'availability' ? 'emerald' : 'orange'}>{block.blockType}</Chip><span className="font-semibold text-white">{block.title}</span>{block.city && <span className="text-xs text-slate-500">{block.city}</span>}</div><div className="mt-1 text-xs text-slate-400">{formatDateTime(block.startsAt)} – {formatDateTime(block.endsAt)}{block.notes ? ` · ${block.notes}` : ''}</div></div>
+              <button type="button" onClick={() => removeCalendarBlock(block.id)} disabled={blockSaving} className="rounded-xl border border-red-500/20 px-3 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Remove</button>
+            </div>
+          ))}
+        </div>
       </SectionCard>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">

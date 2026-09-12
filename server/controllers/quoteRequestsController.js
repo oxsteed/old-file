@@ -387,7 +387,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
   try {
     if (scheduledStartAt || scheduledEndAt) {
       const current = await db.query(
-        `SELECT scheduled_start_at, scheduled_end_at
+        `SELECT scheduled_start_at, scheduled_end_at, service_city, service_location
            FROM quote_requests
           WHERE id = $1
           LIMIT 1`,
@@ -402,6 +402,24 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
         return res.status(400).json({ error: 'Scheduled end must be after scheduled start' });
       }
       if (effectiveStart && effectiveEnd) {
+        const block = await db.query(
+          `SELECT id, block_type, title, starts_at, ends_at, city
+             FROM direct_calendar_blocks
+            WHERE block_type IN ('unavailable', 'holiday', 'blackout')
+              AND starts_at < $3
+              AND ends_at > $2
+              AND (city IS NULL OR LOWER(city) = LOWER(COALESCE($4, '')))
+            ORDER BY starts_at ASC
+            LIMIT 1`,
+          [id, effectiveStart, effectiveEnd, current.rows[0].service_city || current.rows[0].service_location || null]
+        );
+        if (block.rows.length) {
+          const item = block.rows[0];
+          return res.status(409).json({
+            error: `Schedule falls within ${item.block_type} block: ${item.title}`,
+            calendarBlock: item,
+          });
+        }
         const conflict = await db.query(
           `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at
              FROM quote_requests

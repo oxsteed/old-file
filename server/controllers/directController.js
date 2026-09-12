@@ -100,6 +100,21 @@ function normalizeTimestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function serializeCalendarBlock(row) {
+  return {
+    id: String(row.id),
+    blockType: row.block_type,
+    title: row.title,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    city: row.city || null,
+    notes: row.notes || null,
+    createdBy: row.created_by ? String(row.created_by) : null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function normalizeDate(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -1605,6 +1620,122 @@ exports.getAdminDashboard = async (req, res) => {
   } catch (err) {
     logger.error('getAdminDashboard error', { error: err.message });
     return res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+};
+
+exports.getAdminCalendarBlocks = async (req, res) => {
+  try {
+    const requestedFrom = normalizeTimestamp(req.query.from) || new Date().toISOString();
+    const requestedTo = normalizeTimestamp(req.query.to);
+    const rangeFrom = requestedFrom;
+    const rangeTo = requestedTo && new Date(requestedTo).getTime() > new Date(rangeFrom).getTime()
+      ? requestedTo
+      : new Date(Date.now() + (60 * 24 * 60 * 60 * 1000)).toISOString();
+    const { rows } = await db.query(
+      `SELECT id, block_type, title, starts_at, ends_at, city, notes,
+              created_by, created_at, updated_at
+         FROM direct_calendar_blocks
+        WHERE starts_at < $2
+          AND ends_at > $1
+        ORDER BY starts_at ASC
+        LIMIT 200`,
+      [rangeFrom, rangeTo]
+    );
+
+    return res.json({
+      blocks: rows.map(serializeCalendarBlock),
+      range: { from: rangeFrom, to: rangeTo },
+    });
+  } catch (err) {
+    logger.error('getAdminCalendarBlocks error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load calendar blocks' });
+  }
+};
+
+function parseCalendarBlockInput(body = {}) {
+  const blockType = cleanText(body.block_type || body.blockType || 'unavailable', 24).toLowerCase();
+  const title = cleanText(body.title, 200);
+  const startsAt = normalizeTimestamp(body.starts_at || body.startsAt);
+  const endsAt = normalizeTimestamp(body.ends_at || body.endsAt);
+  const city = cleanText(body.city, 120) || null;
+  const notes = cleanText(body.notes, 5000) || null;
+  return { blockType, title, startsAt, endsAt, city, notes };
+}
+
+function validateCalendarBlockInput(input) {
+  if (!new Set(['availability', 'unavailable', 'holiday', 'blackout']).has(input.blockType)) {
+    return 'A valid calendar block type is required';
+  }
+  if (!input.title) return 'A calendar block title is required';
+  if (!input.startsAt || !input.endsAt) return 'Valid start and end times are required';
+  if (new Date(input.endsAt).getTime() <= new Date(input.startsAt).getTime()) {
+    return 'Calendar block end must be after its start';
+  }
+  return null;
+}
+
+exports.createAdminCalendarBlock = async (req, res) => {
+  const input = parseCalendarBlockInput(req.body);
+  const validationError = validateCalendarBlockInput(input);
+  if (validationError) return res.status(400).json({ error: validationError });
+
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO direct_calendar_blocks
+         (block_type, title, starts_at, ends_at, city, notes, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+       RETURNING id, block_type, title, starts_at, ends_at, city, notes,
+                 created_by, created_at, updated_at`,
+      [input.blockType, input.title, input.startsAt, input.endsAt, input.city, input.notes, req.user?.id || null]
+    );
+    return res.status(201).json({ block: serializeCalendarBlock(rows[0]) });
+  } catch (err) {
+    logger.error('createAdminCalendarBlock error', { error: err.message, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Failed to create calendar block' });
+  }
+};
+
+exports.updateAdminCalendarBlock = async (req, res) => {
+  const id = normalizeInteger(req.params.id);
+  if (!id) return res.status(400).json({ error: 'A valid calendar block id is required' });
+  const input = parseCalendarBlockInput(req.body);
+  const validationError = validateCalendarBlockInput(input);
+  if (validationError) return res.status(400).json({ error: validationError });
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE direct_calendar_blocks
+          SET block_type = $1,
+              title = $2,
+              starts_at = $3,
+              ends_at = $4,
+              city = $5,
+              notes = $6,
+              updated_at = NOW()
+        WHERE id = $7
+        RETURNING id, block_type, title, starts_at, ends_at, city, notes,
+                  created_by, created_at, updated_at`,
+      [input.blockType, input.title, input.startsAt, input.endsAt, input.city, input.notes, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Calendar block not found' });
+    return res.json({ block: serializeCalendarBlock(rows[0]) });
+  } catch (err) {
+    logger.error('updateAdminCalendarBlock error', { error: err.message, id, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Failed to update calendar block' });
+  }
+};
+
+exports.deleteAdminCalendarBlock = async (req, res) => {
+  const id = normalizeInteger(req.params.id);
+  if (!id) return res.status(400).json({ error: 'A valid calendar block id is required' });
+
+  try {
+    const result = await db.query('DELETE FROM direct_calendar_blocks WHERE id = $1', [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Calendar block not found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error('deleteAdminCalendarBlock error', { error: err.message, id, adminId: req.user?.id });
+    return res.status(500).json({ error: 'Failed to delete calendar block' });
   }
 };
 

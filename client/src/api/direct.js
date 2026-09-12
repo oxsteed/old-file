@@ -151,6 +151,26 @@ export async function getDirectAdminDashboard(params = {}) {
   return response.data;
 }
 
+export async function getDirectAdminCalendarBlocks(params = {}) {
+  const response = await api.get('/direct/admin/calendar/blocks', { params });
+  return response.data;
+}
+
+export async function createDirectAdminCalendarBlock(payload) {
+  const response = await api.post('/direct/admin/calendar/blocks', payload);
+  return response.data;
+}
+
+export async function updateDirectAdminCalendarBlock(id, payload) {
+  const response = await api.patch(`/direct/admin/calendar/blocks/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteDirectAdminCalendarBlock(id) {
+  const response = await api.delete(`/direct/admin/calendar/blocks/${id}`);
+  return response.data;
+}
+
 export async function getDirectAdminInbox(params = {}) {
   const response = await api.get('/direct/admin/inbox', { params });
   return response.data;
