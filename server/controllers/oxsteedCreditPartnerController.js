@@ -6,6 +6,26 @@ const { listSettlements } = require('../services/oxsteedCreditAdminService');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 
+function formatPartnerSettlement(settlement) {
+  return {
+    id: settlement.id,
+    partnerId: settlement.partnerId,
+    agreementId: settlement.agreementId,
+    currencyCode: settlement.currencyCode,
+    periodStart: settlement.periodStart,
+    periodEnd: settlement.periodEnd,
+    grossCents: settlement.grossCents,
+    refundCents: settlement.refundCents,
+    feeCents: settlement.feeCents,
+    netCents: settlement.netCents,
+    status: settlement.status,
+    paymentReference: settlement.paymentReference,
+    paidAt: settlement.paidAt,
+    createdAt: settlement.createdAt,
+    updatedAt: settlement.updatedAt,
+  };
+}
+
 function parseRestaurantId(value) {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -48,10 +68,13 @@ async function listPartnerSettlements(req, res, next) {
     const restaurantId = parseRestaurantId(req.params.restaurantId);
     await requireRestaurantManager(req.user.id, restaurantId);
     const partner = await getPartnerId(restaurantId);
+    const settlementOptions = { partnerId: partner.id, status: req.query.status, limit: req.query.limit };
+    if (req.query.offset !== undefined) settlementOptions.offset = req.query.offset;
+    const settlements = await listSettlements(settlementOptions);
     res.json({
       partnerId: String(partner.id),
       partnerStatus: partner.status,
-      settlements: await listSettlements({ partnerId: partner.id, status: req.query.status, limit: req.query.limit }),
+      settlements: settlements.map(formatPartnerSettlement),
     });
   } catch (error) {
     next(error);
@@ -64,20 +87,25 @@ async function listPartnerTransactions(req, res, next) {
     await requireRestaurantManager(req.user.id, restaurantId);
     const partner = await getPartnerId(restaurantId);
     const limit = Math.max(1, Math.min(Number.parseInt(String(req.query.limit), 10) || 100, 250));
+    const parsedOffset = Number.parseInt(String(req.query.offset), 10);
+    const offset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
     const { rows } = await pool.query(
       `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
               t.agreement_id, t.reference_type, t.reference_id, t.description,
               t.posted_at, t.created_at
          FROM oxsteed_credit_transactions t
         WHERE t.partner_id = $1
-        ORDER BY t.created_at DESC
-        LIMIT $2`,
-      [partner.id, limit]
+          AND t.currency_code = 'USD'
+          AND t.status = 'posted'
+        ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
+        LIMIT $2 OFFSET $3`,
+      [partner.id, limit + 1, offset]
     );
+    const hasMore = rows.length > limit;
     res.json({
       partnerId: String(partner.id),
       partnerStatus: partner.status,
-      transactions: rows.map((row) => ({
+      transactions: rows.slice(0, limit).map((row) => ({
         id: String(row.id),
         transactionType: row.transaction_type,
         status: row.status,
@@ -90,6 +118,12 @@ async function listPartnerTransactions(req, res, next) {
         postedAt: row.posted_at || null,
         createdAt: row.created_at || null,
       })),
+      pagination: {
+        limit,
+        offset,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null,
+      },
     });
   } catch (error) {
     next(error);

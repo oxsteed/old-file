@@ -351,7 +351,7 @@ async function listAgreements({ partnerId, status } = {}) {
   return rows.map(formatAgreement);
 }
 
-async function listSettlements({ partnerId, status, limit = 100 } = {}) {
+async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -364,7 +364,13 @@ async function listSettlements({ partnerId, status, limit = 100 } = {}) {
     params.push(normalizedStatus);
     filters.push(`s.status = $${params.length}`);
   }
-  params.push(Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250)));
+  const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
   const { rows } = await pool.query(
     `SELECT s.*, p.restaurant_id, fr.display_name AS restaurant_name
        FROM oxsteed_credit_settlements s
@@ -372,7 +378,7 @@ async function listSettlements({ partnerId, status, limit = 100 } = {}) {
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
       ORDER BY s.period_end DESC, s.created_at DESC
-      LIMIT $${params.length}`,
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
   return rows.map(formatSettlement);

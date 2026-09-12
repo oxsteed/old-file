@@ -561,7 +561,9 @@ async function upsertAdminEntitlement(req, res, next) {
 
 async function listAdminSettlements(req, res, next) {
   try {
-    const settlements = await listSettlements({ partnerId: req.query.partnerId || req.query.partner_id, status: req.query.status, limit: req.query.limit });
+    const options = { partnerId: req.query.partnerId || req.query.partner_id, status: req.query.status, limit: req.query.limit };
+    if (req.query.offset !== undefined) options.offset = req.query.offset;
+    const settlements = await listSettlements(options);
     res.json({ settlements });
   } catch (error) {
     next(error);

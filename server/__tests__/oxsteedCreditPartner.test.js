@@ -78,6 +78,37 @@ test('allows an active manager to view partner transactions without customer ide
   });
   expect(response.body.transactions[0]).not.toHaveProperty('customerId');
   expect(response.body.transactions[0]).not.toHaveProperty('customerEmail');
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 0, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[2][0]).toContain("t.status = 'posted'");
+  expect(mockQuery.mock.calls[2][0]).toContain("t.currency_code = 'USD'");
+});
+
+test('removes internal settlement fields from the partner response', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 9, effective_role: 'owner' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 55, status: 'active' }] });
+  listSettlements.mockResolvedValueOnce([{
+    id: 'settlement-1',
+    partnerId: '55',
+    agreementId: 'agreement-1',
+    currencyCode: 'USD',
+    grossCents: 3000,
+    refundCents: 500,
+    feeCents: 100,
+    netCents: 2400,
+    status: 'approved',
+    paymentReference: null,
+    approvedBy: 'internal-admin-id',
+    metadata: { internal: 'must-not-leak' },
+    createdAt: '2026-09-12T12:00:00.000Z',
+  }]);
+
+  const response = await request(buildApp()).get('/restaurants/9/settlements');
+
+  expect(response.status).toBe(200);
+  expect(response.body.settlements[0]).toMatchObject({ id: 'settlement-1', netCents: 2400 });
+  expect(response.body.settlements[0]).not.toHaveProperty('approvedBy');
+  expect(response.body.settlements[0]).not.toHaveProperty('metadata');
 });
 
 test('rejects non-manager restaurant staff before reading partner data', async () => {
