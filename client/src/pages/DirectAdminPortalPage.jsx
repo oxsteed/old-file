@@ -32,6 +32,7 @@ import {
   createDirectAdminCalendarBlock,
   deleteDirectAdminCalendarBlock,
   exportDirectAdminCalendar,
+  getDirectAdminAssignees,
   getDirectAdminCustomer,
   getDirectAdminCalendarBlocks,
   getDirectAdminDashboard,
@@ -715,6 +716,7 @@ function DirectAdminCalendarView() {
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockError, setBlockError] = useState('');
   const [exportSaving, setExportSaving] = useState(false);
+  const [assignees, setAssignees] = useState([]);
   const [blockForm, setBlockForm] = useState(() => {
     const startsAt = new Date();
     startsAt.setMinutes(0, 0, 0);
@@ -761,6 +763,10 @@ function DirectAdminCalendarView() {
   useEffect(() => {
     loadCalendar();
   }, [viewMode, cursorDate, status, city, search]);
+
+  useEffect(() => {
+    getDirectAdminAssignees().then((response) => setAssignees(response?.members || [])).catch(() => setAssignees([]));
+  }, []);
 
   const jobs = data?.upcoming || [];
   const conflictIds = useMemo(() => {
@@ -812,6 +818,7 @@ function DirectAdminCalendarView() {
         status: nextStatus,
         scheduled_start_at: selectedJob.scheduled_start_at,
         scheduled_end_at: selectedJob.scheduled_end_at,
+        assigned_to: selectedJob.assigned_to || null,
       });
       const updated = response?.request || selectedJob;
       setSelectedJob(updated);
@@ -964,10 +971,11 @@ function DirectAdminCalendarView() {
               <button type="button" onClick={() => setSelectedJob(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white">Close</button>
             </div>
             {actionError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
-            <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
               <Field label="Status"><Select value={selectedJob.status || 'scheduled'} onChange={(event) => setSelectedJob((current) => ({ ...current, status: event.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
               <Field label="Start"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_start_at: new Date(event.target.value).toISOString() } : current)} /></Field>
               <Field label="End"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_end_at || selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_end_at: new Date(event.target.value).toISOString() } : current)} /></Field>
+              <Field label="Assigned to"><Select value={selectedJob.assigned_to || ''} onChange={(event) => setSelectedJob((current) => ({ ...current, assigned_to: event.target.value || null }))}><option value="">Unassigned</option>{assignees.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.role}</option>)}</Select></Field>
               <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? 'Saving…' : 'Save schedule'}</button></div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>

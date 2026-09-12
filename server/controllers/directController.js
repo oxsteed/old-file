@@ -1596,8 +1596,12 @@ exports.getAdminDashboard = async (req, res) => {
       db.query(
         `SELECT id, first_name, last_name, service_category, service_city, service_location,
                 scheduled_start_at, scheduled_end_at, status, payment_status,
+                assigned_to, assigned_at,
+                assignee.first_name AS assignee_first_name,
+                assignee.last_name AS assignee_last_name,
                 quote_amount_cents, quote_currency_code
            FROM quote_requests
+           LEFT JOIN users assignee ON assignee.id = quote_requests.assigned_to
           WHERE ${calendarWhere}
           ORDER BY scheduled_start_at ASC
           LIMIT 100`,
@@ -1661,6 +1665,31 @@ exports.getAdminCalendarBlocks = async (req, res) => {
   } catch (err) {
     logger.error('getAdminCalendarBlocks error', { error: err.message });
     return res.status(500).json({ error: 'Failed to load calendar blocks' });
+  }
+};
+
+exports.getAdminDispatchAssignees = async (_req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, first_name, last_name, email, role
+         FROM users
+        WHERE is_active = TRUE
+          AND deleted_at IS NULL
+          AND role IN ('helper', 'helper_pro', 'broker', 'admin', 'super_admin')
+        ORDER BY first_name ASC, last_name ASC, email ASC
+        LIMIT 200`
+    );
+    return res.json({
+      members: rows.map((member) => ({
+        id: String(member.id),
+        name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email,
+        email: member.email,
+        role: member.role,
+      })),
+    });
+  } catch (err) {
+    logger.error('getAdminDispatchAssignees error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load dispatch assignees' });
   }
 };
 

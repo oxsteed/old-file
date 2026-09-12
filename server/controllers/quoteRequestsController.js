@@ -375,6 +375,9 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
   const paymentReference = cleanText(req.body.payment_reference || req.body.paymentReference, 120) || null;
   const proofLink = cleanText(req.body.proof_link || req.body.proofLink, 2048) || null;
   const metadata = normalizeJsonObject(req.body.metadata);
+  const assignmentProvided = Object.prototype.hasOwnProperty.call(req.body, 'assigned_to')
+    || Object.prototype.hasOwnProperty.call(req.body, 'assignedTo');
+  const assignedTo = cleanText(req.body.assigned_to || req.body.assignedTo, 64) || null;
 
   if (!VALID_STATUSES.has(status)) {
     return res.status(400).json({ error: 'A valid status is required' });
@@ -383,8 +386,24 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
   if (scheduledStartAt && scheduledEndAt && new Date(scheduledEndAt).getTime() <= new Date(scheduledStartAt).getTime()) {
     return res.status(400).json({ error: 'Scheduled end must be after scheduled start' });
   }
+  if (assignmentProvided && assignedTo && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedTo)) {
+    return res.status(400).json({ error: 'A valid assignee is required' });
+  }
 
   try {
+    if (assignmentProvided && assignedTo) {
+      const assignee = await db.query(
+        `SELECT id
+           FROM users
+          WHERE id = $1
+            AND is_active = TRUE
+            AND deleted_at IS NULL
+            AND role IN ('helper', 'helper_pro', 'broker', 'admin', 'super_admin')
+          LIMIT 1`,
+        [assignedTo]
+      );
+      if (!assignee.rows.length) return res.status(400).json({ error: 'Assignee is not an active dispatch member' });
+    }
     if (scheduledStartAt || scheduledEndAt) {
       const current = await db.query(
         `SELECT scheduled_start_at, scheduled_end_at, service_city, service_location
@@ -444,6 +463,36 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
       }
     }
 
+    const updateParams = [
+      status,
+      adminNotes || null,
+      quoteAmountCents,
+      quoteCurrencyCode,
+      paymentStatus || null,
+      scheduledStartAt,
+      scheduledEndAt,
+      serviceAddress,
+      serviceCity,
+      onSiteContactName,
+      onSiteContactPhone,
+      accessNotes,
+      paymentMethod,
+      paymentReference,
+      proofLink,
+      JSON.stringify(metadata),
+    ];
+    const assignmentClause = assignmentProvided
+      ? `assigned_to = $17::uuid,
+           assigned_at = CASE
+             WHEN $17::uuid IS NULL THEN NULL
+             WHEN assigned_to IS DISTINCT FROM $17::uuid THEN NOW()
+             ELSE assigned_at
+           END,`
+      : '';
+    if (assignmentProvided) updateParams.push(assignedTo);
+    const idParam = updateParams.length + 1;
+    updateParams.push(id);
+
     const result = await db.query(
       `UPDATE quote_requests
        SET status = $1,
@@ -462,28 +511,11 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
            payment_reference = COALESCE($14, payment_reference),
            proof_link = COALESCE($15, proof_link),
            metadata = COALESCE(metadata, '{}'::jsonb) || $16::jsonb,
+           ${assignmentClause}
            updated_at = NOW()
-       WHERE id = $17
+       WHERE id = $${idParam}
        RETURNING *`,
-      [
-        status,
-        adminNotes || null,
-        quoteAmountCents,
-        quoteCurrencyCode,
-        paymentStatus || null,
-        scheduledStartAt,
-        scheduledEndAt,
-        serviceAddress,
-        serviceCity,
-        onSiteContactName,
-        onSiteContactPhone,
-        accessNotes,
-        paymentMethod,
-        paymentReference,
-        proofLink,
-        JSON.stringify(metadata),
-        id,
-      ]
+      updateParams
     );
 
     if (!result.rows.length) {
