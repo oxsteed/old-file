@@ -30,17 +30,20 @@ function timeAgo(iso) {
 function ThreadDetail({ conv, onStatusChange, actionBusy }) {
   const [thread,   setThread]   = useState(null);
   const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState('');
   const [reason,   setReason]   = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
   const messagesEndRef = useRef(null);
 
   const loadThread = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await adminApi.get(`/admin/super/conversations/${conv.id}`);
       setThread(data);
     } catch (err) {
       console.error('Failed to load thread:', err);
+      setError(err?.response?.data?.error || 'Failed to load thread.');
     } finally {
       setLoading(false);
     }
@@ -69,8 +72,15 @@ function ThreadDetail({ conv, onStatusChange, actionBusy }) {
 
   if (!thread) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-        Failed to load thread.
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500 text-sm p-6 text-center">
+        <p>{error || 'Failed to load thread.'}</p>
+        <button
+          type="button"
+          onClick={loadThread}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-gray-200 hover:bg-gray-700 transition"
+        >
+          <RefreshCw size={14} /> Try again
+        </button>
       </div>
     );
   }
@@ -242,12 +252,15 @@ export default function ConversationsAdmin() {
   const [selected,   setSelected]   = useState(null); // conv object
   const [showDetail, setShowDetail] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [error,      setError]      = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [search,     setSearch]     = useState('');
   const [statusTab,  setStatusTab]  = useState('all');
 
   const loadConvs = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const params = {};
       if (search)                           params.search = search;
@@ -255,8 +268,10 @@ export default function ConversationsAdmin() {
       const { data } = await adminApi.get('/admin/super/conversations', { params });
       setConvs(data.conversations || []);
       setTotal(data.total || 0);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to load conversations:', err);
+      setError(err?.response?.data?.error || 'Failed to load conversations.');
       setConvs([]);
     } finally {
       setLoading(false);
@@ -300,12 +315,23 @@ export default function ConversationsAdmin() {
               <MessageSquare size={20} className="text-orange-500" />
               Conversations
             </h1>
-            <button
+            <div className="flex items-center gap-2">
+              {lastUpdated && !loading && (
+                <span className="hidden lg:inline text-[11px] text-gray-600">
+                  Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              )}
+              <button
+                type="button"
               onClick={loadConvs}
-              className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition"
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
+                aria-label={loading ? 'Refreshing conversations' : 'Refresh conversations'}
+                title={loading ? 'Refreshing conversations' : 'Refresh conversations'}
+                className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition disabled:opacity-50"
+                disabled={loading}
+              >
+                <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
 
           {/* Search */}
@@ -341,6 +367,14 @@ export default function ConversationsAdmin() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
+          {error && (
+            <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200" role="alert">
+              <span>{error}</span>
+              <button type="button" onClick={loadConvs} className="font-semibold underline underline-offset-2 hover:text-white">
+                Try again
+              </button>
+            </div>
+          )}
           {loading && !convs.length ? (
             <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
               <div className="animate-spin w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full mr-2" />
@@ -349,7 +383,7 @@ export default function ConversationsAdmin() {
           ) : convs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-500">
               <MessageSquare size={32} className="mb-2 text-gray-700" />
-              <p className="text-sm">No conversations found</p>
+              <p className="text-sm">{error ? 'Conversation list unavailable' : 'No conversations found'}</p>
             </div>
           ) : (
             <>
