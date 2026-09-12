@@ -96,6 +96,11 @@ async function main() {
       ['422_oxsteed_credit_emergency_controls.sql']
     );
     checks.emergencyMigrationApplied = emergencyMigrationRows.length === 1;
+    const { rows: integrityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['424_oxsteed_credit_database_integrity.sql']
+    );
+    checks.databaseIntegrityMigrationApplied = integrityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -125,6 +130,20 @@ async function main() {
         if (!presentColumns.has(column)) checks.missingColumns.push(`${table}.${column}`);
       }
     }
+
+    const { rows: integrityTriggerRows } = await pool.query(
+      `SELECT tgname
+         FROM pg_trigger
+        WHERE NOT tgisinternal
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass)
+          AND tgname = ANY($1::text[])`,
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_entries_guard']]
+    );
+    const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
+    checks.missingIntegrityTriggers = [
+      'oxsteed_credit_transaction_account_guard',
+      'oxsteed_credit_transaction_entries_guard',
+    ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -202,9 +221,11 @@ async function main() {
     const blockingFailures = [
       !checks.foundationMigrationApplied,
       !checks.emergencyMigrationApplied,
+      !checks.databaseIntegrityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
+      checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
       checks.invalidAccountBalances > 0,
       checks.invalidPurchases > 0,
