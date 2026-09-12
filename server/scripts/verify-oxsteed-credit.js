@@ -8,6 +8,7 @@
 
 require('dotenv').config();
 const { Pool } = require('pg');
+const { computeEntryHash } = require('../services/oxsteedCreditService');
 
 const REQUIRED_TABLES = [
   'oxsteed_credit_partners',
@@ -29,6 +30,44 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
 };
+
+function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
+  const stateByAccount = new Map();
+  let invalidEntryHashes = 0;
+  let invalidHashChains = 0;
+
+  for (const entry of entries) {
+    const accountId = String(entry.account_id);
+    const previous = stateByAccount.get(accountId) || { sequence: 0, hash: null };
+    const sequence = Number(entry.sequence);
+    const previousHash = entry.previous_entry_hash || null;
+    if (sequence !== previous.sequence + 1 || previousHash !== previous.hash) invalidHashChains += 1;
+
+    const expectedHash = hashFn({
+      transactionId: String(entry.transaction_id),
+      transactionType: entry.transaction_type,
+      accountId: Number(entry.account_id),
+      entrySide: entry.entry_side,
+      amountCents: Number(entry.amount_cents),
+      balanceAfterCents: Number(entry.balance_after_cents),
+      currencyCode: String(entry.currency_code || 'USD').toUpperCase(),
+      sequence,
+      previousEntryHash: previousHash,
+      metadata: entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {},
+    });
+    if (!entry.entry_hash || entry.entry_hash !== expectedHash) invalidEntryHashes += 1;
+    stateByAccount.set(accountId, { sequence, hash: entry.entry_hash || null });
+  }
+
+  let invalidAccountHashHeads = 0;
+  for (const account of accounts) {
+    const last = stateByAccount.get(String(account.id)) || { sequence: 0, hash: null };
+    if (Number(account.ledger_version || 0) !== last.sequence || (account.last_entry_hash || null) !== last.hash) {
+      invalidAccountHashHeads += 1;
+    }
+  }
+  return { invalidEntryHashes, invalidHashChains, invalidAccountHashHeads };
+}
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
@@ -133,6 +172,24 @@ async function main() {
     );
     checks.invalidHashLinks = Number(hashInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: creditEntries } = await pool.query(
+      `SELECT e.transaction_id, e.account_id, e.entry_side, e.amount_cents,
+              e.balance_after_cents, e.sequence, e.previous_entry_hash,
+              e.entry_hash, e.metadata, t.transaction_type, t.currency_code
+         FROM oxsteed_credit_transaction_entries e
+         JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
+        WHERE t.status = 'posted'
+        ORDER BY e.account_id, e.sequence, e.id`,
+    );
+    const { rows: creditAccounts } = await pool.query(
+      `SELECT id, ledger_version, last_entry_hash
+         FROM oxsteed_credit_accounts`,
+    );
+    const hashVerification = verifyEntryHashes(creditEntries, creditAccounts);
+    checks.invalidEntryHashes = hashVerification.invalidEntryHashes;
+    checks.invalidHashChains = hashVerification.invalidHashChains;
+    checks.invalidAccountHashHeads = hashVerification.invalidAccountHashHeads;
+
     const { rows: staleHoldRows } = await pool.query(
       `SELECT COUNT(*)::int AS stale_count
          FROM oxsteed_credit_holds
@@ -150,6 +207,9 @@ async function main() {
       checks.invalidAccountBalances > 0,
       checks.invalidPurchases > 0,
       checks.invalidHashLinks > 0,
+      checks.invalidEntryHashes > 0,
+      checks.invalidHashChains > 0,
+      checks.invalidAccountHashHeads > 0,
     ].filter(Boolean).length;
 
     console.log(JSON.stringify({
@@ -168,4 +228,6 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { verifyEntryHashes };

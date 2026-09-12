@@ -6,6 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
+const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -40,6 +41,7 @@ function createAdminApp() {
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
+  app.get('/audit-events', controller.listAdminCreditAuditEvents);
   app.use(errorHandler);
   return app;
 }
@@ -209,6 +211,66 @@ test('hashes the same journal payload deterministically', () => {
   expect(service.computeEntryHash(payload)).toBe(service.computeEntryHash({ ...payload, metadata: { a: 1, b: 2 } }));
 });
 
+test('recomputes the full OxSteed Credit hash chain and account heads', () => {
+  const first = {
+    transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    account_id: 7001,
+    entry_side: 'credit',
+    amount_cents: '1000',
+    balance_after_cents: '1000',
+    sequence: 1,
+    previous_entry_hash: null,
+    transaction_type: 'load',
+    currency_code: 'USD',
+    metadata: { source: 'test' },
+  };
+  first.entry_hash = service.computeEntryHash({
+    transactionId: first.transaction_id,
+    transactionType: first.transaction_type,
+    accountId: first.account_id,
+    entrySide: first.entry_side,
+    amountCents: 1000,
+    balanceAfterCents: 1000,
+    currencyCode: 'USD',
+    sequence: 1,
+    previousEntryHash: null,
+    metadata: first.metadata,
+  });
+  const second = {
+    ...first,
+    transaction_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    entry_side: 'debit',
+    amount_cents: '250',
+    balance_after_cents: '750',
+    sequence: 2,
+    previous_entry_hash: first.entry_hash,
+    transaction_type: 'purchase',
+  };
+  second.entry_hash = service.computeEntryHash({
+    transactionId: second.transaction_id,
+    transactionType: second.transaction_type,
+    accountId: second.account_id,
+    entrySide: second.entry_side,
+    amountCents: 250,
+    balanceAfterCents: 750,
+    currencyCode: 'USD',
+    sequence: 2,
+    previousEntryHash: second.previous_entry_hash,
+    metadata: second.metadata,
+  });
+
+  expect(verifyEntryHashes([first, second], [{ id: 7001, ledger_version: 2, last_entry_hash: second.entry_hash }])).toEqual({
+    invalidEntryHashes: 0,
+    invalidHashChains: 0,
+    invalidAccountHashHeads: 0,
+  });
+  expect(verifyEntryHashes([{ ...second, entry_hash: 'tampered' }], [{ id: 7001, ledger_version: 2, last_entry_hash: second.entry_hash }])).toMatchObject({
+    invalidEntryHashes: 1,
+    invalidHashChains: 1,
+    invalidAccountHashHeads: 1,
+  });
+});
+
 test('replays the winning transaction when a concurrent idempotent insert loses the race', async () => {
   const existing = {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -288,4 +350,35 @@ test('changes the rail status with an audit reason and serialized control lock',
   expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
   expect(mockQuery.mock.calls[2][0]).toContain('UPDATE feature_flags');
   expect(mockQuery.mock.calls[3][1][0]).toBe('credit.rail.enabled');
+});
+
+test('lists bounded OxSteed Credit audit events with state snapshots', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 55,
+    action_type: 'credit.rail.suspended',
+    actor_user_id: ADMIN_ID,
+    customer_id: null,
+    partner_id: null,
+    resource_type: 'credit_rail',
+    resource_id: 'oxsteed_credit_enabled',
+    reason: 'Incident response',
+    correlation_id: 'audit-test-1',
+    before_state: { enabled: true },
+    after_state: { enabled: false },
+    metadata: { emergencyControl: true },
+    created_at: '2026-09-12T12:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp())
+    .get('/audit-events?resourceType=credit_rail&limit=10');
+
+  expect(response.status).toBe(200);
+  expect(response.body.auditEvents[0]).toMatchObject({
+    id: '55',
+    actionType: 'credit.rail.suspended',
+    resourceType: 'credit_rail',
+    beforeState: { enabled: true },
+    afterState: { enabled: false },
+  });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['credit_rail', 10, 0]);
 });

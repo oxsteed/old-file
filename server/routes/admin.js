@@ -275,6 +275,7 @@ router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSu
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, oxsteedCreditCtrl.resolveAdminDispute);
+router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, oxsteedCreditCtrl.transitionAdminSettlement);

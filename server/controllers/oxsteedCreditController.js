@@ -35,6 +35,7 @@ const {
   createAgreement,
   transitionAgreement,
   upsertEntitlement,
+  listCreditAuditEvents,
 } = require('../services/oxsteedCreditAdminService');
 
 function normalizeString(value, max = 255) {
@@ -567,6 +568,28 @@ async function listAdminSettlements(req, res, next) {
   }
 }
 
+async function listAdminCreditAuditEvents(req, res, next) {
+  try {
+    const customerId = req.query.customerId || req.query.customer_id
+      ? parseUuid(req.query.customerId || req.query.customer_id, 'customerId')
+      : undefined;
+    const partnerId = req.query.partnerId || req.query.partner_id
+      ? parsePositiveInt(req.query.partnerId || req.query.partner_id, 'partnerId')
+      : undefined;
+    const auditEvents = await listCreditAuditEvents({
+      actionType: req.query.actionType || req.query.action_type,
+      resourceType: req.query.resourceType || req.query.resource_type,
+      customerId,
+      partnerId,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ auditEvents });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function createAdminSettlement(req, res, next) {
   try {
     const agreementId = parseUuid(req.body?.agreementId || req.body?.agreement_id, 'agreementId');
@@ -645,6 +668,7 @@ module.exports = {
   transitionAdminAgreement,
   upsertAdminEntitlement,
   listAdminSettlements,
+  listAdminCreditAuditEvents,
   createAdminSettlement,
   transitionAdminSettlement,
   reconcileAdminCredit,

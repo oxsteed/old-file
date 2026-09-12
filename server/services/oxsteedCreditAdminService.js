@@ -160,6 +160,66 @@ async function insertAudit(client, { actionType, actorUserId, customerId = null,
   );
 }
 
+function formatCreditAuditEvent(row) {
+  return {
+    id: String(row.id),
+    actionType: row.action_type,
+    actorUserId: row.actor_user_id || null,
+    customerId: row.customer_id || null,
+    partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+    resourceType: row.resource_type,
+    resourceId: row.resource_id,
+    reason: row.reason || null,
+    correlationId: row.correlation_id || null,
+    beforeState: row.before_state || null,
+    afterState: row.after_state || null,
+    metadata: row.metadata || {},
+    createdAt: row.created_at || null,
+  };
+}
+
+async function listCreditAuditEvents({ actionType, resourceType, customerId, partnerId, limit = 100, offset = 0 } = {}) {
+  const params = [];
+  const filters = [];
+  const normalizedAction = normalizeString(actionType, 80);
+  const normalizedResource = normalizeString(resourceType, 80);
+  if (normalizedAction) {
+    params.push(normalizedAction);
+    filters.push(`action_type = $${params.length}`);
+  }
+  if (normalizedResource) {
+    params.push(normalizedResource);
+    filters.push(`resource_type = $${params.length}`);
+  }
+  if (customerId) {
+    params.push(customerId);
+    filters.push(`customer_id = $${params.length}`);
+  }
+  if (partnerId) {
+    params.push(partnerId);
+    filters.push(`partner_id = $${params.length}`);
+  }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 100;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
+  const { rows } = await pool.query(
+    `SELECT id, action_type, actor_user_id, customer_id, partner_id,
+            resource_type, resource_id, reason, correlation_id,
+            before_state, after_state, metadata, created_at
+       FROM oxsteed_credit_audit_events
+      ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+      ORDER BY created_at DESC, id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  return rows.map(formatCreditAuditEvent);
+}
+
 async function listPartners({ search, status } = {}) {
   const params = [];
   const filters = [];
@@ -644,6 +704,7 @@ module.exports = {
   createAgreement,
   transitionAgreement,
   upsertEntitlement,
+  listCreditAuditEvents,
   formatAgreement,
   formatPartner,
   PARTNER_STATUSES,
