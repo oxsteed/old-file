@@ -622,6 +622,13 @@ function calendarDateKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function calendarDateTimeInputValue(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function calendarDaysForView(viewMode, cursorDate) {
   if (viewMode === 'day') return [calendarDayStart(cursorDate)];
   if (viewMode === 'week') return Array.from({ length: 7 }, (_, index) => calendarAddDays(calendarStartOfWeek(cursorDate), index));
@@ -638,11 +645,12 @@ function calendarRangeLabel(viewMode, days) {
   return `${first} – ${last}`;
 }
 
-function CalendarJobCard({ item, compact = false }) {
+function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) {
   return (
-    <Link
-      to={`/direct/admin/jobs/${item.id}`}
-      className={`block rounded-xl border border-white/10 bg-slate-950/75 transition hover:border-orange-500/40 ${compact ? 'px-2 py-1.5' : 'p-4'}`}
+    <button
+      type="button"
+      onClick={() => onSelect?.(item)}
+      className={`block w-full rounded-xl border border-white/10 bg-slate-950/75 text-left transition hover:border-orange-500/40 ${compact ? 'px-2 py-1.5' : 'p-4'}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -653,7 +661,10 @@ function CalendarJobCard({ item, compact = false }) {
             {formatDateTime(item.scheduled_start_at)} · {item.service_city || item.service_location || 'No city'}
           </div>
         </div>
-        <Chip tone={item.status === 'scheduled' ? 'orange' : 'blue'}>{statusLabel(item.status)}</Chip>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <Chip tone={item.status === 'scheduled' ? 'orange' : 'blue'}>{statusLabel(item.status)}</Chip>
+          {conflict && <Chip tone="orange">Conflict</Chip>}
+        </div>
       </div>
       {!compact && (
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
@@ -663,7 +674,7 @@ function CalendarJobCard({ item, compact = false }) {
           {item.quote_amount_cents != null && <><span>·</span><span>{currencyLabel(item.quote_amount_cents, item.quote_currency_code)}</span></>}
         </div>
       )}
-    </Link>
+    </button>
   );
 }
 
@@ -677,6 +688,9 @@ function DirectAdminCalendarView() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
   const days = useMemo(() => calendarDaysForView(viewMode, cursorDate), [viewMode, cursorDate]);
   const rangeStart = days[0] || calendarDayStart(cursorDate);
   const rangeEnd = viewMode === 'month' ? calendarAddDays(rangeStart, 42) : calendarDayEnd(days[days.length - 1] || cursorDate);
@@ -706,6 +720,23 @@ function DirectAdminCalendarView() {
   }, [viewMode, cursorDate, status, city, search]);
 
   const jobs = data?.upcoming || [];
+  const conflictIds = useMemo(() => {
+    const ids = new Set();
+    jobs.forEach((left, leftIndex) => {
+      const leftStart = new Date(left.scheduled_start_at).getTime();
+      const leftEnd = new Date(left.scheduled_end_at || left.scheduled_start_at).getTime();
+      if (!Number.isFinite(leftStart) || !Number.isFinite(leftEnd)) return;
+      jobs.slice(leftIndex + 1).forEach((right) => {
+        const rightStart = new Date(right.scheduled_start_at).getTime();
+        const rightEnd = new Date(right.scheduled_end_at || right.scheduled_start_at).getTime();
+        if (Number.isFinite(rightStart) && Number.isFinite(rightEnd) && leftStart < rightEnd && rightStart < leftEnd) {
+          ids.add(left.id);
+          ids.add(right.id);
+        }
+      });
+    });
+    return ids;
+  }, [jobs]);
   const jobsByDay = useMemo(() => jobs.reduce((groups, item) => {
     const key = calendarDateKey(item.scheduled_start_at);
     groups[key] = groups[key] || [];
@@ -721,6 +752,26 @@ function DirectAdminCalendarView() {
     if (viewMode === 'month') next.setMonth(next.getMonth() + amount);
     else next.setDate(next.getDate() + (viewMode === 'week' ? amount * 7 : amount));
     setCursorDate(next);
+  };
+
+  const updateSelectedJob = async (nextStatus = selectedJob?.status) => {
+    if (!selectedJob) return;
+    setActionSaving(true);
+    setActionError('');
+    try {
+      const response = await updateDirectAdminRequest(selectedJob.id, {
+        status: nextStatus,
+        scheduled_start_at: selectedJob.scheduled_start_at,
+        scheduled_end_at: selectedJob.scheduled_end_at,
+      });
+      const updated = response?.request || selectedJob;
+      setSelectedJob(updated);
+      setData((current) => current ? { ...current, upcoming: (current.upcoming || []).map((item) => item.id === updated.id ? { ...item, ...updated } : item) } : current);
+    } catch (requestError) {
+      setActionError(requestError?.response?.data?.error || 'Could not update this job.');
+    } finally {
+      setActionSaving(false);
+    }
   };
 
   return (
@@ -766,7 +817,7 @@ function DirectAdminCalendarView() {
             {jobs.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">No future scheduled jobs match these filters.</div> : Array.from(new Set(jobs.map((item) => calendarDateKey(item.scheduled_start_at))).values()).map((key) => (
               <div key={key}>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">{new Date(`${key}T12:00:00`).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-                <div className="grid gap-2 lg:grid-cols-2">{(jobsByDay[key] || []).map((item) => <CalendarJobCard key={item.id} item={item} />)}</div>
+                <div className="grid gap-2 lg:grid-cols-2">{(jobsByDay[key] || []).map((item) => <CalendarJobCard key={item.id} item={item} conflict={conflictIds.has(item.id)} onSelect={setSelectedJob} />)}</div>
               </div>
             ))}
           </div>
@@ -783,12 +834,34 @@ function DirectAdminCalendarView() {
                 return (
                   <div key={key} className={`min-h-[140px] bg-slate-950 p-2 ${outsideMonth ? 'opacity-40' : ''} ${viewMode === 'day' ? 'min-h-[320px]' : ''}`}>
                     <div className="mb-2 flex items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-300">{day.getDate()}</span>{dayJobs.length > 0 && <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-200">{dayJobs.length}</span>}</div>
-                    <div className="space-y-1.5">{dayJobs.slice(0, viewMode === 'day' ? 20 : 3).map((item) => <CalendarJobCard key={item.id} item={item} compact={viewMode !== 'day'} />)}</div>
+                    <div className="space-y-1.5">{dayJobs.slice(0, viewMode === 'day' ? 20 : 3).map((item) => <CalendarJobCard key={item.id} item={item} compact={viewMode !== 'day'} conflict={conflictIds.has(item.id)} onSelect={setSelectedJob} />)}</div>
                     {dayJobs.length > (viewMode === 'day' ? 20 : 3) && <div className="mt-2 text-center text-[10px] text-slate-500">+{dayJobs.length - (viewMode === 'day' ? 20 : 3)} more</div>}
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {selectedJob && (
+          <div className="mt-4 rounded-2xl border border-orange-500/25 bg-orange-500/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Selected work order</div>
+                <h3 className="mt-1 text-xl font-semibold text-white">{selectedJob.first_name} {selectedJob.last_name}</h3>
+                <p className="mt-1 text-sm text-slate-400">{selectedJob.service_category || 'Direct service'} · {selectedJob.service_city || selectedJob.service_location || 'No location'}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedJob(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white">Close</button>
+            </div>
+            {actionError && <div role="alert" className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <Field label="Status"><Select value={selectedJob.status || 'scheduled'} onChange={(event) => setSelectedJob((current) => ({ ...current, status: event.target.value }))}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</Select></Field>
+              <Field label="Start"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_start_at: new Date(event.target.value).toISOString() } : current)} /></Field>
+              <Field label="End"><Input type="datetime-local" value={calendarDateTimeInputValue(selectedJob.scheduled_end_at || selectedJob.scheduled_start_at)} onChange={(event) => setSelectedJob((current) => event.target.value ? { ...current, scheduled_end_at: new Date(event.target.value).toISOString() } : current)} /></Field>
+              <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? 'Saving…' : 'Save schedule'}</button></div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>
+            <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open full work order <ChevronRight size={15} /></Link>
           </div>
         )}
       </SectionCard>

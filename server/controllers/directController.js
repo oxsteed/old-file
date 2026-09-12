@@ -1567,7 +1567,9 @@ exports.getAdminDashboard = async (req, res) => {
         WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'`
       ),
       db.query(
-        `SELECT id, first_name, last_name, service_category, service_city, scheduled_start_at, status, quote_amount_cents, quote_currency_code
+        `SELECT id, first_name, last_name, service_category, service_city, service_location,
+                scheduled_start_at, scheduled_end_at, status, payment_status,
+                quote_amount_cents, quote_currency_code
            FROM quote_requests
           WHERE ${calendarWhere}
           ORDER BY scheduled_start_at ASC
