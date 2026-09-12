@@ -24,7 +24,7 @@ npm run migrate
 npm run verify:credit
 ```
 
-The migration runner applies `421_oxsteed_credit_foundation.sql` and `422_oxsteed_credit_emergency_controls.sql` in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, posted transactions have one debit and one credit entry, account balances agree with the journal, purchases have partner/agreement references, every entry HMAC recomputes correctly, each account chain is contiguous, and each account head matches its final entry.
+The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, posted transactions have one debit and one credit entry, account balances agree with the journal, purchases have partner/agreement references, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, and the scheduled-job lock table is present. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
 
 ## Enabling a Partner
 

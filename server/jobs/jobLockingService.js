@@ -17,7 +17,11 @@ async function acquireJobLock(jobName, ttlSeconds = 300) {
     const { rows } = await pool.query(
       `INSERT INTO cron_job_locks (lock_id, lock_value, acquired_at, expires_at)
        VALUES ($1, $2, NOW(), NOW() + INTERVAL '1 second' * $3)
-       ON CONFLICT (lock_id) DO NOTHING
+       ON CONFLICT (lock_id) DO UPDATE
+          SET lock_value = EXCLUDED.lock_value,
+              acquired_at = EXCLUDED.acquired_at,
+              expires_at = EXCLUDED.expires_at
+        WHERE cron_job_locks.expires_at <= NOW()
        RETURNING lock_id`,
       [lockId, lockValue, ttlSeconds]
     );

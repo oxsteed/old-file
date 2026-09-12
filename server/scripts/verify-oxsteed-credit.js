@@ -22,6 +22,7 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_reconciliation_runs',
   'oxsteed_credit_audit_events',
   'oxsteed_credit_disputes',
+  'cron_job_locks',
 ];
 
 const REQUIRED_COLUMNS = {
@@ -29,6 +30,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
+  cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
