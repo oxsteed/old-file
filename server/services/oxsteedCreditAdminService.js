@@ -519,13 +519,17 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
     if (!SETTLEMENT_TRANSITIONS[settlement.status]?.has(normalizedTarget)) throw new AppError(`Cannot move settlement from '${settlement.status}' to '${normalizedTarget}'`, 409, 'credit_settlement_transition_invalid');
     if (normalizedTarget === 'paid') {
       if (settlement.partner_status !== 'active') throw new AppError('Partner must be active before settlement is paid', 409, 'credit_partner_not_active');
+      const resolvedPaymentReference = normalizeString(paymentReference, 160) || settlement.payment_reference || null;
+      if (Number(settlement.net_cents || 0) > 0 && !resolvedPaymentReference) {
+        throw new AppError('A payment reference is required before a settlement can be marked paid', 400, 'credit_settlement_payment_reference_required');
+      }
       if (Number(settlement.net_cents || 0) === 0) {
         const { rows: zeroPaidRows } = await client.query(
           `UPDATE oxsteed_credit_settlements
               SET status = 'paid', payment_reference = COALESCE($1, payment_reference), paid_at = NOW(), updated_at = NOW()
             WHERE id = $2
             RETURNING *`,
-          [normalizeString(paymentReference, 160), settlement.id]
+          [resolvedPaymentReference, settlement.id]
         );
         await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: reason || 'No payable balance', beforeState: { status: settlement.status }, afterState: { status: 'paid', amountCents: 0 } });
         return { settlement: formatSettlement({ ...zeroPaidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
@@ -553,14 +557,14 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         referenceId: String(settlement.id),
         reason,
         description: 'OxSteed Credit partner settlement',
-        metadata: { paymentReference: normalizeString(paymentReference, 160) || settlement.payment_reference || null },
+        metadata: { paymentReference: resolvedPaymentReference },
       });
       const { rows: paidRows } = await client.query(
         `UPDATE oxsteed_credit_settlements
             SET status = 'paid', payment_reference = COALESCE($1, payment_reference), paid_at = NOW(), updated_at = NOW()
           WHERE id = $2
           RETURNING *`,
-        [normalizeString(paymentReference, 160), settlement.id]
+        [resolvedPaymentReference, settlement.id]
       );
       await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason, beforeState: { status: settlement.status }, afterState: { status: 'paid', transactionId: payment.transaction.id } });
       return { settlement: formatSettlement({ ...paidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), transaction: payment.transaction, replayed: false };

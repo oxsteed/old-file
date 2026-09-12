@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -129,4 +129,25 @@ test('rejects settlement periods that end in the future', async () => {
     idempotencyKey: 'settlement-future-key',
   })).rejects.toMatchObject({ code: 'credit_settlement_period_future' });
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires a payment reference before paying a non-zero settlement', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-approved',
+    partner_id: 41,
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'USD',
+    net_cents: '2500',
+    status: 'approved',
+    payment_reference: null,
+  }] });
+
+  await expect(transitionSettlement({
+    settlementId: 'settlement-approved',
+    targetStatus: 'paid',
+    actorUserId: 'admin-1',
+  })).rejects.toMatchObject({ code: 'credit_settlement_payment_reference_required' });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
