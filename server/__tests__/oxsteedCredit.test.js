@@ -211,6 +211,42 @@ test('hashes the same journal payload deterministically', () => {
   expect(service.computeEntryHash(payload)).toBe(service.computeEntryHash({ ...payload, metadata: { a: 1, b: 2 } }));
 });
 
+test('counts active credit holds toward agreement spending limits', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      partner_id: 41,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: [],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      settlement_currency_code: 'USD',
+      daily_customer_limit_cents: '5000',
+      lifetime_customer_limit_cents: '10000',
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+    }] })
+    .mockResolvedValueOnce({ rows: [{ daily_cents: '5000', lifetime_cents: '7000' }] });
+
+  await expect(service.findSpendAgreement({
+    query: mockQuery,
+  }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 1,
+  })).rejects.toMatchObject({ code: 'credit_daily_limit_reached' });
+
+  expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_holds');
+  expect(mockQuery.mock.calls[1][0]).toContain("h.status = 'active'");
+});
+
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {
   const first = {
     transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

@@ -605,16 +605,28 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
     : Number(agreement.lifetime_customer_limit_cents);
   if (amountCents && (dailyLimit < Number.MAX_SAFE_INTEGER || lifetimeLimit < Number.MAX_SAFE_INTEGER)) {
     const { rows: usageRows } = await client.query(
-      `SELECT
-         COALESCE(SUM(t.amount_cents) FILTER (WHERE t.created_at >= date_trunc('day', NOW())), 0) AS daily_cents,
-         COALESCE(SUM(t.amount_cents), 0) AS lifetime_cents
-       FROM oxsteed_credit_transactions t
-       JOIN oxsteed_credit_accounts ca ON ca.id = t.debit_account_id
-      WHERE t.transaction_type = 'purchase'
-        AND t.status = 'posted'
-        AND t.partner_id = $1
-        AND t.agreement_id = $2
-        AND ca.customer_id = $3`,
+      `WITH purchase_usage AS (
+         SELECT
+           COALESCE(SUM(t.amount_cents) FILTER (WHERE t.created_at >= date_trunc('day', NOW())), 0) AS daily_purchase_cents,
+           COALESCE(SUM(t.amount_cents), 0) AS lifetime_purchase_cents
+           FROM oxsteed_credit_transactions t
+           JOIN oxsteed_credit_accounts ca ON ca.id = t.debit_account_id
+          WHERE t.transaction_type = 'purchase'
+            AND t.status = 'posted'
+            AND t.partner_id = $1
+            AND t.agreement_id = $2
+            AND ca.customer_id = $3
+       ), active_hold_usage AS (
+         SELECT COALESCE(SUM(h.amount_cents), 0) AS active_hold_cents
+           FROM oxsteed_credit_holds h
+          WHERE h.customer_id = $3
+            AND h.partner_id = $1
+            AND h.agreement_id = $2
+            AND h.status = 'active'
+       )
+       SELECT purchase_usage.daily_purchase_cents + active_hold_usage.active_hold_cents AS daily_cents,
+              purchase_usage.lifetime_purchase_cents + active_hold_usage.active_hold_cents AS lifetime_cents
+         FROM purchase_usage CROSS JOIN active_hold_usage`,
       [partnerId, agreement.id, customerId]
     );
     const dailyCents = Number(usageRows[0]?.daily_cents || 0);
