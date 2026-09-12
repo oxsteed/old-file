@@ -682,7 +682,11 @@ describe('support routes', () => {
       .mockResolvedValueOnce({ rows: [{ id: 3, status: 'ready', total_cents: 1800 }] })
       .mockResolvedValueOnce({ rows: [{ id: 'message-1', conversation_id: 'conversation-1', attachment_name: 'photo.png', attachment_url: '/api/storage/files/photo.png' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'email-1', conversation_id: 'conversation-1', kind: 'agent_reply', recipient: 'customer@example.com', subject: 'Support follow-up', status: 'sent', attempts: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1', conversation_id: 'conversation-1', agent_id: 'agent-2', agent_name: 'Bri Agent', assignment_type: 'manual', status: 'completed', claimed_at: '2026-09-08T10:00:00.000Z' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1', conversation_id: 'conversation-1', agent_id: 'agent-2', agent_name: 'Bri Agent', assignment_type: 'manual', status: 'completed', claimed_at: '2026-09-08T10:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'credit-account-1', currency_code: 'USD', balance_cents: '12500', reserved_cents: '1500', status: 'active', ledger_version: '4', last_posted_at: '2026-09-11T12:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'credit-tx-1', transaction_type: 'purchase', status: 'posted', amount_cents: '2400', currency_code: 'USD', partner_id: '9', agreement_id: 'agreement-1', description: 'Restaurant purchase', reference_type: 'food_order', reference_id: 'order-1', entry_direction: 'debit', restaurant_name: 'Casey Cafe', posted_at: '2026-09-11T12:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'credit-hold-1', amount_cents: '1500', currency_code: 'USD', status: 'active', partner_id: '9', agreement_id: 'agreement-1', restaurant_name: 'Casey Cafe', purpose: 'Order authorization', expires_at: '2026-09-11T12:30:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'credit-dispute-1', transaction_id: 'credit-tx-1', partner_id: '9', status: 'open', reason_code: 'incorrect_amount', description: 'Amount is incorrect', restaurant_name: 'Casey Cafe', opened_at: '2026-09-11T13:00:00.000Z' }] });
 
     const res = await request(buildApp())
       .get('/api/support/conversations/conversation-1/customer-360')
@@ -700,6 +704,9 @@ describe('support routes', () => {
     expect(res.body.data.conversationMessages).toEqual([expect.objectContaining({ id: 'message-2', content: 'I still need help with the repair.' })]);
     expect(res.body.data.emailHistory).toEqual([expect.objectContaining({ id: 'email-1', status: 'sent' })]);
     expect(res.body.data.emailHistory[0]).not.toHaveProperty('payload');
+    expect(res.body.data.credit.accounts[0]).toEqual(expect.objectContaining({ balanceCents: 12500, reservedCents: 1500, availableCents: 11000 }));
+    expect(res.body.data.credit.transactions[0]).toEqual(expect.objectContaining({ restaurantName: 'Casey Cafe', direction: 'debit', amountCents: 2400 }));
+    expect(res.body.data.credit.summary).toEqual(expect.objectContaining({ availableCents: 11000, activeHoldCount: 1, openDisputeCount: 1 }));
   });
 
   test('does not expose customer 360 context to the customer', async () => {

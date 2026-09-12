@@ -1,9 +1,15 @@
-import { Briefcase, CreditCard, FileImage, History, Mail, MessageSquare, ShoppingBag, UserRound } from 'lucide-react';
+import { Briefcase, CreditCard, FileImage, History, Mail, MessageSquare, ShoppingBag, UserRound, WalletCards } from 'lucide-react';
 
 function formatWhen(value) {
   if (!value) return '-';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+}
+
+function formatMoney(cents, currency = 'USD') {
+  const amount = Number(cents || 0);
+  if (!Number.isFinite(amount)) return '-';
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount / 100);
 }
 
 function isPreviewableImage(item) {
@@ -25,6 +31,7 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
   const conversationMessages = data.conversationMessages || [];
   const attachments = data.attachments || [];
   const assignmentHistory = data.assignmentHistory || [];
+  const credit = data.credit || { accounts: [], transactions: [], holds: [], disputes: [], summary: {} };
   const messagesByConversation = conversationMessages.reduce((groups, message) => {
     const messages = groups.get(message.conversation_id) || [];
     messages.push(message);
@@ -42,13 +49,14 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
         </div>
         <span className="rounded-full border border-blue-400/25 px-2.5 py-1 text-[11px] text-blue-200">Staff context only</span>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-7">
         <Count label="Conversations" value={data.summary?.conversations || 0} icon={MessageSquare} />
         <Count label="Jobs" value={data.summary?.jobs || 0} icon={Briefcase} />
         <Count label="Payments" value={data.summary?.payments || 0} icon={CreditCard} />
         <Count label="Orders" value={data.summary?.orders || 0} icon={ShoppingBag} />
         <Count label="Attachments" value={data.summary?.attachments || 0} icon={FileImage} />
         <Count label="Internal notes" value={data.summary?.internalNotes || 0} icon={History} />
+        <Count label="Credit holds" value={credit.summary?.activeHoldCount || 0} icon={WalletCards} />
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
@@ -104,6 +112,49 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
             {assignmentHistory.slice(0, 8).map((assignment) => <div key={assignment.id} className="rounded-lg bg-slate-900 p-2 text-xs"><div className="font-semibold text-slate-200">{assignment.agent_name}</div><div className="mt-1 text-slate-500">{assignment.assignment_type || 'assignment'} · {assignment.status || 'active'} · {formatWhen(assignment.claimed_at)}</div></div>)}
             {(data.internalNotes || []).slice(0, 4).map((note) => <div key={note.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-xs text-amber-100"><div className="font-semibold">{note.subject || 'Support note'}</div><div className="mt-1 whitespace-pre-wrap">{note.content}</div><div className="mt-1 text-[10px] text-amber-200/60">{note.author_name} · {formatWhen(note.created_at)}</div></div>)}
             {!data.priorAgents?.length && !assignmentHistory.length && !data.internalNotes?.length && <p className="text-xs text-slate-500">No prior agents or internal notes.</p>}
+          </div>
+        </details>
+        <details className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <summary className="cursor-pointer text-xs font-semibold text-emerald-100">OxSteed Credit</summary>
+          <div className="mt-3 space-y-3">
+            {credit.accounts.length > 0 ? credit.accounts.map((account) => (
+              <div key={account.id} className="rounded-lg border border-emerald-500/20 bg-slate-900 p-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-200">{account.currencyCode || 'USD'} wallet</span>
+                  <span className={account.status === 'active' ? 'text-emerald-300' : 'text-amber-300'}>{account.status}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                  <span className="text-slate-500">Balance <strong className="block text-slate-200">{formatMoney(account.balanceCents, account.currencyCode)}</strong></span>
+                  <span className="text-slate-500">Reserved <strong className="block text-amber-200">{formatMoney(account.reservedCents, account.currencyCode)}</strong></span>
+                  <span className="text-slate-500">Spendable <strong className="block text-emerald-200">{formatMoney(account.availableCents, account.currencyCode)}</strong></span>
+                </div>
+              </div>
+            )) : <p className="text-xs text-slate-500">No OxSteed Credit account found.</p>}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
+              <span>{credit.summary?.transactionCount || 0} transactions</span>
+              <span>{credit.summary?.activeHoldCount || 0} active holds</span>
+              <span>{credit.summary?.openDisputeCount || 0} open disputes</span>
+            </div>
+            {credit.transactions.slice(0, 6).map((transaction) => {
+              const signedAmount = transaction.direction === 'debit' ? -transaction.amountCents : transaction.amountCents;
+              return (
+                <div key={transaction.id} className="flex items-start justify-between gap-3 rounded-lg bg-slate-900 p-2 text-xs">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-200">{transaction.description || transaction.transactionType || 'Credit activity'}</div>
+                    <div className="mt-1 truncate text-slate-500">{transaction.restaurantName || 'OxSteed'} · {transaction.status} · {formatWhen(transaction.postedAt || transaction.createdAt)}</div>
+                  </div>
+                  <strong className={signedAmount < 0 ? 'shrink-0 text-amber-200' : 'shrink-0 text-emerald-300'}>{signedAmount < 0 ? '-' : '+'}{formatMoney(Math.abs(signedAmount), transaction.currencyCode)}</strong>
+                </div>
+              );
+            })}
+            {credit.disputes.slice(0, 3).map((dispute) => (
+              <div key={dispute.id} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-xs text-amber-100">
+                <div className="font-semibold">Dispute · {dispute.status}</div>
+                <div className="mt-1 text-amber-200/80">{dispute.reasonCode} · {dispute.restaurantName || 'OxSteed Credit'}</div>
+              </div>
+            ))}
+            {!credit.transactions.length && !credit.disputes.length && credit.accounts.length > 0 && <p className="text-xs text-slate-500">No recent credit activity or disputes.</p>}
+            <p className="text-[10px] leading-4 text-slate-500">Restricted stored value. Customer credit is spendable only under active partner agreements.</p>
           </div>
         </details>
         <details className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">

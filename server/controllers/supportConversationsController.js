@@ -510,7 +510,7 @@ async function getCustomer360(req, res) {
       [customerId, customerEmail]
     );
 
-    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory, assignmentHistory] = await Promise.all([
+    const [supportConversations, conversationMessages, internalNotes, jobs, payments, marketplaceOrders, foodOrders, attachments, emailHistory, assignmentHistory, creditAccounts, creditTransactions, creditHolds, creditDisputes] = await Promise.all([
       queryOptional(
         `SELECT sc.id, sc.subject, sc.status, sc.priority, sc.channel, sc.external_thread_id,
                 sc.created_at, sc.updated_at,
@@ -660,6 +660,66 @@ async function getCustomer360(req, res) {
         supportParams,
         'support assignment history'
       ),
+      queryOptional(
+        `SELECT a.id, a.currency_code, a.balance_cents, a.reserved_cents,
+                a.status, a.ledger_version, a.last_posted_at
+           FROM oxsteed_credit_accounts a
+          WHERE a.account_type = 'customer_wallet'
+            AND a.customer_id = $1::uuid
+          ORDER BY a.currency_code`,
+        [customerId],
+        'OxSteed Credit accounts'
+      ),
+      queryOptional(
+        `SELECT t.id, t.transaction_type, t.status, t.amount_cents,
+                t.currency_code, t.partner_id, t.agreement_id,
+                t.description, t.reference_type, t.reference_id,
+                t.posted_at, t.created_at,
+                CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS entry_direction,
+                fr.display_name AS restaurant_name
+           FROM oxsteed_credit_accounts a
+           JOIN oxsteed_credit_transactions t
+             ON t.debit_account_id = a.id OR t.credit_account_id = a.id
+           LEFT JOIN oxsteed_credit_partners p ON p.id = t.partner_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE a.account_type = 'customer_wallet'
+            AND a.customer_id = $1::uuid
+            AND t.status <> 'voided'
+          ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.created_at DESC
+          LIMIT 100`,
+        [customerId],
+        'OxSteed Credit transactions'
+      ),
+      queryOptional(
+        `SELECT h.id, h.amount_cents, h.currency_code, h.status,
+                h.partner_id, h.agreement_id, h.purpose, h.reference_type,
+                h.reference_id, h.expires_at, h.created_at,
+                h.captured_at, h.released_at, fr.display_name AS restaurant_name
+           FROM oxsteed_credit_holds h
+           JOIN oxsteed_credit_accounts a ON a.id = h.account_id
+           LEFT JOIN oxsteed_credit_partners p ON p.id = h.partner_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE a.account_type = 'customer_wallet'
+            AND a.customer_id = $1::uuid
+          ORDER BY h.created_at DESC
+          LIMIT 100`,
+        [customerId],
+        'OxSteed Credit holds'
+      ),
+      queryOptional(
+        `SELECT d.id, d.transaction_id, d.partner_id, d.status,
+                d.reason_code, d.description, d.resolution,
+                d.opened_at, d.resolved_at, d.updated_at,
+                fr.display_name AS restaurant_name
+           FROM oxsteed_credit_disputes d
+           LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE d.customer_id = $1::uuid
+          ORDER BY d.updated_at DESC, d.opened_at DESC
+          LIMIT 100`,
+        [customerId],
+        'OxSteed Credit disputes'
+      ),
     ]);
 
     const priorAgents = Array.from(new Map([
@@ -670,6 +730,73 @@ async function getCustomer360(req, res) {
         .filter((row) => row.agent_id && row.agent_name)
         .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }]),
     ]).values());
+
+    const credit = {
+      accounts: creditAccounts.map((row) => ({
+        id: String(row.id),
+        currencyCode: row.currency_code,
+        balanceCents: Number(row.balance_cents || 0),
+        reservedCents: Number(row.reserved_cents || 0),
+        availableCents: Math.max(0, Number(row.balance_cents || 0) - Number(row.reserved_cents || 0)),
+        status: row.status,
+        ledgerVersion: Number(row.ledger_version || 0),
+        lastPostedAt: row.last_posted_at || null,
+      })),
+      transactions: creditTransactions.map((row) => ({
+        id: String(row.id),
+        transactionType: row.transaction_type,
+        status: row.status,
+        amountCents: Number(row.amount_cents || 0),
+        currencyCode: row.currency_code,
+        direction: row.entry_direction,
+        partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+        agreementId: row.agreement_id || null,
+        restaurantName: row.restaurant_name || null,
+        description: row.description || null,
+        referenceType: row.reference_type || null,
+        referenceId: row.reference_id || null,
+        postedAt: row.posted_at || null,
+        createdAt: row.created_at || null,
+      })),
+      holds: creditHolds.map((row) => ({
+        id: String(row.id),
+        amountCents: Number(row.amount_cents || 0),
+        currencyCode: row.currency_code,
+        status: row.status,
+        partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+        agreementId: row.agreement_id || null,
+        restaurantName: row.restaurant_name || null,
+        purpose: row.purpose || null,
+        referenceType: row.reference_type || null,
+        referenceId: row.reference_id || null,
+        expiresAt: row.expires_at || null,
+        createdAt: row.created_at || null,
+        capturedAt: row.captured_at || null,
+        releasedAt: row.released_at || null,
+      })),
+      disputes: creditDisputes.map((row) => ({
+        id: String(row.id),
+        transactionId: String(row.transaction_id),
+        partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+        restaurantName: row.restaurant_name || null,
+        status: row.status,
+        reasonCode: row.reason_code,
+        description: row.description,
+        resolution: row.resolution || null,
+        openedAt: row.opened_at || null,
+        resolvedAt: row.resolved_at || null,
+        updatedAt: row.updated_at || null,
+      })),
+    };
+
+    credit.summary = {
+      balanceCents: credit.accounts.reduce((sum, account) => sum + account.balanceCents, 0),
+      reservedCents: credit.accounts.reduce((sum, account) => sum + account.reservedCents, 0),
+      availableCents: credit.accounts.reduce((sum, account) => sum + account.availableCents, 0),
+      transactionCount: credit.transactions.length,
+      activeHoldCount: credit.holds.filter((hold) => hold.status === 'active').length,
+      openDisputeCount: credit.disputes.filter((dispute) => ['open', 'in_review'].includes(dispute.status)).length,
+    };
 
     return res.json({
       success: true,
@@ -693,6 +820,7 @@ async function getCustomer360(req, res) {
         emailHistory,
         assignmentHistory,
         priorAgents,
+        credit,
         summary: {
           conversations: supportConversations.length,
           jobs: jobs.length,
