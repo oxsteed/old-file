@@ -3,7 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { CREDIT_CURRENCY, ensureAccount, postJournalTransaction } = require('./oxsteedCreditService');
+const { CREDIT_CURRENCY, assertSupportedCreditCurrency, ensureAccount, postJournalTransaction } = require('./oxsteedCreditService');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -528,7 +528,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
 }
 
 async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId }) {
-  const currency = normalizeString(currencyCode, 3)?.toUpperCase() || 'USD';
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
   if (ends <= starts) throw new AppError('Reconciliation period end must be after its start', 400, 'credit_reconciliation_dates_invalid');

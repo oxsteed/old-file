@@ -32,6 +32,14 @@ function normalizeCurrency(value) {
   return (normalizeString(value, 3) || CREDIT_CURRENCY).toUpperCase();
 }
 
+function assertSupportedCreditCurrency(value) {
+  const currency = normalizeCurrency(value);
+  if (currency !== CREDIT_CURRENCY) {
+    throw new AppError(`OxSteed Credit currently supports ${CREDIT_CURRENCY} only`, 400, 'credit_currency_not_supported');
+  }
+  return currency;
+}
+
 function normalizeMetadata(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
@@ -642,6 +650,7 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
 }
 
 async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT DISTINCT ON (p.id)
             p.id AS partner_id, p.restaurant_id, p.settlement_currency_code,
@@ -667,7 +676,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
           AND (e.ends_at IS NULL OR e.ends_at > NOW())))
         AND ($3::text IS NULL OR cardinality(a.allowed_order_types) = 0 OR $3 = ANY(a.allowed_order_types))
       ORDER BY p.id, a.version DESC`,
-    [customerId, normalizeCurrency(currencyCode), normalizeString(orderType, 40)?.toLowerCase() || null]
+    [customerId, currency, normalizeString(orderType, 40)?.toLowerCase() || null]
   );
   return rows.filter((row) => matchesGeography(row.geography, { city, state, postalCode, country })).map((row) => ({
     partnerId: String(row.partner_id),
@@ -689,8 +698,9 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
 }
 
 async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURRENCY) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
   return withTransaction(pool, async (client) => {
-    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode });
+    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     return formatAccount(account);
   }, 'credit_get_customer_account');
 }
@@ -1183,9 +1193,10 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
          ON p.id = CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
       WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1
+        AND a.currency_code = $4
       ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
-    [customerId, pageSize, pageOffset]
+    [customerId, pageSize, pageOffset, CREDIT_CURRENCY]
   );
   return rows.map(formatCustomerCreditTransaction);
 }
@@ -1227,7 +1238,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
     `WITH customer_account AS (
        SELECT id, currency_code
          FROM oxsteed_credit_accounts
-        WHERE account_type = 'customer_wallet' AND customer_id = $1
+        WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $6
         LIMIT 1
      ), filtered_transactions AS (
        SELECT t.*, ca.id AS customer_account_id,
@@ -1348,8 +1359,9 @@ async function getCustomerCreditTransaction(customerId, transactionId) {
        LEFT JOIN oxsteed_credit_partners p ON p.id = CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
       WHERE t.id = $1 AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+        AND a.currency_code = $3
       LIMIT 1`,
-    [transactionId, customerId]
+    [transactionId, customerId, CREDIT_CURRENCY]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
   return { transaction: formatCustomerCreditTransaction(rows[0]) };
@@ -1473,6 +1485,7 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
 
 module.exports = {
   CREDIT_CURRENCY,
+  assertSupportedCreditCurrency,
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,

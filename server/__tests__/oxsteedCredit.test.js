@@ -73,6 +73,14 @@ test('creates a customer OxSteed Credit account with zero balance', async () => 
   });
 });
 
+test('rejects unsupported credit currencies before creating a wallet', async () => {
+  const response = await request(createCustomerApp()).get('/account?currencyCode=EUR');
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_currency_not_supported');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('rejects credit hold creation without an idempotency key', async () => {
   const response = await request(createCustomerApp())
     .post('/holds')
