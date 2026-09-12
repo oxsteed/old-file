@@ -1625,12 +1625,17 @@ exports.getAdminDashboard = async (req, res) => {
           LIMIT 10`
       ),
     ]);
+    const [serviceAreas, profile] = await Promise.all([
+      listServiceAreas({ activeOnly: true }).catch(() => []),
+      loadProfileRow().catch(() => null),
+    ]);
 
     return res.json({
       totals: totals[0] || {},
       upcoming: upcoming.rows || [],
       range: { from: rangeFrom, to: rangeTo },
       travelDensity: travelDensity.rows || [],
+      routePlan: buildTravelPlan(upcoming.rows || [], serviceAreas, profile?.base_city || 'Springfield'),
       unpaid: unpaid.rows || [],
     });
   } catch (err) {
@@ -1794,6 +1799,81 @@ function validateCalendarBlockInput(input) {
     return 'Calendar block end must be after its start';
   }
   return null;
+}
+
+function routeCityLabel(item) {
+  return cleanText(item?.service_city || item?.service_location || 'Unspecified', 120).split(',')[0].trim() || 'Unspecified';
+}
+
+function routeCityKey(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function distanceBetweenAreas(from, to) {
+  if (!from || !to || !Number.isFinite(Number(from.lat)) || !Number.isFinite(Number(from.lng)) || !Number.isFinite(Number(to.lat)) || !Number.isFinite(Number(to.lng))) return null;
+  const toRadians = (number) => Number(number) * Math.PI / 180;
+  const lat1 = toRadians(from.lat);
+  const lat2 = toRadians(to.lat);
+  const deltaLat = lat2 - lat1;
+  const deltaLng = toRadians(to.lng) - toRadians(from.lng);
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+  return 3958.7613 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function buildTravelPlan(jobs, serviceAreas, baseCity) {
+  const areas = (serviceAreas || []).map((area) => ({ ...area, key: routeCityKey(area.label) }));
+  const findArea = (city) => {
+    const key = routeCityKey(city);
+    return areas.find((area) => area.key === key)
+      || areas.find((area) => area.key && (area.key.startsWith(key) || key.startsWith(area.key)))
+      || null;
+  };
+  const baseArea = findArea(baseCity) || areas[0] || null;
+  const byDate = jobs.reduce((groups, job) => {
+    const date = String(job.scheduled_start_at).slice(0, 10);
+    groups[date] = groups[date] || [];
+    groups[date].push(job);
+    return groups;
+  }, {});
+
+  return Object.entries(byDate).sort(([left], [right]) => left.localeCompare(right)).map(([date, dayJobs]) => {
+    const stopMap = new Map();
+    dayJobs.forEach((job) => {
+      const city = routeCityLabel(job);
+      const key = routeCityKey(city);
+      if (!stopMap.has(key)) stopMap.set(key, { city, jobCount: 0, area: findArea(city) });
+      stopMap.get(key).jobCount += 1;
+    });
+    const remaining = Array.from(stopMap.values());
+    const stops = [];
+    let cursor = baseArea;
+    let estimatedMiles = 0;
+    while (remaining.length) {
+      let nextIndex = 0;
+      let shortest = Number.POSITIVE_INFINITY;
+      remaining.forEach((stop, index) => {
+        const distance = distanceBetweenAreas(cursor, stop.area);
+        const score = distance == null ? Number.POSITIVE_INFINITY : distance;
+        if (score < shortest) {
+          shortest = score;
+          nextIndex = index;
+        }
+      });
+      const [next] = remaining.splice(nextIndex, 1);
+      const distance = distanceBetweenAreas(cursor, next.area);
+      if (distance != null) estimatedMiles += distance;
+      stops.push({ city: next.city, jobCount: next.jobCount, mapped: Boolean(next.area) });
+      if (next.area) cursor = next.area;
+    }
+    return {
+      date,
+      baseCity: baseArea?.label || baseCity || null,
+      stops,
+      estimatedMiles: Math.round(estimatedMiles),
+      estimatedDriveMinutes: Math.round(estimatedMiles * 2 + (stops.length * 15)),
+      hasUnmappedStops: stops.some((stop) => !stop.mapped),
+    };
+  });
 }
 
 exports.createAdminCalendarBlock = async (req, res) => {
