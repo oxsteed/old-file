@@ -11,6 +11,9 @@ export const listOxsteedCreditTransactions = (params = {}) =>
   api.get('/oxsteed-credit/transactions', { params })
     .then((response) => response.data?.transactions || []);
 
+export const getOxsteedCreditTransaction = (transactionId) =>
+  api.get(`/oxsteed-credit/transactions/${transactionId}`).then((response) => response.data?.transaction || null);
+
 export const createOxsteedCreditHold = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/holds', payload, {
     headers: { 'Idempotency-Key': idempotencyKey },

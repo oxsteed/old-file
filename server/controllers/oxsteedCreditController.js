@@ -6,6 +6,7 @@ const {
   getCustomerCreditAccount,
   listEligiblePartners,
   listCustomerCreditTransactions,
+  getCustomerCreditTransaction,
   createCreditHold,
   captureCreditHold,
   releaseCreditHold,
@@ -96,6 +97,15 @@ async function getMyTransactions(req, res, next) {
       offset: req.query.offset,
     });
     res.json({ transactions });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyTransaction(req, res, next) {
+  try {
+    const transactionId = parseUuid(req.params.transactionId, 'transactionId');
+    res.json(await getCustomerCreditTransaction(req.user.id, transactionId));
   } catch (error) {
     next(error);
   }
@@ -537,6 +547,7 @@ module.exports = {
   getMyAccount,
   getEligiblePartners,
   getMyTransactions,
+  getMyTransaction,
   createMyHold,
   adminCaptureHold,
   releaseMyHold,

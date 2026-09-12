@@ -1009,6 +1009,33 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
   return rows.map((row) => ({ ...formatTransaction(row), direction: row.direction, relatedPartnerId: row.related_partner_id ? String(row.related_partner_id) : null }));
 }
 
+async function getCustomerCreditTransaction(customerId, transactionId) {
+  const { rows } = await pool.query(
+    `SELECT t.*,
+            CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
+            CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END AS related_partner_id,
+            fr.display_name AS restaurant_name
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+       LEFT JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
+       LEFT JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
+       LEFT JOIN oxsteed_credit_partners p ON p.id = CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+      WHERE t.id = $1 AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+      LIMIT 1`,
+    [transactionId, customerId]
+  );
+  if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+  return {
+    transaction: {
+      ...formatTransaction(rows[0], await loadAccountEntries(pool, rows[0].id)),
+      direction: rows[0].direction,
+      relatedPartnerId: rows[0].related_partner_id ? String(rows[0].related_partner_id) : null,
+      restaurantName: rows[0].restaurant_name || null,
+    },
+  };
+}
+
 function formatDispute(row) {
   return {
     id: String(row.id),
@@ -1140,6 +1167,7 @@ module.exports = {
   getCustomerCreditAccount,
   listEligiblePartners,
   listCustomerCreditTransactions,
+  getCustomerCreditTransaction,
   loadCustomerCredit,
   postJournalTransaction,
   purchaseWithCreditInTransaction,
