@@ -1605,13 +1605,16 @@ exports.getAdminDashboard = async (req, res) => {
         WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'`
       ),
       db.query(
-        `SELECT id, user_id, first_name, last_name, email, phone, on_site_contact_name, on_site_contact_phone,
-                service_category, service_city, service_location,
-                scheduled_start_at, scheduled_end_at, status, payment_status,
-                assigned_to, assigned_at,
+        `SELECT quote_requests.id, quote_requests.user_id, quote_requests.first_name, quote_requests.last_name,
+                quote_requests.email, quote_requests.phone, quote_requests.on_site_contact_name,
+                quote_requests.on_site_contact_phone, quote_requests.service_category,
+                quote_requests.service_city, quote_requests.service_location,
+                quote_requests.scheduled_start_at, quote_requests.scheduled_end_at,
+                quote_requests.status, quote_requests.payment_status,
+                quote_requests.assigned_to, quote_requests.assigned_at,
                 assignee.first_name AS assignee_first_name,
                 assignee.last_name AS assignee_last_name,
-                quote_amount_cents, quote_currency_code
+                quote_requests.quote_amount_cents, quote_requests.quote_currency_code
            FROM quote_requests
            LEFT JOIN users assignee ON assignee.id = quote_requests.assigned_to
           WHERE ${calendarWhere}
