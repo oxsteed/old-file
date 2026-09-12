@@ -545,6 +545,8 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
                 COALESCE(SUM(CASE WHEN entry_side = 'credit' THEN amount_cents ELSE -amount_cents END), 0) AS journal_cents,
                 COUNT(*)::int AS entries
            FROM oxsteed_credit_transaction_entries
+           JOIN oxsteed_credit_transactions t ON t.id = oxsteed_credit_transaction_entries.transaction_id
+          WHERE t.status = 'posted' AND t.currency_code = $1
           GROUP BY account_id
        ), checks AS (
          SELECT a.id,
