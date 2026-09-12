@@ -42,6 +42,7 @@ import CorporateOrgChart    from './pages/super/CorporateOrgChart';
 import CorporateAssignments from './pages/super/CorporateAssignments';
 import CorporateDepartments from './pages/super/CorporateDepartments';
 import FranchiseHQPage      from './pages/super/FranchiseHQPage';
+import RestaurantCreditAdmin from './pages/super/RestaurantCreditAdmin';
 
 // OxSteed Logistics admin pages (migration 247)
 import LogisticsAdminDashboard from './pages/logistics/LogisticsAdminDashboard';
@@ -242,6 +243,9 @@ export default function AdminApp() {
           } />
           <Route path="super/money" element={
             <AdminGuard superOnly><MoneyPage /></AdminGuard>
+          } />
+          <Route path="super/restaurant-credit" element={
+            <AdminGuard superOnly><RestaurantCreditAdmin /></AdminGuard>
           } />
           <Route path="super/financials" element={
             <AdminGuard superOnly><Financials /></AdminGuard>

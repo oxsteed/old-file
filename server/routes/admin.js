@@ -14,6 +14,7 @@ const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
+const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 
 // —— Admin live-support availability toggle ——
 router.get('/support/availability', requireAdmin, supportCtrl.getMyAvailability);
@@ -95,6 +96,14 @@ router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
+
+// Restaurant credit oversight - global, super-admin-only read and control plane.
+router.get('/super/restaurant-credit/overview', requireSuperAdmin, restaurantCreditAdminCtrl.getOverview);
+router.get('/super/restaurant-credit/wallets/:accountId', requireSuperAdmin, restaurantCreditAdminCtrl.getWalletDetail);
+router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, restaurantCreditAdminCtrl.updateWalletStatus);
+router.post('/super/restaurant-credit/holds/:holdId/release', requireSuperAdmin, restaurantCreditAdminCtrl.releaseHold);
+router.post('/super/restaurant-credit/load-requests/:requestId/approve', requireSuperAdmin, restaurantCreditAdminCtrl.approveLoadRequest);
+router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, restaurantCreditAdminCtrl.declineLoadRequest);
 
 // User management (privileged write)
 // ID / background "confirm" is super-admin only (trust & compliance).

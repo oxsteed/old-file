@@ -12,7 +12,7 @@ import {
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
-  Settings2, Check,
+  Settings2, Check, Wallet,
 } from 'lucide-react';
 
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
@@ -55,6 +55,7 @@ const REGULAR_NAV = [
 const SUPER_NAV = [
   { to: '/admin/super/dashboard',      icon: BarChart2,     label: 'Super Dashboard'  },
   { to: '/admin/super/money',          icon: DollarSign,    label: 'Money'            },
+  { to: '/admin/super/restaurant-credit', icon: Wallet,      label: 'Restaurant Credit' },
   { to: '/admin/super/revenue',        icon: TrendingUp,    label: 'Revenue'          },
   { to: '/admin/super/fees',           icon: DollarSign,    label: 'Fee Config'        },
   { to: '/admin/super/pricing',        icon: DollarSign,    label: 'Pricing Config'    },
@@ -96,6 +97,7 @@ const SIMPLE_REGULAR_NAV = [
 
 const SIMPLE_SUPER_NAV = [
   '/admin/super/dashboard',
+  '/admin/super/restaurant-credit',
   '/admin/super/conversations',
   '/admin/super/settings',
   '/admin/super/audit-log',
