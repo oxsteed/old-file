@@ -7,6 +7,11 @@ import {
   ChevronRight,
   DollarSign,
   Loader2,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Search,
+  X,
   Shield,
   Sparkles,
   ToggleLeft,
@@ -35,6 +40,12 @@ const SECTION_CONFIG = {
   },
 };
 
+const BOOLEAN_SETTING_KEYS = new Set([
+  'maintenance_mode',
+  'new_user_registrations',
+  'require_id_verification',
+]);
+
 function prettifyKey(key) {
   return key.replace(/_/g, ' ');
 }
@@ -52,9 +63,13 @@ function inferredSection(setting) {
 
 function valueTypeLabel(setting) {
   if (setting.value_type === 'number') return 'Numeric';
-  if (setting.value_type === 'boolean') return 'Boolean';
+  if (setting.value_type === 'boolean' || BOOLEAN_SETTING_KEYS.has(setting.key)) return 'Boolean';
   if ((setting.key || '').includes('email')) return 'Contact';
   return 'Text';
+}
+
+function isBooleanSetting(setting) {
+  return setting.value_type === 'boolean' || BOOLEAN_SETTING_KEYS.has(setting.key);
 }
 
 function MessageBanner({ message }) {
@@ -62,7 +77,7 @@ function MessageBanner({ message }) {
 
   const success = message.type === 'success';
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm ${
+    <div role={success ? 'status' : 'alert'} className={`rounded-2xl border px-4 py-3 text-sm ${
       success
         ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
         : 'border-red-500/30 bg-red-500/10 text-red-300'
@@ -87,7 +102,7 @@ function OverviewCard({ icon: Icon, label, value, hint, color = 'text-white' }) 
   );
 }
 
-function SettingsSection({ sectionKey, config, settings, editing, setEditing, onSave, saving }) {
+function SettingsSection({ sectionKey, config, settings, editing, setEditing, onSave, onReset, saving }) {
   const Icon = config.icon;
 
   return (
@@ -111,7 +126,11 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
       </div>
 
       <div className="space-y-3">
-        {settings.map((setting) => {
+        {settings.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/25 px-4 py-8 text-center text-sm text-gray-500">
+            No settings match the current filter.
+          </div>
+        ) : settings.map((setting) => {
           const currentValue = editing[setting.key] ?? setting.value;
           const dirty = String(currentValue) !== String(setting.value);
 
@@ -143,19 +162,47 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:shrink-0">
-                  <input
-                    type={setting.value_type === 'number' ? 'number' : 'text'}
-                    value={currentValue}
-                    onChange={(event) => setEditing((prev) => ({
-                      ...prev,
-                      [setting.key]: event.target.value,
-                    }))}
-                    step={setting.value_type === 'number' ? '0.01' : undefined}
-                    className="min-w-[170px] rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500"
-                  />
+                  {isBooleanSetting(setting) ? (
+                    <select
+                      value={String(currentValue).toLowerCase() === 'true' ? 'true' : 'false'}
+                      onChange={(event) => setEditing((prev) => ({
+                        ...prev,
+                        [setting.key]: event.target.value,
+                      }))}
+                      aria-label={prettifyKey(setting.key)}
+                      className="min-w-[170px] rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500"
+                    >
+                      <option value="true">Enabled</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                  ) : (
+                    <input
+                      type={setting.value_type === 'number' ? 'number' : 'text'}
+                      value={currentValue}
+                      onChange={(event) => setEditing((prev) => ({
+                        ...prev,
+                        [setting.key]: event.target.value,
+                      }))}
+                      aria-label={prettifyKey(setting.key)}
+                      step={setting.value_type === 'number' ? '0.01' : undefined}
+                      className="min-w-[170px] rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500"
+                    />
+                  )}
+                  {dirty && (
+                    <button
+                      type="button"
+                      onClick={() => onReset(setting.key)}
+                      title="Discard unsaved change"
+                      aria-label={`Reset ${prettifyKey(setting.key)}`}
+                      className="inline-flex items-center justify-center rounded-xl border border-gray-700 px-3 py-2 text-gray-400 transition hover:border-gray-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  )}
                   <button
+                    type="button"
                     onClick={() => onSave(setting.key)}
-                    disabled={saving === setting.key || !dirty}
+                    disabled={saving !== null || !dirty}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {saving === setting.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -171,7 +218,7 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
   );
 }
 
-function FeatureFlagRow({ flag, onToggle }) {
+function FeatureFlagRow({ flag, onToggle, updating }) {
   return (
     <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -192,15 +239,19 @@ function FeatureFlagRow({ flag, onToggle }) {
         </div>
 
         <button
+          type="button"
           onClick={onToggle}
+          disabled={updating}
+          aria-pressed={flag.enabled}
+          aria-label={`${flag.enabled ? 'Disable' : 'Enable'} ${prettifyKey(flag.key)}`}
           className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-2 text-sm font-medium transition ${
             flag.enabled
               ? 'border-orange-500/30 bg-orange-500/12 text-orange-200 hover:bg-orange-500/18'
               : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-500 hover:text-white'
           }`}
         >
-          <ToggleLeft className={`h-5 w-5 transition ${flag.enabled ? 'rotate-180 text-orange-300' : 'text-gray-500'}`} />
-          {flag.enabled ? 'Disable flag' : 'Enable flag'}
+          {updating ? <Loader2 className="h-5 w-5 animate-spin text-orange-300" /> : <ToggleLeft className={`h-5 w-5 transition ${flag.enabled ? 'rotate-180 text-orange-300' : 'text-gray-500'}`} />}
+          {updating ? 'Updating' : flag.enabled ? 'Disable flag' : 'Enable flag'}
           <ChevronRight className="h-4 w-4 opacity-60" />
         </button>
       </div>
@@ -215,28 +266,52 @@ export default function PlatformSettings() {
   const [saving, setSaving] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [flagUpdating, setFlagUpdating] = useState(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [query, setQuery] = useState('');
+  const [filterMode, setFilterMode] = useState('all');
+
+  const fetchSettings = async ({ silent = false } = {}) => {
+    if (silent) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const { data } = await adminApi.get('/admin/settings');
+      setSettings(data.settings || []);
+      setFlags(data.flags || []);
+      const editMap = {};
+      (data.settings || []).forEach((setting) => {
+        editMap[setting.key] = setting.value;
+      });
+      setEditing(editMap);
+      setLastLoadedAt(new Date());
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: silent ? 'Refresh failed. Existing values are still shown.' : 'Failed to load platform settings.' });
+    } finally {
+      if (silent) setRefreshing(false);
+      else setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const { data } = await adminApi.get('/admin/settings');
-        setSettings(data.settings || []);
-        setFlags(data.flags || []);
-        const editMap = {};
-        (data.settings || []).forEach((setting) => {
-          editMap[setting.key] = setting.value;
-        });
-        setEditing(editMap);
-      } catch (err) {
-        console.error(err);
-        setMessage({ type: 'error', text: 'Failed to load platform settings.' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSettings();
   }, []);
+
+  const filterText = query.trim().toLowerCase();
+  const matchesQuery = (item) => (
+    !filterText || `${item.key} ${item.description || ''}`.toLowerCase().includes(filterText)
+  );
+
+  const filteredSettings = useMemo(() => settings.filter((setting) => {
+    if (filterMode === 'flags') return false;
+    const dirty = String(editing[setting.key] ?? setting.value) !== String(setting.value);
+    return (filterMode !== 'changed' || dirty) && matchesQuery(setting);
+  }), [settings, editing, filterMode, filterText]);
+
+  const filteredFlags = useMemo(() => flags.filter((flag) => (
+    filterMode !== 'changed' && matchesQuery(flag)
+  )), [flags, filterMode, filterText]);
 
   const saveSetting = async (key) => {
     setSaving(key);
@@ -257,8 +332,44 @@ export default function PlatformSettings() {
     }
   };
 
+  const resetSetting = (key) => {
+    const saved = settings.find((setting) => setting.key === key);
+    if (!saved) return;
+    setEditing((prev) => ({ ...prev, [key]: saved.value }));
+    setMessage(null);
+  };
+
+  const saveAll = async () => {
+    const dirtySettings = settings.filter((setting) => (
+      String(editing[setting.key] ?? setting.value) !== String(setting.value)
+    ));
+    if (!dirtySettings.length) return;
+
+    setSaving('__all__');
+    setMessage(null);
+    let savedCount = 0;
+    try {
+      for (const setting of dirtySettings) {
+        await adminApi.put(`/admin/settings/${setting.key}`, { value: editing[setting.key] });
+        savedCount += 1;
+        setSettings((prev) => prev.map((item) => (
+          item.key === setting.key ? { ...item, value: editing[setting.key] } : item
+        )));
+      }
+      setMessage({ type: 'success', text: `${savedCount} setting${savedCount === 1 ? '' : 's'} saved.` });
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || `${savedCount} saved. The remaining settings could not be saved.`,
+      });
+    } finally {
+      setSaving(null);
+    }
+  };
+
   const toggleFlag = async (key, current) => {
     setMessage(null);
+    setFlagUpdating(key);
     try {
       await adminApi.put(`/admin/feature-flags/${key}`, { enabled: !current });
       setFlags((prev) => prev.map((flag) => (
@@ -270,19 +381,23 @@ export default function PlatformSettings() {
         type: 'error',
         text: err.response?.data?.error || 'Update failed.',
       });
+    } finally {
+      setFlagUpdating(null);
     }
   };
 
   const groupedSettings = useMemo(() => {
     const groups = { fees: [], jobs: [], system: [] };
-    settings.forEach((setting) => {
+    filteredSettings.forEach((setting) => {
       groups[inferredSection(setting)].push(setting);
     });
     return groups;
-  }, [settings]);
+  }, [filteredSettings]);
 
   const changedCount = useMemo(() => countChanged(settings, editing), [settings, editing]);
   const enabledFlagsCount = flags.filter((flag) => flag.enabled).length;
+
+  const hasFilteredResults = filteredSettings.length > 0 || filteredFlags.length > 0;
 
   if (loading) {
     return (
@@ -368,35 +483,88 @@ export default function PlatformSettings() {
 
         <MessageBanner message={message} />
 
-        <div className="grid gap-4 xl:grid-cols-3">
-          <SettingsSection
-            sectionKey="fees"
-            config={SECTION_CONFIG.fees}
-            settings={groupedSettings.fees}
-            editing={editing}
-            setEditing={setEditing}
-            onSave={saveSetting}
-            saving={saving}
-          />
-          <SettingsSection
-            sectionKey="jobs"
-            config={SECTION_CONFIG.jobs}
-            settings={groupedSettings.jobs}
-            editing={editing}
-            setEditing={setEditing}
-            onSave={saveSetting}
-            saving={saving}
-          />
-          <SettingsSection
-            sectionKey="system"
-            config={SECTION_CONFIG.system}
-            settings={groupedSettings.system}
-            editing={editing}
-            setEditing={setEditing}
-            onSave={saveSetting}
-            saving={saving}
-          />
-        </div>
+        <section className="sticky top-0 z-20 rounded-2xl border border-gray-800 bg-[#0f1117]/95 p-3 shadow-xl shadow-black/10 backdrop-blur">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">Search platform settings</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search settings and feature flags..."
+                className="w-full rounded-xl border border-gray-700 bg-gray-900 py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear settings search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-500 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </label>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Settings filters">
+              {[
+                { value: 'all', label: 'All', count: settings.length + flags.length },
+                { value: 'changed', label: 'Changed', count: changedCount },
+                { value: 'flags', label: 'Flags', count: flags.length },
+              ].map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => setFilterMode(filter.value)}
+                  aria-pressed={filterMode === filter.value}
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${filterMode === filter.value ? 'border-orange-500/50 bg-orange-500/12 text-orange-200' : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-500 hover:text-white'}`}
+                >
+                  {filter.label} <span className="ml-1 text-[10px] opacity-70">{filter.count}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => fetchSettings({ silent: true })}
+                disabled={refreshing || saving !== null || flagUpdating !== null}
+                title="Reload settings from the server"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-300 transition hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={saveAll}
+                disabled={changedCount === 0 || saving !== null || flagUpdating !== null}
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {saving === '__all__' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save changes{changedCount > 0 ? ` (${changedCount})` : ''}
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-gray-500">
+            <span>{filterText ? `${filteredSettings.length + filteredFlags.length} matching item${filteredSettings.length + filteredFlags.length === 1 ? '' : 's'}` : `${settings.length + flags.length} total controls`}</span>
+            <span>{lastLoadedAt ? `Last refreshed ${lastLoadedAt.toLocaleTimeString()}` : 'Not refreshed yet'}</span>
+          </div>
+        </section>
+
+        {filterMode !== 'flags' && (
+          <div className="grid gap-4 xl:grid-cols-3">
+            {Object.entries(SECTION_CONFIG).map(([sectionKey, config]) => (
+              <SettingsSection
+                key={sectionKey}
+                sectionKey={sectionKey}
+                config={config}
+                settings={groupedSettings[sectionKey]}
+                editing={editing}
+                setEditing={setEditing}
+                onSave={saveSetting}
+                onReset={resetSetting}
+                saving={saving}
+              />
+            ))}
+          </div>
+        )}
 
         <section className="rounded-[30px] border border-gray-800 bg-[#0f1117] p-5 lg:p-6">
           <div className="mb-5 flex items-start justify-between gap-4">
@@ -420,15 +588,25 @@ export default function PlatformSettings() {
           </div>
 
           <div className="space-y-3">
-            {flags.map((flag) => (
+            {filteredFlags.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/25 px-4 py-8 text-center text-sm text-gray-500">
+                No feature flags match the current filter.
+              </div>
+            ) : filteredFlags.map((flag) => (
               <FeatureFlagRow
                 key={flag.key}
                 flag={flag}
+                updating={flagUpdating === flag.key}
                 onToggle={() => toggleFlag(flag.key, flag.enabled)}
               />
             ))}
           </div>
         </section>
+        {!hasFilteredResults && (
+          <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/25 px-4 py-10 text-center text-sm text-gray-500">
+            No platform controls match &quot;{query}&quot;. Try a different search or filter.
+          </div>
+        )}
       </div>
     </div>
   );
