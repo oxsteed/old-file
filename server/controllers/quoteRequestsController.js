@@ -380,7 +380,52 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
     return res.status(400).json({ error: 'A valid status is required' });
   }
 
+  if (scheduledStartAt && scheduledEndAt && new Date(scheduledEndAt).getTime() <= new Date(scheduledStartAt).getTime()) {
+    return res.status(400).json({ error: 'Scheduled end must be after scheduled start' });
+  }
+
   try {
+    if (scheduledStartAt || scheduledEndAt) {
+      const current = await db.query(
+        `SELECT scheduled_start_at, scheduled_end_at
+           FROM quote_requests
+          WHERE id = $1
+          LIMIT 1`,
+        [id]
+      );
+      if (!current.rows.length) {
+        return res.status(404).json({ error: 'Quote request not found' });
+      }
+      const effectiveStart = scheduledStartAt || current.rows[0].scheduled_start_at;
+      const effectiveEnd = scheduledEndAt || current.rows[0].scheduled_end_at;
+      if (effectiveStart && effectiveEnd && new Date(effectiveEnd).getTime() <= new Date(effectiveStart).getTime()) {
+        return res.status(400).json({ error: 'Scheduled end must be after scheduled start' });
+      }
+      if (effectiveStart && effectiveEnd) {
+        const conflict = await db.query(
+          `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at
+             FROM quote_requests
+            WHERE id <> $1
+              AND COALESCE(metadata->>'flow', 'direct') = 'direct'
+              AND status NOT IN ('cancelled', 'closed', 'completed')
+              AND scheduled_start_at IS NOT NULL
+              AND scheduled_end_at IS NOT NULL
+              AND scheduled_start_at < $3
+              AND scheduled_end_at > $2
+            ORDER BY scheduled_start_at ASC
+            LIMIT 1`,
+          [id, effectiveStart, effectiveEnd]
+        );
+        if (conflict.rows.length) {
+          const item = conflict.rows[0];
+          return res.status(409).json({
+            error: `Schedule overlaps request #${item.id} for ${item.first_name || ''} ${item.last_name || ''}`.trim(),
+            conflict: item,
+          });
+        }
+      }
+    }
+
     const result = await db.query(
       `UPDATE quote_requests
        SET status = $1,

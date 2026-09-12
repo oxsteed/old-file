@@ -766,7 +766,12 @@ function DirectAdminCalendarView() {
       });
       const updated = response?.request || selectedJob;
       setSelectedJob(updated);
-      setData((current) => current ? { ...current, upcoming: (current.upcoming || []).map((item) => item.id === updated.id ? { ...item, ...updated } : item) } : current);
+      if (['completed', 'closed', 'cancelled'].includes(updated.status)) {
+        setData((current) => current ? { ...current, upcoming: (current.upcoming || []).filter((item) => item.id !== updated.id) } : current);
+        setSelectedJob(null);
+      } else {
+        setData((current) => current ? { ...current, upcoming: (current.upcoming || []).map((item) => item.id === updated.id ? { ...item, ...updated } : item) } : current);
+      }
     } catch (requestError) {
       setActionError(requestError?.response?.data?.error || 'Could not update this job.');
     } finally {
@@ -861,7 +866,11 @@ function DirectAdminCalendarView() {
               <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? 'Saving…' : 'Save schedule'}</button></div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>
-            <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open full work order <ChevronRight size={15} /></Link>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">Mark complete</button>
+              <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">Cancel job</button>
+              <Link to={`/direct/admin/jobs/${selectedJob.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200">Open full work order <ChevronRight size={15} /></Link>
+            </div>
           </div>
         )}
       </SectionCard>
