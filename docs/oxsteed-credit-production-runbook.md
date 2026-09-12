@@ -32,6 +32,11 @@ production so every application replica shares the same rate-limit buckets. The
 in-memory fallback is for local development and is not sufficient for a
 multi-instance deployment.
 
+Holds default to 30 minutes and cannot be created more than 24 hours ahead by
+default. If operations need a different maximum, set
+`OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES` deliberately and keep it aligned with
+the partner order window.
+
 ## First Deployment
 
 Run these commands from the server directory against the intended database:

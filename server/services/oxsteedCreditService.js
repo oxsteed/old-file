@@ -11,6 +11,7 @@ const MAX_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TRANSACTION_CENTS'
 const MAX_CUSTOMER_BALANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS', 1000000);
 const MAX_TOTAL_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS', 5000000);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
+const MAX_HOLD_TTL_MINUTES = Math.max(DEFAULT_HOLD_TTL_MINUTES, positiveEnv('OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES', 1440));
 const DEFAULT_STATEMENT_DAYS = 90;
 const MAX_STATEMENT_DAYS = 366;
 const MAX_STATEMENT_EXPORT_ROWS = 5000;
@@ -104,6 +105,18 @@ function statementPeriod(from, to) {
     throw new AppError(`Statement period must be between 1 and ${MAX_STATEMENT_DAYS} days`, 400, 'credit_statement_period_invalid');
   }
   return { from: periodStart, to: periodEnd };
+}
+
+function resolveHoldExpiry(expiresAt) {
+  const now = new Date();
+  const requestedExpiry = expiresAt ? new Date(expiresAt) : new Date(now.getTime() + DEFAULT_HOLD_TTL_MINUTES * 60000);
+  if (Number.isNaN(requestedExpiry.getTime()) || requestedExpiry <= now) {
+    throw new AppError('Hold expiry must be in the future', 400, 'credit_hold_expiry_invalid');
+  }
+  if (requestedExpiry.getTime() > now.getTime() + MAX_HOLD_TTL_MINUTES * 60000) {
+    throw new AppError(`Hold expiry cannot be more than ${MAX_HOLD_TTL_MINUTES} minutes from now`, 400, 'credit_hold_expiry_too_long');
+  }
+  return requestedExpiry;
 }
 
 function getLedgerSecret() {
@@ -882,13 +895,12 @@ async function updateCustomerCreditAccountStatus({ customerId, status, actorUser
 async function createCreditHold({ customerId, partnerId, amountCents, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
+  const requestedExpiry = resolveHoldExpiry(expiresAt);
   return withTransaction(pool, async (client) => {
     await assertCreditRailEnabled(client);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
     const agreement = await findSpendAgreement(client, { customerId, partnerId, orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
-    const requestedExpiry = expiresAt ? new Date(expiresAt) : new Date(Date.now() + DEFAULT_HOLD_TTL_MINUTES * 60000);
-    if (Number.isNaN(requestedExpiry.getTime()) || requestedExpiry <= new Date()) throw new AppError('Hold expiry must be in the future', 400, 'credit_hold_expiry_invalid');
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_holds WHERE account_id = $1 AND idempotency_key = $2 FOR UPDATE`,
       [account.id, normalizeString(idempotencyKey, 160)]

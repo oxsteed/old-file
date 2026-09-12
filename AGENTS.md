@@ -27,6 +27,7 @@
 - Settlement creation rejects future-ending periods so payable totals cannot be reserved or understated ahead of actual activity.
 - Non-zero settlements cannot move to `paid` without a traceable payment reference; zero-balance settlements remain closable without an external payment.
 - Migration `434_oxsteed_credit_settlement_state.sql` mirrors the settlement state machine in Postgres and requires paid timestamps/payment evidence for paid rows; `verify:credit` detects existing violations.
+- Credit holds now validate a configurable maximum lifetime before database work (`OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES`, default 24 hours), preventing indefinite reservation of customer funds.
 - Migration `433_oxsteed_credit_identity_stability.sql` prevents changing partner restaurant/currency identity, agreement partner identity, or account customer/partner/type/currency identity after financial history exists. `verify:credit` requires the three guards.
 - The production runbook now requires replacement records instead of mutating financial identities after activity begins.
 - Remaining release evidence: apply migrations and run `npm run verify:credit` against the production database; configure managed backups/restore drills, malware scanning, alert routing, and legal/custody approvals before enabling real customer value.

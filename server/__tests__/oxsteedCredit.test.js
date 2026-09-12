@@ -92,6 +92,17 @@ test('rejects credit hold creation without an idempotency key', async () => {
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('rejects a credit hold expiry that is too far in the future before database work', async () => {
+  const response = await request(createCustomerApp())
+    .post('/holds')
+    .set('Idempotency-Key', 'hold-too-long-1')
+    .send({ partnerId: 41, amountCents: 1500, expiresAt: '2099-09-12T00:00:00.000Z' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_hold_expiry_too_long');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('rejects malformed recipient ids before any credit transfer query', async () => {
   const response = await request(createCustomerApp())
     .post('/transfers')
