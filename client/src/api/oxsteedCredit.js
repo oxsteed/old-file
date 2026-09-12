@@ -1,7 +1,10 @@
 import api from './axios';
 
-export const getOxsteedCreditAccount = () =>
-  api.get('/oxsteed-credit/account').then((response) => response.data?.account || null);
+export const getOxsteedCreditAccount = (params = {}) =>
+  api.get('/oxsteed-credit/account', { params }).then((response) => response.data?.account || null);
+
+export const listOxsteedCreditAccounts = () =>
+  api.get('/oxsteed-credit/accounts').then((response) => response.data?.accounts || []);
 
 export const listOxsteedCreditEligiblePartners = (params = {}) =>
   api.get('/oxsteed-credit/eligible-partners', { params })

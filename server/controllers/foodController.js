@@ -2665,6 +2665,7 @@ exports.createOrder = async (req, res, next) => {
             customerId: req.user.id,
             partnerId: partnerRows[0].id,
             amountCents: total,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
             idempotencyKey: `food-order:${created.id}:oxsteed-credit`,
             actorUserId: req.user.id,
             actorType: 'customer',
@@ -2702,7 +2703,7 @@ exports.createOrder = async (req, res, next) => {
           oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
             status: 'paid',
             amountCents: total,
-            currencyCode: normalizeCurrency(restaurant.currency_code),
+            currencyCode: creditResult.transaction?.currencyCode || normalizeCurrency(restaurant.currency_code),
             transaction: creditResult.transaction,
             replayed: Boolean(creditResult.replayed),
           });

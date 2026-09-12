@@ -6,6 +6,18 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 
 const CREDIT_CURRENCY = 'USD';
+const DEFAULT_SUPPORTED_CREDIT_CURRENCIES = [
+  'USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP',
+  'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL',
+];
+const configuredCreditCurrencies = String(process.env.OXSTEED_CREDIT_SUPPORTED_CURRENCIES || '')
+  .split(',')
+  .map((value) => value.trim().toUpperCase())
+  .filter((value) => /^[A-Z]{3}$/.test(value));
+const SUPPORTED_CREDIT_CURRENCIES = new Set([
+  CREDIT_CURRENCY,
+  ...(configuredCreditCurrencies.length ? configuredCreditCurrencies : DEFAULT_SUPPORTED_CREDIT_CURRENCIES),
+]);
 const MAX_PAGE_SIZE = 100;
 const MAX_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TRANSACTION_CENTS', 250000);
 const MAX_CUSTOMER_BALANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS', 1000000);
@@ -30,13 +42,16 @@ function normalizeString(value, max = 255) {
 }
 
 function normalizeCurrency(value) {
-  return (normalizeString(value, 3) || CREDIT_CURRENCY).toUpperCase();
+  return (normalizeString(value, 8) || CREDIT_CURRENCY).toUpperCase();
 }
 
 function assertSupportedCreditCurrency(value) {
   const currency = normalizeCurrency(value);
-  if (currency !== CREDIT_CURRENCY) {
-    throw new AppError(`OxSteed Credit currently supports ${CREDIT_CURRENCY} only`, 400, 'credit_currency_not_supported');
+  if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CREDIT_CURRENCIES.has(currency)) {
+    throw new AppError('This OxSteed Credit currency is not enabled', 400, 'credit_currency_not_supported', {
+      currencyCode: currency,
+      supportedCurrencies: [...SUPPORTED_CREDIT_CURRENCIES].sort(),
+    });
   }
   return currency;
 }
@@ -328,7 +343,7 @@ function assertHoldIdempotencyReplayMatches(existing, requested) {
 }
 
 async function ensureAccount(client, { accountType, customerId = null, partnerId = null, currencyCode = CREDIT_CURRENCY }) {
-  const currency = normalizeCurrency(currencyCode);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['customer_wallet', 'partner_payable', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
   }
@@ -357,11 +372,12 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
 }
 
 async function findCustomerAccount(client, customerId, currencyCode = CREDIT_CURRENCY, forUpdate = false) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await client.query(
     `SELECT * FROM oxsteed_credit_accounts
       WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $2
       ${forUpdate ? 'FOR UPDATE' : ''}`,
-    [customerId, normalizeCurrency(currencyCode)]
+    [customerId, currency]
   );
   return rows[0] || null;
 }
@@ -387,15 +403,16 @@ async function getExistingTransaction(client, idempotencyKey) {
   return rows[0] || null;
 }
 
-async function assertIssuanceCapacity(client, amountCents) {
+async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT_CURRENCY) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
   // The cap is global, so serialize the outstanding-balance check across all
   // customers before approving a new positive-value movement.
-  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['oxsteed-credit:issuance-limit']);
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:issuance-limit:${currency}`]);
   const { rows } = await client.query(
     `SELECT COALESCE(SUM(balance_cents), 0) AS total_cents
        FROM oxsteed_credit_accounts
       WHERE account_type = 'customer_wallet' AND currency_code = $1`,
-    [CREDIT_CURRENCY]
+    [currency]
   );
   if (Number(rows[0]?.total_cents || 0) + amountCents > MAX_TOTAL_ISSUANCE_CENTS) {
     throw new AppError('OxSteed Credit issuance limit reached', 409, 'credit_total_issuance_limit');
@@ -415,7 +432,7 @@ async function postJournalTransaction(client, input) {
     debit_account_id: String(input.debitAccountId),
     credit_account_id: String(input.creditAccountId),
     amount_cents: String(amountCents),
-    currency_code: normalizeCurrency(input.currencyCode),
+    currency_code: assertSupportedCreditCurrency(input.currencyCode),
     partner_id: input.partnerId === null || input.partnerId === undefined ? null : String(input.partnerId),
     agreement_id: input.agreementId || null,
     reference_type: normalizeString(input.referenceType, 80),
@@ -589,6 +606,7 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
     `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
             fr.display_name AS restaurant_name, fr.status AS restaurant_status,
             fr.address_city, fr.address_state, fr.address_zip, fr.address_country,
+            fr.currency_code AS restaurant_currency_code,
             e.id AS entitlement_id, e.status AS entitlement_status,
             e.starts_at AS entitlement_starts_at, e.ends_at AS entitlement_ends_at,
             e.max_transaction_cents AS entitlement_max_transaction_cents,
@@ -616,6 +634,10 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
   if (!agreement) {
     if (strict) throw new AppError('This restaurant is not currently eligible for OxSteed Credit', 403, 'credit_partner_not_eligible');
     return null;
+  }
+  const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+  if (agreement.restaurant_currency_code && normalizeCurrency(agreement.restaurant_currency_code) !== settlementCurrency) {
+    throw new AppError('The partner settlement currency does not match the restaurant currency', 409, 'credit_partner_currency_mismatch');
   }
   const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase();
   const allowedOrderTypes = normalizeList(agreement.allowed_order_types);
@@ -750,22 +772,35 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
   }, 'credit_get_customer_account');
 }
 
-async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, metadata = {} }) {
+async function listCustomerCreditAccounts(customerId) {
+  const { rows } = await pool.query(
+    `SELECT *
+       FROM oxsteed_credit_accounts
+      WHERE account_type = 'customer_wallet' AND customer_id = $1
+      ORDER BY currency_code ASC`,
+    [customerId]
+  );
+  return rows.map(formatAccount);
+}
+
+async function loadCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
     await assertCreditRailEnabled(client);
-    const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
-    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
+    const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
+    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
     const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
-    if (!existing) await assertIssuanceCapacity(client, amount);
+    if (!existing) await assertIssuanceCapacity(client, amount, currency);
     return postJournalTransaction(client, {
       transactionType: 'load',
       debitAccountId: treasuryAccount.id,
       creditAccountId: customerAccount.id,
       customerId,
       amountCents: amount,
+      currencyCode: currency,
       idempotencyKey,
       actorType: 'admin',
       actorUserId,
@@ -778,14 +813,18 @@ async function loadCustomerCredit({ customerId, amountCents, idempotencyKey, act
   }, 'credit_load_customer');
 }
 
-async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
+async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
   const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount });
-  const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
-  const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId, currencyCode: agreement.settlement_currency_code });
+  const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+  if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
+    throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');
+  }
+  const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: settlementCurrency });
+  const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId, currencyCode: settlementCurrency });
   return postJournalTransaction(client, {
     transactionType: 'purchase',
     debitAccountId: customerAccount.id,
@@ -794,6 +833,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
     agreementId: agreement.id,
     customerId,
     amountCents: amount,
+    currencyCode: settlementCurrency,
     idempotencyKey,
     actorType: actorType || (actorUserId ? 'user' : 'system'),
     actorUserId,
@@ -824,10 +864,11 @@ async function purchaseWithCredit(args) {
   return withTransaction(pool, (client) => purchaseWithCreditInTransaction(client, args), 'credit_purchase');
 }
 
-async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, description, metadata = {} }) {
+async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, description, metadata = {} }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   const amount = parseAmountCents(amountCents);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
     await assertCreditRailEnabled(client);
@@ -838,14 +879,15 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
       [recipientCustomerId]
     );
     if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
-    const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId });
-    const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId });
+    const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
+    const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
     return postJournalTransaction(client, {
       transactionType: 'transfer',
       debitAccountId: sender.id,
       creditAccountId: recipient.id,
       customerId: senderCustomerId,
       amountCents: amount,
+      currencyCode: currency,
       idempotencyKey,
       actorType: 'user',
       actorUserId,
@@ -858,22 +900,24 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
   }, 'credit_transfer');
 }
 
-async function adjustCustomerCredit({ customerId, amountCents, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, metadata = {} }) {
+async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
   return withTransaction(pool, async (client) => {
-    const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
-    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury' });
+    const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
+    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
     const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
-    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount);
+    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency);
     return postJournalTransaction(client, {
       transactionType: 'adjustment',
       debitAccountId: direction === 'credit' ? treasuryAccount.id : customerAccount.id,
       creditAccountId: direction === 'credit' ? customerAccount.id : treasuryAccount.id,
       customerId,
       amountCents: amount,
+      currencyCode: currency,
       idempotencyKey,
       actorType: 'admin',
       actorUserId,
@@ -908,7 +952,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, actorUser
   }, 'credit_update_customer_status');
 }
 
-async function createCreditHold({ customerId, partnerId, amountCents, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
+async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
   const requestedExpiry = resolveHoldExpiry(expiresAt);
@@ -916,7 +960,11 @@ async function createCreditHold({ customerId, partnerId, amountCents, idempotenc
     await assertCreditRailEnabled(client);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
     const agreement = await findSpendAgreement(client, { customerId, partnerId, orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
-    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
+    const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+    if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
+      throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');
+    }
+    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: settlementCurrency });
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_holds WHERE account_id = $1 AND idempotency_key = $2 FOR UPDATE`,
       [account.id, normalizeString(idempotencyKey, 160)]
@@ -944,7 +992,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, idempotenc
           reference_type, reference_id, idempotency_key, correlation_id, created_by, metadata, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
        RETURNING *`,
-      [account.id, customerId, partnerId, agreement.id, amount, CREDIT_CURRENCY, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizeString(idempotencyKey, 160), normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(normalizeMetadata(metadata)), requestedExpiry]
+      [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizeString(idempotencyKey, 160), normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(normalizeMetadata(metadata)), requestedExpiry]
     );
     await client.query(
       `UPDATE oxsteed_credit_accounts SET reserved_cents = reserved_cents + $1, updated_at = NOW() WHERE id = $2`,
@@ -995,7 +1043,7 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
   }, 'credit_release_hold');
 }
 
-async function captureCreditHold({ holdId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, description, reason, metadata = {} }) {
+async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, description, reason, metadata = {} }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
@@ -1008,6 +1056,9 @@ async function captureCreditHold({ holdId, amountCents, idempotencyKey, actorUse
     );
     const hold = rows[0];
     if (!hold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
+    if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== assertSupportedCreditCurrency(hold.currency_code)) {
+      throw new AppError('Credit currency does not match the hold', 409, 'credit_currency_mismatch');
+    }
     const captureKey = normalizeString(idempotencyKey, 160);
     if (hold.capture_idempotency_key && hold.capture_idempotency_key !== captureKey) {
       throw new AppError('Credit hold capture already used a different idempotency key', 409, 'credit_hold_capture_idempotency_conflict');
@@ -1048,6 +1099,7 @@ async function captureCreditHold({ holdId, amountCents, idempotencyKey, actorUse
       partnerId: hold.partner_id,
       agreementId: hold.agreement_id,
       amountCents: requestedAmount,
+      currencyCode: hold.currency_code,
       idempotencyKey: captureKey,
       actorUserId,
       actorType,
@@ -1146,6 +1198,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
         agreementId: purchase.agreement_id,
         customerId: purchase.customer_id,
         amountCents: amount,
+        currencyCode: purchase.currency_code,
         idempotencyKey,
         actorType,
         actorUserId,
@@ -1173,6 +1226,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
       agreementId: purchase.agreement_id,
       customerId: purchase.customer_id,
       amountCents: amount,
+      currencyCode: purchase.currency_code,
       idempotencyKey,
       actorType,
       actorUserId,
@@ -1221,9 +1275,10 @@ async function refundCreditForReferenceInTransaction(client, { referenceType, re
   });
 }
 
-async function listCustomerCreditTransactions(customerId, { limit = 25, offset = 0 } = {}) {
+async function listCustomerCreditTransactions(customerId, { limit = 25, offset = 0, currencyCode = CREDIT_CURRENCY } = {}) {
   const pageSize = parsePageSize(limit);
   const pageOffset = parseOffset(offset);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
             t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
@@ -1241,7 +1296,7 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
         AND a.currency_code = $4
       ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
-    [customerId, pageSize, pageOffset, CREDIT_CURRENCY]
+    [customerId, pageSize, pageOffset, currency]
   );
   return rows.map(formatCustomerCreditTransaction);
 }
@@ -1275,10 +1330,11 @@ function formatCustomerStatementTransaction(row) {
   return transaction;
 }
 
-async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100 } = {}) {
+async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100, currencyCode = CREDIT_CURRENCY } = {}) {
   const period = statementPeriod(from, to);
   const pageSize = parseStatementPageSize(limit, Math.min(Number(maxRows) || 100, MAX_STATEMENT_EXPORT_ROWS));
   const pageOffset = parseOffset(offset);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `WITH customer_account AS (
        SELECT id, currency_code
@@ -1341,7 +1397,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
        (SELECT total_credits_cents FROM totals) AS total_credits_cents,
        (SELECT total_debits_cents FROM totals) AS total_debits_cents,
        COALESCE((SELECT json_agg(period_transactions ORDER BY COALESCE(posted_at, created_at) DESC, id DESC) FROM period_transactions), '[]'::json) AS transactions`,
-    [customerId, period.from, period.to, pageSize, pageOffset, CREDIT_CURRENCY]
+    [customerId, period.from, period.to, pageSize, pageOffset, currency]
   );
   const row = rows[0] || {};
   const openingBalanceCents = Number(row.opening_balance_cents || 0);
@@ -1390,7 +1446,8 @@ function customerCreditStatementCsv(statement) {
   return `\ufeff${lines.join('\r\n')}\r\n`;
 }
 
-async function getCustomerCreditTransaction(customerId, transactionId) {
+async function getCustomerCreditTransaction(customerId, transactionId, currencyCode = CREDIT_CURRENCY) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
             t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
@@ -1406,7 +1463,7 @@ async function getCustomerCreditTransaction(customerId, transactionId) {
       WHERE t.id = $1 AND a.account_type = 'customer_wallet' AND a.customer_id = $2
         AND a.currency_code = $3
       LIMIT 1`,
-    [transactionId, customerId, CREDIT_CURRENCY]
+    [transactionId, customerId, currency]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
   return { transaction: formatCustomerCreditTransaction(rows[0]) };
@@ -1545,6 +1602,7 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
 
 module.exports = {
   CREDIT_CURRENCY,
+  SUPPORTED_CREDIT_CURRENCIES: [...SUPPORTED_CREDIT_CURRENCIES].sort(),
   assertSupportedCreditCurrency,
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
@@ -1562,6 +1620,7 @@ module.exports = {
   formatHold,
   formatTransaction,
   getCustomerCreditAccount,
+  listCustomerCreditAccounts,
   listEligiblePartners,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,

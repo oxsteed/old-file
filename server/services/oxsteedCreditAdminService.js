@@ -3,7 +3,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { CREDIT_CURRENCY, assertSupportedCreditCurrency, ensureAccount, postJournalTransaction } = require('./oxsteedCreditService');
+const { assertSupportedCreditCurrency, ensureAccount, postJournalTransaction } = require('./oxsteedCreditService');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -88,6 +88,7 @@ function formatAgreement(row) {
     partnerId: String(row.partner_id),
     restaurantId: row.restaurant_id === null || row.restaurant_id === undefined ? null : String(row.restaurant_id),
     restaurantName: row.restaurant_name || null,
+    settlementCurrencyCode: row.settlement_currency_code || null,
     version: Number(row.version),
     status: row.status,
     startsAt: row.starts_at,
@@ -268,9 +269,9 @@ async function registerPartner({ restaurantId, businessId = null, settlementCurr
     if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: existingRows } = await client.query(`SELECT p.*, fr.display_name AS restaurant_name FROM oxsteed_credit_partners p JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE p.restaurant_id = $1 FOR UPDATE`, [normalizedRestaurantId]);
     if (existingRows[0]) return { partner: formatPartner(existingRows[0]), replayed: true };
-    const currency = normalizeString(settlementCurrencyCode, 3)?.toUpperCase() || 'USD';
+    const currency = normalizeString(settlementCurrencyCode, 8)?.toUpperCase() || 'USD';
     if (!/^[A-Z]{3}$/.test(currency)) throw new AppError('Invalid settlement currency', 400, 'invalid_settlement_currency');
-    if (currency !== CREDIT_CURRENCY) throw new AppError(`OxSteed Credit currently supports ${CREDIT_CURRENCY} only`, 400, 'credit_currency_not_supported');
+    assertSupportedCreditCurrency(currency);
     const resolvedBusinessId = businessId || restaurantRows[0].business_id || null;
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, notes, created_by)
@@ -350,7 +351,7 @@ async function listAgreements({ partnerId, status } = {}) {
     filters.push(`a.status = $${params.length}`);
   }
   const { rows } = await pool.query(
-    `SELECT a.*, p.restaurant_id, fr.display_name AS restaurant_name
+    `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
        FROM oxsteed_credit_partner_agreements a
        JOIN oxsteed_credit_partners p ON p.id = a.partner_id
        JOIN food_restaurants fr ON fr.id = p.restaurant_id

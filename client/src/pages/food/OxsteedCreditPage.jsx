@@ -18,6 +18,7 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
+  listOxsteedCreditAccounts,
   listOxsteedCreditEligiblePartners,
   getOxsteedCreditStatement,
   downloadOxsteedCreditStatement,
@@ -72,6 +73,8 @@ function transactionLabel(transaction) {
 
 export default function OxsteedCreditPage() {
   const [account, setAccount] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [partners, setPartners] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
@@ -83,22 +86,26 @@ export default function OxsteedCreditPage() {
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
-  const load = useCallback(async ({ quiet = false } = {}) => {
+  const load = useCallback(async ({ quiet = false, currencyCode = 'USD' } = {}) => {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
+      const existingAccounts = await listOxsteedCreditAccounts();
+      const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
       const [accountResult, partnerResult, statementResult] = await Promise.all([
-        getOxsteedCreditAccount(),
-        listOxsteedCreditEligiblePartners(),
-        getOxsteedCreditStatement({ limit: 50 }).catch(() => null),
+        getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
+        listOxsteedCreditEligiblePartners({ currencyCode: preferredCurrency }),
+        getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
       ]);
+      setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
+      setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setPartners(Array.isArray(partnerResult) ? partnerResult : []);
       if (statementResult) {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
       } else {
-        const transactionResult = await listOxsteedCreditTransactions({ limit: 50 });
+        const transactionResult = await listOxsteedCreditTransactions({ limit: 50, currencyCode: preferredCurrency });
         setStatement(null);
         setTransactions(Array.isArray(transactionResult) ? transactionResult : []);
       }
@@ -111,6 +118,12 @@ export default function OxsteedCreditPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const changeCurrency = (event) => {
+    const currencyCode = event.target.value;
+    setSelectedCurrency(currencyCode);
+    load({ quiet: true, currencyCode });
+  };
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -171,9 +184,12 @@ export default function OxsteedCreditPage() {
               <h1>OxSteed Credit</h1>
               <p>One restricted credit balance you can use at participating restaurants under their current partner agreements.</p>
             </div>
-            <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
-              <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> Refresh
-            </button>
+            <div className="ox-credit-hero-actions">
+              <label className="ox-credit-currency-picker">Currency<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
+              <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true, currencyCode: selectedCurrency })} disabled={loading || refreshing}>
+                <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> Refresh
+              </button>
+            </div>
           </header>
 
           <section className="ox-credit-disclaimer" role="note">

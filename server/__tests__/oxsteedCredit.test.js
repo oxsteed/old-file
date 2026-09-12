@@ -41,6 +41,7 @@ function createAdminApp() {
   });
   app.post('/load/:customerId', controller.adminLoadCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
+  app.get('/overview', controller.getAdminOverview);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
@@ -74,8 +75,41 @@ test('creates a customer OxSteed Credit account with zero balance', async () => 
   });
 });
 
-test('rejects unsupported credit currencies before creating a wallet', async () => {
+test('creates and reads a customer account in a supported non-USD currency', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    .mockResolvedValueOnce({ rows: [{ id: 7002, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'EUR', balance_cents: '1250', reserved_cents: '0', status: 'active', ledger_version: '1', updated_at: '2026-09-12T12:00:00.000Z' }] });
+
   const response = await request(createCustomerApp()).get('/account?currencyCode=EUR');
+
+  expect(response.status).toBe(200);
+  expect(response.body.account).toMatchObject({ accountId: '7002', balanceCents: 1250, currencyCode: 'EUR' });
+  expect(mockQuery.mock.calls[1][1]).toEqual(['customer_wallet', CUSTOMER_ID, 'EUR']);
+});
+
+test('keeps admin credit overview balances separated by currency', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [
+      { currency_code: 'EUR', customer_accounts: 1, customer_balance_cents: '2500', customer_reserved_cents: '500', partner_accounts: 1, partner_payable_cents: '2000', inactive_accounts: 0 },
+      { currency_code: 'USD', customer_accounts: 2, customer_balance_cents: '10000', customer_reserved_cents: '1000', partner_accounts: 2, partner_payable_cents: '9000', inactive_accounts: 1 },
+    ] })
+    .mockResolvedValueOnce({ rows: [{ partner_id: 41, restaurant_id: 7, restaurant_name: 'Ox Burger Lab', status: 'active', settlement_currency_code: 'EUR', agreement_count: 1, active_agreement_count: 1 }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp()).get('/overview');
+
+  expect(response.status).toBe(200);
+  expect(response.body.summary).toMatchObject({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 });
+  expect(response.body.summaryByCurrency).toEqual(expect.arrayContaining([
+    expect.objectContaining({ currencyCode: 'EUR', customerBalanceCents: 2500, customerAvailableCents: 2000 }),
+    expect.objectContaining({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 }),
+  ]));
+  expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
+  expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
+});
+
+test('rejects unsupported credit currencies before creating a wallet', async () => {
+  const response = await request(createCustomerApp()).get('/account?currencyCode=JPY');
 
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('credit_currency_not_supported');
@@ -339,7 +373,7 @@ test('serializes the global outstanding issuance cap before a new load', async (
 
   expect(result.transaction.amountCents).toBe(100);
   expect(mockQuery.mock.calls[7][0]).toContain('pg_advisory_xact_lock');
-  expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit']);
+  expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
   expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
 });
 
@@ -360,7 +394,7 @@ test('applies the global issuance cap to positive administrative adjustments', a
     idempotencyKey: 'adjustment-cap-1',
     reason: 'Cap test',
   })).rejects.toMatchObject({ code: 'credit_total_issuance_limit' });
-  expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit']);
+  expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
 });
 
 test('rejects malformed hold capture ids before any database query', async () => {

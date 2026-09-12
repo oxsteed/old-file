@@ -98,6 +98,26 @@ Authenticated customers can retrieve a bounded statement from `GET /api/oxsteed-
 
 Customers can download the same period as CSV from `GET /api/oxsteed-credit/statement.csv`. The export is capped at 5,000 transactions and returns a clear error rather than a partial file when the selected period is larger. Exported data intentionally excludes idempotency keys, ledger hashes, internal actor data, and raw transaction metadata.
 
+## Currency Isolation
+
+OxSteed Credit supports a configured set of ISO 4217 currencies. Set
+`OXSTEED_CREDIT_SUPPORTED_CURRENCIES` to the same comma-separated allowlist on
+every application replica; when it is unset, the built-in allowlist is used.
+Customer wallets, partner agreements, restaurant settlement currency, holds,
+transactions, refunds, and reconciliation runs remain currency-isolated. The
+application does not perform foreign-exchange conversion, combine balances from
+different currencies, or let an agreement settle against a different restaurant
+currency.
+
+Credit amounts are currently integer minor units for currencies with two
+decimal places. Do not add a zero-decimal or three-decimal currency until the
+amount parser, limits, exports, UI formatters, and reconciliation tests are
+updated together. Before enabling a new currency, confirm custody/funding,
+settlement, tax, consumer-disclosure, support, and legal requirements for that
+market. Run `npm run migrate` and `npm run verify:credit` against the target
+database, then run a low-value load, purchase, refund, settlement, and
+reconciliation for that currency in a non-production environment.
+
 ## Provider and Compliance Gaps
 
 The application cannot establish licensing, custody, banking status, KYC/AML obligations, consumer disclosures, tax treatment, or partner contract validity by itself. Those are external release requirements. Likewise, managed database backups, malware scanning, alert routing, MFA/passkeys, Sentry or equivalent observability, and browser/concurrency tests must be configured and evidenced in the deployment environment before calling the rail fully production-ready.

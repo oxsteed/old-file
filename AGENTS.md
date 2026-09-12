@@ -34,6 +34,7 @@
 - Migration `433_oxsteed_credit_identity_stability.sql` prevents changing partner restaurant/currency identity, agreement partner identity, or account customer/partner/type/currency identity after financial history exists. `verify:credit` requires the three guards.
 - The production runbook now requires replacement records instead of mutating financial identities after activity begins.
 - Remaining release evidence: apply migrations and run `npm run verify:credit` against the production database; configure managed backups/restore drills, malware scanning, alert routing, and legal/custody approvals before enabling real customer value.
+- OxSteed Credit wallets are currency-isolated; keep `OXSTEED_CREDIT_SUPPORTED_CURRENCIES` identical across replicas and never add implicit foreign-exchange conversion.
 
 ---
 

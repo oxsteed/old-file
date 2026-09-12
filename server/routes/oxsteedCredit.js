@@ -6,6 +6,7 @@ const { creditMutationLimiter, creditExportLimiter } = require('../middleware/ra
 const controller = require('../controllers/oxsteedCreditController');
 
 router.get('/account', authenticate, controller.getMyAccount);
+router.get('/accounts', authenticate, controller.getMyAccounts);
 router.get('/eligible-partners', authenticate, controller.getEligiblePartners);
 router.get('/statement.csv', authenticate, creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', authenticate, controller.getMyStatement);

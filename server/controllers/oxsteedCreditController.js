@@ -4,6 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const {
   getCustomerCreditAccount,
+  listCustomerCreditAccounts,
   listEligiblePartners,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
@@ -79,8 +80,16 @@ function getRequestContext(req) {
 
 async function getMyAccount(req, res, next) {
   try {
-    const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 3) || 'USD');
+    const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 8) || 'USD');
     res.json({ name: 'OxSteed Credit', account });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyAccounts(req, res, next) {
+  try {
+    res.json({ accounts: await listCustomerCreditAccounts(req.user.id) });
   } catch (error) {
     next(error);
   }
@@ -108,6 +117,7 @@ async function getMyTransactions(req, res, next) {
     const transactions = await listCustomerCreditTransactions(req.user.id, {
       limit: req.query.limit,
       offset: req.query.offset,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
     });
     res.json({ transactions });
   } catch (error) {
@@ -122,6 +132,7 @@ async function getMyStatement(req, res, next) {
       to: req.query.to,
       limit: req.query.limit,
       offset: req.query.offset,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
     });
     res.json({ statement });
   } catch (error) {
@@ -138,6 +149,7 @@ async function downloadMyStatement(req, res, next) {
       limit: MAX_STATEMENT_EXPORT_ROWS,
       offset: 0,
       maxRows: MAX_STATEMENT_EXPORT_ROWS,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
     });
     if (statement.hasMore) {
       throw new AppError('Statement is too large to export in one file; narrow the date range', 409, 'credit_statement_export_too_large');
@@ -157,7 +169,7 @@ async function downloadMyStatement(req, res, next) {
 async function getMyTransaction(req, res, next) {
   try {
     const transactionId = parseUuid(req.params.transactionId, 'transactionId');
-    res.json(await getCustomerCreditTransaction(req.user.id, transactionId));
+    res.json(await getCustomerCreditTransaction(req.user.id, transactionId, req.query.currencyCode || req.query.currency_code));
   } catch (error) {
     next(error);
   }
@@ -170,6 +182,7 @@ async function createMyHold(req, res, next) {
       customerId: req.user.id,
       partnerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
       idempotencyKey: getIdempotencyKey(req),
       ...getRequestContext(req),
       orderType: req.body?.orderType || req.body?.order_type,
@@ -211,6 +224,7 @@ async function adminCaptureHold(req, res, next) {
     const result = await captureCreditHold({
       holdId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       actorType: 'admin',
@@ -247,6 +261,7 @@ async function transferMyCredit(req, res, next) {
       senderCustomerId: req.user.id,
       recipientCustomerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
       idempotencyKey: getIdempotencyKey(req),
       ...getRequestContext(req),
       referenceType: 'customer_transfer',
@@ -291,6 +306,7 @@ async function adminLoadCredit(req, res, next) {
     const result = await loadCustomerCredit({
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -312,6 +328,7 @@ async function adminAdjustCredit(req, res, next) {
     const result = await adjustCustomerCredit({
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
       direction: req.body?.direction,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
@@ -360,22 +377,25 @@ async function getAdminOverview(req, res, next) {
     const [summaryResult, partnersResult, recentResult] = await Promise.all([
       pool.query(`
         SELECT
+          currency_code,
           COUNT(*) FILTER (WHERE account_type = 'customer_wallet')::int AS customer_accounts,
           COALESCE(SUM(balance_cents) FILTER (WHERE account_type = 'customer_wallet'), 0) AS customer_balance_cents,
           COALESCE(SUM(reserved_cents) FILTER (WHERE account_type = 'customer_wallet'), 0) AS customer_reserved_cents,
           COUNT(*) FILTER (WHERE account_type = 'partner_payable')::int AS partner_accounts,
           COALESCE(SUM(balance_cents) FILTER (WHERE account_type = 'partner_payable'), 0) AS partner_payable_cents,
           COUNT(*) FILTER (WHERE status <> 'active')::int AS inactive_accounts
-        FROM oxsteed_credit_accounts`),
+        FROM oxsteed_credit_accounts
+        GROUP BY currency_code
+        ORDER BY currency_code`),
       pool.query(`
         SELECT p.id AS partner_id, p.restaurant_id, fr.display_name AS restaurant_name,
-               p.status, COUNT(a.id)::int AS agreement_count,
+               p.status, p.settlement_currency_code, COUNT(a.id)::int AS agreement_count,
                COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
                  AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count
           FROM oxsteed_credit_partners p
           JOIN food_restaurants fr ON fr.id = p.restaurant_id
           LEFT JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
-         GROUP BY p.id, p.restaurant_id, fr.display_name, p.status, p.updated_at
+         GROUP BY p.id, p.restaurant_id, fr.display_name, p.status, p.settlement_currency_code, p.updated_at
          ORDER BY p.updated_at DESC, p.id DESC
          LIMIT 100`),
       pool.query(`
@@ -389,23 +409,27 @@ async function getAdminOverview(req, res, next) {
          ORDER BY t.created_at DESC
          LIMIT 100`),
     ]);
-    const summary = summaryResult.rows[0] || {};
+    const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
+    const formatSummary = (row) => ({
+      currencyCode: row.currency_code || 'USD',
+      customerAccounts: Number(row.customer_accounts || 0),
+      customerBalanceCents: Number(row.customer_balance_cents || 0),
+      customerReservedCents: Number(row.customer_reserved_cents || 0),
+      customerAvailableCents: Math.max(0, Number(row.customer_balance_cents || 0) - Number(row.customer_reserved_cents || 0)),
+      partnerAccounts: Number(row.partner_accounts || 0),
+      partnerPayableCents: Number(row.partner_payable_cents || 0),
+      inactiveAccounts: Number(row.inactive_accounts || 0),
+    });
     res.json({
       name: 'OxSteed Credit',
-      summary: {
-        customerAccounts: Number(summary.customer_accounts || 0),
-        customerBalanceCents: Number(summary.customer_balance_cents || 0),
-        customerReservedCents: Number(summary.customer_reserved_cents || 0),
-        customerAvailableCents: Math.max(0, Number(summary.customer_balance_cents || 0) - Number(summary.customer_reserved_cents || 0)),
-        partnerAccounts: Number(summary.partner_accounts || 0),
-        partnerPayableCents: Number(summary.partner_payable_cents || 0),
-        inactiveAccounts: Number(summary.inactive_accounts || 0),
-      },
+      summary: formatSummary(summary),
+      summaryByCurrency: summaryResult.rows.map(formatSummary),
       partners: partnersResult.rows.map((row) => ({
         partnerId: String(row.partner_id),
         restaurantId: String(row.restaurant_id),
         restaurantName: row.restaurant_name,
         status: row.status,
+        settlementCurrencyCode: row.settlement_currency_code,
         agreementCount: Number(row.agreement_count || 0),
         activeAgreementCount: Number(row.active_agreement_count || 0),
       })),
@@ -646,6 +670,7 @@ async function reconcileAdminCredit(req, res, next) {
 
 module.exports = {
   getMyAccount,
+  getMyAccounts,
   getEligiblePartners,
   getMyTransactions,
   getMyStatement,

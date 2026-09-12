@@ -3,6 +3,7 @@
 const cron = require('node-cron');
 const logger = require('../utils/logger');
 const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
+const { SUPPORTED_CREDIT_CURRENCIES = ['USD'] } = require('../services/oxsteedCreditService');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('./jobLockingService');
 
@@ -10,6 +11,7 @@ const CRON_EXPRESSION = '10 2 * * *';
 const CRON_TIMEZONE = 'UTC';
 const JOB_NAME = 'oxsteed-credit-reconciliation';
 const CURRENCY_CODE = 'USD';
+const CURRENCY_CODES = SUPPORTED_CREDIT_CURRENCIES;
 
 function previousUtcDay(now = new Date()) {
   const current = new Date(now);
@@ -24,7 +26,7 @@ function previousUtcDay(now = new Date()) {
   return { start, end };
 }
 
-async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
+async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode = CURRENCY_CODE } = {}) {
   const period = previousUtcDay(now);
   const outcome = { locked: false, run: null, error: null, incident: null };
 
@@ -32,7 +34,7 @@ async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
     outcome.locked = true;
     try {
       const result = await reconcileCreditLedger({
-        currencyCode: CURRENCY_CODE,
+        currencyCode,
         periodStart: period.start,
         periodEnd: period.end,
         actorUserId: null,
@@ -44,7 +46,7 @@ async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
           type: 'oxsteed_credit_reconciliation_difference',
           severity: 'critical',
           message: 'OxSteed Credit ledger reconciliation found a balance difference',
-          dedupeKey: `oxsteed-credit-reconciliation:${CURRENCY_CODE}`,
+          dedupeKey: `oxsteed-credit-reconciliation:${currencyCode}`,
           details: {
             runId: result.run.id,
             currencyCode: result.run.currencyCode,
@@ -75,9 +77,9 @@ async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
         type: 'oxsteed_credit_reconciliation_failed',
         severity: 'critical',
         message: 'OxSteed Credit ledger reconciliation failed to complete',
-        dedupeKey: `oxsteed-credit-reconciliation-failed:${CURRENCY_CODE}`,
+        dedupeKey: `oxsteed-credit-reconciliation-failed:${currencyCode}`,
         details: {
-          currencyCode: CURRENCY_CODE,
+          currencyCode,
           periodStart: period.start.toISOString(),
           periodEnd: period.end.toISOString(),
           error: error.message,
@@ -88,6 +90,7 @@ async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
   }, 300);
 
   return {
+    currencyCode,
     locked: outcome.locked,
     run: outcome.run,
     error: outcome.error ? outcome.error.message : null,
@@ -99,15 +102,30 @@ async function runOxsteedCreditReconciliation({ now = new Date() } = {}) {
   };
 }
 
+async function runOxsteedCreditReconciliations({ now = new Date() } = {}) {
+  const runs = [];
+  for (const currencyCode of CURRENCY_CODES) {
+    runs.push(await runOxsteedCreditReconciliation({ now, currencyCode }));
+  }
+  return {
+    locked: runs.some((result) => result.locked),
+    runs: runs.flatMap((result) => result.run ? [result.run] : []),
+    errors: runs.flatMap((result) => result.error ? [{ currencyCode: result.currencyCode, error: result.error }] : []),
+    incidents: runs.flatMap((result) => result.incident ? [result.incident] : []),
+    period: runs[0]?.period || previousUtcDay(now),
+  };
+}
+
 function startOxsteedCreditReconciliationJob() {
   cron.schedule(CRON_EXPRESSION, () => {
-    runOxsteedCreditReconciliation().catch((error) => {
+    runOxsteedCreditReconciliations().catch((error) => {
       logger.error('OxSteed Credit reconciliation worker failed', { error: error.message });
     });
   }, { timezone: CRON_TIMEZONE });
   logger.info('OxSteed Credit reconciliation job scheduled', {
     cron: CRON_EXPRESSION,
     timezone: CRON_TIMEZONE,
+    currencies: CURRENCY_CODES,
   });
 }
 
@@ -115,7 +133,9 @@ module.exports = {
   CRON_EXPRESSION,
   CRON_TIMEZONE,
   JOB_NAME,
+  CURRENCY_CODES,
   previousUtcDay,
   runOxsteedCreditReconciliation,
+  runOxsteedCreditReconciliations,
   startOxsteedCreditReconciliationJob,
 };
