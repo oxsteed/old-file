@@ -269,12 +269,14 @@ export default function PlatformSettings() {
   const [refreshing, setRefreshing] = useState(false);
   const [flagUpdating, setFlagUpdating] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all');
 
   const fetchSettings = async ({ silent = false } = {}) => {
     if (silent) setRefreshing(true);
     else setLoading(true);
+    setLoadError('');
     try {
       const { data } = await adminApi.get('/admin/settings');
       setSettings(data.settings || []);
@@ -287,6 +289,7 @@ export default function PlatformSettings() {
       setLastLoadedAt(new Date());
     } catch (err) {
       console.error(err);
+      setLoadError(silent ? '' : 'Platform settings could not be loaded.');
       setMessage({ type: 'error', text: silent ? 'Refresh failed. Existing values are still shown.' : 'Failed to load platform settings.' });
     } finally {
       if (silent) setRefreshing(false);
@@ -337,6 +340,15 @@ export default function PlatformSettings() {
     if (!saved) return;
     setEditing((prev) => ({ ...prev, [key]: saved.value }));
     setMessage(null);
+  };
+
+  const resetAll = () => {
+    const savedValues = {};
+    settings.forEach((setting) => {
+      savedValues[setting.key] = setting.value;
+    });
+    setEditing(savedValues);
+    setMessage({ type: 'success', text: 'Unsaved changes discarded.' });
   };
 
   const saveAll = async () => {
@@ -405,6 +417,25 @@ export default function PlatformSettings() {
         <div className="rounded-3xl border border-gray-800 bg-[#111318] px-6 py-5 text-center text-gray-400">
           <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-orange-400" />
           Loading platform settings...
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError && settings.length === 0 && flags.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 py-12">
+        <div className="max-w-md rounded-3xl border border-red-500/30 bg-red-500/10 px-6 py-6 text-center">
+          <AlertTriangle className="mx-auto mb-3 h-6 w-6 text-red-300" />
+          <p className="text-sm text-red-100">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => fetchSettings()}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try again
+          </button>
         </div>
       </div>
     );
@@ -539,6 +570,15 @@ export default function PlatformSettings() {
               >
                 {saving === '__all__' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save changes{changedCount > 0 ? ` (${changedCount})` : ''}
+              </button>
+              <button
+                type="button"
+                onClick={resetAll}
+                disabled={changedCount === 0 || saving !== null || flagUpdating !== null}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-400 transition hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Discard changes
               </button>
             </div>
           </div>
