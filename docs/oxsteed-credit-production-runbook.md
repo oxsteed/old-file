@@ -40,7 +40,7 @@ npm run migrate
 npm run verify:credit
 ```
 
-The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, database-level transaction, transaction-immutability, hold-reference, account-integrity, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, purchases have partner/agreement references, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, and the scheduled-job lock table is present. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
+The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, database-level transaction, transaction-currency, transaction-immutability, hold-reference, account-integrity, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, purchases have partner/agreement references, transaction currencies match their agreements, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, and the scheduled-job lock table is present. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
 
 ## Enabling a Partner
 
