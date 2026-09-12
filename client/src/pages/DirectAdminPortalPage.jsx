@@ -705,7 +705,7 @@ function CalendarJobCard({ item, compact = false, conflict = false, onSelect }) 
 function DirectAdminCalendarView() {
   const [profile] = useDirectAdminProfile();
   const [data, setData] = useState(null);
-  const [viewMode, setViewMode] = useState('month');
+  const [viewMode, setViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'agenda' : 'month'));
   const [cursorDate, setCursorDate] = useState(() => new Date());
   const [status, setStatus] = useState('');
   const [city, setCity] = useState('');
@@ -965,6 +965,10 @@ function DirectAdminCalendarView() {
             <option value="">All service cities</option>
             {cities.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span>{viewMode === 'agenda' ? 'Agenda view keeps dispatch details readable on smaller screens.' : 'Select Agenda for a compact mobile-friendly list.'}</span>
+          {data?.pagination && <span>{jobs.length} loaded · {data.pagination.total} in range</span>}
         </div>
 
         {error ? (
