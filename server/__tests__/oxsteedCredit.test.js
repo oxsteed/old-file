@@ -328,6 +328,41 @@ test('counts active credit holds toward agreement spending limits', async () => 
   expect(mockQuery.mock.calls[1][0]).toContain("h.status = 'active'");
 });
 
+test('can exclude the hold being captured from agreement usage totals', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      partner_id: 41,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: [],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      settlement_currency_code: 'USD',
+      daily_customer_limit_cents: '5000',
+      lifetime_customer_limit_cents: '10000',
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+    }] })
+    .mockResolvedValueOnce({ rows: [{ daily_cents: '0', lifetime_cents: '0' }] });
+
+  await expect(service.findSpendAgreement({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 5000,
+    excludeHoldId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  })).resolves.toBeTruthy();
+
+  expect(mockQuery.mock.calls[1][0]).toContain('h.id <> $4::uuid');
+  expect(mockQuery.mock.calls[1][1]).toEqual([41, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
+});
+
 test('does not create a new hold for a suspended credit account', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })

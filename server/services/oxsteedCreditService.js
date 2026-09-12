@@ -540,7 +540,7 @@ function matchesGeography(geography, input) {
   });
 }
 
-async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, strict = true }) {
+async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true }) {
   const { rows } = await client.query(
     `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
             fr.display_name AS restaurant_name, fr.status AS restaurant_status,
@@ -631,11 +631,12 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
             AND h.partner_id = $1
             AND h.agreement_id = $2
             AND h.status = 'active'
+            AND ($4::uuid IS NULL OR h.id <> $4::uuid)
        )
        SELECT purchase_usage.daily_purchase_cents + active_hold_usage.active_hold_cents AS daily_cents,
               purchase_usage.lifetime_purchase_cents + active_hold_usage.active_hold_cents AS lifetime_cents
          FROM purchase_usage CROSS JOIN active_hold_usage`,
-      [partnerId, agreement.id, customerId]
+      [partnerId, agreement.id, customerId, excludeHoldId]
     );
     const dailyCents = Number(usageRows[0]?.daily_cents || 0);
     const lifetimeCents = Number(usageRows[0]?.lifetime_cents || 0);
@@ -1016,6 +1017,7 @@ async function captureCreditHold({ holdId, amountCents, idempotencyKey, actorUse
       state,
       postalCode,
       country,
+      excludeHoldId: hold.id,
       referenceType: referenceType || hold.reference_type || 'credit_hold',
       referenceId: referenceId || hold.reference_id || String(hold.id),
       correlationId,
