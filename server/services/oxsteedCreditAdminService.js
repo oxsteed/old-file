@@ -150,6 +150,17 @@ function formatSettlement(row) {
   };
 }
 
+function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, periodStart, periodEnd }) {
+  const mismatches = {};
+  if (String(existing.partner_id) !== String(partnerId)) mismatches.partnerId = { existing: existing.partner_id, requested: partnerId };
+  if (String(existing.agreement_id) !== String(agreementId)) mismatches.agreementId = { existing: existing.agreement_id, requested: agreementId };
+  if (new Date(existing.period_start).getTime() !== new Date(periodStart).getTime()) mismatches.periodStart = { existing: existing.period_start, requested: periodStart };
+  if (new Date(existing.period_end).getTime() !== new Date(periodEnd).getTime()) mismatches.periodEnd = { existing: existing.period_end, requested: periodEnd };
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Settlement idempotency key was already used for a different settlement', 409, 'credit_settlement_idempotency_conflict', { mismatches });
+  }
+}
+
 async function insertAudit(client, { actionType, actorUserId, customerId = null, partnerId = null, resourceType, resourceId, reason, beforeState = null, afterState = null, metadata = {} }) {
   await client.query(
     `INSERT INTO oxsteed_credit_audit_events
@@ -412,7 +423,15 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       [`oxsteed-credit-settlement:${normalizedPartnerId}:${agreementId}`]
     );
     const { rows: existingRows } = await client.query(`SELECT s.*, p.restaurant_id, fr.display_name AS restaurant_name FROM oxsteed_credit_settlements s JOIN oxsteed_credit_partners p ON p.id = s.partner_id JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE s.idempotency_key = $1 FOR UPDATE`, [normalizedIdempotencyKey]);
-    if (existingRows[0]) return { settlement: formatSettlement(existingRows[0]), replayed: true };
+    if (existingRows[0]) {
+      assertSettlementIdempotencyReplayMatches(existingRows[0], {
+        partnerId: normalizedPartnerId,
+        agreementId,
+        periodStart: starts,
+        periodEnd: ends,
+      });
+      return { settlement: formatSettlement(existingRows[0]), replayed: true };
+    }
     const { rows: overlapRows } = await client.query(
       `SELECT id, status
          FROM oxsteed_credit_settlements
@@ -443,9 +462,29 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
           gross_cents, refund_cents, fee_cents, net_cents, payment_reference,
           idempotency_key, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+       ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
       [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizeString(paymentReference, 160), normalizedIdempotencyKey, JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {})]
     );
+    if (!rows[0]) {
+      const { rows: conflictRows } = await client.query(
+        `SELECT s.*, p.restaurant_id, fr.display_name AS restaurant_name
+           FROM oxsteed_credit_settlements s
+           JOIN oxsteed_credit_partners p ON p.id = s.partner_id
+           JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE s.idempotency_key = $1
+          FOR UPDATE`,
+        [normalizedIdempotencyKey]
+      );
+      if (!conflictRows[0]) throw new AppError('Settlement could not be confirmed after an idempotent retry', 409, 'credit_settlement_retry_required');
+      assertSettlementIdempotencyReplayMatches(conflictRows[0], {
+        partnerId: normalizedPartnerId,
+        agreementId,
+        periodStart: starts,
+        periodEnd: ends,
+      });
+      return { settlement: formatSettlement(conflictRows[0]), replayed: true };
+    }
     await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, afterState: rows[0] });
     return { settlement: formatSettlement({ ...rows[0], restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_create_settlement');

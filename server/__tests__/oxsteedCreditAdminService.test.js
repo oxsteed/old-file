@@ -91,3 +91,31 @@ test('serializes settlement creation per partner agreement before checking overl
   expect(mockQuery.mock.calls[2][0]).toContain('s.idempotency_key');
   expect(mockQuery.mock.calls[3][0]).toContain('period_start < $4');
 });
+
+test('rejects settlement idempotency reuse for a different period', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      partner_status: 'active',
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'settlement-existing',
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      period_start: '2026-09-01T00:00:00.000Z',
+      period_end: '2026-09-02T00:00:00.000Z',
+    }] });
+
+  await expect(createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-1',
+    periodStart: '2026-09-02T00:00:00.000Z',
+    periodEnd: '2026-09-03T00:00:00.000Z',
+    idempotencyKey: 'settlement-existing-key',
+  })).rejects.toMatchObject({ code: 'credit_settlement_idempotency_conflict' });
+});
