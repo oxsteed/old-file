@@ -109,6 +109,51 @@ test('keeps admin credit overview balances separated by currency', async () => {
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
 });
 
+test('shows only spendable partner restaurants in the customer currency', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [
+    {
+      partner_id: 41,
+      restaurant_id: 7,
+      settlement_currency_code: 'USD',
+      restaurant_currency_code: 'USD',
+      restaurant_name: 'Ox Burger Lab',
+      agreement_id: 'agreement-usd',
+      version: 2,
+      customer_terms: 'Use for lunch.',
+      geography: null,
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      max_transaction_cents: '5000',
+      daily_customer_limit_cents: null,
+      entitlement_id: null,
+    },
+    {
+      partner_id: 42,
+      restaurant_id: 8,
+      settlement_currency_code: 'EUR',
+      restaurant_currency_code: 'EUR',
+      restaurant_name: 'Ox Cafe Europe',
+      agreement_id: 'agreement-eur',
+      version: 1,
+      customer_terms: 'Use for dinner.',
+      geography: null,
+      allowed_order_types: ['dine_in'],
+      allowed_categories: [],
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      entitlement_id: null,
+    },
+  ] });
+
+  const response = await request(createCustomerApp()).get('/eligible-partners?currencyCode=USD');
+
+  expect(response.status).toBe(200);
+  expect(response.body.partners).toHaveLength(1);
+  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD' });
+  expect(mockQuery.mock.calls[0][0]).toContain('fr.currency_code');
+  expect(mockQuery.mock.calls[0][0]).toContain('p.settlement_currency_code = $2');
+});
+
 test('rejects unsupported credit currencies before creating a wallet', async () => {
   const response = await request(createCustomerApp()).get('/account?currencyCode=JPY');
 

@@ -722,6 +722,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
     `SELECT DISTINCT ON (p.id)
             p.id AS partner_id, p.restaurant_id, p.settlement_currency_code,
             fr.display_name AS restaurant_name, fr.logo_url, fr.address_city, fr.address_state,
+            fr.currency_code AS restaurant_currency_code,
             a.id AS agreement_id, a.version, a.customer_terms, a.allowed_order_types,
             a.allowed_categories, a.geography, a.max_transaction_cents,
             a.daily_customer_limit_cents, e.id AS entitlement_id
@@ -736,6 +737,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
            WHERE ff.key = 'oxsteed_credit_enabled' AND ff.is_enabled = TRUE
         )
         AND p.settlement_currency_code = $2
+        AND (fr.currency_code IS NULL OR UPPER(fr.currency_code) = UPPER(p.settlement_currency_code))
         AND a.status = 'active' AND a.starts_at <= NOW()
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
         AND (e.id IS NULL OR (e.status = 'active'
@@ -745,7 +747,8 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
       ORDER BY p.id, a.version DESC`,
     [customerId, currency, normalizeString(orderType, 40)?.toLowerCase() || null]
   );
-  return rows.filter((row) => matchesGeography(row.geography, { city, state, postalCode, country })).map((row) => ({
+  return rows.filter((row) => (!row.restaurant_currency_code || normalizeCurrency(row.restaurant_currency_code) === currency)
+    && matchesGeography(row.geography, { city, state, postalCode, country })).map((row) => ({
     partnerId: String(row.partner_id),
     restaurantId: String(row.restaurant_id),
     restaurantName: row.restaurant_name,
