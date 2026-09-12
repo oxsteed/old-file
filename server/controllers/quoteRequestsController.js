@@ -408,7 +408,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
     }
     if (scheduledStartAt || scheduledEndAt || assignmentProvided) {
       const current = await db.query(
-        `SELECT scheduled_start_at, scheduled_end_at, service_city, service_location
+        `SELECT scheduled_start_at, scheduled_end_at, service_city, service_location, assigned_to
            FROM quote_requests
           WHERE id = $1
           LIMIT 1`,
@@ -420,6 +420,7 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
       auditBefore = current.rows[0];
       const effectiveStart = scheduledStartAt || current.rows[0].scheduled_start_at;
       const effectiveEnd = scheduledEndAt || current.rows[0].scheduled_end_at;
+      const effectiveAssignee = assignmentProvided ? assignedTo : current.rows[0].assigned_to;
       if (effectiveStart && effectiveEnd && new Date(effectiveEnd).getTime() <= new Date(effectiveStart).getTime()) {
         return res.status(400).json({ error: 'Scheduled end must be after scheduled start' });
       }
@@ -443,18 +444,19 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
           });
         }
         const conflict = await db.query(
-          `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at
+          `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at, assigned_to
              FROM quote_requests
             WHERE id <> $1
               AND COALESCE(metadata->>'flow', 'direct') = 'direct'
               AND status NOT IN ('cancelled', 'closed', 'completed')
+              AND assigned_to IS NOT DISTINCT FROM $4::uuid
               AND scheduled_start_at IS NOT NULL
               AND scheduled_end_at IS NOT NULL
               AND scheduled_start_at < $3
               AND scheduled_end_at > $2
             ORDER BY scheduled_start_at ASC
             LIMIT 1`,
-          [id, effectiveStart, effectiveEnd]
+          [id, effectiveStart, effectiveEnd, effectiveAssignee]
         );
         if (conflict.rows.length) {
           const item = conflict.rows[0];
@@ -538,6 +540,9 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
 
     return res.json({ request: result.rows[0] });
   } catch (err) {
+    if (err.code === '23P01' && err.message === 'Direct schedule overlaps an existing booking') {
+      return res.status(409).json({ error: 'This assignee already has an overlapping booking.' });
+    }
     logger.error('Error updating quote request', {
       error: err.message,
       id,

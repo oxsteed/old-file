@@ -788,6 +788,7 @@ function DirectAdminCalendarView() {
       const leftEnd = new Date(left.scheduled_end_at || left.scheduled_start_at).getTime();
       if (!Number.isFinite(leftStart) || !Number.isFinite(leftEnd)) return;
       jobs.slice(leftIndex + 1).forEach((right) => {
+        if (left.assigned_to !== right.assigned_to && (left.assigned_to || right.assigned_to)) return;
         const rightStart = new Date(right.scheduled_start_at).getTime();
         const rightEnd = new Date(right.scheduled_end_at || right.scheduled_start_at).getTime();
         if (Number.isFinite(rightStart) && Number.isFinite(rightEnd) && leftStart < rightEnd && rightStart < leftEnd) {
@@ -1003,6 +1004,7 @@ function DirectAdminCalendarView() {
               <div className="flex items-end"><button type="button" onClick={() => updateSelectedJob()} disabled={actionSaving} className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{actionSaving ? 'Saving…' : 'Save schedule'}</button></div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400"><span>{selectedJob.service_location || 'Address not provided'}</span><span>·</span><span>Payment: {selectedJob.payment_status || 'unpaid'}</span>{conflictIds.has(selectedJob.id) && <Chip tone="orange">Overlapping schedule</Chip>}</div>
+            <p className="mt-2 text-xs text-slate-500">Double-booking protection allows one overlapping job per assigned dispatch member. Unassigned jobs share a provisional capacity slot.</p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => updateSelectedJob('completed')} disabled={actionSaving} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">Mark complete</button>
               <button type="button" onClick={() => updateSelectedJob('cancelled')} disabled={actionSaving} className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 disabled:opacity-50">Cancel job</button>
