@@ -138,6 +138,8 @@ export default function SuperDashboard() {
   const [period,   setPeriod]   = useState('30d');
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [activity,    setActivity]    = useState([]);
   const [actLoading,  setActLoading]  = useState(true);
@@ -157,6 +159,7 @@ export default function SuperDashboard() {
       const endpoint = isSuper ? `/admin/super/dashboard?period=${p}` : '/admin/dashboard';
       const { data } = await adminApi.get(endpoint);
       setStats(data.stats);
+      setLastUpdated(new Date());
     } catch (err) {
       setError('Failed to load dashboard stats.');
     } finally {
@@ -235,6 +238,15 @@ export default function SuperDashboard() {
 
   const handlePeriod = (p) => { if (p !== period) setPeriod(p); };
 
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchStats(period), fetchActivity(), fetchGeo(), fetchHealth(), fetchIncidents()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const pl = PERIOD_LABEL[period] || period;
   const s  = stats;
 
@@ -278,19 +290,29 @@ export default function SuperDashboard() {
             </div>
           )}
           <button
-            onClick={() => { fetchStats(period); fetchActivity(); fetchGeo(); fetchHealth(); fetchIncidents(); }}
-            disabled={loading}
-            className="p-2 rounded-lg bg-[#111318] border border-gray-800 text-gray-500 hover:text-gray-300 transition disabled:opacity-40"
+            onClick={refreshAll}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#111318] border border-gray-800 px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 transition disabled:opacity-40"
             title="Refresh"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing' : 'Refresh'}
           </button>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-[#111318] px-2.5 py-1">
+          <span className={`h-1.5 w-1.5 rounded-full ${loading ? 'bg-yellow-400' : error ? 'bg-red-400' : 'bg-emerald-400'}`} />
+          {loading ? 'Loading dashboard data' : error ? 'Dashboard needs attention' : 'Dashboard data current'}
+        </span>
+        {lastUpdated && <span>Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>}
+      </div>
+
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
-          {error}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
+          <span>{error}</span>
+          <button type="button" onClick={refreshAll} disabled={refreshing} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
         </div>
       )}
 
