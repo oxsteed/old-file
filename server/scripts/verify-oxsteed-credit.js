@@ -146,6 +146,11 @@ async function main() {
       ['433_oxsteed_credit_identity_stability.sql']
     );
     checks.identityStabilityMigrationApplied = identityStabilityMigrationRows.length === 1;
+    const { rows: settlementStateMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['434_oxsteed_credit_settlement_state.sql']
+    );
+    checks.settlementStateMigrationApplied = settlementStateMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -182,7 +187,7 @@ async function main() {
         WHERE NOT tgisinternal
           AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass)
           AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_entry_immutable_guard', 'oxsteed_credit_transaction_type_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard', 'oxsteed_credit_audit_immutable_guard', 'oxsteed_credit_account_identity_guard', 'oxsteed_credit_partner_identity_guard', 'oxsteed_credit_agreement_identity_guard']]
+      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_entry_immutable_guard', 'oxsteed_credit_transaction_type_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard', 'oxsteed_credit_settlement_state_guard', 'oxsteed_credit_audit_immutable_guard', 'oxsteed_credit_account_identity_guard', 'oxsteed_credit_partner_identity_guard', 'oxsteed_credit_agreement_identity_guard']]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
     checks.missingIntegrityTriggers = [
@@ -195,6 +200,7 @@ async function main() {
       'oxsteed_credit_hold_integrity_guard',
       'oxsteed_credit_account_integrity_guard',
       'oxsteed_credit_settlement_integrity_guard',
+      'oxsteed_credit_settlement_state_guard',
       'oxsteed_credit_audit_immutable_guard',
       'oxsteed_credit_account_identity_guard',
       'oxsteed_credit_partner_identity_guard',
@@ -288,6 +294,14 @@ async function main() {
     );
     checks.invalidSettlements = Number(settlementIntegrityRows[0]?.invalid_count || 0);
 
+    const { rows: settlementStateRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_settlements
+        WHERE (status = 'paid' AND paid_at IS NULL)
+           OR (status = 'paid' AND net_cents > 0 AND NULLIF(BTRIM(payment_reference), '') IS NULL)`,
+    );
+    checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
+
     const { rows: hashInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transaction_entries
@@ -334,6 +348,7 @@ async function main() {
       !checks.auditImmutabilityMigrationApplied,
       !checks.transactionTypeIntegrityMigrationApplied,
       !checks.identityStabilityMigrationApplied,
+      !checks.settlementStateMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -343,6 +358,7 @@ async function main() {
       checks.invalidPurchases > 0,
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
+      checks.invalidSettlementStates > 0,
       checks.invalidTransactionTypes > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
