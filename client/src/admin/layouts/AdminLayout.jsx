@@ -1,4 +1,4 @@
-import { useState, useRef }  from 'react';
+import { useState, useRef, useEffect }  from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
@@ -12,6 +12,7 @@ import {
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, MapPinned, ShoppingCart, Layers, Fingerprint,
   AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
+  Settings2, Check,
 } from 'lucide-react';
 
 const ADMIN_NAV_MODE_KEY = 'oxsteed:admin-nav-mode';
@@ -133,6 +134,7 @@ export default function AdminLayout() {
   const [searchInput, setSearchInput] = useState('');
   const [sidebarNavSearch, setSidebarNavSearch] = useState('');
   const [simpleMode, setSimpleMode] = useState(readAdminNavMode);
+  const [tabSettingsOpen, setTabSettingsOpen] = useState(false);
   const searchRef = useRef(null);
   const {
     availability: supportAvailable,
@@ -140,6 +142,16 @@ export default function AdminLayout() {
     busy: supportAvailabilityBusy,
     setAvailability: setSupportAvailability,
   } = useAdminSupportAvailability({ autoOnline: true });
+
+  useEffect(() => {
+    const syncAdminNavMode = (event) => {
+      if (event.key === ADMIN_NAV_MODE_KEY) {
+        setSimpleMode(event.newValue === 'simple');
+      }
+    };
+    window.addEventListener('storage', syncAdminNavMode);
+    return () => window.removeEventListener('storage', syncAdminNavMode);
+  }, []);
 
   const handleLogout = async () => {
     await setSupportAvailability(false, { silent: true }).catch(() => {});
@@ -159,6 +171,15 @@ export default function AdminLayout() {
       }
       return next;
     });
+  };
+
+  const setAdminNavMode = (nextSimpleMode) => {
+    setSimpleMode(nextSimpleMode);
+    try {
+      localStorage.setItem(ADMIN_NAV_MODE_KEY, nextSimpleMode ? 'simple' : 'full');
+    } catch {
+      // Keep the preset usable when browser storage is unavailable.
+    }
   };
 
   const handleSearchSubmit = (e) => {
@@ -182,6 +203,8 @@ export default function AdminLayout() {
       : SUPER_NAV;
     const visibleRegularNav = regularNav.filter(matches);
     const visibleSuperNav = superNav.filter(matches);
+    const totalAdminTabs = regularNav.length + (isSuper ? superNav.length : 0);
+    const visibleAdminTabs = visibleRegularNav.length + (isSuper ? visibleSuperNav.length : 0);
 
     return (
       <>
@@ -211,18 +234,60 @@ export default function AdminLayout() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <div className="sticky top-0 z-10 -mx-3 bg-gray-900 px-3 pb-3">
-          <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
-            <span className="text-xs font-medium text-gray-300">Simple mode</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={simpleMode}
-              aria-label={simpleMode ? 'Turn off simple admin mode' : 'Turn on simple admin mode'}
-              onClick={toggleSimpleMode}
-              className={`relative h-5 w-9 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-700'}`}
-            >
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${simpleMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
-            </button>
+          <div className={`rounded-xl border bg-gray-950/50 transition-colors ${tabSettingsOpen ? 'border-gray-700' : 'border-gray-800'}`}>
+            <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={() => setTabSettingsOpen((open) => !open)}
+                aria-expanded={tabSettingsOpen}
+                aria-controls="admin-tab-settings"
+                className="flex min-w-0 items-center gap-2 text-left text-xs font-semibold text-gray-200 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              >
+                <Settings2 size={14} className="shrink-0 text-orange-400" />
+                <span className="truncate">Tab settings</span>
+                <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+                  {simpleMode ? 'Essential' : 'All'}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={simpleMode}
+                aria-label={simpleMode ? 'Turn off essential admin tabs' : 'Show only essential admin tabs'}
+                onClick={toggleSimpleMode}
+                title={simpleMode ? 'Show all admin tabs' : 'Show essential admin tabs'}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${simpleMode ? 'bg-orange-500' : 'bg-gray-700'}`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${simpleMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            {tabSettingsOpen && (
+              <div id="admin-tab-settings" className="border-t border-gray-800 px-3 pb-3 pt-2">
+                <p className="mb-2 text-[10px] leading-4 text-gray-500">
+                  Choose which admin tabs stay visible. Hidden tabs remain available by direct URL.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: true, label: 'Essential', detail: 'Core operations' },
+                    { value: false, label: 'All tabs', detail: 'Full workspace' },
+                  ].map(({ value, label, detail }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setAdminNavMode(value)}
+                      aria-pressed={simpleMode === value}
+                      className={`rounded-lg border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${simpleMode === value ? 'border-orange-500/70 bg-orange-500/10 text-white' : 'border-gray-800 bg-gray-900/60 text-gray-400 hover:border-gray-700 hover:text-gray-200'}`}
+                    >
+                      <span className="flex items-center justify-between gap-1 text-[11px] font-semibold">
+                        {label}
+                        {simpleMode === value && <Check size={12} className="text-orange-400" />}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] text-gray-500">{detail}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <label className="relative block">
             <span className="sr-only">Find an admin tab</span>
@@ -245,6 +310,16 @@ export default function AdminLayout() {
               </button>
             )}
           </label>
+          {query && (
+            <p className="mt-1.5 px-1 text-[10px] text-gray-500">
+              {visibleAdminTabs} tab{visibleAdminTabs === 1 ? '' : 's'} found
+            </p>
+          )}
+          {!query && (
+            <p className="mt-1.5 px-1 text-[10px] text-gray-600">
+              Showing {totalAdminTabs} admin tab{totalAdminTabs === 1 ? '' : 's'}
+            </p>
+          )}
         </div>
 
         {visibleRegularNav.length > 0 && (
