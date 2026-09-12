@@ -137,6 +137,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [attachment, setAttachment] = useState(null);
   const [sendError, setSendError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [queueError, setQueueError] = useState(null);
+  const [queueUpdatedAt, setQueueUpdatedAt] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreConversations, setHasMoreConversations] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -188,6 +190,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
       conversationLoadingRequestRef.current = requestId;
       setLoading(true);
     }
+    if (!quiet && !append) setQueueError(null);
     try {
       const params = {
         ...(businessId ? { business_id: businessId } : {}),
@@ -216,8 +219,10 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         });
       }
       setHasMoreConversations(nextRows.length === CONVERSATION_PAGE_SIZE);
+      if (!append) setQueueUpdatedAt(new Date());
     } catch (error) {
       if (requestId === conversationRequestRef.current && (append || !quiet)) {
+        if (!append) setQueueError(error?.response?.data?.error || 'Could not load the support queue.');
         toast.error(error?.response?.data?.error || 'Could not load the support queue.');
       }
     } finally {
@@ -1048,6 +1053,13 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
             </button>
           </div>
         </div>
+        {queueError && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">
+            <span>{queueError}</span>
+            <button type="button" onClick={() => loadConversations()} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+          </div>
+        )}
+        {queueUpdatedAt && !queueError && <div className="mt-2 text-right text-[11px] text-slate-600">Queue updated {queueUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[
             ['Active queue', openCount, Inbox],
@@ -1122,7 +1134,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
           <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
             {!loading && visibleConversations.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-500">
-                No conversations match this view.
+                {queueError ? 'Support queue unavailable.' : 'No conversations match this view.'}
               </div>
             )}
             {visibleConversations.map((conversation) => (
