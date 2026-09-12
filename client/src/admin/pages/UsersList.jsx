@@ -4,6 +4,7 @@ import {
   Search, Download, UserPlus, X, MessageSquare, MoreHorizontal,
   ChevronUp, ChevronDown, Shield, ShieldCheck, MapPin, Star,
   Ban, CheckCircle, Key, Eye, RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
@@ -359,6 +360,8 @@ export default function UsersList() {
   const [pages,    setPages]    = useState(1);
   const [summary,  setSummary]  = useState(null);
   const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [filters, setFilters] = useState({
     search: '', role: '', status: '', plan: '', location: '',
@@ -384,6 +387,7 @@ export default function UsersList() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
       const { data } = await adminApi.get('/admin/users', { params });
@@ -391,8 +395,10 @@ export default function UsersList() {
       setTotal(data.total);
       setPages(data.pages);
       if (data.summary) setSummary(data.summary);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error(err);
+      setError(err.response?.data?.error || 'Could not load users.');
     } finally {
       setLoading(false);
     }
@@ -523,12 +529,18 @@ export default function UsersList() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white">Users</h1>
           <p className="text-gray-400 text-sm mt-0.5">{total.toLocaleString()} users matching current filters</p>
+          {lastUpdated && <p className="mt-1 text-xs text-gray-600">Updated {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
         </div>
         <div className="flex items-center gap-2">
+          <button type="button" onClick={fetchUsers} disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+            title="Refresh users">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
           {isSuper && (
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition">
@@ -543,6 +555,13 @@ export default function UsersList() {
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <span>{error}</span>
+          <button type="button" onClick={fetchUsers} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+        </div>
+      )}
 
       {/* ── Summary Stats ── */}
       <StatsBar summary={summary} />
@@ -647,7 +666,7 @@ export default function UsersList() {
               {loading ? (
                 <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">No users found.</td></tr>
+                <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-500">{error ? 'User data is unavailable.' : 'No users found.'}</td></tr>
               ) : users.map(user => {
                 const activity = activityInfo(user.last_login_at);
                 const isSelected = selected.has(user.id);
