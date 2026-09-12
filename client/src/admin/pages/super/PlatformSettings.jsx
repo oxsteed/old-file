@@ -106,7 +106,7 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
   const Icon = config.icon;
 
   return (
-    <section className={`rounded-[28px] border bg-gradient-to-br p-5 ${config.tone}`}>
+    <section className={`min-w-0 rounded-[28px] border bg-gradient-to-br p-5 ${config.tone}`}>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="max-w-2xl">
           <div className="mb-3 flex items-center gap-3">
@@ -137,13 +137,13 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
           return (
             <div
               key={setting.key}
-              className={`rounded-2xl border p-4 transition ${
+              className={`min-w-0 rounded-2xl border p-4 transition ${
                 dirty
                   ? 'border-orange-500/30 bg-orange-500/8'
                   : 'border-gray-800 bg-[#111318]/85'
               }`}
             >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-white">{prettifyKey(setting.key)}</p>
@@ -161,7 +161,7 @@ function SettingsSection({ sectionKey, config, settings, editing, setEditing, on
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:shrink-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center 2xl:shrink-0">
                   {isBooleanSetting(setting) ? (
                     <select
                       value={String(currentValue).toLowerCase() === 'true' ? 'true' : 'false'}
@@ -589,7 +589,7 @@ export default function PlatformSettings() {
         </section>
 
         {filterMode !== 'flags' && (
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-5 xl:grid-cols-2">
             {Object.entries(SECTION_CONFIG).map(([sectionKey, config]) => (
               <SettingsSection
                 key={sectionKey}
