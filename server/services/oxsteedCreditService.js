@@ -380,6 +380,19 @@ function assertHoldIdempotencyReplayMatches(existing, requested) {
     const expectedValue = requested[field] === null || requested[field] === undefined ? null : String(requested[field]).toUpperCase();
     if (actual !== expectedValue) mismatches[field] = { existing: existing[field], requested: requested[field] };
   }
+  if (Object.prototype.hasOwnProperty.call(requested, 'expires_at')) {
+    const actualExpiry = existing.expires_at ? new Date(existing.expires_at).getTime() : null;
+    const expectedExpiry = requested.expires_at ? new Date(requested.expires_at).getTime() : null;
+    if (!Number.isFinite(actualExpiry) || actualExpiry !== expectedExpiry) {
+      mismatches.expires_at = { existing: existing.expires_at, requested: requested.expires_at };
+    }
+  }
+  const existingRequestScope = normalizeMetadata(existing.metadata)._oxsteedCreditRequest;
+  if (Object.prototype.hasOwnProperty.call(requested, 'request_scope') && existingRequestScope) {
+    const actualScope = stableStringify(normalizeMetadata(existingRequestScope));
+    const expectedScope = stableStringify(normalizeMetadata(requested.request_scope));
+    if (actualScope !== expectedScope) mismatches.request_scope = { existing: actualScope, requested: expectedScope };
+  }
   if (Object.keys(mismatches).length) {
     throw new AppError('Credit hold idempotency key was already used for a different hold', 409, 'credit_hold_idempotency_conflict', { mismatches });
   }
@@ -1326,6 +1339,21 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
   const requestedExpiry = resolveHoldExpiry(expiresAt);
+  const hasExplicitExpiry = expiresAt !== undefined && expiresAt !== null && String(expiresAt).trim() !== '';
+  const requestScope = {
+    orderType: normalizeString(orderType, 40)?.toLowerCase() || null,
+    category: normalizeString(category, 120)?.toLowerCase() || null,
+    menuItemId: menuItemId === null || menuItemId === undefined ? null : String(menuItemId),
+    city: normalizeString(city, 120)?.toLowerCase() || null,
+    state: normalizeString(state, 120)?.toLowerCase() || null,
+    postalCode: normalizeString(postalCode, 120)?.toLowerCase() || null,
+    country: normalizeString(country, 120)?.toLowerCase() || null,
+  };
+  const holdReplayRequest = {
+    request_scope: requestScope,
+    ...(hasExplicitExpiry ? { expires_at: requestedExpiry.toISOString() } : {}),
+  };
+  const holdMetadata = { ...normalizeMetadata(metadata), _oxsteedCreditRequest: requestScope };
   return withTransaction(pool, async (client) => {
     const existing = await findExistingCreditHoldForReplay(client, { customerId, partnerId, idempotencyKey: normalizedIdempotencyKey });
     if (existing) {
@@ -1341,6 +1369,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
         purpose: normalizeString(purpose, 100),
         reference_type: normalizeString(referenceType, 80),
         reference_id: normalizeString(referenceId, 160),
+        ...holdReplayRequest,
       });
       return { hold: formatHold(existing), replayed: true };
     }
@@ -1365,6 +1394,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
         purpose: normalizeString(purpose, 100),
         reference_type: normalizeString(referenceType, 80),
         reference_id: normalizeString(referenceId, 160),
+        ...holdReplayRequest,
       });
       return { hold: formatHold(existingRows[0]), replayed: true };
     }
@@ -1379,7 +1409,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
           reference_type, reference_id, idempotency_key, correlation_id, created_by, metadata, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
        RETURNING *`,
-      [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizedIdempotencyKey, normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(normalizeMetadata(metadata)), requestedExpiry]
+      [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizedIdempotencyKey, normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(holdMetadata), requestedExpiry]
     );
     await client.query(
       `UPDATE oxsteed_credit_accounts SET reserved_cents = reserved_cents + $1, updated_at = NOW() WHERE id = $2`,

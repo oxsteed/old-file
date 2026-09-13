@@ -2129,7 +2129,6 @@ test('replays a non-USD credit hold when the settlement currency matches', async
     purpose: 'Order retry',
     referenceType: 'food_order',
     referenceId: 'order-eur',
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   });
 
   expect(result.replayed).toBe(true);
@@ -2164,13 +2163,58 @@ test('replays a committed credit hold while the rail is suspended', async () => 
     purpose: existing.purpose,
     referenceType: existing.reference_type,
     referenceId: existing.reference_id,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   });
 
   expect(result.replayed).toBe(true);
   expect(result.hold).toMatchObject({ id: existing.id, amountCents: 100, currencyCode: 'USD' });
   expect(mockQuery).toHaveBeenCalledTimes(1);
   expect(mockQuery.mock.calls[0][0]).toContain('WHERE idempotency_key = $1');
+});
+
+test('rejects a Credit hold replay when its stored spend scope differs', async () => {
+  const existing = {
+    id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    agreement_id: 'agreement-scoped-hold',
+    amount_cents: '100',
+    currency_code: 'USD',
+    purpose: 'Scoped order',
+    reference_type: 'food_order',
+    reference_id: 'order-scoped-1',
+    idempotency_key: 'hold-scope-replay-1',
+    status: 'active',
+    metadata: {
+      _oxsteedCreditRequest: {
+        orderType: 'pickup',
+        category: 'entrees',
+        menuItemId: 'menu-1',
+        city: 'springfield',
+        state: 'oh',
+        postalCode: '45503',
+        country: 'us',
+      },
+    },
+  };
+  mockQuery.mockResolvedValueOnce({ rows: [existing] });
+
+  await expect(service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    idempotencyKey: existing.idempotency_key,
+    orderType: 'delivery',
+    category: 'entrees',
+    menuItemId: 'menu-1',
+    city: 'Springfield',
+    state: 'OH',
+    postalCode: '45503',
+    country: 'US',
+    purpose: existing.purpose,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+  })).rejects.toMatchObject({ code: 'credit_hold_idempotency_conflict', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {
