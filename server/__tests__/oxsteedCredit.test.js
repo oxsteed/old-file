@@ -1967,6 +1967,75 @@ test('replays a committed purchase while the credit rail is suspended', async ()
   expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
 });
 
+test('fails closed when an idempotency key points to a non-posted transaction', async () => {
+  const existing = {
+    id: 'pending-credit-1',
+    transaction_type: 'purchase',
+    status: 'pending',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    amount_cents: '1250',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    idempotency_key: 'pending-credit-key',
+    reference_type: 'food_order',
+    reference_id: 'order-pending-1',
+  };
+  mockQuery.mockResolvedValueOnce({ rows: [existing] });
+
+  await expect(service.postJournalTransaction({ query: mockQuery }, {
+    transactionType: 'purchase',
+    debitAccountId: 7001,
+    creditAccountId: 8001,
+    amountCents: 1250,
+    currencyCode: 'USD',
+    partnerId: 41,
+    agreementId: existing.agreement_id,
+    idempotencyKey: existing.idempotency_key,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+  })).rejects.toMatchObject({ code: 'credit_idempotency_retry_required', status: 409 });
+
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('rejects a purchase retry with a different committed spend scope', async () => {
+  const existing = {
+    id: 'scoped-purchase-1',
+    transaction_type: 'purchase',
+    status: 'posted',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    amount_cents: '1250',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    idempotency_key: 'scoped-purchase-key',
+    reference_type: 'food_order',
+    reference_id: 'order-scoped-1',
+    metadata: { orderType: 'pickup', categories: ['food'], menuItemIds: ['44'] },
+    debit_account_customer_id: CUSTOMER_ID,
+    credit_account_partner_id: 41,
+  };
+  mockQuery.mockResolvedValueOnce({ rows: [existing] });
+
+  await expect(service.purchaseWithCreditInTransaction({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 1250,
+    currencyCode: 'USD',
+    idempotencyKey: existing.idempotency_key,
+    orderType: 'delivery',
+    category: 'food',
+    menuItemId: 44,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+  })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', status: 409 });
+
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
 test('does not create a new hold for a suspended credit account', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })

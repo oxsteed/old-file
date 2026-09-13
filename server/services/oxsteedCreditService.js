@@ -494,7 +494,7 @@ async function getExistingTransaction(client, idempotencyKey) {
   return rows[0] || null;
 }
 
-async function findExistingPurchaseForReplay(client, { customerId, partnerId, idempotencyKey }) {
+async function findExistingPurchaseForReplay(client, { customerId, partnerId, idempotencyKey, orderType, category, categories, menuItemId, menuItemIds }) {
   const { rows } = await client.query(
     `SELECT t.*,
             debit_account.customer_id AS debit_account_customer_id,
@@ -514,7 +514,43 @@ async function findExistingPurchaseForReplay(client, { customerId, partnerId, id
     || String(existing.credit_account_partner_id) !== String(partnerId)) {
     throw new AppError('Credit idempotency key was already used for a different purchase', 409, 'credit_idempotency_conflict');
   }
+  assertPurchaseScopeReplayMatches(existing, { orderType, category, categories, menuItemId, menuItemIds });
   return existing;
+}
+
+function normalizePurchaseScopeValues(value, { lowerCase = false, max = 120 } = {}) {
+  const values = Array.isArray(value) ? value : value === null || value === undefined ? [] : [value];
+  return [...new Set(values
+    .map((item) => normalizeString(String(item), max))
+    .filter(Boolean)
+    .map((item) => lowerCase ? item.toLowerCase() : item))].sort();
+}
+
+function assertPurchaseScopeReplayMatches(existing, { orderType, category, categories, menuItemId, menuItemIds }) {
+  const committed = normalizeMetadata(existing.metadata);
+  const committedOrderType = normalizeString(committed.orderType, 40)?.toLowerCase() || null;
+  const requestedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
+  if (committedOrderType && committedOrderType !== requestedOrderType) {
+    throw new AppError('Credit idempotency key was already used for a different purchase scope', 409, 'credit_idempotency_conflict');
+  }
+
+  const committedCategories = normalizePurchaseScopeValues(committed.categories, { lowerCase: true });
+  const requestedCategories = normalizePurchaseScopeValues(
+    Array.isArray(categories) && categories.length ? categories : category,
+    { lowerCase: true },
+  );
+  if (committedCategories.length && stableStringify(committedCategories) !== stableStringify(requestedCategories)) {
+    throw new AppError('Credit idempotency key was already used for a different purchase scope', 409, 'credit_idempotency_conflict');
+  }
+
+  const committedMenuItems = normalizePurchaseScopeValues(committed.menuItemIds, { max: 40 });
+  const requestedMenuItems = normalizePurchaseScopeValues(
+    Array.isArray(menuItemIds) && menuItemIds.length ? menuItemIds : menuItemId,
+    { max: 40 },
+  );
+  if (committedMenuItems.length && stableStringify(committedMenuItems) !== stableStringify(requestedMenuItems)) {
+    throw new AppError('Credit idempotency key was already used for a different purchase scope', 409, 'credit_idempotency_conflict');
+  }
 }
 
 async function findExistingTransferForReplay(client, { senderCustomerId, recipientCustomerId, idempotencyKey }) {
@@ -604,6 +640,9 @@ async function postJournalTransaction(client, input) {
   };
   const existing = input.existingTransaction || await getExistingTransaction(client, idempotencyKey);
   if (existing) {
+    if (existing.status !== 'posted') {
+      throw new AppError('Credit idempotency key points to a transaction that is not posted', 409, 'credit_idempotency_retry_required');
+    }
     assertIdempotencyReplayMatches(existing, { ...requested, ...Object.fromEntries(Object.entries(requested).map(([key, value]) => [key, value])) });
     return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
   }
@@ -698,6 +737,9 @@ async function postJournalTransaction(client, input) {
     const existingAfterConflict = await getExistingTransaction(client, idempotencyKey);
     if (!existingAfterConflict) {
       throw new AppError('Credit transaction could not be confirmed after an idempotent retry', 409, 'credit_idempotency_retry_required');
+    }
+    if (existingAfterConflict.status !== 'posted') {
+      throw new AppError('Credit idempotency key points to a transaction that is not posted', 409, 'credit_idempotency_retry_required');
     }
     assertIdempotencyReplayMatches(existingAfterConflict, requested);
     return { transaction: { ...formatTransaction(existingAfterConflict, await loadAccountEntries(client, existingAfterConflict.id)), replayed: true }, replayed: true };
@@ -1133,7 +1175,16 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
-  const existing = await findExistingPurchaseForReplay(client, { customerId, partnerId, idempotencyKey: normalizedIdempotencyKey });
+  const existing = await findExistingPurchaseForReplay(client, {
+    customerId,
+    partnerId,
+    idempotencyKey: normalizedIdempotencyKey,
+    orderType,
+    category,
+    categories,
+    menuItemId,
+    menuItemIds,
+  });
   if (existing) {
     const settlementCurrency = assertSupportedCreditCurrency(existing.currency_code);
     if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
