@@ -45,6 +45,27 @@ const REQUIRED_INDEXES = [
   'uq_oxsteed_credit_agreement_creation_idempotency',
 ];
 
+const REQUIRED_INTEGRITY_TRIGGERS = [
+  'oxsteed_credit_transaction_account_guard',
+  'oxsteed_credit_transaction_currency_guard',
+  'oxsteed_credit_transaction_entries_guard',
+  'oxsteed_credit_transaction_immutable_guard',
+  'oxsteed_credit_entry_immutable_guard',
+  'oxsteed_credit_transaction_type_guard',
+  'oxsteed_credit_hold_integrity_guard',
+  'oxsteed_credit_account_integrity_guard',
+  'oxsteed_credit_settlement_integrity_guard',
+  'oxsteed_credit_settlement_state_guard',
+  'oxsteed_credit_audit_immutable_guard',
+  'oxsteed_credit_account_identity_guard',
+  'oxsteed_credit_partner_identity_guard',
+  'oxsteed_credit_agreement_identity_guard',
+  'oxsteed_credit_transaction_partner_account_guard',
+  'oxsteed_credit_customer_owner_guard',
+  'oxsteed_credit_entitlement_owner_guard',
+  'oxsteed_credit_transaction_customer_owner_guard',
+];
+
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
   const stateByAccount = new Map();
   let invalidEntryHashes = 0;
@@ -284,29 +305,10 @@ async function main() {
         WHERE NOT tgisinternal
           AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass)
           AND tgname = ANY($1::text[])`,
-      [['oxsteed_credit_transaction_account_guard', 'oxsteed_credit_transaction_currency_guard', 'oxsteed_credit_transaction_entries_guard', 'oxsteed_credit_transaction_immutable_guard', 'oxsteed_credit_entry_immutable_guard', 'oxsteed_credit_transaction_type_guard', 'oxsteed_credit_hold_integrity_guard', 'oxsteed_credit_account_integrity_guard', 'oxsteed_credit_settlement_integrity_guard', 'oxsteed_credit_settlement_state_guard', 'oxsteed_credit_audit_immutable_guard', 'oxsteed_credit_account_identity_guard', 'oxsteed_credit_partner_identity_guard', 'oxsteed_credit_agreement_identity_guard', 'oxsteed_credit_customer_owner_guard', 'oxsteed_credit_entitlement_owner_guard', 'oxsteed_credit_transaction_customer_owner_guard']]
+      [REQUIRED_INTEGRITY_TRIGGERS]
     );
     const presentIntegrityTriggers = new Set(integrityTriggerRows.map((row) => row.tgname));
-    checks.missingIntegrityTriggers = [
-      'oxsteed_credit_transaction_account_guard',
-      'oxsteed_credit_transaction_currency_guard',
-      'oxsteed_credit_transaction_entries_guard',
-      'oxsteed_credit_transaction_immutable_guard',
-      'oxsteed_credit_entry_immutable_guard',
-      'oxsteed_credit_transaction_type_guard',
-      'oxsteed_credit_hold_integrity_guard',
-      'oxsteed_credit_account_integrity_guard',
-      'oxsteed_credit_settlement_integrity_guard',
-      'oxsteed_credit_settlement_state_guard',
-      'oxsteed_credit_audit_immutable_guard',
-      'oxsteed_credit_account_identity_guard',
-      'oxsteed_credit_partner_identity_guard',
-      'oxsteed_credit_agreement_identity_guard',
-      'oxsteed_credit_transaction_partner_account_guard',
-      'oxsteed_credit_customer_owner_guard',
-      'oxsteed_credit_entitlement_owner_guard',
-      'oxsteed_credit_transaction_customer_owner_guard',
-    ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
+    checks.missingIntegrityTriggers = REQUIRED_INTEGRITY_TRIGGERS.filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -547,4 +549,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { findUnsupportedCurrencyRecords, verifyEntryHashes };
+module.exports = { REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes };

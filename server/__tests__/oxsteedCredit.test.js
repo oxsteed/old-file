@@ -6,7 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
-const { findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
+const { REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -80,6 +80,11 @@ test('credit verification identifies records outside the configured currency all
     { resourceType: 'partner', currencyCode: 'JPY' },
     { resourceType: 'transaction', currencyCode: 'JPY' },
   ]);
+});
+
+test('credit verification checks every declared integrity trigger', () => {
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_transaction_partner_account_guard');
+  expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
 test('exposes only currencies with verified two-decimal minor-unit support', () => {
