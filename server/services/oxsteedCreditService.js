@@ -333,7 +333,7 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
     const current = rows[0];
     if (!current) throw new AppError('OxSteed Credit control is not configured', 503, 'credit_rail_status_unavailable');
     if (current.is_enabled === enabled) {
-      return { rail: formatCreditRailStatus(current), changed: false, replayed: true };
+      return { rail: { ...formatCreditRailStatus(current), prerequisites: getCreditRailPrerequisites() }, changed: false, replayed: true };
     }
     if (enabled && (process.env.NODE_ENV || 'production') === 'production') {
       const prerequisites = getCreditRailPrerequisites();
@@ -383,7 +383,7 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
         JSON.stringify({ emergencyControl: true }),
       ]
     );
-    return { rail: formatCreditRailStatus(updatedRows[0]), changed: true, replayed: false };
+    return { rail: { ...formatCreditRailStatus(updatedRows[0]), prerequisites: getCreditRailPrerequisites() }, changed: true, replayed: false };
   }, 'credit_set_rail_status');
 }
 
