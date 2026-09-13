@@ -33,7 +33,15 @@ const REQUIRED_TABLES = [
 const REQUIRED_COLUMNS = {
   oxsteed_credit_accounts: ['balance_cents', 'reserved_cents', 'ledger_version', 'last_entry_hash'],
   oxsteed_credit_audit_events: ['previous_event_hash', 'event_hash'],
-  oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id', 'reason', 'actor_owner_evidence_legacy'],
+  oxsteed_credit_transactions: [
+    'idempotency_key',
+    'posted_at',
+    'partner_id',
+    'agreement_id',
+    'reason',
+    'actor_owner_evidence_legacy',
+    'purchase_reference_evidence_legacy',
+  ],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: [
     'capture_idempotency_key',
@@ -134,6 +142,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_dispute_actor_evidence_guard',
   'oxsteed_credit_hold_actor_evidence_guard',
   'oxsteed_credit_transaction_actor_owner_guard',
+  'oxsteed_credit_purchase_reference_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
 ];
@@ -531,6 +540,11 @@ async function main() {
       ['497_oxsteed_credit_transaction_actor_owner.sql']
     );
     checks.transactionActorOwnerMigrationApplied = transactionActorOwnerMigrationRows.rows.length === 1;
+    const purchaseReferenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['498_oxsteed_credit_purchase_reference.sql']
+    );
+    checks.purchaseReferenceMigrationApplied = purchaseReferenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1002,6 +1016,25 @@ async function main() {
     );
     checks.invalidPurchaseReferences = Number(purchaseReferenceRows[0]?.invalid_count || 0);
 
+    const { rows: purchaseReferenceEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+        WHERE t.transaction_type = 'purchase'
+          AND t.reference_type = 'food_order'
+          AND NOT t.purchase_reference_evidence_legacy
+          AND NOT EXISTS (
+            SELECT 1
+              FROM food_orders o
+              JOIN oxsteed_credit_partners p ON p.id = t.partner_id
+              JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
+             WHERE o.id::TEXT = t.reference_id
+               AND o.customer_id IS NOT NULL
+               AND o.customer_id = a.customer_id
+               AND o.restaurant_id = p.restaurant_id
+          )`,
+    );
+    checks.invalidPurchaseReferenceEvidence = Number(purchaseReferenceEvidenceRows[0]?.invalid_count || 0);
+
     const { rows: transactionCurrencyRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions t
@@ -1313,6 +1346,7 @@ async function main() {
       !checks.entitlementAgreementStateMigrationApplied,
       !checks.agreementEntitlementStateMigrationApplied,
       !checks.transactionActorOwnerMigrationApplied,
+      !checks.purchaseReferenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1349,6 +1383,7 @@ async function main() {
       checks.invalidClosedCreditAccounts > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
+      checks.invalidPurchaseReferenceEvidence > 0,
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
       checks.invalidSettlementStates > 0,
