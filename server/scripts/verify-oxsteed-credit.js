@@ -33,7 +33,7 @@ const REQUIRED_TABLES = [
 const REQUIRED_COLUMNS = {
   oxsteed_credit_accounts: ['balance_cents', 'reserved_cents', 'ledger_version', 'last_entry_hash'],
   oxsteed_credit_audit_events: ['previous_event_hash', 'event_hash'],
-  oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id', 'reason'],
+  oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id', 'reason', 'actor_owner_evidence_legacy'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: [
     'capture_idempotency_key',
@@ -133,6 +133,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_terminal_evidence_guard',
   'oxsteed_credit_dispute_actor_evidence_guard',
   'oxsteed_credit_hold_actor_evidence_guard',
+  'oxsteed_credit_transaction_actor_owner_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
 ];
@@ -525,6 +526,11 @@ async function main() {
       ['496_oxsteed_credit_agreement_entitlement_state.sql']
     );
     checks.agreementEntitlementStateMigrationApplied = agreementEntitlementStateMigrationRows.rows.length === 1;
+    const transactionActorOwnerMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['497_oxsteed_credit_transaction_actor_owner.sql']
+    );
+    checks.transactionActorOwnerMigrationApplied = transactionActorOwnerMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -890,6 +896,18 @@ async function main() {
                AND (u.id IS NULL OR u.role <> 'customer'))`,
     );
     checks.invalidCreditActorIdentities = Number(actorIdentityInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: actorOwnerInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         LEFT JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
+        WHERE t.actor_type IN ('user', 'customer')
+          AND NOT t.actor_owner_evidence_legacy
+          AND (a.account_type <> 'customer_wallet'
+            OR a.customer_id IS NULL
+            OR t.actor_user_id IS DISTINCT FROM a.customer_id)`,
+    );
+    checks.invalidCreditActorOwners = Number(actorOwnerInvariantRows[0]?.invalid_count || 0);
 
     const { rows: issuanceActorEvidenceRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1294,6 +1312,7 @@ async function main() {
       !checks.holdActorEvidenceMigrationApplied,
       !checks.entitlementAgreementStateMigrationApplied,
       !checks.agreementEntitlementStateMigrationApplied,
+      !checks.transactionActorOwnerMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1318,6 +1337,7 @@ async function main() {
       checks.invalidCreditIdempotencyKeys > 0,
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
+      checks.invalidCreditActorOwners > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
       checks.invalidSettlementOverlaps > 0,
