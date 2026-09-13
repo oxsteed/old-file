@@ -699,7 +699,7 @@ async function listAdminCustomerCreditAccounts({ search, currencyCode, status, l
   };
 }
 
-async function listPartners({ search, status } = {}) {
+async function listPartners({ search, status, limit = 200, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   const normalizedSearch = normalizeString(search, 120);
@@ -712,6 +712,26 @@ async function listPartners({ search, status } = {}) {
     params.push(status);
     filters.push(`p.status = $${params.length}`);
   }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 200;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  const filterParams = [...params];
+  let total = null;
+  if (includePagination) {
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total
+         FROM oxsteed_credit_partners p
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}`,
+      filterParams
+    );
+    total = Number(countRows[0]?.total || 0);
+  }
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
   const { rows } = await pool.query(
     `SELECT p.*, fr.display_name AS restaurant_name,
             COUNT(a.id)::int AS agreement_count,
@@ -723,10 +743,22 @@ async function listPartners({ search, status } = {}) {
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
       GROUP BY p.id, fr.display_name
       ORDER BY p.updated_at DESC, p.id DESC
-      LIMIT 200`,
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatPartner);
+  const hasMore = includePagination && rows.length > safeLimit;
+  const partners = rows.slice(0, safeLimit).map(formatPartner);
+  if (!includePagination) return partners;
+  return {
+    partners,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      total,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 async function registerPartner({ restaurantId, businessId = null, settlementCurrencyCode = 'USD', notes, actorUserId }) {

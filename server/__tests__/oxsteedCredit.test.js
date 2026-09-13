@@ -43,6 +43,7 @@ function createAdminApp() {
   app.post('/adjust/:customerId', controller.adminAdjustCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
+  app.get('/partners.csv', controller.downloadAdminPartners);
   app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
@@ -340,6 +341,36 @@ test('exports a filtered settlement CSV without exposing spreadsheet formulas', 
   expect(response.text).toContain('"\'=Restaurant Cafe"');
   expect(response.text).toContain('"\'+bank-1"');
   expect(mockQuery.mock.calls[0][1]).toEqual([41, 'paid', 'USD', 251, 0]);
+});
+
+test('exports filtered Credit partner coverage with formula-safe values', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+    .mockResolvedValueOnce({ rows: [{
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: '=Cafe',
+      business_id: 99,
+      status: 'active',
+      settlement_currency_code: 'USD',
+      requires_customer_entitlement: true,
+      agreement_count: 2,
+      active_agreement_count: 1,
+      notes: '+approved',
+      created_at: '2026-09-12T12:03:00.000Z',
+      updated_at: '2026-09-12T12:04:00.000Z',
+    }] });
+
+  const response = await request(createAdminApp()).get('/partners.csv?search=restaurant&status=active');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-partners-/);
+  expect(response.text).toContain('Agreement count');
+  expect(response.text).toContain('"\'=Cafe"');
+  expect(response.text).toContain('"\'+approved"');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%restaurant%', 'active']);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['%restaurant%', 'active', 251, 0]);
 });
 
 test('exports customer Credit wallets with active filters and formula-safe values', async () => {

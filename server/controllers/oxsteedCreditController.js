@@ -523,6 +523,56 @@ async function listAdminPartners(req, res, next) {
   }
 }
 
+async function downloadAdminPartners(req, res, next) {
+  try {
+    const options = {
+      search: req.query.search || req.query.q,
+      status: req.query.status,
+      limit: 250,
+      offset: 0,
+      includePagination: true,
+    };
+    const partners = [];
+    let page = await listPartners(options);
+    partners.push(...page.partners);
+    while (page.pagination.hasMore && partners.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listPartners({ ...options, offset: page.pagination.nextOffset || partners.length });
+      partners.push(...page.partners);
+    }
+    if (page.pagination.hasMore) {
+      throw new AppError('Credit partner export is too large; narrow the filters first', 409, 'credit_partner_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Partner ID', 'Restaurant ID', 'Restaurant', 'Business ID', 'Status', 'Settlement currency', 'Customer entitlement required', 'Agreement count', 'Active agreement count', 'Notes', 'Created at', 'Updated at'];
+    const lines = [headers.map(csvCell).join(',')];
+    partners.forEach((partner) => {
+      lines.push([
+        partner.partnerId,
+        partner.restaurantId,
+        partner.restaurantName,
+        partner.businessId,
+        partner.status,
+        partner.settlementCurrencyCode,
+        partner.requiresCustomerEntitlement,
+        partner.agreementCount,
+        partner.activeAgreementCount,
+        partner.notes,
+        partner.createdAt,
+        partner.updatedAt,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-partners-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminCustomerAccounts(req, res, next) {
   try {
     const result = await listAdminCustomerCreditAccounts({
@@ -1056,6 +1106,7 @@ module.exports = {
   getAdminCreditRail,
   updateAdminCreditRail,
   listAdminPartners,
+  downloadAdminPartners,
   listAdminCustomerAccounts,
   downloadAdminCustomerAccounts,
   getAdminCustomerAccount,
