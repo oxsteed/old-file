@@ -1154,6 +1154,7 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
+  if (direction === 'credit' && !normalizeString(referenceId, 160)) throw new AppError('A funding reference is required for positive administrative credit adjustments', 400, 'credit_funding_reference_required');
   return withTransaction(pool, async (client) => {
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });

@@ -616,6 +616,7 @@ test('applies the global issuance cap to positive administrative adjustments', a
     direction: 'credit',
     idempotencyKey: 'adjustment-cap-1',
     reason: 'Cap test',
+    referenceId: 'funding-adjustment-cap-1',
   })).rejects.toMatchObject({ code: 'credit_total_issuance_limit' });
   expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
 });
@@ -637,6 +638,7 @@ test('applies the per-customer daily issuance cap to positive administrative adj
     direction: 'credit',
     idempotencyKey: 'daily-cap-1',
     reason: 'Daily cap test',
+    referenceId: 'funding-daily-cap-1',
   })).rejects.toMatchObject({ code: 'credit_daily_issuance_limit' });
   expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
   expect(mockQuery.mock.calls[7][1]).toEqual(['USD', CUSTOMER_ID]);
