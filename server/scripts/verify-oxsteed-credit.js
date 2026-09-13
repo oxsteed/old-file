@@ -26,6 +26,7 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_audit_events',
   'oxsteed_credit_disputes',
   'oxsteed_credit_entitlement_bulk_requests',
+  'oxsteed_credit_entitlement_requests',
   'cron_job_locks',
 ];
 
@@ -39,6 +40,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_disputes: ['idempotency_key'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids'],
+  oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -54,6 +56,8 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_disputes_status_history',
   'uq_oxsteed_credit_dispute_idempotency',
   'idx_oxsteed_credit_entitlement_bulk_requests_customer',
+  'idx_oxsteed_credit_entitlement_requests_customer',
+  'idx_oxsteed_credit_entitlement_requests_agreement',
   'uq_oxsteed_credit_audit_event_hash',
 ];
 
@@ -375,6 +379,11 @@ async function main() {
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
     );
     checks.settlementCreationEvidenceMigrationApplied = settlementCreationEvidenceMigrationRows.rows.length === 1;
+    const entitlementIdempotencyMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['471_oxsteed_credit_entitlement_idempotency.sql']
+    );
+    checks.entitlementIdempotencyMigrationApplied = entitlementIdempotencyMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -791,6 +800,7 @@ async function main() {
       !checks.adminRefundEvidenceMigrationApplied,
       !checks.holdImmutabilityMigrationApplied,
       !checks.settlementCreationEvidenceMigrationApplied,
+      !checks.entitlementIdempotencyMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

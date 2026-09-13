@@ -142,6 +142,7 @@ test('does not grant a Credit entitlement to a non-customer identity', async () 
     agreementId: 'agreement-1',
     customerId: '33333333-3333-4333-8333-333333333333',
     reason: 'Partner-specific access',
+    idempotencyKey: 'customer-access-1',
   })).rejects.toMatchObject({ code: 'customer_not_found', status: 404 });
 
   expect(mockQuery.mock.calls[1][0]).toContain("role = 'customer'");
@@ -153,6 +154,7 @@ test('records the prior entitlement state when access is updated', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'request-hash' }] })
     .mockResolvedValueOnce({ rows: [{
       id: 'entitlement-1',
       customer_id: customerId,
@@ -191,12 +193,13 @@ test('records the prior entitlement state when access is updated', async () => {
     reason: 'Temporarily restricted pending review',
     metadata: { source: 'manual-review' },
     actorUserId: '33333333-3333-4333-8333-333333333333',
+    idempotencyKey: 'entitlement-request-1',
   });
 
   expect(result.entitlement).toMatchObject({ id: 'entitlement-1', status: 'suspended', maxTransactionCents: 5000 });
-  expect(mockQuery.mock.calls[2][0]).toContain('FOR UPDATE');
-  expect(mockQuery.mock.calls[3][0]).toContain('UPDATE oxsteed_credit_customer_entitlements');
-  expect(mockQuery.mock.calls[4][1]).toEqual([
+  expect(mockQuery.mock.calls[3][0]).toContain('FOR UPDATE');
+  expect(mockQuery.mock.calls[4][0]).toContain('UPDATE oxsteed_credit_customer_entitlements');
+  expect(mockQuery.mock.calls[5][1]).toEqual([
     'credit.entitlement.upserted',
     '33333333-3333-4333-8333-333333333333',
     customerId,
@@ -226,6 +229,28 @@ test('records the prior entitlement state when access is updated', async () => {
     }),
     JSON.stringify({}),
   ]);
+});
+
+test('rejects single customer access idempotency reuse when details change', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const agreementId = 'agreement-1';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'different-request-hash' }] });
+
+  await expect(upsertEntitlement({
+    agreementId,
+    customerId,
+    status: 'active',
+    reason: 'Changed access details',
+    idempotencyKey: 'entitlement-request-1',
+  })).rejects.toMatchObject({ code: 'credit_entitlement_idempotency_conflict', status: 409 });
+
+  expect(mockQuery.mock.calls[2][0]).toContain('oxsteed_credit_entitlement_requests');
+  expect(mockQuery.mock.calls[3][0]).toContain('FROM oxsteed_credit_entitlement_requests');
+  expect(mockQuery).toHaveBeenCalledTimes(4);
 });
 
 test('bulk-upserts customer access across multiple restaurant agreements atomically', async () => {

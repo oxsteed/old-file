@@ -1594,22 +1594,67 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
   }, 'credit_admin_transition_agreement');
 }
 
-async function upsertEntitlement({ agreementId, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, correlationId }) {
+async function upsertEntitlement({ agreementId, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, idempotencyKey, correlationId }) {
   const normalizedStatus = normalizeString(status, 20) || 'active';
   if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
   const normalizedReason = requireAuditReason(reason);
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for customer access', 400, 'credit_idempotency_key_required');
   const starts = parseDate(startsAt, 'startsAt');
   const ends = parseDate(endsAt, 'endsAt');
   if (starts && ends && ends <= starts) throw new AppError('Entitlement end must be after its start', 400, 'credit_entitlement_dates_invalid');
+  const maxTransaction = parseLimit(maxTransactionCents, 'maxTransactionCents');
+  const dailyLimit = parseLimit(dailyLimitCents, 'dailyLimitCents');
+  const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+  const requestHash = entitlementRequestHash({
+    agreementId,
+    customerId,
+    status: normalizedStatus,
+    startsAt: starts,
+    endsAt: ends,
+    maxTransactionCents: maxTransaction,
+    dailyLimitCents: dailyLimit,
+    reason: normalizedReason,
+    metadata: normalizedMetadata,
+  });
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(`SELECT * FROM oxsteed_credit_partner_agreements WHERE id = $1 FOR SHARE`, [agreementId]);
     if (!agreementRows[0]) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
     const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
-    const maxTransaction = parseLimit(maxTransactionCents, 'maxTransactionCents');
-    const dailyLimit = parseLimit(dailyLimitCents, 'dailyLimitCents');
-    const serializedMetadata = JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {});
+    const serializedMetadata = JSON.stringify(normalizedMetadata);
     const values = [normalizedStatus, starts, ends, maxTransaction, dailyLimit, serializedMetadata, normalizedReason, actorUserId || null];
+    const { rows: requestRows } = await client.query(
+      `INSERT INTO oxsteed_credit_entitlement_requests
+         (idempotency_key, request_hash, customer_id, agreement_id, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (idempotency_key) DO NOTHING
+       RETURNING idempotency_key, request_hash`,
+      [normalizedIdempotencyKey, requestHash, customerId, agreementId, actorUserId || null]
+    );
+    if (!requestRows[0]) {
+      const { rows: existingRequestRows } = await client.query(
+        `SELECT idempotency_key, request_hash
+           FROM oxsteed_credit_entitlement_requests
+          WHERE idempotency_key = $1
+          FOR UPDATE`,
+        [normalizedIdempotencyKey]
+      );
+      const existingRequest = existingRequestRows[0];
+      if (!existingRequest) throw new AppError('Customer access could not be confirmed after an idempotent retry', 409, 'credit_entitlement_retry_required');
+      if (existingRequest.request_hash !== requestHash) {
+        throw new AppError('Customer access idempotency key was already used for different details', 409, 'credit_entitlement_idempotency_conflict');
+      }
+      const { rows: replayRows } = await client.query(
+        `SELECT *
+           FROM oxsteed_credit_customer_entitlements
+          WHERE customer_id = $1 AND agreement_id = $2
+          FOR SHARE`,
+        [customerId, agreementId]
+      );
+      if (!replayRows[0]) throw new AppError('Customer access replay is incomplete; please retry with a new key', 409, 'credit_entitlement_retry_required');
+      return { entitlement: formatEntitlement(replayRows[0]), replayed: true };
+    }
     let beforeState = null;
     let rows;
     const { rows: existingRows } = await client.query(
@@ -1684,6 +1729,20 @@ function bulkEntitlementRequestHash({ agreementIds, customerId, status, startsAt
   return crypto.createHash('sha256').update(JSON.stringify({
     agreementIds: [...agreementIds].sort(),
     customerId,
+    status,
+    startsAt: startsAt?.toISOString() || null,
+    endsAt: endsAt?.toISOString() || null,
+    maxTransactionCents,
+    dailyLimitCents,
+    reason,
+    metadata,
+  })).digest('hex');
+}
+
+function entitlementRequestHash({ agreementId, customerId, status, startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata }) {
+  return crypto.createHash('sha256').update(stableStringify({
+    agreementId: String(agreementId),
+    customerId: String(customerId),
     status,
     startsAt: startsAt?.toISOString() || null,
     endsAt: endsAt?.toISOString() || null,

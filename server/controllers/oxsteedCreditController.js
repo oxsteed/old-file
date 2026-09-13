@@ -1096,6 +1096,7 @@ async function upsertAdminEntitlement(req, res, next) {
       reason: req.body?.reason,
       metadata: req.body?.metadata,
       actorUserId: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
