@@ -1215,11 +1215,12 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
   }, 'credit_admin_transition_settlement');
 }
 
-async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId }) {
+async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId, reason }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
   if (ends <= starts) throw new AppError('Reconciliation period end must be after its start', 400, 'credit_reconciliation_dates_invalid');
+  const normalizedReason = actorUserId ? requireAuditReason(reason) : normalizeString(reason, 1000) || 'Automated reconciliation';
   return withTransaction(pool, async (client) => {
     const reconciliationScope = 'all_time_ledger';
     const { rows: resultRows } = await client.query(
@@ -1261,7 +1262,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
        RETURNING *`,
       [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, JSON.stringify({ scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString() })]
     );
-    await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, afterState: rows[0] });
+    await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return {
       run: {
         id: rows[0].id,

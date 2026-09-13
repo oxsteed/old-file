@@ -1301,6 +1301,7 @@ async function reconcileAdminCredit(req, res, next) {
       periodStart: req.body?.periodStart || req.body?.period_start,
       periodEnd: req.body?.periodEnd || req.body?.period_end,
       actorUserId: req.user.id,
+      reason: req.body?.reason,
     });
     res.json(result);
   } catch (error) {

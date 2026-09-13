@@ -731,6 +731,17 @@ test('marks ended agreements expired and records the transition', async () => {
   ]);
 });
 
+test('requires a reason for manual Credit reconciliation', async () => {
+  await expect(reconcileCreditLedger({
+    currencyCode: 'USD',
+    periodStart: '2026-09-11T00:00:00.000Z',
+    periodEnd: '2026-09-12T00:00:00.000Z',
+    actorUserId: '22222222-2222-4222-8222-222222222222',
+  })).rejects.toMatchObject({ code: 'credit_audit_reason_required', status: 400 });
+
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{
