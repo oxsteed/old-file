@@ -555,6 +555,11 @@ async function main() {
       ['499_oxsteed_credit_restaurant_staff_evidence.sql']
     );
     checks.restaurantStaffEvidenceMigrationApplied = restaurantStaffEvidenceMigrationRows.rows.length === 1;
+    const restaurantStaffRefundReasonMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['501_oxsteed_credit_restaurant_staff_refund_reason.sql']
+    );
+    checks.restaurantStaffRefundReasonMigrationApplied = restaurantStaffRefundReasonMigrationRows.rows.length === 1;
     const purchaseReferenceUniquenessMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['500_oxsteed_credit_purchase_reference_uniqueness.sql']
@@ -938,7 +943,17 @@ async function main() {
     );
     checks.invalidCreditActorOwners = Number(actorOwnerInvariantRows[0]?.invalid_count || 0);
 
-    const { rows: restaurantStaffEvidenceRows } = await pool.query(
+    const { rows: restaurantStaffRefundReasonRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+        WHERE t.transaction_type = 'refund'
+          AND t.actor_type = 'restaurant_staff'
+          AND NOT t.restaurant_staff_evidence_legacy
+          AND NULLIF(BTRIM(t.reason), '') IS NULL`,
+    );
+    checks.invalidCreditRestaurantStaffRefundReasons = Number(restaurantStaffRefundReasonRows[0]?.invalid_count || 0);
+
+    const { rows: restaurantStaffActorEvidenceRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions t
         WHERE t.transaction_type = 'refund'
@@ -965,7 +980,7 @@ async function main() {
                )
           )`,
     );
-    checks.invalidCreditRestaurantStaffEvidence = Number(restaurantStaffEvidenceRows[0]?.invalid_count || 0);
+    checks.invalidCreditRestaurantStaffEvidence = Number(restaurantStaffActorEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: purchaseReferenceUniquenessRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1409,6 +1424,7 @@ async function main() {
       !checks.purchaseReferenceMigrationApplied,
       !checks.restaurantStaffEvidenceMigrationApplied,
       !checks.purchaseReferenceUniquenessMigrationApplied,
+      !checks.restaurantStaffRefundReasonMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1435,6 +1451,7 @@ async function main() {
       checks.invalidCreditActorIdentities > 0,
       checks.invalidCreditActorOwners > 0,
       checks.invalidCreditRestaurantStaffEvidence > 0,
+      checks.invalidCreditRestaurantStaffRefundReasons > 0,
       checks.invalidCreditPurchaseReferenceUniqueness > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,

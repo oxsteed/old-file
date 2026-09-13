@@ -215,6 +215,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['500_oxsteed_credit_purchase_reference_uniqueness.sql']");
   expect(verifierSource).toContain('!checks.purchaseReferenceUniquenessMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditPurchaseReferenceUniqueness > 0');
+  expect(verifierSource).toContain("['501_oxsteed_credit_restaurant_staff_refund_reason.sql']");
+  expect(verifierSource).toContain('!checks.restaurantStaffRefundReasonMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidCreditRestaurantStaffRefundReasons > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
