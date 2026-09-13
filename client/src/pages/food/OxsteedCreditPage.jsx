@@ -132,8 +132,11 @@ export default function OxsteedCreditPage() {
     try {
       const existingAccounts = await listOxsteedCreditAccounts();
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
-      const [accountResult, partnerResult, holdResult, railResult, statementResult, disputeResult] = await Promise.all([
-        getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
+      // Eligible-partner discovery requires an active wallet. Create/load the
+      // selected wallet first so a new currency cannot race the directory and
+      // render a false empty state.
+      const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'active', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
@@ -141,7 +144,9 @@ export default function OxsteedCreditPage() {
         listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
       ]);
       if (!isCurrentRequest()) return;
-      setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
+      const knownAccounts = Array.isArray(existingAccounts) ? existingAccounts : [];
+      const hasSelectedAccount = knownAccounts.some((item) => item.currencyCode === accountResult?.currencyCode);
+      setAccounts(hasSelectedAccount || !accountResult ? knownAccounts : [...knownAccounts, accountResult]);
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setHolds(Array.isArray(holdResult?.holds) ? holdResult.holds : []);
