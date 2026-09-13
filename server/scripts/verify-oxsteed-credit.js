@@ -33,7 +33,7 @@ const REQUIRED_TABLES = [
 const REQUIRED_COLUMNS = {
   oxsteed_credit_accounts: ['balance_cents', 'reserved_cents', 'ledger_version', 'last_entry_hash'],
   oxsteed_credit_audit_events: ['previous_event_hash', 'event_hash'],
-  oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id'],
+  oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id', 'reason'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
@@ -111,6 +111,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_account_state_guard',
   'oxsteed_credit_restaurant_status_guard',
   'oxsteed_credit_settlement_approval_guard',
+  'oxsteed_credit_issuance_actor_evidence_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -451,6 +452,11 @@ async function main() {
       ['486_oxsteed_credit_settlement_approval.sql']
     );
     checks.settlementApprovalMigrationApplied = settlementApprovalMigrationRows.rows.length === 1;
+    const issuanceActorEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['487_oxsteed_credit_issuance_actor_evidence.sql']
+    );
+    checks.issuanceActorEvidenceMigrationApplied = issuanceActorEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -570,7 +576,9 @@ async function main() {
          FROM oxsteed_credit_transactions
         WHERE transaction_type = 'refund'
           AND actor_type = 'admin'
-          AND (actor_user_id IS NULL OR NULLIF(BTRIM(reason), '') IS NULL)`,
+          AND (actor_user_id IS NULL
+            OR NULLIF(BTRIM(reason), '') IS NULL
+            OR reason = 'Legacy transaction: reason unavailable')`,
     );
     checks.invalidAdministrativeRefunds = Number(adminRefundEvidenceRows[0]?.invalid_count || 0);
 
@@ -718,12 +726,26 @@ async function main() {
          FROM oxsteed_credit_transactions t
          LEFT JOIN users u ON u.id = t.actor_user_id
         WHERE (t.actor_type = 'admin'
-               AND (u.id IS NULL OR u.is_active IS DISTINCT FROM TRUE
+               AND (u.id IS NULL
                  OR u.role NOT IN ('admin', 'super_admin')))
            OR (t.actor_type IN ('user', 'customer')
-               AND (u.id IS NULL OR u.is_active IS DISTINCT FROM TRUE OR u.role <> 'customer'))`,
+               AND (u.id IS NULL OR u.role <> 'customer'))`,
     );
     checks.invalidCreditActorIdentities = Number(actorIdentityInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: issuanceActorEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         LEFT JOIN users u ON u.id = t.actor_user_id
+        WHERE t.transaction_type IN ('load', 'adjustment')
+          AND (t.actor_type <> 'admin'
+            OR t.actor_user_id IS NULL
+            OR u.id IS NULL
+            OR u.role NOT IN ('admin', 'super_admin')
+            OR NULLIF(BTRIM(t.reason), '') IS NULL
+            OR t.reason = 'Legacy transaction: reason unavailable')`,
+    );
+    checks.invalidCreditIssuanceActors = Number(issuanceActorEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: inactiveHoldInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1024,6 +1046,7 @@ async function main() {
       !checks.partnerHoldReleaseMigrationApplied,
       !checks.restaurantStatusMigrationApplied,
       !checks.settlementApprovalMigrationApplied,
+      !checks.issuanceActorEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1045,6 +1068,7 @@ async function main() {
       checks.invalidCreditIdempotencyKeys > 0,
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
+      checks.invalidCreditIssuanceActors > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,

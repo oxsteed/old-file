@@ -47,6 +47,7 @@ const DEFAULT_STATEMENT_DAYS = 90;
 const MAX_STATEMENT_DAYS = 366;
 const MAX_STATEMENT_EXPORT_ROWS = 5000;
 const LEDGER_HASH_ALGORITHM = 'hmac_sha256_v1';
+const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
@@ -329,6 +330,7 @@ function formatTransaction(row, entryRows = []) {
     correlationId: row.correlation_id || null,
     referenceType: row.reference_type || null,
     referenceId: row.reference_id || null,
+    reason: row.reason || null,
     description: row.description || null,
     actorType: row.actor_type || 'system',
     metadata: normalizeMetadata(row.metadata),
@@ -361,6 +363,7 @@ function assertIdempotencyReplayMatches(existing, requested) {
     const maxLength = field === 'reason' ? 500 : 255;
     const actual = normalizeString(existing[field], maxLength);
     const expectedValue = normalizeString(requested[field], maxLength);
+    if (field === 'reason' && actual === LEGACY_CREDIT_REASON) continue;
     if (actual !== expectedValue) mismatches[field] = { existing: actual, requested: expectedValue };
   }
   if (Object.prototype.hasOwnProperty.call(requested, 'metadata')) {
@@ -709,8 +712,8 @@ async function postJournalTransaction(client, input) {
     `INSERT INTO oxsteed_credit_transactions
        (transaction_type, status, debit_account_id, credit_account_id, amount_cents, currency_code,
         partner_id, agreement_id, idempotency_key, correlation_id, reference_type, reference_id,
-        description, actor_type, actor_user_id, metadata, posted_at)
-     VALUES ($1, 'posted', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, NOW())
+        description, reason, actor_type, actor_user_id, metadata, posted_at)
+     VALUES ($1, 'posted', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, NOW())
      ON CONFLICT (idempotency_key) DO NOTHING
      RETURNING *`,
     [
@@ -726,6 +729,7 @@ async function postJournalTransaction(client, input) {
       requested.reference_type,
       requested.reference_id,
       normalizeString(input.description, 255),
+      normalizeString(input.reason, 500),
       normalizeString(input.actorType, 32) || 'system',
       input.actorUserId || null,
       JSON.stringify(normalizeMetadata(input.metadata)),
