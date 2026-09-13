@@ -8,7 +8,10 @@
 
 require('dotenv').config();
 const { Pool } = require('pg');
-const { computeEntryHash } = require('../services/oxsteedCreditService');
+const {
+  computeEntryHash,
+  SUPPORTED_CREDIT_CURRENCIES,
+} = require('../services/oxsteedCreditService');
 
 const REQUIRED_TABLES = [
   'oxsteed_credit_partners',
@@ -69,6 +72,16 @@ function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
     }
   }
   return { invalidEntryHashes, invalidHashChains, invalidAccountHashHeads };
+}
+
+function findUnsupportedCurrencyRecords(rows, supportedCurrencies = SUPPORTED_CREDIT_CURRENCIES) {
+  const supported = new Set(supportedCurrencies);
+  return rows
+    .map((row) => ({
+      resourceType: row.resource_type,
+      currencyCode: String(row.currency_code || '').trim().toUpperCase(),
+    }))
+    .filter((row) => row.currencyCode && !supported.has(row.currencyCode));
 }
 
 async function main() {
@@ -180,6 +193,22 @@ async function main() {
         if (!presentColumns.has(column)) checks.missingColumns.push(`${table}.${column}`);
       }
     }
+
+    const { rows: currencyRows } = await pool.query(
+      `SELECT 'partner' AS resource_type, settlement_currency_code AS currency_code
+         FROM oxsteed_credit_partners
+       UNION ALL
+       SELECT 'account', currency_code FROM oxsteed_credit_accounts
+       UNION ALL
+       SELECT 'transaction', currency_code FROM oxsteed_credit_transactions
+       UNION ALL
+       SELECT 'hold', currency_code FROM oxsteed_credit_holds
+       UNION ALL
+       SELECT 'settlement', currency_code FROM oxsteed_credit_settlements`,
+    );
+    const unsupportedCurrencyRecords = findUnsupportedCurrencyRecords(currencyRows);
+    checks.unsupportedCurrencyRecords = unsupportedCurrencyRecords;
+    checks.unsupportedCurrencies = [...new Set(unsupportedCurrencyRecords.map((row) => row.currencyCode))].sort();
 
     const { rows: integrityTriggerRows } = await pool.query(
       `SELECT tgname
@@ -352,6 +381,7 @@ async function main() {
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
+      checks.unsupportedCurrencyRecords.length > 0,
       checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
       checks.invalidAccountBalances > 0,
@@ -384,4 +414,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { verifyEntryHashes };
+module.exports = { findUnsupportedCurrencyRecords, verifyEntryHashes };

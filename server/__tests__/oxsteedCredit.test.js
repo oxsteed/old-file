@@ -6,7 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
-const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
+const { findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -52,6 +52,17 @@ function createAdminApp() {
 beforeEach(() => {
   resetMocks();
   process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-test-ledger-secret-32-chars!!';
+});
+
+test('credit verification identifies records outside the configured currency allowlist', () => {
+  expect(findUnsupportedCurrencyRecords([
+    { resource_type: 'account', currency_code: 'USD' },
+    { resource_type: 'partner', currency_code: ' jpy ' },
+    { resource_type: 'transaction', currency_code: 'JPY' },
+  ], ['USD'])).toEqual([
+    { resourceType: 'partner', currencyCode: 'JPY' },
+    { resourceType: 'transaction', currencyCode: 'JPY' },
+  ]);
 });
 
 afterAll(() => {
