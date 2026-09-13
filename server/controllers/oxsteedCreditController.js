@@ -895,6 +895,7 @@ async function registerAdminPartner(req, res, next) {
       businessId: req.body?.businessId || req.body?.business_id,
       settlementCurrencyCode: req.body?.settlementCurrencyCode || req.body?.settlement_currency_code,
       notes: req.body?.notes,
+      reason: req.body?.reason,
       actorUserId: req.user.id,
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -935,6 +936,7 @@ async function createAdminAgreement(req, res, next) {
         ? false
         : parseBoolean(req.body?.requiresCustomerEntitlement ?? req.body?.requires_customer_entitlement, 'requiresCustomerEntitlement'),
       metadata: req.body?.metadata,
+      reason: req.body?.reason,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
     });
@@ -1237,6 +1239,7 @@ async function createAdminSettlement(req, res, next) {
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       paymentReference: req.body?.paymentReference || req.body?.payment_reference,
+      reason: req.body?.reason,
       metadata: req.body?.metadata,
     });
     res.status(result.replayed ? 200 : 201).json(result);

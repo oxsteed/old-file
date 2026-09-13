@@ -767,13 +767,14 @@ async function listPartners({ search, status, limit = 200, offset = 0, includePa
   };
 }
 
-async function registerPartner({ restaurantId, businessId = null, settlementCurrencyCode = 'USD', notes, actorUserId }) {
+async function registerPartner({ restaurantId, businessId = null, settlementCurrencyCode = 'USD', notes, reason, actorUserId }) {
   const normalizedRestaurantId = parsePositiveInt(restaurantId, 'restaurantId');
   return withTransaction(pool, async (client) => {
     const { rows: restaurantRows } = await client.query(`SELECT id, business_id, display_name FROM food_restaurants WHERE id = $1 FOR SHARE`, [normalizedRestaurantId]);
     if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: existingRows } = await client.query(`SELECT p.*, fr.display_name AS restaurant_name FROM oxsteed_credit_partners p JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE p.restaurant_id = $1 FOR UPDATE`, [normalizedRestaurantId]);
     if (existingRows[0]) return { partner: formatPartner(existingRows[0]), replayed: true };
+    const normalizedReason = requireAuditReason(reason);
     const currency = normalizeString(settlementCurrencyCode, 8)?.toUpperCase() || 'USD';
     if (!/^[A-Z]{3}$/.test(currency)) throw new AppError('Invalid settlement currency', 400, 'invalid_settlement_currency');
     assertSupportedCreditCurrency(currency);
@@ -784,7 +785,7 @@ async function registerPartner({ restaurantId, businessId = null, settlementCurr
        RETURNING *, $6::text AS restaurant_name, 0::int AS agreement_count, 0::int AS active_agreement_count`,
       [normalizedRestaurantId, resolvedBusinessId, currency, normalizeString(notes, 2000), actorUserId || null, restaurantRows[0].display_name]
     );
-    await insertAudit(client, { actionType: 'credit.partner.created', actorUserId, partnerId: rows[0].id, resourceType: 'credit_partner', resourceId: rows[0].id, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.partner.created', actorUserId, partnerId: rows[0].id, resourceType: 'credit_partner', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return { partner: formatPartner(rows[0]), replayed: false };
   }, 'credit_admin_register_partner');
 }
@@ -1000,7 +1001,7 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   };
 }
 
-async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, metadata = {} }) {
+async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata = {} }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1038,6 +1039,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       });
       return { settlement: formatSettlement(existingRows[0]), replayed: true };
     }
+    const normalizedReason = requireAuditReason(reason);
     if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
     const { rows: overlapRows } = await client.query(
       `SELECT id, status
@@ -1094,7 +1096,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       });
       return { settlement: formatSettlement(conflictRows[0]), replayed: true };
     }
-    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return { settlement: formatSettlement({ ...rows[0], restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_create_settlement');
 }
@@ -1260,7 +1262,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   }, 'credit_admin_reconcile');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, idempotencyKey, actorUserId }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
@@ -1310,6 +1312,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     }
     const { rows: partnerRows } = await client.query(`SELECT * FROM oxsteed_credit_partners WHERE id = $1 FOR UPDATE`, [normalizedPartnerId]);
     if (!partnerRows[0]) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
+    const normalizedReason = requireAuditReason(reason);
     const { rows: versionRows } = await client.query(`SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM oxsteed_credit_partner_agreements WHERE partner_id = $1`, [normalizedPartnerId]);
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partner_agreements
@@ -1321,7 +1324,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
        RETURNING *`,
       [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserId || null]
     );
-    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };
   }, 'credit_admin_create_agreement');
 }
