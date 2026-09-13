@@ -7,7 +7,7 @@ const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { creditExportLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -93,7 +93,7 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.
-router.post('/restaurants/:restaurantId/orders', authenticate, ctrl.createOrder);
+router.post('/restaurants/:restaurantId/orders', authenticate, creditPurchaseLimiter, ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
 router.get('/restaurants/:restaurantId/orders', authenticate, ctrl.listRestaurantOrders);

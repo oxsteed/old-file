@@ -376,6 +376,27 @@ const creditMutationLimiter = rateLimit({
   },
 });
 
+// OxSteed Credit orders create a new stored-value spend attempt when they
+// create a food order. Keep this limit separate from holds and disputes so a
+// customer cannot exhaust the mutation budget with order retries, while
+// preserving the normal order limits for non-Credit payment methods.
+const creditPurchaseLimiter = rateLimit({
+  ...createStoreOption('rl:oxsteed_credit_purchase:'),
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  skip: (req) => {
+    const requestedMode = req.body?.paymentMode || req.body?.payment_mode;
+    return !['oxsteed_credit', 'oxsteedCredit', 'credit'].includes(requestedMode);
+  },
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many OxSteed Credit purchase attempts. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Super Admin credit controls can issue, adjust, suspend, and settle value.
 // They use a distinct bucket so operator activity cannot exhaust a customer
 // bucket and so the audit trail remains the primary authorization control.
@@ -430,6 +451,7 @@ module.exports = {
   paymentsLimiter,
   connectAccountLimiter,
   creditMutationLimiter,
+  creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,
 };
