@@ -98,6 +98,21 @@ function transactionDetailPath(transaction, currency) {
   return `/oxsteed-credit/transactions/${encodeURIComponent(transaction.id)}?currency=${encodeURIComponent(transactionCurrency)}`;
 }
 
+function holdStatusLabel(status) {
+  return {
+    active: 'Reserved',
+    captured: 'Captured',
+    released: 'Released',
+    expired: 'Expired',
+  }[status] || 'Reservation';
+}
+
+function holdTerminalDate(hold) {
+  if (hold.status === 'captured' && hold.capturedAt) return `Captured ${dateTime(hold.capturedAt)}`;
+  if (['released', 'expired'].includes(hold.status) && hold.releasedAt) return `${holdStatusLabel(hold.status)} ${dateTime(hold.releasedAt)}`;
+  return `Expires ${dateTime(hold.expiresAt)}`;
+}
+
 export default function OxsteedCreditPage() {
   const [account, setAccount] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -107,6 +122,7 @@ export default function OxsteedCreditPage() {
   const [partnerOrderType, setPartnerOrderType] = useState('');
   const [partnerPagination, setPartnerPagination] = useState(null);
   const [holds, setHolds] = useState([]);
+  const [holdPagination, setHoldPagination] = useState(null);
   const [railStatus, setRailStatus] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
@@ -116,6 +132,7 @@ export default function OxsteedCreditPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingMorePartners, setLoadingMorePartners] = useState(false);
+  const [loadingMoreHolds, setLoadingMoreHolds] = useState(false);
   const [loadingMoreDisputes, setLoadingMoreDisputes] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [disputeTransactionId, setDisputeTransactionId] = useState(null);
@@ -124,11 +141,13 @@ export default function OxsteedCreditPage() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const loadRequestRef = useRef(0);
   const partnerPageRequestRef = useRef(0);
+  const holdPageRequestRef = useRef(0);
   const disputeRequestKeyRef = useRef('');
 
   const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
     const requestId = ++loadRequestRef.current;
     const partnerRequestId = ++partnerPageRequestRef.current;
+    const holdRequestId = ++holdPageRequestRef.current;
     const isCurrentRequest = () => requestId === loadRequestRef.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
@@ -141,7 +160,7 @@ export default function OxsteedCreditPage() {
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
       const [partnerResult, holdResult, railResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
-        listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'active', limit: 50, offset: 0 }).catch(() => null),
+        listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         getOxsteedCreditDisputePage({ limit: 50, offset: 0 }).catch(() => null),
@@ -153,6 +172,7 @@ export default function OxsteedCreditPage() {
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setHolds(Array.isArray(holdResult?.holds) ? holdResult.holds : []);
+      if (holdRequestId === holdPageRequestRef.current) setHoldPagination(holdResult?.pagination || null);
       setRailStatus(railResult);
       if (partnerRequestId === partnerPageRequestRef.current) {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
@@ -229,6 +249,28 @@ export default function OxsteedCreditPage() {
   };
 
   const loadMorePartners = () => refreshPartnerDirectory({ append: true, offset: partnerPagination?.nextOffset || partners.length });
+
+  const loadMoreHolds = async () => {
+    if (!holdPagination?.hasMore || loadingMoreHolds) return;
+    const requestId = ++holdPageRequestRef.current;
+    setLoadingMoreHolds(true);
+    try {
+      const page = await listOxsteedCreditHolds({
+        currencyCode: selectedCurrency,
+        status: 'all',
+        limit: 50,
+        offset: holdPagination.nextOffset || holds.length,
+      });
+      if (requestId !== holdPageRequestRef.current) return;
+      const nextHolds = Array.isArray(page?.holds) ? page.holds : [];
+      setHolds((current) => [...current, ...nextHolds]);
+      setHoldPagination(page?.pagination || null);
+    } catch (error) {
+      if (requestId === holdPageRequestRef.current) toast.error(errorMessage(error));
+    } finally {
+      if (requestId === holdPageRequestRef.current) setLoadingMoreHolds(false);
+    }
+  };
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -324,6 +366,8 @@ export default function OxsteedCreditPage() {
     .sort();
   const hasPartnerFilters = Boolean(partnerSearch.trim() || partnerOrderType);
   const normalizedPartnerSearch = partnerSearch.trim().toLowerCase();
+  const activeHolds = holds.filter((hold) => hold.status === 'active');
+  const holdHistory = holds.filter((hold) => hold.status !== 'active');
   const visiblePartners = partners.filter((partner) => {
     const searchableText = [partner.restaurantName, partner.city, partner.state].filter(Boolean).join(' ').toLowerCase();
     const matchesSearch = !normalizedPartnerSearch || searchableText.includes(normalizedPartnerSearch);
@@ -371,7 +415,7 @@ export default function OxsteedCreditPage() {
                 <div className="ox-credit-balance-grid"><div><span>Available to spend</span><strong>{money(availableCents, currency)}</strong></div><div><span>Reserved</span><strong>{money(reservedCents, currency)}</strong></div><div><span>Currency</span><strong>{currency}</strong></div></div>
               </section>
 
-              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Reserved credit</p><h2>Active holds</h2></div><span className="ox-credit-count">{holds.length}</span></div><p className="ox-credit-panel-copy">These amounts are temporarily reserved for a partner order and are not available to spend until captured, released, or expired.</p><div className="ox-credit-hold-list">{holds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>Expires {dateTime(hold.expiresAt)}</small></div><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></article>)}</div></section>}
+              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Reservation history</p><h2>Credit holds</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">Active reservations reduce your spendable balance until captured, released, or expired. Completed reservations stay here so you can reconcile every temporary balance change.</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Active reservations</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Completed reservations</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? 'Loading older holds...' : 'Load older holds'}</button>}</section>}
 
               <div className="ox-credit-sections">
                 <section className="ox-credit-panel">
