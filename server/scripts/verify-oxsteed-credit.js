@@ -11,6 +11,7 @@ const { Pool } = require('pg');
 const {
   computeEntryHash,
   SUPPORTED_CREDIT_CURRENCIES,
+  getCreditRailPrerequisites,
 } = require('../services/oxsteedCreditService');
 
 const REQUIRED_TABLES = [
@@ -247,6 +248,19 @@ function findUnsupportedCurrencyRecords(rows, supportedCurrencies = SUPPORTED_CR
 }
 
 async function main() {
+  if ((process.env.NODE_ENV || 'production') === 'production') {
+    const prerequisites = getCreditRailPrerequisites();
+    if (!prerequisites.readyForProductionActivation) {
+      const missing = [
+        !prerequisites.sharedRedisConfigured && 'REDIS_URL',
+        !prerequisites.dedicatedLedgerSecretConfigured && 'OXSTEED_CREDIT_LEDGER_HMAC_SECRET',
+        !prerequisites.ledgerKeyConfigurationValid && 'ledger key rotation configuration',
+      ].filter(Boolean);
+      console.error(`verify-oxsteed-credit: production prerequisites missing: ${missing.join(', ')}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     console.error('verify-oxsteed-credit: DATABASE_URL is not set.');

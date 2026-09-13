@@ -2672,6 +2672,7 @@ module.exports = {
   isCreditRailEnabled,
   assertCreditRailEnabled,
   getCreditRailStatus,
+  getCreditRailPrerequisites,
   getCustomerCreditRailStatus,
   setCreditRailStatus,
   getLedgerHashKeyVersion,
