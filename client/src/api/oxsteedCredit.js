@@ -10,6 +10,10 @@ export const listOxsteedCreditEligiblePartners = (params = {}) =>
   api.get('/oxsteed-credit/eligible-partners', { params })
     .then((response) => response.data?.partners || []);
 
+export const getOxsteedCreditEligiblePartnerPage = (params = {}) =>
+  api.get('/oxsteed-credit/eligible-partners', { params })
+    .then((response) => response.data || { partners: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
+
 export const listOxsteedCreditTransactions = (params = {}) =>
   api.get('/oxsteed-credit/transactions', { params })
     .then((response) => response.data?.transactions || []);

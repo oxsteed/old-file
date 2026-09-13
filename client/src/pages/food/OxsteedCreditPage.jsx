@@ -21,7 +21,7 @@ import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
   listOxsteedCreditAccounts,
-  listOxsteedCreditEligiblePartners,
+  getOxsteedCreditEligiblePartnerPage,
   getOxsteedCreditStatement,
   downloadOxsteedCreditStatement,
   listOxsteedCreditTransactions,
@@ -103,21 +103,25 @@ export default function OxsteedCreditPage() {
   const [partners, setPartners] = useState([]);
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerOrderType, setPartnerOrderType] = useState('');
+  const [partnerPagination, setPartnerPagination] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMorePartners, setLoadingMorePartners] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [disputeTransactionId, setDisputeTransactionId] = useState(null);
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const loadRequestRef = useRef(0);
+  const partnerPageRequestRef = useRef(0);
 
   const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
     const requestId = ++loadRequestRef.current;
+    const partnerRequestId = ++partnerPageRequestRef.current;
     const isCurrentRequest = () => requestId === loadRequestRef.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
@@ -126,7 +130,7 @@ export default function OxsteedCreditPage() {
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
       const [accountResult, partnerResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
-        listOxsteedCreditEligiblePartners({ currencyCode: preferredCurrency }),
+        getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
       ]);
@@ -134,7 +138,10 @@ export default function OxsteedCreditPage() {
       setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
-      setPartners(Array.isArray(partnerResult) ? partnerResult : []);
+      if (partnerRequestId === partnerPageRequestRef.current) {
+        setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
+        setPartnerPagination(partnerResult?.pagination || null);
+      }
       setDisputes(Array.isArray(disputeResult) ? disputeResult : []);
       if (statementResult) {
         setStatement(statementResult);
@@ -165,6 +172,40 @@ export default function OxsteedCreditPage() {
     setSelectedCurrency(currencyCode);
     load({ quiet: true, currencyCode });
   };
+
+  const refreshPartnerDirectory = async ({ append = false, offset = 0 } = {}) => {
+    if (append && (loadingMorePartners || !partnerPagination?.hasMore)) return;
+    const requestId = ++partnerPageRequestRef.current;
+    if (append) setLoadingMorePartners(true);
+    else setRefreshing(true);
+    try {
+      const page = await getOxsteedCreditEligiblePartnerPage({
+        currencyCode: selectedCurrency,
+        search: partnerSearch.trim() || undefined,
+        orderType: partnerOrderType || undefined,
+        limit: 50,
+        offset,
+      });
+      if (requestId !== partnerPageRequestRef.current) return;
+      const nextPartners = Array.isArray(page?.partners) ? page.partners : [];
+      setPartners((current) => append ? [...current, ...nextPartners] : nextPartners);
+      setPartnerPagination(page?.pagination || null);
+    } catch (error) {
+      if (requestId === partnerPageRequestRef.current) toast.error(errorMessage(error));
+    } finally {
+      if (requestId === partnerPageRequestRef.current) {
+        if (append) setLoadingMorePartners(false);
+        else setRefreshing(false);
+      }
+    }
+  };
+
+  const submitPartnerFilters = (event) => {
+    event.preventDefault();
+    refreshPartnerDirectory();
+  };
+
+  const loadMorePartners = () => refreshPartnerDirectory({ append: true, offset: partnerPagination?.nextOffset || partners.length });
 
   const downloadStatement = async () => {
     setDownloading(true);
@@ -284,8 +325,8 @@ export default function OxsteedCreditPage() {
                 <section className="ox-credit-panel">
                   <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Partner network</p><h2>Where you can spend</h2></div><span className="ox-credit-count">{visiblePartners.length}{visiblePartners.length !== partners.length ? ` / ${partners.length}` : ''}</span></div>
                   <p className="ox-credit-panel-copy">Only active restaurants with a current agreement appear here. The list is the source of truth for where your balance can be used today.</p>
-                  {!!partners.length && <div className="ox-credit-partner-filters"><label><Search size={15} /><input aria-label="Search eligible restaurants" value={partnerSearch} onChange={(event) => setPartnerSearch(event.target.value)} placeholder="Search restaurant or city" /></label><select aria-label="Filter eligible restaurants by order type" value={partnerOrderType} onChange={(event) => setPartnerOrderType(event.target.value)}><option value="">All order types</option>{partnerOrderTypes.map((type) => <option key={type} value={type}>{String(type).replace(/_/g, ' ')}</option>)}</select></div>}
-                  {!partners.length ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>Credit account {accountStatus}</strong><span>Partner restaurants are hidden until your OxSteed Credit account is active. Contact support if you need help.</span></> : <><strong>No partner restaurants yet</strong><span>OxSteed Credit becomes spendable as participating restaurants are activated.</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>No eligible restaurants match</strong><span>Try another restaurant, city, or order type.</span><button type="button" className="ox-credit-clear-filters" onClick={() => { setPartnerSearch(''); setPartnerOrderType(''); }}>Clear filters</button></div> : <div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || 'Partner restaurant'}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || 'Location not listed'}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> Eligible</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{String(type).replace(/_/g, ' ')}</span>)}{partner.hasCustomerEntitlement && <span>Customer entitlement</span>}</div><p>{partner.customerTerms || 'Use is subject to the active partner agreement and restaurant terms.'}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner)}</span>{partnerLimit(partner)}{partner.dailyCustomerLimitCents ? <span>Daily limit {money(partner.dailyCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>Lifetime limit {money(partner.lifetimeCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.allowedCategories?.length ? <span>{partner.allowedCategories.length} covered categories</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>Open restaurant menu <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>}
+                  {!!partners.length && <form className="ox-credit-partner-filters" onSubmit={submitPartnerFilters}><label><Search size={15} /><input aria-label="Search eligible restaurants" value={partnerSearch} onChange={(event) => setPartnerSearch(event.target.value)} placeholder="Search restaurant or city" /></label><select aria-label="Filter eligible restaurants by order type" value={partnerOrderType} onChange={(event) => setPartnerOrderType(event.target.value)}><option value="">All order types</option>{partnerOrderTypes.map((type) => <option key={type} value={type}>{String(type).replace(/_/g, ' ')}</option>)}</select><button type="submit" className="ox-credit-partner-search" disabled={refreshing}>{refreshing ? 'Searching...' : 'Search'}</button></form>}
+                  {!partners.length ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>Credit account {accountStatus}</strong><span>Partner restaurants are hidden until your OxSteed Credit account is active. Contact support if you need help.</span></> : <><strong>No partner restaurants yet</strong><span>OxSteed Credit becomes spendable as participating restaurants are activated.</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>No eligible restaurants match</strong><span>Try another restaurant, city, or order type.</span><button type="button" className="ox-credit-clear-filters" onClick={() => { setPartnerSearch(''); setPartnerOrderType(''); refreshPartnerDirectory(); }}>Clear filters</button></div> : <><div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || 'Partner restaurant'}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || 'Location not listed'}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> Eligible</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{String(type).replace(/_/g, ' ')}</span>)}{partner.hasCustomerEntitlement && <span>Customer entitlement</span>}</div><p>{partner.customerTerms || 'Use is subject to the active partner agreement and restaurant terms.'}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner)}</span>{partnerLimit(partner)}{partner.dailyCustomerLimitCents ? <span>Daily limit {money(partner.dailyCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>Lifetime limit {money(partner.lifetimeCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.allowedCategories?.length ? <span>{partner.allowedCategories.length} covered categories</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>Open restaurant menu <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>{partnerPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMorePartners} disabled={loadingMorePartners}>{loadingMorePartners ? 'Loading more restaurants...' : 'Show more eligible restaurants'}</button>}</>}
                   <Link to="/restaurants" className="ox-credit-secondary-link">Browse participating restaurants <ArrowUpRight size={15} /></Link>
                 </section>
 

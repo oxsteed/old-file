@@ -125,8 +125,12 @@ async function getEligiblePartners(req, res, next) {
       postalCode: req.query.postalCode || req.query.postal_code,
       country: req.query.country,
       orderType: req.query.orderType || req.query.order_type,
+      search: req.query.search,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
     });
-    res.json({ partners });
+    res.json(partners);
   } catch (error) {
     next(error);
   }

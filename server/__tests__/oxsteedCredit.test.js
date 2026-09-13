@@ -665,6 +665,37 @@ test('shows geographic partner coverage before a customer enters a location and 
   await expect(service.listEligiblePartners({ customerId: CUSTOMER_ID, currencyCode: 'USD', city: 'Dayton', state: 'OH', country: 'US' })).resolves.toEqual([]);
 });
 
+test('supports bounded server-side partner directory search and pagination', async () => {
+  const rows = [1, 2].map((partnerId) => ({
+    partner_id: partnerId,
+    restaurant_id: partnerId + 10,
+    settlement_currency_code: 'USD',
+    restaurant_currency_code: 'USD',
+    restaurant_name: `Cafe ${partnerId}`,
+    agreement_id: `agreement-${partnerId}`,
+    version: 1,
+    customer_terms: null,
+    geography: {},
+    allowed_order_types: ['pickup'],
+    allowed_categories: [],
+    effective_max_transaction_cents: null,
+    effective_daily_customer_limit_cents: null,
+    lifetime_customer_limit_cents: null,
+    entitlement_id: null,
+    requires_customer_entitlement: false,
+  }));
+  mockQuery.mockResolvedValueOnce({ rows });
+
+  const response = await request(createCustomerApp()).get('/eligible-partners?currencyCode=USD&search=Cafe&limit=1&offset=1');
+
+  expect(response.status).toBe(200);
+  expect(response.body.partners).toHaveLength(1);
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 1, hasMore: true, nextOffset: 2 });
+  expect(mockQuery.mock.calls[0][0]).toContain('fr.display_name ILIKE');
+  expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $9 OFFSET $10');
+  expect(mockQuery.mock.calls[0][1].slice(-2)).toEqual([2, 1]);
+});
+
 test('rejects unsupported credit currencies before creating a wallet', async () => {
   const response = await request(createCustomerApp()).get('/account?currencyCode=JPY');
 

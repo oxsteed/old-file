@@ -865,8 +865,29 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
   return agreement;
 }
 
-async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType } = {}) {
+async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType, search, limit, offset, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
+  const normalizedSearch = normalizeString(search, 120);
+  const normalizedCity = normalizeString(city, 120);
+  const normalizedState = normalizeString(state, 120);
+  const normalizedPostalCode = normalizeString(postalCode, 120);
+  const normalizedCountry = normalizeString(country, 120);
+  const shouldPage = includePagination || limit !== undefined || offset !== undefined;
+  const safeLimit = parsePageSize(limit);
+  const safeOffset = parseOffset(offset);
+  const hasLocationInput = [normalizedCity, normalizedState, normalizedPostalCode, normalizedCountry].some(Boolean);
+  const queryParams = [
+    customerId,
+    currency,
+    normalizedOrderType,
+    normalizedSearch,
+    normalizedCity,
+    normalizedState,
+    normalizedPostalCode,
+    normalizedCountry,
+  ];
+  if (shouldPage) queryParams.push(safeLimit + 1, safeOffset);
   const { rows } = await pool.query(
     `SELECT DISTINCT ON (p.id)
             p.id AS partner_id, p.restaurant_id, p.settlement_currency_code,
@@ -914,12 +935,29 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
         AND ${CUSTOMER_SPEND_ACCESS_SQL}
         AND ($3::text IS NULL OR cardinality(a.allowed_order_types) = 0 OR $3 = ANY(a.allowed_order_types))
-      ORDER BY p.id, a.version DESC`,
-    [customerId, currency, normalizeString(orderType, 40)?.toLowerCase() || null]
+        AND ($4::text IS NULL OR fr.display_name ILIKE '%' || $4 || '%'
+          OR COALESCE(fr.address_city, '') ILIKE '%' || $4 || '%'
+          OR COALESCE(fr.address_state, '') ILIKE '%' || $4 || '%')
+        AND ($5::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'cities'), 'null') <> 'array'
+          OR jsonb_array_length(a.geography->'cities') = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'cities') city_rule WHERE LOWER(city_rule) = LOWER($5)))
+        AND ($6::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'states'), 'null') <> 'array'
+          OR jsonb_array_length(a.geography->'states') = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'states') state_rule WHERE LOWER(state_rule) = LOWER($6)))
+        AND ($7::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'postalCodes'), 'null') <> 'array'
+          OR jsonb_array_length(a.geography->'postalCodes') = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'postalCodes') postal_rule WHERE LOWER(postal_rule) = LOWER($7)))
+        AND ($8::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'countries'), 'null') <> 'array'
+          OR jsonb_array_length(a.geography->'countries') = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'countries') country_rule WHERE LOWER(country_rule) = LOWER($8)))
+      ORDER BY p.id, a.version DESC
+      ${shouldPage ? 'LIMIT $9 OFFSET $10' : ''}`,
+    queryParams
   );
-  const hasLocationInput = [city, state, postalCode, country].some((value) => normalizeString(value, 120));
-  return rows.filter((row) => (!row.restaurant_currency_code || normalizeCurrency(row.restaurant_currency_code) === currency)
-    && (!hasLocationInput || matchesGeography(row.geography, { city, state, postalCode, country }))).map((row) => ({
+  const hasMore = shouldPage && rows.length > safeLimit;
+  const pageRows = shouldPage ? rows.slice(0, safeLimit) : rows;
+  const partners = pageRows.filter((row) => (!row.restaurant_currency_code || normalizeCurrency(row.restaurant_currency_code) === currency)
+    && (!hasLocationInput || matchesGeography(row.geography, { city: normalizedCity, state: normalizedState, postalCode: normalizedPostalCode, country: normalizedCountry }))).map((row) => ({
     partnerId: String(row.partner_id),
     restaurantId: String(row.restaurant_id),
     restaurantName: row.restaurant_name,
@@ -939,6 +977,16 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
     lifetimeCustomerLimitCents: row.lifetime_customer_limit_cents === null ? null : Number(row.lifetime_customer_limit_cents),
     hasCustomerEntitlement: Boolean(row.entitlement_id),
   }));
+  if (!includePagination) return partners;
+  return {
+    partners,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURRENCY) {
