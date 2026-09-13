@@ -67,7 +67,7 @@ function parseLimit(value, fieldName) {
   return parsed;
 }
 
-function agreementRequestHash({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, metadata }) {
+function agreementRequestHash({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement, metadata }) {
   return crypto.createHash('sha256').update(JSON.stringify({
     partnerId,
     startsAt: startsAt?.toISOString() || null,
@@ -80,6 +80,7 @@ function agreementRequestHash({ partnerId, startsAt, endsAt, customerTerms, allo
     maxTransactionCents,
     dailyCustomerLimitCents,
     lifetimeCustomerLimitCents,
+    requiresCustomerEntitlement,
     metadata,
   })).digest('hex');
 }
@@ -91,6 +92,7 @@ function formatPartner(row) {
     restaurantName: row.restaurant_name || null,
     businessId: row.business_id === null || row.business_id === undefined ? null : String(row.business_id),
     status: row.status,
+    requiresCustomerEntitlement: row.requires_customer_entitlement === true,
     settlementCurrencyCode: row.settlement_currency_code,
     agreementCount: Number(row.agreement_count || 0),
     activeAgreementCount: Number(row.active_agreement_count || 0),
@@ -811,7 +813,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   }, 'credit_admin_reconcile');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, metadata, idempotencyKey, actorUserId }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, idempotencyKey, actorUserId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
@@ -826,6 +828,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
   const normalizedMaxTransactionCents = parseLimit(maxTransactionCents, 'maxTransactionCents');
   const normalizedDailyCustomerLimitCents = parseLimit(dailyCustomerLimitCents, 'dailyCustomerLimitCents');
   const normalizedLifetimeCustomerLimitCents = parseLimit(lifetimeCustomerLimitCents, 'lifetimeCustomerLimitCents');
+  const normalizedRequiresCustomerEntitlement = requiresCustomerEntitlement === true;
   const normalizedMetadata = metadata && typeof metadata === 'object' ? metadata : {};
   const requestHash = agreementRequestHash({
     partnerId: normalizedPartnerId,
@@ -839,6 +842,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     maxTransactionCents: normalizedMaxTransactionCents,
     dailyCustomerLimitCents: normalizedDailyCustomerLimitCents,
     lifetimeCustomerLimitCents: normalizedLifetimeCustomerLimitCents,
+    requiresCustomerEntitlement: normalizedRequiresCustomerEntitlement,
     metadata: normalizedMetadata,
   });
   return withTransaction(pool, async (client) => {
@@ -863,12 +867,12 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partner_agreements
          (partner_id, version, starts_at, ends_at, customer_terms, allowed_order_types,
-          allowed_categories, allowed_menu_item_ids, geography, max_transaction_cents,
+         allowed_categories, allowed_menu_item_ids, geography, max_transaction_cents,
           daily_customer_limit_cents, lifetime_customer_limit_cents, metadata,
-          creation_idempotency_key, creation_request_hash, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16)
+          requires_customer_entitlement, creation_idempotency_key, creation_request_hash, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16, $17)
        RETURNING *`,
-      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedIdempotencyKey, requestHash, actorUserId || null]
+      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserId || null]
     );
     await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };

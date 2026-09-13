@@ -33,7 +33,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
-  oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash'],
+  oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -218,6 +218,11 @@ async function main() {
       ['444_oxsteed_credit_agreement_idempotency.sql']
     );
     checks.agreementIdempotencyMigrationApplied = agreementIdempotencyMigrationRows.length === 1;
+    const { rows: entitlementRequiredMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['445_oxsteed_credit_entitlement_required.sql']
+    );
+    checks.entitlementRequiredMigrationApplied = entitlementRequiredMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -500,6 +505,7 @@ async function main() {
       !checks.currentOwnerMigrationApplied,
       !checks.partnerReportingMigrationApplied,
       !checks.agreementIdempotencyMigrationApplied,
+      !checks.entitlementRequiredMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

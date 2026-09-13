@@ -559,6 +559,9 @@ async function createAdminAgreement(req, res, next) {
       maxTransactionCents: req.body?.maxTransactionCents ?? req.body?.max_transaction_cents,
       dailyCustomerLimitCents: req.body?.dailyCustomerLimitCents ?? req.body?.daily_customer_limit_cents,
       lifetimeCustomerLimitCents: req.body?.lifetimeCustomerLimitCents ?? req.body?.lifetime_customer_limit_cents,
+      requiresCustomerEntitlement: req.body?.requiresCustomerEntitlement === undefined && req.body?.requires_customer_entitlement === undefined
+        ? false
+        : parseBoolean(req.body?.requiresCustomerEntitlement ?? req.body?.requires_customer_entitlement, 'requiresCustomerEntitlement'),
       metadata: req.body?.metadata,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,

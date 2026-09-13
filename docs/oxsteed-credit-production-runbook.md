@@ -53,7 +53,7 @@ The migration runner applies the OxSteed Credit migrations and the durable `cron
 
 1. Confirm the restaurant identity, owner, currency, service locations, and settlement destination.
 2. In Super Admin, enroll the restaurant as a partner.
-3. Create a draft agreement with plain-language customer terms, allowed order types, categories or menu items, geography, transaction limits, and effective dates.
+3. Create a draft agreement with plain-language customer terms, allowed order types, categories or menu items, geography, transaction limits, effective dates, and whether access is partner-wide or restricted to assigned customers.
 4. Submit and approve the agreement. Activate the partner only after the commercial agreement is signed.
 5. Add customer entitlements only when the commercial or program rules require customer-specific access.
 6. Run one low-value test load, purchase, refund, and settlement in the approved environment.
@@ -82,9 +82,11 @@ balance:
    silently deleting access.
 
 The public eligibility query still requires the Credit rail, customer wallet,
-partner, agreement, entitlement, currency, geography, category, order type,
-and limit checks to pass. An entitlement by itself never makes a draft,
-suspended, expired, or terminated agreement spendable.
+partner, agreement, entitlement when the agreement is allowlisted, currency,
+geography, category, order type, and limit checks to pass. An entitlement by
+itself never makes a draft, suspended, expired, or terminated agreement
+spendable. Existing agreements are partner-wide unless the restricted mode is
+explicitly enabled when a replacement agreement is created.
 
 ## Daily Operations
 

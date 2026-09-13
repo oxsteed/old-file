@@ -66,6 +66,15 @@ test('credit verification identifies records outside the configured currency all
   ]);
 });
 
+test('customer allowlist agreements require an active entitlement in eligibility queries', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(service.listEligiblePartners({ customerId: CUSTOMER_ID, currencyCode: 'USD' })).resolves.toEqual([]);
+
+  expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE');
+  expect(mockQuery.mock.calls[0][0]).toContain('e.id IS NOT NULL');
+});
+
 test('transfer replay requires the original sender and recipient', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'transfer-1',
