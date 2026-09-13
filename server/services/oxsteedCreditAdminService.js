@@ -50,6 +50,11 @@ function requireAuditReason(value) {
   return reason;
 }
 
+function requireAdministrativeActor(value, message = 'An identified administrator is required for this Credit change', code = 'credit_admin_actor_required') {
+  if (!normalizeString(value, 160)) throw new AppError(message, 400, code);
+  return value;
+}
+
 function assertEntitlementAgreementCanBeActive(agreement) {
   if (agreement.status !== 'active'
     || agreement.partner_status !== 'active'
@@ -944,6 +949,7 @@ async function registerPartner({ restaurantId, businessId = null, settlementCurr
     if (!/^[A-Z]{3}$/.test(currency)) throw new AppError('Invalid settlement currency', 400, 'invalid_settlement_currency');
     assertSupportedCreditCurrency(currency);
     const resolvedBusinessId = businessId || restaurantRows[0].business_id || null;
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to register a Credit partner', 'credit_partner_creator_required');
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, notes, created_by)
        VALUES ($1, $2, $3, $4, $5)
@@ -985,6 +991,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId,
       throw new AppError('The restaurant must be active before its credit partner can be activated', 409, 'credit_restaurant_not_active');
     }
     const normalizedReason = requireAuditReason(reason);
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a Credit partner', 'credit_partner_actor_required');
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partners
           SET status = $1, updated_at = NOW()
@@ -1339,6 +1346,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
       return { settlement: formatSettlement(settlement), replayed: true };
     }
     if (!SETTLEMENT_TRANSITIONS[settlement.status]?.has(normalizedTarget)) throw new AppError(`Cannot move settlement from '${settlement.status}' to '${normalizedTarget}'`, 409, 'credit_settlement_transition_invalid');
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a Credit settlement', 'credit_settlement_actor_required');
     if (normalizedTarget === 'approved' && !actorUserId) {
       throw new AppError('An identified admin is required to approve a settlement', 400, 'credit_settlement_approver_required');
     }
@@ -1548,6 +1556,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     if (!partnerRows[0]) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
     if (partnerRows[0].status === 'terminated') throw new AppError('Terminated credit partners cannot receive new agreements', 409, 'credit_partner_terminated');
     const normalizedReason = requireAuditReason(reason);
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to create a Credit agreement', 'credit_agreement_creator_required');
     const { rows: versionRows } = await client.query(`SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM oxsteed_credit_partner_agreements WHERE partner_id = $1`, [normalizedPartnerId]);
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_partner_agreements
@@ -1609,6 +1618,7 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
       }
     }
     const normalizedReason = requireAuditReason(reason);
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a Credit agreement', 'credit_agreement_actor_required');
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partner_agreements
           SET status = $1,
@@ -1660,6 +1670,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
     if (normalizedStatus === 'active') assertEntitlementAgreementCanBeActive(agreementRows[0]);
     const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to manage customer Credit access', 'credit_entitlement_actor_required');
     const serializedMetadata = JSON.stringify(normalizedMetadata);
     const values = [normalizedStatus, starts, ends, maxTransaction, dailyLimit, serializedMetadata, normalizedReason, actorUserId || null];
     const { rows: requestRows } = await client.query(
@@ -1869,6 +1880,7 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
       [customerId]
     );
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to manage customer Credit access', 'credit_entitlement_actor_required');
     const { rows: existingRows } = await client.query(
       `SELECT *
          FROM oxsteed_credit_customer_entitlements

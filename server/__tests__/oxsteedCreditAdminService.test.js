@@ -246,6 +246,7 @@ test('rejects single customer access idempotency reuse when details change', asy
     customerId,
     status: 'active',
     reason: 'Changed access details',
+    actorUserId: 'admin-1',
     idempotencyKey: 'entitlement-request-1',
   })).rejects.toMatchObject({ code: 'credit_entitlement_idempotency_conflict', status: 409 });
 
@@ -761,6 +762,24 @@ test('does not create new agreements for terminated partners', async () => {
   })).rejects.toMatchObject({ code: 'credit_partner_terminated', status: 409 });
 
   expect(mockQuery).toHaveBeenCalledTimes(2);
+});
+
+test('requires an administrator identity for a real agreement transition', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-1',
+    partner_id: 41,
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    status: 'pending_approval',
+  }] });
+
+  await expect(transitionAgreement({
+    agreementId: 'agreement-1',
+    targetStatus: 'draft',
+    reason: 'Return for edits',
+  })).rejects.toMatchObject({ code: 'credit_agreement_actor_required', status: 400 });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('marks ended customer entitlements expired and records the transition', async () => {
