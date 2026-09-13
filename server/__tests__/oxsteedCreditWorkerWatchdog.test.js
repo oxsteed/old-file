@@ -3,13 +3,14 @@
 jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 'incident-1' } }),
+  resolveOpenIncidentsByDedupeKeys: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('../jobs/jobLockingService', () => ({
   withJobLock: jest.fn(async (_jobName, handler) => handler()),
 }));
 
 const db = require('../db');
-const { recordIncident } = require('../services/incidentStore');
+const { recordIncident, resolveOpenIncidentsByDedupeKeys } = require('../services/incidentStore');
 const { withJobLock } = require('../jobs/jobLockingService');
 const {
   CRON_EXPRESSION,
@@ -90,6 +91,10 @@ test('runs the watchdog under its distributed lock', async () => {
     ]),
   });
   expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
+  expect(resolveOpenIncidentsByDedupeKeys).toHaveBeenCalledWith(expect.arrayContaining([
+    `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:stale`,
+    `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:failed`,
+  ]), expect.any(String));
   expect(CRON_EXPRESSION).toBe('*/5 * * * *');
   expect(STALE_AFTER_MINUTES).toBe(10);
 });

@@ -131,6 +131,33 @@ async function resolveIncident(id, adminId, resolutionNotes = null) {
   return result.rows[0] || null;
 }
 
+async function resolveOpenIncidentsByDedupeKeys(dedupeKeys, resolutionNotes = null) {
+  const keys = Array.from(new Set((Array.isArray(dedupeKeys) ? dedupeKeys : [])
+    .map((key) => String(key || '').trim().slice(0, 128))
+    .filter(Boolean)));
+  if (!keys.length) return [];
+
+  try {
+    const result = await db.query(
+      `UPDATE incident_log
+          SET resolved_at = COALESCE(resolved_at, NOW()),
+              resolution_notes = COALESCE(NULLIF($2, ''), resolution_notes)
+        WHERE resolved_at IS NULL
+          AND dedupe_key = ANY($1::varchar[])
+      RETURNING id, type, severity, message, details, dedupe_key,
+                occurrence_count, created_at, last_seen_at,
+                acknowledged_at, acknowledged_by, resolved_at, resolution_notes,
+                last_notified_at, notification_count`,
+      [keys, resolutionNotes == null ? '' : String(resolutionNotes).slice(0, 2000)]
+    );
+    return result.rows || [];
+  } catch (error) {
+    // Recovery telemetry must not turn a healthy worker into a failed run.
+    logger.warn('Failed to auto-resolve recovered incidents', { error: error.message, keyCount: keys.length });
+    return [];
+  }
+}
+
 module.exports = {
   DEFAULT_NOTIFICATION_COOLDOWN_MINUTES,
   incidentDedupeKey,
@@ -138,4 +165,5 @@ module.exports = {
   listIncidents,
   acknowledgeIncident,
   resolveIncident,
+  resolveOpenIncidentsByDedupeKeys,
 };

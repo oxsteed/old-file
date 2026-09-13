@@ -62,6 +62,20 @@ describe('incidentStore', () => {
     expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('FROM incident_log'), [720, 500]);
   });
 
+  test('auto-resolves only open incidents for the supplied health keys', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7, dedupe_key: 'credit-worker:failed', resolved_at: '2026-09-13T12:00:00.000Z' }] });
+
+    await expect(incidentStore.resolveOpenIncidentsByDedupeKeys([
+      'credit-worker:failed',
+      'credit-worker:failed',
+      '',
+    ], 'Worker recovered')).resolves.toMatchObject([{ id: 7 }]);
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('resolved_at IS NULL'), [
+      ['credit-worker:failed'],
+      'Worker recovered',
+    ]);
+  });
+
   test('acknowledges and resolves only open incidents', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 7, acknowledged_by: 'admin-id' }] })

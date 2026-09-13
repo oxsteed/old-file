@@ -84,7 +84,7 @@ async function checkAllWorkers() {
 
 async function runOxsteedCreditWorkerWatchdog() {
   let locked = false;
-  let result = { status: 'skipped', heartbeat: null, incident: null, incidents: [], workers: [] };
+  let result = { status: 'skipped', heartbeat: null, incident: null, incidents: [], recoveredIncidents: [], workers: [] };
   try {
     await withJobLock(JOB_NAME, async () => {
       locked = true;
@@ -98,11 +98,23 @@ async function runOxsteedCreditWorkerWatchdog() {
         : workers.some((worker) => worker.status === 'awaiting_first_run')
           ? 'awaiting_first_run'
           : 'healthy';
+      const recoveredWorkerNames = workers
+        .filter((worker) => worker.status === 'healthy')
+        .map((worker) => worker.heartbeat?.job_name || worker.heartbeat?.jobName)
+        .filter(Boolean);
+      const recoveredIncidents = await incidentStore.resolveOpenIncidentsByDedupeKeys(
+        recoveredWorkerNames.flatMap((jobName) => [
+          `oxsteed-credit-worker:${jobName}:stale`,
+          `oxsteed-credit-worker:${jobName}:failed`,
+        ]),
+        'Auto-resolved after the Credit worker returned to a healthy checkpoint.',
+      );
       result = {
         status,
         heartbeat: notificationWorker.heartbeat,
         incident: notificationWorker.incident || null,
         incidents,
+        recoveredIncidents,
         workers,
       };
       if (status !== 'healthy') logger.warn('OxSteed Credit worker watchdog detected attention state', result);
@@ -116,7 +128,7 @@ async function runOxsteedCreditWorkerWatchdog() {
       details: { error: error.message, workers: WORKER_CONFIG.map(({ jobName }) => jobName) },
     });
     logger.error('OxSteed Credit worker watchdog failed', { error: error.message });
-    result = { status: 'error', heartbeat: null, incident, incidents: [incident], workers: [] };
+    result = { status: 'error', heartbeat: null, incident, incidents: [incident], recoveredIncidents: [], workers: [] };
   }
   return { locked, ...result };
 }
