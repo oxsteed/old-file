@@ -226,6 +226,79 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function canonicalIdempotencyAmount(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount) : String(value ?? '');
+}
+
+function buildFoodOrderIdempotencyFingerprint({ restaurantId, paymentMode, request }) {
+  const fulfillmentType = normalizeString(request.fulfillmentType || request.fulfillment_type, 24) || 'pickup';
+  const orderSource = normalizeString(request.orderSource || request.order_source, 24) || 'mobile';
+  const rawItems = Array.isArray(request.items) ? request.items : [];
+  const items = rawItems.map((item) => {
+    const rawModifierIds = Array.isArray(item?.modifierIds || item?.modifier_ids)
+      ? (item.modifierIds || item.modifier_ids)
+      : [];
+    return {
+      menuItemId: parsePositiveInt(item?.menuItemId || item?.menu_item_id),
+      quantity: parsePositiveInt(item?.quantity, 1),
+      modifierIds: rawModifierIds
+        .map((modifierId) => parsePositiveInt(modifierId))
+        .sort((left, right) => (left || 0) - (right || 0)),
+      specialInstructions: normalizeString(item?.specialInstructions || item?.special_instructions, 500),
+    };
+  });
+
+  const deliveryAddress = fulfillmentType === 'delivery'
+    ? normalizeDeliveryAddress(request.deliveryAddress || request.delivery_address)
+    : null;
+  const discountCode = normalizeString(request.discountCode || request.discount_code, 40);
+  const loyaltyPoints = parsePositiveInt(
+    request.loyaltyPointsToRedeem ?? request.loyalty_points_to_redeem,
+    0
+  ) || 0;
+  const externalPayment = normalizeFoodExternalPaymentSubmission(
+    request.externalPayment
+      || request.external_payment
+      || request.paymentProof
+      || request.payment_proof
+      || request.metadata?.externalPayment
+      || request.metadata?.paymentProof
+  );
+  const fingerprintInput = {
+    version: 1,
+    restaurantId: Number(restaurantId),
+    paymentMode,
+    fulfillmentType,
+    orderSource,
+    items,
+    deliveryAddress,
+    tipCents: canonicalIdempotencyAmount(request.tipCents ?? request.tip_cents ?? 0),
+    discountCode: discountCode ? discountCode.toUpperCase() : null,
+    loyaltyPoints,
+    guestName: normalizeString(request.guestName || request.guest_name, 140),
+    guestPhone: normalizeString(request.guestPhone || request.guest_phone, 40),
+    guestEmail: normalizeString(request.guestEmail || request.guest_email, 255),
+    tableLabel: normalizeString(request.tableLabel || request.table_label, 80),
+    notes: normalizeString(request.notes, 1000),
+    externalPayment,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(fingerprintInput)).digest('hex');
+}
+
+function assertFoodOrderIdempotencyMatch(order, fingerprint, clientOrderId) {
+  const recordedFingerprint = order?.metadata?.idempotency?.requestFingerprint
+    || order?.metadata?.idempotencyRequestFingerprint;
+  // Orders created before fingerprints were introduced remain replayable.
+  if (!recordedFingerprint || recordedFingerprint === fingerprint) return;
+  throw new AppError(
+    'This idempotency key was already used for a different order request',
+    409,
+    'food_order_idempotency_conflict',
+    { clientOrderId }
+  );
+}
+
 function normalizeFoodPaymentMode(value) {
   const requested = normalizeString(value, 40) || 'pay_at_restaurant';
   const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
@@ -395,6 +468,7 @@ function resolveOrderItemModifiers(menuItem, item, index) {
 }
 
 exports.resolveOrderItemModifiers = resolveOrderItemModifiers;
+exports.buildFoodOrderIdempotencyFingerprint = buildFoodOrderIdempotencyFingerprint;
 
 function parseMoneyCents(value, field = 'priceCents') {
   const n = Number(value);
@@ -2066,6 +2140,13 @@ exports.createOrder = async (req, res, next) => {
     }
 
     const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120);
+    const idempotencyFingerprint = clientOrderId
+      ? buildFoodOrderIdempotencyFingerprint({
+        restaurantId,
+        paymentMode: paymentContract.canonical,
+        request: req.body,
+      })
+      : null;
 
     const createdOrder = await withTransaction(pool, async (client) => {
       if (clientOrderId) {
@@ -2078,6 +2159,7 @@ exports.createOrder = async (req, res, next) => {
           [restaurantId, req.user.id, clientOrderId]
         );
         if (existingOrders[0]) {
+          assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
           const { rows: restaurants } = await client.query(
             `SELECT * FROM food_restaurants WHERE id = $1`,
             [restaurantId]
@@ -2128,6 +2210,7 @@ exports.createOrder = async (req, res, next) => {
           [restaurantId, req.user.id, clientOrderId]
         );
         if (existingOrders[0]) {
+          assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
           const existing = existingOrders[0];
           return {
             order: existing,
@@ -2424,6 +2507,13 @@ exports.createOrder = async (req, res, next) => {
             collection: paymentContract.canonical,
           },
           ...(clientOrderId ? { clientOrderId } : {}),
+          ...(clientOrderId ? {
+            idempotency: {
+              scope: 'food_order',
+              version: 1,
+              requestFingerprint: idempotencyFingerprint,
+            },
+          } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
@@ -2467,6 +2557,13 @@ exports.createOrder = async (req, res, next) => {
             collection: paymentContract.canonical,
           },
           ...(clientOrderId ? { clientOrderId } : {}),
+          ...(clientOrderId ? {
+            idempotency: {
+              scope: 'food_order',
+              version: 1,
+              requestFingerprint: idempotencyFingerprint,
+            },
+          } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),

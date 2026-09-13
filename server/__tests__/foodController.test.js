@@ -567,6 +567,41 @@ describe('food controller', () => {
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
+  test('rejects idempotency key reuse for a different order request', async () => {
+    const fingerprint = ctrl.buildFoodOrderIdempotencyFingerprint({
+      restaurantId: 3,
+      paymentMode: 'pay_at_restaurant',
+      request: {
+        fulfillmentType: 'pickup',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      },
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 100,
+        restaurant_id: 3,
+        customer_id: '00000000-0000-4000-8000-000000000123',
+        metadata: {
+          clientOrderId: 'offline-abc',
+          idempotency: { scope: 'food_order', version: 1, requestFingerprint: fingerprint },
+        },
+      }],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        client_order_id: 'offline-abc',
+        fulfillmentType: 'pickup',
+        paymentMode: 'pay_now',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('food_order_idempotency_conflict');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('rechecks the idempotency key after locking the restaurant', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
