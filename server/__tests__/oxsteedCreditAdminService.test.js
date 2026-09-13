@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -792,6 +792,8 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
       account_count: 1,
       entry_count: 2,
     }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 'run-1',
       currency_code: 'USD',
@@ -819,6 +821,29 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD']);
+});
+
+test('reconciliation hash verification detects a tampered entry', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 1,
+      transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      account_id: 7001,
+      entry_side: 'credit',
+      amount_cents: '100',
+      balance_after_cents: '100',
+      sequence: '1',
+      previous_entry_hash: null,
+      entry_hash: 'tampered',
+      metadata: {},
+      transaction_type: 'load',
+      currency_code: 'USD',
+    }] })
+    .mockResolvedValueOnce({ rows: [{ id: 7001, ledger_version: '1', last_entry_hash: 'tampered' }] });
+
+  const result = await verifyCreditLedgerHashes({ query: (...args) => mockQuery(...args) }, 'USD');
+
+  expect(result).toEqual({ invalidEntryHashes: 1, invalidHashChains: 0, invalidAccountHashHeads: 0 });
 });
 
 test('lists bounded reconciliation history with currency and status filters', async () => {

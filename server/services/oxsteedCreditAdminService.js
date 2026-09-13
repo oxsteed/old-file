@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { assertSupportedCreditCurrency, ensureAccount, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
+const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -220,6 +220,74 @@ function formatReconciliationRun(row) {
     completedAt: row.completed_at || null,
     metadata: row.metadata || {},
   };
+}
+
+async function verifyCreditLedgerHashes(client, currency) {
+  const stateByAccount = new Map();
+  let invalidEntryHashes = 0;
+  let invalidHashChains = 0;
+  let lastAccountId = 0;
+  let lastSequence = 0;
+  let lastEntryId = 0;
+  const batchSize = 5000;
+
+  while (true) {
+    const { rows } = await client.query(
+      `SELECT e.id, e.transaction_id, e.account_id, e.entry_side,
+              e.amount_cents, e.balance_after_cents, e.sequence,
+              e.previous_entry_hash, e.entry_hash, e.metadata,
+              t.transaction_type, t.currency_code
+         FROM oxsteed_credit_transaction_entries e
+         JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
+        WHERE t.status = 'posted'
+          AND t.currency_code = $1
+          AND (e.account_id, e.sequence, e.id) > ($2, $3, $4)
+        ORDER BY e.account_id ASC, e.sequence ASC, e.id ASC
+        LIMIT $5`,
+      [currency, lastAccountId, lastSequence, lastEntryId, batchSize]
+    );
+    for (const entry of rows) {
+      const accountId = String(entry.account_id);
+      const previous = stateByAccount.get(accountId) || { sequence: 0, hash: null };
+      const sequence = Number(entry.sequence);
+      const previousHash = entry.previous_entry_hash || null;
+      if (sequence !== previous.sequence + 1 || previousHash !== previous.hash) invalidHashChains += 1;
+      const expectedHash = computeEntryHash({
+        transactionId: String(entry.transaction_id),
+        transactionType: entry.transaction_type,
+        accountId: Number(entry.account_id),
+        entrySide: entry.entry_side,
+        amountCents: Number(entry.amount_cents),
+        balanceAfterCents: Number(entry.balance_after_cents),
+        currencyCode: String(entry.currency_code || 'USD').toUpperCase(),
+        sequence,
+        previousEntryHash: previousHash,
+        metadata: entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {},
+      });
+      if (!entry.entry_hash || entry.entry_hash !== expectedHash) invalidEntryHashes += 1;
+      stateByAccount.set(accountId, { sequence, hash: entry.entry_hash || null });
+    }
+    if (rows.length < batchSize) break;
+    const last = rows[rows.length - 1];
+    lastAccountId = Number(last.account_id);
+    lastSequence = Number(last.sequence);
+    lastEntryId = Number(last.id);
+  }
+
+  const { rows: accounts } = await client.query(
+    `SELECT id, ledger_version, last_entry_hash
+       FROM oxsteed_credit_accounts
+      WHERE currency_code = $1`,
+    [currency]
+  );
+  let invalidAccountHashHeads = 0;
+  for (const account of accounts) {
+    const last = stateByAccount.get(String(account.id)) || { sequence: 0, hash: null };
+    if (Number(account.ledger_version || 0) !== last.sequence || (account.last_entry_hash || null) !== last.hash) {
+      invalidAccountHashHeads += 1;
+    }
+  }
+  return { invalidEntryHashes, invalidHashChains, invalidAccountHashHeads };
 }
 
 async function listReconciliationRuns({ currencyCode, status, limit = 50, offset = 0 } = {}) {
@@ -1289,15 +1357,18 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
     );
     const result = resultRows[0] || {};
     const differenceCents = Number(result.difference_cents || 0);
-    const status = differenceCents === 0 ? 'balanced' : 'difference';
+    const hashIntegrity = await verifyCreditLedgerHashes(client, currency);
+    const hashesValid = Object.values(hashIntegrity).every((count) => count === 0);
+    const status = !hashesValid ? 'failed' : differenceCents === 0 ? 'balanced' : 'difference';
+    const integrityMetadata = { scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString(), hashIntegrity };
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_reconciliation_runs
          (currency_code, period_start, period_end, status, account_balance_cents,
           journal_balance_cents, difference_cents, account_count, entry_count,
-          completed_by, completed_at, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11::jsonb)
+          completed_by, completed_at, error_message, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, $12::jsonb)
        RETURNING *`,
-      [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, JSON.stringify({ scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString() })]
+      [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, hashesValid ? null : 'Credit ledger hash integrity check failed', JSON.stringify(integrityMetadata)]
     );
     await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return {
@@ -1313,6 +1384,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
         accountCount: Number(rows[0].account_count),
         entryCount: Number(rows[0].entry_count),
         scope: reconciliationScope,
+        integrity: hashIntegrity,
         completedAt: rows[0].completed_at,
       },
     };
@@ -1801,6 +1873,7 @@ module.exports = {
   createSettlement,
   transitionSettlement,
   reconcileCreditLedger,
+  verifyCreditLedgerHashes,
   createAgreement,
   transitionAgreement,
   upsertEntitlement,
