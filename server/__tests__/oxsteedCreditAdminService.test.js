@@ -125,6 +125,8 @@ test('serializes settlement creation per partner agreement before checking overl
   expect(mockQuery.mock.calls[1][1]).toEqual(['oxsteed-credit-settlement:41:agreement-1']);
   expect(mockQuery.mock.calls[2][0]).toContain('s.idempotency_key');
   expect(mockQuery.mock.calls[3][0]).toContain('period_start < $4');
+  expect(mockQuery.mock.calls[4][0]).toContain("t.currency_code = $5");
+  expect(mockQuery.mock.calls[4][1]).toEqual([41, 'agreement-1', new Date('2026-09-01T00:00:00.000Z'), new Date('2026-09-02T00:00:00.000Z'), 'USD']);
 });
 
 test('rejects settlement idempotency reuse for a different period', async () => {

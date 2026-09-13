@@ -511,8 +511,9 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
          COALESCE(SUM(t.amount_cents) FILTER (WHERE t.transaction_type = 'fee'), 0) AS fee_cents
        FROM oxsteed_credit_transactions t
        WHERE t.partner_id = $1 AND t.agreement_id = $2 AND t.status = 'posted'
-         AND t.created_at >= $3 AND t.created_at < $4`,
-      [normalizedPartnerId, agreementId, starts, ends]
+         AND t.created_at >= $3 AND t.created_at < $4
+         AND t.currency_code = $5`,
+      [normalizedPartnerId, agreementId, starts, ends, agreement.settlement_currency_code]
     );
     const grossCents = Number(totals[0]?.gross_cents || 0);
     const refundCents = Number(totals[0]?.refund_cents || 0);
