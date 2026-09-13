@@ -100,6 +100,33 @@ function getRequestContext(req) {
   };
 }
 
+function formatCustomerCreditMutationResult(result) {
+  if (!result || typeof result !== 'object') return result;
+
+  const safeResult = { ...result };
+  if (safeResult.hold && typeof safeResult.hold === 'object') {
+    const { idempotencyKey, ...safeHold } = safeResult.hold;
+    safeResult.hold = safeHold;
+  }
+  if (safeResult.transaction && typeof safeResult.transaction === 'object') {
+    const transaction = safeResult.transaction;
+    safeResult.transaction = {
+      id: transaction.id,
+      transactionType: transaction.transactionType,
+      status: transaction.status,
+      amountCents: transaction.amountCents,
+      currencyCode: transaction.currencyCode,
+      referenceType: transaction.referenceType || null,
+      referenceId: transaction.referenceId || null,
+      description: transaction.description || null,
+      postedAt: transaction.postedAt || null,
+      createdAt: transaction.createdAt || null,
+      replayed: Boolean(transaction.replayed),
+    };
+  }
+  return safeResult;
+}
+
 async function getMyAccount(req, res, next) {
   try {
     const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 8) || 'USD');
@@ -245,7 +272,7 @@ async function createMyHold(req, res, next) {
       referenceId: req.body?.referenceId || req.body?.reference_id,
       expiresAt: req.body?.expiresAt || req.body?.expires_at,
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    res.status(result.replayed ? 200 : 201).json(formatCustomerCreditMutationResult(result));
   } catch (error) {
     next(error);
   }
@@ -260,7 +287,7 @@ async function releaseMyHold(req, res, next) {
       ...getRequestContext(req),
       reason: req.body?.reason,
     });
-    res.json(result);
+    res.json(formatCustomerCreditMutationResult(result));
   } catch (error) {
     next(error);
   }
@@ -316,7 +343,7 @@ async function transferMyCredit(req, res, next) {
       referenceId: normalizeString(req.body?.referenceId || req.body?.reference_id, 160),
       description: req.body?.description,
     });
-    res.status(result.replayed ? 200 : 201).json(result);
+    res.status(result.replayed ? 200 : 201).json(formatCustomerCreditMutationResult(result));
   } catch (error) {
     next(error);
   }
@@ -1404,6 +1431,7 @@ async function downloadAdminCreditReconciliationRuns(req, res, next) {
 }
 
 module.exports = {
+  formatCustomerCreditMutationResult,
   getMyAccount,
   getMyAccounts,
   getMyCreditStatus,

@@ -94,6 +94,49 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
+test('customer Credit mutation responses omit internal hold and ledger fields', () => {
+  const response = controller.formatCustomerCreditMutationResult({
+    hold: { id: 'hold-1', amountCents: 500, idempotencyKey: 'secret-hold-key' },
+    transaction: {
+      id: 'transaction-1',
+      transactionType: 'transfer',
+      status: 'posted',
+      amountCents: 500,
+      currencyCode: 'USD',
+      referenceType: 'customer_transfer',
+      referenceId: 'transfer-1',
+      description: 'Gift',
+      postedAt: '2026-09-13T10:00:00.000Z',
+      createdAt: '2026-09-13T10:00:00.000Z',
+      debitAccountId: 'internal-debit',
+      creditAccountId: 'internal-credit',
+      idempotencyKey: 'secret-transfer-key',
+      correlationId: 'internal-request-id',
+      metadata: { internal: true },
+      entries: [{ accountId: 'internal-account', entryHash: 'internal-hash' }],
+    },
+    replayed: false,
+  });
+
+  expect(response).toMatchObject({
+    hold: { id: 'hold-1', amountCents: 500 },
+    transaction: {
+      id: 'transaction-1',
+      transactionType: 'transfer',
+      amountCents: 500,
+      referenceType: 'customer_transfer',
+      replayed: false,
+    },
+  });
+  expect(response.hold.idempotencyKey).toBeUndefined();
+  expect(response.transaction).not.toHaveProperty('debitAccountId');
+  expect(response.transaction).not.toHaveProperty('creditAccountId');
+  expect(response.transaction).not.toHaveProperty('idempotencyKey');
+  expect(response.transaction).not.toHaveProperty('correlationId');
+  expect(response.transaction).not.toHaveProperty('metadata');
+  expect(response.transaction).not.toHaveProperty('entries');
+});
+
 test('exposes only currencies with verified two-decimal minor-unit support', () => {
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.USD).toEqual({ code: 'USD', minorUnits: 2 });
   expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits === 2)).toBe(true);
