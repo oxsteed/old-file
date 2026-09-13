@@ -39,6 +39,10 @@ async function findCreditRetentionTables() {
     'oxsteed_credit_disputes',
     'oxsteed_credit_entitlement_bulk_requests',
     'oxsteed_credit_entitlement_requests',
+    'oxsteed_credit_partners',
+    'oxsteed_credit_partner_agreements',
+    'oxsteed_credit_settlements',
+    'oxsteed_credit_audit_events',
   ];
   const exists = await Promise.all(candidates.map((table) => tableExists(table)));
   return candidates.filter((_, index) => exists[index]);
@@ -54,6 +58,10 @@ async function hasCreditRecords(client, userId, tables) {
   if (tables.includes('oxsteed_credit_disputes')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_disputes WHERE customer_id = $1 OR opened_by = $1 OR resolved_by = $1)');
   if (tables.includes('oxsteed_credit_entitlement_bulk_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_bulk_requests WHERE customer_id = $1 OR created_by = $1)');
   if (tables.includes('oxsteed_credit_entitlement_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_requests WHERE customer_id = $1 OR created_by = $1)');
+  if (tables.includes('oxsteed_credit_partners')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_partners WHERE created_by = $1)');
+  if (tables.includes('oxsteed_credit_partner_agreements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_partner_agreements WHERE created_by = $1 OR approved_by = $1)');
+  if (tables.includes('oxsteed_credit_settlements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_settlements WHERE created_by = $1 OR approved_by = $1)');
+  if (tables.includes('oxsteed_credit_audit_events')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_audit_events WHERE actor_user_id = $1)');
   const { rows } = await client.query(`SELECT ${predicates.join(' OR ')} AS has_credit_records`, [String(userId)]);
   return rows[0]?.has_credit_records === true;
 }
