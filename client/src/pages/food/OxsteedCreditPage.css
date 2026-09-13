@@ -58,6 +58,12 @@
 .ox-credit-statement-summary strong.positive { color: #14754d; }
 .ox-credit-statement-summary strong.negative { color: #b44b25; }
 .ox-credit-partner-list, .ox-credit-transaction-list { border-top: 1px solid rgba(16,37,63,.08); }
+.ox-credit-partner-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .55fr); gap: 8px; margin: 0 23px 17px; }
+.ox-credit-partner-filters label { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 11px; border: 1px solid rgba(16,37,63,.13); border-radius: 10px; color: #80909c; background: #fbfaf8; }
+.ox-credit-partner-filters input, .ox-credit-partner-filters select { width: 100%; min-width: 0; min-height: 38px; border: 0; outline: 0; color: #10253f; background: transparent; font: inherit; font-size: 12px; }
+.ox-credit-partner-filters select { padding: 0 10px; border: 1px solid rgba(16,37,63,.13); border-radius: 10px; background: #fbfaf8; text-transform: capitalize; }
+.ox-credit-clear-filters { padding: 8px 11px; border: 1px solid rgba(182,90,12,.2); border-radius: 9px; color: #a6530c; background: #fff9f0; font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-clear-filters:hover { border-color: rgba(182,90,12,.42); background: #fff0dd; }
 .ox-credit-partner { display: flex; gap: 13px; padding: 17px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
 .ox-credit-partner:last-child, .ox-credit-transaction-list article:last-child { border-bottom: 0; }
 .ox-credit-partner-mark { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; overflow: hidden; border-radius: 13px; color: #15727a; background: #e7f6f3; }
@@ -181,6 +187,7 @@
   .ox-credit-panel-heading { flex-wrap: wrap; }
   .ox-credit-panel-heading, .ox-credit-panel-copy, .ox-credit-partner, .ox-credit-transaction-list article { padding-left: 16px; padding-right: 16px; }
   .ox-credit-panel-copy { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-partner-filters { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
   .ox-credit-panel-actions { width: 100%; justify-content: flex-start; }
   .ox-credit-statement-summary { margin-left: 16px; margin-right: 16px; }
   .ox-credit-secondary-link, .ox-credit-security-note { margin-left: 16px; margin-right: 16px; }
