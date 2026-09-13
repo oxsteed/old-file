@@ -64,6 +64,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_agreement_identity_guard',
   'oxsteed_credit_transaction_partner_account_guard',
   'oxsteed_credit_purchase_boundary_guard',
+  'oxsteed_credit_agreement_terms_guard',
   'oxsteed_credit_customer_owner_guard',
   'oxsteed_credit_entitlement_owner_guard',
   'oxsteed_credit_transaction_customer_owner_guard',
@@ -262,6 +263,11 @@ async function main() {
       ['449_oxsteed_credit_purchase_boundary.sql']
     );
     checks.purchaseBoundaryMigrationApplied = purchaseBoundaryMigrationRows.length === 1;
+    const agreementTermsImmutabilityMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['450_oxsteed_credit_agreement_terms_immutability.sql']
+    );
+    checks.agreementTermsImmutabilityMigrationApplied = agreementTermsImmutabilityMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -538,6 +544,7 @@ async function main() {
       !checks.settlementCreatorMigrationApplied,
       !checks.settlementImmutabilityMigrationApplied,
       !checks.purchaseBoundaryMigrationApplied,
+      !checks.agreementTermsImmutabilityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
