@@ -724,8 +724,20 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
             fr.display_name AS restaurant_name, fr.logo_url, fr.address_city, fr.address_state,
             fr.currency_code AS restaurant_currency_code,
             a.id AS agreement_id, a.version, a.customer_terms, a.allowed_order_types,
-            a.allowed_categories, a.geography, a.max_transaction_cents,
-            a.daily_customer_limit_cents, e.id AS entitlement_id
+            a.allowed_categories, a.geography,
+            CASE
+              WHEN a.max_transaction_cents IS NULL THEN e.max_transaction_cents
+              WHEN e.max_transaction_cents IS NULL THEN a.max_transaction_cents
+              ELSE LEAST(a.max_transaction_cents, e.max_transaction_cents)
+            END AS effective_max_transaction_cents,
+            CASE
+              WHEN a.daily_customer_limit_cents IS NULL THEN e.daily_limit_cents
+              WHEN e.daily_limit_cents IS NULL THEN a.daily_customer_limit_cents
+              ELSE LEAST(a.daily_customer_limit_cents, e.daily_limit_cents)
+            END AS effective_daily_customer_limit_cents,
+            a.lifetime_customer_limit_cents,
+            e.id AS entitlement_id, e.max_transaction_cents AS entitlement_max_transaction_cents,
+            e.daily_limit_cents AS entitlement_daily_limit_cents
        FROM oxsteed_credit_partners p
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
        JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
@@ -761,8 +773,9 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
     customerTerms: row.customer_terms || null,
     allowedOrderTypes: row.allowed_order_types || [],
     allowedCategories: row.allowed_categories || [],
-    maxTransactionCents: row.max_transaction_cents === null ? null : Number(row.max_transaction_cents),
-    dailyCustomerLimitCents: row.daily_customer_limit_cents === null ? null : Number(row.daily_customer_limit_cents),
+    maxTransactionCents: row.effective_max_transaction_cents === null ? null : Number(row.effective_max_transaction_cents),
+    dailyCustomerLimitCents: row.effective_daily_customer_limit_cents === null ? null : Number(row.effective_daily_customer_limit_cents),
+    lifetimeCustomerLimitCents: row.lifetime_customer_limit_cents === null ? null : Number(row.lifetime_customer_limit_cents),
     hasCustomerEntitlement: Boolean(row.entitlement_id),
   }));
 }

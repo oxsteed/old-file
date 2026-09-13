@@ -125,6 +125,9 @@ test('shows only spendable partner restaurants in the customer currency', async 
       allowed_categories: [],
       max_transaction_cents: '5000',
       daily_customer_limit_cents: null,
+      effective_max_transaction_cents: '4500',
+      effective_daily_customer_limit_cents: '4500',
+      lifetime_customer_limit_cents: '10000',
       entitlement_id: null,
     },
     {
@@ -141,6 +144,9 @@ test('shows only spendable partner restaurants in the customer currency', async 
       allowed_categories: [],
       max_transaction_cents: null,
       daily_customer_limit_cents: null,
+      effective_max_transaction_cents: null,
+      effective_daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
       entitlement_id: null,
     },
   ] });
@@ -149,9 +155,10 @@ test('shows only spendable partner restaurants in the customer currency', async 
 
   expect(response.status).toBe(200);
   expect(response.body.partners).toHaveLength(1);
-  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD' });
+  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD', maxTransactionCents: 4500, dailyCustomerLimitCents: 4500, lifetimeCustomerLimitCents: 10000 });
   expect(mockQuery.mock.calls[0][0]).toContain('fr.currency_code');
   expect(mockQuery.mock.calls[0][0]).toContain('p.settlement_currency_code = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain('LEAST(a.max_transaction_cents, e.max_transaction_cents)');
 });
 
 test('rejects unsupported credit currencies before creating a wallet', async () => {
