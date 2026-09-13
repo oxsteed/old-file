@@ -270,6 +270,24 @@ function formatCreditRailStatus(row) {
   };
 }
 
+function getCreditRailPrerequisites() {
+  const production = (process.env.NODE_ENV || 'production') === 'production';
+  const dedicatedLedgerSecretConfigured = Boolean(process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET);
+  let ledgerKeyConfigurationValid = true;
+  try {
+    getLedgerHashKeyConfiguration();
+  } catch {
+    ledgerKeyConfigurationValid = false;
+  }
+  return {
+    sharedRedisConfigured: Boolean(process.env.REDIS_URL),
+    dedicatedLedgerSecretConfigured,
+    ledgerKeyConfigurationValid,
+    readyForProductionActivation: Boolean(process.env.REDIS_URL)
+      && (!production || (dedicatedLedgerSecretConfigured && ledgerKeyConfigurationValid)),
+  };
+}
+
 async function getCreditRailStatus() {
   try {
     const { rows } = await pool.query(
@@ -279,7 +297,10 @@ async function getCreditRailStatus() {
         LIMIT 1`
     );
     if (!rows[0]) throw new Error('OxSteed Credit feature flag is missing');
-    return formatCreditRailStatus(rows[0]);
+    return {
+      ...formatCreditRailStatus(rows[0]),
+      prerequisites: getCreditRailPrerequisites(),
+    };
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError('OxSteed Credit is temporarily unavailable', 503, 'credit_rail_status_unavailable');

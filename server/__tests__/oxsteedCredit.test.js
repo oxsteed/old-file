@@ -2817,6 +2817,31 @@ test('requires an administrator identity for a real rail status change', async (
   expect(mockQuery).toHaveBeenCalledTimes(2);
 });
 
+test('reports non-secret Credit rail activation prerequisites', async () => {
+  const previousRedisUrl = process.env.REDIS_URL;
+  process.env.REDIS_URL = 'redis://configured';
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    key: 'oxsteed_credit_enabled',
+    is_enabled: false,
+    description: 'Credit rail',
+    updated_by: null,
+    updated_at: '2026-09-12T12:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/rail');
+
+  expect(response.status).toBe(200);
+  expect(response.body.rail.prerequisites).toEqual(expect.objectContaining({
+    sharedRedisConfigured: true,
+    dedicatedLedgerSecretConfigured: true,
+    ledgerKeyConfigurationValid: true,
+  }));
+  expect(JSON.stringify(response.body)).not.toContain(process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET);
+
+  if (previousRedisUrl === undefined) delete process.env.REDIS_URL;
+  else process.env.REDIS_URL = previousRedisUrl;
+});
+
 test('blocks enabling the Credit rail in production without shared Redis', async () => {
   const previous = {
     NODE_ENV: process.env.NODE_ENV,
