@@ -748,6 +748,13 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
           SELECT 1 FROM feature_flags ff
            WHERE ff.key = 'oxsteed_credit_enabled' AND ff.is_enabled = TRUE
         )
+        AND EXISTS (
+          SELECT 1 FROM oxsteed_credit_accounts ca
+           WHERE ca.account_type = 'customer_wallet'
+             AND ca.customer_id = $1
+             AND ca.currency_code = $2
+             AND ca.status = 'active'
+        )
         AND p.settlement_currency_code = $2
         AND (fr.currency_code IS NULL OR UPPER(fr.currency_code) = UPPER(p.settlement_currency_code))
         AND a.status = 'active' AND a.starts_at <= NOW()

@@ -210,6 +210,7 @@ test('shows only spendable partner restaurants in the customer currency', async 
   expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD', maxTransactionCents: 4500, dailyCustomerLimitCents: 4500, lifetimeCustomerLimitCents: 10000 });
   expect(mockQuery.mock.calls[0][0]).toContain('fr.currency_code');
   expect(mockQuery.mock.calls[0][0]).toContain('p.settlement_currency_code = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain("ca.status = 'active'");
   expect(mockQuery.mock.calls[0][0]).toContain('LEAST(a.max_transaction_cents, e.max_transaction_cents)');
 });
 
