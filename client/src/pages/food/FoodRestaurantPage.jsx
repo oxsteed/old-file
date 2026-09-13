@@ -1014,6 +1014,21 @@ export default function FoodRestaurantPage() {
       ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
   );
   const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= orderTotalCents;
+  const oxsteedCreditMaxTransactionCents = oxsteedCreditPartner?.maxTransactionCents == null
+    ? null
+    : Number(oxsteedCreditPartner.maxTransactionCents);
+  const oxsteedCreditExceedsTransactionLimit = Number.isFinite(oxsteedCreditMaxTransactionCents)
+    && orderTotalCents > oxsteedCreditMaxTransactionCents;
+  const oxsteedCreditPaymentIssue = oxsteedCreditExceedsTransactionLimit
+    ? `Restaurant limit ${formatFoodMoney(oxsteedCreditMaxTransactionCents, oxsteedCreditAccount?.currencyCode || currency)}`
+    : !oxsteedCreditCoversOrder
+      ? `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)}`
+      : null;
+  useEffect(() => {
+    if (paymentMethod === 'oxsteed_credit' && oxsteedCreditPaymentIssue) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, oxsteedCreditPaymentIssue]);
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
@@ -1034,10 +1049,9 @@ export default function FoodRestaurantPage() {
       id: 'oxsteed_credit',
       icon: '◎',
       label: 'OxSteed Credit',
-      sub: oxsteedCreditCoversOrder
-        ? `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`
-        : `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
-      disabled: !oxsteedCreditCoversOrder,
+      sub: oxsteedCreditPaymentIssue
+        || `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
+      disabled: Boolean(oxsteedCreditPaymentIssue),
     }] : []),
     ...(externalPaymentEnabled ? [{
       id: 'direct_payment',
