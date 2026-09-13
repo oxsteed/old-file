@@ -36,6 +36,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by'],
+  oxsteed_credit_disputes: ['idempotency_key'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
@@ -50,6 +51,7 @@ const REQUIRED_INDEXES = [
   'uq_oxsteed_credit_agreement_creation_idempotency',
   'idx_oxsteed_credit_disputes_customer_history',
   'idx_oxsteed_credit_disputes_status_history',
+  'uq_oxsteed_credit_dispute_idempotency',
   'idx_oxsteed_credit_entitlement_bulk_requests_customer',
 ];
 

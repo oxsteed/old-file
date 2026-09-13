@@ -1916,10 +1916,12 @@ function formatDispute(row) {
   };
 }
 
-async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId }) {
+async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
   if (!normalizedReason || !normalizedDescription) throw new AppError('A dispute reason and description are required', 400, 'credit_dispute_details_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit disputes', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
     const { rows: transactionRows } = await client.query(
       `SELECT t.id, t.partner_id
@@ -1934,6 +1936,25 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     );
     const transaction = transactionRows[0];
     if (!transaction) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+    const { rows: keyRows } = await client.query(
+      `SELECT d.*, fr.display_name AS restaurant_name
+         FROM oxsteed_credit_disputes d
+         LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE d.idempotency_key = $1
+        FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    if (keyRows[0]) {
+      const existing = keyRows[0];
+      if (String(existing.customer_id) !== String(customerId)
+        || String(existing.transaction_id) !== String(transaction.id)
+        || existing.reason_code !== normalizedReason
+        || existing.description !== normalizedDescription) {
+        throw new AppError('Credit dispute idempotency key was already used for different details', 409, 'credit_dispute_idempotency_conflict');
+      }
+      return { dispute: formatDispute(existing), replayed: true };
+    }
     const { rows: existingRows } = await client.query(
       `SELECT d.*, fr.display_name AS restaurant_name
          FROM oxsteed_credit_disputes d
@@ -1946,11 +1967,11 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     if (existingRows[0]) return { dispute: formatDispute(existingRows[0]), replayed: true };
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_disputes
-         (transaction_id, customer_id, partner_id, reason_code, description, opened_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+         (transaction_id, customer_id, partner_id, reason_code, description, opened_by, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING
        RETURNING *`,
-      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId]
+      [transaction.id, customerId, transaction.partner_id || null, normalizedReason, normalizedDescription, actorUserId || customerId, normalizedIdempotencyKey]
     );
     if (!rows[0]) {
       const { rows: concurrentRows } = await client.query(

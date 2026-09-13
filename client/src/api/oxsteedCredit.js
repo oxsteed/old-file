@@ -48,8 +48,10 @@ export const releaseOxsteedCreditHold = (holdId, payload = {}) =>
   api.post(`/oxsteed-credit/holds/${holdId}/release`, payload)
     .then((response) => response.data);
 
-export const openOxsteedCreditDispute = (payload) =>
-  api.post('/oxsteed-credit/disputes', payload).then((response) => response.data);
+export const openOxsteedCreditDispute = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/disputes', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
 
 export const listOxsteedCreditDisputes = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })

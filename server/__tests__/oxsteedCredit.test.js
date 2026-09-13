@@ -104,6 +104,7 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_transactions_credit_posted_history',
     'idx_oxsteed_credit_disputes_customer_history',
     'idx_oxsteed_credit_disputes_status_history',
+    'uq_oxsteed_credit_dispute_idempotency',
   ]));
 });
 
@@ -1330,6 +1331,7 @@ test('opens disputes only for posted transactions with an atomic duplicate guard
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'tx-1', partner_id: 41 }] })
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 'dispute-1',
       transaction_id: 'tx-1',
@@ -1348,13 +1350,51 @@ test('opens disputes only for posted transactions with an atomic duplicate guard
 
   const response = await request(createCustomerApp())
     .post('/disputes')
+    .set('Idempotency-Key', 'dispute-test-1')
     .send({ transactionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', reasonCode: 'unauthorized', description: 'I do not recognize this purchase' });
 
   expect(response.status).toBe(201);
   expect(response.body.dispute).toMatchObject({ id: 'dispute-1', status: 'open' });
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain('a.id = t.credit_account_id');
-  expect(mockQuery.mock.calls[2][0]).toContain("ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING");
+  expect(mockQuery.mock.calls[1][0]).toContain('d.idempotency_key = $1');
+  expect(mockQuery.mock.calls[3][0]).toContain("ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING");
+});
+
+test('requires an idempotency key before opening a credit dispute', async () => {
+  const response = await request(createCustomerApp())
+    .post('/disputes')
+    .send({ transactionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', reasonCode: 'unauthorized', description: 'I do not recognize this purchase' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_idempotency_key_required');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('replays a credit dispute when the request key and details match', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'tx-1', partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'dispute-1',
+      transaction_id: 'tx-1',
+      customer_id: CUSTOMER_ID,
+      partner_id: 41,
+      status: 'open',
+      reason_code: 'unauthorized',
+      description: 'I do not recognize this purchase',
+      opened_by: CUSTOMER_ID,
+      opened_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:00:00.000Z',
+    }] });
+
+  const response = await request(createCustomerApp())
+    .post('/disputes')
+    .set('Idempotency-Key', 'dispute-replay-1')
+    .send({ transactionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', reasonCode: 'unauthorized', description: 'I do not recognize this purchase' });
+
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({ replayed: true, dispute: { id: 'dispute-1', status: 'open' } });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
 });
 
 test('includes safe transaction context when listing credit disputes', async () => {

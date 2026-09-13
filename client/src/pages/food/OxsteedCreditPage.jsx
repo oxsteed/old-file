@@ -124,6 +124,7 @@ export default function OxsteedCreditPage() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const loadRequestRef = useRef(0);
   const partnerPageRequestRef = useRef(0);
+  const disputeRequestKeyRef = useRef('');
 
   const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
     const requestId = ++loadRequestRef.current;
@@ -294,13 +295,18 @@ export default function OxsteedCreditPage() {
     if (!disputeTransactionId || !disputeDescription.trim()) return;
     setDisputeSubmitting(true);
     try {
-      await openOxsteedCreditDispute({ transactionId: disputeTransactionId, reasonCode: disputeReason, description: disputeDescription.trim() });
+      if (!disputeRequestKeyRef.current) {
+        disputeRequestKeyRef.current = globalThis.crypto?.randomUUID?.()
+          || `credit-dispute-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+      await openOxsteedCreditDispute({ transactionId: disputeTransactionId, reasonCode: disputeReason, description: disputeDescription.trim() }, disputeRequestKeyRef.current);
       const refreshedDisputes = await getOxsteedCreditDisputePage({ limit: 50, offset: 0 });
       setDisputes(Array.isArray(refreshedDisputes?.disputes) ? refreshedDisputes.disputes : []);
       setDisputePagination(refreshedDisputes?.pagination || null);
       toast.success('Your dispute was submitted for review.');
       setDisputeTransactionId(null);
       setDisputeDescription('');
+      disputeRequestKeyRef.current = '';
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -382,7 +388,7 @@ export default function OxsteedCreditPage() {
                   {statement && <div className="ox-credit-statement-summary"><div><span>Credits</span><strong className="positive">+{money(statement.totalCreditsCents, currency)}</strong></div><div><span>Debits</span><strong className="negative">-{money(statement.totalDebitsCents, currency)}</strong></div><div><span>Closing balance</span><strong>{money(statement.closingBalanceCents, currency)}</strong></div></div>}
                   {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>No activity yet</strong><span>Your credit activity will appear here when a load, purchase, transfer, or refund is posted.</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); const orderPath = transactionOrderPath(transaction); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction)}</strong><span>{transaction.description || 'OxSteed Credit ledger entry'}</span><small>{dateTime(transaction.postedAt || transaction.createdAt)}{transaction.orderId ? ` · Order #${transaction.orderId}` : ''}</small><div className="ox-credit-transaction-actions"><Link to={transactionDetailPath(transaction, currency)} className="ox-credit-detail-link"><Receipt size={12} /> View details</Link>{orderPath && <Link to={orderPath} className="ox-credit-order-link">View order</Link>}<button type="button" className="ox-credit-dispute-button" onClick={() => setDisputeTransactionId(transaction.id)}>Report a problem</button></div></div><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b></article>; })}</div>}
                   {statement?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadOlderActivity} disabled={loadingMore || refreshing}><RefreshCw size={14} className={loadingMore ? 'ox-credit-spin' : ''} /> {loadingMore ? 'Loading older activity...' : 'Load older activity'}</button>}
-                  {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>Report a transaction problem</strong><span>This creates a review record without changing your balance automatically.</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">Incorrect amount</option><option value="unauthorized">I do not recognize this</option><option value="duplicate">Duplicate transaction</option><option value="restaurant_issue">Restaurant or order issue</option><option value="other">Other</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder="Tell us what happened" rows={3} /><div><button type="button" onClick={() => setDisputeTransactionId(null)}>Cancel</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? 'Submitting...' : 'Submit dispute'}</button></div></form>}
+                  {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>Report a transaction problem</strong><span>This creates a review record without changing your balance automatically. If the connection drops, submitting the same form again is safe.</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">Incorrect amount</option><option value="unauthorized">I do not recognize this</option><option value="duplicate">Duplicate transaction</option><option value="restaurant_issue">Restaurant or order issue</option><option value="other">Other</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder="Tell us what happened" rows={3} /><div><button type="button" onClick={() => { setDisputeTransactionId(null); disputeRequestKeyRef.current = ''; }}>Cancel</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? 'Submitting...' : 'Submit dispute'}</button></div></form>}
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> Need help with a transaction? <Link to="/support/escalation">Contact support</Link></div>
                 </section>
               </div>

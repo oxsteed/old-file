@@ -361,6 +361,7 @@ async function openMyDispute(req, res, next) {
       reasonCode: req.body?.reasonCode || req.body?.reason_code,
       description: req.body?.description,
       actorUserId: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
