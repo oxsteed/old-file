@@ -59,6 +59,33 @@ The migration runner applies the OxSteed Credit migrations and the durable `cron
 6. Run one low-value test load, purchase, refund, and settlement in the approved environment.
 7. Enable `oxsteed_credit_enabled` only after the release gate is signed off.
 
+## Customer-Specific Partner Access
+
+The Super Admin OxSteed Credit workspace includes a Customer access section for
+programs that restrict spending to named customers or a defined partner set.
+Customer access is one record per customer and agreement, so the same customer
+can be assigned to multiple restaurants without moving or duplicating wallet
+balance:
+
+1. Confirm the customer appears in the customer wallet directory and copy the
+   customer UUID from the selected customer record.
+2. Confirm the restaurant has the correct active partner agreement, currency,
+   effective dates, categories, order types, and spending limits.
+3. Save one entitlement for that customer and agreement with a documented
+   reason. Set customer-specific limits only when they should be stricter than
+   the agreement limits.
+4. Repeat the assignment for each additional restaurant agreement. The access
+   directory can be searched by customer or restaurant and paged as the
+   program grows.
+5. Use `active` only when the agreement and customer program are approved;
+   use `suspended`, `revoked`, or `expired` to preserve history without
+   silently deleting access.
+
+The public eligibility query still requires the Credit rail, customer wallet,
+partner, agreement, entitlement, currency, geography, category, order type,
+and limit checks to pass. An entitlement by itself never makes a draft,
+suspended, expired, or terminated agreement spendable.
+
 ## Daily Operations
 
 - Review partner and agreement status, open disputes, pending settlements, and reconciliation results in the OxSteed Credit Super Admin workspace.
