@@ -85,6 +85,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_dispute_integrity_guard',
   'oxsteed_credit_account_reservation_guard',
   'oxsteed_credit_hold_reservation_guard',
+  'oxsteed_credit_transaction_status_guard',
+  'oxsteed_credit_posted_entry_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -335,6 +337,11 @@ async function main() {
       ['464_oxsteed_credit_reservation_consistency.sql']
     );
     checks.reservationConsistencyMigrationApplied = reservationConsistencyMigrationRows.rows.length === 1;
+    const transactionStatusMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['465_oxsteed_credit_transaction_status.sql']
+    );
+    checks.transactionStatusMigrationApplied = transactionStatusMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -416,6 +423,18 @@ async function main() {
          ) invalid`,
     );
     checks.invalidPostedTransactions = Number(transactionInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: transactionStateRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+        WHERE (t.status = 'posted' AND t.posted_at IS NULL)
+           OR (t.status = 'reversed' AND t.reversed_at IS NULL)
+           OR (t.status IN ('pending', 'voided') AND (t.posted_at IS NOT NULL OR t.reversed_at IS NOT NULL))
+           OR (t.status <> 'posted' AND EXISTS (
+                SELECT 1 FROM oxsteed_credit_transaction_entries e WHERE e.transaction_id = t.id
+              ))`,
+    );
+    checks.invalidTransactionStates = Number(transactionStateRows[0]?.invalid_count || 0);
 
     const { rows: balanceInvariantRows } = await pool.query(
       `WITH journal AS (
@@ -689,6 +708,7 @@ async function main() {
       !checks.reservedTransactionTypesMigrationApplied,
       !checks.disputeStatusEvidenceMigrationApplied,
       !checks.reservationConsistencyMigrationApplied,
+      !checks.transactionStatusMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -696,6 +716,7 @@ async function main() {
       checks.unsupportedCurrencyRecords.length > 0,
       checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
+      checks.invalidTransactionStates > 0,
       checks.invalidAccountBalances > 0,
       checks.invalidReservedBalances > 0,
       checks.invalidHoldLifecycles > 0,
