@@ -59,6 +59,32 @@ function splitList(value) {
   return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function buildGeography(form) {
+  const fields = [
+    ['cities', form.coverageCities],
+    ['states', form.coverageStates],
+    ['postalCodes', form.coveragePostalCodes],
+    ['countries', form.coverageCountries],
+  ];
+  return fields.reduce((result, [key, value]) => {
+    const values = splitList(value);
+    if (values.length) result[key] = values;
+    return result;
+  }, {});
+}
+
+function geographyLabel(geography) {
+  const labels = [
+    ['cities', 'Cities'],
+    ['states', 'States'],
+    ['postalCodes', 'Postal codes'],
+    ['countries', 'Countries'],
+  ].flatMap(([key, label]) => Array.isArray(geography?.[key]) && geography[key].length
+    ? [`${label}: ${geography[key].join(', ')}`]
+    : []);
+  return labels.join(' · ');
+}
+
 function requestKey(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -85,7 +111,7 @@ export default function OxsteedCreditAdmin() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [partnerForm, setPartnerForm] = useState({ restaurantId: '', settlementCurrencyCode: 'USD', notes: '' });
-  const [agreementForm, setAgreementForm] = useState({ partnerId: '', startsAt: new Date().toISOString().slice(0, 16), endsAt: '', customerTerms: '', allowedOrderTypes: 'pickup, delivery, dine_in', allowedCategories: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '', requiresCustomerEntitlement: false });
+  const [agreementForm, setAgreementForm] = useState({ partnerId: '', startsAt: new Date().toISOString().slice(0, 16), endsAt: '', customerTerms: '', allowedOrderTypes: 'pickup, delivery, dine_in', allowedCategories: '', allowedMenuItemIds: '', coverageCities: '', coverageStates: '', coveragePostalCodes: '', coverageCountries: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '', requiresCustomerEntitlement: false });
   const [settlementForm, setSettlementForm] = useState({ partnerId: '', agreementId: '', currencyCode: 'USD', periodStart: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 16), periodEnd: new Date().toISOString().slice(0, 16), paymentReference: '' });
   const [customerForm, setCustomerForm] = useState({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
   const [accountStatusForm, setAccountStatusForm] = useState({ customerId: '', currencyCode: 'USD', status: 'suspended', reason: '' });
@@ -184,13 +210,15 @@ export default function OxsteedCreditAdmin() {
         customerTerms: agreementForm.customerTerms || undefined,
         allowedOrderTypes: splitList(agreementForm.allowedOrderTypes),
         allowedCategories: splitList(agreementForm.allowedCategories),
+        allowedMenuItemIds: splitList(agreementForm.allowedMenuItemIds),
+        geography: buildGeography(agreementForm),
         maxTransactionCents: dollarsToCents(agreementForm.maxTransaction),
         dailyCustomerLimitCents: dollarsToCents(agreementForm.dailyLimit),
         lifetimeCustomerLimitCents: dollarsToCents(agreementForm.lifetimeLimit),
         requiresCustomerEntitlement: agreementForm.requiresCustomerEntitlement,
       }, { headers: { 'Idempotency-Key': requestKey('credit-agreement') } });
       setNotice(`Agreement created for ${selectedPartner?.restaurantName || 'the selected partner'} in Draft status.`);
-      setAgreementForm((current) => ({ ...current, customerTerms: '', allowedCategories: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '' }));
+      setAgreementForm((current) => ({ ...current, customerTerms: '', allowedCategories: '', allowedMenuItemIds: '', coverageCities: '', coverageStates: '', coveragePostalCodes: '', coverageCountries: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '' }));
       await load({ quiet: true });
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Agreement creation failed.');
@@ -403,12 +431,91 @@ export default function OxsteedCreditAdmin() {
 
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <Section eyebrow="Partner enrollment" title="Add a restaurant partner" detail="Enrollment starts as Pending. Activate only after confirming commercial terms, settlement, and customer eligibility."><form onSubmit={registerPartner} className="mt-5 grid gap-3 sm:grid-cols-3"><label className="sm:col-span-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Restaurant ID</span><input required value={partnerForm.restaurantId} onChange={(event) => setPartnerForm({ ...partnerForm, restaurantId: event.target.value })} placeholder="e.g. 12" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Settlement currency</span><select required value={partnerForm.settlementCurrencyCode} onChange={(event) => setPartnerForm({ ...partnerForm, settlementCurrencyCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select currency</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Internal notes</span><textarea value={partnerForm.notes} onChange={(event) => setPartnerForm({ ...partnerForm, notes: event.target.value })} rows={2} placeholder="Settlement or partnership notes" className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50"><Plus className="h-4 w-4" /> Enroll partner</button></form></Section>
-    <Section eyebrow="Agreement builder" title="Create a spending agreement" detail="Draft the restaurant's rules first. It must be approved and activated before customer checkout can use it."><form onSubmit={createAgreement} className="mt-5 grid gap-3 sm:grid-cols-2"><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select required value={agreementForm.partnerId} onChange={(event) => setAgreementForm({ ...agreementForm, partnerId: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select partner</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.status}</option>)}</select></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Starts</span><input required type="datetime-local" value={agreementForm.startsAt} onChange={(event) => setAgreementForm({ ...agreementForm, startsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Ends (optional)</span><input type="datetime-local" value={agreementForm.endsAt} onChange={(event) => setAgreementForm({ ...agreementForm, endsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Order types</span><input value={agreementForm.allowedOrderTypes} onChange={(event) => setAgreementForm({ ...agreementForm, allowedOrderTypes: event.target.value })} placeholder="pickup, delivery" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Categories (optional)</span><input value={agreementForm.allowedCategories} onChange={(event) => setAgreementForm({ ...agreementForm, allowedCategories: event.target.value })} placeholder="Leave blank for all" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Customer terms</span><textarea value={agreementForm.customerTerms} onChange={(event) => setAgreementForm({ ...agreementForm, customerTerms: event.target.value })} rows={2} placeholder="Plain-language rules the customer will see" className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-3"><label><span className="mb-1 block text-xs font-semibold text-gray-500">Max / transaction ($)</span><input inputMode="decimal" value={agreementForm.maxTransaction} onChange={(event) => setAgreementForm({ ...agreementForm, maxTransaction: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Daily / customer ($)</span><input inputMode="decimal" value={agreementForm.dailyLimit} onChange={(event) => setAgreementForm({ ...agreementForm, dailyLimit: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Lifetime / customer ($)</span><input inputMode="decimal" value={agreementForm.lifetimeLimit} onChange={(event) => setAgreementForm({ ...agreementForm, lifetimeLimit: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label></div><label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3"><input type="checkbox" checked={agreementForm.requiresCustomerEntitlement} onChange={(event) => setAgreementForm({ ...agreementForm, requiresCustomerEntitlement: event.target.checked })} className="mt-1 h-4 w-4 accent-sky-500" /><span><strong className="block text-sm text-white">Restrict to assigned customers</strong><span className="mt-1 block text-xs leading-5 text-gray-500">When enabled, only customers with an active entitlement for this agreement can spend here. Leave off for a partner-wide agreement.</span></span></label><button disabled={busy || !partners.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> Create draft agreement</button></form></Section>
+    <Section eyebrow="Agreement builder" title="Create a spending agreement" detail="Draft the restaurant's rules first. It must be approved and activated before customer checkout can use it.">
+      <form onSubmit={createAgreement} className="mt-5 grid gap-3 sm:grid-cols-2">
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span>
+          <select required value={agreementForm.partnerId} onChange={(event) => setAgreementForm({ ...agreementForm, partnerId: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
+            <option value="">Select partner</option>
+            {partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.status}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Starts</span>
+          <input required type="datetime-local" value={agreementForm.startsAt} onChange={(event) => setAgreementForm({ ...agreementForm, startsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Ends (optional)</span>
+          <input type="datetime-local" value={agreementForm.endsAt} onChange={(event) => setAgreementForm({ ...agreementForm, endsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Order types</span>
+          <input value={agreementForm.allowedOrderTypes} onChange={(event) => setAgreementForm({ ...agreementForm, allowedOrderTypes: event.target.value })} placeholder="pickup, delivery" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Categories (optional)</span>
+          <input value={agreementForm.allowedCategories} onChange={(event) => setAgreementForm({ ...agreementForm, allowedCategories: event.target.value })} placeholder="Leave blank for all" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <fieldset className="sm:col-span-2 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+          <legend className="px-1 text-xs font-semibold text-gray-400">Optional menu restrictions</legend>
+          <p className="mb-3 text-xs leading-5 text-gray-600">Use menu item IDs to cover only specific items. Leave blank to cover every item in the allowed categories.</p>
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">Allowed menu item IDs</span>
+            <input value={agreementForm.allowedMenuItemIds} onChange={(event) => setAgreementForm({ ...agreementForm, allowedMenuItemIds: event.target.value })} placeholder="Example: 101, 205, 310" inputMode="numeric" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          </label>
+        </fieldset>
+        <fieldset className="sm:col-span-2 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3">
+          <legend className="px-1 text-xs font-semibold text-sky-300">Geographic coverage</legend>
+          <p className="mb-3 text-xs leading-5 text-gray-500">Leave every field blank for the restaurant's normal service area. If a field is set, a purchase must match one of its comma-separated values.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Cities</span>
+              <input value={agreementForm.coverageCities} onChange={(event) => setAgreementForm({ ...agreementForm, coverageCities: event.target.value })} placeholder="Springfield, Dayton" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">States / regions</span>
+              <input value={agreementForm.coverageStates} onChange={(event) => setAgreementForm({ ...agreementForm, coverageStates: event.target.value })} placeholder="OH, MI" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Postal codes</span>
+              <input value={agreementForm.coveragePostalCodes} onChange={(event) => setAgreementForm({ ...agreementForm, coveragePostalCodes: event.target.value })} placeholder="45502, 45402" inputMode="numeric" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Countries</span>
+              <input value={agreementForm.coverageCountries} onChange={(event) => setAgreementForm({ ...agreementForm, coverageCountries: event.target.value })} placeholder="US, CA" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+            </label>
+          </div>
+        </fieldset>
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Customer terms</span>
+          <textarea value={agreementForm.customerTerms} onChange={(event) => setAgreementForm({ ...agreementForm, customerTerms: event.target.value })} rows={2} placeholder="Plain-language rules the customer will see" className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-3">
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">Max / transaction ($)</span>
+            <input inputMode="decimal" value={agreementForm.maxTransaction} onChange={(event) => setAgreementForm({ ...agreementForm, maxTransaction: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">Daily / customer ($)</span>
+            <input inputMode="decimal" value={agreementForm.dailyLimit} onChange={(event) => setAgreementForm({ ...agreementForm, dailyLimit: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs font-semibold text-gray-500">Lifetime / customer ($)</span>
+            <input inputMode="decimal" value={agreementForm.lifetimeLimit} onChange={(event) => setAgreementForm({ ...agreementForm, lifetimeLimit: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          </label>
+        </div>
+        <label className="sm:col-span-2 flex items-start gap-3 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3">
+          <input type="checkbox" checked={agreementForm.requiresCustomerEntitlement} onChange={(event) => setAgreementForm({ ...agreementForm, requiresCustomerEntitlement: event.target.checked })} className="mt-1 h-4 w-4 accent-sky-500" />
+          <span><strong className="block text-sm text-white">Restrict to assigned customers</strong><span className="mt-1 block text-xs leading-5 text-gray-500">When enabled, only customers with an active entitlement for this agreement can spend here. Leave off for a partner-wide agreement.</span></span>
+        </label>
+        <button disabled={busy || !partners.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> Create draft agreement</button>
+      </form>
+    </Section>
     </div>
 
     <Section eyebrow="Partner network" title="Restaurants and agreements" detail="A partner must be Active and have an Active agreement before it appears in customer eligibility results."><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{loading && !overview ? <div className="flex items-center justify-center py-14 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : <table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Currency</th><th className="px-3 py-3 font-medium">Partner</th><th className="px-3 py-3 font-medium">Agreements</th><th className="px-3 py-3 font-medium">Updated</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{partners.map((partner) => <tr key={partner.partnerId}><td className="px-3 py-3"><strong className="text-white">{partner.restaurantName || `Restaurant ${partner.restaurantId}`}</strong><p className="mt-1 text-gray-600">Restaurant ID {partner.restaurantId}</p></td><td className="px-3 py-3 font-semibold text-sky-300">{partner.settlementCurrencyCode || 'USD'}</td><td className="px-3 py-3"><Badge status={partner.status} /></td><td className="px-3 py-3 text-gray-400">{partner.activeAgreementCount} active / {partner.agreementCount} total</td><td className="px-3 py-3 text-gray-500">{dateTime(partner.updatedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{partner.status === 'pending' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Activate</button>}{partner.status === 'active' && <button disabled={busy} onClick={() => transitionPartner(partner, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{partner.status === 'suspended' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 
-    <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact."><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
+    <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact."><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{agreement.allowedMenuItemIds.length} menu items restricted</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">All restaurant locations</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 
     <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} busy={busy} />
 
