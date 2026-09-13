@@ -36,6 +36,10 @@ const REQUIRED_COLUMNS = {
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
+const REQUIRED_INDEXES = [
+  'idx_oxsteed_credit_holds_idempotency',
+];
+
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
   const stateByAccount = new Map();
   let invalidEntryHashes = 0;
@@ -164,6 +168,11 @@ async function main() {
       ['434_oxsteed_credit_settlement_state.sql']
     );
     checks.settlementStateMigrationApplied = settlementStateMigrationRows.length === 1;
+    const { rows: holdIdempotencyMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['436_oxsteed_credit_hold_idempotency_index.sql']
+    );
+    checks.holdIdempotencyMigrationApplied = holdIdempotencyMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -193,6 +202,15 @@ async function main() {
         if (!presentColumns.has(column)) checks.missingColumns.push(`${table}.${column}`);
       }
     }
+
+    const { rows: indexRows } = await pool.query(
+      `SELECT indexname
+         FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = ANY($1::text[])`,
+      [REQUIRED_INDEXES]
+    );
+    const presentIndexes = new Set(indexRows.map((row) => row.indexname));
+    checks.missingIndexes = REQUIRED_INDEXES.filter((index) => !presentIndexes.has(index));
 
     const { rows: currencyRows } = await pool.query(
       `SELECT 'partner' AS resource_type, settlement_currency_code AS currency_code
@@ -378,9 +396,11 @@ async function main() {
       !checks.transactionTypeIntegrityMigrationApplied,
       !checks.identityStabilityMigrationApplied,
       !checks.settlementStateMigrationApplied,
+      !checks.holdIdempotencyMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
+      checks.missingIndexes.length > 0,
       checks.unsupportedCurrencyRecords.length > 0,
       checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
