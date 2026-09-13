@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
 const { withJobLock } = require('./jobLockingService');
+const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 
 const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-entitlement-expiry';
@@ -26,7 +27,11 @@ async function runOxsteedCreditEntitlementExpiry({ limit = 500, now } = {}) {
 function startOxsteedCreditEntitlementExpiryJob() {
   cron.schedule(CRON_EXPRESSION, () => {
     runOxsteedCreditEntitlementExpiry().catch((error) => {
-      logger.error('OxSteed Credit entitlement expiry failed', { error: error.message });
+      return recordOxsteedCreditJobFailure({
+        jobName: JOB_NAME,
+        error,
+        details: { limit: 500 },
+      });
     });
   });
   logger.info('OxSteed Credit entitlement expiry job scheduled', { cron: CRON_EXPRESSION });
