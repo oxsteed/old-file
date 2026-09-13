@@ -112,6 +112,10 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_restaurant_status_guard',
   'oxsteed_credit_settlement_approval_guard',
   'oxsteed_credit_issuance_actor_evidence_guard',
+  'oxsteed_credit_partner_creator_guard',
+  'oxsteed_credit_agreement_creator_guard',
+  'oxsteed_credit_entitlement_creator_guard',
+  'oxsteed_credit_settlement_creator_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -457,6 +461,11 @@ async function main() {
       ['487_oxsteed_credit_issuance_actor_evidence.sql']
     );
     checks.issuanceActorEvidenceMigrationApplied = issuanceActorEvidenceMigrationRows.rows.length === 1;
+    const adminProvenanceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['488_oxsteed_credit_admin_provenance.sql']
+    );
+    checks.adminProvenanceMigrationApplied = adminProvenanceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -746,6 +755,24 @@ async function main() {
             OR t.reason = 'Legacy transaction: reason unavailable')`,
     );
     checks.invalidCreditIssuanceActors = Number(issuanceActorEvidenceRows[0]?.invalid_count || 0);
+
+    const { rows: adminProvenanceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM (
+           SELECT created_by AS creator_id FROM oxsteed_credit_partners
+           UNION ALL
+           SELECT created_by AS creator_id FROM oxsteed_credit_partner_agreements
+           UNION ALL
+           SELECT created_by AS creator_id FROM oxsteed_credit_customer_entitlements
+           UNION ALL
+           SELECT created_by AS creator_id FROM oxsteed_credit_settlements
+         ) credit_creators
+         LEFT JOIN users u ON u.id = credit_creators.creator_id
+        WHERE credit_creators.creator_id IS NULL
+           OR u.id IS NULL
+           OR u.role NOT IN ('admin', 'super_admin')`,
+    );
+    checks.invalidCreditCreatorEvidence = Number(adminProvenanceRows[0]?.invalid_count || 0);
 
     const { rows: inactiveHoldInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1047,6 +1074,7 @@ async function main() {
       !checks.restaurantStatusMigrationApplied,
       !checks.settlementApprovalMigrationApplied,
       !checks.issuanceActorEvidenceMigrationApplied,
+      !checks.adminProvenanceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1069,6 +1097,7 @@ async function main() {
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
       checks.invalidCreditIssuanceActors > 0,
+      checks.invalidCreditCreatorEvidence > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,
