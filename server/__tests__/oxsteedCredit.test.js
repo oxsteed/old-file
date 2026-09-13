@@ -608,6 +608,7 @@ test('opens disputes only for posted transactions with an atomic duplicate guard
   expect(response.status).toBe(201);
   expect(response.body.dispute).toMatchObject({ id: 'dispute-1', status: 'open' });
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
+  expect(mockQuery.mock.calls[0][0]).toContain('a.id = t.credit_account_id');
   expect(mockQuery.mock.calls[2][0]).toContain("ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING");
 });
 

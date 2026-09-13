@@ -1698,9 +1698,10 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     const { rows: transactionRows } = await client.query(
       `SELECT t.id, t.partner_id
          FROM oxsteed_credit_transactions t
-         JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
+         JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id OR a.id = t.credit_account_id
         WHERE t.id = $1 AND t.status = 'posted'
           AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+          AND a.currency_code = t.currency_code
         FOR SHARE`,
       [transactionId, customerId]
     );
