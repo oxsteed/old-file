@@ -64,7 +64,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
-  oxsteed_credit_notification_outbox: ['transaction_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
+  oxsteed_credit_notification_outbox: ['transaction_id', 'hold_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -85,6 +85,7 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_entitlement_requests_agreement',
   'idx_oxsteed_credit_notification_outbox_due',
   'idx_oxsteed_credit_notification_outbox_user',
+  'uq_oxsteed_credit_hold_notification',
   'uq_oxsteed_credit_audit_event_hash',
 ];
 
@@ -158,6 +159,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_purchase_actor_evidence_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
+  'oxsteed_credit_notification_outbox_source_guard',
+  'oxsteed_credit_hold_notification_outbox_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -593,6 +596,11 @@ async function main() {
       ['505_oxsteed_credit_notification_outbox.sql']
     );
     checks.notificationOutboxMigrationApplied = notificationOutboxMigrationRows.rows.length === 1;
+    const holdNotificationOutboxMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['506_oxsteed_credit_hold_notification_outbox.sql']
+    );
+    checks.holdNotificationOutboxMigrationApplied = holdNotificationOutboxMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1140,6 +1148,26 @@ async function main() {
     );
     checks.invalidCreditSpendAccountStates = Number(spendAccountStateInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: notificationRecipientRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_notification_outbox o
+         LEFT JOIN oxsteed_credit_holds h ON h.id = o.hold_id
+        WHERE (o.hold_id IS NULL) = (o.transaction_id IS NULL)
+           OR (o.hold_id IS NOT NULL AND (h.id IS NULL OR h.customer_id IS DISTINCT FROM o.user_id))
+           OR (o.transaction_id IS NOT NULL AND NOT EXISTS (
+             SELECT 1
+               FROM oxsteed_credit_transactions t
+               JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+               JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+              WHERE t.id = o.transaction_id
+                AND (
+                  (debit_account.account_type = 'customer_wallet' AND debit_account.customer_id = o.user_id)
+                  OR (credit_account.account_type = 'customer_wallet' AND credit_account.customer_id = o.user_id)
+                )
+           ))`,
+    );
+    checks.invalidCreditNotificationRecipients = Number(notificationRecipientRows[0]?.invalid_count || 0);
+
     const { rows: activeAgreementInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_partner_agreements a
@@ -1530,6 +1558,7 @@ async function main() {
       !checks.systemHoldReleaseEvidenceMigrationApplied,
       !checks.spendAccountStateMigrationApplied,
       !checks.notificationOutboxMigrationApplied,
+      !checks.holdNotificationOutboxMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1565,6 +1594,7 @@ async function main() {
       checks.invalidSettlementReferences > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidCreditSpendAccountStates > 0,
+      checks.invalidCreditNotificationRecipients > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,
       checks.invalidActiveAgreementApprovals > 0,

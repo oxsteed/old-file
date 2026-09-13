@@ -43,6 +43,20 @@ test('builds a safe customer-facing notification from an outbox payload', () => 
   });
 });
 
+test('builds a customer-facing notification for a hold lifecycle event', () => {
+  expect(buildNotification({
+    eventType: 'hold_released',
+    holdId: 'hold-1',
+    amountCents: 1250,
+    currencyCode: 'USD',
+    status: 'released',
+  })).toEqual(expect.objectContaining({
+    title: 'OxSteed Credit reservation released',
+    body: expect.stringContaining('USD 12.50'),
+    data: expect.objectContaining({ creditHoldId: 'hold-1', eventType: 'hold_released' }),
+  }));
+});
+
 test('delivers claimed Credit events and marks them sent', async () => {
   db.query
     .mockResolvedValueOnce({ rows: [{ id: 'event-1', user_id: 'user-1', attempts: 1, payload: {

@@ -119,6 +119,8 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_transaction_actor_owner_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_notification_outbox_source_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_notification_outbox_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_purchase_reference_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_restaurant_staff_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_purchase_reference_uniqueness_guard');
@@ -230,6 +232,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.spendAccountStateMigrationApplied');
   expect(verifierSource).toContain("['505_oxsteed_credit_notification_outbox.sql']");
   expect(verifierSource).toContain('!checks.notificationOutboxMigrationApplied');
+  expect(verifierSource).toContain("['506_oxsteed_credit_hold_notification_outbox.sql']");
+  expect(verifierSource).toContain('!checks.holdNotificationOutboxMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidCreditNotificationRecipients > 0');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
 });
 

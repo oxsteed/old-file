@@ -19,6 +19,41 @@ function formatAmount(amountCents, currencyCode) {
 
 function buildNotification(payload) {
   const amount = formatAmount(payload.amountCents, payload.currencyCode);
+  const eventType = String(payload.eventType || 'transaction_posted');
+  const holdMessages = {
+    hold_created: {
+      title: 'OxSteed Credit reserved',
+      body: `A ${amount} OxSteed Credit authorization is active and reserved for a purchase.`,
+    },
+    hold_captured: {
+      title: 'OxSteed Credit payment completed',
+      body: `Your ${amount} OxSteed Credit authorization was completed.`,
+    },
+    hold_released: {
+      title: 'OxSteed Credit reservation released',
+      body: `Your ${amount} OxSteed Credit authorization was released back to your available balance.`,
+    },
+    hold_expired: {
+      title: 'OxSteed Credit reservation expired',
+      body: `Your ${amount} OxSteed Credit authorization expired and was released back to your available balance.`,
+    },
+  };
+  if (holdMessages[eventType]) {
+    return {
+      ...holdMessages[eventType],
+      data: {
+        creditHoldId: String(payload.holdId),
+        eventType,
+        status: payload.status || null,
+        amountCents: Number(payload.amountCents || 0),
+        currencyCode: String(payload.currencyCode || 'USD').toUpperCase(),
+        partnerId: payload.partnerId || null,
+        referenceType: payload.referenceType || null,
+        referenceId: payload.referenceId || null,
+      },
+      action_url: '/oxsteed-credit',
+    };
+  }
   const transactionType = String(payload.transactionType || 'transaction').replace(/_/g, ' ');
   const direction = payload.direction === 'debit' ? 'spent' : 'received';
   const title = 'OxSteed Credit activity';
@@ -59,7 +94,8 @@ async function claimCreditNotifications(limit = 50) {
          locked_at = NOW(), updated_at = NOW()
      FROM candidates
      WHERE outbox.id = candidates.id
-     RETURNING outbox.id, outbox.user_id, outbox.payload, outbox.attempts`,
+      RETURNING outbox.id, outbox.user_id, outbox.transaction_id, outbox.hold_id,
+                outbox.event_type, outbox.payload, outbox.attempts`,
     [boundedLimit, STALE_LOCK_MINUTES]
   );
   return result.rows || [];
