@@ -43,6 +43,7 @@ function createAdminApp() {
   app.post('/adjust/:customerId', controller.adminAdjustCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
+  app.get('/settlements', controller.listAdminSettlements);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
@@ -182,6 +183,36 @@ test('keeps admin credit overview balances separated by currency', async () => {
   ]));
   expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
+});
+
+test('returns paginated admin Credit settlements with status filters', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-1',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    restaurant_id: 7,
+    restaurant_name: 'Ox Burger Lab',
+    currency_code: 'USD',
+    period_start: '2026-09-01T00:00:00.000Z',
+    period_end: '2026-09-02T00:00:00.000Z',
+    gross_cents: '2500',
+    refund_cents: '0',
+    fee_cents: '250',
+    net_cents: '2250',
+    status: 'pending',
+    payment_reference: null,
+    paid_at: null,
+    created_at: '2026-09-02T00:00:00.000Z',
+    updated_at: '2026-09-02T00:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/settlements?status=pending&limit=1&offset=2');
+
+  expect(response.status).toBe(200);
+  expect(response.body.settlements).toEqual([expect.objectContaining({ id: 'settlement-1', netCents: 2250, status: 'pending' })]);
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][0]).toContain('s.status = $1');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['pending', 2, 2]);
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {

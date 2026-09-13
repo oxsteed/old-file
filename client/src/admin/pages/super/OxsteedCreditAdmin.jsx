@@ -110,6 +110,9 @@ export default function OxsteedCreditAdmin() {
   const [partners, setPartners] = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [settlementStatus, setSettlementStatus] = useState('');
+  const [settlementPagination, setSettlementPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
+  const [loadingMoreSettlements, setLoadingMoreSettlements] = useState(false);
   const [disputes, setDisputes] = useState([]);
   const [disputeStatus, setDisputeStatus] = useState('');
   const [disputePagination, setDisputePagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
@@ -138,9 +141,10 @@ export default function OxsteedCreditAdmin() {
   const [disputeResolutionDrafts, setDisputeResolutionDrafts] = useState({});
   const loadRequestRef = useRef(0);
 
-  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendDisputes = false, disputeOffset = 0 } = {}) => {
+  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendSettlements = false, settlementOffset = 0, appendDisputes = false, disputeOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
+    if (appendSettlements) setLoadingMoreSettlements(true);
     if (appendDisputes) setLoadingMoreDisputes(true);
     setError('');
     try {
@@ -152,6 +156,8 @@ export default function OxsteedCreditAdmin() {
       if (walletQuery.search) walletParams.search = walletQuery.search;
       if (walletQuery.status) walletParams.status = walletQuery.status;
       if (walletQuery.currencyCode) walletParams.currencyCode = walletQuery.currencyCode;
+      const settlementParams = { limit: 50, offset: appendSettlements ? settlementOffset : 0 };
+      if (settlementStatus) settlementParams.status = settlementStatus;
       const disputeParams = { limit: 50, offset: appendDisputes ? disputeOffset : 0 };
       if (disputeStatus) disputeParams.status = disputeStatus;
       const [overviewResponse, customerAccountsResponse, partnersResponse, agreementsResponse, settlementsResponse, disputesResponse, auditEventsResponse, railResponse] = await Promise.all([
@@ -159,7 +165,7 @@ export default function OxsteedCreditAdmin() {
         adminApi.get('/admin/super/oxsteed-credit/accounts', { params: walletParams }).catch(() => ({ data: { accounts: [], total: 0, limit: CUSTOMER_ACCOUNT_PAGE_SIZE, offset: walletParams.offset, hasMore: false } })),
         adminApi.get('/admin/super/oxsteed-credit/partners'),
         adminApi.get('/admin/super/oxsteed-credit/agreements'),
-        adminApi.get('/admin/super/oxsteed-credit/settlements'),
+        adminApi.get('/admin/super/oxsteed-credit/settlements', { params: settlementParams }),
         adminApi.get('/admin/super/oxsteed-credit/disputes', { params: disputeParams }),
         adminApi.get('/admin/super/oxsteed-credit/audit-events').catch(() => ({ data: { auditEvents: [] } })),
         adminApi.get('/admin/super/oxsteed-credit/rail').catch(() => ({ data: { rail: null } })),
@@ -173,7 +179,10 @@ export default function OxsteedCreditAdmin() {
       setCustomerAccountHasMore(Boolean(customerAccountsResponse.data?.hasMore));
       setPartners(partnersResponse.data?.partners || []);
       setAgreements(agreementsResponse.data?.agreements || []);
-      setSettlements(settlementsResponse.data?.settlements || []);
+      const loadedSettlements = settlementsResponse.data?.settlements || [];
+      if (appendSettlements) setSettlements((current) => [...current, ...loadedSettlements]);
+      else setSettlements(loadedSettlements);
+      setSettlementPagination(settlementsResponse.data?.pagination || { limit: settlementParams.limit, offset: settlementParams.offset, hasMore: false, nextOffset: null });
       const loadedDisputes = disputesResponse.data?.disputes || [];
       if (appendDisputes) setDisputes((current) => [...current, ...loadedDisputes]);
       else setDisputes(loadedDisputes);
@@ -187,10 +196,11 @@ export default function OxsteedCreditAdmin() {
     } finally {
       if (requestId === loadRequestRef.current) {
         setLoading(false);
+        if (appendSettlements) setLoadingMoreSettlements(false);
         if (appendDisputes) setLoadingMoreDisputes(false);
       }
     }
-  }, [customerAccountQuery, disputeStatus]);
+  }, [customerAccountQuery, disputeStatus, settlementStatus]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -530,6 +540,27 @@ export default function OxsteedCreditAdmin() {
     <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact."><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{agreement.allowedMenuItemIds.length} menu items restricted</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">All restaurant locations</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 
     <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} busy={busy} />
+
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Settlement queue</p>
+        <p className="mt-1 text-xs text-gray-500">Filter settlement history without loading every record at once.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <span>Status</span>
+          <select aria-label="Settlement status filter" value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
+            <option value="disputed">Disputed</option>
+            <option value="voided">Voided</option>
+          </select>
+        </label>
+        {settlementPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMoreSettlements || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreSettlements ? 'Loading...' : 'Load older'}</button>}
+      </div>
+    </div>
 
     <Section eyebrow="Settlement & controls" title="Partner payables and reconciliation" detail="Create a period snapshot, approve it only after review, and mark it paid only with a traceable external payment reference. The reconciliation compares every account balance to its immutable journal entries; its integrity scope is always the all-time ledger for the selected currency."><div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"><form onSubmit={createSettlement} className="grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2"><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select required value={settlementForm.partnerId} onChange={(event) => { const nextPartner = partners.find((partner) => String(partner.partnerId) === event.target.value); setSettlementForm({ ...settlementForm, partnerId: event.target.value, agreementId: '', currencyCode: nextPartner?.settlementCurrencyCode || 'USD' }); }} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select partner</option>{partners.filter((partner) => partner.status === 'active').map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.settlementCurrencyCode || 'USD'}</option>)}</select></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Agreement</span><select required value={settlementForm.agreementId} onChange={(event) => setSettlementForm({ ...settlementForm, agreementId: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select agreement</option>{settlementAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>v{agreement.version} · {agreement.status}</option>)}</select></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Currency</span><input value={settlementForm.currencyCode} readOnly className="w-full rounded-xl border border-gray-700 bg-gray-950/70 px-3 py-3 text-sm font-semibold text-sky-300 outline-none" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Period starts</span><input required type="datetime-local" value={settlementForm.periodStart} onChange={(event) => setSettlementForm({ ...settlementForm, periodStart: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Period ends</span><input required type="datetime-local" value={settlementForm.periodEnd} onChange={(event) => setSettlementForm({ ...settlementForm, periodEnd: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Payment reference (optional until paid)</span><input value={settlementForm.paymentReference} onChange={(event) => setSettlementForm({ ...settlementForm, paymentReference: event.target.value })} placeholder="Bank transfer, payout, or processor reference" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> Create snapshot</button><button type="button" disabled={busy} onClick={runReconciliation} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 px-4 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><ShieldCheck className="h-4 w-4" /> Reconcile ledger</button></div>{reconciliation && <div className={`rounded-xl border px-3 py-3 text-xs sm:col-span-2 ${reconciliation.status === 'balanced' ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300' : 'border-red-500/30 bg-red-950/20 text-red-300'}`}>Last run: <strong>{reconciliation.status}</strong> · Difference {money(reconciliation.differenceCents, reconciliation.currencyCode || settlementForm.currencyCode)} · {reconciliation.entryCount} journal entries · Integrity scope: {reconciliation.scope === 'all_time_ledger' ? 'all-time ledger' : 'unknown'}</div>}</form><div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[820px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Period</th><th className="px-3 py-3 font-medium">Net payable</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{!settlements.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">No settlement snapshots yet.</td></tr> : settlements.map((settlement) => <tr key={settlement.id}><td className="px-3 py-3 text-white">{settlement.restaurantName || `Partner ${settlement.partnerId}`}<p className="mt-1 text-gray-600">Gross {money(settlement.grossCents, settlement.currencyCode)} · refunds {money(settlement.refundCents, settlement.currencyCode)}</p></td><td className="px-3 py-3 text-gray-400">{dateTime(settlement.periodStart)}<br />to {dateTime(settlement.periodEnd)}</td><td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td><td className="px-3 py-3"><Badge status={settlement.status} /></td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Approve</button>}{settlement.status === 'approved' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Mark paid</button>}{['pending', 'approved'].includes(settlement.status) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">Void</button>}</div></td></tr>)}</tbody></table></div></div></Section>
 

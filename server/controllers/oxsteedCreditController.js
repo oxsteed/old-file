@@ -671,10 +671,14 @@ async function listAdminEntitlements(req, res, next) {
 
 async function listAdminSettlements(req, res, next) {
   try {
-    const options = { partnerId: req.query.partnerId || req.query.partner_id, status: req.query.status, limit: req.query.limit };
+    const options = {
+      partnerId: req.query.partnerId || req.query.partner_id,
+      status: req.query.status,
+      limit: req.query.limit,
+      includePagination: true,
+    };
     if (req.query.offset !== undefined) options.offset = req.query.offset;
-    const settlements = await listSettlements(options);
-    res.json({ settlements });
+    res.json(await listSettlements(options));
   } catch (error) {
     next(error);
   }
