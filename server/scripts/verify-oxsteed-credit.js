@@ -286,6 +286,20 @@ async function main() {
     );
     checks.invalidAccountBalances = Number(balanceInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: reservationInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_accounts a
+         LEFT JOIN (
+           SELECT account_id, SUM(amount_cents)::bigint AS active_hold_cents
+             FROM oxsteed_credit_holds
+            WHERE status = 'active'
+            GROUP BY account_id
+         ) h ON h.account_id = a.id
+        WHERE a.account_type = 'customer_wallet'
+          AND a.reserved_cents <> COALESCE(h.active_hold_cents, 0)`,
+    );
+    checks.invalidReservedBalances = Number(reservationInvariantRows[0]?.invalid_count || 0);
+
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions
@@ -405,6 +419,7 @@ async function main() {
       checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
       checks.invalidAccountBalances > 0,
+      checks.invalidReservedBalances > 0,
       checks.invalidPurchases > 0,
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
