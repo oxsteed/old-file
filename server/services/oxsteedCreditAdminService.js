@@ -131,7 +131,15 @@ function formatEntitlement(row) {
   return {
     id: row.id,
     customerId: row.customer_id,
+    customerName: [row.first_name, row.last_name].filter(Boolean).join(' ') || null,
+    customerEmail: row.email || null,
     agreementId: row.agreement_id,
+    partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+    restaurantId: row.restaurant_id === null || row.restaurant_id === undefined ? null : String(row.restaurant_id),
+    restaurantName: row.restaurant_name || null,
+    agreementVersion: row.agreement_version === null || row.agreement_version === undefined ? null : Number(row.agreement_version),
+    agreementStatus: row.agreement_status || null,
+    currencyCode: row.settlement_currency_code || null,
     status: row.status,
     startsAt: row.starts_at || null,
     endsAt: row.ends_at || null,
@@ -455,6 +463,49 @@ async function listAgreements({ partnerId, status } = {}) {
     params
   );
   return rows.map(formatAgreement);
+}
+
+async function listEntitlements({ customerId, agreementId, status, limit = 100, offset = 0 } = {}) {
+  const params = [];
+  const filters = [];
+  if (customerId) {
+    params.push(customerId);
+    filters.push(`e.customer_id = $${params.length}`);
+  }
+  if (agreementId) {
+    params.push(agreementId);
+    filters.push(`e.agreement_id = $${params.length}`);
+  }
+  if (status) {
+    const normalizedStatus = normalizeString(status, 20);
+    if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
+    params.push(normalizedStatus);
+    filters.push(`e.status = $${params.length}`);
+  }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Math.max(1, Math.min(Number.isSafeInteger(parsedLimit) ? parsedLimit : 100, 250));
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
+  const { rows } = await pool.query(
+    `SELECT e.*, u.email, u.first_name, u.last_name,
+            a.partner_id, a.version AS agreement_version, a.status AS agreement_status,
+            p.restaurant_id, p.settlement_currency_code,
+            fr.display_name AS restaurant_name
+       FROM oxsteed_credit_customer_entitlements e
+       JOIN users u ON u.id = e.customer_id
+       JOIN oxsteed_credit_partner_agreements a ON a.id = e.agreement_id
+       JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+       JOIN food_restaurants fr ON fr.id = p.restaurant_id
+      ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+      ORDER BY e.updated_at DESC, e.id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  return { entitlements: rows.map(formatEntitlement), limit: safeLimit, offset: safeOffset, hasMore: rows.length === safeLimit };
 }
 
 async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = {}) {
@@ -909,6 +960,7 @@ module.exports = {
   registerPartner,
   transitionPartner,
   listAgreements,
+  listEntitlements,
   listSettlements,
   createSettlement,
   transitionSettlement,

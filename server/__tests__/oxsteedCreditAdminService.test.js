@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, listEntitlements, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -58,6 +58,49 @@ test('does not grant a Credit entitlement to a non-customer identity', async () 
   })).rejects.toMatchObject({ code: 'customer_not_found', status: 404 });
 
   expect(mockQuery.mock.calls[1][0]).toContain("role = 'customer'");
+});
+
+test('lists customer entitlements with restaurant context and bounded paging', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'entitlement-1',
+    customer_id: '11111111-1111-4111-8111-111111111111',
+    first_name: 'Alice',
+    last_name: 'Customer',
+    email: 'alice@example.com',
+    agreement_id: 'agreement-1',
+    partner_id: 41,
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    agreement_version: 2,
+    agreement_status: 'active',
+    settlement_currency_code: 'USD',
+    status: 'active',
+    starts_at: null,
+    ends_at: null,
+    max_transaction_cents: '2500',
+    daily_limit_cents: '10000',
+    reason: 'Partner-specific access',
+    metadata: {},
+    created_by: null,
+    created_at: '2026-09-12T12:00:00.000Z',
+    updated_at: '2026-09-12T12:00:00.000Z',
+  }] });
+
+  const result = await listEntitlements({ customerId: '11111111-1111-4111-8111-111111111111', status: 'active', limit: 10, offset: 20 });
+
+  expect(result).toMatchObject({ limit: 10, offset: 20, hasMore: false });
+  expect(result.entitlements[0]).toMatchObject({
+    customerName: 'Alice Customer',
+    customerEmail: 'alice@example.com',
+    restaurantName: 'OxSteed Cafe',
+    agreementVersion: 2,
+    currencyCode: 'USD',
+    maxTransactionCents: 2500,
+  });
+  expect(mockQuery.mock.calls[0][0]).toContain('JOIN food_restaurants fr');
+  expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('e.status = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
 });
 
 test('requires idempotency for agreement creation', async () => {

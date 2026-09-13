@@ -31,6 +31,7 @@ const {
   registerPartner,
   transitionPartner,
   listAgreements,
+  listEntitlements,
   listSettlements,
   createSettlement,
   transitionSettlement,
@@ -605,6 +606,27 @@ async function upsertAdminEntitlement(req, res, next) {
   }
 }
 
+async function listAdminEntitlements(req, res, next) {
+  try {
+    const customerId = req.query.customerId || req.query.customer_id
+      ? parseUuid(req.query.customerId || req.query.customer_id, 'customerId')
+      : undefined;
+    const agreementId = req.query.agreementId || req.query.agreement_id
+      ? parseUuid(req.query.agreementId || req.query.agreement_id, 'agreementId')
+      : undefined;
+    const result = await listEntitlements({
+      customerId,
+      agreementId,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminSettlements(req, res, next) {
   try {
     const options = { partnerId: req.query.partnerId || req.query.partner_id, status: req.query.status, limit: req.query.limit };
@@ -717,6 +739,7 @@ module.exports = {
   createAdminAgreement,
   transitionAdminAgreement,
   upsertAdminEntitlement,
+  listAdminEntitlements,
   listAdminSettlements,
   listAdminCreditAuditEvents,
   createAdminSettlement,
