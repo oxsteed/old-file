@@ -1013,6 +1013,7 @@ async function registerAdminPartner(req, res, next) {
       notes: req.body?.notes,
       reason: req.body?.reason,
       actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1027,6 +1028,7 @@ async function transitionAdminPartner(req, res, next) {
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
       reason: req.body?.reason,
       actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.json(result);
   } catch (error) {
@@ -1055,6 +1057,7 @@ async function createAdminAgreement(req, res, next) {
       reason: req.body?.reason,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1070,6 +1073,7 @@ async function transitionAdminAgreement(req, res, next) {
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
       reason: req.body?.reason,
       actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.json(result);
   } catch (error) {
@@ -1092,6 +1096,7 @@ async function upsertAdminEntitlement(req, res, next) {
       reason: req.body?.reason,
       metadata: req.body?.metadata,
       actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1122,6 +1127,7 @@ async function bulkUpsertAdminEntitlements(req, res, next) {
       metadata: req.body?.metadata,
       actorUserId: req.user.id,
       idempotencyKey: getIdempotencyKey(req),
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1390,6 +1396,7 @@ async function createAdminSettlement(req, res, next) {
       paymentReference: req.body?.paymentReference || req.body?.payment_reference,
       reason: req.body?.reason,
       metadata: req.body?.metadata,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1406,6 +1413,7 @@ async function transitionAdminSettlement(req, res, next) {
       actorUserId: req.user.id,
       reason: req.body?.reason,
       paymentReference: req.body?.paymentReference || req.body?.payment_reference,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.json(result);
   } catch (error) {
@@ -1421,6 +1429,7 @@ async function reconcileAdminCredit(req, res, next) {
       periodEnd: req.body?.periodEnd || req.body?.period_end,
       actorUserId: req.user.id,
       reason: req.body?.reason,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
     res.json(result);
   } catch (error) {

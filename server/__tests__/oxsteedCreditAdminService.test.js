@@ -814,6 +814,7 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
     periodStart: '2026-09-11T00:00:00.000Z',
     periodEnd: '2026-09-12T00:00:00.000Z',
     actorUserId: null,
+    correlationId: 'reconciliation-request-1',
   });
 
   expect(result.run).toMatchObject({ status: 'balanced', scope: 'all_time_ledger' });
@@ -821,6 +822,8 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD']);
+  expect(mockQuery.mock.calls[4][0]).toContain('correlation_id');
+  expect(mockQuery.mock.calls[4][1][7]).toBe('reconciliation-request-1');
 });
 
 test('reconciliation hash verification detects a tampered entry', async () => {

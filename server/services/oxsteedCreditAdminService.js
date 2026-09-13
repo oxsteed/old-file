@@ -349,7 +349,18 @@ function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreeme
   }
 }
 
-async function insertAudit(client, { actionType, actorUserId, customerId = null, partnerId = null, resourceType, resourceId, reason, beforeState = null, afterState = null, metadata = {} }) {
+async function insertAudit(client, { actionType, actorUserId, customerId = null, partnerId = null, resourceType, resourceId, reason, correlationId = null, beforeState = null, afterState = null, metadata = {} }) {
+  const normalizedCorrelationId = normalizeString(correlationId, 160);
+  if (normalizedCorrelationId) {
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id,
+          reason, correlation_id, before_state, after_state, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb)`,
+      [actionType, actorUserId || null, customerId, partnerId, resourceType, String(resourceId), normalizeString(reason, 1000), normalizedCorrelationId, JSON.stringify(beforeState), JSON.stringify(afterState), JSON.stringify(metadata)]
+    );
+    return;
+  }
   await client.query(
     `INSERT INTO oxsteed_credit_audit_events
        (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id,
@@ -852,7 +863,7 @@ async function listPartners({ search, status, limit = 200, offset = 0, includePa
   };
 }
 
-async function registerPartner({ restaurantId, businessId = null, settlementCurrencyCode = 'USD', notes, reason, actorUserId }) {
+async function registerPartner({ restaurantId, businessId = null, settlementCurrencyCode = 'USD', notes, reason, actorUserId, correlationId }) {
   const normalizedRestaurantId = parsePositiveInt(restaurantId, 'restaurantId');
   return withTransaction(pool, async (client) => {
     const { rows: restaurantRows } = await client.query(`SELECT id, business_id, display_name FROM food_restaurants WHERE id = $1 FOR SHARE`, [normalizedRestaurantId]);
@@ -870,7 +881,7 @@ async function registerPartner({ restaurantId, businessId = null, settlementCurr
        RETURNING *, $6::text AS restaurant_name, 0::int AS agreement_count, 0::int AS active_agreement_count`,
       [normalizedRestaurantId, resolvedBusinessId, currency, normalizeString(notes, 2000), actorUserId || null, restaurantRows[0].display_name]
     );
-    await insertAudit(client, { actionType: 'credit.partner.created', actorUserId, partnerId: rows[0].id, resourceType: 'credit_partner', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.partner.created', actorUserId, partnerId: rows[0].id, resourceType: 'credit_partner', resourceId: rows[0].id, reason: normalizedReason, correlationId, afterState: rows[0] });
     return { partner: formatPartner(rows[0]), replayed: false };
   }, 'credit_admin_register_partner');
 }
@@ -882,7 +893,7 @@ const PARTNER_TRANSITIONS = {
   terminated: new Set(),
 };
 
-async function transitionPartner({ partnerId, targetStatus, reason, actorUserId }) {
+async function transitionPartner({ partnerId, targetStatus, reason, actorUserId, correlationId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const normalizedTarget = normalizeString(targetStatus, 24);
   if (!PARTNER_STATUSES.has(normalizedTarget)) throw new AppError('Invalid partner status', 400, 'invalid_partner_status');
@@ -919,6 +930,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId 
       resourceType: 'credit_partner',
       resourceId: normalizedPartnerId,
       reason: normalizedReason,
+      correlationId,
       beforeState: { status: partner.status },
       afterState: { status: normalizedTarget },
     });
@@ -1091,7 +1103,7 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   };
 }
 
-async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata = {} }) {
+async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata = {}, correlationId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1194,7 +1206,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       });
       return { settlement: formatSettlement(conflictRows[0]), replayed: true };
     }
-    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: normalizedReason, correlationId, afterState: rows[0] });
     return { settlement: formatSettlement({ ...rows[0], restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_create_settlement');
 }
@@ -1207,7 +1219,7 @@ const SETTLEMENT_TRANSITIONS = {
   voided: new Set(),
 };
 
-async function transitionSettlement({ settlementId, targetStatus, actorUserId, reason, paymentReference }) {
+async function transitionSettlement({ settlementId, targetStatus, actorUserId, reason, paymentReference, correlationId }) {
   const normalizedTarget = normalizeString(targetStatus, 20);
   if (!['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedTarget)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
   return withTransaction(pool, async (client) => {
@@ -1260,7 +1272,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
             RETURNING *`,
           [resolvedPaymentReference, settlement.id]
         );
-        await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: 'paid', amountCents: 0 } });
+        await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, correlationId, beforeState: { status: settlement.status }, afterState: { status: 'paid', amountCents: 0 } });
         return { settlement: formatSettlement({ ...zeroPaidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
       }
       const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId: settlement.partner_id, currencyCode: settlement.currency_code });
@@ -1302,7 +1314,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
           RETURNING *`,
         [resolvedPaymentReference, settlement.id]
       );
-      await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: 'paid', transactionId: payment.transaction.id } });
+      await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, correlationId, beforeState: { status: settlement.status }, afterState: { status: 'paid', transactionId: payment.transaction.id } });
       return { settlement: formatSettlement({ ...paidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), transaction: payment.transaction, replayed: false };
     }
     const normalizedReason = requireAuditReason(reason);
@@ -1315,12 +1327,12 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         RETURNING *`,
       [normalizedTarget, actorUserId || null, normalizeString(paymentReference, 160), settlement.id]
     );
-    await insertAudit(client, { actionType: 'credit.settlement.transitioned', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: normalizedTarget } });
+    await insertAudit(client, { actionType: 'credit.settlement.transitioned', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, correlationId, beforeState: { status: settlement.status }, afterState: { status: normalizedTarget } });
     return { settlement: formatSettlement({ ...updatedRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_settlement');
 }
 
-async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId, reason }) {
+async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId, reason, correlationId }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1370,7 +1382,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
        RETURNING *`,
       [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, hashesValid ? null : 'Credit ledger hash integrity check failed', JSON.stringify(integrityMetadata)]
     );
-    await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
+    await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, reason: normalizedReason, correlationId, afterState: rows[0] });
     return {
       run: {
         id: rows[0].id,
@@ -1391,7 +1403,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   }, 'credit_admin_reconcile');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, requiresCustomerEntitlement = false, metadata, reason, idempotencyKey, actorUserId, correlationId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
@@ -1454,7 +1466,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
        RETURNING *`,
       [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedRequiresCustomerEntitlement, normalizedIdempotencyKey, requestHash, actorUserId || null]
     );
-    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, reason: normalizedReason, correlationId, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };
   }, 'credit_admin_create_agreement');
 }
@@ -1468,7 +1480,7 @@ const ALLOWED_TRANSITIONS = {
   terminated: new Set(),
 };
 
-async function transitionAgreement({ agreementId, targetStatus, reason, actorUserId }) {
+async function transitionAgreement({ agreementId, targetStatus, reason, actorUserId, correlationId }) {
   const normalizedTarget = normalizeString(targetStatus, 24);
   if (!AGREEMENT_STATUSES.has(normalizedTarget)) throw new AppError('Invalid agreement status', 400, 'invalid_agreement_status');
   return withTransaction(pool, async (client) => {
@@ -1513,12 +1525,12 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
         RETURNING *`,
       [normalizedTarget, actorUserId || null, agreementId]
     );
-    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId, partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason: normalizedReason, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
+    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId, partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason: normalizedReason, correlationId, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
     return { agreement: formatAgreement({ ...updatedRows[0], partner_id: agreement.partner_id, restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_agreement');
 }
 
-async function upsertEntitlement({ agreementId, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId }) {
+async function upsertEntitlement({ agreementId, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, correlationId }) {
   const normalizedStatus = normalizeString(status, 20) || 'active';
   if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
   const normalizedReason = requireAuditReason(reason);
@@ -1585,7 +1597,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
         ));
       }
     }
-    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, beforeState, afterState: snapshotEntitlement(rows[0]) });
+    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, correlationId, beforeState, afterState: snapshotEntitlement(rows[0]) });
     return { entitlement: formatEntitlement(rows[0]), replayed: false };
   }, 'credit_admin_upsert_entitlement');
 }
@@ -1630,7 +1642,7 @@ function formatEntitlementWithAgreement(row, agreement) {
   });
 }
 
-async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, idempotencyKey }) {
+async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, idempotencyKey, correlationId }) {
   const normalizedAgreementIds = normalizeBulkAgreementIds(agreementIds);
   const normalizedStatus = normalizeString(status, 20) || 'active';
   if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
@@ -1742,6 +1754,7 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
         resourceType: 'credit_entitlement',
         resourceId: rows[0].id,
         reason: normalizedReason,
+        correlationId,
         beforeState: before ? snapshotEntitlement(before) : null,
         afterState: snapshotEntitlement(rows[0]),
         metadata: { bulk: true, agreementCount: normalizedAgreementIds.length },
