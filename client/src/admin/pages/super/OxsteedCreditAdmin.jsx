@@ -213,7 +213,7 @@ export default function OxsteedCreditAdmin() {
         periodStart: new Date(settlementForm.periodStart).toISOString(),
         periodEnd: new Date(settlementForm.periodEnd).toISOString(),
         paymentReference: settlementForm.paymentReference || undefined,
-      }, { headers: { 'Idempotency-Key': `credit-settlement-${Date.now()}` } });
+      }, { headers: { 'Idempotency-Key': requestKey('credit-settlement') } });
       setNotice('Settlement snapshot created in Pending status. Review the totals before approving payment.');
       setSettlementForm((current) => ({ ...current, paymentReference: '' }));
       await load({ quiet: true });
