@@ -616,7 +616,7 @@ async function main() {
            UNION ALL
            SELECT id::text FROM oxsteed_credit_settlements WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
            UNION ALL
-           SELECT idempotency_key FROM oxsteed_credit_partner_agreements
+           SELECT creation_idempotency_key FROM oxsteed_credit_partner_agreements
             WHERE creation_idempotency_key IS NOT NULL AND NULLIF(BTRIM(creation_idempotency_key), '') IS NULL
            UNION ALL
            SELECT id::text FROM oxsteed_credit_disputes
