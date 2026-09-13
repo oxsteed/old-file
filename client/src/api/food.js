@@ -109,7 +109,11 @@ export const listFoodRestaurantOxsteedCreditTransactions = (restaurantId, params
     partnerId: r.data?.partnerId || null,
     partnerStatus: r.data?.partnerStatus || null,
     transactions: r.data?.transactions || [],
+    pagination: r.data?.pagination || { limit: 100, offset: 0, hasMore: false, nextOffset: null },
   }));
+
+export const downloadFoodRestaurantOxsteedCreditReport = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/oxsteed-credit/report.csv`, { params, responseType: 'blob' });
 
 export const approveMerchantFoodWalletCreditRequest = (restaurantId, requestId, payload = {}) =>
   api.post(`/food/restaurants/${restaurantId}/customer-wallet-load-requests/${requestId}/approve`, payload).then((r) => r.data);

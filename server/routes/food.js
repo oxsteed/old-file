@@ -7,6 +7,7 @@ const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
+const { creditExportLimiter } = require('../middleware/rateLimiter');
 
 // Public customer discovery + the in-store "now serving" queue board.
 router.get('/markets', ctrl.listMarkets);
@@ -80,6 +81,7 @@ router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', authenti
 router.get('/restaurants/:restaurantId/customer-wallet-statement', authenticate, walletCtrl.getCustomerWalletStatement);
 router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, oxsteedCreditPartnerCtrl.listPartnerSettlements);
 router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, oxsteedCreditPartnerCtrl.listPartnerTransactions);
+router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
 router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', authenticate, walletCtrl.captureCustomerWalletHold);
 router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', authenticate, walletCtrl.releaseCustomerWalletHold);
 

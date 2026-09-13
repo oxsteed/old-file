@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ShieldCheck, Store, WalletCards } from 'lucide-react';
+import { Download, RefreshCw, ShieldCheck, Store, WalletCards } from 'lucide-react';
 import {
   formatFoodMoney,
+  downloadFoodRestaurantOxsteedCreditReport,
   listFoodRestaurantOxsteedCreditSettlements,
   listFoodRestaurantOxsteedCreditTransactions,
 } from '../../api/food';
@@ -33,6 +34,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   const load = useCallback(async ({ quiet = false, appendTransactions = false, appendSettlements = false, transactionOffset = 0, settlementOffset = 0 } = {}) => {
     if (quiet) setRefreshing(true);
@@ -74,6 +76,27 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
     .filter((settlement) => ['pending', 'approved', 'disputed'].includes(settlement.status))
     .reduce((total, settlement) => total + Number(settlement.netCents || 0), 0);
 
+  const downloadReport = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      const response = await downloadFoodRestaurantOxsteedCreditReport(restaurant.id);
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(apiErrorMessage(downloadError, 'OxSteed Credit report could not be downloaded.'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <section className="fd-section fd-ox-credit-partner">
       <div className="fd-ox-credit-partner-head">
@@ -84,6 +107,9 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
         </div>
         <div className="fd-ox-credit-partner-actions">
           {partnerStatus && <span className={statusClass(partnerStatus)}>{label(partnerStatus)}</span>}
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading}>
+            <Download size={14} /> {downloading ? 'Preparing…' : 'Download report'}
+          </button>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
             <RefreshCw size={14} className={refreshing ? 'fd-ox-credit-spin' : ''} /> Refresh
           </button>

@@ -5,6 +5,20 @@ const { AppError } = require('../middleware/errorHandler');
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
+const MAX_PARTNER_CREDIT_EXPORT_ROWS = 5000;
+
+function csvCell(value) {
+  const raw = value === null || value === undefined ? '' : String(value);
+  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+function parseReportDate(value, fieldName) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new AppError(`Invalid ${fieldName}`, 400, 'credit_partner_report_dates_invalid');
+  return date;
+}
 
 function formatPartnerSettlement(settlement) {
   return {
@@ -132,4 +146,77 @@ async function listPartnerTransactions(req, res, next) {
   }
 }
 
-module.exports = { listPartnerSettlements, listPartnerTransactions };
+async function downloadPartnerCreditReport(req, res, next) {
+  try {
+    const restaurantId = parseRestaurantId(req.params.restaurantId);
+    await requireRestaurantManager(req.user.id, restaurantId);
+    const partner = await getPartnerId(restaurantId);
+    const currency = partner.settlement_currency_code;
+    const from = parseReportDate(req.query.from || req.query.start, 'from');
+    const to = parseReportDate(req.query.to || req.query.end, 'to');
+    if (from && to && to <= from) throw new AppError('Report end must be after report start', 400, 'credit_partner_report_dates_invalid');
+    const transactionParams = [partner.id, currency];
+    const transactionFilters = ['t.partner_id = $1', 't.currency_code = $2', "t.status = 'posted'"];
+    if (from) {
+      transactionParams.push(from);
+      transactionFilters.push(`COALESCE(t.posted_at, t.created_at) >= $${transactionParams.length}`);
+    }
+    if (to) {
+      transactionParams.push(to);
+      transactionFilters.push(`COALESCE(t.posted_at, t.created_at) < $${transactionParams.length}`);
+    }
+    transactionParams.push(MAX_PARTNER_CREDIT_EXPORT_ROWS + 1);
+    const { rows: transactionRows } = await pool.query(
+      `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+              t.agreement_id, t.reference_type, t.reference_id, t.description,
+              t.posted_at, t.created_at
+         FROM oxsteed_credit_transactions t
+        WHERE ${transactionFilters.join(' AND ')}
+        ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
+        LIMIT $${transactionParams.length}`,
+      transactionParams
+    );
+    if (transactionRows.length > MAX_PARTNER_CREDIT_EXPORT_ROWS) {
+      throw new AppError('Credit report is too large; narrow the reporting period', 409, 'credit_partner_export_too_large');
+    }
+
+    const settlements = [];
+    let settlementOffset = 0;
+    while (settlementOffset <= MAX_PARTNER_CREDIT_EXPORT_ROWS) {
+      const result = await listSettlements({ partnerId: partner.id, limit: 250, offset: settlementOffset, includePagination: true });
+      const page = Array.isArray(result) ? result : result.settlements || [];
+      settlements.push(...page.filter((settlement) => {
+        const periodStart = new Date(settlement.periodStart).getTime();
+        const periodEnd = new Date(settlement.periodEnd).getTime();
+        return (!from || periodEnd > from.getTime()) && (!to || periodStart < to.getTime());
+      }).map(formatPartnerSettlement));
+      if (settlements.length > MAX_PARTNER_CREDIT_EXPORT_ROWS) {
+        throw new AppError('Credit report is too large; narrow the reporting period', 409, 'credit_partner_export_too_large');
+      }
+      if (!result?.pagination?.hasMore) break;
+      settlementOffset = result.pagination.nextOffset;
+    }
+
+    const lines = [
+      ['Record type', 'Record ID', 'Date', 'Period start', 'Period end', 'Amount cents', 'Refund cents', 'Fee cents', 'Net cents', 'Status', 'Currency', 'Agreement ID', 'Reference type', 'Reference ID', 'Description'],
+      ...transactionRows.map((row) => [
+        'transaction', row.id, row.posted_at || row.created_at, '', '', row.amount_cents, '', '', '', row.status, row.currency_code,
+        row.agreement_id, row.reference_type, row.reference_id, row.description,
+      ]),
+      ...settlements.map((settlement) => [
+        'settlement', settlement.id, settlement.createdAt, settlement.periodStart, settlement.periodEnd, '', settlement.refundCents, settlement.feeCents,
+        settlement.netCents, settlement.status, settlement.currencyCode, settlement.agreementId, 'credit_settlement', settlement.paymentReference, '',
+      ]),
+    ];
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-report-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(lines.map((line) => line.map(csvCell).join(',')).join('\n'));
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { listPartnerSettlements, listPartnerTransactions, downloadPartnerCreditReport };

@@ -21,6 +21,7 @@ function buildApp(role = 'owner') {
   });
   app.get('/restaurants/:restaurantId/settlements', controller.listPartnerSettlements);
   app.get('/restaurants/:restaurantId/transactions', controller.listPartnerTransactions);
+  app.get('/restaurants/:restaurantId/report.csv', controller.downloadPartnerCreditReport);
   app.use(errorHandler);
   return app;
 }
@@ -111,6 +112,39 @@ test('removes internal settlement fields from the partner response', async () =>
   expect(response.body.settlements[0]).not.toHaveProperty('approvedBy');
   expect(response.body.settlements[0]).not.toHaveProperty('metadata');
   expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: false, nextOffset: null });
+});
+
+test('exports a bounded partner Credit report without customer identity fields', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 9, effective_role: 'owner' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 55, status: 'active', settlement_currency_code: 'USD' }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'transaction-1',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '1800',
+      currency_code: 'USD',
+      agreement_id: 'agreement-1',
+      reference_type: 'food_order',
+      reference_id: 'order-1',
+      description: '=2+2',
+      customer_id: 'private-customer-id',
+      customer_email: 'private@example.com',
+      posted_at: '2026-09-12T12:00:00.000Z',
+    }] });
+  listSettlements.mockResolvedValueOnce([{ id: 'settlement-1', createdAt: '2026-09-13T12:00:00.000Z', currencyCode: 'USD', periodStart: '2026-09-01T00:00:00.000Z', periodEnd: '2026-09-02T00:00:00.000Z', refundCents: 0, feeCents: 100, netCents: 1700, status: 'approved', agreementId: 'agreement-1', paymentReference: null }]);
+
+  const response = await request(buildApp()).get('/restaurants/9/report.csv');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-report-/);
+  expect(response.text).toContain('Record type');
+  expect(response.text).toContain('"\'=2+2"');
+  expect(response.text).not.toContain('private@example.com');
+  expect(response.text).not.toContain('private-customer-id');
+  expect(mockQuery.mock.calls[2][1]).toEqual([55, 'USD', 5001]);
+  expect(listSettlements).toHaveBeenCalledWith({ partnerId: 55, limit: 250, offset: 0, includePagination: true });
 });
 
 test('rejects non-manager restaurant staff before reading partner data', async () => {
