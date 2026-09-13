@@ -33,17 +33,9 @@ import {
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
+import { formatCreditMinorUnits } from '../../lib/creditCurrency';
 
-function money(cents, currency = 'USD') {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format((Number(cents) || 0) / 100);
-  } catch {
-    return `${((Number(cents) || 0) / 100).toFixed(2)} ${currency || 'USD'}`;
-  }
-}
+const money = formatCreditMinorUnits;
 
 function dateTime(value) {
   if (!value) return 'No date recorded';

@@ -232,21 +232,26 @@ matches its agreement rules.
 ## Currency Isolation
 
 OxSteed Credit supports a configured set of ISO 4217 currencies with verified
-two-decimal minor-unit handling. Set
+minor-unit handling. The server keeps an explicit precision map, including
+zero-, two-, and three-decimal currencies, so precision is never inferred
+from an arbitrary currency code. Set
 `OXSTEED_CREDIT_SUPPORTED_CURRENCIES` to the same comma-separated allowlist on
 every application replica; when it is unset, the built-in allowlist is used.
-Configured currencies outside the verified allowlist are omitted and a
-startup warning is emitted, so they cannot silently enter the ledger.
+Configured currencies outside the verified precision map are omitted and a
+startup warning is emitted, so they cannot silently enter the ledger. The
+built-in allowlist remains intentionally conservative; add a mapped currency
+to the environment only after its funding and settlement path is tested.
 Customer wallets, partner agreements, restaurant settlement currency, holds,
 transactions, refunds, and reconciliation runs remain currency-isolated. The
 application does not perform foreign-exchange conversion, combine balances from
 different currencies, or let an agreement settle against a different restaurant
 currency.
 
-Credit amounts are currently integer minor units for currencies with two
-decimal places. Do not add a zero-decimal or three-decimal currency until the
-amount parser, limits, exports, UI formatters, and reconciliation tests are
-updated together. Before enabling a new currency, confirm custody/funding,
+Credit amounts are integer minor units. For example, JPY `1000` represents
+1,000 yen, USD `1000` represents 10.00 dollars, and KWD `1000` represents
+1.000 dinar. The admin and customer UI format values using the same currency
+precision rather than assuming every value is cents. Before enabling a new
+currency, confirm custody/funding,
 settlement, tax, consumer-disclosure, support, and legal requirements for that
 market. Run `npm run migrate` and `npm run verify:credit` against the target
 database, then run a low-value load, purchase, refund, settlement, and

@@ -10,26 +10,30 @@ const DEFAULT_SUPPORTED_CREDIT_CURRENCIES = [
   'USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP',
   'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL',
 ];
-// Credit amounts are stored as integer minor units. Keep the enabled set
-// explicit so a future zero- or three-decimal currency cannot be enabled by
-// configuration before the ledger and UI support it end to end.
-const CREDIT_CURRENCY_MINOR_UNITS = Object.freeze(Object.fromEntries(
-  DEFAULT_SUPPORTED_CREDIT_CURRENCIES.map((currency) => [currency, 2])
-));
+// Credit amounts are stored as integer minor units. Keep this map explicit:
+// currency precision must never be inferred from an admin-provided code.
+const CREDIT_CURRENCY_MINOR_UNITS = Object.freeze({
+  AED: 2, AUD: 2, BRL: 2, CAD: 2, CHF: 2, CNY: 2, CZK: 2, DOP: 2,
+  EGP: 2, EUR: 2, GBP: 2, HKD: 2, HTG: 2, HUF: 2, ILS: 2, INR: 2,
+  MAD: 2, MXN: 2, NGN: 2, NOK: 2, NZD: 2, PHP: 2, PLN: 2, RON: 2,
+  SAR: 2, SEK: 2, SGD: 2, THB: 2, TRY: 2, USD: 2, ZAR: 2,
+  BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
+  CLP: 0, ISK: 0, JPY: 0, KRW: 0, PYG: 0, UGX: 0, VND: 0, VUV: 0, XAF: 0, XOF: 0, XPF: 0,
+});
 const configuredCreditCurrencies = String(process.env.OXSTEED_CREDIT_SUPPORTED_CURRENCIES || '')
   .split(',')
   .map((value) => value.trim().toUpperCase())
   .filter((value) => /^[A-Z]{3}$/.test(value));
 const unsupportedConfiguredCreditCurrencies = configuredCreditCurrencies.filter((currency) => !Object.prototype.hasOwnProperty.call(CREDIT_CURRENCY_MINOR_UNITS, currency));
 if (unsupportedConfiguredCreditCurrencies.length) {
-  console.warn('OxSteed Credit omitted currencies without verified two-decimal minor-unit support', {
+  console.warn('OxSteed Credit omitted currencies without verified minor-unit support', {
     currencies: unsupportedConfiguredCreditCurrencies,
   });
 }
 const SUPPORTED_CREDIT_CURRENCIES = new Set([
   CREDIT_CURRENCY,
   ...(configuredCreditCurrencies.length
-    ? configuredCreditCurrencies.filter((currency) => CREDIT_CURRENCY_MINOR_UNITS[currency] === 2)
+    ? configuredCreditCurrencies.filter((currency) => Object.prototype.hasOwnProperty.call(CREDIT_CURRENCY_MINOR_UNITS, currency))
     : DEFAULT_SUPPORTED_CREDIT_CURRENCIES),
 ]);
 const SUPPORTED_CREDIT_CURRENCY_META = Object.freeze([...SUPPORTED_CREDIT_CURRENCIES].sort().reduce((metadata, currency) => {
@@ -93,7 +97,7 @@ function normalizeCurrency(value) {
 
 function assertSupportedCreditCurrency(value) {
   const currency = normalizeCurrency(value);
-  if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CREDIT_CURRENCIES.has(currency) || SUPPORTED_CREDIT_CURRENCY_META[currency]?.minorUnits !== 2) {
+  if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CREDIT_CURRENCIES.has(currency) || !Number.isInteger(SUPPORTED_CREDIT_CURRENCY_META[currency]?.minorUnits)) {
     throw new AppError('This OxSteed Credit currency is not enabled', 400, 'credit_currency_not_supported', {
       currencyCode: currency,
       supportedCurrencies: [...SUPPORTED_CREDIT_CURRENCIES].sort(),

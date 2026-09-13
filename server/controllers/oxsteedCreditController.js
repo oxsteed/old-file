@@ -175,7 +175,13 @@ async function getMyAccounts(req, res, next) {
 
 async function getMyCreditStatus(req, res, next) {
   try {
-    res.json({ credit: await getCustomerCreditRailStatus() });
+    res.json({
+      credit: {
+        ...(await getCustomerCreditRailStatus()),
+        supportedCurrencies: SUPPORTED_CREDIT_CURRENCIES,
+        currencyMetadata: SUPPORTED_CREDIT_CURRENCY_META,
+      },
+    });
   } catch (error) {
     next(error);
   }

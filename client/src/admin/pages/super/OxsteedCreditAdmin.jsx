@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
 import OxsteedCreditEntitlements from './OxsteedCreditEntitlements';
 import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 
@@ -31,18 +32,8 @@ const CREDIT_WORKER_NAMES = [
   'restaurant-credit-wallet-watchdog',
 ];
 
-function money(cents, currency = 'USD') {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format((Number(cents) || 0) / 100);
-  } catch {
-    return `${((Number(cents) || 0) / 100).toFixed(2)} ${currency || 'USD'}`;
-  }
-}
-
-function dollarsToCents(value) {
-  const amount = Number(String(value || '').replace(/[^0-9.-]/g, ''));
-  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : null;
-}
+const money = formatCreditMinorUnits;
+const dollarsToCents = parseCreditMajorAmount;
 
 function dateTime(value) {
   if (!value) return 'No activity';
@@ -473,9 +464,9 @@ export default function OxsteedCreditAdmin() {
         allowedCategories: splitList(agreementForm.allowedCategories),
         allowedMenuItemIds: splitList(agreementForm.allowedMenuItemIds),
         geography: buildGeography(agreementForm),
-        maxTransactionCents: dollarsToCents(agreementForm.maxTransaction),
-        dailyCustomerLimitCents: dollarsToCents(agreementForm.dailyLimit),
-        lifetimeCustomerLimitCents: dollarsToCents(agreementForm.lifetimeLimit),
+        maxTransactionCents: dollarsToCents(agreementForm.maxTransaction, selectedPartner?.settlementCurrencyCode),
+        dailyCustomerLimitCents: dollarsToCents(agreementForm.dailyLimit, selectedPartner?.settlementCurrencyCode),
+        lifetimeCustomerLimitCents: dollarsToCents(agreementForm.lifetimeLimit, selectedPartner?.settlementCurrencyCode),
         requiresCustomerEntitlement: agreementForm.requiresCustomerEntitlement,
         reason: agreementForm.reason,
       }, { headers: { 'Idempotency-Key': requestKey('credit-agreement') } });
@@ -595,7 +586,7 @@ export default function OxsteedCreditAdmin() {
     event.preventDefault();
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, { amountCents: dollarsToCents(customerForm.amount), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-load') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-load') } });
       setNotice('Customer credit grant posted to the immutable ledger.');
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });
@@ -609,7 +600,7 @@ export default function OxsteedCreditAdmin() {
     if (typeof window !== 'undefined' && !window.confirm(`Confirm clawback of ${customerForm.amount || 'this amount'} from customer ${customerForm.customerId || 'this wallet'}? This posts an immutable debit and cannot be edited.`)) return;
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, { amountCents: dollarsToCents(customerForm.amount), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-adjustment') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-adjustment') } });
       setNotice('Customer credit clawback posted to the immutable ledger.');
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });

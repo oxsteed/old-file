@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, Download, RefreshCw, ShieldCheck, Store, WalletCards, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { formatCreditMinorUnits } from '../../../lib/creditCurrency';
 
-function money(cents, currency = 'USD') {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format((Number(cents) || 0) / 100);
-  } catch {
-    return `${((Number(cents) || 0) / 100).toFixed(2)} ${currency || 'USD'}`;
-  }
-}
+const money = formatCreditMinorUnits;
 
 function dateTime(value) {
   if (!value) return 'Not posted';

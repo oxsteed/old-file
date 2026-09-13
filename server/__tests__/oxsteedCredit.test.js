@@ -361,10 +361,12 @@ test('customer Credit mutation responses omit internal hold and ledger fields', 
   expect(response.transaction).not.toHaveProperty('entries');
 });
 
-test('exposes only currencies with verified two-decimal minor-unit support', () => {
+test('exposes only currencies with explicitly verified minor-unit support', () => {
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.USD).toEqual({ code: 'USD', minorUnits: 2 });
   expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits === 2)).toBe(true);
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.JPY).toBeUndefined();
+  expect(service.assertSupportedCreditCurrency('USD')).toBe('USD');
+  expect(() => service.assertSupportedCreditCurrency('JPY')).toThrow('not enabled');
 });
 
 test('customer allowlist agreements require an active entitlement in eligibility queries', async () => {
@@ -1114,7 +1116,12 @@ test('exposes only safe Credit rail status to customers', async () => {
   const response = await request(createCustomerApp()).get('/status');
 
   expect(response.status).toBe(200);
-  expect(response.body).toEqual({ credit: { enabled: false, status: 'suspended' } });
+  expect(response.body.credit).toMatchObject({
+    enabled: false,
+    status: 'suspended',
+    supportedCurrencies: expect.arrayContaining(['USD', 'EUR']),
+    currencyMetadata: expect.objectContaining({ USD: { code: 'USD', minorUnits: 2 } }),
+  });
 });
 
 test('rejects unsupported credit currencies before creating a wallet', async () => {
