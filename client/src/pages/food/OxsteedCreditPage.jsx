@@ -128,7 +128,7 @@ export default function OxsteedCreditPage() {
   const downloadStatement = async () => {
     setDownloading(true);
     try {
-      const response = await downloadOxsteedCreditStatement(statement?.period || {});
+      const response = await downloadOxsteedCreditStatement({ ...(statement?.period || {}), currencyCode: selectedCurrency });
       const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
