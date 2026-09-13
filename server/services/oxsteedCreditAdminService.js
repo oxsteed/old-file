@@ -740,7 +740,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
     pool.query(
       `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
               t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
-              t.description, t.actor_type, t.actor_user_id, t.metadata,
+              t.description, t.reason, t.actor_type, t.actor_user_id, t.metadata,
               t.posted_at, t.created_at,
               CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
               fr.display_name AS restaurant_name

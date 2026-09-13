@@ -706,6 +706,7 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
   expect(result.disputes[0]).toMatchObject({ id: 'dispute-1', status: 'in_review', reasonCode: 'incorrect_amount', restaurantName: 'OxSteed Cafe' });
   expect(mockQuery.mock.calls[0][0]).toContain("u.role = 'customer'");
   expect(mockQuery.mock.calls[1][0]).toContain('t.debit_account_id = a.id OR t.credit_account_id = a.id');
+  expect(mockQuery.mock.calls[1][0]).toContain('t.description, t.reason, t.actor_type');
   expect(mockQuery.mock.calls[2][0]).toContain('h.account_id = $1');
   expect(mockQuery.mock.calls[3][0]).toContain('e.customer_id = $1');
   expect(mockQuery.mock.calls[4][0]).toContain('customer_id = $1');
