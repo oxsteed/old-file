@@ -2352,7 +2352,19 @@ html.dark .fd-pos-pay-modal > div { background: #1e293b; }
   color: var(--app-text, #0f172a);
   transition: border-color 0.15s;
 }
+.fd-pos-credit-fields {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.75rem 0;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, #f97316 35%, var(--border-color, #e2e8f0));
+  border-radius: 10px;
+  background: color-mix(in srgb, #f97316 6%, transparent);
+}
+.fd-pos-credit-fields .fd-field { margin: 0; }
+.fd-pos-credit-fields small { color: #94a3b8; font-size: 0.75rem; line-height: 1.35; }
 html.dark .fd-pos-pay-method { color: #e2e8f0; border-color: #334155; }
+html.dark .fd-pos-credit-fields { background: rgba(249, 115, 22, 0.08); }
 .fd-pos-pay-method.fd-active { border-color: #f97316; color: #f97316; }
 .fd-pos-pay-hint { margin: 0.25rem 0 0.75rem; color: #94a3b8; font-size: 0.82rem; line-height: 1.4; }
 .fd-pos-change { font-size: 0.9rem; color: #22c55e; font-weight: 600; margin: 0.25rem 0; }

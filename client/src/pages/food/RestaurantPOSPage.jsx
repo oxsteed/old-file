@@ -103,6 +103,8 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
   const [discountId, setDiscountId] = useState('');
   const [amountGiven, setAmountGiven] = useState('');
   const [tip, setTip] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
   const selectedDiscount = discounts.find((d) => String(d.id) === discountId);
@@ -116,8 +118,20 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
   const changeCents = method === 'cash' ? Math.max(0, Math.round((parseFloat(amountGiven) || 0) * 100) - finalTotal) : 0;
 
   const handlePay = async () => {
+    if (method === 'oxsteed_credit' && !customerEmail.trim() && !customerPhone.trim()) {
+      toast.error(t('food.pos.creditCustomerRequired', { defaultValue: 'Enter the customer email or phone to use OxSteed Credit.' }));
+      return;
+    }
     setLoading(true);
-    await onPay({ method, discountId: discountId || null, discountCents, tipCents, finalTotal });
+    await onPay({
+      method,
+      discountId: discountId || null,
+      discountCents,
+      tipCents,
+      finalTotal,
+      customerEmail: customerEmail.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+    });
     setLoading(false);
   };
 
@@ -145,15 +159,45 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
         </div>
 
         <div className="fd-pos-pay-methods">
-          {['cash', 'mobile'].map((m) => (
+          {['cash', 'mobile', 'oxsteed_credit'].map((m) => (
             <button key={m} className={`fd-pos-pay-method${method === m ? ' fd-active' : ''}`} onClick={() => setMethod(m)}>
-              {t(`food.pos.method_${m}`)}
+              {t(`food.pos.method_${m}`, { defaultValue: m === 'oxsteed_credit' ? 'OxSteed Credit' : undefined })}
             </button>
           ))}
         </div>
         <p className="fd-pos-pay-hint">
-          {t('food.pos.cardTerminalRequired', { defaultValue: 'Card payments require a connected POS terminal. Use the POS app for card checkout.' })}
+          {method === 'oxsteed_credit'
+            ? t('food.pos.creditPaymentHint', { defaultValue: 'The customer must have an active OxSteed Credit balance and an agreement that includes this restaurant.' })
+            : t('food.pos.cardTerminalRequired', { defaultValue: 'Card payments require a connected POS terminal. Use the POS app for card checkout.' })}
         </p>
+
+        {method === 'oxsteed_credit' && (
+          <div className="fd-pos-credit-fields">
+            <div className="fd-field">
+              <label htmlFor="pos-credit-email">{t('food.pos.creditCustomerEmail', { defaultValue: 'Customer email' })}</label>
+              <input
+                id="pos-credit-email"
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="customer@example.com"
+                autoComplete="email"
+              />
+            </div>
+            <div className="fd-field">
+              <label htmlFor="pos-credit-phone">{t('food.pos.creditCustomerPhone', { defaultValue: 'Customer phone' })}</label>
+              <input
+                id="pos-credit-phone"
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="(555) 555-5555"
+                autoComplete="tel"
+              />
+            </div>
+            <small>{t('food.pos.creditCustomerLookupHelp', { defaultValue: 'Use one verified identifier. The server checks the restaurant agreement, balance, limits, and eligible order items.' })}</small>
+          </div>
+        )}
 
         {method === 'cash' && (
           <div className="fd-field">
@@ -312,7 +356,7 @@ export default function RestaurantPOSPage() {
         fulfillment_type: fulfillment,
         table_name: tableName || undefined,
         guest_name: guestName || undefined,
-        payment_mode: 'pay_at_restaurant',
+        payment_mode: method === 'oxsteed_credit' ? 'oxsteed_credit' : 'pay_at_restaurant',
         payment_method: method,
         discount_lines: discountId
           ? [{
@@ -330,10 +374,16 @@ export default function RestaurantPOSPage() {
         // record payment
         await api.post(`/restaurants/${restaurantId}/pos/orders/${order.id}/payments`, {
           paymentType: method === 'mobile' ? 'external' : method,
-          paymentMode: method === 'mobile' ? 'direct_payment' : 'pay_at_restaurant',
+          paymentMode: method === 'mobile'
+            ? 'direct_payment'
+            : method === 'oxsteed_credit'
+              ? 'oxsteed_credit'
+              : 'pay_at_restaurant',
           amountCents: Number(order.total_cents ?? finalTotal),
           shiftId: activeShift.id,
           idempotencyKey: crypto.randomUUID(),
+          customerEmail,
+          customerPhone,
         });
         setCompletedOrder(order);
         setTicket([]);
