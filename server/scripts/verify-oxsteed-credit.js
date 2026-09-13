@@ -318,6 +318,11 @@ async function main() {
       ['461_oxsteed_credit_adjustment_direction.sql']
     );
     checks.adjustmentDirectionMigrationApplied = adjustmentDirectionMigrationRows.rows.length === 1;
+    const reservedTransactionTypesMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['462_oxsteed_credit_reserved_transaction_types.sql']
+    );
+    checks.reservedTransactionTypesMigrationApplied = reservedTransactionTypesMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -531,9 +536,10 @@ async function main() {
                    AND (debit_account.account_type <> 'platform_treasury'
                      OR credit_account.account_type <> 'customer_wallet'))
                  OR (t.metadata->>'direction' = 'debit'
-                   AND (debit_account.account_type <> 'customer_wallet'
+                 AND (debit_account.account_type <> 'customer_wallet'
                      OR credit_account.account_type <> 'platform_treasury'))
-                 OR COALESCE(t.metadata->>'direction', '') NOT IN ('credit', 'debit'))))`,
+                 OR COALESCE(t.metadata->>'direction', '') NOT IN ('credit', 'debit')))
+           OR t.transaction_type IN ('fee', 'expiration', 'chargeback'))`,
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
 
@@ -668,6 +674,7 @@ async function main() {
       !checks.holdLifecycleMigrationApplied,
       !checks.settlementPeriodMigrationApplied,
       !checks.adjustmentDirectionMigrationApplied,
+      !checks.reservedTransactionTypesMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

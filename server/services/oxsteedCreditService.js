@@ -48,6 +48,9 @@ const MAX_STATEMENT_DAYS = 366;
 const MAX_STATEMENT_EXPORT_ROWS = 5000;
 const LEDGER_HASH_ALGORITHM = 'hmac_sha256_v1';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
+const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
+  'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
+]);
 
 function positiveEnv(name, fallback) {
   const parsed = Number.parseInt(process.env[name] || '', 10);
@@ -554,7 +557,7 @@ async function postJournalTransaction(client, input) {
   const amountCents = parseAmountCents(input.amountCents);
   const idempotencyKey = normalizeString(input.idempotencyKey, 160);
   if (!idempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
-  if (!['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'fee', 'expiration', 'chargeback'].includes(input.transactionType)) {
+  if (!POSTABLE_CREDIT_TRANSACTION_TYPES.includes(input.transactionType)) {
     throw new AppError('Unsupported credit transaction type', 400, 'credit_transaction_type_invalid');
   }
 
