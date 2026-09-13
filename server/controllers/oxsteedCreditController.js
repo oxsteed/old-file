@@ -486,7 +486,9 @@ async function getAdminOverview(req, res, next) {
         SELECT p.id AS partner_id, p.restaurant_id, fr.display_name AS restaurant_name,
                p.status, p.settlement_currency_code, COUNT(a.id)::int AS agreement_count,
                COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
-                 AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count
+                 AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count,
+               COUNT(*) OVER ()::int AS total_partner_count,
+               (COUNT(*) FILTER (WHERE p.status = 'active') OVER ())::int AS active_partner_count
           FROM oxsteed_credit_partners p
           JOIN food_restaurants fr ON fr.id = p.restaurant_id
           LEFT JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
@@ -505,6 +507,10 @@ async function getAdminOverview(req, res, next) {
          LIMIT 100`),
     ]);
     const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
+    const partnerCounts = {
+      total: Number(partnersResult.rows[0]?.total_partner_count ?? partnersResult.rows.length),
+      active: Number(partnersResult.rows[0]?.active_partner_count ?? partnersResult.rows.filter((row) => row.status === 'active').length),
+    };
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',
       customerAccounts: Number(row.customer_accounts || 0),
@@ -527,6 +533,7 @@ async function getAdminOverview(req, res, next) {
       },
       summary: formatSummary(summary),
       summaryByCurrency: summaryResult.rows.map(formatSummary),
+      partnerCounts,
       partners: partnersResult.rows.map((row) => ({
         partnerId: String(row.partner_id),
         restaurantId: String(row.restaurant_id),
