@@ -134,7 +134,6 @@ test('updates the selected non-USD customer credit wallet status', async () => {
     ledger_version: '0',
   };
   mockQuery
-    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [account] })
     .mockResolvedValueOnce({ rows: [{ ...account, status: 'suspended', updated_at: '2026-09-12T12:01:00.000Z' }] })
     .mockResolvedValueOnce({ rows: [] });
@@ -145,9 +144,21 @@ test('updates the selected non-USD customer credit wallet status', async () => {
 
   expect(response.status).toBe(200);
   expect(response.body.account).toMatchObject({ currencyCode: 'EUR', status: 'suspended' });
-  expect(mockQuery.mock.calls[0][1]).toEqual(['customer_wallet', CUSTOMER_ID, null, 'EUR']);
-  expect(mockQuery.mock.calls[1][1]).toEqual(['customer_wallet', CUSTOMER_ID, 'EUR']);
-  expect(mockQuery.mock.calls[3][1][2]).toBe(String(account.id));
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, 'EUR']);
+  expect(mockQuery.mock.calls[2][1][2]).toBe(String(account.id));
+});
+
+test('does not create a wallet while changing customer credit account status', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp())
+    .post(`/status/${CUSTOMER_ID}`)
+    .send({ currencyCode: 'CAD', status: 'suspended', reason: 'Safety review' });
+
+  expect(response.status).toBe(404);
+  expect(response.body.code).toBe('credit_account_not_found');
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+  expect(mockQuery.mock.calls[0][0]).toContain("account_type = 'customer_wallet'");
 });
 
 test('shows only spendable partner restaurants in the customer currency', async () => {

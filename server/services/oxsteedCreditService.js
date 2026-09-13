@@ -953,7 +953,8 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
   if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid credit account status', 400, 'credit_account_status_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required when changing a credit account status', 400, 'credit_account_status_reason_required');
   return withTransaction(pool, async (client) => {
-    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
+    const account = await findCustomerAccount(client, customerId, currency, true);
+    if (!account) throw new AppError('Customer credit account was not found', 404, 'credit_account_not_found');
     if (account.status === normalizedStatus) return { account: formatAccount(account), replayed: true };
     if (normalizedStatus === 'closed' && (Number(account.balance_cents || 0) !== 0 || Number(account.reserved_cents || 0) !== 0)) {
       throw new AppError('A credit account must have zero balance and no holds before it can be closed', 409, 'credit_account_close_not_allowed');
