@@ -1503,11 +1503,39 @@ function normalizeBulkAgreementIds(agreementIds) {
   return ids;
 }
 
-async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId }) {
+function bulkEntitlementRequestHash({ agreementIds, customerId, status, startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata }) {
+  return crypto.createHash('sha256').update(JSON.stringify({
+    agreementIds: [...agreementIds].sort(),
+    customerId,
+    status,
+    startsAt: startsAt?.toISOString() || null,
+    endsAt: endsAt?.toISOString() || null,
+    maxTransactionCents,
+    dailyLimitCents,
+    reason,
+    metadata,
+  })).digest('hex');
+}
+
+function formatEntitlementWithAgreement(row, agreement) {
+  return formatEntitlement({
+    ...row,
+    partner_id: agreement.partner_id,
+    restaurant_id: agreement.restaurant_id,
+    restaurant_name: agreement.restaurant_name,
+    agreement_version: agreement.version,
+    agreement_status: agreement.status,
+    settlement_currency_code: agreement.settlement_currency_code,
+  });
+}
+
+async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId, idempotencyKey }) {
   const normalizedAgreementIds = normalizeBulkAgreementIds(agreementIds);
   const normalizedStatus = normalizeString(status, 20) || 'active';
   if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
   const normalizedReason = requireAuditReason(reason);
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for bulk customer access', 400, 'credit_idempotency_key_required');
   const starts = parseDate(startsAt, 'startsAt');
   const ends = parseDate(endsAt, 'endsAt');
   if (starts && ends && ends <= starts) throw new AppError('Entitlement end must be after its start', 400, 'credit_entitlement_dates_invalid');
@@ -1515,6 +1543,17 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
   const dailyLimit = parseLimit(dailyLimitCents, 'dailyLimitCents');
   const serializedMetadata = JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {});
   const values = [normalizedStatus, starts, ends, maxTransaction, dailyLimit, serializedMetadata, normalizedReason, actorUserId || null];
+  const requestHash = bulkEntitlementRequestHash({
+    agreementIds: normalizedAgreementIds,
+    customerId,
+    status: normalizedStatus,
+    startsAt: starts,
+    endsAt: ends,
+    maxTransactionCents: maxTransaction,
+    dailyLimitCents: dailyLimit,
+    reason: normalizedReason,
+    metadata: metadata && typeof metadata === 'object' ? metadata : {},
+  });
 
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(
@@ -1545,6 +1584,36 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
       [customerId, normalizedAgreementIds]
     );
     const existingByAgreementId = new Map(existingRows.map((entitlement) => [String(entitlement.agreement_id), entitlement]));
+
+    const { rows: requestRows } = await client.query(
+      `INSERT INTO oxsteed_credit_entitlement_bulk_requests
+         (idempotency_key, request_hash, customer_id, agreement_ids, created_by)
+       VALUES ($1, $2, $3, $4::uuid[], $5)
+       ON CONFLICT (idempotency_key) DO NOTHING
+       RETURNING idempotency_key, request_hash`,
+      [normalizedIdempotencyKey, requestHash, customerId, normalizedAgreementIds, actorUserId || null]
+    );
+    if (!requestRows[0]) {
+      const { rows: existingRequestRows } = await client.query(
+        `SELECT idempotency_key, request_hash, customer_id, agreement_ids
+           FROM oxsteed_credit_entitlement_bulk_requests
+          WHERE idempotency_key = $1
+          FOR UPDATE`,
+        [normalizedIdempotencyKey]
+      );
+      const existingRequest = existingRequestRows[0];
+      if (!existingRequest) throw new AppError('Bulk customer access could not be confirmed after an idempotent retry', 409, 'credit_entitlement_retry_required');
+      if (existingRequest.request_hash !== requestHash) {
+        throw new AppError('Bulk customer access idempotency key was already used for different details', 409, 'credit_entitlement_idempotency_conflict');
+      }
+      const replayEntitlements = normalizedAgreementIds.map((agreementId) => {
+        const entitlement = existingByAgreementId.get(String(agreementId));
+        const agreement = agreementById.get(String(agreementId));
+        if (!entitlement || !agreement) throw new AppError('Bulk customer access replay is incomplete; please retry with a new key', 409, 'credit_entitlement_retry_required');
+        return formatEntitlementWithAgreement(entitlement, agreement);
+      });
+      return { entitlements: replayEntitlements, count: replayEntitlements.length, replayed: true };
+    }
     const entitlements = [];
 
     for (const agreementId of normalizedAgreementIds) {
@@ -1564,15 +1633,6 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
         [customerId, agreement.id, ...values]
       );
       if (!rows[0]) throw new AppError('Credit entitlement could not be saved', 409, 'credit_entitlement_conflict');
-      const entitlement = {
-        ...rows[0],
-        partner_id: agreement.partner_id,
-        restaurant_id: agreement.restaurant_id,
-        restaurant_name: agreement.restaurant_name,
-        agreement_version: agreement.version,
-        agreement_status: agreement.status,
-        settlement_currency_code: agreement.settlement_currency_code,
-      };
       await insertAudit(client, {
         actionType: 'credit.entitlement.bulk_upserted',
         actorUserId,
@@ -1585,7 +1645,7 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
         afterState: snapshotEntitlement(rows[0]),
         metadata: { bulk: true, agreementCount: normalizedAgreementIds.length },
       });
-      entitlements.push(formatEntitlement(entitlement));
+      entitlements.push(formatEntitlementWithAgreement(rows[0], agreement));
     }
     return { entitlements, count: entitlements.length, replayed: false };
   }, 'credit_admin_bulk_upsert_entitlements');

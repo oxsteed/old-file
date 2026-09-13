@@ -196,8 +196,8 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         maxTransactionCents: dollarsToCents(form.maxTransaction),
         dailyLimitCents: dollarsToCents(form.dailyLimit),
         reason: form.reason.trim(),
-      });
-      setNotice(`Customer access saved across ${response.data?.count || bulkAgreementIds.length} restaurant agreements.`);
+      }, { headers: { 'Idempotency-Key': globalThis.crypto?.randomUUID?.() || `bulk-${Date.now()}-${Math.random().toString(36).slice(2)}` } });
+      setNotice(response.data?.replayed ? 'That bulk customer access action was already applied.' : `Customer access saved across ${response.data?.count || bulkAgreementIds.length} restaurant agreements.`);
       setForm((current) => ({ ...current, agreementId: '', maxTransaction: '', dailyLimit: '', reason: '' }));
       setBulkAgreementIds([]);
       await load();

@@ -893,6 +893,16 @@ test('rejects an empty bulk Credit entitlement request before database work', as
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('requires an idempotency key for a non-empty bulk Credit entitlement request', async () => {
+  const response = await request(createAdminApp())
+    .post('/entitlements/bulk')
+    .send({ customerId: CUSTOMER_ID, agreementIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'], reason: 'Partner access' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_idempotency_key_required');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('returns a bounded customer statement with period totals and safe transaction fields', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     account_id: 7001,

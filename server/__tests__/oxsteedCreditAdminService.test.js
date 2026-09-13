@@ -241,6 +241,7 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
     ] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-entitlement-1', request_hash: 'request-hash' }] })
     .mockResolvedValueOnce({ rows: [{ id: 'entitlement-1', customer_id: customerId, agreement_id: agreementIds[0], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: 'entitlement-2', customer_id: customerId, agreement_id: agreementIds[1], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
@@ -253,6 +254,7 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
     dailyLimitCents: 10000,
     reason: 'Restaurant benefit',
     actorUserId: 'admin-1',
+    idempotencyKey: 'bulk-entitlement-1',
   });
 
   expect(result).toMatchObject({ count: 2, replayed: false });
@@ -262,8 +264,9 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
   ]);
   expect(mockQuery.mock.calls[0][0]).toContain('a.id = ANY($1::uuid[])');
   expect(mockQuery.mock.calls[2][0]).toContain('agreement_id = ANY($2::uuid[])');
-  expect(mockQuery.mock.calls[4][1]).toContain('credit.entitlement.bulk_upserted');
-  expect(mockQuery.mock.calls[6][1]).toContain('credit.entitlement.bulk_upserted');
+  expect(mockQuery.mock.calls[3][0]).toContain('oxsteed_credit_entitlement_bulk_requests');
+  expect(mockQuery.mock.calls[5][1]).toContain('credit.entitlement.bulk_upserted');
+  expect(mockQuery.mock.calls[7][1]).toContain('credit.entitlement.bulk_upserted');
 });
 
 test('lists customer entitlements with restaurant context and bounded paging', async () => {

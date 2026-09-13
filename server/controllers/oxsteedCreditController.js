@@ -1120,8 +1120,9 @@ async function bulkUpsertAdminEntitlements(req, res, next) {
       reason: req.body?.reason,
       metadata: req.body?.metadata,
       actorUserId: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
     });
-    res.status(200).json(result);
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
     next(error);
   }
