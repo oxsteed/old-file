@@ -35,7 +35,17 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_audit_events: ['previous_event_hash', 'event_hash'],
   oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id', 'reason'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
-  oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
+  oxsteed_credit_holds: [
+    'capture_idempotency_key',
+    'expires_at',
+    'capture_actor_type',
+    'captured_by',
+    'capture_reason',
+    'release_actor_type',
+    'released_by',
+    'release_reason',
+    'terminal_evidence_legacy',
+  ],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_disputes: ['idempotency_key'],
@@ -119,6 +129,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_settlement_overlap_guard',
   'oxsteed_credit_settlement_reference_guard',
   'oxsteed_credit_account_ledger_write_guard',
+  'oxsteed_credit_hold_terminal_evidence_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -484,6 +495,11 @@ async function main() {
       ['491_oxsteed_credit_account_ledger_write.sql']
     );
     checks.accountLedgerWriteMigrationApplied = accountLedgerWriteMigrationRows.rows.length === 1;
+    const holdTerminalEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['492_oxsteed_credit_hold_terminal_evidence.sql']
+    );
+    checks.holdTerminalEvidenceMigrationApplied = holdTerminalEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -679,6 +695,30 @@ async function main() {
                  OR t.agreement_id IS DISTINCT FROM h.agreement_id))`,
     );
     checks.invalidHoldLifecycles = Number(holdLifecycleRows[0]?.invalid_count || 0);
+
+    const { rows: holdTerminalEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_holds h
+        WHERE (h.status = 'active'
+               AND (h.capture_actor_type IS NOT NULL
+                 OR h.captured_by IS NOT NULL
+                 OR h.capture_reason IS NOT NULL
+                 OR h.release_actor_type IS NOT NULL
+                 OR h.released_by IS NOT NULL
+                 OR h.release_reason IS NOT NULL
+                 OR h.terminal_evidence_legacy))
+           OR (h.status IN ('released', 'expired')
+               AND NOT h.terminal_evidence_legacy
+               AND (h.release_actor_type NOT IN ('customer', 'admin', 'system')
+                 OR NULLIF(BTRIM(h.release_reason), '') IS NULL
+                 OR (h.release_actor_type IN ('customer', 'admin') AND h.released_by IS NULL)))
+           OR (h.status = 'captured'
+               AND NOT h.terminal_evidence_legacy
+               AND (h.capture_actor_type NOT IN ('admin', 'system')
+                 OR NULLIF(BTRIM(h.capture_reason), '') IS NULL
+                 OR (h.capture_actor_type = 'admin' AND h.captured_by IS NULL)))`,
+    );
+    checks.invalidHoldTerminalEvidence = Number(holdTerminalEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: customerOwnerInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1147,6 +1187,7 @@ async function main() {
       !checks.settlementOverlapMigrationApplied,
       !checks.settlementReferenceMigrationApplied,
       !checks.accountLedgerWriteMigrationApplied,
+      !checks.holdTerminalEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1163,6 +1204,7 @@ async function main() {
       checks.invalidAccountLedgerStates > 0,
       checks.invalidReservedBalances > 0,
       checks.invalidHoldLifecycles > 0,
+      checks.invalidHoldTerminalEvidence > 0,
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
       checks.invalidActiveEntitlementCustomers > 0,

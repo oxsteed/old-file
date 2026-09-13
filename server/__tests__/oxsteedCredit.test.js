@@ -113,6 +113,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_overlap_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_reference_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_account_ledger_write_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_terminal_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -186,6 +187,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['491_oxsteed_credit_account_ledger_write.sql']");
   expect(verifierSource).toContain('!checks.accountLedgerWriteMigrationApplied');
   expect(verifierSource).toContain('checks.invalidAccountLedgerStates > 0');
+  expect(verifierSource).toContain("['492_oxsteed_credit_hold_terminal_evidence.sql']");
+  expect(verifierSource).toContain('!checks.holdTerminalEvidenceMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidHoldTerminalEvidence > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -1517,6 +1521,16 @@ test('requires a reason before an administrative hold capture queries the databa
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('requires an administrator identity before an administrative hold capture queries the database', async () => {
+  await expect(service.captureCreditHold({
+    holdId: 'hold-without-actor',
+    idempotencyKey: 'capture-without-actor-1',
+    actorType: 'admin',
+    reason: 'Capture review',
+  })).rejects.toMatchObject({ code: 'credit_capture_actor_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('requires a reason before an administrative Credit refund queries the database', async () => {
   await expect(service.refundCreditInTransaction({ query: mockQuery }, {
     purchaseTransactionId: 'purchase-without-refund-reason',
@@ -1566,6 +1580,7 @@ test('rejects a captured hold replay when its committed purchase details differ'
     holdId: hold.id,
     idempotencyKey: hold.capture_idempotency_key,
     actorType: 'admin',
+    actorUserId: ADMIN_ID,
     reason: 'Replay capture',
     description: 'Different description',
   })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', status: 409 });

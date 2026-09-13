@@ -706,6 +706,12 @@ function formatAdminCreditHold(row) {
     referenceType: row.reference_type || null,
     referenceId: row.reference_id || null,
     capturedTransactionId: row.captured_transaction_id || null,
+    captureActorType: row.capture_actor_type || null,
+    capturedBy: row.captured_by || null,
+    captureReason: row.capture_reason || null,
+    releaseActorType: row.release_actor_type || null,
+    releasedBy: row.released_by || null,
+    releaseReason: row.release_reason || null,
     expiresAt: row.expires_at || null,
     capturedAt: row.captured_at || null,
     releasedAt: row.released_at || null,
@@ -760,7 +766,9 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
     pool.query(
       `SELECT h.id, h.customer_id, h.partner_id, h.agreement_id, h.amount_cents,
               h.currency_code, h.status, h.purpose, h.reference_type, h.reference_id,
-              h.captured_transaction_id, h.expires_at, h.captured_at, h.released_at,
+              h.captured_transaction_id, h.capture_actor_type, h.captured_by, h.capture_reason,
+              h.release_actor_type, h.released_by, h.release_reason,
+              h.expires_at, h.captured_at, h.released_at,
               h.created_at, h.updated_at, p.restaurant_id,
               fr.display_name AS restaurant_name
          FROM oxsteed_credit_holds h

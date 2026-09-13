@@ -1503,6 +1503,12 @@ function formatHold(row) {
     referenceId: row.reference_id || null,
     idempotencyKey: row.idempotency_key,
     expiresAt: row.expires_at,
+    captureActorType: row.capture_actor_type || null,
+    capturedBy: row.captured_by || null,
+    captureReason: row.capture_reason || null,
+    releaseActorType: row.release_actor_type || null,
+    releasedBy: row.released_by || null,
+    releaseReason: row.release_reason || null,
     createdAt: row.created_at,
     capturedAt: row.captured_at || null,
     releasedAt: row.released_at || null,
@@ -1523,7 +1529,16 @@ async function releaseHoldReservation(client, hold) {
 function formatCustomerHold(row) {
   const hold = formatHold(row);
   if (!hold) return null;
-  const { idempotencyKey, ...safeHold } = hold;
+  const {
+    idempotencyKey,
+    captureActorType,
+    capturedBy,
+    captureReason,
+    releaseActorType,
+    releasedBy,
+    releaseReason,
+    ...safeHold
+  } = hold;
   return safeHold;
 }
 
@@ -1575,16 +1590,27 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
     if (hold.status === 'released' || hold.status === 'expired') return { hold: formatHold(hold), replayed: true };
     if (hold.status !== 'active') throw new AppError('Credit hold cannot be released', 409, 'credit_hold_state_invalid');
     await releaseHoldReservation(client, hold);
-    const { rows: updatedRows } = await client.query(`UPDATE oxsteed_credit_holds SET status = 'released', released_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`, [hold.id]);
-    await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6)`, [actorUserId || null, customerId, hold.partner_id, String(hold.id), normalizeString(reason, 500), normalizeString(correlationId, 160)]);
+    const releaseReason = normalizeString(reason, 500) || 'Customer released credit hold';
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_holds
+          SET status = 'released', released_at = NOW(), released_by = $1,
+              release_actor_type = 'customer', release_reason = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING *`,
+      [actorUserId || customerId, releaseReason, hold.id]
+    );
+    await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6)`, [actorUserId || customerId, customerId, hold.partner_id, String(hold.id), releaseReason, normalizeString(correlationId, 160)]);
     return { hold: formatHold(updatedRows[0]), replayed: false };
   }, 'credit_release_hold');
 }
 
 async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, description, reason, metadata = {} }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
+  const normalizedActorType = normalizeString(actorType, 20) || 'admin';
+  if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit hold capture actor', 400, 'credit_capture_actor_invalid');
   const normalizedReason = normalizeString(reason, 500);
-  if (actorType === 'admin' && !normalizedReason) throw new AppError('A reason is required for administrative hold captures', 400, 'credit_capture_reason_required');
+  if (normalizedActorType === 'admin' && !normalizedReason) throw new AppError('A reason is required for administrative hold captures', 400, 'credit_capture_reason_required');
+  if (normalizedActorType === 'admin' && !actorUserId) throw new AppError('An administrator identity is required for administrative hold captures', 400, 'credit_capture_actor_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT h.*, a.currency_code AS account_currency_code
@@ -1634,7 +1660,8 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       await releaseHoldReservation(client, hold);
       const { rows: expiredRows } = await client.query(
         `UPDATE oxsteed_credit_holds
-            SET status = 'expired', released_at = NOW(), updated_at = NOW()
+            SET status = 'expired', released_at = NOW(), release_actor_type = 'system',
+                release_reason = 'Hold expired before capture', updated_at = NOW()
           WHERE id = $1 AND status = 'active'
           RETURNING *`,
         [hold.id]
@@ -1659,7 +1686,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       currencyCode: hold.currency_code,
       idempotencyKey: captureKey,
       actorUserId,
-      actorType,
+      actorType: normalizedActorType,
       orderType,
       category,
       categories,
@@ -1674,16 +1701,17 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       referenceId: requestedReferenceId,
       correlationId,
       description: requestedDescription,
-      reason: normalizedReason,
+      reason: normalizedReason || 'System hold capture',
       metadata: requestedMetadata,
     });
     const { rows: capturedRows } = await client.query(
       `UPDATE oxsteed_credit_holds
           SET status = 'captured', capture_idempotency_key = $1, captured_transaction_id = $2,
+              capture_actor_type = $3, captured_by = $4, capture_reason = $5,
               captured_at = NOW(), updated_at = NOW()
-        WHERE id = $3 AND status = 'active'
+        WHERE id = $6 AND status = 'active'
         RETURNING *`,
-      [captureKey, transactionResult.transaction.id, hold.id]
+      [captureKey, transactionResult.transaction.id, normalizedActorType, actorUserId || null, normalizedReason || 'System hold capture', hold.id]
     );
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
@@ -1716,7 +1744,11 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
     for (const hold of rows) {
       await releaseHoldReservation(client, hold);
       const { rows: updatedRows } = await client.query(
-        `UPDATE oxsteed_credit_holds SET status = 'expired', released_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'active' RETURNING *`,
+        `UPDATE oxsteed_credit_holds
+            SET status = 'expired', released_at = NOW(), release_actor_type = 'system',
+                release_reason = 'Scheduled hold expiry', updated_at = NOW()
+          WHERE id = $1 AND status = 'active'
+          RETURNING *`,
         [hold.id]
       );
       if (!updatedRows[0]) continue;

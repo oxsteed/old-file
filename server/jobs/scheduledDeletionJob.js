@@ -54,7 +54,7 @@ async function hasCreditRecords(client, userId, tables) {
   if (tables.includes('oxsteed_credit_accounts')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_accounts WHERE customer_id = $1)');
   if (tables.includes('oxsteed_credit_customer_entitlements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_customer_entitlements WHERE customer_id = $1)');
   if (tables.includes('oxsteed_credit_transactions')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_transactions WHERE actor_user_id = $1)');
-  if (tables.includes('oxsteed_credit_holds')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_holds WHERE customer_id = $1)');
+  if (tables.includes('oxsteed_credit_holds')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_holds WHERE customer_id = $1 OR created_by = $1 OR captured_by = $1 OR released_by = $1)');
   if (tables.includes('oxsteed_credit_disputes')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_disputes WHERE customer_id = $1 OR opened_by = $1 OR resolved_by = $1)');
   if (tables.includes('oxsteed_credit_entitlement_bulk_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_bulk_requests WHERE customer_id = $1 OR created_by = $1)');
   if (tables.includes('oxsteed_credit_entitlement_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_requests WHERE customer_id = $1 OR created_by = $1)');
