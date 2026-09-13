@@ -109,6 +109,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_partner_status_guard',
   'oxsteed_credit_agreement_approval_guard',
   'oxsteed_credit_account_state_guard',
+  'oxsteed_credit_restaurant_status_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -439,6 +440,11 @@ async function main() {
       ['484_oxsteed_credit_partner_hold_release.sql']
     );
     checks.partnerHoldReleaseMigrationApplied = partnerHoldReleaseMigrationRows.rows.length === 1;
+    const restaurantStatusMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['485_oxsteed_credit_restaurant_status.sql']
+    );
+    checks.restaurantStatusMigrationApplied = restaurantStatusMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -732,6 +738,15 @@ async function main() {
     );
     checks.invalidActiveAgreements = Number(activeAgreementInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: activeRestaurantPartnerInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_partners p
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE p.status = 'active'
+          AND fr.status IS DISTINCT FROM 'active'`,
+    );
+    checks.invalidActiveRestaurantPartners = Number(activeRestaurantPartnerInvariantRows[0]?.invalid_count || 0);
+
     const { rows: agreementApprovalInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_partner_agreements a
@@ -997,6 +1012,7 @@ async function main() {
       !checks.accountStateMigrationApplied,
       !checks.suspendedExpiryMigrationApplied,
       !checks.partnerHoldReleaseMigrationApplied,
+      !checks.restaurantStatusMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1020,6 +1036,7 @@ async function main() {
       checks.invalidCreditActorIdentities > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
+      checks.invalidActiveRestaurantPartners > 0,
       checks.invalidActiveAgreementApprovals > 0,
       checks.invalidClosedCreditAccounts > 0,
       checks.invalidPurchases > 0,
