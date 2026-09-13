@@ -308,6 +308,11 @@ async function main() {
       ['459_oxsteed_credit_hold_lifecycle.sql']
     );
     checks.holdLifecycleMigrationApplied = holdLifecycleMigrationRows.rows.length === 1;
+    const settlementPeriodMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['460_oxsteed_credit_settlement_period.sql']
+    );
+    checks.settlementPeriodMigrationApplied = settlementPeriodMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -564,7 +569,10 @@ async function main() {
         WHERE a.id IS NULL
            OR p.id IS NULL
            OR s.partner_id IS DISTINCT FROM a.partner_id
-           OR s.currency_code IS DISTINCT FROM p.settlement_currency_code`,
+           OR s.currency_code IS DISTINCT FROM p.settlement_currency_code
+           OR a.status NOT IN ('active', 'suspended', 'expired')
+           OR s.period_start < a.starts_at
+           OR (a.ends_at IS NOT NULL AND s.period_end > a.ends_at)`,
     );
     checks.invalidSettlements = Number(settlementIntegrityRows[0]?.invalid_count || 0);
 
@@ -643,6 +651,7 @@ async function main() {
       !checks.customerActivityMigrationApplied,
       !checks.issuanceTraceMigrationApplied,
       !checks.holdLifecycleMigrationApplied,
+      !checks.settlementPeriodMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

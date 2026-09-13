@@ -110,6 +110,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.issuanceTraceMigrationApplied');
   expect(verifierSource).toContain("['459_oxsteed_credit_hold_lifecycle.sql']");
   expect(verifierSource).toContain('!checks.holdLifecycleMigrationApplied');
+  expect(verifierSource).toContain("['460_oxsteed_credit_settlement_period.sql']");
+  expect(verifierSource).toContain('!checks.settlementPeriodMigrationApplied');
 });
 
 test('credit verification requires posted customer history indexes', () => {

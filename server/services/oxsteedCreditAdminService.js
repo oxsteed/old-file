@@ -1061,6 +1061,13 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     }
     const normalizedReason = requireAuditReason(reason);
     if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
+    if (!['active', 'suspended', 'expired'].includes(agreement.status)) {
+      throw new AppError('This agreement is not eligible for settlement', 409, 'credit_agreement_not_settlementable');
+    }
+    if (starts < new Date(agreement.starts_at)
+      || (agreement.ends_at && ends > new Date(agreement.ends_at))) {
+      throw new AppError('Settlement period must fall within the agreement dates', 409, 'credit_settlement_period_outside_agreement');
+    }
     const { rows: overlapRows } = await client.query(
       `SELECT id, status
          FROM oxsteed_credit_settlements

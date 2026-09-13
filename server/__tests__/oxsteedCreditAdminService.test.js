@@ -865,10 +865,13 @@ test('serializes settlement creation per partner agreement before checking overl
     .mockResolvedValueOnce({ rows: [{
       id: 'agreement-1',
       partner_id: 41,
+      status: 'active',
       partner_status: 'active',
       restaurant_id: 9,
       restaurant_name: 'OxSteed Cafe',
       settlement_currency_code: 'USD',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
     }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
@@ -912,6 +915,56 @@ test('serializes settlement creation per partner agreement before checking overl
   expect(mockQuery.mock.calls[4][0]).toContain('COALESCE(t.posted_at, t.created_at) < $4');
   expect(mockQuery.mock.calls[4][0]).toContain("t.currency_code = $5");
   expect(mockQuery.mock.calls[4][1]).toEqual([41, 'agreement-1', new Date('2026-09-01T00:00:00.000Z'), new Date('2026-09-02T00:00:00.000Z'), 'USD']);
+});
+
+test('rejects a settlement period outside the agreement dates', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-1',
+    partner_id: 41,
+    status: 'active',
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    settlement_currency_code: 'USD',
+    starts_at: '2026-09-02T00:00:00.000Z',
+    ends_at: '2026-09-03T00:00:00.000Z',
+  }] });
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-1',
+    periodStart: '2026-09-01T00:00:00.000Z',
+    periodEnd: '2026-09-02T00:00:00.000Z',
+    idempotencyKey: 'settlement-outside-agreement',
+    reason: 'Settlement period review',
+  })).rejects.toMatchObject({ code: 'credit_settlement_period_outside_agreement' });
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+});
+
+test('does not settle a draft agreement', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-draft',
+    partner_id: 41,
+    status: 'draft',
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    settlement_currency_code: 'USD',
+    starts_at: '2026-09-01T00:00:00.000Z',
+    ends_at: null,
+  }] });
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-draft',
+    periodStart: '2026-09-01T00:00:00.000Z',
+    periodEnd: '2026-09-02T00:00:00.000Z',
+    idempotencyKey: 'settlement-draft-agreement',
+    reason: 'Settlement period review',
+  })).rejects.toMatchObject({ code: 'credit_agreement_not_settlementable' });
+  expect(mockQuery).toHaveBeenCalledTimes(3);
 });
 
 test('rejects settlement idempotency reuse for a different period', async () => {
