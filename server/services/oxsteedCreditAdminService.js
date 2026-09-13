@@ -254,7 +254,7 @@ function formatCustomerCreditAccount(row) {
 
 async function listAdminCustomerCreditAccounts({ search, currencyCode, status, limit = 100, offset = 0 } = {}) {
   const params = [];
-  const filters = ["a.account_type = 'customer_wallet'"];
+  const filters = ["a.account_type = 'customer_wallet'", "u.role = 'customer'"];
   const normalizedSearch = normalizeString(search, 120);
   const normalizedCurrency = currencyCode ? assertSupportedCreditCurrency(currencyCode) : null;
   const normalizedStatus = normalizeString(status, 20);
@@ -825,7 +825,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(`SELECT * FROM oxsteed_credit_partner_agreements WHERE id = $1 FOR SHARE`, [agreementId]);
     if (!agreementRows[0]) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
-    const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND is_active = TRUE`, [customerId]);
+    const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_customer_entitlements

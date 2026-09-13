@@ -13,7 +13,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - Production ledger verification does not fall back to `JWT_SECRET`; rotate and store the dedicated ledger secret independently from authentication secrets.
 - The database backup schedule is active, backups are stored outside the application host, and a restore test has been completed.
 - The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`. After financial activity begins, do not change a partner's restaurant/currency, an agreement's partner, or an account's customer/partner/type/currency identity; create a replacement record instead.
-- Customer wallets are restricted to users with the `customer` role at both the service and database layers. Helpers, restaurant owners, and administrative identities must not receive a customer wallet.
+- Customer wallets and customer-specific partner entitlements are restricted to users with the `customer` role at both the service and database layers. Helpers, restaurant owners, and administrative identities must not receive customer Credit access.
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
 

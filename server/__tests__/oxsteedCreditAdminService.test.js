@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, upsertEntitlement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -44,6 +44,20 @@ test('lists bounded customer credit wallets with operator filters', async () => 
   expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'EUR', 'suspended']);
   expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $4 OFFSET $5');
   expect(mockQuery.mock.calls[1][1]).toEqual(['%alice%', 'EUR', 'suspended', 10, 20]);
+});
+
+test('does not grant a Credit entitlement to a non-customer identity', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'agreement-1', partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  await expect(upsertEntitlement({
+    agreementId: 'agreement-1',
+    customerId: '33333333-3333-4333-8333-333333333333',
+    reason: 'Partner-specific access',
+  })).rejects.toMatchObject({ code: 'customer_not_found', status: 404 });
+
+  expect(mockQuery.mock.calls[1][0]).toContain("role = 'customer'");
 });
 
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {
