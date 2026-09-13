@@ -947,12 +947,13 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
   }, 'credit_adjust_customer');
 }
 
-async function updateCustomerCreditAccountStatus({ customerId, status, actorUserId, reason }) {
+async function updateCustomerCreditAccountStatus({ customerId, status, currencyCode = CREDIT_CURRENCY, actorUserId, reason }) {
   const normalizedStatus = normalizeString(status, 20);
+  const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid credit account status', 400, 'credit_account_status_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required when changing a credit account status', 400, 'credit_account_status_reason_required');
   return withTransaction(pool, async (client) => {
-    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId });
+    const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     if (account.status === normalizedStatus) return { account: formatAccount(account), replayed: true };
     if (normalizedStatus === 'closed' && (Number(account.balance_cents || 0) !== 0 || Number(account.reserved_cents || 0) !== 0)) {
       throw new AppError('A credit account must have zero balance and no holds before it can be closed', 409, 'credit_account_close_not_allowed');

@@ -348,7 +348,7 @@ async function adminAdjustCredit(req, res, next) {
 async function adminUpdateCreditAccountStatus(req, res, next) {
   try {
     const customerId = parseUuid(req.params.customerId, 'customerId');
-    const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, actorUserId: req.user.id, reason: req.body?.reason });
+    const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, currencyCode: req.body?.currencyCode || req.body?.currency_code, actorUserId: req.user.id, reason: req.body?.reason });
     res.json(result);
   } catch (error) {
     next(error);

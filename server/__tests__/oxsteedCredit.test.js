@@ -44,6 +44,7 @@ function createAdminApp() {
   app.get('/overview', controller.getAdminOverview);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
+  app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
   app.use(errorHandler);
   return app;
@@ -118,6 +119,35 @@ test('keeps admin credit overview balances separated by currency', async () => {
   ]));
   expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
+});
+
+test('updates the selected non-USD customer credit wallet status', async () => {
+  const account = {
+    id: 7002,
+    account_type: 'customer_wallet',
+    customer_id: CUSTOMER_ID,
+    partner_id: null,
+    currency_code: 'EUR',
+    balance_cents: '0',
+    reserved_cents: '0',
+    status: 'active',
+    ledger_version: '0',
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [account] })
+    .mockResolvedValueOnce({ rows: [{ ...account, status: 'suspended', updated_at: '2026-09-12T12:01:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp())
+    .post(`/status/${CUSTOMER_ID}`)
+    .send({ currencyCode: 'EUR', status: 'suspended', reason: 'Partner settlement review' });
+
+  expect(response.status).toBe(200);
+  expect(response.body.account).toMatchObject({ currencyCode: 'EUR', status: 'suspended' });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['customer_wallet', CUSTOMER_ID, null, 'EUR']);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['customer_wallet', CUSTOMER_ID, 'EUR']);
+  expect(mockQuery.mock.calls[3][1][2]).toBe(String(account.id));
 });
 
 test('shows only spendable partner restaurants in the customer currency', async () => {
