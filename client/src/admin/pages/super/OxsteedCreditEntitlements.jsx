@@ -39,6 +39,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
   const [form, setForm] = useState({ customerId: '', agreementId: '', status: 'active', startsAt: '', endsAt: '', maxTransaction: '', dailyLimit: '', reason: '' });
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -53,6 +54,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     try {
       const params = { limit: ENTITLEMENT_PAGE_SIZE, offset };
       if (statusFilter !== 'all') params.status = statusFilter;
+      if (appliedSearch) params.search = appliedSearch;
       const response = await adminApi.get('/admin/super/oxsteed-credit/entitlements', { params });
       setEntitlements(response.data?.entitlements || []);
       setTotal(Number(response.data?.total || 0));
@@ -64,13 +66,9 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     }
   };
 
-  useEffect(() => { load(); }, [statusFilter, offset]);
+  useEffect(() => { load(); }, [statusFilter, offset, appliedSearch]);
 
-  const visibleEntitlements = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return entitlements;
-    return entitlements.filter((entitlement) => [entitlement.customerName, entitlement.customerEmail, entitlement.customerId, entitlement.restaurantName].filter(Boolean).join(' ').toLowerCase().includes(normalizedSearch));
-  }, [entitlements, search]);
+  const visibleEntitlements = entitlements;
 
   const selectedAgreement = useMemo(() => agreements.find((agreement) => String(agreement.id) === String(form.agreementId)), [agreements, form.agreementId]);
 
@@ -125,7 +123,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-sm font-semibold text-white">Current assignments</h3><p className="mt-1 text-xs text-gray-600">{total ? `Showing ${offset + 1}–${Math.min(offset + entitlements.length, total)} of ${total} assignments` : 'No assignments loaded.'}</p></div>
-      <div className="flex flex-wrap items-center justify-end gap-2"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer or restaurant" className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400" /><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400"><option value="all">All access states</option>{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select><button type="button" onClick={() => setOffset((current) => Math.max(0, current - ENTITLEMENT_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Previous</button><button type="button" onClick={() => setOffset((current) => current + ENTITLEMENT_PAGE_SIZE)} disabled={loading || saving || !hasMore} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Next</button></div>
+      <div className="flex flex-wrap items-center justify-end gap-2"><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedSearch(search.trim()); setOffset(0); } }} placeholder="Search customer or restaurant" className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400" /><button type="button" onClick={() => { setAppliedSearch(search.trim()); setOffset(0); }} disabled={loading || saving} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Apply</button><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setOffset(0); }} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none focus:border-orange-400"><option value="all">All access states</option>{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select><button type="button" onClick={() => setOffset((current) => Math.max(0, current - ENTITLEMENT_PAGE_SIZE))} disabled={loading || saving || offset === 0} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Previous</button><button type="button" onClick={() => setOffset((current) => current + ENTITLEMENT_PAGE_SIZE)} disabled={loading || saving || !hasMore} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Next</button></div>
     </div>
     <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
       <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Customer</th><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Agreement</th><th className="px-3 py-3 font-medium">State</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Validity</th></tr></thead><tbody className="divide-y divide-gray-800">{loading ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">Loading customer access...</td></tr> : !visibleEntitlements.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">No customer restaurant access matches these filters.</td></tr> : visibleEntitlements.map((entitlement) => <tr key={entitlement.id}><td className="px-3 py-3"><strong className="text-white">{entitlement.customerName || 'Unnamed customer'}</strong><p className="mt-1 text-gray-500">{entitlement.customerEmail || 'No email'}</p><p className="mt-1 font-mono text-[10px] text-gray-700">{entitlement.customerId}</p></td><td className="px-3 py-3 text-white">{entitlement.restaurantName || `Restaurant ${entitlement.restaurantId}`}<p className="mt-1 text-gray-600">{entitlement.currencyCode || 'USD'}</p></td><td className="px-3 py-3 text-gray-400">v{entitlement.agreementVersion || '?'}<p className="mt-1 text-gray-600">{entitlement.agreementStatus || 'unknown'}</p></td><td className="px-3 py-3"><Badge status={entitlement.status} /></td><td className="px-3 py-3 text-gray-400">{entitlement.maxTransactionCents ? `Max ${money(entitlement.maxTransactionCents, entitlement.currencyCode)}` : 'Agreement cap'}{entitlement.dailyLimitCents ? <p className="mt-1 text-gray-600">Daily {money(entitlement.dailyLimitCents, entitlement.currencyCode)}</p> : null}</td><td className="px-3 py-3 text-gray-500">{dateTime(entitlement.startsAt)}<br />to {dateTime(entitlement.endsAt)}</td></tr>)}</tbody></table>

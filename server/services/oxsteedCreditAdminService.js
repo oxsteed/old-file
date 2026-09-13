@@ -465,9 +465,14 @@ async function listAgreements({ partnerId, status } = {}) {
   return rows.map(formatAgreement);
 }
 
-async function listEntitlements({ customerId, agreementId, status, limit = 100, offset = 0 } = {}) {
+async function listEntitlements({ search, customerId, agreementId, status, limit = 100, offset = 0 } = {}) {
   const params = [];
   const filters = [];
+  const normalizedSearch = normalizeString(search, 120);
+  if (normalizedSearch) {
+    params.push(`%${normalizedSearch}%`);
+    filters.push(`(u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR CAST(e.customer_id AS TEXT) ILIKE $${params.length} OR fr.display_name ILIKE $${params.length})`);
+  }
   if (customerId) {
     params.push(customerId);
     filters.push(`e.customer_id = $${params.length}`);

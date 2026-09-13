@@ -615,6 +615,7 @@ async function listAdminEntitlements(req, res, next) {
       ? parseUuid(req.query.agreementId || req.query.agreement_id, 'agreementId')
       : undefined;
     const result = await listEntitlements({
+      search: req.query.search || req.query.q,
       customerId,
       agreementId,
       status: req.query.status,

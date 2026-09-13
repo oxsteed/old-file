@@ -87,7 +87,7 @@ test('lists customer entitlements with restaurant context and bounded paging', a
     total_count: 21,
   }] });
 
-  const result = await listEntitlements({ customerId: '11111111-1111-4111-8111-111111111111', status: 'active', limit: 10, offset: 20 });
+  const result = await listEntitlements({ search: 'alice', customerId: '11111111-1111-4111-8111-111111111111', status: 'active', limit: 10, offset: 20 });
 
   expect(result).toMatchObject({ total: 21, limit: 10, offset: 20, hasMore: false });
   expect(result.entitlements[0]).toMatchObject({
@@ -99,10 +99,11 @@ test('lists customer entitlements with restaurant context and bounded paging', a
     maxTransactionCents: 2500,
   });
   expect(mockQuery.mock.calls[0][0]).toContain('JOIN food_restaurants fr');
+  expect(mockQuery.mock.calls[0][0]).toContain('u.email ILIKE');
   expect(mockQuery.mock.calls[0][0]).toContain("u.role = 'customer'");
-  expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $1');
-  expect(mockQuery.mock.calls[0][0]).toContain('e.status = $2');
-  expect(mockQuery.mock.calls[0][1]).toEqual(['11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
+  expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain('e.status = $3');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', '11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
 });
 
 test('requires idempotency for agreement creation', async () => {
