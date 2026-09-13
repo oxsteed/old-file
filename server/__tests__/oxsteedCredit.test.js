@@ -299,6 +299,9 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_worker_heartbeats_last_run',
     'idx_oxsteed_credit_transactions_debit_velocity',
     'idx_oxsteed_credit_holds_customer_currency_active',
+    'idx_oxsteed_credit_audit_action_created',
+    'idx_oxsteed_credit_audit_resource_created',
+    'idx_oxsteed_credit_audit_correlation',
   ]));
 });
 
@@ -306,6 +309,12 @@ test('credit verification requires velocity query indexes', () => {
   const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
   expect(verifierSource).toContain("['511_oxsteed_credit_velocity_indexes.sql']");
   expect(verifierSource).toContain('!checks.velocityIndexesMigrationApplied');
+});
+
+test('credit verification requires audit query indexes', () => {
+  const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
+  expect(verifierSource).toContain("['512_oxsteed_credit_audit_query_indexes.sql']");
+  expect(verifierSource).toContain('!checks.auditQueryIndexesMigrationApplied');
 });
 
 test('customer Credit mutation responses omit internal hold and ledger fields', () => {
