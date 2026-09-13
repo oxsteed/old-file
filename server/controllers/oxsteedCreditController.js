@@ -631,6 +631,7 @@ async function getAdminOverview(req, res, next) {
               'lastRunAt', heartbeat.last_run_at,
               'lastSuccessAt', heartbeat.last_success_at,
               'lastError', heartbeat.last_error,
+              'lastResult', heartbeat.last_result,
               'runCount', heartbeat.run_count,
               'consecutiveFailures', heartbeat.consecutive_failures,
               'stale', heartbeat.last_run_at IS NOT NULL
@@ -645,6 +646,7 @@ async function getAdminOverview(req, res, next) {
               'lastRunAt', heartbeat.last_run_at,
               'lastSuccessAt', heartbeat.last_success_at,
               'lastError', heartbeat.last_error,
+              'lastResult', heartbeat.last_result,
               'runCount', heartbeat.run_count,
               'consecutiveFailures', heartbeat.consecutive_failures,
               'stale', heartbeat.last_run_at IS NOT NULL
