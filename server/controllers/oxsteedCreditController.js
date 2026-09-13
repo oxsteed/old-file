@@ -24,6 +24,7 @@ const {
   getCreditRailStatus,
   setCreditRailStatus,
   SUPPORTED_CREDIT_CURRENCIES,
+  SUPPORTED_CREDIT_CURRENCY_META,
 } = require('../services/oxsteedCreditService');
 const {
   listPartners,
@@ -427,6 +428,7 @@ async function getAdminOverview(req, res, next) {
     res.json({
       name: 'OxSteed Credit',
       supportedCurrencies: SUPPORTED_CREDIT_CURRENCIES,
+      currencyMetadata: SUPPORTED_CREDIT_CURRENCY_META,
       summary: formatSummary(summary),
       summaryByCurrency: summaryResult.rows.map(formatSummary),
       partners: partnersResult.rows.map((row) => ({

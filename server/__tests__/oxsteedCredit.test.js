@@ -66,6 +66,12 @@ test('credit verification identifies records outside the configured currency all
   ]);
 });
 
+test('exposes only currencies with verified two-decimal minor-unit support', () => {
+  expect(service.SUPPORTED_CREDIT_CURRENCY_META.USD).toEqual({ code: 'USD', minorUnits: 2 });
+  expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits === 2)).toBe(true);
+  expect(service.SUPPORTED_CREDIT_CURRENCY_META.JPY).toBeUndefined();
+});
+
 test('customer allowlist agreements require an active entitlement in eligibility queries', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [] });
 

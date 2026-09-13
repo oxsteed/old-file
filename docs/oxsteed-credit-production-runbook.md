@@ -142,9 +142,12 @@ Customers can download the same period as CSV from `GET /api/oxsteed-credit/stat
 
 ## Currency Isolation
 
-OxSteed Credit supports a configured set of ISO 4217 currencies. Set
+OxSteed Credit supports a configured set of ISO 4217 currencies with verified
+two-decimal minor-unit handling. Set
 `OXSTEED_CREDIT_SUPPORTED_CURRENCIES` to the same comma-separated allowlist on
 every application replica; when it is unset, the built-in allowlist is used.
+Configured currencies outside the verified allowlist are omitted and a
+startup warning is emitted, so they cannot silently enter the ledger.
 Customer wallets, partner agreements, restaurant settlement currency, holds,
 transactions, refunds, and reconciliation runs remain currency-isolated. The
 application does not perform foreign-exchange conversion, combine balances from
