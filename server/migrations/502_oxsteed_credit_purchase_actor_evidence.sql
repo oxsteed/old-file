@@ -13,7 +13,8 @@ UPDATE oxsteed_credit_transactions t
  WHERE t.purchase_actor_evidence_legacy = FALSE
    AND t.transaction_type = 'purchase'
    AND (
-     t.actor_type NOT IN ('customer', 'user', 'admin', 'system')
+     t.actor_type IS NULL
+     OR t.actor_type NOT IN ('customer', 'user', 'admin', 'system')
      OR (
        t.actor_type IN ('customer', 'user')
        AND NOT EXISTS (
@@ -93,7 +94,10 @@ BEGIN
 
   IF NEW.transaction_type = 'purchase'
      AND NOT NEW.purchase_actor_evidence_legacy THEN
-    IF NEW.actor_type IN ('customer', 'user') THEN
+    IF NEW.actor_type IS NULL OR NEW.actor_type NOT IN ('customer', 'user', 'admin', 'system') THEN
+      RAISE EXCEPTION 'OxSteed Credit purchases require a supported actor type'
+        USING ERRCODE = '23514';
+    ELSIF NEW.actor_type IN ('customer', 'user') THEN
       RETURN NEW;
     ELSIF NEW.actor_type = 'admin' THEN
       SELECT EXISTS (
@@ -131,9 +135,6 @@ BEGIN
 
     IF NEW.actor_type IN ('admin', 'system') AND NOT hold_capture_valid THEN
       RAISE EXCEPTION 'Non-customer OxSteed Credit purchases require a matching hold capture'
-        USING ERRCODE = '23514';
-    ELSIF NEW.actor_type NOT IN ('customer', 'user', 'admin', 'system') THEN
-      RAISE EXCEPTION 'OxSteed Credit purchases require a supported actor type'
         USING ERRCODE = '23514';
     END IF;
   END IF;

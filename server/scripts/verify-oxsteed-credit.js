@@ -1013,7 +1013,8 @@ async function main() {
         WHERE t.transaction_type = 'purchase'
           AND NOT t.purchase_actor_evidence_legacy
           AND (
-            t.actor_type NOT IN ('customer', 'user', 'admin', 'system')
+            t.actor_type IS NULL
+            OR t.actor_type NOT IN ('customer', 'user', 'admin', 'system')
             OR (
               t.actor_type IN ('customer', 'user')
               AND (a.account_type <> 'customer_wallet'
