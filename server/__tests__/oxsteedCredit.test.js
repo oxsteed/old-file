@@ -102,6 +102,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_agreement_state_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_partner_status_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_agreement_approval_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_account_state_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -150,6 +151,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.agreementApprovalMigrationApplied');
   expect(verifierSource).toContain("['481_oxsteed_credit_approval_history.sql']");
   expect(verifierSource).toContain('!checks.approvalHistoryMigrationApplied');
+  expect(verifierSource).toContain("['482_oxsteed_credit_account_state.sql']");
+  expect(verifierSource).toContain('!checks.accountStateMigrationApplied');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -754,6 +757,28 @@ test('does not create a wallet while changing customer credit account status', a
   expect(response.body.code).toBe('credit_account_not_found');
   expect(mockQuery).toHaveBeenCalledTimes(1);
   expect(mockQuery.mock.calls[0][0]).toContain("account_type = 'customer_wallet'");
+});
+
+test('does not reopen a closed customer credit wallet', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 7003,
+    account_type: 'customer_wallet',
+    customer_id: CUSTOMER_ID,
+    partner_id: null,
+    currency_code: 'USD',
+    balance_cents: '0',
+    reserved_cents: '0',
+    status: 'closed',
+    ledger_version: '2',
+  }] });
+
+  const response = await request(createAdminApp())
+    .post(`/status/${CUSTOMER_ID}`)
+    .send({ currencyCode: 'USD', status: 'active', reason: 'Reactivation test' });
+
+  expect(response.status).toBe(409);
+  expect(response.body.code).toBe('credit_account_closed');
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('shows only spendable partner restaurants in the customer currency', async () => {

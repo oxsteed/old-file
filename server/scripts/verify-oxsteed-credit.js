@@ -108,6 +108,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_agreement_state_guard',
   'oxsteed_credit_partner_status_guard',
   'oxsteed_credit_agreement_approval_guard',
+  'oxsteed_credit_account_state_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -423,6 +424,11 @@ async function main() {
       ['481_oxsteed_credit_approval_history.sql']
     );
     checks.approvalHistoryMigrationApplied = approvalHistoryMigrationRows.rows.length === 1;
+    const accountStateMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['482_oxsteed_credit_account_state.sql']
+    );
+    checks.accountStateMigrationApplied = accountStateMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -725,6 +731,14 @@ async function main() {
     );
     checks.invalidActiveAgreementApprovals = Number(agreementApprovalInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: closedAccountInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_accounts
+        WHERE status = 'closed'
+          AND (balance_cents <> 0 OR reserved_cents <> 0)`,
+    );
+    checks.invalidClosedCreditAccounts = Number(closedAccountInvariantRows[0]?.invalid_count || 0);
+
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions
@@ -970,6 +984,7 @@ async function main() {
       !checks.agreementStateMigrationApplied,
       !checks.agreementApprovalMigrationApplied,
       !checks.approvalHistoryMigrationApplied,
+      !checks.accountStateMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -994,6 +1009,7 @@ async function main() {
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveAgreementApprovals > 0,
+      checks.invalidClosedCreditAccounts > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,

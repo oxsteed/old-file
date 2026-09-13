@@ -1371,6 +1371,9 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
     const account = await findCustomerAccount(client, customerId, currency, true);
     if (!account) throw new AppError('Customer credit account was not found', 404, 'credit_account_not_found');
     if (account.status === normalizedStatus) return { account: formatAccount(account), replayed: true };
+    if (account.status === 'closed') {
+      throw new AppError('A closed credit account cannot be reopened', 409, 'credit_account_closed');
+    }
     if (normalizedStatus === 'closed' && (Number(account.balance_cents || 0) !== 0 || Number(account.reserved_cents || 0) !== 0)) {
       throw new AppError('A credit account must have zero balance and no holds before it can be closed', 409, 'credit_account_close_not_allowed');
     }
