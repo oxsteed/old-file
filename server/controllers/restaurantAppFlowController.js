@@ -26,6 +26,10 @@ const {
   captureWalletHold,
   releaseWalletHold,
 } = require('../services/foodWalletOperationsService');
+const {
+  purchaseWithCreditInTransaction,
+  refundCreditInTransaction,
+} = require('../services/oxsteedCreditService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
@@ -62,7 +66,7 @@ const CREW_TRANSITIONS = {
   cancelled: new Set(['not_started']),
 };
 const POS_TICKET_STATES = new Set(['open', 'held', 'voided', 'refunded', 'closed']);
-const POS_PAYMENT_TYPES = new Set(['cash', 'card', 'external', 'gift_card', 'wallet_credit', 'comp', 'refund']);
+const POS_PAYMENT_TYPES = new Set(['cash', 'card', 'external', 'gift_card', 'wallet_credit', 'oxsteed_credit', 'comp', 'refund']);
 const POS_PAYMENT_STATUSES = new Set(['recorded', 'pending', 'captured', 'failed', 'refunded', 'voided']);
 const POS_DRAWER_EVENT_TYPES = new Set(['cash_in', 'cash_out', 'cash_drop', 'no_sale', 'drawer_count', 'payout']);
 const POS_PAYMENT_TYPE_ALIASES = {
@@ -78,6 +82,8 @@ const POS_PAYMENT_TYPE_ALIASES = {
   wallet_credit: 'wallet_credit',
   restaurant_credit: 'wallet_credit',
   credit: 'wallet_credit',
+  oxsteed_credit: 'oxsteed_credit',
+  oxsteedCredit: 'oxsteed_credit',
   comp: 'comp',
   refund: 'refund',
 };
@@ -96,6 +102,9 @@ const PAYMENT_MODE_ALIASES = {
   pay_at_restaurant_counter: 'pay_at_restaurant',
   wallet_credit: 'restaurant_credit',
   restaurant_credit: 'restaurant_credit',
+  oxsteed_credit: 'oxsteed_credit',
+  oxsteedCredit: 'oxsteed_credit',
+  credit: 'oxsteed_credit',
   direct: 'direct_payment',
   direct_payment: 'direct_payment',
   off_platform: 'direct_payment',
@@ -103,6 +112,7 @@ const PAYMENT_MODE_ALIASES = {
 const LEGACY_PAYMENT_MODE = {
   pay_at_restaurant: 'pay_at_counter',
   restaurant_credit: 'wallet_credit',
+  oxsteed_credit: 'oxsteed_credit',
   direct_payment: 'direct_payment',
 };
 const ROLE_PERMISSIONS = {
@@ -169,13 +179,13 @@ function normalizeRestaurantPaymentMode(value, fallback = 'pay_at_restaurant') {
   const raw = normalizeString(value, 40);
   if (raw && !PAYMENT_MODE_ALIASES[raw]) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
-      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+      paymentMode: 'Must be restaurant_credit, oxsteed_credit, pay_at_restaurant, or direct_payment',
     });
   }
   const canonical = raw ? PAYMENT_MODE_ALIASES[raw] : fallback;
   if (!PAYMENT_MODE_ALIASES[canonical]) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
-      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+      paymentMode: 'Must be restaurant_credit, oxsteed_credit, pay_at_restaurant, or direct_payment',
     });
   }
   return {
@@ -4073,6 +4083,278 @@ exports.lookupPosCustomerWallet = async (req, res, next) => {
   }
 };
 
+async function recordPosOxsteedCreditPayment(client, {
+  restaurant,
+  restaurantId,
+  order,
+  orderId,
+  amountCents,
+  currencyCode,
+  shiftId,
+  idempotencyKey,
+  createdByUserId,
+  request,
+  paymentContract,
+}) {
+  const customerRow = await findPosWalletCustomer(client, {
+    restaurantId,
+    customerId: request.body.customerId || request.body.customer_id,
+    customerEmail: request.body.customerEmail || request.body.customer_email,
+    customerPhone: request.body.customerPhone || request.body.customer_phone,
+    query: request.body.customerLookup || request.body.customer_lookup,
+  });
+  const customerId = String(customerRow.id);
+  if (order.customer_id && String(order.customer_id) !== customerId) {
+    throw new AppError('This ticket is assigned to a different customer', 409, 'pos_customer_mismatch');
+  }
+
+  const { rows: partnerRows } = await client.query(
+    `SELECT id
+       FROM oxsteed_credit_partners
+      WHERE restaurant_id = $1 AND status = 'active'
+      LIMIT 1`,
+    [restaurantId]
+  );
+  const partner = partnerRows[0];
+  if (!partner) throw new AppError('This restaurant does not currently accept OxSteed Credit', 409, 'credit_partner_not_eligible');
+
+  const { rows: categoryRows } = await client.query(
+    `SELECT foi.menu_item_id, fmc.name AS category_name
+       FROM food_order_items foi
+       LEFT JOIN food_menu_items fmi ON fmi.id = foi.menu_item_id
+       LEFT JOIN food_menu_categories fmc ON fmc.id = fmi.category_id
+      WHERE foi.order_id = $1
+      ORDER BY foi.id`,
+    [orderId]
+  );
+  const creditTransaction = await purchaseWithCreditInTransaction(client, {
+    customerId,
+    partnerId: partner.id,
+    amountCents,
+    currencyCode,
+    actorUserId: createdByUserId,
+    actorType: 'restaurant_pos',
+    orderType: order.fulfillment_type,
+    categories: categoryRows.map((row) => row.category_name).filter(Boolean),
+    menuItemIds: categoryRows.map((row) => row.menu_item_id).filter(Boolean),
+    city: restaurant.address_city,
+    state: restaurant.address_state,
+    postalCode: restaurant.address_zip,
+    country: restaurant.address_country,
+    idempotencyKey: `pos-credit:${idempotencyKey}`,
+    referenceType: 'food_order',
+    referenceId: String(orderId),
+    correlationId: idempotencyKey,
+    requestIp: request.ip || null,
+    description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+    metadata: {
+      source: 'pos_oxsteed_credit',
+      restaurantId,
+      orderId: String(orderId),
+      shiftId,
+      customerId,
+      posIdempotencyKey: idempotencyKey,
+      paymentContract: paymentContractMetadata(paymentContract),
+    },
+  });
+
+  if (!order.customer_id) {
+    await client.query(
+      `UPDATE food_orders SET customer_id = $1, updated_at = NOW() WHERE id = $2 AND customer_id IS NULL`,
+      [customerId, orderId]
+    );
+  }
+  const transactionId = creditTransaction.transaction?.id ? String(creditTransaction.transaction.id) : null;
+  const { rows: [payment] } = await client.query(
+    `INSERT INTO restaurant_pos_payments
+       (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+        provider, reference, note, metadata, idempotency_key, created_by)
+     VALUES ($1,$2,$3,'oxsteed_credit',$4,'captured','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+     RETURNING *`,
+    [
+      restaurantId,
+      orderId,
+      shiftId,
+      amountCents,
+      transactionId ? `credit-transaction:${transactionId}` : `food-order:${orderId}`,
+      'Paid with OxSteed Credit',
+      JSON.stringify({
+        source: 'oxsteed_credit',
+        customerId,
+        creditTransactionId: transactionId,
+        currencyCode,
+        shiftId,
+        paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_oxsteed_credit' }),
+      }),
+      idempotencyKey,
+      createdByUserId,
+    ]
+  );
+  const reconciliation = await reconcilePosOrderPayment(client, orderId);
+  if (reconciliation?.order) {
+    await insertPosReceiptAudit(client, {
+      restaurantId,
+      order: reconciliation.order,
+      eventType: 'payment_recorded',
+      channel: 'OxSteed Credit',
+      createdBy: createdByUserId,
+      reason: normalizeString(request.body.reason || request.body.note, 1000) || 'Paid with OxSteed Credit',
+      metadata: {
+        paymentId: payment?.id ? String(payment.id) : null,
+        paymentType: 'oxsteed_credit',
+        amountCents,
+        status: 'captured',
+        shiftId,
+        customerId,
+        creditTransactionId: transactionId,
+        paymentContract: paymentContractMetadata(paymentContract),
+      },
+      idempotencyKey: `receipt:${restaurantId}:${idempotencyKey}`,
+    });
+  }
+  return {
+    payment,
+    ...reconciliation,
+    customer: formatPosCustomerWallet(customerRow).customer,
+    oxsteedCredit: {
+      transactionId,
+      amountCents,
+      currencyCode,
+      customerId,
+      replayed: Boolean(creditTransaction.replayed),
+    },
+  };
+}
+
+async function refundPosOxsteedCreditPayment(client, {
+  restaurant,
+  restaurantId,
+  order,
+  orderId,
+  amountCents,
+  currencyCode,
+  shiftId,
+  idempotencyKey,
+  createdByUserId,
+  reason,
+  request,
+  paymentContract,
+}) {
+  const { rows: creditPayments } = await client.query(
+    `SELECT p.*,
+            (p.amount_cents - COALESCE(p.refunded_amount_cents, 0))::int AS refundable_cents,
+            p.metadata->>'creditTransactionId' AS credit_transaction_id,
+            p.metadata->>'customerId' AS customer_id
+       FROM restaurant_pos_payments p
+      WHERE p.restaurant_id = $1
+        AND p.food_order_id = $2
+        AND p.payment_type = 'oxsteed_credit'
+        AND p.provider = 'oxsteed_credit'
+        AND p.status IN ('recorded','captured')
+        AND (p.amount_cents - COALESCE(p.refunded_amount_cents, 0)) > 0
+      ORDER BY p.created_at ASC, p.id ASC
+      FOR UPDATE`,
+    [restaurantId, orderId]
+  );
+  const refundableCents = creditPayments.reduce((sum, payment) => sum + Number(payment.refundable_cents || 0), 0);
+  if (refundableCents <= 0) return null;
+  if (amountCents > refundableCents) {
+    throw new AppError('Refund includes more than the OxSteed Credit paid balance', 409, 'credit_refund_exceeds_pos_payment', { refundableCents });
+  }
+  let remainingCents = amountCents;
+  const refunds = [];
+  for (const original of creditPayments) {
+    if (remainingCents <= 0) break;
+    const portionCents = Math.min(remainingCents, Number(original.refundable_cents || 0));
+    const transactionId = normalizeString(original.credit_transaction_id, 160);
+    if (!transactionId) throw new AppError('Original OxSteed Credit payment is missing its ledger transaction', 409, 'credit_pos_payment_metadata_missing');
+    const refund = await refundCreditInTransaction(client, {
+      purchaseTransactionId: transactionId,
+      amountCents: portionCents,
+      idempotencyKey: `pos-credit-refund:${idempotencyKey}:${original.id}`,
+      actorUserId: createdByUserId,
+      actorType: 'restaurant_pos',
+      reason,
+      correlationId: idempotencyKey,
+      requestIp: request.ip || null,
+      metadata: {
+        source: 'pos_oxsteed_credit_refund',
+        restaurantId,
+        orderId: String(orderId),
+        shiftId,
+        originalPaymentId: String(original.id),
+        paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_oxsteed_credit_refund' }),
+      },
+    });
+    const refundTransactionId = refund.transaction?.id ? String(refund.transaction.id) : null;
+    const { rows: [refundPayment] } = await client.query(
+      `UPDATE restaurant_pos_payments
+          SET refunded_amount_cents = LEAST(amount_cents, COALESCE(refunded_amount_cents, 0) + $1),
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING *`,
+      [portionCents, original.id]
+    );
+    const { rows: [recordedRefund] } = await client.query(
+      `INSERT INTO restaurant_pos_payments
+         (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+          provider, reference, note, metadata, idempotency_key, created_by)
+       VALUES ($1,$2,$3,'refund',$4,'refunded','oxsteed_credit',$5,$6,$7::jsonb,$8,$9)
+       RETURNING *`,
+      [
+        restaurantId,
+        orderId,
+        shiftId,
+        portionCents,
+        refundTransactionId ? `credit-refund:${refundTransactionId}` : `food-order:${orderId}`,
+        'Refunded to OxSteed Credit',
+        JSON.stringify({
+          source: 'oxsteed_credit',
+          customerId: original.customer_id || null,
+          creditTransactionId: refundTransactionId,
+          originalPaymentId: String(original.id),
+          currencyCode,
+          paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_oxsteed_credit_refund' }),
+        }),
+        `${idempotencyKey}:${original.id}`,
+        createdByUserId,
+      ]
+    );
+    refunds.push({ payment: recordedRefund, originalPayment: refundPayment, transactionId: refundTransactionId, amountCents: portionCents });
+    remainingCents -= portionCents;
+  }
+  const reconciliation = await reconcilePosOrderPayment(client, orderId);
+  if (reconciliation?.order) {
+    await insertPosReceiptAudit(client, {
+      restaurantId,
+      order: reconciliation.order,
+      eventType: 'payment_refunded',
+      channel: 'OxSteed Credit',
+      createdBy: createdByUserId,
+      reason: normalizeString(reason, 1000) || 'Refunded to OxSteed Credit',
+      metadata: {
+        paymentType: 'refund',
+        refundType: 'oxsteed_credit',
+        amountCents,
+        shiftId,
+        refunds: refunds.map((entry) => ({ transactionId: entry.transactionId, amountCents: entry.amountCents })),
+        paymentContract: paymentContractMetadata(paymentContract),
+      },
+      idempotencyKey: `receipt:${restaurantId}:oxsteed-credit-refund:${idempotencyKey}`,
+    });
+  }
+  return {
+    payment: refunds[0]?.payment || null,
+    payments: refunds.map((entry) => entry.payment).filter(Boolean),
+    ...reconciliation,
+    oxsteedCreditRefund: {
+      amountCents,
+      currencyCode,
+      refunds: refunds.map((entry) => ({ transactionId: entry.transactionId, amountCents: entry.amountCents })),
+    },
+  };
+}
+
 exports.recordPosPayment = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -4109,9 +4391,9 @@ exports.recordPosPayment = async (req, res, next) => {
       req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
       200
     );
-    if (['refund', 'wallet_credit'].includes(paymentType) && !idempotencyKey) {
+    if (['refund', 'wallet_credit', 'oxsteed_credit'].includes(paymentType) && !idempotencyKey) {
       throw new AppError(
-        'Idempotency-Key is required for restaurant-credit payments and refunds',
+        'Idempotency-Key is required for stored-value payments and refunds',
         400,
         'idempotency_key_required'
       );
@@ -4122,6 +4404,8 @@ exports.recordPosPayment = async (req, res, next) => {
         ? 'direct_payment'
         : paymentType === 'wallet_credit'
           ? 'restaurant_credit'
+          : paymentType === 'oxsteed_credit'
+            ? 'oxsteed_credit'
           : 'pay_at_restaurant'
     );
     const result = await withTransaction(pool, async (client) => {
@@ -4272,6 +4556,21 @@ exports.recordPosPayment = async (req, res, next) => {
           requestMetadata: req.body.metadata,
         });
         if (walletRefund) return walletRefund;
+        const oxsteedCreditRefund = await refundPosOxsteedCreditPayment(client, {
+          restaurant,
+          restaurantId,
+          order,
+          orderId,
+          amountCents,
+          currencyCode,
+          shiftId,
+          idempotencyKey,
+          createdByUserId: req.user.id,
+          reason: req.body.reason || req.body.note,
+          request: req,
+          paymentContract,
+        });
+        if (oxsteedCreditRefund) return oxsteedCreditRefund;
       }
 
       if (paymentType === 'wallet_credit') {
@@ -4446,6 +4745,22 @@ exports.recordPosPayment = async (req, res, next) => {
           },
           customer: customerWallet.customer,
         };
+      }
+
+      if (paymentType === 'oxsteed_credit') {
+        return recordPosOxsteedCreditPayment(client, {
+          restaurant,
+          restaurantId,
+          order,
+          orderId,
+          amountCents,
+          currencyCode,
+          shiftId,
+          idempotencyKey,
+          createdByUserId: req.user.id,
+          request: req,
+          paymentContract,
+        });
       }
 
       const { rows: [payment] } = await client.query(
