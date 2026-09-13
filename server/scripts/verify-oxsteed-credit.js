@@ -377,6 +377,11 @@ async function main() {
       ['469_oxsteed_credit_hold_immutability.sql']
     );
     checks.holdImmutabilityMigrationApplied = holdImmutabilityMigrationRows.rows.length === 1;
+    const identityRetentionMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['474_oxsteed_credit_identity_retention.sql']
+    );
+    checks.identityRetentionMigrationApplied = identityRetentionMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -822,6 +827,7 @@ async function main() {
       !checks.adminRefundEvidenceMigrationApplied,
       !checks.holdImmutabilityMigrationApplied,
       !checks.settlementCreationEvidenceMigrationApplied,
+      !checks.identityRetentionMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
