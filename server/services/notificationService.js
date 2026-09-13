@@ -37,7 +37,7 @@ exports.sendNotification = async ({
       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
       WHERE u.id = $1
     `, [userId]);
-    if (!prefRows.length) return;
+    if (!prefRows.length) return { success: false, reason: 'user_not_found' };
 
     const prefs     = prefRows[0];
     const userEmail = prefs.email;
@@ -153,6 +153,7 @@ exports.sendNotification = async ({
       'bid_accepted', 'payment_released', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'payout_deposited', 'account_banned',
+      'oxsteed_credit_transaction',
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',
@@ -169,6 +170,7 @@ exports.sendNotification = async ({
       'account_restricted',
       'account_deletion_scheduled',
       'admin_warning',
+      'oxsteed_credit_transaction',
     ]);
     const emailAllowed = userEmail && emailTypes.includes(type)
       && (transactionalEmailTypes.has(type) ? true : !emailPrefOff);
@@ -193,9 +195,11 @@ exports.sendNotification = async ({
         );
       }
     }
+    return { success: true, notificationId: notifId };
   } catch (err) {
     logger.error('Send notification failed', { userId, type, error: err.message });
     // Never throw - notification failure should never block business logic
+    return { success: false, error: err.message };
   }
 };
 

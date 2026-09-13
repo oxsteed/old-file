@@ -27,6 +27,7 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_disputes',
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
+  'oxsteed_credit_notification_outbox',
   'cron_job_locks',
 ];
 
@@ -63,6 +64,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
+  oxsteed_credit_notification_outbox: ['transaction_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -81,6 +83,8 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_entitlement_bulk_requests_customer',
   'idx_oxsteed_credit_entitlement_requests_customer',
   'idx_oxsteed_credit_entitlement_requests_agreement',
+  'idx_oxsteed_credit_notification_outbox_due',
+  'idx_oxsteed_credit_notification_outbox_user',
   'uq_oxsteed_credit_audit_event_hash',
 ];
 
@@ -584,6 +588,11 @@ async function main() {
       ['504_oxsteed_credit_spend_account_state.sql']
     );
     checks.spendAccountStateMigrationApplied = spendAccountStateMigrationRows.rows.length === 1;
+    const notificationOutboxMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['505_oxsteed_credit_notification_outbox.sql']
+    );
+    checks.notificationOutboxMigrationApplied = notificationOutboxMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1520,6 +1529,7 @@ async function main() {
       !checks.purchaseActorEvidenceMigrationApplied,
       !checks.systemHoldReleaseEvidenceMigrationApplied,
       !checks.spendAccountStateMigrationApplied,
+      !checks.notificationOutboxMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,

@@ -208,6 +208,7 @@ test('records the prior entitlement state when access is updated', async () => {
     'credit_entitlement',
     'entitlement-1',
     'Temporarily restricted pending review',
+    null,
     JSON.stringify({
       status: 'active',
       startsAt: null,
@@ -834,6 +835,7 @@ test('marks ended customer entitlements expired and records the transition', asy
     'credit_entitlement',
     'entitlement-1',
     'Entitlement validity window ended',
+    null,
     JSON.stringify({ status: 'active', endsAt: endedAt }),
     JSON.stringify({ status: 'expired', endsAt: endedAt }),
     JSON.stringify({}),
@@ -904,6 +906,7 @@ test('marks ended agreements expired and records the transition', async () => {
     'credit_agreement',
     'agreement-1',
     'Agreement validity window ended',
+    null,
     JSON.stringify({ status: 'active', endsAt: endedAt }),
     JSON.stringify({ status: 'expired', endsAt: endedAt }),
     JSON.stringify({}),

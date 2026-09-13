@@ -228,6 +228,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.systemHoldReleaseEvidenceMigrationApplied');
   expect(verifierSource).toContain("['504_oxsteed_credit_spend_account_state.sql']");
   expect(verifierSource).toContain('!checks.spendAccountStateMigrationApplied');
+  expect(verifierSource).toContain("['505_oxsteed_credit_notification_outbox.sql']");
+  expect(verifierSource).toContain('!checks.notificationOutboxMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
 });
 

@@ -633,6 +633,40 @@ async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT
   }
 }
 
+async function enqueueCreditTransactionNotifications(client, { transaction, debitAccount, creditAccount, input, currencyCode, amountCents }) {
+  const recipients = [
+    { account: debitAccount, direction: 'debit' },
+    { account: creditAccount, direction: 'credit' },
+  ].filter(({ account }) => account?.account_type === 'customer_wallet' && account.customer_id);
+  const seenUsers = new Set();
+
+  for (const { account, direction } of recipients) {
+    const userId = String(account.customer_id);
+    if (seenUsers.has(userId)) continue;
+    seenUsers.add(userId);
+    await client.query(
+      `INSERT INTO oxsteed_credit_notification_outbox
+         (transaction_id, user_id, event_type, payload)
+       VALUES ($1, $2, 'transaction_posted', $3::jsonb)
+       ON CONFLICT (transaction_id, user_id, event_type) DO NOTHING`,
+      [
+        transaction.id,
+        account.customer_id,
+        JSON.stringify({
+          transactionId: String(transaction.id),
+          transactionType: input.transactionType,
+          direction,
+          amountCents,
+          currencyCode,
+          partnerId: input.partnerId === null || input.partnerId === undefined ? null : String(input.partnerId),
+          referenceType: normalizeString(input.referenceType, 80),
+          referenceId: normalizeString(input.referenceId, 160),
+        }),
+      ]
+    );
+  }
+}
+
 async function postJournalTransaction(client, input) {
   const amountCents = parseAmountCents(input.amountCents);
   const idempotencyKey = normalizeString(input.idempotencyKey, 160);
@@ -828,6 +862,14 @@ async function postJournalTransaction(client, input) {
       JSON.stringify(normalizeMetadata(input.metadata)),
     ]
   );
+  await enqueueCreditTransactionNotifications(client, {
+    transaction,
+    debitAccount,
+    creditAccount,
+    input,
+    currencyCode: requested.currency_code,
+    amountCents,
+  });
 
   return { transaction: formatTransaction(transaction, entryRows), replayed: false };
 }

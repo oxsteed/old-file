@@ -43,6 +43,7 @@ async function findCreditRetentionTables() {
     'oxsteed_credit_partner_agreements',
     'oxsteed_credit_settlements',
     'oxsteed_credit_audit_events',
+    'oxsteed_credit_notification_outbox',
   ];
   const exists = await Promise.all(candidates.map((table) => tableExists(table)));
   return candidates.filter((_, index) => exists[index]);
@@ -62,11 +63,21 @@ async function hasCreditRecords(client, userId, tables) {
   if (tables.includes('oxsteed_credit_partner_agreements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_partner_agreements WHERE created_by = $1 OR approved_by = $1)');
   if (tables.includes('oxsteed_credit_settlements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_settlements WHERE created_by = $1 OR approved_by = $1)');
   if (tables.includes('oxsteed_credit_audit_events')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_audit_events WHERE actor_user_id = $1)');
+  if (tables.includes('oxsteed_credit_notification_outbox')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_notification_outbox WHERE user_id = $1)');
   const { rows } = await client.query(`SELECT ${predicates.join(' OR ')} AS has_credit_records`, [String(userId)]);
   return rows[0]?.has_credit_records === true;
 }
 
-async function anonymizeCreditCustomer(client, userId) {
+async function anonymizeCreditCustomer(client, userId, { hasNotificationOutbox = false } = {}) {
+  if (hasNotificationOutbox) {
+    await client.query(
+      `UPDATE oxsteed_credit_notification_outbox
+          SET status = 'failed', locked_at = NULL,
+              last_error = 'Customer account anonymized', updated_at = NOW()
+        WHERE user_id = $1 AND status IN ('pending', 'sending')`,
+      [String(userId)],
+    );
+  }
   await client.query(
     `UPDATE users
         SET first_name = 'Deleted',
@@ -132,7 +143,9 @@ async function hardDeleteUser(user) {
 
     const creditRetentionTables = await findCreditRetentionTables();
     if (await hasCreditRecords(client, userId, creditRetentionTables)) {
-      await anonymizeCreditCustomer(client, userId);
+      await anonymizeCreditCustomer(client, userId, {
+        hasNotificationOutbox: creditRetentionTables.includes('oxsteed_credit_notification_outbox'),
+      });
       await client.query('COMMIT');
       logger.info('scheduledDeletionJob: retained OxSteed Credit records and anonymized user', {
         userId,

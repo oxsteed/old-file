@@ -47,6 +47,22 @@ const T = {
       ar: 'تم تحرير دفعتك.',
     },
   },
+  oxsteed_credit_transaction: {
+    title: {
+      en: 'OxSteed Credit activity',
+      fr: 'Activité OxSteed Credit',
+      es: 'Actividad de OxSteed Credit',
+      ht: 'Aktivite OxSteed Credit',
+      ar: 'نشاط OxSteed Credit',
+    },
+    body: {
+      en: 'Review your OxSteed Credit activity.',
+      fr: 'Consultez votre activité OxSteed Credit.',
+      es: 'Revisa tu actividad de OxSteed Credit.',
+      ht: 'Revize aktivite OxSteed Credit ou.',
+      ar: 'راجع نشاط OxSteed Credit الخاص بك.',
+    },
+  },
   new_login_detected: {
     title: {
       en: 'New login detected on your account',

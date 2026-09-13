@@ -27,6 +27,7 @@ test('anonymizes users with OxSteed Credit records instead of deleting financial
     .mockResolvedValueOnce({ rows: [{ exists: true }] })
     .mockResolvedValueOnce({ rows: [{ exists: true }] })
     .mockResolvedValueOnce({ rows: [{ exists: true }] })
+    .mockResolvedValueOnce({ rows: [{ exists: true }] })
     .mockResolvedValueOnce({ rows: [{ has_credit_records: true }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] });
