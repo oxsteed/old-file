@@ -454,6 +454,72 @@ function formatCreditAuditEvent(row) {
   };
 }
 
+function formatCreditNotificationFailure(row) {
+  return {
+    id: String(row.id),
+    userId: row.user_id || null,
+    transactionId: row.transaction_id || null,
+    holdId: row.hold_id || null,
+    eventType: row.event_type || 'transaction_posted',
+    status: row.status || 'failed',
+    attempts: Number(row.attempts || 0),
+    lastError: row.last_error || null,
+    nextAttemptAt: row.next_attempt_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+async function retryCreditNotification({ notificationId, reason, actorUserId, correlationId, requestIp }) {
+  const auditReason = requireAuditReason(reason);
+  const actor = requireAdministrativeActor(actorUserId);
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT id, user_id, transaction_id, hold_id, event_type, status, attempts, last_error,
+              next_attempt_at, created_at, updated_at
+         FROM oxsteed_credit_notification_outbox
+        WHERE id = $1
+        FOR UPDATE`,
+      [notificationId]
+    );
+    const notification = rows[0];
+    if (!notification) throw new AppError('Credit notification was not found', 404, 'credit_notification_not_found');
+    if (notification.status !== 'failed') {
+      return { notification: formatCreditNotificationFailure(notification), replayed: true };
+    }
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_notification_outbox
+          SET status = 'pending', attempts = 0, next_attempt_at = NOW(), locked_at = NULL,
+              sent_at = NULL, last_error = NULL, updated_at = NOW()
+        WHERE id = $1 AND status = 'failed'
+        RETURNING id, user_id, transaction_id, hold_id, event_type, status, attempts, last_error,
+                  next_attempt_at, created_at, updated_at`,
+      [notification.id]
+    );
+    if (!updatedRows[0]) return { notification: formatCreditNotificationFailure(notification), replayed: true };
+    await insertAudit(client, {
+      actionType: 'credit.notification.retry_requested',
+      actorUserId: actor,
+      customerId: notification.user_id,
+      resourceType: 'credit_notification',
+      resourceId: notification.id,
+      reason: auditReason,
+      correlationId,
+      requestIp,
+      beforeState: { status: notification.status, attempts: Number(notification.attempts || 0), lastError: notification.last_error || null },
+      afterState: { status: 'pending', attempts: 0 },
+      metadata: {
+        source: 'super_admin_api',
+        eventType: notification.event_type || 'transaction_posted',
+        transactionId: notification.transaction_id || null,
+        holdId: notification.hold_id || null,
+      },
+    });
+    return { notification: formatCreditNotificationFailure(updatedRows[0]), replayed: false };
+  }, 'credit_retry_notification');
+}
+
 async function listCreditAuditEvents({ actionType, resourceType, resourceId, customerId, partnerId, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
@@ -2103,6 +2169,8 @@ module.exports = {
   upsertEntitlement,
   bulkUpsertEntitlements,
   listCreditAuditEvents,
+  retryCreditNotification,
+  formatCreditNotificationFailure,
   formatAgreement,
   formatPartner,
   PARTNER_STATUSES,

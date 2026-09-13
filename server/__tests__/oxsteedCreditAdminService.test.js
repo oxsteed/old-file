@@ -1,9 +1,59 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements, retryCreditNotification } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
+
+test('requeues terminal Credit notifications with operator provenance', async () => {
+  const notificationId = '33333333-3333-4333-8333-333333333333';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: notificationId,
+      user_id: '11111111-1111-4111-8111-111111111111',
+      transaction_id: '44444444-4444-4444-8444-444444444444',
+      hold_id: null,
+      event_type: 'transaction_posted',
+      status: 'failed',
+      attempts: 8,
+      last_error: 'provider unavailable',
+      next_attempt_at: '2026-09-13T12:00:00.000Z',
+      created_at: '2026-09-13T11:00:00.000Z',
+      updated_at: '2026-09-13T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: notificationId,
+      user_id: '11111111-1111-4111-8111-111111111111',
+      transaction_id: '44444444-4444-4444-8444-444444444444',
+      hold_id: null,
+      event_type: 'transaction_posted',
+      status: 'pending',
+      attempts: 0,
+      last_error: null,
+      next_attempt_at: '2026-09-13T12:30:00.000Z',
+      created_at: '2026-09-13T11:00:00.000Z',
+      updated_at: '2026-09-13T12:30:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await retryCreditNotification({
+    notificationId,
+    reason: 'Provider incident resolved; retrying delivery',
+    actorUserId: '22222222-2222-4222-8222-222222222222',
+    correlationId: 'retry-credit-notification-test',
+    requestIp: '203.0.113.10',
+  });
+
+  expect(result).toMatchObject({ replayed: false, notification: { id: notificationId, status: 'pending', attempts: 0 } });
+  expect(mockQuery.mock.calls[0][0]).toContain('FOR UPDATE');
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'pending'");
+  expect(mockQuery.mock.calls[2][1][0]).toBe('credit.notification.retry_requested');
+  expect(mockQuery.mock.calls[2][1]).toEqual(expect.arrayContaining([
+    '22222222-2222-4222-8222-222222222222',
+    '11111111-1111-4111-8111-111111111111',
+    '203.0.113.10',
+  ]));
+});
 
 test('lists bounded customer credit wallets with operator filters', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{

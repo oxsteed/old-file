@@ -53,6 +53,7 @@ const {
   bulkUpsertEntitlements,
   MAX_BULK_ENTITLEMENTS,
   listCreditAuditEvents,
+  retryCreditNotification,
 } = require('../services/oxsteedCreditAdminService');
 
 function normalizeString(value, max = 255) {
@@ -595,7 +596,29 @@ async function getAdminOverview(req, res, next) {
           COUNT(*) FILTER (WHERE status = 'sending')::int AS sending_count,
           COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_count,
           MIN(created_at) FILTER (WHERE status IN ('pending', 'sending')) AS oldest_pending_at,
-          MIN(created_at) FILTER (WHERE status = 'failed') AS oldest_failed_at
+          MIN(created_at) FILTER (WHERE status = 'failed') AS oldest_failed_at,
+          COALESCE((
+            SELECT json_agg(json_build_object(
+              'id', failed.id,
+              'userId', failed.user_id,
+              'transactionId', failed.transaction_id,
+              'holdId', failed.hold_id,
+              'eventType', failed.event_type,
+              'status', failed.status,
+              'attempts', failed.attempts,
+              'lastError', failed.last_error,
+              'createdAt', failed.created_at,
+              'updatedAt', failed.updated_at
+            ) ORDER BY failed.created_at DESC, failed.id DESC)
+            FROM (
+              SELECT id, user_id, transaction_id, hold_id, event_type, status, attempts,
+                     last_error, created_at, updated_at
+                FROM oxsteed_credit_notification_outbox
+               WHERE status = 'failed'
+               ORDER BY created_at DESC, id DESC
+               LIMIT 25
+            ) failed
+          ), '[]'::json) AS failed_notifications
         FROM oxsteed_credit_notification_outbox`),
     ]);
     const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
@@ -615,6 +638,7 @@ async function getAdminOverview(req, res, next) {
       failed: Number(notificationHealthRow.failed_count || 0),
       oldestPendingAt: notificationHealthRow.oldest_pending_at || null,
       oldestFailedAt: notificationHealthRow.oldest_failed_at || null,
+      failedNotifications: Array.isArray(notificationHealthRow.failed_notifications) ? notificationHealthRow.failed_notifications : [],
     };
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',
@@ -666,6 +690,22 @@ async function getAdminOverview(req, res, next) {
         createdAt: row.created_at || null,
       })),
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function retryAdminCreditNotification(req, res, next) {
+  try {
+    const notificationId = parseUuid(req.params.notificationId, 'notificationId');
+    const result = await retryCreditNotification({
+      notificationId,
+      reason: req.body?.reason,
+      actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+    });
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -1561,6 +1601,7 @@ module.exports = {
   downloadAdminCreditDisputes,
   resolveAdminDispute,
   getAdminOverview,
+  retryAdminCreditNotification,
   getAdminCreditRail,
   updateAdminCreditRail,
   listAdminPartners,
