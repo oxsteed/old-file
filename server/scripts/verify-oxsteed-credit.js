@@ -179,6 +179,11 @@ async function main() {
       ['437_oxsteed_credit_active_hold_lookup.sql']
     );
     checks.activeHoldLookupMigrationApplied = activeHoldLookupMigrationRows.length === 1;
+    const { rows: partnerAccountIntegrityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['438_oxsteed_credit_partner_account_integrity.sql']
+    );
+    checks.partnerAccountIntegrityMigrationApplied = partnerAccountIntegrityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -258,6 +263,7 @@ async function main() {
       'oxsteed_credit_account_identity_guard',
       'oxsteed_credit_partner_identity_guard',
       'oxsteed_credit_agreement_identity_guard',
+      'oxsteed_credit_transaction_partner_account_guard',
     ].filter((trigger) => !presentIntegrityTriggers.has(trigger));
 
     const { rows: transactionInvariantRows } = await pool.query(
@@ -349,6 +355,21 @@ async function main() {
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
 
+    const { rows: transactionPartnerRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+         JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+         LEFT JOIN oxsteed_credit_partner_agreements agreement ON agreement.id = t.agreement_id
+        WHERE t.transaction_type IN ('purchase', 'refund', 'settlement')
+          AND (t.partner_id IS NULL
+            OR t.agreement_id IS NULL
+            OR agreement.partner_id IS DISTINCT FROM t.partner_id
+            OR (t.transaction_type = 'purchase' AND credit_account.partner_id IS DISTINCT FROM t.partner_id)
+            OR (t.transaction_type IN ('refund', 'settlement') AND debit_account.partner_id IS DISTINCT FROM t.partner_id))`,
+    );
+    checks.invalidTransactionPartnerAccounts = Number(transactionPartnerRows[0]?.invalid_count || 0);
+
     const { rows: settlementIntegrityRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_settlements s
@@ -418,6 +439,7 @@ async function main() {
       !checks.settlementStateMigrationApplied,
       !checks.holdIdempotencyMigrationApplied,
       !checks.activeHoldLookupMigrationApplied,
+      !checks.partnerAccountIntegrityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -432,6 +454,7 @@ async function main() {
       checks.invalidSettlements > 0,
       checks.invalidSettlementStates > 0,
       checks.invalidTransactionTypes > 0,
+      checks.invalidTransactionPartnerAccounts > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,
