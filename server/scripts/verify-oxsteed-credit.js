@@ -80,6 +80,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_transaction_customer_owner_guard',
   'oxsteed_credit_transaction_customer_activity_guard',
   'oxsteed_credit_hold_customer_activity_guard',
+  'oxsteed_credit_hold_lifecycle_guard',
   'oxsteed_credit_issuance_trace_guard',
   'oxsteed_credit_dispute_integrity_guard',
 ];
@@ -302,6 +303,11 @@ async function main() {
       ['458_oxsteed_credit_issuance_trace.sql']
     );
     checks.issuanceTraceMigrationApplied = issuanceTraceMigrationRows.rows.length === 1;
+    const holdLifecycleMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['459_oxsteed_credit_hold_lifecycle.sql']
+    );
+    checks.holdLifecycleMigrationApplied = holdLifecycleMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -413,6 +419,35 @@ async function main() {
           AND a.reserved_cents <> COALESCE(h.active_hold_cents, 0)`,
     );
     checks.invalidReservedBalances = Number(reservationInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: holdLifecycleRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_holds h
+         LEFT JOIN oxsteed_credit_transactions t ON t.id = h.captured_transaction_id
+        WHERE (h.status = 'active'
+               AND (h.captured_transaction_id IS NOT NULL
+                 OR h.capture_idempotency_key IS NOT NULL
+                 OR h.captured_at IS NOT NULL
+                 OR h.released_at IS NOT NULL))
+           OR (h.status IN ('released', 'expired')
+               AND (h.released_at IS NULL
+                 OR h.captured_transaction_id IS NOT NULL
+                 OR h.capture_idempotency_key IS NOT NULL
+                 OR h.captured_at IS NOT NULL))
+           OR (h.status = 'captured'
+               AND (h.captured_transaction_id IS NULL
+                 OR NULLIF(BTRIM(h.capture_idempotency_key), '') IS NULL
+                 OR h.captured_at IS NULL
+                 OR h.released_at IS NOT NULL
+                 OR t.transaction_type <> 'purchase'
+                 OR t.status <> 'posted'
+                 OR t.debit_account_id IS DISTINCT FROM h.account_id
+                 OR t.amount_cents IS DISTINCT FROM h.amount_cents
+                 OR t.currency_code IS DISTINCT FROM h.currency_code
+                 OR t.partner_id IS DISTINCT FROM h.partner_id
+                 OR t.agreement_id IS DISTINCT FROM h.agreement_id))`,
+    );
+    checks.invalidHoldLifecycles = Number(holdLifecycleRows[0]?.invalid_count || 0);
 
     const { rows: customerOwnerInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -607,6 +642,7 @@ async function main() {
       !checks.disputeIntegrityMigrationApplied,
       !checks.customerActivityMigrationApplied,
       !checks.issuanceTraceMigrationApplied,
+      !checks.holdLifecycleMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -616,6 +652,7 @@ async function main() {
       checks.invalidPostedTransactions > 0,
       checks.invalidAccountBalances > 0,
       checks.invalidReservedBalances > 0,
+      checks.invalidHoldLifecycles > 0,
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
       checks.invalidPurchases > 0,
