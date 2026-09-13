@@ -64,6 +64,13 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function requireAdministrativeActor(value, message, code) {
+  if (!normalizeString(value, 160)) {
+    throw new AppError(message, 400, code);
+  }
+  return value;
+}
+
 function escapeLikePattern(value) {
   return normalizeString(value, 120)?.replace(/[\\%_]/g, '\\$&') || null;
 }
@@ -252,6 +259,7 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
     if (current.is_enabled === enabled) {
       return { rail: formatCreditRailStatus(current), changed: false, replayed: true };
     }
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change the OxSteed Credit rail status', 'credit_rail_actor_required');
     const { rows: updatedRows } = await client.query(
       `UPDATE feature_flags
           SET is_enabled = $1, updated_by = $2, updated_at = NOW()
@@ -1153,6 +1161,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
         existingTransaction: existing,
       });
     }
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to load customer Credit', 'credit_load_actor_required');
     await assertCreditRailEnabled(client);
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
@@ -1348,6 +1357,9 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
     const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
+    if (!existing) {
+      requireAdministrativeActor(actorUserId, 'An identified administrator is required to adjust customer Credit', 'credit_adjustment_actor_required');
+    }
     if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency, customerId);
     return postJournalTransaction(client, {
       transactionType: 'adjustment',
@@ -1385,6 +1397,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
     if (normalizedStatus === 'closed' && (Number(account.balance_cents || 0) !== 0 || Number(account.reserved_cents || 0) !== 0)) {
       throw new AppError('A credit account must have zero balance and no holds before it can be closed', 409, 'credit_account_close_not_allowed');
     }
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a customer Credit account', 'credit_account_status_actor_required');
     const { rows } = await client.query(`UPDATE oxsteed_credit_accounts SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [normalizedStatus, account.id]);
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events

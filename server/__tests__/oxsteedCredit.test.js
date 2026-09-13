@@ -1361,6 +1361,7 @@ test('serializes the global outstanding issuance cap before a new load', async (
     amountCents: 100,
     idempotencyKey: 'issuance-test-1',
     reason: 'Approved customer grant',
+    actorUserId: ADMIN_ID,
   });
 
   expect(result.transaction.amountCents).toBe(100);
@@ -1406,6 +1407,18 @@ test('replays a committed credit load while the rail is suspended', async () => 
   expect(result.transaction).toMatchObject({ id: existing.id, amountCents: 100, replayed: true });
   expect(mockQuery.mock.calls[0][0]).toContain('customer_account.customer_id');
   expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
+});
+
+test('requires an administrator identity for a new credit load', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  await expect(service.loadCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    idempotencyKey: 'load-without-actor-1',
+    reason: 'Approved customer grant',
+  })).rejects.toMatchObject({ code: 'credit_load_actor_required', status: 400 });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('rejects an administrative credit load replay with a different reason', async () => {
@@ -1507,6 +1520,7 @@ test('applies the global issuance cap to positive administrative adjustments', a
     idempotencyKey: 'adjustment-cap-1',
     reason: 'Cap test',
     referenceId: 'funding-adjustment-cap-1',
+    actorUserId: ADMIN_ID,
   })).rejects.toMatchObject({ code: 'credit_total_issuance_limit' });
   expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
 });
@@ -1529,6 +1543,7 @@ test('applies the per-customer daily issuance cap to positive administrative adj
     idempotencyKey: 'daily-cap-1',
     reason: 'Daily cap test',
     referenceId: 'funding-daily-cap-1',
+    actorUserId: ADMIN_ID,
   })).rejects.toMatchObject({ code: 'credit_daily_issuance_limit' });
   expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
   expect(mockQuery.mock.calls[7][1]).toEqual(['USD', CUSTOMER_ID]);
@@ -2534,6 +2549,18 @@ test('rejects a rail status change without a strict boolean', async () => {
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('invalid_enabled');
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires an administrator identity for a real rail status change', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] });
+
+  await expect(service.setCreditRailStatus({
+    enabled: true,
+    reason: 'Approved after custody review',
+  })).rejects.toMatchObject({ code: 'credit_rail_actor_required', status: 400 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
 });
 
 test('changes the rail status with an audit reason and serialized control lock', async () => {
