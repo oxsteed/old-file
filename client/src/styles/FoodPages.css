@@ -2692,8 +2692,12 @@ html:not(.dark) .fd-star-btn { color: #9ca3af; }
 .fd-ox-credit-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin-top: 0.8rem; }
 .fd-ox-credit-panel { min-width: 0; padding: 0.9rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; background: var(--card-bg, #fff); }
 .fd-ox-credit-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; margin-bottom: 0.7rem; }
+.fd-ox-credit-panel-title > div { display: grid; gap: 0.18rem; min-width: 0; }
 .fd-ox-credit-panel-title h3 { margin: 0; font-size: 1rem; }
-.fd-ox-credit-panel-title > span { color: var(--muted-text, #64748b); font-size: 0.72rem; }
+.fd-ox-credit-panel-title > span, .fd-ox-credit-panel-title > div > span { color: var(--muted-text, #64748b); font-size: 0.72rem; }
+.fd-ox-credit-filter { flex-shrink: 0; }
+.fd-ox-credit-filter select { max-width: 150px; padding: 0.45rem 1.8rem 0.45rem 0.55rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; color: var(--text-color, #334155); background: var(--card-bg, #fff); font-size: 0.72rem; font-weight: 700; }
+.fd-ox-credit-filter select:disabled { cursor: wait; opacity: 0.55; }
 .fd-ox-credit-list { display: grid; gap: 0.5rem; max-height: 360px; overflow-y: auto; padding-right: 0.15rem; }
 .fd-ox-credit-row { display: flex; justify-content: space-between; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid var(--border-color, #e2e8f0); }
 .fd-ox-credit-row:last-child { border-bottom: 0; }

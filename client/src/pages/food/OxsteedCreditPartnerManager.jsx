@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, RefreshCw, ShieldCheck, Store, WalletCards } from 'lucide-react';
 import {
   formatFoodMoney,
@@ -35,31 +35,36 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [settlementStatus, setSettlementStatus] = useState('');
+  const requestIdRef = useRef(0);
 
-  const load = useCallback(async ({ quiet = false, appendTransactions = false, appendSettlements = false, transactionOffset = 0, settlementOffset = 0 } = {}) => {
+  const load = useCallback(async ({ quiet = false, appendTransactions = false, appendSettlements = false, transactionOffset = 0, settlementOffset = 0, settlementStatusOverride } = {}) => {
+    const requestId = ++requestIdRef.current;
     if (quiet) setRefreshing(true);
     else if (appendTransactions || appendSettlements) setLoadingMore(true);
     else setLoading(true);
     setError('');
     try {
+      const effectiveSettlementStatus = settlementStatusOverride === undefined ? settlementStatus : settlementStatusOverride;
       const [transactionResult, settlementResult] = await Promise.all([
-        listFoodRestaurantOxsteedCreditTransactions(restaurant.id, { limit: 100, offset: transactionOffset }),
-        listFoodRestaurantOxsteedCreditSettlements(restaurant.id, { limit: 50, offset: settlementOffset }),
+        appendSettlements ? Promise.resolve(null) : listFoodRestaurantOxsteedCreditTransactions(restaurant.id, { limit: 100, offset: transactionOffset }),
+        appendTransactions ? Promise.resolve(null) : listFoodRestaurantOxsteedCreditSettlements(restaurant.id, { limit: 50, offset: settlementOffset, ...(effectiveSettlementStatus ? { status: effectiveSettlementStatus } : {}) }),
       ]);
-      const nextTransactions = Array.isArray(transactionResult.transactions) ? transactionResult.transactions : [];
-      const nextSettlements = Array.isArray(settlementResult.settlements) ? settlementResult.settlements : [];
+      if (requestId !== requestIdRef.current) return;
+      const nextTransactions = Array.isArray(transactionResult?.transactions) ? transactionResult.transactions : [];
+      const nextSettlements = Array.isArray(settlementResult?.settlements) ? settlementResult.settlements : [];
       const fullLoad = !appendTransactions && !appendSettlements;
       if (appendTransactions) setTransactions((current) => [...current, ...nextTransactions]);
       else if (fullLoad) setTransactions(nextTransactions);
       if (appendSettlements) setSettlements((current) => [...current, ...nextSettlements]);
       else if (fullLoad) setSettlements(nextSettlements);
       if (appendTransactions || fullLoad) {
-        setTransactionPagination(transactionResult.pagination || { limit: 100, offset: transactionOffset, hasMore: false, nextOffset: null });
+        setTransactionPagination(transactionResult?.pagination || { limit: 100, offset: transactionOffset, hasMore: false, nextOffset: null });
       }
       if (appendSettlements || fullLoad) {
-        setSettlementPagination(settlementResult.pagination || { limit: 50, offset: settlementOffset, hasMore: false, nextOffset: null });
+        setSettlementPagination(settlementResult?.pagination || { limit: 50, offset: settlementOffset, hasMore: false, nextOffset: null });
       }
-      setPartnerStatus(transactionResult.partnerStatus || settlementResult.partnerStatus || null);
+      setPartnerStatus(transactionResult?.partnerStatus || settlementResult?.partnerStatus || null);
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'OxSteed Credit partner activity could not be loaded.'));
     } finally {
@@ -67,13 +72,13 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       else setLoading(false);
       setRefreshing(false);
     }
-  }, [restaurant.id]);
+  }, [restaurant.id, settlementStatus]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load({ quiet: Boolean(settlementStatus) }); }, [load, settlementStatus]);
 
   const currency = restaurant.currency_code || 'USD';
   const pendingSettlementCents = settlements
-    .filter((settlement) => ['pending', 'approved', 'disputed'].includes(settlement.status))
+    .filter((settlement) => ['pending', 'approved'].includes(settlement.status))
     .reduce((total, settlement) => total + Number(settlement.netCents || 0), 0);
 
   const downloadReport = async () => {
@@ -143,7 +148,23 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
             </div>
 
             <div className="fd-ox-credit-panel">
-              <div className="fd-ox-credit-panel-title"><h3>Settlement records</h3><span>{settlements.length} loaded</span></div>
+              <div className="fd-ox-credit-panel-title">
+                <div>
+                  <h3>Settlement records</h3>
+                  <span>{settlements.length} loaded</span>
+                </div>
+                <label className="fd-ox-credit-filter">
+                  <span className="sr-only">Filter settlements by status</span>
+                  <select value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || refreshing || loadingMore}>
+                    <option value="">All statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="paid">Paid</option>
+                    <option value="disputed">Disputed</option>
+                    <option value="voided">Voided</option>
+                  </select>
+                </label>
+              </div>
               {settlements.length === 0 ? <p className="fd-card-meta">No settlement records have been created yet.</p> : (
                 <div className="fd-ox-credit-list">
                   {settlements.map((settlement) => (
