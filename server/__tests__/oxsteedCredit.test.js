@@ -768,6 +768,7 @@ test('replays a committed purchase while the credit rail is suspended', async ()
 test('does not create a new hold for a suspended credit account', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
@@ -817,6 +818,7 @@ test('does not create a new hold for a suspended credit account', async () => {
 
 test('rejects credit hold idempotency reuse for a different agreement or reference', async () => {
   mockQuery
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -869,6 +871,7 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
 
 test('replays a non-USD credit hold when the settlement currency matches', async () => {
   mockQuery
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -932,6 +935,43 @@ test('replays a non-USD credit hold when the settlement currency matches', async
 
   expect(result.replayed).toBe(true);
   expect(result.hold).toMatchObject({ id: 'hold-eur', currencyCode: 'EUR' });
+});
+
+test('replays a committed credit hold while the rail is suspended', async () => {
+  const existing = {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    account_id: 7001,
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    agreement_id: 'agreement-hold-replay',
+    amount_cents: '100',
+    currency_code: 'USD',
+    status: 'active',
+    purpose: 'Order retry',
+    reference_type: 'food_order',
+    reference_id: 'order-hold-replay-1',
+    idempotency_key: 'hold-replay-rail-off',
+    expires_at: '2026-09-12T13:00:00.000Z',
+    created_at: '2026-09-12T12:00:00.000Z',
+  };
+  mockQuery.mockResolvedValueOnce({ rows: [existing] });
+
+  const result = await service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    currencyCode: 'USD',
+    idempotencyKey: existing.idempotency_key,
+    purpose: existing.purpose,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.hold).toMatchObject({ id: existing.id, amountCents: 100, currencyCode: 'USD' });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+  expect(mockQuery.mock.calls[0][0]).toContain('WHERE idempotency_key = $1');
 });
 
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {

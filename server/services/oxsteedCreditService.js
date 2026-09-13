@@ -342,6 +342,24 @@ function assertHoldIdempotencyReplayMatches(existing, requested) {
   }
 }
 
+async function findExistingCreditHoldForReplay(client, { customerId, partnerId, idempotencyKey }) {
+  const { rows } = await client.query(
+    `SELECT *
+       FROM oxsteed_credit_holds
+      WHERE idempotency_key = $1
+      FOR UPDATE`,
+    [idempotencyKey]
+  );
+  if (!rows.length) return null;
+  const existing = rows.find((row) => String(row.customer_id) === String(customerId)
+    && String(row.partner_id) === String(partnerId));
+  if (!existing || rows.some((row) => String(row.customer_id) !== String(customerId)
+    || String(row.partner_id) !== String(partnerId))) {
+    throw new AppError('Credit idempotency key was already used for a different hold', 409, 'credit_hold_idempotency_conflict');
+  }
+  return existing;
+}
+
 async function ensureAccount(client, { accountType, customerId = null, partnerId = null, currencyCode = CREDIT_CURRENCY }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['customer_wallet', 'partner_payable', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
@@ -1069,9 +1087,27 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
 
 async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
-  if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
   const requestedExpiry = resolveHoldExpiry(expiresAt);
   return withTransaction(pool, async (client) => {
+    const existing = await findExistingCreditHoldForReplay(client, { customerId, partnerId, idempotencyKey: normalizedIdempotencyKey });
+    if (existing) {
+      const settlementCurrency = assertSupportedCreditCurrency(existing.currency_code);
+      if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
+        throw new AppError('Credit currency does not match the committed hold', 409, 'credit_currency_mismatch');
+      }
+      assertHoldIdempotencyReplayMatches(existing, {
+        amount_cents: amount,
+        partner_id: partnerId,
+        agreement_id: existing.agreement_id,
+        currency_code: settlementCurrency,
+        purpose: normalizeString(purpose, 100),
+        reference_type: normalizeString(referenceType, 80),
+        reference_id: normalizeString(referenceId, 160),
+      });
+      return { hold: formatHold(existing), replayed: true };
+    }
     await assertCreditRailEnabled(client);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
     const agreement = await findSpendAgreement(client, { customerId, partnerId, orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
@@ -1082,7 +1118,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: settlementCurrency });
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_holds WHERE account_id = $1 AND idempotency_key = $2 FOR UPDATE`,
-      [account.id, normalizeString(idempotencyKey, 160)]
+      [account.id, normalizedIdempotencyKey]
     );
     if (existingRows[0]) {
       assertHoldIdempotencyReplayMatches(existingRows[0], {
@@ -1107,7 +1143,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
           reference_type, reference_id, idempotency_key, correlation_id, created_by, metadata, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
        RETURNING *`,
-      [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizeString(idempotencyKey, 160), normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(normalizeMetadata(metadata)), requestedExpiry]
+      [account.id, customerId, partnerId, agreement.id, amount, settlementCurrency, normalizeString(purpose, 100), normalizeString(referenceType, 80), normalizeString(referenceId, 160), normalizedIdempotencyKey, normalizeString(correlationId, 160), actorUserId || null, JSON.stringify(normalizeMetadata(metadata)), requestedExpiry]
     );
     await client.query(
       `UPDATE oxsteed_credit_accounts SET reserved_cents = reserved_cents + $1, updated_at = NOW() WHERE id = $2`,
