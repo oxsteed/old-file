@@ -150,6 +150,16 @@ suspended, expired, or terminated agreement spendable. Existing agreements are
 partner-wide unless the restricted mode is explicitly enabled when a
 replacement agreement is created.
 
+Restaurant checkout uses the same policy through
+`GET /api/oxsteed-credit/eligibility`. Supply `restaurantId`, `amountCents`,
+`currencyCode`, `orderType`, `categories`, and `menuItemIds`; the endpoint
+returns `eligible`, a stable `reasonCode`, and safe display context. The
+restaurant quote endpoint also includes this result as
+`quote.paymentContract.oxsteedCreditEligibility` and only advertises
+`oxsteed_credit` in `supportedModes` when the pre-check succeeds. This is a
+customer-experience preflight, not authorization: order creation repeats the
+checks inside the financial transaction and must remain the final authority.
+
 ## Daily Operations
 
 - Review partner and agreement status, open disputes, pending settlements, and reconciliation results in the OxSteed Credit Super Admin workspace.
