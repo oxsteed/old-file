@@ -86,7 +86,7 @@ export default function OxsteedCreditPage() {
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
-  const load = useCallback(async ({ quiet = false, currencyCode = 'USD' } = {}) => {
+  const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
