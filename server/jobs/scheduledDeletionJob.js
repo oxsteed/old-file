@@ -30,6 +30,61 @@ async function tableExists(name) {
   return rows[0]?.exists ?? false;
 }
 
+async function findCreditRetentionTables() {
+  const candidates = [
+    'oxsteed_credit_accounts',
+    'oxsteed_credit_customer_entitlements',
+    'oxsteed_credit_transactions',
+    'oxsteed_credit_holds',
+    'oxsteed_credit_disputes',
+    'oxsteed_credit_entitlement_bulk_requests',
+    'oxsteed_credit_entitlement_requests',
+  ];
+  const exists = await Promise.all(candidates.map((table) => tableExists(table)));
+  return candidates.filter((_, index) => exists[index]);
+}
+
+async function hasCreditRecords(client, userId, tables) {
+  if (!tables.length) return false;
+  const predicates = [];
+  if (tables.includes('oxsteed_credit_accounts')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_accounts WHERE customer_id = $1)');
+  if (tables.includes('oxsteed_credit_customer_entitlements')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_customer_entitlements WHERE customer_id = $1)');
+  if (tables.includes('oxsteed_credit_transactions')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_transactions WHERE actor_user_id = $1)');
+  if (tables.includes('oxsteed_credit_holds')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_holds WHERE customer_id = $1)');
+  if (tables.includes('oxsteed_credit_disputes')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_disputes WHERE customer_id = $1 OR opened_by = $1 OR resolved_by = $1)');
+  if (tables.includes('oxsteed_credit_entitlement_bulk_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_bulk_requests WHERE customer_id = $1 OR created_by = $1)');
+  if (tables.includes('oxsteed_credit_entitlement_requests')) predicates.push('EXISTS (SELECT 1 FROM oxsteed_credit_entitlement_requests WHERE customer_id = $1 OR created_by = $1)');
+  const { rows } = await client.query(`SELECT ${predicates.join(' OR ')} AS has_credit_records`, [String(userId)]);
+  return rows[0]?.has_credit_records === true;
+}
+
+async function anonymizeCreditCustomer(client, userId) {
+  await client.query(
+    `UPDATE users
+        SET first_name = 'Deleted',
+            last_name = 'User',
+            email = CONCAT('deleted_', id::text, '@oxsteed.removed'),
+            phone = NULL,
+            phone_number = NULL,
+            bio = NULL,
+            profile_photo_url = NULL,
+            city = NULL,
+            state = NULL,
+            zip_code = NULL,
+            address_line1 = NULL,
+            country = NULL,
+            password_hash = 'DELETED',
+            totp_secret = NULL,
+            totp_enabled = FALSE,
+            backup_codes = NULL,
+            is_active = FALSE,
+            deletion_scheduled_at = NULL,
+            updated_at = NOW()
+      WHERE id::text = $1`,
+    [String(userId)],
+  );
+}
+
 async function hardDeleteExpiredAccounts() {
   logger.info('scheduledDeletionJob: starting');
 
@@ -66,6 +121,17 @@ async function hardDeleteUser(user) {
     await client.query('BEGIN');
 
     const q = (sql, params) => client.query(sql, params);
+
+    const creditRetentionTables = await findCreditRetentionTables();
+    if (await hasCreditRecords(client, userId, creditRetentionTables)) {
+      await anonymizeCreditCustomer(client, userId);
+      await client.query('COMMIT');
+      logger.info('scheduledDeletionJob: retained OxSteed Credit records and anonymized user', {
+        userId,
+        scheduledAt: user.deletion_scheduled_at,
+      });
+      return;
+    }
 
     const del = async (table, condition) => {
       if (!(await tableExists(table))) return;
