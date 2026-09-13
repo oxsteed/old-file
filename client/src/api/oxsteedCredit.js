@@ -21,8 +21,8 @@ export const getOxsteedCreditStatement = (params = {}) =>
 export const downloadOxsteedCreditStatement = (params = {}) =>
   api.get('/oxsteed-credit/statement.csv', { params, responseType: 'blob' });
 
-export const getOxsteedCreditTransaction = (transactionId) =>
-  api.get(`/oxsteed-credit/transactions/${transactionId}`).then((response) => response.data?.transaction || null);
+export const getOxsteedCreditTransaction = (transactionId, params = {}) =>
+  api.get(`/oxsteed-credit/transactions/${transactionId}`, { params }).then((response) => response.data?.transaction || null);
 
 export const createOxsteedCreditHold = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/holds', payload, {
