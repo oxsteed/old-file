@@ -911,6 +911,65 @@ async function listAdminCreditAuditEvents(req, res, next) {
   }
 }
 
+async function downloadAdminCreditAuditEvents(req, res, next) {
+  try {
+    const customerId = req.query.customerId || req.query.customer_id
+      ? parseUuid(req.query.customerId || req.query.customer_id, 'customerId')
+      : undefined;
+    const partnerId = req.query.partnerId || req.query.partner_id
+      ? parsePositiveInt(req.query.partnerId || req.query.partner_id, 'partnerId')
+      : undefined;
+    const options = {
+      actionType: req.query.actionType || req.query.action_type,
+      resourceType: req.query.resourceType || req.query.resource_type,
+      customerId,
+      partnerId,
+      limit: 250,
+      offset: 0,
+      includePagination: true,
+    };
+    const auditEvents = [];
+    let page = await listCreditAuditEvents(options);
+    auditEvents.push(...page.auditEvents);
+    while (page.pagination.hasMore && auditEvents.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listCreditAuditEvents({ ...options, offset: page.pagination.nextOffset || auditEvents.length });
+      auditEvents.push(...page.auditEvents);
+    }
+    if (page.pagination.hasMore) {
+      throw new AppError('Credit audit export is too large; narrow the filters first', 409, 'credit_audit_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Event ID', 'Created at', 'Action', 'Resource type', 'Resource ID', 'Actor user ID', 'Customer ID', 'Partner ID', 'Reason', 'Before state', 'After state', 'Metadata', 'Correlation ID'];
+    const lines = [headers.map(csvCell).join(',')];
+    auditEvents.forEach((event) => {
+      lines.push([
+        event.id,
+        event.createdAt,
+        event.actionType,
+        event.resourceType,
+        event.resourceId,
+        event.actorUserId,
+        event.customerId,
+        event.partnerId,
+        event.reason,
+        JSON.stringify(event.beforeState || null),
+        JSON.stringify(event.afterState || null),
+        JSON.stringify(event.metadata || {}),
+        event.correlationId,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-audit-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function createAdminSettlement(req, res, next) {
   try {
     const agreementId = parseUuid(req.body?.agreementId || req.body?.agreement_id, 'agreementId');
@@ -1013,6 +1072,7 @@ module.exports = {
   listAdminSettlements,
   downloadAdminSettlements,
   listAdminCreditAuditEvents,
+  downloadAdminCreditAuditEvents,
   createAdminSettlement,
   transitionAdminSettlement,
   reconcileAdminCredit,

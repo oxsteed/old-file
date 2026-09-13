@@ -55,6 +55,7 @@ function createAdminApp() {
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
   app.get('/disputes', controller.listAdminDisputes);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
+  app.get('/audit-events.csv', controller.downloadAdminCreditAuditEvents);
   app.use(errorHandler);
   return app;
 }
@@ -371,6 +372,34 @@ test('exports customer Credit wallets with active filters and formula-safe value
   expect(response.text).toContain('"\'+customer@example.com"');
   expect(response.text).toContain('"2000"');
   expect(mockQuery.mock.calls[0][1]).toEqual(['%customer%', 'USD', 'active']);
+});
+
+test('exports filtered Credit audit history with formula-safe state snapshots', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'audit-1',
+    action_type: 'credit.rail.enabled',
+    actor_user_id: ADMIN_ID,
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    resource_type: 'credit_rail',
+    resource_id: 'rail',
+    reason: '=manual review',
+    correlation_id: 'request-audit-export',
+    before_state: { enabled: false },
+    after_state: { enabled: true },
+    metadata: { source: 'test' },
+    created_at: '2026-09-12T12:02:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get(`/audit-events.csv?actionType=credit.rail.enabled&resourceType=credit_rail&customerId=${CUSTOMER_ID}&partnerId=41`);
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-audit-/);
+  expect(response.text).toContain('Before state');
+  expect(response.text).toContain('"\'=manual review"');
+  expect(response.text).toContain('"{""enabled"":false}"');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['credit.rail.enabled', 'credit_rail', CUSTOMER_ID, 41, 251, 0]);
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {
