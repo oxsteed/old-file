@@ -95,6 +95,14 @@ function normalizeCurrency(value) {
   return (normalizeString(value, 8) || CREDIT_CURRENCY).toUpperCase();
 }
 
+function formatCreditAmount(amountMinor, currencyCode) {
+  const currency = normalizeCurrency(currencyCode);
+  const minorUnits = Number.isInteger(CREDIT_CURRENCY_MINOR_UNITS[currency])
+    ? CREDIT_CURRENCY_MINOR_UNITS[currency]
+    : 2;
+  return (Number(amountMinor) || 0) / (10 ** minorUnits);
+}
+
 function assertSupportedCreditCurrency(value) {
   const currency = normalizeCurrency(value);
   if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CREDIT_CURRENCIES.has(currency) || !Number.isInteger(SUPPORTED_CREDIT_CURRENCY_META[currency]?.minorUnits)) {
@@ -2661,6 +2669,7 @@ module.exports = {
   CREDIT_CURRENCY,
   SUPPORTED_CREDIT_CURRENCIES: [...SUPPORTED_CREDIT_CURRENCIES].sort(),
   SUPPORTED_CREDIT_CURRENCY_META,
+  formatCreditAmount,
   DEFAULT_LEDGER_HASH_KEY_VERSION,
   assertSupportedCreditCurrency,
   MAX_TRANSACTION_CENTS,

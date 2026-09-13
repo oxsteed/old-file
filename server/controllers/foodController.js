@@ -24,6 +24,7 @@ const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = requ
 const {
   purchaseWithCreditInTransaction,
   refundCreditForReferenceInTransaction,
+  formatCreditAmount,
 } = require('../services/oxsteedCreditService');
 const {
   recordWalletCreditPaymentForOrder,
@@ -211,7 +212,7 @@ function buildOxsteedCreditPaymentResponse({ status, amountCents, currencyCode, 
     mode: 'oxsteed_credit',
     status,
     amountCents: Number(amountCents || transaction?.amountCents || 0),
-    amount: Number(amountCents || transaction?.amountCents || 0) / 100,
+    amount: formatCreditAmount(amountCents || transaction?.amountCents || 0, currencyCode),
     currencyCode: normalizeCurrency(currencyCode || transaction?.currencyCode),
     transactionId: transaction?.id ? String(transaction.id) : null,
     transaction: transaction || null,

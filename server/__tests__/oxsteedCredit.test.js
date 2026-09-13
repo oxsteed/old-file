@@ -367,6 +367,9 @@ test('exposes only currencies with explicitly verified minor-unit support', () =
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.JPY).toBeUndefined();
   expect(service.assertSupportedCreditCurrency('USD')).toBe('USD');
   expect(() => service.assertSupportedCreditCurrency('JPY')).toThrow('not enabled');
+  expect(service.formatCreditAmount(1250, 'USD')).toBe(12.5);
+  expect(service.formatCreditAmount(1250, 'JPY')).toBe(1250);
+  expect(service.formatCreditAmount(1250, 'KWD')).toBe(1.25);
 });
 
 test('customer allowlist agreements require an active entitlement in eligibility queries', async () => {

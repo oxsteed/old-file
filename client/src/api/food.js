@@ -4,6 +4,7 @@
 // All payments are settled in store; the API only tracks amounts.
 
 import api from './axios';
+import { formatCreditMinorUnits } from '../lib/creditCurrency';
 
 export const uploadFoodAsset = (file, purpose = 'food-general') => {
   const formData = new FormData();
@@ -254,10 +255,5 @@ export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } =
 
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
-  const amount = Number(cents || 0) / 100;
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `$${amount.toFixed(2)}`;
-  }
+  return formatCreditMinorUnits(cents, currency);
 }
