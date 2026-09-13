@@ -54,6 +54,15 @@ rapid value movement without changing restaurant purchases or partner
 settlement. Keep `OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS=false` unless the
 program rules, fraud controls, and compliance review explicitly approve it.
 
+Customer spending is also bounded across the entire partner network by
+`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_CENTS` (default: the customer wallet
+balance cap) and `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_COUNT` (default: 50).
+The check combines posted purchases for the database accounting day with all
+active holds in the selected currency, serializes concurrent partner activity,
+and excludes the hold being captured. This keeps multi-restaurant access
+possible while limiting account takeover and rapid balance movement across
+separate partner agreements.
+
 The load and positive-adjustment endpoints both require a traceable funding
 reference. Clawbacks remain debits from the customer wallet and require an
 operator reason; use a separate compensating credit with its own funding or

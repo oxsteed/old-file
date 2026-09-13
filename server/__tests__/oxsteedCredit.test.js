@@ -1608,9 +1608,7 @@ test('applies the per-customer daily issuance cap to positive administrative adj
 });
 
 test('serializes customer Credit transfer velocity and rejects the daily cap', async () => {
-  mockQuery
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ transfer_count: 20, total_cents: '250000' }] });
+  mockQuery.mockResolvedValueOnce({ rows: [{ transfer_count: 20, total_cents: '250000' }] });
 
   await expect(service.assertCustomerTransferCapacity({ query: mockQuery }, {
     customerId: CUSTOMER_ID,
@@ -1618,8 +1616,20 @@ test('serializes customer Credit transfer velocity and rejects the daily cap', a
     currencyCode: 'USD',
   })).rejects.toMatchObject({ code: 'credit_daily_transfer_limit' });
 
-  expect(mockQuery.mock.calls[0][1]).toEqual([`oxsteed-credit-transfer-limit:${CUSTOMER_ID}:USD`]);
-  expect(mockQuery.mock.calls[1][1]).toEqual(['USD', CUSTOMER_ID]);
+  expect(mockQuery.mock.calls[0][1]).toEqual(['USD', CUSTOMER_ID, `oxsteed-credit-transfer-limit:${CUSTOMER_ID}:USD`]);
+});
+
+test('serializes customer Credit spending across partners and rejects the daily cap', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ movement_count: 50, movement_cents: '1000000' }] });
+
+  await expect(service.assertCustomerSpendCapacity({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    currencyCode: 'USD',
+    excludeHoldId: null,
+  })).rejects.toMatchObject({ code: 'credit_daily_spend_limit' });
+
+  expect(mockQuery.mock.calls[0][1]).toEqual(['USD', CUSTOMER_ID, null, `oxsteed-credit-spend-limit:${CUSTOMER_ID}:USD`]);
 });
 
 test('rejects malformed hold capture ids before any database query', async () => {
@@ -2140,6 +2150,7 @@ test('passes the requested agreement through purchase authorization', async () =
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
     .mockResolvedValueOnce({ rows: [{ daily_cents: '0', lifetime_cents: '0' }] })
+    .mockResolvedValueOnce({ rows: [{ movement_count: '0', movement_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [customerAccount] })
     .mockResolvedValueOnce({ rows: [] })
@@ -2305,6 +2316,7 @@ test('does not create a new hold for a suspended credit account', async () => {
       entitlement_max_transaction_cents: null,
       entitlement_daily_limit_cents: null,
     }] })
+    .mockResolvedValueOnce({ rows: [{ movement_count: '0', movement_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 7001,
@@ -2358,6 +2370,7 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
       entitlement_daily_limit_cents: null,
       entitlement_lifetime_limit_cents: null,
     }] })
+    .mockResolvedValueOnce({ rows: [{ movement_count: '0', movement_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', balance_cents: '1000', reserved_cents: '0', status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{
@@ -2411,6 +2424,7 @@ test('replays a non-USD credit hold when the settlement currency matches', async
       entitlement_max_transaction_cents: null,
       entitlement_daily_limit_cents: null,
     }] })
+    .mockResolvedValueOnce({ rows: [{ movement_count: '0', movement_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
       id: 7001,

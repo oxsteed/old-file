@@ -43,6 +43,8 @@ const MAX_TOTAL_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_
 const MAX_DAILY_CUSTOMER_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_ISSUANCE_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
 const MAX_DAILY_CUSTOMER_TRANSFER_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
 const MAX_DAILY_CUSTOMER_TRANSFER_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_COUNT', 20);
+const MAX_DAILY_CUSTOMER_SPEND_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
+const MAX_DAILY_CUSTOMER_SPEND_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_COUNT', 50);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
 const MAX_HOLD_TTL_MINUTES = Math.max(DEFAULT_HOLD_TTL_MINUTES, positiveEnv('OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES', 1440));
 const DEFAULT_STATEMENT_DAYS = 90;
@@ -683,19 +685,22 @@ async function assertCustomerTransferCapacity(client, { customerId, amountCents,
   const currency = assertSupportedCreditCurrency(currencyCode);
   // Serialize by sender and currency so concurrent transfers cannot both pass
   // the daily velocity check before either transaction is posted.
-  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer-limit:${customerId}:${currency}`]);
   const { rows } = await client.query(
-    `SELECT COUNT(*)::int AS transfer_count,
+    `WITH lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($3)) AS acquired
+     )
+     SELECT COUNT(*)::int AS transfer_count,
             COALESCE(SUM(t.amount_cents), 0) AS total_cents
        FROM oxsteed_credit_transactions t
        JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+       CROSS JOIN lock
       WHERE t.status = 'posted'
         AND t.transaction_type = 'transfer'
         AND t.created_at >= CURRENT_DATE
         AND t.currency_code = $1
         AND debit_account.account_type = 'customer_wallet'
         AND debit_account.customer_id = $2`,
-    [currency, customerId]
+    [currency, customerId, `oxsteed-credit-transfer-limit:${customerId}:${currency}`]
   );
   const transferCount = Number(rows[0]?.transfer_count || 0);
   const transferredCents = Number(rows[0]?.total_cents || 0);
@@ -707,6 +712,52 @@ async function assertCustomerTransferCapacity(client, { customerId, amountCents,
       requestedCents: String(amountCents),
       maxDailyTransferCount: String(MAX_DAILY_CUSTOMER_TRANSFER_COUNT),
       maxDailyTransferCents: String(MAX_DAILY_CUSTOMER_TRANSFER_CENTS),
+    });
+  }
+}
+
+async function assertCustomerSpendCapacity(client, { customerId, amountCents, currencyCode, excludeHoldId = null }) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  // Use the same lock for holds and purchases so parallel partner checkouts
+  // cannot each pass a global customer velocity check independently.
+  const { rows } = await client.query(
+    `WITH lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($4)) AS acquired
+     ), purchase_usage AS (
+       SELECT COUNT(*)::int AS purchase_count,
+              COALESCE(SUM(t.amount_cents), 0) AS purchase_cents
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+        WHERE t.status = 'posted'
+          AND t.transaction_type = 'purchase'
+          AND t.created_at >= CURRENT_DATE
+          AND t.currency_code = $1
+          AND debit_account.account_type = 'customer_wallet'
+          AND debit_account.customer_id = $2
+     ), active_hold_usage AS (
+       SELECT COUNT(*)::int AS hold_count,
+              COALESCE(SUM(h.amount_cents), 0) AS hold_cents
+         FROM oxsteed_credit_holds h
+        WHERE h.customer_id = $2
+          AND h.currency_code = $1
+          AND h.status = 'active'
+          AND ($3::uuid IS NULL OR h.id <> $3::uuid)
+     )
+     SELECT purchase_usage.purchase_count + active_hold_usage.hold_count AS movement_count,
+            purchase_usage.purchase_cents + active_hold_usage.hold_cents AS movement_cents
+       FROM purchase_usage CROSS JOIN active_hold_usage CROSS JOIN lock`,
+    [currency, customerId, excludeHoldId, `oxsteed-credit-spend-limit:${customerId}:${currency}`]
+  );
+  const movementCount = Number(rows[0]?.movement_count || 0);
+  const movementCents = Number(rows[0]?.movement_cents || 0);
+  if (movementCount >= MAX_DAILY_CUSTOMER_SPEND_COUNT
+    || movementCents + amountCents > MAX_DAILY_CUSTOMER_SPEND_CENTS) {
+    throw new AppError('Daily OxSteed Credit spending limit reached for this customer', 409, 'credit_daily_spend_limit', {
+      movementsToday: String(movementCount),
+      committedTodayCents: String(movementCents),
+      requestedCents: String(amountCents),
+      maxDailySpendCount: String(MAX_DAILY_CUSTOMER_SPEND_COUNT),
+      maxDailySpendCents: String(MAX_DAILY_CUSTOMER_SPEND_CENTS),
     });
   }
 }
@@ -1381,6 +1432,12 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
   if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
     throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');
   }
+  await assertCustomerSpendCapacity(client, {
+    customerId,
+    amountCents: amount,
+    currencyCode: settlementCurrency,
+    excludeHoldId,
+  });
   const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: settlementCurrency });
   const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId, currencyCode: settlementCurrency });
   return postJournalTransaction(client, {
@@ -1603,6 +1660,11 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
     if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
       throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');
     }
+    await assertCustomerSpendCapacity(client, {
+      customerId,
+      amountCents: amount,
+      currencyCode: settlementCurrency,
+    });
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: settlementCurrency });
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_holds WHERE account_id = $1 AND idempotency_key = $2 FOR UPDATE`,
@@ -2476,6 +2538,8 @@ module.exports = {
   MAX_DAILY_CUSTOMER_ISSUANCE_CENTS,
   MAX_DAILY_CUSTOMER_TRANSFER_CENTS,
   MAX_DAILY_CUSTOMER_TRANSFER_COUNT,
+  MAX_DAILY_CUSTOMER_SPEND_CENTS,
+  MAX_DAILY_CUSTOMER_SPEND_COUNT,
   MAX_STATEMENT_EXPORT_ROWS,
   CUSTOMER_TRANSFERS_ENABLED,
   isCreditRailEnabled,
@@ -2497,6 +2561,7 @@ module.exports = {
   listCustomerCreditHolds,
   findExistingTransferForReplay,
   assertCustomerTransferCapacity,
+  assertCustomerSpendCapacity,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
   customerCreditStatementCsv,
