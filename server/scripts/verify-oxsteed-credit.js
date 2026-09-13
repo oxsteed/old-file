@@ -30,6 +30,15 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_notification_outbox',
   'oxsteed_credit_worker_heartbeats',
   'cron_job_locks',
+  'food_customer_wallet_accounts',
+  'food_customer_wallet_ledger',
+  'food_customer_wallet_holds',
+  'food_customer_wallet_transfers',
+  'food_wallet_payment_sessions',
+  'food_customer_wallet_operator_audit_events',
+  'restaurant_pos_payments',
+  'restaurant_pos_receipt_events',
+  'incident_log',
 ];
 
 const REQUIRED_COLUMNS = {
@@ -68,6 +77,15 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_notification_outbox: ['transaction_id', 'hold_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
   oxsteed_credit_worker_heartbeats: ['last_run_at', 'last_success_at', 'last_error', 'last_result', 'run_count', 'consecutive_failures', 'updated_at'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
+  food_customer_wallet_accounts: ['balance_cents', 'reserved_cents', 'ledger_version', 'last_entry_hash', 'currency_code', 'status'],
+  food_customer_wallet_ledger: ['account_id', 'amount_cents', 'balance_after_cents', 'currency_code', 'entry_type', 'created_at'],
+  food_customer_wallet_holds: ['account_id', 'amount_cents', 'status', 'expires_at', 'currency_code'],
+  food_customer_wallet_transfers: ['sender_account_id', 'recipient_account_id', 'amount_cents', 'status', 'currency_code', 'idempotency_key'],
+  food_wallet_payment_sessions: ['status', 'expires_at', 'amount_cents', 'currency_code', 'wallet_hold_id'],
+  food_customer_wallet_operator_audit_events: ['action_type', 'created_at', 'wallet_account_id', 'currency_code'],
+  restaurant_pos_payments: ['food_order_id', 'payment_type', 'amount_cents', 'status', 'provider', 'idempotency_key', 'created_at'],
+  restaurant_pos_receipt_events: ['event_type', 'payment_status', 'total_cents', 'created_at'],
+  incident_log: ['type', 'severity', 'dedupe_key', 'resolved_at', 'last_seen_at'],
 };
 
 const REQUIRED_INDEXES = [
@@ -91,7 +109,12 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_notification_outbox_pending_due',
   'idx_oxsteed_credit_notification_outbox_sending_lock',
   'idx_oxsteed_credit_notification_outbox_failed_history',
-    'idx_oxsteed_credit_worker_heartbeats_last_run',
+  'idx_oxsteed_credit_worker_heartbeats_last_run',
+  'idx_food_wallet_payment_sessions_restaurant_status',
+  'idx_food_wallet_holds_account_status',
+  'idx_food_customer_wallet_ledger_sequence',
+  'idx_food_customer_wallet_operator_audit_restaurant_created',
+  'idx_restaurant_pos_payments_order',
   'idx_oxsteed_credit_transactions_debit_velocity',
   'idx_oxsteed_credit_holds_customer_currency_active',
   'idx_oxsteed_credit_audit_action_created',
