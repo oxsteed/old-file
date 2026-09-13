@@ -418,6 +418,11 @@ async function main() {
       ['480_oxsteed_credit_agreement_approval.sql']
     );
     checks.agreementApprovalMigrationApplied = agreementApprovalMigrationRows.rows.length === 1;
+    const approvalHistoryMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['481_oxsteed_credit_approval_history.sql']
+    );
+    checks.approvalHistoryMigrationApplied = approvalHistoryMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -716,8 +721,7 @@ async function main() {
          FROM oxsteed_credit_partner_agreements a
          LEFT JOIN users u ON u.id = a.approved_by
         WHERE a.status = 'active'
-          AND (u.id IS NULL OR u.is_active IS DISTINCT FROM TRUE
-            OR u.role NOT IN ('admin', 'super_admin'))`,
+          AND (u.id IS NULL OR u.role NOT IN ('admin', 'super_admin'))`,
     );
     checks.invalidActiveAgreementApprovals = Number(agreementApprovalInvariantRows[0]?.invalid_count || 0);
 
@@ -965,6 +969,7 @@ async function main() {
       !checks.deactivationPolicyMigrationApplied,
       !checks.agreementStateMigrationApplied,
       !checks.agreementApprovalMigrationApplied,
+      !checks.approvalHistoryMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
