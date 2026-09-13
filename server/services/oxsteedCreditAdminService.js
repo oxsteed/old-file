@@ -858,7 +858,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId 
   }, 'credit_admin_transition_partner');
 }
 
-async function listAgreements({ partnerId, status, limit = 250, offset = 0, includePagination = false } = {}) {
+async function listAgreements({ partnerId, status, search, limit = 250, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -870,6 +870,11 @@ async function listAgreements({ partnerId, status, limit = 250, offset = 0, incl
     if (!AGREEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid agreement status', 400, 'invalid_agreement_status');
     params.push(normalizedStatus);
     filters.push(`a.status = $${params.length}`);
+  }
+  const normalizedSearch = normalizeString(search, 120);
+  if (normalizedSearch) {
+    params.push(`%${normalizedSearch}%`);
+    filters.push(`(fr.display_name ILIKE $${params.length} OR CAST(a.partner_id AS TEXT) ILIKE $${params.length} OR CAST(p.restaurant_id AS TEXT) ILIKE $${params.length})`);
   }
   const parsedLimit = Number.parseInt(String(limit), 10);
   const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 250;

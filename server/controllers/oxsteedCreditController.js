@@ -847,6 +847,7 @@ async function listAdminAgreements(req, res, next) {
     const agreements = await listAgreements({
       partnerId: req.query.partnerId || req.query.partner_id,
       status: req.query.status,
+      search: req.query.search || req.query.q,
     });
     res.json({ agreements });
   } catch (error) {
@@ -859,6 +860,7 @@ async function downloadAdminAgreements(req, res, next) {
     const options = {
       partnerId: req.query.partnerId || req.query.partner_id,
       status: req.query.status,
+      search: req.query.search || req.query.q,
       limit: 250,
       offset: 0,
       includePagination: true,

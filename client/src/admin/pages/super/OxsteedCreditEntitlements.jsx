@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
@@ -48,6 +48,13 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [agreementOptions, setAgreementOptions] = useState([]);
+  const [agreementSearch, setAgreementSearch] = useState('');
+  const [agreementLookupQuery, setAgreementLookupQuery] = useState('');
+  const [agreementLookupTotal, setAgreementLookupTotal] = useState(0);
+  const [loadingAgreementOptions, setLoadingAgreementOptions] = useState(false);
+  const [agreementOptionsError, setAgreementOptionsError] = useState('');
+  const agreementLookupRequestRef = useRef(0);
 
   const load = async () => {
     setLoading(true);
@@ -96,7 +103,49 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
   const visibleEntitlements = entitlements;
 
-  const selectedAgreement = useMemo(() => agreements.find((agreement) => String(agreement.id) === String(form.agreementId)), [agreements, form.agreementId]);
+  const loadAgreementOptions = async (searchValue) => {
+    const requestId = ++agreementLookupRequestRef.current;
+    const query = String(searchValue || '').trim();
+    setLoadingAgreementOptions(true);
+    setAgreementOptionsError('');
+    try {
+      const response = await adminApi.get('/admin/super/oxsteed-credit/agreements', { params: query ? { search: query } : {} });
+      if (requestId !== agreementLookupRequestRef.current) return;
+      const loadedOptions = response.data?.agreements || [];
+      setAgreementOptions(loadedOptions);
+      setAgreementLookupTotal(loadedOptions.length);
+    } catch (err) {
+      if (requestId === agreementLookupRequestRef.current) {
+        setAgreementOptionsError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Agreement lookup failed.');
+      }
+    } finally {
+      if (requestId === agreementLookupRequestRef.current) setLoadingAgreementOptions(false);
+    }
+  };
+
+  const applyAgreementLookup = () => {
+    const query = agreementSearch.trim();
+    setAgreementLookupQuery(query);
+    loadAgreementOptions(query);
+  };
+
+  const clearAgreementLookup = () => {
+    agreementLookupRequestRef.current += 1;
+    setAgreementSearch('');
+    setAgreementLookupQuery('');
+    setAgreementOptions([]);
+    setAgreementLookupTotal(0);
+    setAgreementOptionsError('');
+    setLoadingAgreementOptions(false);
+  };
+
+  const selectableAgreements = useMemo(() => {
+    const activeOptions = agreementLookupQuery ? agreementOptions : agreements;
+    const selectedAgreements = [...agreements, ...agreementOptions].filter((agreement) => String(agreement.id) === String(form.agreementId));
+    return Array.from(new Map([...activeOptions, ...selectedAgreements].map((agreement) => [String(agreement.id), agreement])).values());
+  }, [agreementLookupQuery, agreementOptions, agreements, form.agreementId]);
+
+  const selectedAgreement = useMemo(() => selectableAgreements.find((agreement) => String(agreement.id) === String(form.agreementId)), [form.agreementId, selectableAgreements]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -137,14 +186,14 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
     <form onSubmit={submit} className="mt-5 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Customer UUID</span><input required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} list="oxsteed-credit-customers" placeholder="Paste UUID or choose from loaded wallets" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /><datalist id="oxsteed-credit-customers">{customerAccounts.map((account) => <option key={account.accountId} value={account.customerId}>{account.name || account.email || account.customerId}</option>)}</datalist></label>
-      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner agreement</span><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Choose a restaurant agreement</option>{agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || 'Partner restaurant'} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select></label>
+      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner agreement</span><div className="mb-2 flex flex-wrap gap-2"><input value={agreementSearch} onChange={(event) => setAgreementSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyAgreementLookup(); }} placeholder="Search restaurant or partner ID" className="min-w-[180px] flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="button" onClick={applyAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingAgreementOptions ? 'Searching...' : 'Find agreements'}</button>{agreementLookupQuery && <button type="button" onClick={clearAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Clear</button>}</div><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} disabled={loadingAgreementOptions} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingAgreementOptions ? 'Loading agreements...' : 'Choose a restaurant agreement'}</option>{selectableAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || 'Partner restaurant'} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select>{agreementOptionsError && <p className="mt-2 text-xs font-semibold text-red-300">{agreementOptionsError}</p>}<p className="mt-2 text-[11px] text-gray-600">{agreementLookupQuery ? `Showing ${agreementLookupTotal} matching agreement${agreementLookupTotal === 1 ? '' : 's'}.` : 'Use Find agreements to search beyond the initial agreement list.'}</p></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Access state</span><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Starts (optional)</span><input type="datetime-local" value={form.startsAt} onChange={(event) => setForm({ ...form, startsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Ends (optional)</span><input type="datetime-local" value={form.endsAt} onChange={(event) => setForm({ ...form, endsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Max / transaction ($)</span><input inputMode="decimal" value={form.maxTransaction} onChange={(event) => setForm({ ...form, maxTransaction: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Daily limit ($)</span><input inputMode="decimal" value={form.dailyLimit} onChange={(event) => setForm({ ...form, dailyLimit: event.target.value })} placeholder="Optional" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label className="lg:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Reason</span><input required value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="Why this customer is eligible for this partner" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
-      <button disabled={busy || saving || !agreements.length} className="self-end rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50">Save customer access</button>
+      <button disabled={busy || saving || !selectableAgreements.length} className="self-end rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50">Save customer access</button>
     </form>
 
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

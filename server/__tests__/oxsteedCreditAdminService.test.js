@@ -105,6 +105,34 @@ test('lists a paginated agreement directory with bounded database paging', async
   expect(mockQuery.mock.calls[1][1]).toEqual([41, 'active', 11, 20]);
 });
 
+test('searches agreements by partner or restaurant identity', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-search-1',
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+      version: 1,
+      status: 'active',
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      metadata: {},
+    }] });
+
+  const result = await listAgreements({ search: 'cafe', limit: 10, includePagination: true });
+
+  expect(result).toMatchObject({ pagination: { total: 1, limit: 10, offset: 0, hasMore: false } });
+  expect(result.agreements[0]).toMatchObject({ id: 'agreement-search-1', restaurantName: 'OxSteed Cafe' });
+  expect(mockQuery.mock.calls[0][0]).toContain('fr.display_name ILIKE');
+  expect(mockQuery.mock.calls[0][0]).toContain('CAST(a.partner_id AS TEXT) ILIKE');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%cafe%']);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['%cafe%', 11, 0]);
+});
+
 test('does not grant a Credit entitlement to a non-customer identity', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'agreement-1', partner_id: 41 }] })
