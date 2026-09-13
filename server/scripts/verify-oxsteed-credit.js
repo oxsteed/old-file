@@ -108,7 +108,9 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_entitlement_owner_guard',
   'oxsteed_credit_transaction_customer_owner_guard',
   'oxsteed_credit_transaction_customer_activity_guard',
+  'oxsteed_credit_transaction_spend_account_state_guard',
   'oxsteed_credit_hold_customer_activity_guard',
+  'oxsteed_credit_hold_account_state_guard',
   'oxsteed_credit_hold_lifecycle_guard',
   'oxsteed_credit_issuance_trace_guard',
   'oxsteed_credit_dispute_integrity_guard',
@@ -577,6 +579,11 @@ async function main() {
       ['503_oxsteed_credit_system_hold_release_evidence.sql']
     );
     checks.systemHoldReleaseEvidenceMigrationApplied = systemHoldReleaseEvidenceMigrationRows.rows.length === 1;
+    const spendAccountStateMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['504_oxsteed_credit_spend_account_state.sql']
+    );
+    checks.spendAccountStateMigrationApplied = spendAccountStateMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1103,10 +1110,26 @@ async function main() {
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_holds h
          JOIN users u ON u.id = h.customer_id
+         JOIN oxsteed_credit_accounts a ON a.id = h.account_id
         WHERE h.status = 'active'
-          AND (u.role <> 'customer' OR u.is_active IS DISTINCT FROM TRUE)`,
+          AND (u.role <> 'customer'
+            OR u.is_active IS DISTINCT FROM TRUE
+            OR a.account_type <> 'customer_wallet'
+            OR a.status IS DISTINCT FROM 'active')`,
     );
     checks.invalidActiveCreditHolds = Number(inactiveHoldInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: spendAccountStateInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts a
+           ON a.id IN (t.debit_account_id, t.credit_account_id)
+        WHERE t.status = 'posted'
+          AND t.transaction_type IN ('purchase', 'transfer')
+          AND a.account_type = 'customer_wallet'
+          AND a.status IS DISTINCT FROM 'active'`,
+    );
+    checks.invalidCreditSpendAccountStates = Number(spendAccountStateInvariantRows[0]?.invalid_count || 0);
 
     const { rows: activeAgreementInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1496,6 +1519,7 @@ async function main() {
       !checks.restaurantStaffRefundReasonMigrationApplied,
       !checks.purchaseActorEvidenceMigrationApplied,
       !checks.systemHoldReleaseEvidenceMigrationApplied,
+      !checks.spendAccountStateMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1530,6 +1554,7 @@ async function main() {
       checks.invalidSettlementOverlaps > 0,
       checks.invalidSettlementReferences > 0,
       checks.invalidActiveCreditHolds > 0,
+      checks.invalidCreditSpendAccountStates > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,
       checks.invalidActiveAgreementApprovals > 0,
