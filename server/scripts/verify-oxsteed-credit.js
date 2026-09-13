@@ -382,6 +382,11 @@ async function main() {
       ['474_oxsteed_credit_identity_retention.sql']
     );
     checks.identityRetentionMigrationApplied = identityRetentionMigrationRows.rows.length === 1;
+    const idempotencyKeysMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['475_oxsteed_credit_idempotency_keys.sql']
+    );
+    checks.idempotencyKeysMigrationApplied = idempotencyKeysMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -589,6 +594,31 @@ async function main() {
           AND (u.id IS NULL OR u.role <> 'customer' OR u.is_active IS DISTINCT FROM TRUE)`,
     );
     checks.invalidActiveEntitlementCustomers = Number(entitlementActivityInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: idempotencyKeyInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM (
+           SELECT id::text AS id FROM oxsteed_credit_transactions WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT id::text FROM oxsteed_credit_holds WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT id::text FROM oxsteed_credit_settlements WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT idempotency_key FROM oxsteed_credit_partner_agreements
+            WHERE creation_idempotency_key IS NOT NULL AND NULLIF(BTRIM(creation_idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT id::text FROM oxsteed_credit_disputes
+            WHERE idempotency_key IS NOT NULL AND NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT idempotency_key FROM oxsteed_credit_entitlement_bulk_requests WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT idempotency_key FROM oxsteed_credit_entitlement_requests WHERE NULLIF(BTRIM(idempotency_key), '') IS NULL
+           UNION ALL
+           SELECT id::text FROM oxsteed_credit_holds
+            WHERE capture_idempotency_key IS NOT NULL AND NULLIF(BTRIM(capture_idempotency_key), '') IS NULL
+         ) invalid_keys`,
+    );
+    checks.invalidCreditIdempotencyKeys = Number(idempotencyKeyInvariantRows[0]?.invalid_count || 0);
 
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -828,6 +858,7 @@ async function main() {
       !checks.holdImmutabilityMigrationApplied,
       !checks.settlementCreationEvidenceMigrationApplied,
       !checks.identityRetentionMigrationApplied,
+      !checks.idempotencyKeysMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -846,6 +877,7 @@ async function main() {
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
       checks.invalidActiveEntitlementCustomers > 0,
+      checks.invalidCreditIdempotencyKeys > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
