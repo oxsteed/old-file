@@ -307,6 +307,7 @@ test('lists settlements with partner, status, and currency filters', async () =>
     net_cents: '4400',
     status: 'paid',
     payment_reference: 'bank-1',
+    created_by: 'admin-creator',
     approved_by: 'admin-1',
     paid_at: '2026-09-09T00:00:00.000Z',
     metadata: {},
@@ -317,7 +318,7 @@ test('lists settlements with partner, status, and currency filters', async () =>
   const result = await listSettlements({ partnerId: 41, status: 'paid', currencyCode: 'EUR', limit: 10, offset: 20, includePagination: true });
 
   expect(result).toMatchObject({ pagination: { limit: 10, offset: 20, hasMore: false, nextOffset: null } });
-  expect(result.settlements[0]).toMatchObject({ partnerId: '41', restaurantName: 'OxSteed Cafe', currencyCode: 'EUR', netCents: 4400 });
+  expect(result.settlements[0]).toMatchObject({ partnerId: '41', restaurantName: 'OxSteed Cafe', currencyCode: 'EUR', netCents: 4400, createdBy: 'admin-creator', approvedBy: 'admin-1' });
   expect(mockQuery.mock.calls[0][0]).toContain('s.partner_id = $1');
   expect(mockQuery.mock.calls[0][0]).toContain('s.status = $2');
   expect(mockQuery.mock.calls[0][0]).toContain('s.currency_code = $3');

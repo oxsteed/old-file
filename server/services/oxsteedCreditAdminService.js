@@ -192,6 +192,7 @@ function formatSettlement(row) {
     netCents: Number(row.net_cents || 0),
     status: row.status,
     paymentReference: row.payment_reference || null,
+    createdBy: row.created_by || null,
     approvedBy: row.approved_by || null,
     paidAt: row.paid_at || null,
     metadata: row.metadata || {},
@@ -1083,11 +1084,11 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       `INSERT INTO oxsteed_credit_settlements
          (partner_id, agreement_id, currency_code, period_start, period_end,
           gross_cents, refund_cents, fee_cents, net_cents, payment_reference,
-          idempotency_key, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+          idempotency_key, metadata, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
-      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizeString(paymentReference, 160), normalizedIdempotencyKey, JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {})]
+      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizeString(paymentReference, 160), normalizedIdempotencyKey, JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), actorUserId || null]
     );
     if (!rows[0]) {
       const { rows: conflictRows } = await client.query(

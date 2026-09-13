@@ -1138,7 +1138,7 @@ async function downloadAdminSettlements(req, res, next) {
     const headers = [
       'Settlement ID', 'Partner ID', 'Restaurant', 'Agreement ID', 'Period start', 'Period end',
       'Gross cents', 'Refund cents', 'Fee cents', 'Net cents', 'Status', 'Currency',
-      'Payment reference', 'Approved by', 'Paid at', 'Created at', 'Updated at',
+      'Payment reference', 'Created by', 'Approved by', 'Paid at', 'Created at', 'Updated at',
     ];
     const lines = [headers.map(csvCell).join(',')];
     settlements.forEach((settlement) => {
@@ -1156,6 +1156,7 @@ async function downloadAdminSettlements(req, res, next) {
         settlement.status,
         settlement.currencyCode,
         settlement.paymentReference,
+        settlement.createdBy,
         settlement.approvedBy,
         settlement.paidAt,
         settlement.createdAt,
