@@ -58,7 +58,7 @@ async function requireRestaurantManager(userId, restaurantId) {
 }
 
 async function getPartnerId(restaurantId) {
-  const { rows } = await pool.query(`SELECT id, status FROM oxsteed_credit_partners WHERE restaurant_id = $1`, [restaurantId]);
+  const { rows } = await pool.query(`SELECT id, status, settlement_currency_code FROM oxsteed_credit_partners WHERE restaurant_id = $1`, [restaurantId]);
   if (!rows[0]) throw new AppError('This restaurant is not enrolled as an OxSteed Credit partner', 404, 'credit_partner_not_found');
   return rows[0];
 }
@@ -95,11 +95,11 @@ async function listPartnerTransactions(req, res, next) {
               t.posted_at, t.created_at
          FROM oxsteed_credit_transactions t
         WHERE t.partner_id = $1
-          AND t.currency_code = 'USD'
+          AND t.currency_code = $2
           AND t.status = 'posted'
         ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
-        LIMIT $2 OFFSET $3`,
-      [partner.id, limit + 1, offset]
+        LIMIT $3 OFFSET $4`,
+      [partner.id, partner.settlement_currency_code, limit + 1, offset]
     );
     const hasMore = rows.length > limit;
     res.json({

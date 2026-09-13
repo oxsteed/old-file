@@ -51,13 +51,13 @@ test('allows an owner to view partner settlements without customer data', async 
 test('allows an active manager to view partner transactions without customer identity fields', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 9, effective_role: 'manager' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 55, status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 55, status: 'active', settlement_currency_code: 'EUR' }] })
     .mockResolvedValueOnce({ rows: [{
       id: 'transaction-1',
       transaction_type: 'purchase',
       status: 'posted',
       amount_cents: '1800',
-      currency_code: 'USD',
+      currency_code: 'EUR',
       agreement_id: 'agreement-1',
       reference_type: 'food_order',
       reference_id: 'order-1',
@@ -80,7 +80,8 @@ test('allows an active manager to view partner transactions without customer ide
   expect(response.body.transactions[0]).not.toHaveProperty('customerEmail');
   expect(response.body.pagination).toEqual({ limit: 10, offset: 0, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[2][0]).toContain("t.status = 'posted'");
-  expect(mockQuery.mock.calls[2][0]).toContain("t.currency_code = 'USD'");
+  expect(mockQuery.mock.calls[2][0]).toContain('t.currency_code = $2');
+  expect(mockQuery.mock.calls[2][1]).toEqual([55, 'EUR', 11, 0]);
 });
 
 test('removes internal settlement fields from the partner response', async () => {
