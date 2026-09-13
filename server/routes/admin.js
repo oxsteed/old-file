@@ -115,7 +115,7 @@ router.post('/super/restaurant-credit/load-requests/:requestId/decline', require
 
 // OxSteed Credit holds are captured only by an authorized operator. Customer
 // clients can create and release their own reservations, but never capture value.
-router.post('/super/oxsteed-credit/holds/:holdId/capture', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminCaptureHold);
+router.post('/super/oxsteed-credit/holds/:holdId/capture', requireSuperAdmin, noStoreCreditResponse, creditAdminMutationLimiter, oxsteedCreditCtrl.adminCaptureHold);
 
 // User management (privileged write)
 // ID / background "confirm" is super-admin only (trust & compliance).
