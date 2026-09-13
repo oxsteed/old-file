@@ -116,6 +116,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_agreement_creator_guard',
   'oxsteed_credit_entitlement_creator_guard',
   'oxsteed_credit_settlement_creator_guard',
+  'oxsteed_credit_settlement_overlap_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -466,6 +467,11 @@ async function main() {
       ['488_oxsteed_credit_admin_provenance.sql']
     );
     checks.adminProvenanceMigrationApplied = adminProvenanceMigrationRows.rows.length === 1;
+    const settlementOverlapMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['489_oxsteed_credit_settlement_overlap.sql']
+    );
+    checks.settlementOverlapMigrationApplied = settlementOverlapMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -935,6 +941,20 @@ async function main() {
     );
     checks.invalidSettlements = Number(settlementIntegrityRows[0]?.invalid_count || 0);
 
+    const { rows: settlementOverlapRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_settlements first_settlement
+         JOIN oxsteed_credit_settlements second_settlement
+           ON second_settlement.id > first_settlement.id
+          AND second_settlement.partner_id = first_settlement.partner_id
+          AND second_settlement.agreement_id = first_settlement.agreement_id
+          AND second_settlement.status <> 'voided'
+          AND first_settlement.period_start < second_settlement.period_end
+          AND first_settlement.period_end > second_settlement.period_start
+        WHERE first_settlement.status <> 'voided'`,
+    );
+    checks.invalidSettlementOverlaps = Number(settlementOverlapRows[0]?.invalid_count || 0);
+
     const { rows: settlementStateRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_settlements s
@@ -1075,6 +1095,7 @@ async function main() {
       !checks.settlementApprovalMigrationApplied,
       !checks.issuanceActorEvidenceMigrationApplied,
       !checks.adminProvenanceMigrationApplied,
+      !checks.settlementOverlapMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1098,6 +1119,7 @@ async function main() {
       checks.invalidCreditActorIdentities > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
+      checks.invalidSettlementOverlaps > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,
