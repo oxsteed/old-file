@@ -46,6 +46,21 @@
 .ox-credit-balance-grid span { color: #a9c0c8; font-size: 12px; }
 .ox-credit-balance-grid strong { font-size: 18px; }
 .ox-credit-holds-panel { margin-top: 18px; }
+.ox-credit-authorize-panel { margin-top: 18px; }
+.ox-credit-authorize-panel > .ox-credit-panel-heading > svg { flex: 0 0 auto; color: #14754d; }
+.ox-credit-authorize-form { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(110px, .7fr) minmax(110px, .65fr) minmax(0, 1fr) auto; gap: 10px; margin: 0 23px 17px; }
+.ox-credit-authorize-form label { display: grid; gap: 6px; color: #71808c; font-size: 11px; font-weight: 800; }
+.ox-credit-authorize-form label span { color: #a0abb2; font-weight: 600; }
+.ox-credit-authorize-form input, .ox-credit-authorize-form select { width: 100%; min-height: 40px; box-sizing: border-box; padding: 0 11px; border: 1px solid rgba(16,37,63,.13); border-radius: 10px; color: #10253f; background: #fbfaf8; font: inherit; font-size: 12px; outline: none; }
+.ox-credit-authorize-form input:focus, .ox-credit-authorize-form select:focus { border-color: rgba(182,90,12,.55); box-shadow: 0 0 0 3px rgba(214,110,12,.1); }
+.ox-credit-authorize-form > button, .ox-credit-created-hold button { align-self: end; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; color: #fff; background: #d66e0c; font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-authorize-form > button:hover, .ox-credit-created-hold button:hover { background: #b65a0c; }
+.ox-credit-authorize-form > button:disabled { opacity: .55; cursor: wait; }
+.ox-credit-created-hold { display: grid; gap: 7px; margin: 0 23px 20px; padding: 14px; border: 1px solid rgba(20,117,77,.22); border-radius: 13px; background: #f0fbf4; }
+.ox-credit-created-hold strong { color: #14754d; font-size: 12px; }
+.ox-credit-created-hold code { overflow-wrap: anywhere; color: #10253f; font-size: 14px; font-weight: 850; letter-spacing: .04em; }
+.ox-credit-created-hold span { color: #527166; font-size: 11px; line-height: 1.45; }
+.ox-credit-created-hold button { justify-self: start; min-height: 32px; color: #14754d; background: #d9f2e2; }
 .ox-credit-hold-group + .ox-credit-hold-group { border-top: 1px solid rgba(16,37,63,.08); }
 .ox-credit-hold-group-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 23px 9px; color: #526473; font-size: 11px; }
 .ox-credit-hold-group-title strong { color: #526473; font-size: 11px; }
@@ -223,6 +238,9 @@
   .ox-credit-panel-heading, .ox-credit-panel-copy, .ox-credit-partner, .ox-credit-transaction-list article { padding-left: 16px; padding-right: 16px; }
   .ox-credit-panel-copy { margin-left: 16px; margin-right: 16px; }
   .ox-credit-partner-filters { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
+  .ox-credit-authorize-form { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
+  .ox-credit-authorize-form > button { min-height: 42px; }
+  .ox-credit-created-hold { margin-left: 16px; margin-right: 16px; }
   .ox-credit-panel-actions { width: 100%; justify-content: flex-start; }
   .ox-credit-statement-summary { margin-left: 16px; margin-right: 16px; }
   .ox-credit-limit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: 16px; margin-right: 16px; }

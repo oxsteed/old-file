@@ -160,6 +160,24 @@ restaurant quote endpoint also includes this result as
 customer-experience preflight, not authorization: order creation repeats the
 checks inside the financial transaction and must remain the final authority.
 
+### Restaurant POS Authorization
+
+In-store OxSteed Credit payments use a customer-created hold. A cashier must
+receive the hold ID from the customer and submit it with the exact order total
+to `POST /api/restaurants/:restaurantId/pos/orders/:orderId/payments` using
+`paymentType=oxsteed_credit` and an idempotency key. The server locks the hold,
+verifies that it belongs to the restaurant's active partner, matches currency
+and amount, re-checks the agreement and order categories, then captures it
+atomically with the POS payment and receipt audit. Holds expire automatically
+and can be released by the customer. Email addresses, phone numbers, and
+cashier-entered customer IDs are lookup or display data only; they never
+authorize an OxSteed Credit spend.
+
+The customer flow is: open OxSteed Credit, choose **Authorize an in-store
+payment**, select the participating restaurant and order type, reserve the
+exact amount, and give the resulting expiring hold ID to the cashier. Never
+allow a POS operator to debit Credit from an email or phone lookup alone.
+
 ## Daily Operations
 
 - Review partner and agreement status, open disputes, pending settlements, and reconciliation results in the OxSteed Credit Super Admin workspace.

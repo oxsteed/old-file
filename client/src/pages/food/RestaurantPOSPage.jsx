@@ -103,8 +103,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
   const [discountId, setDiscountId] = useState('');
   const [amountGiven, setAmountGiven] = useState('');
   const [tip, setTip] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [creditHoldId, setCreditHoldId] = useState('');
   const [loading, setLoading] = useState(false);
 
   const selectedDiscount = discounts.find((d) => String(d.id) === discountId);
@@ -118,8 +117,8 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
   const changeCents = method === 'cash' ? Math.max(0, Math.round((parseFloat(amountGiven) || 0) * 100) - finalTotal) : 0;
 
   const handlePay = async () => {
-    if (method === 'oxsteed_credit' && !customerEmail.trim() && !customerPhone.trim()) {
-      toast.error(t('food.pos.creditCustomerRequired', { defaultValue: 'Enter the customer email or phone to use OxSteed Credit.' }));
+    if (method === 'oxsteed_credit' && !creditHoldId.trim()) {
+      toast.error(t('food.pos.creditHoldRequired', { defaultValue: 'Enter the customer authorization code to use OxSteed Credit.' }));
       return;
     }
     setLoading(true);
@@ -129,8 +128,7 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
       discountCents,
       tipCents,
       finalTotal,
-      customerEmail: customerEmail.trim() || undefined,
-      customerPhone: customerPhone.trim() || undefined,
+      creditHoldId: creditHoldId.trim() || undefined,
     });
     setLoading(false);
   };
@@ -174,28 +172,17 @@ function PaymentModal({ total, currency, discounts, onPay, onClose }) {
         {method === 'oxsteed_credit' && (
           <div className="fd-pos-credit-fields">
             <div className="fd-field">
-              <label htmlFor="pos-credit-email">{t('food.pos.creditCustomerEmail', { defaultValue: 'Customer email' })}</label>
+              <label htmlFor="pos-credit-hold">{t('food.pos.creditHoldId', { defaultValue: 'Customer authorization code' })}</label>
               <input
-                id="pos-credit-email"
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="customer@example.com"
-                autoComplete="email"
+                id="pos-credit-hold"
+                type="text"
+                value={creditHoldId}
+                onChange={(e) => setCreditHoldId(e.target.value)}
+                placeholder="Paste the OxSteed Credit hold ID"
+                autoComplete="off"
               />
             </div>
-            <div className="fd-field">
-              <label htmlFor="pos-credit-phone">{t('food.pos.creditCustomerPhone', { defaultValue: 'Customer phone' })}</label>
-              <input
-                id="pos-credit-phone"
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="(555) 555-5555"
-                autoComplete="tel"
-              />
-            </div>
-            <small>{t('food.pos.creditCustomerLookupHelp', { defaultValue: 'Use one verified identifier. The server checks the restaurant agreement, balance, limits, and eligible order items.' })}</small>
+            <small>{t('food.pos.creditHoldHelp', { defaultValue: 'The customer starts an in-store authorization in OxSteed Credit and gives you the expiring hold ID. Email or phone alone cannot authorize spending.' })}</small>
           </div>
         )}
 
@@ -382,8 +369,7 @@ export default function RestaurantPOSPage() {
           amountCents: Number(order.total_cents ?? finalTotal),
           shiftId: activeShift.id,
           idempotencyKey: crypto.randomUUID(),
-          customerEmail,
-          customerPhone,
+          creditHoldId,
         });
         setCompletedOrder(order);
         setTicket([]);

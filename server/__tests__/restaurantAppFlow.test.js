@@ -898,6 +898,23 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.code).toBe('idempotency_key_required');
   });
 
+  test('requires a customer-authorized hold for OxSteed Credit POS payments', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 300, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payments`)
+      .set('Idempotency-Key', 'pos-credit-missing-hold-1')
+      .send({ paymentType: 'oxsteed_credit', amountCents: 300 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('credit_hold_required');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO oxsteed_credit_transactions/.test(sql))).toBe(false);
+  });
+
   test('rejects direct-payment receipt confirmation when required proof is missing', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })

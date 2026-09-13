@@ -2044,15 +2044,14 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
   }, 'credit_release_hold');
 }
 
-async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {} }) {
+async function captureCreditHoldInTransaction(client, { holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {} }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
   const normalizedActorType = normalizeString(actorType, 20) || 'admin';
   if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit hold capture actor', 400, 'credit_capture_actor_invalid');
   const normalizedReason = normalizeString(reason, 500);
   if (normalizedActorType === 'admin' && !normalizedReason) throw new AppError('A reason is required for administrative hold captures', 400, 'credit_capture_reason_required');
   if (normalizedActorType === 'admin' && !actorUserId) throw new AppError('An administrator identity is required for administrative hold captures', 400, 'credit_capture_actor_required');
-  return withTransaction(pool, async (client) => {
-    const { rows } = await client.query(
+  const { rows } = await client.query(
       `SELECT h.*, a.currency_code AS account_currency_code
          FROM oxsteed_credit_holds h
          JOIN oxsteed_credit_accounts a ON a.id = h.account_id
@@ -2060,45 +2059,45 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
         FOR UPDATE`,
       [holdId]
     );
-    const hold = rows[0];
-    if (!hold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
-    if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== assertSupportedCreditCurrency(hold.currency_code)) {
-      throw new AppError('Credit currency does not match the hold', 409, 'credit_currency_mismatch');
-    }
-    const captureKey = normalizeString(idempotencyKey, 160);
-    if (hold.capture_idempotency_key && hold.capture_idempotency_key !== captureKey) {
-      throw new AppError('Credit hold capture already used a different idempotency key', 409, 'credit_hold_capture_idempotency_conflict');
-    }
-    const requestedAmount = amountCents === undefined || amountCents === null ? Number(hold.amount_cents) : parseAmountCents(amountCents);
-    if (requestedAmount !== Number(hold.amount_cents)) throw new AppError('Credit hold capture amount must match the reserved amount', 409, 'credit_hold_amount_mismatch');
-    const requestedReferenceType = normalizeString(referenceType || hold.reference_type || 'credit_hold', 80);
-    const requestedReferenceId = normalizeString(referenceId || hold.reference_id || String(hold.id), 160);
-    const requestedDescription = description || hold.purpose || 'OxSteed Credit hold capture';
-    const requestedMetadata = { ...normalizeMetadata(hold.metadata), ...normalizeMetadata(metadata), capturedHoldId: String(hold.id) };
-    if (hold.status === 'captured') {
-      const existing = hold.captured_transaction_id
-        ? await getExistingTransactionById(client, hold.captured_transaction_id)
-        : null;
-      if (!existing) throw new AppError('Captured credit hold is missing its purchase transaction', 500, 'credit_hold_capture_incomplete');
-      assertIdempotencyReplayMatches(existing, {
-        transaction_type: 'purchase',
-        debit_account_id: existing.debit_account_id,
-        credit_account_id: existing.credit_account_id,
-        amount_cents: requestedAmount,
-        currency_code: hold.currency_code,
-        partner_id: hold.partner_id,
-        agreement_id: hold.agreement_id,
-        reference_type: requestedReferenceType,
-        reference_id: requestedReferenceId,
-        description: requestedDescription,
-        metadata: requestedMetadata,
-      });
-      return { hold: formatHold(hold), transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
-    }
-    if (hold.status !== 'active') throw new AppError('Credit hold cannot be captured', 409, 'credit_hold_state_invalid');
-    if (new Date(hold.expires_at) <= new Date()) {
-      await releaseHoldReservation(client, hold);
-      const { rows: expiredRows } = await client.query(
+  const hold = rows[0];
+  if (!hold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
+  if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== assertSupportedCreditCurrency(hold.currency_code)) {
+    throw new AppError('Credit currency does not match the hold', 409, 'credit_currency_mismatch');
+  }
+  const captureKey = normalizeString(idempotencyKey, 160);
+  if (hold.capture_idempotency_key && hold.capture_idempotency_key !== captureKey) {
+    throw new AppError('Credit hold capture already used a different idempotency key', 409, 'credit_hold_capture_idempotency_conflict');
+  }
+  const requestedAmount = amountCents === undefined || amountCents === null ? Number(hold.amount_cents) : parseAmountCents(amountCents);
+  if (requestedAmount !== Number(hold.amount_cents)) throw new AppError('Credit hold capture amount must match the reserved amount', 409, 'credit_hold_amount_mismatch');
+  const requestedReferenceType = normalizeString(referenceType || hold.reference_type || 'credit_hold', 80);
+  const requestedReferenceId = normalizeString(referenceId || hold.reference_id || String(hold.id), 160);
+  const requestedDescription = description || hold.purpose || 'OxSteed Credit hold capture';
+  const requestedMetadata = { ...normalizeMetadata(hold.metadata), ...normalizeMetadata(metadata), capturedHoldId: String(hold.id) };
+  if (hold.status === 'captured') {
+    const existing = hold.captured_transaction_id
+      ? await getExistingTransactionById(client, hold.captured_transaction_id)
+      : null;
+    if (!existing) throw new AppError('Captured credit hold is missing its purchase transaction', 500, 'credit_hold_capture_incomplete');
+    assertIdempotencyReplayMatches(existing, {
+      transaction_type: 'purchase',
+      debit_account_id: existing.debit_account_id,
+      credit_account_id: existing.credit_account_id,
+      amount_cents: requestedAmount,
+      currency_code: hold.currency_code,
+      partner_id: hold.partner_id,
+      agreement_id: hold.agreement_id,
+      reference_type: requestedReferenceType,
+      reference_id: requestedReferenceId,
+      description: requestedDescription,
+      metadata: requestedMetadata,
+    });
+    return { hold: formatHold(hold), transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
+  }
+  if (hold.status !== 'active') throw new AppError('Credit hold cannot be captured', 409, 'credit_hold_state_invalid');
+  if (new Date(hold.expires_at) <= new Date()) {
+    await releaseHoldReservation(client, hold);
+    const { rows: expiredRows } = await client.query(
         `UPDATE oxsteed_credit_holds
             SET status = 'expired', released_at = NOW(), release_actor_type = 'system',
                 release_reason = 'Hold expired before capture', updated_at = NOW()
@@ -2106,19 +2105,19 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
           RETURNING *`,
         [hold.id]
       );
-      await client.query(
+    await client.query(
         `INSERT INTO oxsteed_credit_audit_events
            (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
          VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
         [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason || 'Hold expired before capture', normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: Number(hold.amount_cents) })]
       );
-      return { hold: formatHold(expiredRows[0] || { ...hold, status: 'expired' }), expired: true, replayed: false };
-    }
-    const { rows: accountRows } = await client.query(`SELECT * FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE`, [hold.account_id]);
-    const account = accountRows[0];
-    if (!account || Number(account.reserved_cents || 0) < requestedAmount) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
-    await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
-    const transactionResult = await purchaseWithCreditInTransaction(client, {
+    return { hold: formatHold(expiredRows[0] || { ...hold, status: 'expired' }), expired: true, replayed: false };
+  }
+  const { rows: accountRows } = await client.query(`SELECT * FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE`, [hold.account_id]);
+  const account = accountRows[0];
+  if (!account || Number(account.reserved_cents || 0) < requestedAmount) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
+  await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
+  const transactionResult = await purchaseWithCreditInTransaction(client, {
       customerId: hold.customer_id,
       partnerId: hold.partner_id,
       agreementId: hold.agreement_id,
@@ -2144,8 +2143,8 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       description: requestedDescription,
       reason: normalizedReason || 'System hold capture',
       metadata: requestedMetadata,
-    });
-    const { rows: capturedRows } = await client.query(
+  });
+  const { rows: capturedRows } = await client.query(
       `UPDATE oxsteed_credit_holds
           SET status = 'captured', capture_idempotency_key = $1, captured_transaction_id = $2,
               capture_actor_type = $3, captured_by = $4, capture_reason = $5,
@@ -2154,14 +2153,17 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
         RETURNING *`,
       [captureKey, transactionResult.transaction.id, normalizedActorType, actorUserId || null, normalizedReason || 'System hold capture', hold.id]
     );
-    await client.query(
+  await client.query(
       `INSERT INTO oxsteed_credit_audit_events
          (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
        VALUES ('credit.hold.captured', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
       [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: requestedAmount, transactionId: transactionResult.transaction.id })]
     );
-    return { hold: formatHold(capturedRows[0]), transaction: transactionResult.transaction, replayed: false };
-  }, 'credit_capture_hold');
+  return { hold: formatHold(capturedRows[0]), transaction: transactionResult.transaction, replayed: false };
+}
+
+async function captureCreditHold(args) {
+  return withTransaction(pool, (client) => captureCreditHoldInTransaction(client, args), 'credit_capture_hold');
 }
 
 async function getExistingTransactionById(client, transactionId) {
@@ -2804,6 +2806,7 @@ module.exports = {
   adjustCustomerCredit,
   updateCustomerCreditAccountStatus,
   createCreditHold,
+  captureCreditHoldInTransaction,
   captureCreditHold,
   releaseCreditHold,
   expireCreditHolds,

@@ -27,8 +27,8 @@ const {
   releaseWalletHold,
 } = require('../services/foodWalletOperationsService');
 const {
-  purchaseWithCreditInTransaction,
   refundCreditInTransaction,
+  captureCreditHoldInTransaction,
 } = require('../services/oxsteedCreditService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
@@ -4096,27 +4096,54 @@ async function recordPosOxsteedCreditPayment(client, {
   request,
   paymentContract,
 }) {
-  const customerRow = await findPosWalletCustomer(client, {
-    restaurantId,
-    customerId: request.body.customerId || request.body.customer_id,
-    customerEmail: request.body.customerEmail || request.body.customer_email,
-    customerPhone: request.body.customerPhone || request.body.customer_phone,
-    query: request.body.customerLookup || request.body.customer_lookup,
-  });
-  const customerId = String(customerRow.id);
+  const holdId = normalizeString(
+    request.body.creditHoldId
+      || request.body.credit_hold_id
+      || request.body.oxsteedCreditHoldId,
+    80
+  );
+  if (!holdId) {
+    throw new AppError(
+      'A customer-authorized OxSteed Credit hold is required for in-store payment',
+      409,
+      'credit_hold_required'
+    );
+  }
+  if (!looksLikeUuid(holdId)) {
+    throw new AppError('The OxSteed Credit hold ID is invalid', 400, 'credit_hold_invalid');
+  }
+
+  // A cashier must capture a hold created by the customer. Identity lookup by
+  // email or phone is intentionally not an authorization mechanism.
+  const { rows: holdRows } = await client.query(
+    `SELECT h.*, a.customer_id AS hold_customer_id,
+            a.currency_code AS hold_account_currency_code,
+            p.restaurant_id AS hold_restaurant_id
+       FROM oxsteed_credit_holds h
+       JOIN oxsteed_credit_accounts a ON a.id = h.account_id
+       JOIN oxsteed_credit_partners p ON p.id = h.partner_id
+      WHERE h.id = $1
+        AND p.restaurant_id = $2
+        AND p.status = 'active'
+      FOR UPDATE`,
+    [holdId, restaurantId]
+  );
+  const hold = holdRows[0];
+  if (!hold) {
+    throw new AppError('This OxSteed Credit authorization was not found for this restaurant', 404, 'credit_hold_not_found');
+  }
+  if (String(hold.hold_account_currency_code || hold.currency_code).toUpperCase() !== String(currencyCode).toUpperCase()) {
+    throw new AppError('The OxSteed Credit authorization currency does not match this order', 409, 'credit_currency_mismatch');
+  }
+  if (Number(hold.amount_cents) !== Number(amountCents)) {
+    throw new AppError('The order total must match the customer\'s OxSteed Credit authorization', 409, 'credit_hold_amount_mismatch');
+  }
+  const customerId = String(hold.hold_customer_id || hold.customer_id);
   if (order.customer_id && String(order.customer_id) !== customerId) {
     throw new AppError('This ticket is assigned to a different customer', 409, 'pos_customer_mismatch');
   }
 
-  const { rows: partnerRows } = await client.query(
-    `SELECT id
-       FROM oxsteed_credit_partners
-      WHERE restaurant_id = $1 AND status = 'active'
-      LIMIT 1`,
-    [restaurantId]
-  );
-  const partner = partnerRows[0];
-  if (!partner) throw new AppError('This restaurant does not currently accept OxSteed Credit', 409, 'credit_partner_not_eligible');
+  const partnerId = String(hold.partner_id);
 
   const { rows: categoryRows } = await client.query(
     `SELECT foi.menu_item_id, fmc.name AS category_name
@@ -4127,13 +4154,14 @@ async function recordPosOxsteedCreditPayment(client, {
       ORDER BY foi.id`,
     [orderId]
   );
-  const creditTransaction = await purchaseWithCreditInTransaction(client, {
-    customerId,
-    partnerId: partner.id,
+  const creditCapture = await captureCreditHoldInTransaction(client, {
+    holdId,
     amountCents,
     currencyCode,
     actorUserId: createdByUserId,
-    actorType: 'restaurant_pos',
+    // The customer authorization is the authority. The POS operator is kept
+    // in metadata and audit evidence without inventing a ledger actor type.
+    actorType: 'system',
     orderType: order.fulfillment_type,
     categories: categoryRows.map((row) => row.category_name).filter(Boolean),
     menuItemIds: categoryRows.map((row) => row.menu_item_id).filter(Boolean),
@@ -4153,9 +4181,14 @@ async function recordPosOxsteedCreditPayment(client, {
       orderId: String(orderId),
       shiftId,
       customerId,
+      partnerId,
+      holdId,
+      posOperatorUserId: createdByUserId,
       posIdempotencyKey: idempotencyKey,
       paymentContract: paymentContractMetadata(paymentContract),
     },
+    reason: normalizeString(request.body.reason || request.body.note, 500)
+      || 'Customer-authorized OxSteed Credit POS payment',
   });
 
   if (!order.customer_id) {
@@ -4164,7 +4197,7 @@ async function recordPosOxsteedCreditPayment(client, {
       [customerId, orderId]
     );
   }
-  const transactionId = creditTransaction.transaction?.id ? String(creditTransaction.transaction.id) : null;
+  const transactionId = creditCapture.transaction?.id ? String(creditCapture.transaction.id) : null;
   const { rows: [payment] } = await client.query(
     `INSERT INTO restaurant_pos_payments
        (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
@@ -4182,6 +4215,7 @@ async function recordPosOxsteedCreditPayment(client, {
         source: 'oxsteed_credit',
         customerId,
         creditTransactionId: transactionId,
+        creditHoldId: holdId,
         currencyCode,
         shiftId,
         paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_oxsteed_credit' }),
@@ -4206,6 +4240,7 @@ async function recordPosOxsteedCreditPayment(client, {
         status: 'captured',
         shiftId,
         customerId,
+        creditHoldId: holdId,
         creditTransactionId: transactionId,
         paymentContract: paymentContractMetadata(paymentContract),
       },
@@ -4221,7 +4256,8 @@ async function recordPosOxsteedCreditPayment(client, {
       amountCents,
       currencyCode,
       customerId,
-      replayed: Boolean(creditTransaction.replayed),
+      holdId,
+      replayed: Boolean(creditCapture.replayed),
     },
   };
 }
@@ -4273,7 +4309,9 @@ async function refundPosOxsteedCreditPayment(client, {
       amountCents: portionCents,
       idempotencyKey: `pos-credit-refund:${idempotencyKey}:${original.id}`,
       actorUserId: createdByUserId,
-      actorType: 'restaurant_pos',
+      // The POS operator is recorded in metadata; the ledger actor remains a
+      // supported system actor for the customer-authorized Credit rail.
+      actorType: 'system',
       reason,
       correlationId: idempotencyKey,
       requestIp: request.ip || null,
