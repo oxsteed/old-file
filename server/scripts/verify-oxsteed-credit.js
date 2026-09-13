@@ -110,6 +110,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_agreement_approval_guard',
   'oxsteed_credit_account_state_guard',
   'oxsteed_credit_restaurant_status_guard',
+  'oxsteed_credit_settlement_approval_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -445,6 +446,11 @@ async function main() {
       ['485_oxsteed_credit_restaurant_status.sql']
     );
     checks.restaurantStatusMigrationApplied = restaurantStatusMigrationRows.rows.length === 1;
+    const settlementApprovalMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['486_oxsteed_credit_settlement_approval.sql']
+    );
+    checks.settlementApprovalMigrationApplied = settlementApprovalMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -882,26 +888,30 @@ async function main() {
 
     const { rows: settlementStateRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
-         FROM oxsteed_credit_settlements
-        WHERE (status = 'paid' AND paid_at IS NULL)
-           OR (status = 'paid' AND net_cents > 0 AND NULLIF(BTRIM(payment_reference), '') IS NULL)
-           OR (status IN ('approved', 'paid') AND approved_by IS NULL)
-           OR (status = 'paid' AND net_cents > 0 AND NOT EXISTS (
+         FROM oxsteed_credit_settlements s
+         LEFT JOIN users approval_user ON approval_user.id = s.approved_by
+        WHERE (s.status = 'paid' AND s.paid_at IS NULL)
+           OR (s.status = 'paid' AND s.net_cents > 0 AND NULLIF(BTRIM(s.payment_reference), '') IS NULL)
+           OR (s.status IN ('approved', 'paid')
+               AND (s.approved_by IS NULL
+                 OR approval_user.id IS NULL
+                 OR approval_user.role NOT IN ('admin', 'super_admin')))
+           OR (s.status = 'paid' AND s.net_cents > 0 AND NOT EXISTS (
                 SELECT 1
                   FROM oxsteed_credit_transactions t
                  WHERE t.transaction_type = 'settlement'
                    AND t.status = 'posted'
-                   AND t.partner_id = oxsteed_credit_settlements.partner_id
-                   AND t.agreement_id = oxsteed_credit_settlements.agreement_id
-                   AND t.amount_cents = oxsteed_credit_settlements.net_cents
-                   AND t.currency_code = oxsteed_credit_settlements.currency_code
+                   AND t.partner_id = s.partner_id
+                   AND t.agreement_id = s.agreement_id
+                   AND t.amount_cents = s.net_cents
+                   AND t.currency_code = s.currency_code
                    AND t.reference_type = 'credit_settlement'
-                   AND t.reference_id = oxsteed_credit_settlements.id::TEXT
-                   AND t.metadata->>'paymentReference' = oxsteed_credit_settlements.payment_reference
+                   AND t.reference_id = s.id::TEXT
+                   AND t.metadata->>'paymentReference' = s.payment_reference
               ))
-           OR (creation_reason IS NULL) IS DISTINCT FROM (creation_request_hash IS NULL)
-           OR (creation_request_hash IS NOT NULL
-               AND creation_request_hash !~ '^[a-f0-9]{64}$')`,
+           OR (s.creation_reason IS NULL) IS DISTINCT FROM (s.creation_request_hash IS NULL)
+           OR (s.creation_request_hash IS NOT NULL
+               AND s.creation_request_hash !~ '^[a-f0-9]{64}$')`,
     );
     checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
 
@@ -1013,6 +1023,7 @@ async function main() {
       !checks.suspendedExpiryMigrationApplied,
       !checks.partnerHoldReleaseMigrationApplied,
       !checks.restaurantStatusMigrationApplied,
+      !checks.settlementApprovalMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
