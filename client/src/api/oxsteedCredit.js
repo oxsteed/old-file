@@ -25,6 +25,10 @@ export const listOxsteedCreditTransactions = (params = {}) =>
   api.get('/oxsteed-credit/transactions', { params })
     .then((response) => response.data?.transactions || []);
 
+export const getOxsteedCreditTransactionPage = (params = {}) =>
+  api.get('/oxsteed-credit/transactions', { params })
+    .then((response) => response.data || { transactions: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
+
 export const getOxsteedCreditStatement = (params = {}) =>
   api.get('/oxsteed-credit/statement', { params })
     .then((response) => response.data?.statement || null);

@@ -1670,7 +1670,7 @@ async function refundCreditForReferenceInTransaction(client, { referenceType, re
   });
 }
 
-async function listCustomerCreditTransactions(customerId, { limit = 25, offset = 0, currencyCode = CREDIT_CURRENCY } = {}) {
+async function listCustomerCreditTransactions(customerId, { limit = 25, offset = 0, currencyCode = CREDIT_CURRENCY, includePagination = false } = {}) {
   const pageSize = parsePageSize(limit);
   const pageOffset = parseOffset(offset);
   const currency = assertSupportedCreditCurrency(currencyCode);
@@ -1692,11 +1692,22 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
         AND a.account_type = 'customer_wallet' AND a.customer_id = $1
         AND a.currency_code = $4
         AND t.currency_code = $4
-      ORDER BY t.created_at DESC
+      ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
       LIMIT $2 OFFSET $3`,
-    [customerId, pageSize, pageOffset, currency]
+    [customerId, pageSize + (includePagination ? 1 : 0), pageOffset, currency]
   );
-  return rows.map(formatCustomerCreditTransaction);
+  const hasMore = includePagination && rows.length > pageSize;
+  const transactions = rows.slice(0, pageSize).map(formatCustomerCreditTransaction);
+  if (!includePagination) return transactions;
+  return {
+    transactions,
+    pagination: {
+      limit: pageSize,
+      offset: pageOffset,
+      hasMore,
+      nextOffset: hasMore ? pageOffset + pageSize : null,
+    },
+  };
 }
 
 function formatCustomerCreditTransaction(row) {

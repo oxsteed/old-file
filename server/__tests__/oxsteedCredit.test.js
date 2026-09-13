@@ -25,6 +25,7 @@ function createCustomerApp(role = 'customer') {
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
   app.get('/statement', controller.getMyStatement);
+  app.get('/transactions', controller.getMyTransactions);
   app.get('/transactions/:transactionId', controller.getMyTransaction);
   app.post('/holds', controller.createMyHold);
   app.post('/transfers', controller.transferMyCredit);
@@ -926,6 +927,51 @@ test('keeps legacy customer transaction reads free of ledger secrets', async () 
   expect(mockQuery.mock.calls[0][0]).not.toContain('SELECT t.*');
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $3');
+});
+
+test('returns bounded customer transaction pages with a continuation cursor', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [
+    {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '700',
+      currency_code: 'USD',
+      reference_type: 'food_order',
+      reference_id: '123',
+      description: 'Lunch',
+      posted_at: '2026-09-10T15:00:00.000Z',
+      created_at: '2026-09-10T15:00:00.000Z',
+      direction: 'debit',
+      related_partner_id: 41,
+      restaurant_name: 'Ox Burger Lab',
+    },
+    {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      transaction_type: 'load',
+      status: 'posted',
+      amount_cents: '1200',
+      currency_code: 'USD',
+      reference_type: 'admin_load',
+      reference_id: 'load-1',
+      description: 'Credit load',
+      posted_at: '2026-09-09T15:00:00.000Z',
+      created_at: '2026-09-09T15:00:00.000Z',
+      direction: 'credit',
+      related_partner_id: null,
+      restaurant_name: null,
+    },
+  ] });
+
+  const response = await request(createCustomerApp())
+    .get('/transactions?limit=1&offset=1');
+
+  expect(response.status).toBe(200);
+  expect(response.body.transactions).toHaveLength(1);
+  expect(response.body.transactions[0]).toMatchObject({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', orderId: '123' });
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 1, hasMore: true, nextOffset: 2 });
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, 2, 1, 'USD']);
+  expect(mockQuery.mock.calls[0][0]).toContain('ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC');
 });
 
 test('rejects an invalid or oversized customer statement period before querying', async () => {

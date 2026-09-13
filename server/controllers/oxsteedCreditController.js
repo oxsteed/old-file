@@ -193,8 +193,9 @@ async function getMyTransactions(req, res, next) {
       limit: req.query.limit,
       offset: req.query.offset,
       currencyCode: req.query.currencyCode || req.query.currency_code,
+      includePagination: true,
     });
-    res.json({ transactions });
+    res.json(transactions);
   } catch (error) {
     next(error);
   }

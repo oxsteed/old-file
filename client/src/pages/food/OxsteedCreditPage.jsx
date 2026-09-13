@@ -26,7 +26,7 @@ import {
   getOxsteedCreditEligiblePartnerPage,
   getOxsteedCreditStatement,
   downloadOxsteedCreditStatement,
-  listOxsteedCreditTransactions,
+  getOxsteedCreditTransactionPage,
   openOxsteedCreditDispute,
   listOxsteedCreditDisputes,
 } from '../../api/oxsteedCredit';
@@ -160,10 +160,10 @@ export default function OxsteedCreditPage() {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
       } else {
-        const transactionResult = await listOxsteedCreditTransactions({ limit: 50, currencyCode: preferredCurrency });
+        const transactionResult = await getOxsteedCreditTransactionPage({ limit: 50, currencyCode: preferredCurrency });
         if (!isCurrentRequest()) return;
         setStatement(null);
-        setTransactions(Array.isArray(transactionResult) ? transactionResult : []);
+        setTransactions(Array.isArray(transactionResult?.transactions) ? transactionResult.transactions : []);
       }
     } catch (error) {
       if (isCurrentRequest()) toast.error(errorMessage(error));
