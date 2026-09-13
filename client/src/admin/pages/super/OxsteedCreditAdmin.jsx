@@ -334,9 +334,14 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionPartner = async (partner, status) => {
+    const reason = window.prompt(`Why are you moving ${partner.restaurantName || 'this partner'} to ${status}?`, 'Commercial approval or operational review');
+    if (!reason?.trim()) {
+      setError('A reason is required for partner status changes.');
+      return;
+    }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, reason: `Super Admin moved partner to ${status}` });
+      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, reason: reason.trim() });
       setNotice(`${partner.restaurantName || 'Partner'} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
@@ -345,9 +350,14 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionAgreement = async (agreement, status) => {
+    const reason = window.prompt(`Why are you moving agreement v${agreement.version} to ${status}?`, 'Agreement review or operational change');
+    if (!reason?.trim()) {
+      setError('A reason is required for agreement status changes.');
+      return;
+    }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, reason: `Super Admin moved agreement to ${status}` });
+      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, reason: reason.trim() });
       setNotice(`Agreement v${agreement.version} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
@@ -377,9 +387,22 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionSettlement = async (settlement, status) => {
+    const reason = window.prompt(`Why are you moving this settlement to ${status}?`, 'Settlement review completed');
+    if (!reason?.trim()) {
+      setError('A reason is required for settlement status changes.');
+      return;
+    }
+    let paymentReference = settlement.paymentReference || '';
+    if (status === 'paid' && !paymentReference && Number(settlement.netCents || 0) > 0) {
+      paymentReference = window.prompt('Enter the external payment reference before marking this settlement paid:', '') || '';
+      if (!paymentReference.trim()) {
+        setError('A payment reference is required before a non-zero settlement can be marked paid.');
+        return;
+      }
+    }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, reason: `Super Admin moved settlement to ${status}`, paymentReference: settlement.paymentReference || undefined });
+      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
       setNotice(`Settlement for ${settlement.restaurantName || 'partner'} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
