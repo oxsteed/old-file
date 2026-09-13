@@ -65,6 +65,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_transaction_partner_account_guard',
   'oxsteed_credit_purchase_boundary_guard',
   'oxsteed_credit_agreement_terms_guard',
+  'oxsteed_credit_user_role_guard',
   'oxsteed_credit_customer_owner_guard',
   'oxsteed_credit_entitlement_owner_guard',
   'oxsteed_credit_transaction_customer_owner_guard',
@@ -268,6 +269,11 @@ async function main() {
       ['450_oxsteed_credit_agreement_terms_immutability.sql']
     );
     checks.agreementTermsImmutabilityMigrationApplied = agreementTermsImmutabilityMigrationRows.rows.length === 1;
+    const userRoleGuardMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['451_oxsteed_credit_user_role_guard.sql']
+    );
+    checks.userRoleGuardMigrationApplied = userRoleGuardMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -327,7 +333,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -545,6 +551,7 @@ async function main() {
       !checks.settlementImmutabilityMigrationApplied,
       !checks.purchaseBoundaryMigrationApplied,
       !checks.agreementTermsImmutabilityMigrationApplied,
+      !checks.userRoleGuardMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
