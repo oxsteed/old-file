@@ -43,6 +43,7 @@ function createAdminApp() {
   app.post('/adjust/:customerId', controller.adminAdjustCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
+  app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
   app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
@@ -338,6 +339,38 @@ test('exports a filtered settlement CSV without exposing spreadsheet formulas', 
   expect(response.text).toContain('"\'=Restaurant Cafe"');
   expect(response.text).toContain('"\'+bank-1"');
   expect(mockQuery.mock.calls[0][1]).toEqual([41, 'paid', 'USD', 251, 0]);
+});
+
+test('exports customer Credit wallets with active filters and formula-safe values', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+    .mockResolvedValueOnce({ rows: [{
+      account_id: 7001,
+      customer_id: CUSTOMER_ID,
+      first_name: '=Customer',
+      last_name: 'Test',
+      email: '+customer@example.com',
+      is_active: true,
+      is_banned: false,
+      currency_code: 'USD',
+      balance_cents: '2500',
+      reserved_cents: '500',
+      status: 'active',
+      ledger_version: '3',
+      last_posted_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:01:00.000Z',
+    }] });
+
+  const response = await request(createAdminApp()).get('/accounts.csv?search=customer&status=active&currencyCode=USD');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-customer-wallets-/);
+  expect(response.text).toContain('Customer ID');
+  expect(response.text).toContain('"\'=Customer Test"');
+  expect(response.text).toContain('"\'+customer@example.com"');
+  expect(response.text).toContain('"2000"');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%customer%', 'USD', 'active']);
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {

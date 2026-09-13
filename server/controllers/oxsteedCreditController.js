@@ -538,6 +538,57 @@ async function listAdminCustomerAccounts(req, res, next) {
   }
 }
 
+async function downloadAdminCustomerAccounts(req, res, next) {
+  try {
+    const options = {
+      search: req.query.search || req.query.q,
+      status: req.query.status,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      limit: 250,
+      offset: 0,
+    };
+    const accounts = [];
+    let page = await listAdminCustomerCreditAccounts(options);
+    accounts.push(...page.accounts);
+    while (page.hasMore && accounts.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listAdminCustomerCreditAccounts({ ...options, offset: page.offset + page.accounts.length });
+      accounts.push(...page.accounts);
+    }
+    if (page.hasMore) {
+      throw new AppError('Customer wallet export is too large; narrow the filters first', 409, 'credit_customer_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Customer ID', 'Name', 'Email', 'Currency', 'Balance (cents)', 'Reserved (cents)', 'Available (cents)', 'Account status', 'Platform active', 'Platform banned', 'Ledger version', 'Last posted at', 'Updated at'];
+    const lines = [headers.map(csvCell).join(',')];
+    accounts.forEach((account) => {
+      lines.push([
+        account.customerId,
+        account.name,
+        account.email,
+        account.currencyCode,
+        account.balanceCents,
+        account.reservedCents,
+        account.availableBalanceCents,
+        account.status,
+        account.isActive,
+        account.isBanned,
+        account.ledgerVersion,
+        account.lastPostedAt,
+        account.updatedAt,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-customer-wallets-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAdminCustomerAccount(req, res, next) {
   try {
     const customerId = parseUuid(req.params.customerId, 'customerId');
@@ -947,6 +998,7 @@ module.exports = {
   updateAdminCreditRail,
   listAdminPartners,
   listAdminCustomerAccounts,
+  downloadAdminCustomerAccounts,
   getAdminCustomerAccount,
   listAdminTransactions,
   downloadAdminTransactions,
