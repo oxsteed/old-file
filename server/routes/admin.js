@@ -18,6 +18,12 @@ const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminC
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const { creditAdminMutationLimiter } = require('../middleware/rateLimiter');
 
+function noStoreCreditResponse(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  next();
+}
+
 // —— Admin live-support availability toggle ——
 router.get('/support/availability', requireAdmin, supportCtrl.getMyAvailability);
 router.put('/support/availability', requireAdmin, supportCtrl.setMyAvailability);
@@ -261,6 +267,7 @@ router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.delete
 
 // OxSteed Credit is a separate globally scoped stored-value rail. Keep
 // issuance and oversight behind the existing Super Admin authentication gate.
+router.use('/super/oxsteed-credit', noStoreCreditResponse);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);

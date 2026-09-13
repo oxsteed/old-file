@@ -5,7 +5,13 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/oxsteedCreditController');
 
-router.use(authenticate, requireRole('customer'));
+function noStoreCreditResponse(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  next();
+}
+
+router.use(authenticate, requireRole('customer'), noStoreCreditResponse);
 
 router.get('/account', controller.getMyAccount);
 router.get('/accounts', controller.getMyAccounts);

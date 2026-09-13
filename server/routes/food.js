@@ -9,6 +9,12 @@ const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
 const { creditExportLimiter } = require('../middleware/rateLimiter');
 
+function noStoreCreditResponse(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  next();
+}
+
 // Public customer discovery + the in-store "now serving" queue board.
 router.get('/markets', ctrl.listMarkets);
 router.get('/restaurants', ctrl.listRestaurants);
@@ -79,9 +85,9 @@ router.patch('/restaurants/:restaurantId/customer-wallet-status', authenticate, 
 router.get('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, walletCtrl.verifyCustomerWalletIntegrity);
 router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', authenticate, walletCtrl.getCustomerWalletReconciliation);
 router.get('/restaurants/:restaurantId/customer-wallet-statement', authenticate, walletCtrl.getCustomerWalletStatement);
-router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, oxsteedCreditPartnerCtrl.listPartnerSettlements);
-router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, oxsteedCreditPartnerCtrl.listPartnerTransactions);
-router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
+router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
+router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
+router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, noStoreCreditResponse, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
 router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', authenticate, walletCtrl.captureCustomerWalletHold);
 router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', authenticate, walletCtrl.releaseCustomerWalletHold);
 
