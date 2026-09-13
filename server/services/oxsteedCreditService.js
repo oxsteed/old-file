@@ -938,18 +938,14 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
         AND ($4::text IS NULL OR fr.display_name ILIKE '%' || $4 || '%'
           OR COALESCE(fr.address_city, '') ILIKE '%' || $4 || '%'
           OR COALESCE(fr.address_state, '') ILIKE '%' || $4 || '%')
-        AND ($5::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'cities'), 'null') <> 'array'
-          OR jsonb_array_length(a.geography->'cities') = 0
-          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'cities') city_rule WHERE LOWER(city_rule) = LOWER($5)))
-        AND ($6::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'states'), 'null') <> 'array'
-          OR jsonb_array_length(a.geography->'states') = 0
-          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'states') state_rule WHERE LOWER(state_rule) = LOWER($6)))
-        AND ($7::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'postalCodes'), 'null') <> 'array'
-          OR jsonb_array_length(a.geography->'postalCodes') = 0
-          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'postalCodes') postal_rule WHERE LOWER(postal_rule) = LOWER($7)))
-        AND ($8::text IS NULL OR COALESCE(jsonb_typeof(a.geography->'countries'), 'null') <> 'array'
-          OR jsonb_array_length(a.geography->'countries') = 0
-          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.geography->'countries') country_rule WHERE LOWER(country_rule) = LOWER($8)))
+        AND ($5::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'cities') = 'array' THEN a.geography->'cities' ELSE '[]'::jsonb END) = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.geography->'cities') = 'array' THEN a.geography->'cities' ELSE '[]'::jsonb END) city_rule WHERE LOWER(city_rule) = LOWER($5)))
+        AND ($6::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'states') = 'array' THEN a.geography->'states' ELSE '[]'::jsonb END) = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.geography->'states') = 'array' THEN a.geography->'states' ELSE '[]'::jsonb END) state_rule WHERE LOWER(state_rule) = LOWER($6)))
+        AND ($7::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'postalCodes') = 'array' THEN a.geography->'postalCodes' ELSE '[]'::jsonb END) = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.geography->'postalCodes') = 'array' THEN a.geography->'postalCodes' ELSE '[]'::jsonb END) postal_rule WHERE LOWER(postal_rule) = LOWER($7)))
+        AND ($8::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'countries') = 'array' THEN a.geography->'countries' ELSE '[]'::jsonb END) = 0
+          OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.geography->'countries') = 'array' THEN a.geography->'countries' ELSE '[]'::jsonb END) country_rule WHERE LOWER(country_rule) = LOWER($8)))
       ORDER BY p.id, a.version DESC
       ${shouldPage ? 'LIMIT $9 OFFSET $10' : ''}`,
     queryParams
