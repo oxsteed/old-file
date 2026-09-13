@@ -283,6 +283,7 @@ router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdm
 router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
+router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminCreditDisputes);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminCreditAuditEvents);

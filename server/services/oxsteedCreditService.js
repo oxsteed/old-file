@@ -1857,12 +1857,18 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
 
 const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected']);
 
-async function listCreditDisputes({ customerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
+async function listCreditDisputes({ customerId, partnerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (customerId) {
     params.push(customerId);
     filters.push(`d.customer_id = $${params.length}`);
+  }
+  if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
+    const normalizedPartnerId = Number.parseInt(String(partnerId), 10);
+    if (!Number.isSafeInteger(normalizedPartnerId) || normalizedPartnerId <= 0) throw new AppError('Invalid credit dispute partner', 400, 'credit_dispute_partner_invalid');
+    params.push(normalizedPartnerId);
+    filters.push(`d.partner_id = $${params.length}`);
   }
   if (status) {
     const normalizedStatus = normalizeString(status, 20);

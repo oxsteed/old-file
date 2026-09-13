@@ -55,6 +55,7 @@ function createAdminApp() {
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
   app.get('/disputes', controller.listAdminDisputes);
+  app.get('/disputes.csv', controller.downloadAdminCreditDisputes);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
   app.get('/audit-events.csv', controller.downloadAdminCreditAuditEvents);
   app.use(errorHandler);
@@ -1036,6 +1037,42 @@ test('paginates and filters the admin credit dispute queue', async () => {
   expect(mockQuery.mock.calls[0][0]).toContain('d.status = $1');
   expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $2 OFFSET $3');
   expect(mockQuery.mock.calls[0][1]).toEqual(['resolved', 11, 20]);
+});
+
+test('exports a filtered, formula-safe admin credit dispute queue', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'dispute-3',
+    transaction_id: 'tx-3',
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    restaurant_name: 'OxSteed Cafe',
+    transaction_amount_cents: '2400',
+    transaction_currency_code: 'USD',
+    transaction_type: 'purchase',
+    transaction_reference_type: 'food_order',
+    transaction_reference_id: '789',
+    transaction_posted_at: '2026-09-12T15:00:00.000Z',
+    status: 'resolved',
+    reason_code: '=HYPERLINK("https://example.com")',
+    description: 'Customer said "the order was duplicated".',
+    resolution: 'Refund issued.',
+    opened_by: CUSTOMER_ID,
+    resolved_by: ADMIN_ID,
+    opened_at: '2026-09-12T15:30:00.000Z',
+    resolved_at: '2026-09-12T16:00:00.000Z',
+    updated_at: '2026-09-12T16:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/disputes.csv?status=resolved&partnerId=41');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toContain('text/csv');
+  expect(response.headers['content-disposition']).toContain('oxsteed-credit-disputes-');
+  expect(response.text).toContain("'=HYPERLINK(\"\"https://example.com\"\")");
+  expect(response.text).toContain('Customer said ""the order was duplicated"".');
+  expect(mockQuery.mock.calls[0][0]).toContain('d.partner_id = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('d.status = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'resolved', 251, 0]);
 });
 
 test('hashes the same journal payload deterministically', () => {
