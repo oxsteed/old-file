@@ -494,7 +494,8 @@ async function listEntitlements({ customerId, agreementId, status, limit = 100, 
     `SELECT e.*, u.email, u.first_name, u.last_name,
             a.partner_id, a.version AS agreement_version, a.status AS agreement_status,
             p.restaurant_id, p.settlement_currency_code,
-            fr.display_name AS restaurant_name
+            fr.display_name AS restaurant_name,
+            COUNT(*) OVER()::int AS total_count
        FROM oxsteed_credit_customer_entitlements e
        JOIN users u ON u.id = e.customer_id
        JOIN oxsteed_credit_partner_agreements a ON a.id = e.agreement_id
@@ -505,7 +506,8 @@ async function listEntitlements({ customerId, agreementId, status, limit = 100, 
       LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return { entitlements: rows.map(formatEntitlement), limit: safeLimit, offset: safeOffset, hasMore: rows.length === safeLimit };
+  const total = Number(rows[0]?.total_count || 0);
+  return { entitlements: rows.map(formatEntitlement), total, limit: safeLimit, offset: safeOffset, hasMore: safeOffset + rows.length < total };
 }
 
 async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = {}) {

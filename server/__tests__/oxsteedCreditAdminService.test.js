@@ -84,11 +84,12 @@ test('lists customer entitlements with restaurant context and bounded paging', a
     created_by: null,
     created_at: '2026-09-12T12:00:00.000Z',
     updated_at: '2026-09-12T12:00:00.000Z',
+    total_count: 21,
   }] });
 
   const result = await listEntitlements({ customerId: '11111111-1111-4111-8111-111111111111', status: 'active', limit: 10, offset: 20 });
 
-  expect(result).toMatchObject({ limit: 10, offset: 20, hasMore: false });
+  expect(result).toMatchObject({ total: 21, limit: 10, offset: 20, hasMore: false });
   expect(result.entitlements[0]).toMatchObject({
     customerName: 'Alice Customer',
     customerEmail: 'alice@example.com',
