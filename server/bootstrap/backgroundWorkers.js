@@ -27,6 +27,7 @@ const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperat
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
+const { startOxsteedCreditIntegrityJob } = require('../jobs/oxsteedCreditIntegrity');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
@@ -70,6 +71,7 @@ class BackgroundWorkers {
       startOxsteedCreditHoldExpiryJob();
       startOxsteedCreditEntitlementExpiryJob();
       startOxsteedCreditReconciliationJob();
+      startOxsteedCreditIntegrityJob();
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });
