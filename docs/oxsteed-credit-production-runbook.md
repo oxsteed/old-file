@@ -125,6 +125,13 @@ on the customer to report their own history. The profile endpoint is
 `GET /api/admin/super/oxsteed-credit/accounts/:customerId` and is protected by
 the existing Super Admin gate.
 
+Super Admin can export the selected customer's bounded statement from
+`GET /api/admin/super/oxsteed-credit/accounts/:customerId/statement.csv`.
+The endpoint accepts the same optional `from`, `to`, and `currencyCode`
+parameters as the customer statement, permits historical records for inactive
+customers for support and finance review, and is protected by the export rate
+limit. It returns no partial file when the 5,000-row export cap is exceeded.
+
 The public eligibility query still requires the Credit rail, customer wallet,
 partner, agreement, entitlement when the agreement is allowlisted, currency,
 geography, category, order type, and limit checks to pass. On a partner-wide
@@ -180,6 +187,12 @@ Never restore over the live database as a first response. Preserve the original 
 Authenticated customers can retrieve a bounded statement from `GET /api/oxsteed-credit/statement`. The default period is the most recent 90 days; callers may request an inclusive `from` and `to` date window up to 366 days, with pagination for larger histories. Each response includes opening and closing balances, credit and debit totals, net change, transaction count, and customer-safe transaction details.
 
 Customers can download the same period as CSV from `GET /api/oxsteed-credit/statement.csv`. The export is capped at 5,000 transactions and returns a clear error rather than a partial file when the selected period is larger. Exported data intentionally excludes idempotency keys, ledger hashes, internal actor data, and raw transaction metadata.
+
+Super Admin customer statement exports use the same bounded statement format
+and are available from the Customer 360 panel. All Credit CSV exports quote
+cells and neutralize formula-leading values so customer-controlled descriptions
+or references cannot execute as spreadsheet formulas when opened by an
+operator.
 
 ## Customer Partner Directory
 
