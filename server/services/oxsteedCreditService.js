@@ -40,6 +40,7 @@ const MAX_PAGE_SIZE = 100;
 const MAX_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TRANSACTION_CENTS', 250000);
 const MAX_CUSTOMER_BALANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS', 1000000);
 const MAX_TOTAL_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS', 5000000);
+const MAX_DAILY_CUSTOMER_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_ISSUANCE_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
 const MAX_HOLD_TTL_MINUTES = Math.max(DEFAULT_HOLD_TTL_MINUTES, positiveEnv('OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES', 1440));
 const DEFAULT_STATEMENT_DAYS = 90;
@@ -500,7 +501,7 @@ async function findExistingTransferForReplay(client, { senderCustomerId, recipie
   return existing;
 }
 
-async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT_CURRENCY) {
+async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT_CURRENCY, customerId = null) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   // The cap is global, so serialize the outstanding-balance check across all
   // customers before approving a new positive-value movement.
@@ -513,6 +514,30 @@ async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT
   );
   if (Number(rows[0]?.total_cents || 0) + amountCents > MAX_TOTAL_ISSUANCE_CENTS) {
     throw new AppError('OxSteed Credit issuance limit reached', 409, 'credit_total_issuance_limit');
+  }
+  if (customerId) {
+    const { rows: dailyRows } = await client.query(
+      `SELECT COALESCE(SUM(t.amount_cents), 0) AS total_cents
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+         JOIN oxsteed_credit_accounts customer_account ON customer_account.id = t.credit_account_id
+        WHERE t.status = 'posted'
+          AND t.transaction_type IN ('load', 'adjustment')
+          AND t.created_at >= CURRENT_DATE
+          AND t.currency_code = $1
+          AND debit_account.account_type = 'platform_treasury'
+          AND customer_account.account_type = 'customer_wallet'
+          AND customer_account.customer_id = $2`,
+      [currency, customerId]
+    );
+    const dailyIssuedCents = Number(dailyRows[0]?.total_cents || 0);
+    if (dailyIssuedCents + amountCents > MAX_DAILY_CUSTOMER_ISSUANCE_CENTS) {
+      throw new AppError('Daily OxSteed Credit issuance limit reached for this customer', 409, 'credit_daily_issuance_limit', {
+        issuedTodayCents: String(dailyIssuedCents),
+        requestedCents: String(amountCents),
+        maxDailyIssuanceCents: String(MAX_DAILY_CUSTOMER_ISSUANCE_CENTS),
+      });
+    }
   }
 }
 
@@ -954,7 +979,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
     await assertCreditRailEnabled(client);
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
-    await assertIssuanceCapacity(client, amount, currency);
+    await assertIssuanceCapacity(client, amount, currency, customerId);
     return postJournalTransaction(client, {
       transactionType: 'load',
       debitAccountId: treasuryAccount.id,
@@ -1133,7 +1158,7 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
     const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
-    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency);
+    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency, customerId);
     return postJournalTransaction(client, {
       transactionType: 'adjustment',
       debitAccountId: direction === 'credit' ? treasuryAccount.id : customerAccount.id,
@@ -1869,6 +1894,7 @@ module.exports = {
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,
+  MAX_DAILY_CUSTOMER_ISSUANCE_CENTS,
   MAX_STATEMENT_EXPORT_ROWS,
   CUSTOMER_TRANSFERS_ENABLED,
   isCreditRailEnabled,

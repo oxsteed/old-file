@@ -168,6 +168,12 @@ test('keeps admin credit overview balances separated by currency', async () => {
   expect(response.status).toBe(200);
   expect(response.body.summary).toMatchObject({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 });
   expect(response.body.supportedCurrencies).toEqual(expect.arrayContaining(['USD', 'EUR']));
+  expect(response.body.riskLimits).toEqual(expect.objectContaining({
+    maxTransactionCents: expect.any(Number),
+    maxCustomerBalanceCents: expect.any(Number),
+    maxTotalIssuanceCents: expect.any(Number),
+    maxDailyCustomerIssuanceCents: expect.any(Number),
+  }));
   expect(response.body.summaryByCurrency).toEqual(expect.arrayContaining([
     expect.objectContaining({ currencyCode: 'EUR', customerBalanceCents: 2500, customerAvailableCents: 2000 }),
     expect.objectContaining({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 }),
@@ -524,6 +530,7 @@ test('serializes the global outstanding issuance cap before a new load', async (
     .mockResolvedValueOnce({ rows: [treasuryAccount] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ total_cents: '0' }] })
+    .mockResolvedValueOnce({ rows: [{ total_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [customerAccount, treasuryAccount] })
     .mockResolvedValueOnce({ rows: [transaction] })
@@ -543,6 +550,8 @@ test('serializes the global outstanding issuance cap before a new load', async (
   expect(mockQuery.mock.calls[7][0]).toContain('pg_advisory_xact_lock');
   expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
   expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
+  expect(mockQuery.mock.calls[9][0]).toContain('CURRENT_DATE');
+  expect(mockQuery.mock.calls[9][1]).toEqual(['USD', CUSTOMER_ID]);
 });
 
 test('replays a committed credit load while the rail is suspended', async () => {
@@ -597,6 +606,28 @@ test('applies the global issuance cap to positive administrative adjustments', a
     reason: 'Cap test',
   })).rejects.toMatchObject({ code: 'credit_total_issuance_limit' });
   expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
+});
+
+test('applies the per-customer daily issuance cap to positive administrative adjustments', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '100', reserved_cents: '0', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 9001, account_type: 'platform_treasury', customer_id: null, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ total_cents: '0' }] })
+    .mockResolvedValueOnce({ rows: [{ total_cents: '1000000' }] });
+
+  await expect(service.adjustCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    direction: 'credit',
+    idempotencyKey: 'daily-cap-1',
+    reason: 'Daily cap test',
+  })).rejects.toMatchObject({ code: 'credit_daily_issuance_limit' });
+  expect(mockQuery.mock.calls[5][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
+  expect(mockQuery.mock.calls[7][1]).toEqual(['USD', CUSTOMER_ID]);
 });
 
 test('rejects malformed hold capture ids before any database query', async () => {

@@ -10,6 +10,10 @@ const {
   getCustomerCreditStatement,
   customerCreditStatementCsv,
   MAX_STATEMENT_EXPORT_ROWS,
+  MAX_TRANSACTION_CENTS,
+  MAX_CUSTOMER_BALANCE_CENTS,
+  MAX_TOTAL_ISSUANCE_CENTS,
+  MAX_DAILY_CUSTOMER_ISSUANCE_CENTS,
   getCustomerCreditTransaction,
   createCreditHold,
   captureCreditHold,
@@ -429,6 +433,12 @@ async function getAdminOverview(req, res, next) {
       name: 'OxSteed Credit',
       supportedCurrencies: SUPPORTED_CREDIT_CURRENCIES,
       currencyMetadata: SUPPORTED_CREDIT_CURRENCY_META,
+      riskLimits: {
+        maxTransactionCents: MAX_TRANSACTION_CENTS,
+        maxCustomerBalanceCents: MAX_CUSTOMER_BALANCE_CENTS,
+        maxTotalIssuanceCents: MAX_TOTAL_ISSUANCE_CENTS,
+        maxDailyCustomerIssuanceCents: MAX_DAILY_CUSTOMER_ISSUANCE_CENTS,
+      },
       summary: formatSummary(summary),
       summaryByCurrency: summaryResult.rows.map(formatSummary),
       partners: partnersResult.rows.map((row) => ({

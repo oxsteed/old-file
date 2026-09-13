@@ -33,6 +33,17 @@ production so every application replica shares the same rate-limit buckets. The
 in-memory fallback is for local development and is not sufficient for a
 multi-instance deployment.
 
+Positive administrative issuance is also bounded inside the transaction:
+`OXSTEED_CREDIT_MAX_TRANSACTION_CENTS` caps one movement,
+`OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS` caps one customer wallet,
+`OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS` caps outstanding customer value per
+currency, and `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_ISSUANCE_CENTS` caps the
+amount loaded or granted to one customer in the database accounting day. The
+daily check is serialized with the global issuance check and runs after an
+idempotent replay check, so retries do not consume additional issuance
+capacity. Set these values deliberately for each launch market and review the
+resulting limits with compliance and the funding owner.
+
 Holds default to 30 minutes and cannot be created more than 24 hours ahead by
 default. If operations need a different maximum, set
 `OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES` deliberately and keep it aligned with
