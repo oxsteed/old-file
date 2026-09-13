@@ -1435,6 +1435,50 @@ test('requires a reason before an administrative hold capture queries the databa
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('rejects a captured hold replay when its committed purchase details differ', async () => {
+  const hold = {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    amount_cents: '100',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'agreement-captured-replay',
+    status: 'captured',
+    capture_idempotency_key: 'capture-replay-1',
+    captured_transaction_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    purpose: 'Dinner',
+    reference_type: 'food_order',
+    reference_id: 'order-captured-1',
+    metadata: { source: 'hold' },
+  };
+  const transaction = {
+    id: hold.captured_transaction_id,
+    transaction_type: 'purchase',
+    status: 'posted',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    amount_cents: '100',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: hold.agreement_id,
+    reference_type: 'food_order',
+    reference_id: hold.reference_id,
+    description: 'Dinner',
+    metadata: { source: 'hold', capturedHoldId: hold.id },
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [hold] })
+    .mockResolvedValueOnce({ rows: [transaction] });
+
+  await expect(service.captureCreditHold({
+    holdId: hold.id,
+    idempotencyKey: hold.capture_idempotency_key,
+    actorType: 'admin',
+    reason: 'Replay capture',
+    description: 'Different description',
+  })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+});
+
 test('opens disputes only for posted transactions with an atomic duplicate guard', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'tx-1', partner_id: 41 }] })
