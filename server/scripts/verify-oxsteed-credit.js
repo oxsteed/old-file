@@ -38,6 +38,7 @@ const REQUIRED_COLUMNS = {
 
 const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_holds_idempotency',
+  'idx_oxsteed_credit_holds_customer_agreement_active',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -173,6 +174,11 @@ async function main() {
       ['436_oxsteed_credit_hold_idempotency_index.sql']
     );
     checks.holdIdempotencyMigrationApplied = holdIdempotencyMigrationRows.length === 1;
+    const { rows: activeHoldLookupMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['437_oxsteed_credit_active_hold_lookup.sql']
+    );
+    checks.activeHoldLookupMigrationApplied = activeHoldLookupMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -411,6 +417,7 @@ async function main() {
       !checks.identityStabilityMigrationApplied,
       !checks.settlementStateMigrationApplied,
       !checks.holdIdempotencyMigrationApplied,
+      !checks.activeHoldLookupMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
