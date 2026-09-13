@@ -135,7 +135,7 @@ test('searches agreements by partner or restaurant identity', async () => {
 
 test('does not grant a Credit entitlement to a non-customer identity', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'agreement-1', partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'agreement-1', partner_id: 41, status: 'active', partner_status: 'active', restaurant_status: 'active' }] })
     .mockResolvedValueOnce({ rows: [] });
 
   await expect(upsertEntitlement({
@@ -152,7 +152,7 @@ test('records the prior entitlement state when access is updated', async () => {
   const customerId = '11111111-1111-4111-8111-111111111111';
   const agreementId = 'agreement-1';
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', partner_status: 'active', restaurant_status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'request-hash', response_payload: null }] })
     .mockResolvedValueOnce({ rows: [{
@@ -236,7 +236,7 @@ test('rejects single customer access idempotency reuse when details change', asy
   const customerId = '11111111-1111-4111-8111-111111111111';
   const agreementId = 'agreement-1';
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', partner_status: 'active', restaurant_status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'different-request-hash' }] });
@@ -271,7 +271,7 @@ test('replays the original single customer access result after a later edit', as
     created_by: 'admin-1',
   };
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', partner_status: 'active', restaurant_status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-replay-1', request_hash: 'stored-hash', response_payload: null }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -293,7 +293,7 @@ test('replays the original single customer access result after a later edit', as
 
   resetMocks();
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', partner_status: 'active', restaurant_status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
@@ -317,6 +317,25 @@ test('replays the original single customer access result after a later edit', as
   expect(mockQuery).toHaveBeenCalledTimes(4);
 });
 
+test('does not activate customer access for an inactive agreement', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-suspended',
+    partner_id: 41,
+    status: 'suspended',
+    partner_status: 'active',
+    restaurant_status: 'active',
+  }] });
+
+  await expect(upsertEntitlement({
+    agreementId: 'agreement-suspended',
+    customerId: '11111111-1111-4111-8111-111111111111',
+    status: 'active',
+    reason: 'Restore partner access',
+    idempotencyKey: 'inactive-agreement-access-1',
+  })).rejects.toMatchObject({ code: 'credit_entitlement_agreement_not_active', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
 test('bulk-upserts customer access across multiple restaurant agreements atomically', async () => {
   const customerId = '11111111-1111-4111-8111-111111111111';
   const agreementIds = [
@@ -325,8 +344,8 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
   ];
   mockQuery
     .mockResolvedValueOnce({ rows: [
-      { id: agreementIds[0], partner_id: 41, restaurant_id: 9, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Cafe', version: 1, status: 'active' },
-      { id: agreementIds[1], partner_id: 42, restaurant_id: 10, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Bistro', version: 1, status: 'active' },
+      { id: agreementIds[0], partner_id: 41, restaurant_id: 9, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Cafe', version: 1, status: 'active', partner_status: 'active', restaurant_status: 'active' },
+      { id: agreementIds[1], partner_id: 42, restaurant_id: 10, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Bistro', version: 1, status: 'active', partner_status: 'active', restaurant_status: 'active' },
     ] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [] })

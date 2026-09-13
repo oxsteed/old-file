@@ -50,6 +50,21 @@ function requireAuditReason(value) {
   return reason;
 }
 
+function assertEntitlementAgreementCanBeActive(agreement) {
+  if (agreement.status !== 'active'
+    || agreement.partner_status !== 'active'
+    || agreement.restaurant_status !== 'active') {
+    throw new AppError('Customer access requires an active Credit agreement, partner, and restaurant', 409, 'credit_entitlement_agreement_not_active', {
+      agreementId: String(agreement.id),
+    });
+  }
+  if (agreement.ends_at && new Date(agreement.ends_at) <= new Date()) {
+    throw new AppError('Customer access cannot be active after the Credit agreement ends', 409, 'credit_entitlement_agreement_expired', {
+      agreementId: String(agreement.id),
+    });
+  }
+}
+
 function normalizeArray(value, maxItems = 100, itemMax = 120) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => normalizeString(String(item), itemMax)).filter(Boolean))].slice(0, maxItems);
@@ -1629,8 +1644,17 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
     metadata: normalizedMetadata,
   });
   return withTransaction(pool, async (client) => {
-    const { rows: agreementRows } = await client.query(`SELECT * FROM oxsteed_credit_partner_agreements WHERE id = $1 FOR SHARE`, [agreementId]);
+    const { rows: agreementRows } = await client.query(
+      `SELECT a.*, p.status AS partner_status, fr.status AS restaurant_status
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE a.id = $1
+        FOR SHARE`,
+      [agreementId]
+    );
     if (!agreementRows[0]) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
+    if (normalizedStatus === 'active') assertEntitlementAgreementCanBeActive(agreementRows[0]);
     const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
     const serializedMetadata = JSON.stringify(normalizedMetadata);
@@ -1819,7 +1843,8 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
 
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(
-      `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
+      `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name,
+              p.status AS partner_status, fr.status AS restaurant_status
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
          JOIN food_restaurants fr ON fr.id = p.restaurant_id
@@ -1832,6 +1857,9 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
     const missingAgreementIds = normalizedAgreementIds.filter((agreementId) => !agreementById.has(String(agreementId)));
     if (missingAgreementIds.length) {
       throw new AppError('One or more credit agreements were not found', 404, 'credit_agreement_not_found', { missingAgreementIds });
+    }
+    if (normalizedStatus === 'active') {
+      agreementRows.forEach(assertEntitlementAgreementCanBeActive);
     }
     const { rows: userRows } = await client.query(
       `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`,

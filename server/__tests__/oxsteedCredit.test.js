@@ -116,6 +116,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_terminal_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_actor_evidence_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_entitlement_agreement_state_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -198,6 +199,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['494_oxsteed_credit_hold_actor_evidence.sql']");
   expect(verifierSource).toContain('!checks.holdActorEvidenceMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditHoldActors > 0');
+  expect(verifierSource).toContain("['495_oxsteed_credit_entitlement_agreement_state.sql']");
+  expect(verifierSource).toContain('!checks.entitlementAgreementStateMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidActiveEntitlementAgreements > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {

@@ -133,6 +133,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_terminal_evidence_guard',
   'oxsteed_credit_dispute_actor_evidence_guard',
   'oxsteed_credit_hold_actor_evidence_guard',
+  'oxsteed_credit_entitlement_agreement_state_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -513,6 +514,11 @@ async function main() {
       ['494_oxsteed_credit_hold_actor_evidence.sql']
     );
     checks.holdActorEvidenceMigrationApplied = holdActorEvidenceMigrationRows.rows.length === 1;
+    const entitlementAgreementStateMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['495_oxsteed_credit_entitlement_agreement_state.sql']
+    );
+    checks.entitlementAgreementStateMigrationApplied = entitlementAgreementStateMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -798,6 +804,20 @@ async function main() {
           AND (u.id IS NULL OR u.role <> 'customer' OR u.is_active IS DISTINCT FROM TRUE)`,
     );
     checks.invalidActiveEntitlementCustomers = Number(entitlementActivityInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: activeEntitlementAgreementInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_customer_entitlements e
+         JOIN oxsteed_credit_partner_agreements a ON a.id = e.agreement_id
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE e.status = 'active'
+          AND (a.status <> 'active'
+            OR p.status <> 'active'
+            OR fr.status <> 'active'
+            OR (a.ends_at IS NOT NULL AND a.ends_at <= NOW()))`,
+    );
+    checks.invalidActiveEntitlementAgreements = Number(activeEntitlementAgreementInvariantRows[0]?.invalid_count || 0);
 
     const { rows: idempotencyKeyInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1266,6 +1286,7 @@ async function main() {
       !checks.holdTerminalEvidenceMigrationApplied,
       !checks.disputeActorEvidenceMigrationApplied,
       !checks.holdActorEvidenceMigrationApplied,
+      !checks.entitlementAgreementStateMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1286,6 +1307,7 @@ async function main() {
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
       checks.invalidActiveEntitlementCustomers > 0,
+      checks.invalidActiveEntitlementAgreements > 0,
       checks.invalidCreditIdempotencyKeys > 0,
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
