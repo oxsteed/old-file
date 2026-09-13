@@ -720,6 +720,7 @@ test('lists a customer credit hold page without exposing other account holds', a
   expect(response.status).toBe(200);
   expect(response.body.holds).toHaveLength(1);
   expect(response.body.holds[0]).toMatchObject({ restaurantName: 'Ox Burger Lab', amountCents: 1200, status: 'active' });
+  expect(response.body.holds[0].idempotencyKey).toBeUndefined();
   expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: true, nextOffset: 1 });
   expect(mockQuery.mock.calls[0][0]).toContain("a.account_type = 'customer_wallet'");
 });

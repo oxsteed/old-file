@@ -1370,6 +1370,13 @@ function formatHold(row) {
   };
 }
 
+function formatCustomerHold(row) {
+  const hold = formatHold(row);
+  if (!hold) return null;
+  const { idempotencyKey, ...safeHold } = hold;
+  return safeHold;
+}
+
 async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRENCY, status = 'active', limit = 25, offset = 0, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedStatus = status === 'all' ? null : normalizeString(status, 20);
@@ -1397,7 +1404,7 @@ async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRE
     [customerId, pageSize + (includePagination ? 1 : 0), pageOffset, currency, normalizedStatus]
   );
   const hasMore = includePagination && rows.length > pageSize;
-  const holds = rows.slice(0, pageSize).map(formatHold);
+  const holds = rows.slice(0, pageSize).map(formatCustomerHold);
   if (!includePagination) return holds;
   return {
     holds,
