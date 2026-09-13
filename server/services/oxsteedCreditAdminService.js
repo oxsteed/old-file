@@ -669,6 +669,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   const ends = parseDate(periodEnd, 'periodEnd', true);
   if (ends <= starts) throw new AppError('Reconciliation period end must be after its start', 400, 'credit_reconciliation_dates_invalid');
   return withTransaction(pool, async (client) => {
+    const reconciliationScope = 'all_time_ledger';
     const { rows: resultRows } = await client.query(
       `WITH derived AS (
          SELECT account_id,
@@ -712,7 +713,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
          completed_by = EXCLUDED.completed_by, completed_at = EXCLUDED.completed_at,
          metadata = EXCLUDED.metadata
        RETURNING *`,
-      [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, JSON.stringify({ scope: 'all_time_ledger', requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString() })]
+      [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, JSON.stringify({ scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString() })]
     );
     await insertAudit(client, { actionType: `credit.reconciliation.${status}`, actorUserId, resourceType: 'credit_reconciliation_run', resourceId: rows[0].id, afterState: rows[0] });
     return {
@@ -727,6 +728,7 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
         differenceCents: Number(rows[0].difference_cents),
         accountCount: Number(rows[0].account_count),
         entryCount: Number(rows[0].entry_count),
+        scope: reconciliationScope,
         completedAt: rows[0].completed_at,
       },
     };

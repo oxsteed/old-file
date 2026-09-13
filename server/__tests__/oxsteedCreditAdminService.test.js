@@ -77,7 +77,7 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
     actorUserId: null,
   });
 
-  expect(result.run.status).toBe('balanced');
+  expect(result.run).toMatchObject({ status: 'balanced', scope: 'all_time_ledger' });
   expect(mockQuery.mock.calls[0][0]).toContain('JOIN oxsteed_credit_transactions');
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
