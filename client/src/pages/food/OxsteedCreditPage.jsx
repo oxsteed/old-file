@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowDownLeft,
@@ -85,8 +85,11 @@ export default function OxsteedCreditPage() {
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
+    const requestId = ++loadRequestRef.current;
+    const isCurrentRequest = () => requestId === loadRequestRef.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
@@ -97,6 +100,7 @@ export default function OxsteedCreditPage() {
         listOxsteedCreditEligiblePartners({ currencyCode: preferredCurrency }),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
       ]);
+      if (!isCurrentRequest()) return;
       setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
@@ -106,18 +110,24 @@ export default function OxsteedCreditPage() {
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
       } else {
         const transactionResult = await listOxsteedCreditTransactions({ limit: 50, currencyCode: preferredCurrency });
+        if (!isCurrentRequest()) return;
         setStatement(null);
         setTransactions(Array.isArray(transactionResult) ? transactionResult : []);
       }
     } catch (error) {
-      toast.error(errorMessage(error));
+      if (isCurrentRequest()) toast.error(errorMessage(error));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isCurrentRequest()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    return () => { loadRequestRef.current += 1; };
+  }, [load]);
 
   const changeCurrency = (event) => {
     const currencyCode = event.target.value;
