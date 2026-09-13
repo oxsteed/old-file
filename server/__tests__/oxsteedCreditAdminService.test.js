@@ -1050,7 +1050,7 @@ test('serializes settlement creation per partner agreement before checking overl
     periodEnd: '2026-09-02T00:00:00.000Z',
     idempotencyKey: 'settlement-1',
     reason: 'Month-end partner settlement review',
-    actorUserId: null,
+    actorUserId: 'admin-1',
   });
 
   expect(result.settlement.id).toBe('settlement-1');

@@ -1262,6 +1262,9 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     const refundCents = Number(totals[0]?.refund_cents || 0);
     const feeCents = Number(totals[0]?.fee_cents || 0);
     const netCents = Math.max(0, grossCents - refundCents - feeCents);
+    if (!actorUserId) {
+      throw new AppError('An identified administrator is required to create a Credit settlement', 400, 'credit_settlement_creator_required');
+    }
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_settlements
          (partner_id, agreement_id, currency_code, period_start, period_end,
