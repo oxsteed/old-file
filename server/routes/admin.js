@@ -106,6 +106,7 @@ router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
 
 // Restaurant credit oversight - global, super-admin-only read and control plane.
+router.use('/super/restaurant-credit', noStoreCreditResponse);
 router.get('/super/restaurant-credit/overview', requireSuperAdmin, restaurantCreditAdminCtrl.getOverview);
 router.get('/super/restaurant-credit/wallets/:accountId', requireSuperAdmin, restaurantCreditAdminCtrl.getWalletDetail);
 router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, restaurantCreditAdminCtrl.updateWalletStatus);
