@@ -22,6 +22,13 @@ import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 const DEFAULT_CURRENCY_OPTIONS = ['USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP', 'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL'];
 const CUSTOMER_ACCOUNT_PAGE_SIZE = 50;
 const PARTNER_DIRECTORY_PAGE_SIZE = 50;
+const CREDIT_WORKER_NAMES = [
+  'oxsteed-credit-notification-outbox',
+  'oxsteed-credit-hold-expiry',
+  'oxsteed-credit-entitlement-expiry',
+  'oxsteed-credit-reconciliation',
+  'oxsteed-credit-integrity',
+];
 
 function money(cents, currency = 'USD') {
   try {
@@ -119,6 +126,20 @@ function requestKey(prefix) {
 
 function Section({ eyebrow, title, detail, children, action }) {
   return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{eyebrow}</p><h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>{detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{detail}</p>}</div>{action}</div>{children}</section>;
+}
+
+function workerDisplayName(jobName) {
+  return String(jobName || 'Credit worker').replace(/^oxsteed-credit-/, '').replace(/-/g, ' ');
+}
+
+function CreditWorkerHealth({ heartbeats }) {
+  const rows = CREDIT_WORKER_NAMES.map((jobName) => ({ jobName, heartbeat: heartbeats?.[jobName] || {} }));
+  const isFailed = (heartbeat) => Boolean(heartbeat.lastError) || heartbeat.stale === true || Number(heartbeat.consecutiveFailures || 0) > 0;
+  const hasFailure = rows.some(({ heartbeat }) => isFailed(heartbeat));
+  return <section className={`rounded-2xl border p-4 sm:p-5 ${hasFailure ? 'border-red-500/30 bg-red-950/15' : 'border-gray-800 bg-[#111318]'}`}>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Worker health</p><h2 className="mt-1 text-lg font-semibold text-white">Credit maintenance workers</h2><p className="mt-1 text-xs leading-5 text-gray-500">Durable checkpoints cover delivery, reservations, lifecycle expiry, reconciliation, and integrity verification. A missing or failed checkpoint is operational evidence, not a ledger mutation.</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${hasFailure ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{hasFailure ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{hasFailure ? 'Needs attention' : 'No active failures'}</span></div>
+    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rows.map(({ jobName, heartbeat }) => { const failed = isFailed(heartbeat); const awaiting = !heartbeat.lastRunAt; return <div key={jobName} className={`rounded-xl border p-3 ${failed ? 'border-red-500/25 bg-red-950/20' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-start justify-between gap-3"><p className="capitalize text-sm font-semibold text-white">{workerDisplayName(jobName)}</p><span className={`inline-flex shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${failed ? 'border-red-500/30 bg-red-500/10 text-red-300' : awaiting ? 'border-gray-700 bg-gray-900 text-gray-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{failed ? 'Failed' : awaiting ? 'Awaiting run' : 'Healthy'}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">Last run</p><p className="mt-1 text-gray-300">{dateTime(heartbeat.lastRunAt)}</p></div><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">Failures</p><p className={`mt-1 font-semibold ${failed ? 'text-red-300' : 'text-gray-300'}`}>{Number(heartbeat.consecutiveFailures || 0)}</p></div></div>{heartbeat.lastError && <p className="mt-3 break-words rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-2 text-xs text-red-300">{heartbeat.lastError}</p>}</div>; })}</div>
+  </section>;
 }
 
 function AdminCreditTransactionDetail({ transaction, onClose }) {
@@ -635,9 +656,9 @@ export default function OxsteedCreditAdmin() {
   const partnerCounts = overview?.partnerCounts || { total: partners.length, active: partners.filter((partner) => partner.status === 'active').length };
   const coverageAlerts = overview?.coverageAlerts || { pendingPartners: 0, activePartnersWithoutAgreement: 0, expiringAgreements: 0 };
   const notificationHealth = overview?.notificationHealth || { pending: 0, sending: 0, failed: 0, oldestPendingAt: null, oldestFailedAt: null, failedNotifications: [], workerHeartbeat: {} };
-  const workerHeartbeat = notificationHealth.workerHeartbeat || {};
-  const workerHeartbeatFailed = Boolean(workerHeartbeat.lastError) || workerHeartbeat.stale === true || Number(workerHeartbeat.consecutiveFailures || 0) > 0;
-  const workerHeartbeatLabel = !workerHeartbeat.lastRunAt ? 'Awaiting first run' : workerHeartbeatFailed ? 'Needs attention' : 'Healthy';
+  const workerHeartbeats = overview?.workerHeartbeats && typeof overview.workerHeartbeats === 'object'
+    ? overview.workerHeartbeats
+    : { [CREDIT_WORKER_NAMES[0]]: notificationHealth.workerHeartbeat || {} };
   const riskLimits = overview?.riskLimits || null;
   const currencyOptions = overview?.supportedCurrencies?.length ? overview.supportedCurrencies : DEFAULT_CURRENCY_OPTIONS;
   const filteredCustomerAccounts = customerAccounts;
@@ -872,7 +893,7 @@ export default function OxsteedCreditAdmin() {
     <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
     {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
     {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
-    <section className={`rounded-2xl border p-4 sm:p-5 ${workerHeartbeatFailed ? 'border-red-500/30 bg-red-950/15' : 'border-gray-800 bg-[#111318]'}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Worker health</p><h2 className="mt-1 text-lg font-semibold text-white">Credit notification worker</h2><p className="mt-1 text-xs leading-5 text-gray-500">A durable heartbeat confirms the scheduled worker has completed. A missing or failed heartbeat is operational evidence, not a ledger failure.</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${workerHeartbeatFailed ? 'border-red-500/30 bg-red-500/10 text-red-300' : workerHeartbeat.lastRunAt ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-gray-700 bg-gray-900 text-gray-400'}`}>{workerHeartbeatFailed ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{workerHeartbeatLabel}</span></div><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">Last run</p><p className="mt-2 text-sm font-semibold text-white">{dateTime(workerHeartbeat.lastRunAt)}</p></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">Last successful run</p><p className="mt-2 text-sm font-semibold text-emerald-300">{dateTime(workerHeartbeat.lastSuccessAt)}</p></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-600">Consecutive failures</p><p className={`mt-2 text-sm font-semibold ${workerHeartbeatFailed ? 'text-red-300' : 'text-white'}`}>{Number(workerHeartbeat.consecutiveFailures || 0)}</p></div></div>{workerHeartbeat.lastError && <p className="mt-3 break-words rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-2 text-xs text-red-300">{workerHeartbeat.lastError}</p>}</section>
+    <CreditWorkerHealth heartbeats={workerHeartbeats} />
     <Section eyebrow="Audit history controls" title="Search the Credit control trail" detail="Filter the append-only control history before reviewing state changes. Results are bounded and can be loaded in older pages without downloading the entire ledger."
       action={auditPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendAuditEvents: true, auditOffset: auditPagination.nextOffset || 0 })} disabled={loadingMoreAuditEvents || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreAuditEvents ? 'Loading...' : 'Load older audit events'}</button>}
     >

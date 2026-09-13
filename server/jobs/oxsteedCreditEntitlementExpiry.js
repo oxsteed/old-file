@@ -5,23 +5,32 @@ const logger = require('../utils/logger');
 const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
 const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
+const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-entitlement-expiry';
 
 async function runOxsteedCreditEntitlementExpiry({ limit = 500, now } = {}) {
-  let result;
-  await withJobLock(JOB_NAME, async () => {
-    const agreements = await expireCreditAgreements({ limit, now });
-    const entitlements = await expireCreditEntitlements({ limit, now });
-    result = {
-      count: agreements.count + entitlements.count,
-      agreements: agreements.expired,
-      entitlements: entitlements.expired,
-    };
-    if (result.count) logger.info('OxSteed Credit lifecycle records expired', { count: result.count, agreements: agreements.count, entitlements: entitlements.count });
-  }, 120, { throwOnLockError: true });
-  return result || { count: 0, agreements: [], entitlements: [] };
+  let result = { count: 0, agreements: [], entitlements: [] };
+  let lockAcquired = false;
+  try {
+    await withJobLock(JOB_NAME, async () => {
+      lockAcquired = true;
+      const agreements = await expireCreditAgreements({ limit, now });
+      const entitlements = await expireCreditEntitlements({ limit, now });
+      result = {
+        count: agreements.count + entitlements.count,
+        agreements: agreements.expired,
+        entitlements: entitlements.expired,
+      };
+      if (result.count) logger.info('OxSteed Credit lifecycle records expired', { count: result.count, agreements: agreements.count, entitlements: entitlements.count });
+    }, 120, { throwOnLockError: true });
+    if (lockAcquired) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, result: { count: result.count } });
+  } catch (error) {
+    if (lockAcquired) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, error });
+    throw error;
+  }
+  return result;
 }
 
 function startOxsteedCreditEntitlementExpiryJob() {

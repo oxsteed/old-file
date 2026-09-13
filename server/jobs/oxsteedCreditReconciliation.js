@@ -6,6 +6,7 @@ const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService
 const { SUPPORTED_CREDIT_CURRENCIES = ['USD'] } = require('../services/oxsteedCreditService');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('./jobLockingService');
+const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const CRON_EXPRESSION = '10 2 * * *';
 const CRON_TIMEZONE = 'UTC';
@@ -147,15 +148,17 @@ async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes
   } catch (error) {
     const incident = await recordReconciliationLockFailure(error, period);
     logger.error('OxSteed Credit reconciliation lock acquisition failed', { error: error.message });
-    return {
+    const failure = {
       locked,
       runs: [],
       errors: [{ currencyCode: 'all', error: error.message }],
       incidents: incident ? [incident] : [],
       period: { start: period.start.toISOString(), end: period.end.toISOString() },
     };
+    if (locked) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, error });
+    return failure;
   }
-  return {
+  const result = {
     locked,
     runs: results.flatMap((result) => result.run ? [result.run] : []),
     errors: results.flatMap((result) => result.error ? [{ currencyCode: result.currencyCode, error: result.error }] : []),
@@ -165,6 +168,14 @@ async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes
       end: period.end.toISOString(),
     },
   };
+  if (locked) {
+    await recordOxsteedCreditWorkerRun({
+      jobName: JOB_NAME,
+      result: { currencyCount: currencyCodes.length, completedRuns: result.runs.length, errorCount: result.errors.length },
+      error: result.errors.length ? new Error('One or more Credit reconciliation currencies failed') : null,
+    });
+  }
+  return result;
 }
 
 function startOxsteedCreditReconciliationJob() {

@@ -7,6 +7,9 @@ jest.mock('../services/oxsteedCreditAdminService', () => ({
 jest.mock('../jobs/jobLockingService', () => ({
   withJobLock: jest.fn(async (_jobName, handler) => handler()),
 }));
+jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
+  recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
+}));
 
 const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
 const { withJobLock } = require('../jobs/jobLockingService');

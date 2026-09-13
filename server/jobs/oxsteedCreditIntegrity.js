@@ -5,6 +5,7 @@ const pool = require('../db');
 const { verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('./jobLockingService');
+const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const JOB_NAME = 'oxsteed-credit-integrity';
 const CRON_EXPRESSION = '40 2 * * *';
@@ -87,6 +88,13 @@ async function runOxsteedCreditIntegrity() {
     });
     logger.error('OxSteed Credit integrity worker failed', { error: error.message });
     result = { ok: false, verification: null, incident };
+  }
+  if (locked) {
+    await recordOxsteedCreditWorkerRun({
+      jobName: JOB_NAME,
+      result: result.ok ? { ok: true } : {},
+      error: result.ok ? null : new Error('Credit integrity verification did not pass'),
+    });
   }
   return { locked, ...result };
 }

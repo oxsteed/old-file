@@ -632,6 +632,32 @@ async function getAdminOverview(req, res, next) {
               FROM oxsteed_credit_worker_heartbeats heartbeat
              WHERE heartbeat.job_name = 'oxsteed-credit-notification-outbox'
           ), '{}'::json) AS worker_heartbeat
+          ,COALESCE((
+            SELECT json_object_agg(heartbeat.job_name, json_build_object(
+              'jobName', heartbeat.job_name,
+              'lastRunAt', heartbeat.last_run_at,
+              'lastSuccessAt', heartbeat.last_success_at,
+              'lastError', heartbeat.last_error,
+              'runCount', heartbeat.run_count,
+              'consecutiveFailures', heartbeat.consecutive_failures,
+              'stale', heartbeat.last_run_at IS NOT NULL
+                AND heartbeat.last_run_at < NOW() - (
+                  CASE WHEN heartbeat.job_name IN (
+                    'oxsteed-credit-notification-outbox',
+                    'oxsteed-credit-hold-expiry',
+                    'oxsteed-credit-entitlement-expiry'
+                  ) THEN 10 ELSE 2880 END * INTERVAL '1 minute'
+                )
+            ))
+              FROM oxsteed_credit_worker_heartbeats heartbeat
+             WHERE heartbeat.job_name IN (
+               'oxsteed-credit-notification-outbox',
+               'oxsteed-credit-hold-expiry',
+               'oxsteed-credit-entitlement-expiry',
+               'oxsteed-credit-reconciliation',
+               'oxsteed-credit-integrity'
+             )
+          ), '{}'::json) AS worker_heartbeats
         FROM oxsteed_credit_notification_outbox`),
     ]);
     const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
@@ -656,6 +682,9 @@ async function getAdminOverview(req, res, next) {
         ? notificationHealthRow.worker_heartbeat
         : {},
     };
+    const workerHeartbeats = notificationHealthRow.worker_heartbeats && typeof notificationHealthRow.worker_heartbeats === 'object'
+      ? notificationHealthRow.worker_heartbeats
+      : {};
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',
       customerAccounts: Number(row.customer_accounts || 0),
@@ -681,6 +710,7 @@ async function getAdminOverview(req, res, next) {
       partnerCounts,
       coverageAlerts,
       notificationHealth,
+      workerHeartbeats,
       partners: partnersResult.rows.map((row) => ({
         partnerId: String(row.partner_id),
         restaurantId: String(row.restaurant_id),

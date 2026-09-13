@@ -468,7 +468,16 @@ test('keeps admin credit overview balances separated by currency', async () => {
     ] })
     .mockResolvedValueOnce({ rows: [{ partner_id: 41, restaurant_id: 7, restaurant_name: 'Ox Burger Lab', status: 'active', settlement_currency_code: 'EUR', agreement_count: 1, active_agreement_count: 1, total_partner_count: 125, active_partner_count: 118, pending_partner_count: 4, active_partners_without_agreement_count: 2, expiring_agreement_count: 3 }] })
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ pending_count: 2, sending_count: 1, failed_count: 1, oldest_pending_at: '2026-09-13T12:00:00.000Z', oldest_failed_at: '2026-09-12T12:00:00.000Z' }] });
+    .mockResolvedValueOnce({ rows: [{
+      pending_count: 2,
+      sending_count: 1,
+      failed_count: 1,
+      oldest_pending_at: '2026-09-13T12:00:00.000Z',
+      oldest_failed_at: '2026-09-12T12:00:00.000Z',
+      worker_heartbeats: {
+        'oxsteed-credit-reconciliation': { jobName: 'oxsteed-credit-reconciliation', stale: false, consecutiveFailures: 0 },
+      },
+    }] });
 
   const response = await request(createAdminApp()).get('/overview');
 
@@ -488,6 +497,9 @@ test('keeps admin credit overview balances separated by currency', async () => {
   expect(response.body.partnerCounts).toEqual({ total: 125, active: 118 });
   expect(response.body.coverageAlerts).toEqual({ pendingPartners: 4, activePartnersWithoutAgreement: 2, expiringAgreements: 3 });
   expect(response.body.notificationHealth).toEqual({ pending: 2, sending: 1, failed: 1, oldestPendingAt: '2026-09-13T12:00:00.000Z', oldestFailedAt: '2026-09-12T12:00:00.000Z', failedNotifications: [], workerHeartbeat: {} });
+  expect(response.body.workerHeartbeats).toEqual({
+    'oxsteed-credit-reconciliation': { jobName: 'oxsteed-credit-reconciliation', stale: false, consecutiveFailures: 0 },
+  });
   expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
 });

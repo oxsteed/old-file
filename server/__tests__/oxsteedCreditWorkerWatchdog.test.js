@@ -16,7 +16,9 @@ const {
   JOB_NAME,
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
+  WORKER_CONFIG,
   checkNotificationWorker,
+  checkAllWorkers,
   runOxsteedCreditWorkerWatchdog,
 } = require('../jobs/oxsteedCreditWorkerWatchdog');
 
@@ -49,18 +51,36 @@ test('records one deduplicated incident when the notification worker is stale', 
 });
 
 test('runs the watchdog under its distributed lock', async () => {
-  db.query.mockResolvedValueOnce({ rows: [{
-    job_name: NOTIFICATION_WORKER_NAME,
-    last_run_at: '2026-09-13T12:00:00.000Z',
-    last_success_at: '2026-09-13T12:00:00.000Z',
-    last_error: null,
-    run_count: 4,
-    consecutive_failures: 0,
-    stale: false,
-  }] });
+  for (const worker of WORKER_CONFIG) {
+    db.query.mockResolvedValueOnce({ rows: [{
+      job_name: worker.jobName,
+      last_run_at: '2026-09-13T12:00:00.000Z',
+      last_success_at: '2026-09-13T12:00:00.000Z',
+      last_error: null,
+      run_count: 4,
+      consecutive_failures: 0,
+      stale: false,
+    }] });
+  }
 
-  await expect(runOxsteedCreditWorkerWatchdog()).resolves.toMatchObject({ locked: true, status: 'healthy' });
+  await expect(runOxsteedCreditWorkerWatchdog()).resolves.toMatchObject({
+    locked: true,
+    status: 'healthy',
+    workers: expect.arrayContaining([
+      expect.objectContaining({ status: 'healthy', heartbeat: expect.objectContaining({ job_name: NOTIFICATION_WORKER_NAME }) }),
+    ]),
+  });
   expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
   expect(CRON_EXPRESSION).toBe('*/5 * * * *');
   expect(STALE_AFTER_MINUTES).toBe(10);
+});
+
+test('checks every Credit maintenance worker with its configured stale window', async () => {
+  db.query.mockResolvedValue({ rows: [] });
+
+  await expect(checkAllWorkers()).resolves.toHaveLength(WORKER_CONFIG.length);
+  expect(db.query).toHaveBeenCalledTimes(WORKER_CONFIG.length);
+  for (const worker of WORKER_CONFIG) {
+    expect(db.query).toHaveBeenCalledWith(expect.any(String), [worker.jobName, worker.staleAfterMinutes]);
+  }
 });

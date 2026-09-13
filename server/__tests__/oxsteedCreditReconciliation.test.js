@@ -9,6 +9,9 @@ jest.mock('../services/incidentStore', () => ({
 jest.mock('../jobs/jobLockingService', () => ({
   withJobLock: jest.fn(async (_jobName, handler) => handler()),
 }));
+jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
+  recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
+}));
 
 const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService');
 const incidentStore = require('../services/incidentStore');
