@@ -206,6 +206,10 @@ export default function FoodRestaurantPage() {
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [draftHasContent, setDraftHasContent] = useState(false);
 
+  const restaurant = data?.restaurant;
+  const currency = restaurant?.currency_code || 'USD';
+  const creditCurrency = String(currency).toUpperCase();
+
   // Item modal
   const [modalItem, setModalItem] = useState(null);
   const [modalQty, setModalQty] = useState(1);
@@ -252,10 +256,21 @@ export default function FoodRestaurantPage() {
       setOxsteedCreditPartner(null);
       return undefined;
     }
+    if (!restaurant || String(restaurant.id) !== String(restaurantId)) {
+      setOxsteedCreditAccount(null);
+      setOxsteedCreditPartner(null);
+      return undefined;
+    }
     let alive = true;
     Promise.all([
-      getOxsteedCreditAccount().catch(() => null),
-      listOxsteedCreditEligiblePartners().catch(() => []),
+      getOxsteedCreditAccount({ currencyCode: creditCurrency }).catch(() => null),
+      listOxsteedCreditEligiblePartners({
+        currencyCode: creditCurrency,
+        city: restaurant.address_city,
+        state: restaurant.address_state,
+        postalCode: restaurant.address_zip,
+        country: restaurant.address_country,
+      }).catch(() => []),
     ]).then(([account, partners]) => {
       if (!alive) return;
       setOxsteedCreditAccount(account?.status === 'active' ? account : null);
@@ -264,7 +279,7 @@ export default function FoodRestaurantPage() {
       );
     });
     return () => { alive = false; };
-  }, [user, restaurantId]);
+  }, [user, restaurantId, restaurant?.id, restaurant?.currency_code, restaurant?.address_city, restaurant?.address_state, restaurant?.address_zip, restaurant?.address_country, creditCurrency]);
 
   // Never leave restaurant_credit selected if the wallet disappears (sign-out,
   // wallet suspended, or restaurant switch).
@@ -367,9 +382,6 @@ export default function FoodRestaurantPage() {
       setRecoveredOrder(null);
     }
   }, [recoveredOrder, recoveredLiveOrder?.status, restaurantId]);
-
-  const restaurant = data?.restaurant;
-  const currency = restaurant?.currency_code || 'USD';
 
   // Default fulfillment from supported modes
   useEffect(() => {
