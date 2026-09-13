@@ -120,6 +120,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_purchase_reference_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_restaurant_staff_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_purchase_reference_uniqueness_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_purchase_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_entitlement_agreement_state_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_agreement_entitlement_status_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
@@ -218,6 +219,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['501_oxsteed_credit_restaurant_staff_refund_reason.sql']");
   expect(verifierSource).toContain('!checks.restaurantStaffRefundReasonMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditRestaurantStaffRefundReasons > 0');
+  expect(verifierSource).toContain("['502_oxsteed_credit_purchase_actor_evidence.sql']");
+  expect(verifierSource).toContain('!checks.purchaseActorEvidenceMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidCreditPurchaseActorEvidence > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {

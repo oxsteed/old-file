@@ -43,6 +43,7 @@ const REQUIRED_COLUMNS = {
     'purchase_reference_evidence_legacy',
     'restaurant_staff_evidence_legacy',
     'purchase_reference_uniqueness_legacy',
+    'purchase_actor_evidence_legacy',
   ],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: [
@@ -148,6 +149,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_purchase_reference_guard',
   'oxsteed_credit_restaurant_staff_evidence_guard',
   'oxsteed_credit_purchase_reference_uniqueness_guard',
+  'oxsteed_credit_purchase_actor_evidence_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
 ];
@@ -565,6 +567,11 @@ async function main() {
       ['500_oxsteed_credit_purchase_reference_uniqueness.sql']
     );
     checks.purchaseReferenceUniquenessMigrationApplied = purchaseReferenceUniquenessMigrationRows.rows.length === 1;
+    const purchaseActorEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['502_oxsteed_credit_purchase_actor_evidence.sql']
+    );
+    checks.purchaseActorEvidenceMigrationApplied = purchaseActorEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -998,6 +1005,62 @@ async function main() {
     );
     checks.invalidCreditPurchaseReferenceUniqueness = Number(purchaseReferenceUniquenessRows[0]?.invalid_count || 0);
 
+    const { rows: purchaseActorEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         LEFT JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
+         LEFT JOIN users actor ON actor.id = t.actor_user_id
+        WHERE t.transaction_type = 'purchase'
+          AND NOT t.purchase_actor_evidence_legacy
+          AND (
+            t.actor_type NOT IN ('customer', 'user', 'admin', 'system')
+            OR (
+              t.actor_type IN ('customer', 'user')
+              AND (a.account_type <> 'customer_wallet'
+                OR a.customer_id IS DISTINCT FROM t.actor_user_id
+                OR actor.role <> 'customer'
+                OR actor.is_active IS DISTINCT FROM TRUE)
+            )
+            OR (
+              t.actor_type = 'admin'
+              AND (
+                actor.role NOT IN ('admin', 'super_admin')
+                OR actor.is_active IS DISTINCT FROM TRUE
+                OR NOT EXISTS (
+                  SELECT 1
+                    FROM oxsteed_credit_holds h
+                   WHERE h.id::TEXT = t.metadata->>'capturedHoldId'
+                     AND h.account_id = t.debit_account_id
+                     AND h.customer_id = a.customer_id
+                     AND h.amount_cents = t.amount_cents
+                     AND h.currency_code = t.currency_code
+                     AND h.partner_id = t.partner_id
+                     AND h.agreement_id = t.agreement_id
+                     AND h.status = 'captured'
+                     AND h.captured_transaction_id = t.id
+                )
+              )
+            )
+            OR (
+              t.actor_type = 'system'
+              AND NOT EXISTS (
+                SELECT 1
+                  FROM oxsteed_credit_holds h
+                 WHERE h.id::TEXT = t.metadata->>'capturedHoldId'
+                   AND h.account_id = t.debit_account_id
+                   AND h.customer_id = a.customer_id
+                   AND h.amount_cents = t.amount_cents
+                   AND h.currency_code = t.currency_code
+                   AND h.partner_id = t.partner_id
+                   AND h.agreement_id = t.agreement_id
+                   AND h.status = 'captured'
+                   AND h.captured_transaction_id = t.id
+              )
+            )
+          )`,
+    );
+    checks.invalidCreditPurchaseActorEvidence = Number(purchaseActorEvidenceRows[0]?.invalid_count || 0);
+
     const { rows: issuanceActorEvidenceRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions t
@@ -1425,6 +1488,7 @@ async function main() {
       !checks.restaurantStaffEvidenceMigrationApplied,
       !checks.purchaseReferenceUniquenessMigrationApplied,
       !checks.restaurantStaffRefundReasonMigrationApplied,
+      !checks.purchaseActorEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1453,6 +1517,7 @@ async function main() {
       checks.invalidCreditRestaurantStaffEvidence > 0,
       checks.invalidCreditRestaurantStaffRefundReasons > 0,
       checks.invalidCreditPurchaseReferenceUniqueness > 0,
+      checks.invalidCreditPurchaseActorEvidence > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
       checks.invalidSettlementOverlaps > 0,
