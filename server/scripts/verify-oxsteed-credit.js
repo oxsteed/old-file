@@ -31,6 +31,7 @@ const REQUIRED_TABLES = [
 
 const REQUIRED_COLUMNS = {
   oxsteed_credit_accounts: ['balance_cents', 'reserved_cents', 'ledger_version', 'last_entry_hash'],
+  oxsteed_credit_audit_events: ['previous_event_hash', 'event_hash'],
   oxsteed_credit_transactions: ['idempotency_key', 'posted_at', 'partner_id', 'agreement_id'],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
@@ -53,6 +54,7 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_disputes_status_history',
   'uq_oxsteed_credit_dispute_idempotency',
   'idx_oxsteed_credit_entitlement_bulk_requests_customer',
+  'uq_oxsteed_credit_audit_event_hash',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
@@ -89,6 +91,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_reservation_guard',
   'oxsteed_credit_transaction_status_guard',
   'oxsteed_credit_posted_entry_guard',
+  'oxsteed_credit_audit_hash_chain_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -349,6 +352,11 @@ async function main() {
       ['466_oxsteed_credit_settlement_payment_evidence.sql']
     );
     checks.settlementPaymentEvidenceMigrationApplied = settlementPaymentEvidenceMigrationRows.rows.length === 1;
+    const auditHashChainMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['467_oxsteed_credit_audit_hash_chain.sql']
+    );
+    checks.auditHashChainMigrationApplied = auditHashChainMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -683,6 +691,25 @@ async function main() {
     checks.invalidHashChains = hashVerification.invalidHashChains;
     checks.invalidAccountHashHeads = hashVerification.invalidAccountHashHeads;
 
+    if (checks.auditHashChainMigrationApplied) {
+      const { rows: auditHashRows } = await pool.query(
+        `SELECT COUNT(*)::int AS invalid_count
+           FROM (
+             SELECT e.id,
+                    e.previous_event_hash,
+                    e.event_hash,
+                    LAG(e.event_hash) OVER (ORDER BY e.created_at ASC, e.id ASC) AS expected_previous_event_hash,
+                    compute_oxsteed_credit_audit_event_hash(e.previous_event_hash, e) AS expected_event_hash
+               FROM oxsteed_credit_audit_events e
+           ) chain
+          WHERE chain.previous_event_hash IS DISTINCT FROM chain.expected_previous_event_hash
+             OR chain.event_hash IS DISTINCT FROM chain.expected_event_hash`,
+      );
+      checks.invalidAuditHashEvents = Number(auditHashRows[0]?.invalid_count || 0);
+    } else {
+      checks.invalidAuditHashEvents = 0;
+    }
+
     const { rows: staleHoldRows } = await pool.query(
       `SELECT COUNT(*)::int AS stale_count
          FROM oxsteed_credit_holds
@@ -730,6 +757,7 @@ async function main() {
       !checks.reservationConsistencyMigrationApplied,
       !checks.transactionStatusMigrationApplied,
       !checks.settlementPaymentEvidenceMigrationApplied,
+      !checks.auditHashChainMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -755,6 +783,7 @@ async function main() {
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,
       checks.invalidAccountHashHeads > 0,
+      checks.invalidAuditHashEvents > 0,
     ].filter(Boolean).length;
 
     console.log(JSON.stringify({

@@ -302,6 +302,8 @@ function formatCreditAuditEvent(row) {
     resourceId: row.resource_id,
     reason: row.reason || null,
     correlationId: row.correlation_id || null,
+    previousEventHash: row.previous_event_hash || null,
+    eventHash: row.event_hash || null,
     beforeState: row.before_state || null,
     afterState: row.after_state || null,
     metadata: row.metadata || {},
@@ -346,7 +348,7 @@ async function listCreditAuditEvents({ actionType, resourceType, resourceId, cus
   const { rows } = await pool.query(
     `SELECT id, action_type, actor_user_id, customer_id, partner_id,
             resource_type, resource_id, reason, correlation_id,
-            before_state, after_state, metadata, created_at
+            previous_event_hash, event_hash, before_state, after_state, metadata, created_at
        FROM oxsteed_credit_audit_events
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
       ORDER BY created_at DESC, id DESC

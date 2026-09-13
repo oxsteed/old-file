@@ -1345,7 +1345,7 @@ async function downloadAdminCreditAuditEvents(req, res, next) {
         maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
       });
     }
-    const headers = ['Event ID', 'Created at', 'Action', 'Resource type', 'Resource ID', 'Actor user ID', 'Customer ID', 'Partner ID', 'Reason', 'Before state', 'After state', 'Metadata', 'Correlation ID'];
+    const headers = ['Event ID', 'Created at', 'Action', 'Resource type', 'Resource ID', 'Actor user ID', 'Customer ID', 'Partner ID', 'Reason', 'Before state', 'After state', 'Metadata', 'Correlation ID', 'Previous event hash', 'Event hash'];
     const lines = [headers.map(csvCell).join(',')];
     auditEvents.forEach((event) => {
       lines.push([
@@ -1362,6 +1362,8 @@ async function downloadAdminCreditAuditEvents(req, res, next) {
         JSON.stringify(event.afterState || null),
         JSON.stringify(event.metadata || {}),
         event.correlationId,
+        event.previousEventHash,
+        event.eventHash,
       ].map(csvCell).join(','));
     });
     res.set({

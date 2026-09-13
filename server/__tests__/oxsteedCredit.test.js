@@ -124,6 +124,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.transactionStatusMigrationApplied');
   expect(verifierSource).toContain("['466_oxsteed_credit_settlement_payment_evidence.sql']");
   expect(verifierSource).toContain('!checks.settlementPaymentEvidenceMigrationApplied');
+  expect(verifierSource).toContain("['467_oxsteed_credit_audit_hash_chain.sql']");
+  expect(verifierSource).toContain('!checks.auditHashChainMigrationApplied');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -134,6 +136,7 @@ test('credit verification requires deferred reservation consistency guards', () 
     'oxsteed_credit_posted_entry_guard',
     'oxsteed_credit_settlement_payment_evidence_guard',
     'oxsteed_credit_transaction_settlement_evidence_guard',
+    'oxsteed_credit_audit_hash_chain_guard',
   ]));
 });
 
@@ -2225,6 +2228,8 @@ test('lists bounded OxSteed Credit audit events with state snapshots', async () 
     before_state: { enabled: true },
     after_state: { enabled: false },
     metadata: { emergencyControl: true },
+    previous_event_hash: null,
+    event_hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     created_at: '2026-09-12T12:00:00.000Z',
   }] });
 
@@ -2238,6 +2243,8 @@ test('lists bounded OxSteed Credit audit events with state snapshots', async () 
     resourceType: 'credit_rail',
     beforeState: { enabled: true },
     afterState: { enabled: false },
+    previousEventHash: null,
+    eventHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   });
   expect(response.body.pagination).toMatchObject({ limit: 10, offset: 0, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][1]).toEqual(['credit_rail', 11, 0]);
