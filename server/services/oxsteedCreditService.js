@@ -1317,7 +1317,8 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
        LEFT JOIN oxsteed_credit_partners p
          ON p.id = CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
-      WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1
+      WHERE t.status = 'posted'
+        AND a.account_type = 'customer_wallet' AND a.customer_id = $1
         AND a.currency_code = $4
       ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
@@ -1485,7 +1486,8 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
        LEFT JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
        LEFT JOIN oxsteed_credit_partners p ON p.id = CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
-      WHERE t.id = $1 AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+      WHERE t.id = $1 AND t.status = 'posted'
+        AND a.account_type = 'customer_wallet' AND a.customer_id = $2
         AND a.currency_code = $3
       LIMIT 1`,
     [transactionId, customerId, currency]

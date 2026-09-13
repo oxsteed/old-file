@@ -353,6 +353,7 @@ test('keeps legacy customer transaction reads free of ledger secrets', async () 
   expect(response.body.transaction).not.toHaveProperty('metadata');
   expect(mockQuery).toHaveBeenCalledTimes(1);
   expect(mockQuery.mock.calls[0][0]).not.toContain('SELECT t.*');
+  expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
 });
 
 test('rejects an invalid or oversized customer statement period before querying', async () => {
