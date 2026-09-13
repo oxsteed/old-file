@@ -331,7 +331,7 @@ export default function OxsteedCreditAdmin() {
   const selectablePartners = useMemo(() => {
     const activeOptions = partnerPickerQuery ? partnerOptions : partners;
     const selectedIds = [agreementForm.partnerId, settlementForm.partnerId].filter(Boolean).map(String);
-    const selectedPartners = partners.filter((partner) => selectedIds.includes(String(partner.partnerId)));
+    const selectedPartners = [...partners, ...partnerOptions].filter((partner) => selectedIds.includes(String(partner.partnerId)));
     return Array.from(new Map([...activeOptions, ...selectedPartners].map((partner) => [String(partner.partnerId), partner])).values());
   }, [agreementForm.partnerId, partnerOptions, partnerPickerQuery, partners, settlementForm.partnerId]);
 
