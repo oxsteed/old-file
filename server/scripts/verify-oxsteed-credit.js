@@ -103,6 +103,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_entitlement_request_immutable_guard',
   'oxsteed_credit_entitlement_customer_activity_guard',
   'oxsteed_credit_refund_boundary_guard',
+  'oxsteed_credit_transaction_actor_identity_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -393,6 +394,11 @@ async function main() {
       ['476_oxsteed_credit_refund_boundary.sql']
     );
     checks.refundBoundaryMigrationApplied = refundBoundaryMigrationRows.rows.length === 1;
+    const actorIdentityMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['477_oxsteed_credit_actor_identity.sql']
+    );
+    checks.actorIdentityMigrationApplied = actorIdentityMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -655,6 +661,18 @@ async function main() {
     );
     checks.invalidRefunds = Number(refundInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: actorIdentityInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         LEFT JOIN users u ON u.id = t.actor_user_id
+        WHERE (t.actor_type = 'admin'
+               AND (u.id IS NULL OR u.is_active IS DISTINCT FROM TRUE
+                 OR u.role NOT IN ('admin', 'super_admin')))
+           OR (t.actor_type IN ('user', 'customer')
+               AND (u.id IS NULL OR u.is_active IS DISTINCT FROM TRUE OR u.role <> 'customer'))`,
+    );
+    checks.invalidCreditActorIdentities = Number(actorIdentityInvariantRows[0]?.invalid_count || 0);
+
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions
@@ -895,6 +913,7 @@ async function main() {
       !checks.identityRetentionMigrationApplied,
       !checks.idempotencyKeysMigrationApplied,
       !checks.refundBoundaryMigrationApplied,
+      !checks.actorIdentityMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -915,6 +934,7 @@ async function main() {
       checks.invalidActiveEntitlementCustomers > 0,
       checks.invalidCreditIdempotencyKeys > 0,
       checks.invalidRefunds > 0,
+      checks.invalidCreditActorIdentities > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
