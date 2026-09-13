@@ -7,6 +7,20 @@ const logger = require('../utils/logger');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
+function creditLedgerReadiness() {
+  const dedicatedSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+  const fallbackSecret = process.env.JWT_SECRET;
+  const production = (process.env.NODE_ENV || 'production') === 'production';
+  const secret = production ? dedicatedSecret : (dedicatedSecret || fallbackSecret);
+  const ok = typeof secret === 'string' && secret.length >= 32;
+  return {
+    ok,
+    configured: Boolean(secret),
+    dedicatedSecret: Boolean(dedicatedSecret),
+    error: ok ? undefined : 'Credit ledger signing secret is missing or weak',
+  };
+}
+
 function expectedMigrationFiles() {
   return fs.readdirSync(migrationsDirectory).filter((file) => file.endsWith('.sql')).sort();
 }
@@ -33,6 +47,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       database: { ok: false },
       migrations: { ok: false },
       redis: { ok: true, configured: Boolean(process.env.REDIS_URL) },
+      creditLedger: creditLedgerReadiness(),
       realtime: { ok: runtime.realtimeReady },
       workers: { ok: runtime.workersReady },
       traffic: { ok: includeTrafficState ? runtime.acceptingTraffic : true },

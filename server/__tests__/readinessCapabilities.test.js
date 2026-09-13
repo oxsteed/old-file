@@ -28,6 +28,7 @@ describe('runtime readiness', () => {
     expect(result.status).toBe('ready');
     expect(result.checks.migrations).toMatchObject({ ok: true, pendingCount: 0 });
     expect(result.checks.redis).toMatchObject({ ok: true, configured: true });
+    expect(result.checks.creditLedger).toMatchObject({ ok: true, configured: true });
     if (previousRedisUrl === undefined) delete process.env.REDIS_URL;
     else process.env.REDIS_URL = previousRedisUrl;
   });
@@ -46,6 +47,27 @@ describe('runtime readiness', () => {
     expect(result.status).toBe('not_ready');
     expect(result.checks.migrations.pendingCount).toBe(1);
     expect(result.checks.workers.ok).toBe(false);
+  });
+
+  test('requires the dedicated Credit ledger secret in production', async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousDedicatedSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+    process.env.NODE_ENV = 'production';
+    delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: expectedMigrationFiles().map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.creditLedger).toMatchObject({ ok: false, configured: false, dedicatedSecret: false });
+
+    process.env.NODE_ENV = previousNodeEnv;
+    if (previousDedicatedSecret === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+    else process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = previousDedicatedSecret;
   });
 });
 
