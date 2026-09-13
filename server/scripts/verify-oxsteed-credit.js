@@ -46,6 +46,8 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_transactions_debit_posted_history',
   'idx_oxsteed_credit_transactions_credit_posted_history',
   'uq_oxsteed_credit_agreement_creation_idempotency',
+  'idx_oxsteed_credit_disputes_customer_history',
+  'idx_oxsteed_credit_disputes_status_history',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
