@@ -686,6 +686,42 @@ test('opens disputes only for posted transactions with an atomic duplicate guard
   expect(mockQuery.mock.calls[2][0]).toContain("ON CONFLICT (transaction_id) WHERE status IN ('open', 'in_review') DO NOTHING");
 });
 
+test('includes safe transaction context when listing credit disputes', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'dispute-1',
+    transaction_id: 'tx-1',
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    restaurant_name: 'OxSteed Cafe',
+    transaction_amount_cents: '2500',
+    transaction_currency_code: 'USD',
+    transaction_type: 'purchase',
+    transaction_reference_type: 'food_order',
+    transaction_reference_id: '123',
+    transaction_posted_at: '2026-09-12T12:00:00.000Z',
+    status: 'in_review',
+    reason_code: 'incorrect_amount',
+    description: 'The posted amount does not match the order.',
+    resolution: null,
+    opened_by: CUSTOMER_ID,
+    resolved_by: null,
+    opened_at: '2026-09-12T12:30:00.000Z',
+    resolved_at: null,
+    updated_at: '2026-09-12T12:30:00.000Z',
+  }] });
+
+  await expect(service.listCreditDisputes({ customerId: CUSTOMER_ID, limit: 10 })).resolves.toEqual([expect.objectContaining({
+    id: 'dispute-1',
+    amountCents: 2500,
+    currencyCode: 'USD',
+    transactionType: 'purchase',
+    referenceType: 'food_order',
+    referenceId: '123',
+    postedAt: '2026-09-12T12:00:00.000Z',
+  })]);
+  expect(mockQuery.mock.calls[0][0]).toContain('LEFT JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id');
+});
+
 test('hashes the same journal payload deterministically', () => {
   const payload = {
     transactionId: 'tx-1',

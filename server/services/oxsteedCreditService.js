@@ -1761,6 +1761,12 @@ function formatDispute(row) {
     customerId: row.customer_id,
     partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
     restaurantName: row.restaurant_name || null,
+    amountCents: row.transaction_amount_cents === null || row.transaction_amount_cents === undefined ? null : Number(row.transaction_amount_cents),
+    currencyCode: row.transaction_currency_code ? normalizeCurrency(row.transaction_currency_code) : null,
+    transactionType: row.transaction_type || null,
+    referenceType: row.transaction_reference_type || null,
+    referenceId: row.transaction_reference_id || null,
+    postedAt: row.transaction_posted_at || null,
     status: row.status,
     reasonCode: row.reason_code,
     description: row.description,
@@ -1845,10 +1851,17 @@ async function listCreditDisputes({ customerId, status, limit = 100 } = {}) {
   }
   params.push(Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250)));
   const { rows } = await pool.query(
-    `SELECT d.*, fr.display_name AS restaurant_name
+    `SELECT d.*, fr.display_name AS restaurant_name,
+            t.amount_cents AS transaction_amount_cents,
+            t.currency_code AS transaction_currency_code,
+            t.transaction_type,
+            t.reference_type AS transaction_reference_type,
+            t.reference_id AS transaction_reference_id,
+            t.posted_at AS transaction_posted_at
        FROM oxsteed_credit_disputes d
        LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+       LEFT JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
       ORDER BY d.opened_at DESC
       LIMIT $${params.length}`,
