@@ -56,6 +56,14 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+const MAX_ADMIN_CREDIT_EXPORT_ROWS = 5000;
+
+function csvCell(value) {
+  const raw = value === null || value === undefined ? '' : String(value);
+  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 function parseUuid(value, fieldName) {
   const normalized = normalizeString(value, 80);
   if (!normalized || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
@@ -561,6 +569,61 @@ async function listAdminTransactions(req, res, next) {
   }
 }
 
+async function downloadAdminTransactions(req, res, next) {
+  try {
+    const options = {
+      partnerId: req.query.partnerId || req.query.partner_id,
+      transactionType: req.query.transactionType || req.query.transaction_type,
+      status: req.query.status,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      limit: 250,
+      offset: 0,
+      includePagination: true,
+    };
+    const transactions = [];
+    let page = await listAdminCreditTransactions(options);
+    transactions.push(...page.transactions);
+    while (page.pagination?.hasMore && transactions.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listAdminCreditTransactions({ ...options, offset: page.pagination.nextOffset });
+      transactions.push(...page.transactions);
+    }
+    if (page.pagination?.hasMore) {
+      throw new AppError('Credit transaction export is too large; narrow the filters first', 409, 'credit_transaction_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Posted at', 'Created at', 'Transaction ID', 'Type', 'Status', 'Amount (cents)', 'Currency', 'Restaurant', 'Partner ID', 'Reference type', 'Reference ID', 'Order ID', 'Description', 'Actor type', 'Actor user ID'];
+    const lines = [headers.map(csvCell).join(',')];
+    transactions.forEach((transaction) => {
+      lines.push([
+        transaction.postedAt,
+        transaction.createdAt,
+        transaction.id,
+        transaction.transactionType,
+        transaction.status,
+        transaction.amountCents,
+        transaction.currencyCode,
+        transaction.restaurantName,
+        transaction.partnerId,
+        transaction.referenceType,
+        transaction.referenceId,
+        transaction.orderId,
+        transaction.description,
+        transaction.actorType,
+        transaction.actorUserId,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-transactions-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAdminTransaction(req, res, next) {
   try {
     const transactionId = parseUuid(req.params.transactionId, 'transactionId');
@@ -810,6 +873,7 @@ module.exports = {
   listAdminCustomerAccounts,
   getAdminCustomerAccount,
   listAdminTransactions,
+  downloadAdminTransactions,
   getAdminTransaction,
   listAdminAgreements,
   registerAdminPartner,

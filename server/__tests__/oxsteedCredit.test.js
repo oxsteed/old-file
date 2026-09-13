@@ -45,6 +45,7 @@ function createAdminApp() {
   app.get('/overview', controller.getAdminOverview);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/transactions', controller.listAdminTransactions);
+  app.get('/transactions.csv', controller.downloadAdminTransactions);
   app.get('/transactions/:transactionId', controller.getAdminTransaction);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
@@ -249,6 +250,34 @@ test('returns paginated admin Credit transactions with movement filters', async 
   expect(response.status).toBe(200);
   expect(response.body.transactions[0]).toMatchObject({ id: 'transaction-1', orderId: '9001', partnerId: '41' });
   expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: true, nextOffset: 3 });
+});
+
+test('exports a bounded filtered Credit transaction CSV safely', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'transaction-1',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '2500',
+    currency_code: 'USD',
+    partner_id: 41,
+    reference_type: 'food_order',
+    reference_id: '9001',
+    description: '=2+2',
+    actor_type: 'customer',
+    actor_user_id: CUSTOMER_ID,
+    posted_at: '2026-09-12T12:00:00.000Z',
+    created_at: '2026-09-12T12:00:00.000Z',
+    restaurant_name: 'OxSteed Cafe',
+  }] });
+
+  const response = await request(createAdminApp()).get('/transactions.csv?transactionType=purchase');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-transactions-/);
+  expect(response.text).toContain('Transaction ID');
+  expect(response.text).toContain('"\'=2+2"');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['purchase', 251, 0]);
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {
