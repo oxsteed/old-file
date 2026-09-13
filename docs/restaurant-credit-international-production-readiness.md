@@ -111,7 +111,7 @@ Each restaurant-credit production release should verify:
 - Run end-to-end device/simulator QA with a seeded non-USD restaurant credit wallet, QR payment, kiosk pending order, POS redemption, kitchen/display order update, partial refund, full refund, and reconciliation review.
 - Confirm production migrations are applied in order, especially wallet QR sessions, receipt audit contract, wallet-credit POS payment type, and any newer payment ledger migrations.
 - Confirm exported App Store builds for POS, Kitchen, Display, and OxSteed are built from the same backend contract versions verified here.
-- Add operational monitoring for stale active QR sessions, unbalanced reconciliation rows, failed POS payments, and wallet integrity locks.
+- Operational monitoring is now covered by the restaurant wallet watchdog: stale active QR sessions, overdue and recent failed POS payments, reserved-balance drift, account/ledger balance drift, and recent wallet integrity locks create durable deduplicated incidents. The remaining work is production configuration and end-to-end device/simulator QA.
 
 ## Release Decision
 

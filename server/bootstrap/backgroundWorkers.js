@@ -30,6 +30,7 @@ const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditRe
 const { startOxsteedCreditIntegrityJob } = require('../jobs/oxsteedCreditIntegrity');
 const { startOxsteedCreditNotificationOutboxJob } = require('../jobs/oxsteedCreditNotificationOutbox');
 const { startOxsteedCreditWorkerWatchdog } = require('../jobs/oxsteedCreditWorkerWatchdog');
+const { startRestaurantWalletWatchdog } = require('../jobs/restaurantWalletWatchdog');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
@@ -76,6 +77,7 @@ class BackgroundWorkers {
       startOxsteedCreditIntegrityJob();
       startOxsteedCreditNotificationOutboxJob();
       startOxsteedCreditWorkerWatchdog();
+      startRestaurantWalletWatchdog();
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });
