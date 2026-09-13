@@ -221,7 +221,7 @@ function formatCreditAuditEvent(row) {
   };
 }
 
-async function listCreditAuditEvents({ actionType, resourceType, customerId, partnerId, limit = 100, offset = 0 } = {}) {
+async function listCreditAuditEvents({ actionType, resourceType, customerId, partnerId, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   const normalizedAction = normalizeString(actionType, 80);
@@ -246,7 +246,7 @@ async function listCreditAuditEvents({ actionType, resourceType, customerId, par
   const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 100;
   const parsedOffset = Number.parseInt(String(offset), 10);
   const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
-  params.push(safeLimit);
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
   const limitParam = params.length;
   params.push(safeOffset);
   const offsetParam = params.length;
@@ -260,7 +260,18 @@ async function listCreditAuditEvents({ actionType, resourceType, customerId, par
       LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatCreditAuditEvent);
+  const hasMore = includePagination && rows.length > safeLimit;
+  const auditEvents = rows.slice(0, safeLimit).map(formatCreditAuditEvent);
+  if (!includePagination) return auditEvents;
+  return {
+    auditEvents,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 function formatCustomerCreditAccount(row) {

@@ -1417,5 +1417,6 @@ test('lists bounded OxSteed Credit audit events with state snapshots', async () 
     beforeState: { enabled: true },
     afterState: { enabled: false },
   });
-  expect(mockQuery.mock.calls[0][1]).toEqual(['credit_rail', 10, 0]);
+  expect(response.body.pagination).toMatchObject({ limit: 10, offset: 0, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['credit_rail', 11, 0]);
 });

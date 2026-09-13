@@ -717,8 +717,9 @@ async function listAdminCreditAuditEvents(req, res, next) {
       partnerId,
       limit: req.query.limit,
       offset: req.query.offset,
+      includePagination: true,
     });
-    res.json({ auditEvents });
+    res.json(auditEvents);
   } catch (error) {
     next(error);
   }

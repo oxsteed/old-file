@@ -124,6 +124,11 @@ export default function OxsteedCreditAdmin() {
   const [disputePagination, setDisputePagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loadingMoreDisputes, setLoadingMoreDisputes] = useState(false);
   const [auditEvents, setAuditEvents] = useState([]);
+  const [auditActionType, setAuditActionType] = useState('');
+  const [auditResourceType, setAuditResourceType] = useState('');
+  const [auditPartnerId, setAuditPartnerId] = useState('');
+  const [auditPagination, setAuditPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
+  const [loadingMoreAuditEvents, setLoadingMoreAuditEvents] = useState(false);
   const [rail, setRail] = useState(null);
   const [reconciliation, setReconciliation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -147,12 +152,13 @@ export default function OxsteedCreditAdmin() {
   const [disputeResolutionDrafts, setDisputeResolutionDrafts] = useState({});
   const loadRequestRef = useRef(0);
 
-  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0 } = {}) => {
+  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
     if (appendSettlements) setLoadingMoreSettlements(true);
     if (appendTransactions) setLoadingMoreTransactions(true);
     if (appendDisputes) setLoadingMoreDisputes(true);
+    if (appendAuditEvents) setLoadingMoreAuditEvents(true);
     setError('');
     try {
       const walletQuery = customerAccountsParams || customerAccountQuery;
@@ -171,6 +177,10 @@ export default function OxsteedCreditAdmin() {
       if (transactionCurrency !== 'all') transactionParams.currencyCode = transactionCurrency;
       const disputeParams = { limit: 50, offset: appendDisputes ? disputeOffset : 0 };
       if (disputeStatus) disputeParams.status = disputeStatus;
+      const auditParams = { limit: 50, offset: appendAuditEvents ? auditOffset : 0 };
+      if (auditActionType) auditParams.actionType = auditActionType;
+      if (auditResourceType) auditParams.resourceType = auditResourceType;
+      if (auditPartnerId) auditParams.partnerId = auditPartnerId;
       const [overviewResponse, customerAccountsResponse, partnersResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, railResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/overview'),
         adminApi.get('/admin/super/oxsteed-credit/accounts', { params: walletParams }).catch(() => ({ data: { accounts: [], total: 0, limit: CUSTOMER_ACCOUNT_PAGE_SIZE, offset: walletParams.offset, hasMore: false } })),
@@ -179,7 +189,7 @@ export default function OxsteedCreditAdmin() {
         adminApi.get('/admin/super/oxsteed-credit/settlements', { params: settlementParams }),
         adminApi.get('/admin/super/oxsteed-credit/transactions', { params: transactionParams }),
         adminApi.get('/admin/super/oxsteed-credit/disputes', { params: disputeParams }),
-        adminApi.get('/admin/super/oxsteed-credit/audit-events').catch(() => ({ data: { auditEvents: [] } })),
+        adminApi.get('/admin/super/oxsteed-credit/audit-events', { params: auditParams }).catch(() => ({ data: { auditEvents: [], pagination: { limit: auditParams.limit, offset: auditParams.offset, hasMore: false, nextOffset: null } } })),
         adminApi.get('/admin/super/oxsteed-credit/rail').catch(() => ({ data: { rail: null } })),
       ]);
       if (requestId !== loadRequestRef.current) return;
@@ -203,7 +213,10 @@ export default function OxsteedCreditAdmin() {
       if (appendDisputes) setDisputes((current) => [...current, ...loadedDisputes]);
       else setDisputes(loadedDisputes);
       setDisputePagination(disputesResponse.data?.pagination || { limit: disputeParams.limit, offset: disputeParams.offset, hasMore: false, nextOffset: null });
-      setAuditEvents(auditEventsResponse.data?.auditEvents || []);
+      const loadedAuditEvents = auditEventsResponse.data?.auditEvents || [];
+      if (appendAuditEvents) setAuditEvents((current) => [...current, ...loadedAuditEvents]);
+      else setAuditEvents(loadedAuditEvents);
+      setAuditPagination(auditEventsResponse.data?.pagination || { limit: auditParams.limit, offset: auditParams.offset, hasMore: false, nextOffset: null });
       setRail(railResponse.data?.rail || null);
     } catch (err) {
       if (requestId === loadRequestRef.current) {
@@ -215,9 +228,10 @@ export default function OxsteedCreditAdmin() {
         if (appendSettlements) setLoadingMoreSettlements(false);
         if (appendTransactions) setLoadingMoreTransactions(false);
         if (appendDisputes) setLoadingMoreDisputes(false);
+        if (appendAuditEvents) setLoadingMoreAuditEvents(false);
       }
     }
-  }, [customerAccountQuery, disputeStatus, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
+  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -457,6 +471,16 @@ export default function OxsteedCreditAdmin() {
     <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
     {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
     {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
+    <Section eyebrow="Audit history controls" title="Search the Credit control trail" detail="Filter the append-only control history before reviewing state changes. Results are bounded and can be loaded in older pages without downloading the entire ledger."
+      action={auditPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendAuditEvents: true, auditOffset: auditPagination.nextOffset || 0 })} disabled={loadingMoreAuditEvents || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreAuditEvents ? 'Loading...' : 'Load older audit events'}</button>}
+    >
+      <div className="mt-4 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 sm:grid-cols-3">
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Action type</span><input aria-label="Credit audit action filter" value={auditActionType} onChange={(event) => setAuditActionType(event.target.value)} placeholder="credit.rail.suspended" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Resource type</span><input aria-label="Credit audit resource filter" value={auditResourceType} onChange={(event) => setAuditResourceType(event.target.value)} placeholder="credit_transaction" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select aria-label="Credit audit partner filter" value={auditPartnerId} onChange={(event) => setAuditPartnerId(event.target.value)} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">All partners</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Partner ${partner.partnerId}`}</option>)}</select></label>
+      </div>
+      <p className="mt-2 text-[11px] text-gray-600">Showing {auditEvents.length} loaded event{auditEvents.length === 1 ? '' : 's'}{auditPagination.hasMore ? ' · older events available' : ''}.</p>
+    </Section>
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric icon={WalletCards} label={`Customer balance (${summary.currencyCode || 'USD'})`} value={money(summary.customerBalanceCents, summary.currencyCode)} detail={`${summary.customerAccounts || 0} customer accounts`} /><Metric icon={CreditCard} label={`Available (${summary.currencyCode || 'USD'})`} value={money(summary.customerAvailableCents, summary.currencyCode)} detail={`${money(summary.customerReservedCents, summary.currencyCode)} reserved`} tone="text-emerald-300" /><Metric icon={Store} label={`Partner payable (${summary.currencyCode || 'USD'})`} value={money(summary.partnerPayableCents, summary.currencyCode)} detail={`${summary.partnerAccounts || 0} partner accounts`} tone="text-sky-300" /><Metric icon={FileCheck2} label="Partner network" value={partners.length} detail={`${partners.filter((partner) => partner.status === 'active').length} active partners`} /><Metric icon={AlertTriangle} label="Inactive accounts" value={summary.inactiveAccounts || 0} detail="Needs review before spending" tone="text-amber-300" /></section>
     {summaryByCurrency.length > 1 && <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Currency controls</p><h2 className="mt-1 text-lg font-semibold text-white">Balances by currency</h2></div><span className="text-xs text-gray-500">No automatic foreign-exchange conversion</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{summaryByCurrency.map((currencySummary) => <div key={currencySummary.currencyCode} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{currencySummary.currencyCode}</strong><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{currencySummary.customerAccounts || 0} wallets</span></div><p className="mt-2 text-lg font-semibold text-emerald-300">{money(currencySummary.customerAvailableCents, currencySummary.currencyCode)}</p><p className="mt-1 text-xs text-gray-500">Customer available · {money(currencySummary.partnerPayableCents, currencySummary.currencyCode)} partner payable</p></div>)}</div></section>}
     <Section eyebrow="Ledger activity" title="Credit transaction history" detail="Review the full platform movement stream with server-side filters. Amounts are immutable journal movements; open a customer wallet or audit trail for the surrounding context.">
