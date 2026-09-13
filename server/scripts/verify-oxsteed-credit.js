@@ -80,6 +80,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_transaction_customer_owner_guard',
   'oxsteed_credit_transaction_customer_activity_guard',
   'oxsteed_credit_hold_customer_activity_guard',
+  'oxsteed_credit_issuance_trace_guard',
   'oxsteed_credit_dispute_integrity_guard',
 ];
 
@@ -296,6 +297,11 @@ async function main() {
       ['457_oxsteed_credit_customer_activity.sql']
     );
     checks.customerActivityMigrationApplied = customerActivityMigrationRows.rows.length === 1;
+    const issuanceTraceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['458_oxsteed_credit_issuance_trace.sql']
+    );
+    checks.issuanceTraceMigrationApplied = issuanceTraceMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -600,6 +606,7 @@ async function main() {
       !checks.userRoleGuardMigrationApplied,
       !checks.disputeIntegrityMigrationApplied,
       !checks.customerActivityMigrationApplied,
+      !checks.issuanceTraceMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
