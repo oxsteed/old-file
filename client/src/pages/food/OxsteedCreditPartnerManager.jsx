@@ -27,26 +27,42 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [partnerStatus, setPartnerStatus] = useState(null);
+  const [transactionPagination, setTransactionPagination] = useState({ limit: 100, offset: 0, hasMore: false, nextOffset: null });
+  const [settlementPagination, setSettlementPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
 
-  const load = useCallback(async ({ quiet = false } = {}) => {
+  const load = useCallback(async ({ quiet = false, appendTransactions = false, appendSettlements = false, transactionOffset = 0, settlementOffset = 0 } = {}) => {
     if (quiet) setRefreshing(true);
+    else if (appendTransactions || appendSettlements) setLoadingMore(true);
     else setLoading(true);
     setError('');
     try {
       const [transactionResult, settlementResult] = await Promise.all([
-        listFoodRestaurantOxsteedCreditTransactions(restaurant.id, { limit: 100 }),
-        listFoodRestaurantOxsteedCreditSettlements(restaurant.id, { limit: 50 }),
+        listFoodRestaurantOxsteedCreditTransactions(restaurant.id, { limit: 100, offset: transactionOffset }),
+        listFoodRestaurantOxsteedCreditSettlements(restaurant.id, { limit: 50, offset: settlementOffset }),
       ]);
-      setTransactions(Array.isArray(transactionResult.transactions) ? transactionResult.transactions : []);
-      setSettlements(Array.isArray(settlementResult.settlements) ? settlementResult.settlements : []);
+      const nextTransactions = Array.isArray(transactionResult.transactions) ? transactionResult.transactions : [];
+      const nextSettlements = Array.isArray(settlementResult.settlements) ? settlementResult.settlements : [];
+      const fullLoad = !appendTransactions && !appendSettlements;
+      if (appendTransactions) setTransactions((current) => [...current, ...nextTransactions]);
+      else if (fullLoad) setTransactions(nextTransactions);
+      if (appendSettlements) setSettlements((current) => [...current, ...nextSettlements]);
+      else if (fullLoad) setSettlements(nextSettlements);
+      if (appendTransactions || fullLoad) {
+        setTransactionPagination(transactionResult.pagination || { limit: 100, offset: transactionOffset, hasMore: false, nextOffset: null });
+      }
+      if (appendSettlements || fullLoad) {
+        setSettlementPagination(settlementResult.pagination || { limit: 50, offset: settlementOffset, hasMore: false, nextOffset: null });
+      }
       setPartnerStatus(transactionResult.partnerStatus || settlementResult.partnerStatus || null);
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'OxSteed Credit partner activity could not be loaded.'));
     } finally {
-      setLoading(false);
+      if (appendTransactions || appendSettlements) setLoadingMore(false);
+      else setLoading(false);
       setRefreshing(false);
     }
   }, [restaurant.id]);
@@ -86,7 +102,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
 
           <div className="fd-ox-credit-columns">
             <div className="fd-ox-credit-panel">
-              <div className="fd-ox-credit-panel-title"><h3>Recent credit activity</h3><span>Last 100</span></div>
+              <div className="fd-ox-credit-panel-title"><h3>Recent credit activity</h3><span>{transactions.length} loaded</span></div>
               {transactions.length === 0 ? <p className="fd-card-meta">No OxSteed Credit activity has posted for this restaurant.</p> : (
                 <div className="fd-ox-credit-list">
                   {transactions.map((transaction) => (
@@ -97,10 +113,11 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                   ))}
                 </div>
               )}
+              {transactionPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendTransactions: true, transactionOffset: transactionPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? 'Loading…' : 'Load older activity'}</button>}
             </div>
 
             <div className="fd-ox-credit-panel">
-              <div className="fd-ox-credit-panel-title"><h3>Settlement records</h3><span>Last 50</span></div>
+              <div className="fd-ox-credit-panel-title"><h3>Settlement records</h3><span>{settlements.length} loaded</span></div>
               {settlements.length === 0 ? <p className="fd-card-meta">No settlement records have been created yet.</p> : (
                 <div className="fd-ox-credit-list">
                   {settlements.map((settlement) => (
@@ -111,6 +128,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                   ))}
                 </div>
               )}
+              {settlementPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? 'Loading…' : 'Load older settlements'}</button>}
             </div>
           </div>
         </>

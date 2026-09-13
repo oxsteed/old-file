@@ -68,13 +68,15 @@ async function listPartnerSettlements(req, res, next) {
     const restaurantId = parseRestaurantId(req.params.restaurantId);
     await requireRestaurantManager(req.user.id, restaurantId);
     const partner = await getPartnerId(restaurantId);
-    const settlementOptions = { partnerId: partner.id, status: req.query.status, limit: req.query.limit };
+    const settlementOptions = { partnerId: partner.id, status: req.query.status, limit: req.query.limit, includePagination: true };
     if (req.query.offset !== undefined) settlementOptions.offset = req.query.offset;
-    const settlements = await listSettlements(settlementOptions);
+    const result = await listSettlements(settlementOptions);
+    const settlements = Array.isArray(result) ? result : result.settlements || [];
     res.json({
       partnerId: String(partner.id),
       partnerStatus: partner.status,
       settlements: settlements.map(formatPartnerSettlement),
+      pagination: result.pagination || { limit: settlements.length, offset: 0, hasMore: false, nextOffset: null },
     });
   } catch (error) {
     next(error);

@@ -101,6 +101,7 @@ export const listFoodRestaurantOxsteedCreditSettlements = (restaurantId, params 
     partnerId: r.data?.partnerId || null,
     partnerStatus: r.data?.partnerStatus || null,
     settlements: r.data?.settlements || [],
+    pagination: r.data?.pagination || { limit: 50, offset: 0, hasMore: false, nextOffset: null },
   }));
 
 export const listFoodRestaurantOxsteedCreditTransactions = (restaurantId, params = {}) =>

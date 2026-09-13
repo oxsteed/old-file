@@ -45,7 +45,7 @@ test('allows an owner to view partner settlements without customer data', async 
     partnerStatus: 'active',
     settlements: [{ id: 'settlement-1', netCents: 2500 }],
   });
-  expect(listSettlements).toHaveBeenCalledWith({ partnerId: 55, status: 'pending', limit: '25' });
+  expect(listSettlements).toHaveBeenCalledWith({ partnerId: 55, status: 'pending', limit: '25', includePagination: true });
 });
 
 test('allows an active manager to view partner transactions without customer identity fields', async () => {
@@ -110,6 +110,7 @@ test('removes internal settlement fields from the partner response', async () =>
   expect(response.body.settlements[0]).toMatchObject({ id: 'settlement-1', netCents: 2400 });
   expect(response.body.settlements[0]).not.toHaveProperty('approvedBy');
   expect(response.body.settlements[0]).not.toHaveProperty('metadata');
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: false, nextOffset: null });
 });
 
 test('rejects non-manager restaurant staff before reading partner data', async () => {

@@ -2701,6 +2701,9 @@ html:not(.dark) .fd-star-btn { color: #9ca3af; }
 .fd-ox-credit-row strong { overflow-wrap: anywhere; }
 .fd-ox-credit-row span, .fd-ox-credit-row small { color: var(--muted-text, #64748b); font-size: 0.73rem; }
 .fd-ox-credit-row-amount { display: grid; justify-items: end; align-content: start; flex-shrink: 0; gap: 0.25rem; }
+.fd-ox-credit-load-more { width: 100%; margin-top: 0.65rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 10px; color: var(--accent-color, #b45309); background: var(--soft-bg, #f8fafc); font-size: 0.76rem; font-weight: 800; cursor: pointer; }
+.fd-ox-credit-load-more:hover { border-color: #f59e0b; background: #fff7ed; }
+.fd-ox-credit-load-more:disabled { cursor: wait; opacity: 0.55; }
 .fd-direct-payment-settings { padding: 0.9rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; background: var(--soft-bg, #f8fafc); }
 .fd-direct-payment-advanced { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border-color, #e2e8f0); }
 .fd-direct-payment-advanced summary { width: fit-content; color: var(--muted-text, #64748b); font-size: 0.78rem; font-weight: 800; cursor: pointer; }

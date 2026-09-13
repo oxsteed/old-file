@@ -644,7 +644,7 @@ async function listEntitlements({ search, customerId, agreementId, status, limit
   return { entitlements: rows.map(formatEntitlement), total, limit: safeLimit, offset: safeOffset, hasMore: safeOffset + rows.length < total };
 }
 
-async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = {}) {
+async function listSettlements({ partnerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -660,7 +660,7 @@ async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = 
   const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
   const parsedOffset = Number.parseInt(String(offset), 10);
   const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
-  params.push(safeLimit);
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
   const limitParam = params.length;
   params.push(safeOffset);
   const offsetParam = params.length;
@@ -674,7 +674,18 @@ async function listSettlements({ partnerId, status, limit = 100, offset = 0 } = 
       LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatSettlement);
+  const hasMore = includePagination && rows.length > safeLimit;
+  const settlements = rows.slice(0, safeLimit).map(formatSettlement);
+  if (!includePagination) return settlements;
+  return {
+    settlements,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, metadata = {} }) {
