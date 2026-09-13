@@ -825,6 +825,28 @@ async function getAdminCustomerAccount(req, res, next) {
   }
 }
 
+async function getAdminCustomerEligiblePartners(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const result = await listEligiblePartners({
+      customerId,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      city: req.query.city,
+      state: req.query.state,
+      postalCode: req.query.postalCode || req.query.postal_code,
+      country: req.query.country,
+      orderType: req.query.orderType || req.query.order_type,
+      search: req.query.search,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminTransactions(req, res, next) {
   try {
     const options = {
@@ -1500,6 +1522,7 @@ module.exports = {
   listAdminCustomerAccounts,
   downloadAdminCustomerAccounts,
   getAdminCustomerAccount,
+  getAdminCustomerEligiblePartners,
   listAdminTransactions,
   downloadAdminTransactions,
   getAdminTransaction,

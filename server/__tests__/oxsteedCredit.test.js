@@ -51,6 +51,7 @@ function createAdminApp() {
   app.get('/partners.csv', controller.downloadAdminPartners);
   app.get('/agreements.csv', controller.downloadAdminAgreements);
   app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
+  app.get('/accounts/:customerId/eligible-partners', controller.getAdminCustomerEligiblePartners);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
   app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
@@ -161,6 +162,42 @@ test('customer allowlist agreements require an active entitlement in eligibility
   expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE');
   expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE AND e.id IS NULL');
   expect(mockQuery.mock.calls[0][0]).toContain('e.id IS NOT NULL');
+});
+
+test('lets admins preview the exact restaurants a customer can spend at', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    partner_id: 41,
+    restaurant_id: 12,
+    restaurant_name: 'OxSteed Cafe',
+    address_city: 'Springfield',
+    address_state: 'OH',
+    settlement_currency_code: 'USD',
+    restaurant_currency_code: 'USD',
+    agreement_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    version: 2,
+    customer_terms: 'Pickup only',
+    allowed_order_types: ['pickup'],
+    allowed_categories: [],
+    geography: { cities: ['Springfield'] },
+    effective_max_transaction_cents: '2500',
+    effective_daily_customer_limit_cents: '10000',
+    lifetime_customer_limit_cents: null,
+    requires_customer_entitlement: true,
+    entitlement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  }] });
+
+  const response = await request(createAdminApp()).get(`/accounts/${CUSTOMER_ID}/eligible-partners?currencyCode=USD&city=Springfield&orderType=pickup&limit=10&offset=20`);
+
+  expect(response.status).toBe(200);
+  expect(response.body.partners[0]).toMatchObject({
+    partnerId: '41',
+    restaurantName: 'OxSteed Cafe',
+    hasCustomerEntitlement: true,
+    maxTransactionCents: 2500,
+  });
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 20, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][0]).toContain('e.id IS NOT NULL');
+  expect(mockQuery.mock.calls[0][1].slice(-2)).toEqual([11, 20]);
 });
 
 test('transfer replay requires the original sender and recipient', async () => {

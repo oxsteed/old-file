@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, RefreshCw, Store, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, RefreshCw, ShieldCheck, Store, WalletCards, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
 function money(cents, currency = 'USD') {
@@ -52,8 +52,15 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
     setLoading(true);
     setError('');
     try {
-      const response = await adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}`, { params: { currencyCode: account.currencyCode } });
-      setDetail(response.data || null);
+      const [response, eligibleResponse] = await Promise.all([
+        adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}`, { params: { currencyCode: account.currencyCode } }),
+        adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/eligible-partners`, { params: { currencyCode: account.currencyCode, limit: 50, offset: 0 } }).catch(() => null),
+      ]);
+      setDetail({
+        ...(response.data || {}),
+        eligiblePartners: eligibleResponse?.data?.partners || [],
+        eligiblePartnerPagination: eligibleResponse?.data?.pagination || null,
+      });
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Unable to load this customer Credit profile.');
     } finally {
@@ -67,8 +74,11 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
     setDetail(null);
     setError('');
     setLoading(true);
-    adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}`, { params: { currencyCode: account.currencyCode } })
-      .then((response) => { if (mounted) setDetail(response.data || null); })
+    Promise.all([
+      adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}`, { params: { currencyCode: account.currencyCode } }),
+      adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/eligible-partners`, { params: { currencyCode: account.currencyCode, limit: 50, offset: 0 } }).catch(() => null),
+    ])
+      .then(([response, eligibleResponse]) => { if (mounted) setDetail({ ...(response.data || {}), eligiblePartners: eligibleResponse?.data?.partners || [], eligiblePartnerPagination: eligibleResponse?.data?.pagination || null }); })
       .catch((err) => { if (mounted) setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Unable to load this customer Credit profile.'); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
@@ -80,6 +90,8 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   const entitlements = detail?.entitlements || [];
   const auditEvents = detail?.auditEvents || [];
   const disputes = detail?.disputes || [];
+  const eligiblePartners = detail?.eligiblePartners || [];
+  const eligiblePartnerPagination = detail?.eligiblePartnerPagination || null;
 
   return <section className="rounded-2xl border border-sky-500/25 bg-[#0e1622] p-4 shadow-lg shadow-sky-950/10 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -108,6 +120,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
         <div className="rounded-xl border border-gray-800 bg-gray-950/35 p-4">
           <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">Spend permissions</p><h3 className="mt-1 text-sm font-semibold text-white">Restaurant assignments</h3></div><span className="rounded-full border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500">{entitlements.length} records</span></div>
           <div className="mt-3 space-y-2">{!entitlements.length ? <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600">No customer-specific assignments. Partner-wide agreements may still apply.</p> : entitlements.map((entitlement) => <div key={entitlement.id} className="rounded-lg border border-gray-800 bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="flex items-center gap-2"><Store className="h-4 w-4 text-sky-300" /><strong className="text-sm text-white">{entitlement.restaurantName || `Restaurant ${entitlement.restaurantId}`}</strong></div><Badge status={entitlement.status} /></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500"><span>{entitlement.currencyCode || 'USD'}</span><span>Agreement v{entitlement.agreementVersion || '?'}</span>{entitlement.maxTransactionCents ? <span>Max {money(entitlement.maxTransactionCents, entitlement.currencyCode)}</span> : null}{entitlement.dailyLimitCents ? <span>Daily {money(entitlement.dailyLimitCents, entitlement.currencyCode)}</span> : null}</div>{entitlement.reason && <p className="mt-2 text-[11px] leading-4 text-gray-600">{entitlement.reason}</p>}</div>)}</div>
+          <div className="mt-5 border-t border-gray-800 pt-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">Effective access</p><h4 className="mt-1 text-sm font-semibold text-white">Where this customer can spend now</h4></div><span className="rounded-full border border-emerald-500/25 px-2 py-1 text-[10px] font-semibold text-emerald-300">{eligiblePartners.length}{eligiblePartnerPagination?.hasMore ? '+' : ''} restaurants</span></div><p className="mt-2 text-[11px] leading-5 text-gray-500">This is the same centrally enforced eligibility result used by checkout, including rail status, wallet state, active agreements, entitlements, currency, and restaurant status.</p><div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">{!eligiblePartners.length ? <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600">No restaurant is currently spendable for this customer and currency.</p> : eligiblePartners.map((partner) => <div key={partner.partnerId} className="rounded-lg border border-emerald-500/15 bg-emerald-950/10 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-300" /><strong className="text-sm text-white">{partner.restaurantName || 'Partner restaurant'}</strong></div><span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">Spendable now</span></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500"><span>{[partner.city, partner.state].filter(Boolean).join(', ') || 'Location not listed'}</span><span>{partner.currencyCode || profile.currencyCode}</span>{partner.allowedOrderTypes?.length ? <span>{partner.allowedOrderTypes.join(', ')}</span> : null}{partner.maxTransactionCents ? <span>Max {money(partner.maxTransactionCents, partner.currencyCode)}</span> : null}{partner.dailyCustomerLimitCents ? <span>Daily {money(partner.dailyCustomerLimitCents, partner.currencyCode)}</span> : null}</div></div>)}</div></div>
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-950/35 p-4">
