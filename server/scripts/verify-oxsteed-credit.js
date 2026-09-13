@@ -41,6 +41,7 @@ const REQUIRED_COLUMNS = {
     'reason',
     'actor_owner_evidence_legacy',
     'purchase_reference_evidence_legacy',
+    'restaurant_staff_evidence_legacy',
   ],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: [
@@ -143,6 +144,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_actor_evidence_guard',
   'oxsteed_credit_transaction_actor_owner_guard',
   'oxsteed_credit_purchase_reference_guard',
+  'oxsteed_credit_restaurant_staff_evidence_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
 ];
@@ -545,6 +547,11 @@ async function main() {
       ['498_oxsteed_credit_purchase_reference.sql']
     );
     checks.purchaseReferenceMigrationApplied = purchaseReferenceMigrationRows.rows.length === 1;
+    const restaurantStaffEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['499_oxsteed_credit_restaurant_staff_evidence.sql']
+    );
+    checks.restaurantStaffEvidenceMigrationApplied = restaurantStaffEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -922,6 +929,35 @@ async function main() {
             OR t.actor_user_id IS DISTINCT FROM a.customer_id)`,
     );
     checks.invalidCreditActorOwners = Number(actorOwnerInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: restaurantStaffEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+        WHERE t.transaction_type = 'refund'
+          AND t.actor_type = 'restaurant_staff'
+          AND NOT t.restaurant_staff_evidence_legacy
+          AND NOT EXISTS (
+            SELECT 1
+              FROM oxsteed_credit_partners p
+              JOIN food_restaurants fr ON fr.id = p.restaurant_id
+              LEFT JOIN businesses b ON b.id = p.business_id
+              JOIN users u ON u.id = t.actor_user_id
+             WHERE p.id = t.partner_id
+               AND u.is_active = TRUE
+               AND (
+                 b.user_id = u.id
+                 OR fr.owner_user_id = u.id
+                 OR EXISTS (
+                   SELECT 1
+                     FROM business_members bm
+                    WHERE bm.business_id = p.business_id
+                      AND bm.member_id = u.id
+                      AND bm.status = 'active'
+                 )
+               )
+          )`,
+    );
+    checks.invalidCreditRestaurantStaffEvidence = Number(restaurantStaffEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: issuanceActorEvidenceRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1347,6 +1383,7 @@ async function main() {
       !checks.agreementEntitlementStateMigrationApplied,
       !checks.transactionActorOwnerMigrationApplied,
       !checks.purchaseReferenceMigrationApplied,
+      !checks.restaurantStaffEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1372,6 +1409,7 @@ async function main() {
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
       checks.invalidCreditActorOwners > 0,
+      checks.invalidCreditRestaurantStaffEvidence > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
       checks.invalidSettlementOverlaps > 0,
