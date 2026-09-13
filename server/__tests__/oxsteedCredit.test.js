@@ -1266,6 +1266,8 @@ test('replays a committed credit load while the rail is suspended', async () => 
     idempotency_key: 'load-replay-rail-off',
     reference_type: 'admin_load',
     reference_id: 'funding-1',
+    description: 'Replay approved customer grant',
+    reason: 'Replay approved customer grant',
     metadata: {},
     customer_account_customer_id: CUSTOMER_ID,
   };
@@ -1285,6 +1287,37 @@ test('replays a committed credit load while the rail is suspended', async () => 
   expect(result.transaction).toMatchObject({ id: existing.id, amountCents: 100, replayed: true });
   expect(mockQuery.mock.calls[0][0]).toContain('customer_account.customer_id');
   expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
+});
+
+test('rejects an administrative credit load replay with a different reason', async () => {
+  const existing = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'load',
+    status: 'posted',
+    debit_account_id: 9001,
+    credit_account_id: 7001,
+    amount_cents: '100',
+    currency_code: 'USD',
+    partner_id: null,
+    agreement_id: null,
+    idempotency_key: 'load-replay-reason-conflict',
+    reference_type: 'admin_load',
+    reference_id: 'funding-1',
+    description: 'Original approved grant',
+    reason: 'Original approved grant',
+    metadata: {},
+    customer_account_customer_id: CUSTOMER_ID,
+  };
+  mockQuery.mockResolvedValueOnce({ rows: [existing] });
+
+  await expect(service.loadCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    idempotencyKey: existing.idempotency_key,
+    reason: 'Different explanation',
+    referenceId: existing.reference_id,
+  })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
 test('allows approved adjustments into suspended wallets but never closed wallets', async () => {

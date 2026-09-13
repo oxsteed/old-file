@@ -356,6 +356,18 @@ function assertIdempotencyReplayMatches(existing, requested) {
     const expectedValue = requested[field] === null || requested[field] === undefined ? null : String(requested[field]).toUpperCase();
     if (actual !== expectedValue) mismatches[field] = { existing: existing[field], requested: requested[field] };
   }
+  for (const field of ['reason', 'description']) {
+    if (!Object.prototype.hasOwnProperty.call(requested, field)) continue;
+    const maxLength = field === 'reason' ? 500 : 255;
+    const actual = normalizeString(existing[field], maxLength);
+    const expectedValue = normalizeString(requested[field], maxLength);
+    if (actual !== expectedValue) mismatches[field] = { existing: actual, requested: expectedValue };
+  }
+  if (Object.prototype.hasOwnProperty.call(requested, 'metadata')) {
+    const actual = stableStringify(normalizeMetadata(existing.metadata));
+    const expectedValue = stableStringify(normalizeMetadata(requested.metadata));
+    if (actual !== expectedValue) mismatches.metadata = { existing: actual, requested: expectedValue };
+  }
   if (Object.keys(mismatches).length) {
     throw new AppError('Credit idempotency key was already used for a different transaction', 409, 'credit_idempotency_conflict', { mismatches });
   }
@@ -571,6 +583,11 @@ async function postJournalTransaction(client, input) {
     agreement_id: input.agreementId || null,
     reference_type: normalizeString(input.referenceType, 80),
     reference_id: normalizeString(input.referenceId, 160),
+    ...(input.bindIdempotencySemantics === true ? {
+      reason: normalizeString(input.reason, 500),
+      description: normalizeString(input.description, 255),
+      metadata: normalizeMetadata(input.metadata),
+    } : {}),
   };
   const existing = input.existingTransaction || await getExistingTransaction(client, idempotencyKey);
   if (existing) {
@@ -1069,6 +1086,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
         referenceId,
         correlationId,
         metadata,
+        bindIdempotencySemantics: true,
         existingTransaction: existing,
       });
     }
@@ -1093,6 +1111,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
       referenceId,
       correlationId,
       metadata,
+      bindIdempotencySemantics: true,
     });
   }, 'credit_load_customer');
 }
@@ -1274,6 +1293,7 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
       correlationId,
       description: direction === 'credit' ? 'OxSteed Credit administrative grant' : 'OxSteed Credit administrative clawback',
       metadata: { ...normalizeMetadata(metadata), direction },
+      bindIdempotencySemantics: true,
     });
   }, 'credit_adjust_customer');
 }
