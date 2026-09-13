@@ -201,6 +201,7 @@ describe('food wallet security wiring', () => {
 
     const res = await request(buildOrderApp())
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'food-wallet-delivery-200')
       .send({
         fulfillmentType: 'delivery',
         paymentMode: 'wallet_credit',
@@ -265,6 +266,7 @@ describe('food wallet security wiring', () => {
 
     const res = await request(buildUnauthenticatedOrderApp())
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'food-wallet-kiosk-201')
       .send({
         orderSource: 'kiosk',
         fulfillmentType: 'pickup',
@@ -341,6 +343,7 @@ describe('food wallet security wiring', () => {
 
     const res = await request(buildOrderApp())
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'food-wallet-suspended-200')
       .send({
         fulfillmentType: 'delivery',
         paymentMode: 'wallet_credit',
