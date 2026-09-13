@@ -14,6 +14,7 @@ function noStoreCreditResponse(_req, res, next) {
 router.use(authenticate, requireRole('customer'), noStoreCreditResponse);
 
 router.get('/account', controller.getMyAccount);
+router.get('/limits', controller.getMyCreditLimits);
 router.get('/accounts', controller.getMyAccounts);
 router.get('/status', controller.getMyCreditStatus);
 router.get('/holds', controller.listMyHolds);

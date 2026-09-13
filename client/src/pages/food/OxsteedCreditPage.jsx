@@ -20,6 +20,7 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
+  getOxsteedCreditLimitSummary,
   listOxsteedCreditAccounts,
   getOxsteedCreditStatus,
   listOxsteedCreditHolds,
@@ -115,6 +116,7 @@ function holdTerminalDate(hold) {
 
 export default function OxsteedCreditPage() {
   const [account, setAccount] = useState(null);
+  const [limitSummary, setLimitSummary] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [partners, setPartners] = useState([]);
@@ -158,12 +160,13 @@ export default function OxsteedCreditPage() {
       // selected wallet first so a new currency cannot race the directory and
       // render a false empty state.
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
-      const [partnerResult, holdResult, railResult, statementResult, disputeResult] = await Promise.all([
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         getOxsteedCreditDisputePage({ limit: 50, offset: 0 }).catch(() => null),
+        getOxsteedCreditLimitSummary({ currencyCode: preferredCurrency }).catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
       const knownAccounts = Array.isArray(existingAccounts) ? existingAccounts : [];
@@ -174,6 +177,7 @@ export default function OxsteedCreditPage() {
       setHolds(Array.isArray(holdResult?.holds) ? holdResult.holds : []);
       if (holdRequestId === holdPageRequestRef.current) setHoldPagination(holdResult?.pagination || null);
       setRailStatus(railResult);
+      setLimitSummary(limitResult);
       if (partnerRequestId === partnerPageRequestRef.current) {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
         setPartnerPagination(partnerResult?.pagination || null);
@@ -414,6 +418,8 @@ export default function OxsteedCreditPage() {
                 <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>OxSteed Credit balance</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{accountStatus}</span></div>
                 <div className="ox-credit-balance-grid"><div><span>Available to spend</span><strong>{money(availableCents, currency)}</strong></div><div><span>Reserved</span><strong>{money(reservedCents, currency)}</strong></div><div><span>Currency</span><strong>{currency}</strong></div></div>
               </section>
+
+              {limitSummary && <section className="ox-credit-panel ox-credit-limits-panel" aria-labelledby="credit-limits-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Daily controls</p><h2 id="credit-limits-heading">Your spending guardrails</h2></div><span className="ox-credit-count">Resets {dateTime(limitSummary.resetsAt)}</span></div><p className="ox-credit-panel-copy">These limits help protect your restricted balance. Reservations count toward spending until they are captured, released, or expired.</p><div className="ox-credit-limit-grid"><div><span>Spend amount remaining</span><strong>{money(limitSummary.spending.centsRemaining, currency)}</strong><small>{limitSummary.spending.centsUsed.toLocaleString()} of {limitSummary.spending.centsLimit.toLocaleString()} cents committed today</small></div><div><span>Spend movements remaining</span><strong>{limitSummary.spending.countRemaining}</strong><small>{limitSummary.spending.countUsed} of {limitSummary.spending.countLimit} purchases or reservations today</small></div>{limitSummary.transfers.enabled && <><div><span>Transfer amount remaining</span><strong>{money(limitSummary.transfers.centsRemaining, currency)}</strong><small>{limitSummary.transfers.centsUsed.toLocaleString()} of {limitSummary.transfers.centsLimit.toLocaleString()} cents transferred today</small></div><div><span>Transfers remaining</span><strong>{limitSummary.transfers.countRemaining}</strong><small>{limitSummary.transfers.countUsed} of {limitSummary.transfers.countLimit} transfers today</small></div></>}</div></section>}
 
               {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Reservation history</p><h2>Credit holds</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">Active reservations reduce your spendable balance until captured, released, or expired. Completed reservations stay here so you can reconcile every temporary balance change.</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Active reservations</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Completed reservations</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? 'Loading older holds...' : 'Load older holds'}</button>}</section>}
 

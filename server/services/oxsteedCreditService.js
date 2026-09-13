@@ -1289,6 +1289,76 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
   }, 'credit_get_customer_account');
 }
 
+async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_CURRENCY) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const { rows } = await pool.query(
+    `WITH purchase_usage AS (
+       SELECT COUNT(*)::int AS purchase_count,
+              COALESCE(SUM(t.amount_cents), 0) AS purchase_cents
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+        WHERE t.status = 'posted'
+          AND t.transaction_type = 'purchase'
+          AND t.created_at >= CURRENT_DATE
+          AND t.currency_code = $2
+          AND debit_account.account_type = 'customer_wallet'
+          AND debit_account.customer_id = $1
+     ), transfer_usage AS (
+       SELECT COUNT(*)::int AS transfer_count,
+              COALESCE(SUM(t.amount_cents), 0) AS transfer_cents
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+        WHERE t.status = 'posted'
+          AND t.transaction_type = 'transfer'
+          AND t.created_at >= CURRENT_DATE
+          AND t.currency_code = $2
+          AND debit_account.account_type = 'customer_wallet'
+          AND debit_account.customer_id = $1
+     ), active_hold_usage AS (
+       SELECT COUNT(*)::int AS hold_count,
+              COALESCE(SUM(h.amount_cents), 0) AS hold_cents
+         FROM oxsteed_credit_holds h
+        WHERE h.customer_id = $1
+          AND h.currency_code = $2
+          AND h.status = 'active'
+     )
+     SELECT
+       (CURRENT_DATE + INTERVAL '1 day')::timestamptz AS resets_at,
+       purchase_usage.purchase_count + active_hold_usage.hold_count AS spend_count,
+       purchase_usage.purchase_cents + active_hold_usage.hold_cents AS spend_cents,
+       transfer_usage.transfer_count,
+       transfer_usage.transfer_cents
+       FROM purchase_usage CROSS JOIN transfer_usage CROSS JOIN active_hold_usage`,
+    [customerId, currency]
+  );
+  const row = rows[0] || {};
+  const spendCount = Number(row.spend_count || 0);
+  const spendCents = Number(row.spend_cents || 0);
+  const transferCount = Number(row.transfer_count || 0);
+  const transferCents = Number(row.transfer_cents || 0);
+  return {
+    currencyCode: currency,
+    resetsAt: row.resets_at || null,
+    spending: {
+      countUsed: spendCount,
+      countLimit: MAX_DAILY_CUSTOMER_SPEND_COUNT,
+      countRemaining: Math.max(0, MAX_DAILY_CUSTOMER_SPEND_COUNT - spendCount),
+      centsUsed: spendCents,
+      centsLimit: MAX_DAILY_CUSTOMER_SPEND_CENTS,
+      centsRemaining: Math.max(0, MAX_DAILY_CUSTOMER_SPEND_CENTS - spendCents),
+    },
+    transfers: {
+      enabled: CUSTOMER_TRANSFERS_ENABLED,
+      countUsed: transferCount,
+      countLimit: MAX_DAILY_CUSTOMER_TRANSFER_COUNT,
+      countRemaining: Math.max(0, MAX_DAILY_CUSTOMER_TRANSFER_COUNT - transferCount),
+      centsUsed: transferCents,
+      centsLimit: MAX_DAILY_CUSTOMER_TRANSFER_CENTS,
+      centsRemaining: Math.max(0, MAX_DAILY_CUSTOMER_TRANSFER_CENTS - transferCents),
+    },
+  };
+}
+
 async function listCustomerCreditAccounts(customerId) {
   const { rows } = await pool.query(
     `SELECT a.*
@@ -2556,6 +2626,7 @@ module.exports = {
   formatHold,
   formatTransaction,
   getCustomerCreditAccount,
+  getCustomerCreditLimitSummary,
   listCustomerCreditAccounts,
   listEligiblePartners,
   listCustomerCreditHolds,

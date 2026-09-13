@@ -3,6 +3,9 @@ import api from './axios';
 export const getOxsteedCreditAccount = (params = {}) =>
   api.get('/oxsteed-credit/account', { params }).then((response) => response.data?.account || null);
 
+export const getOxsteedCreditLimitSummary = (params = {}) =>
+  api.get('/oxsteed-credit/limits', { params }).then((response) => response.data?.limits || null);
+
 export const listOxsteedCreditAccounts = () =>
   api.get('/oxsteed-credit/accounts').then((response) => response.data?.accounts || []);
 

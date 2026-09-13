@@ -4,6 +4,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const {
   getCustomerCreditAccount,
+  getCustomerCreditLimitSummary,
   listCustomerCreditAccounts,
   listCustomerCreditHolds,
   listEligiblePartners,
@@ -147,6 +148,18 @@ async function getMyAccount(req, res, next) {
   try {
     const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 8) || 'USD');
     res.json({ name: 'OxSteed Credit', account });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyCreditLimits(req, res, next) {
+  try {
+    const limits = await getCustomerCreditLimitSummary(
+      req.user.id,
+      normalizeString(req.query.currencyCode || req.query.currency_code, 8) || 'USD',
+    );
+    res.json({ limits });
   } catch (error) {
     next(error);
   }
@@ -1643,6 +1656,7 @@ async function downloadAdminCreditReconciliationRuns(req, res, next) {
 module.exports = {
   formatCustomerCreditMutationResult,
   getMyAccount,
+  getMyCreditLimits,
   getMyAccounts,
   getMyCreditStatus,
   listMyHolds,

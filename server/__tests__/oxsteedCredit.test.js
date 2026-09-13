@@ -20,6 +20,7 @@ function createCustomerApp(role = 'customer') {
     next();
   });
   app.get('/account', controller.getMyAccount);
+  app.get('/limits', controller.getMyCreditLimits);
   app.get('/status', controller.getMyCreditStatus);
   app.get('/holds', controller.listMyHolds);
   app.get('/eligible-partners', controller.getEligiblePartners);
@@ -452,6 +453,28 @@ test('creates a customer OxSteed Credit account with zero balance', async () => 
     availableBalanceCents: 0,
     currencyCode: 'USD',
   });
+});
+
+test('returns customer-facing daily Credit limits and remaining allowance', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    resets_at: '2026-09-14T00:00:00.000Z',
+    spend_count: 3,
+    spend_cents: '4250',
+    transfer_count: 2,
+    transfer_cents: '900',
+  }] });
+
+  const response = await request(createCustomerApp()).get('/limits?currencyCode=USD');
+
+  expect(response.status).toBe(200);
+  expect(response.body.limits).toMatchObject({
+    currencyCode: 'USD',
+    resetsAt: '2026-09-14T00:00:00.000Z',
+    spending: { countUsed: 3, centsUsed: 4250, countRemaining: 47, centsRemaining: 995750 },
+    transfers: { countUsed: 2, centsUsed: 900, countRemaining: 18, centsRemaining: 999100 },
+  });
+  expect(mockQuery.mock.calls[0][0]).toContain("h.status = 'active'");
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, 'USD']);
 });
 
 test('does not create or expose an OxSteed Credit wallet for a non-customer role', async () => {
