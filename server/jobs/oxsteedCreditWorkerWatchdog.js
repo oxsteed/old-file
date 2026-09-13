@@ -81,8 +81,14 @@ async function checkAllWorkers() {
 
 async function checkNotificationBacklog() {
   const result = await db.query(
-    `SELECT COUNT(*) FILTER (WHERE status IN ('pending', 'sending'))::int AS active_count,
-            MIN(created_at) FILTER (WHERE status IN ('pending', 'sending')) AS oldest_active_at
+    `SELECT COUNT(*) FILTER (
+              WHERE (status = 'pending' AND next_attempt_at <= NOW())
+                 OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '15 minutes'))
+            )::int AS active_count,
+            MIN(created_at) FILTER (
+              WHERE (status = 'pending' AND next_attempt_at <= NOW())
+                 OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '15 minutes'))
+            ) AS oldest_active_at
        FROM oxsteed_credit_notification_outbox`,
   );
   const row = result.rows[0] || {};

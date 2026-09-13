@@ -604,7 +604,10 @@ async function getAdminOverview(req, res, next) {
           COUNT(*) FILTER (WHERE status = 'sending')::int AS sending_count,
           COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_count,
           MIN(created_at) FILTER (WHERE status IN ('pending', 'sending')) AS oldest_pending_at,
-          (MIN(created_at) FILTER (WHERE status IN ('pending', 'sending'))) < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute') AS backlog_stale,
+          (MIN(created_at) FILTER (
+            WHERE (status = 'pending' AND next_attempt_at <= NOW())
+               OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute')))
+          )) < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute') AS backlog_stale,
           MIN(created_at) FILTER (WHERE status = 'failed') AS oldest_failed_at,
           COALESCE((
             SELECT json_agg(json_build_object(
