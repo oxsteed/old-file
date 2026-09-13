@@ -2382,6 +2382,10 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
             t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
             CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
             CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END AS related_partner_id,
+            (SELECT e.balance_after_cents
+               FROM oxsteed_credit_transaction_entries e
+              WHERE e.transaction_id = t.id AND e.account_id = a.id
+              LIMIT 1) AS balance_after_cents,
             fr.display_name AS restaurant_name
        FROM oxsteed_credit_transactions t
        JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
@@ -2398,7 +2402,14 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
     [transactionId, customerId, currency]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
-  return { transaction: formatCustomerCreditTransaction(rows[0]) };
+  return {
+    transaction: {
+      ...formatCustomerCreditTransaction(rows[0]),
+      balanceAfterCents: rows[0].balance_after_cents === null || rows[0].balance_after_cents === undefined
+        ? null
+        : Number(rows[0].balance_after_cents),
+    },
+  };
 }
 
 function formatDispute(row) {

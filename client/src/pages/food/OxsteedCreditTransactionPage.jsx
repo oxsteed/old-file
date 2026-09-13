@@ -124,6 +124,7 @@ export default function OxsteedCreditTransactionPage() {
                 <div className="ox-credit-receipt-grid">
                   <div><span>Currency</span><strong>{currency}</strong></div>
                   <div><span>Activity type</span><strong>{referenceLabel(transaction.transactionType)}</strong></div>
+                  <div><span>Balance after</span><strong>{money(transaction.balanceAfterCents, currency)}</strong></div>
                   <div><span>Transaction ID</span><strong>{transaction.id}</strong></div>
                 </div>
               </section>
