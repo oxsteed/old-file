@@ -20,6 +20,7 @@ import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 
 const DEFAULT_CURRENCY_OPTIONS = ['USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP', 'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL'];
 const CUSTOMER_ACCOUNT_PAGE_SIZE = 50;
+const PARTNER_DIRECTORY_PAGE_SIZE = 50;
 
 function money(cents, currency = 'USD') {
   try {
@@ -126,6 +127,12 @@ export default function OxsteedCreditAdmin() {
   const [overview, setOverview] = useState(null);
   const [customerAccounts, setCustomerAccounts] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [partnerDirectory, setPartnerDirectory] = useState([]);
+  const [partnerDirectorySearch, setPartnerDirectorySearch] = useState('');
+  const [partnerDirectoryStatus, setPartnerDirectoryStatus] = useState('all');
+  const [partnerDirectoryQuery, setPartnerDirectoryQuery] = useState({ search: '', status: '', offset: 0 });
+  const [partnerDirectoryPagination, setPartnerDirectoryPagination] = useState({ limit: PARTNER_DIRECTORY_PAGE_SIZE, offset: 0, total: 0, hasMore: false, nextOffset: null });
+  const [loadingMorePartnerDirectory, setLoadingMorePartnerDirectory] = useState(false);
   const [agreements, setAgreements] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [settlementPartnerId, setSettlementPartnerId] = useState('');
@@ -178,9 +185,10 @@ export default function OxsteedCreditAdmin() {
   const [disputeResolutionDrafts, setDisputeResolutionDrafts] = useState({});
   const loadRequestRef = useRef(0);
 
-  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0 } = {}) => {
+  const load = useCallback(async ({ quiet = false, customerAccountsParams, appendPartnerDirectory = false, partnerDirectoryOffset = 0, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
+    if (appendPartnerDirectory) setLoadingMorePartnerDirectory(true);
     if (appendSettlements) setLoadingMoreSettlements(true);
     if (appendTransactions) setLoadingMoreTransactions(true);
     if (appendDisputes) setLoadingMoreDisputes(true);
@@ -196,6 +204,10 @@ export default function OxsteedCreditAdmin() {
       if (walletQuery.search) walletParams.search = walletQuery.search;
       if (walletQuery.status) walletParams.status = walletQuery.status;
       if (walletQuery.currencyCode) walletParams.currencyCode = walletQuery.currencyCode;
+      const directoryQuery = partnerDirectoryQuery;
+      const partnerDirectoryParams = { limit: PARTNER_DIRECTORY_PAGE_SIZE, offset: appendPartnerDirectory ? partnerDirectoryOffset : 0 };
+      if (directoryQuery.search) partnerDirectoryParams.search = directoryQuery.search;
+      if (directoryQuery.status) partnerDirectoryParams.status = directoryQuery.status;
       const settlementParams = { limit: 50, offset: appendSettlements ? settlementOffset : 0 };
       if (settlementPartnerId) settlementParams.partnerId = settlementPartnerId;
       if (settlementStatus) settlementParams.status = settlementStatus;
@@ -212,10 +224,11 @@ export default function OxsteedCreditAdmin() {
       const reconciliationParams = { limit: 50, offset: appendReconciliationRuns ? reconciliationOffset : 0 };
       if (reconciliationStatus) reconciliationParams.status = reconciliationStatus;
       if (reconciliationCurrency !== 'all') reconciliationParams.currencyCode = reconciliationCurrency;
-      const [overviewResponse, customerAccountsResponse, partnersResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, railResponse] = await Promise.all([
+      const [overviewResponse, customerAccountsResponse, partnersResponse, partnerDirectoryResponse, agreementsResponse, settlementsResponse, transactionsResponse, disputesResponse, auditEventsResponse, reconciliationResponse, railResponse] = await Promise.all([
         adminApi.get('/admin/super/oxsteed-credit/overview'),
         adminApi.get('/admin/super/oxsteed-credit/accounts', { params: walletParams }).catch(() => ({ data: { accounts: [], total: 0, limit: CUSTOMER_ACCOUNT_PAGE_SIZE, offset: walletParams.offset, hasMore: false } })),
         adminApi.get('/admin/super/oxsteed-credit/partners'),
+        adminApi.get('/admin/super/oxsteed-credit/partners/directory', { params: partnerDirectoryParams }),
         adminApi.get('/admin/super/oxsteed-credit/agreements'),
         adminApi.get('/admin/super/oxsteed-credit/settlements', { params: settlementParams }),
         adminApi.get('/admin/super/oxsteed-credit/transactions', { params: transactionParams }),
@@ -232,6 +245,10 @@ export default function OxsteedCreditAdmin() {
       setCustomerAccountOffset(Number(customerAccountsResponse.data?.offset ?? walletParams.offset));
       setCustomerAccountHasMore(Boolean(customerAccountsResponse.data?.hasMore));
       setPartners(partnersResponse.data?.partners || []);
+      const loadedPartnerDirectory = partnerDirectoryResponse.data?.partners || [];
+      if (appendPartnerDirectory) setPartnerDirectory((current) => [...current, ...loadedPartnerDirectory]);
+      else setPartnerDirectory(loadedPartnerDirectory);
+      setPartnerDirectoryPagination(partnerDirectoryResponse.data?.pagination || { limit: partnerDirectoryParams.limit, offset: partnerDirectoryParams.offset, total: loadedPartnerDirectory.length, hasMore: false, nextOffset: null });
       setAgreements(agreementsResponse.data?.agreements || []);
       const loadedSettlements = settlementsResponse.data?.settlements || [];
       if (appendSettlements) setSettlements((current) => [...current, ...loadedSettlements]);
@@ -261,6 +278,7 @@ export default function OxsteedCreditAdmin() {
     } finally {
       if (requestId === loadRequestRef.current) {
         setLoading(false);
+        if (appendPartnerDirectory) setLoadingMorePartnerDirectory(false);
         if (appendSettlements) setLoadingMoreSettlements(false);
         if (appendTransactions) setLoadingMoreTransactions(false);
         if (appendDisputes) setLoadingMoreDisputes(false);
@@ -268,7 +286,7 @@ export default function OxsteedCreditAdmin() {
         if (appendReconciliationRuns) setLoadingMoreReconciliationRuns(false);
       }
     }
-  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
+  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, partnerDirectoryQuery, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -469,6 +487,20 @@ export default function OxsteedCreditAdmin() {
       currencyCode: customerAccountCurrency === 'all' ? '' : customerAccountCurrency,
       offset: 0,
     });
+  };
+
+  const applyPartnerDirectoryFilters = () => {
+    setPartnerDirectoryQuery({
+      search: partnerDirectorySearch.trim(),
+      status: partnerDirectoryStatus === 'all' ? '' : partnerDirectoryStatus,
+      offset: 0,
+    });
+  };
+
+  const clearPartnerDirectoryFilters = () => {
+    setPartnerDirectorySearch('');
+    setPartnerDirectoryStatus('all');
+    setPartnerDirectoryQuery({ search: '', status: '', offset: 0 });
   };
 
   const clearCustomerAccountFilters = () => {
@@ -776,7 +808,7 @@ export default function OxsteedCreditAdmin() {
     </Section>
     </div>
 
-    <Section eyebrow="Partner network" title="Restaurants and agreements" detail="A partner must be Active and have an Active agreement before it appears in customer eligibility results." action={<button type="button" onClick={downloadPartnerDirectory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{loading && !overview ? <div className="flex items-center justify-center py-14 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : <table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Currency</th><th className="px-3 py-3 font-medium">Partner</th><th className="px-3 py-3 font-medium">Agreements</th><th className="px-3 py-3 font-medium">Updated</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{partners.map((partner) => <tr key={partner.partnerId}><td className="px-3 py-3"><strong className="text-white">{partner.restaurantName || `Restaurant ${partner.restaurantId}`}</strong><p className="mt-1 text-gray-600">Restaurant ID {partner.restaurantId}</p></td><td className="px-3 py-3 font-semibold text-sky-300">{partner.settlementCurrencyCode || 'USD'}</td><td className="px-3 py-3"><Badge status={partner.status} /></td><td className="px-3 py-3 text-gray-400">{partner.activeAgreementCount} active / {partner.agreementCount} total</td><td className="px-3 py-3 text-gray-500">{dateTime(partner.updatedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{partner.status === 'pending' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Activate</button>}{partner.status === 'active' && <button disabled={busy} onClick={() => transitionPartner(partner, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{partner.status === 'suspended' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
+    <Section eyebrow="Partner network" title="Restaurants and agreements" detail="A partner must be Active and have an Active agreement before it appears in customer eligibility results." action={<div className="flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="credit-partner-directory-search">Search partners</label><input id="credit-partner-directory-search" value={partnerDirectorySearch} onChange={(event) => setPartnerDirectorySearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyPartnerDirectoryFilters(); }} placeholder="Search partners..." className="w-40 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><select aria-label="Partner status filter" value={partnerDirectoryStatus} onChange={(event) => setPartnerDirectoryStatus(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">All statuses</option><option value="pending">Pending</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="terminated">Terminated</option></select><button type="button" onClick={applyPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">Apply</button><button type="button" onClick={clearPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">Clear</button><button type="button" onClick={downloadPartnerDirectory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button></div>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{loading && !overview ? <div className="flex items-center justify-center py-14 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : <table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Currency</th><th className="px-3 py-3 font-medium">Partner</th><th className="px-3 py-3 font-medium">Agreements</th><th className="px-3 py-3 font-medium">Updated</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{!partnerDirectory.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{partnerDirectoryQuery.search || partnerDirectoryQuery.status ? 'No partners match these filters.' : 'No Credit partners enrolled yet.'}</td></tr> : partnerDirectory.map((partner) => <tr key={partner.partnerId}><td className="px-3 py-3"><strong className="text-white">{partner.restaurantName || `Restaurant ${partner.restaurantId}`}</strong><p className="mt-1 text-gray-600">Restaurant ID {partner.restaurantId}</p></td><td className="px-3 py-3 font-semibold text-sky-300">{partner.settlementCurrencyCode || 'USD'}</td><td className="px-3 py-3"><Badge status={partner.status} /></td><td className="px-3 py-3 text-gray-400">{partner.activeAgreementCount} active / {partner.agreementCount} total</td><td className="px-3 py-3 text-gray-500">{dateTime(partner.updatedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{partner.status === 'pending' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Activate</button>}{partner.status === 'active' && <button disabled={busy} onClick={() => transitionPartner(partner, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{partner.status === 'suspended' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div>{partnerDirectoryPagination.hasMore && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 px-3 py-3 text-xs text-gray-500"><span>Showing {partnerDirectory.length} of {partnerDirectoryPagination.total} partners</span><button type="button" onClick={() => load({ quiet: true, appendPartnerDirectory: true, partnerDirectoryOffset: partnerDirectoryPagination.nextOffset || 0 })} disabled={loadingMorePartnerDirectory || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMorePartnerDirectory ? 'Loading...' : 'Load more partners'}</button></div>}{!partnerDirectoryPagination.hasMore && partnerDirectory.length > 0 && <p className="mt-3 text-xs text-gray-600">Showing all {partnerDirectoryPagination.total} matching partners.</p>}</Section>
 
     <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact."><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{agreement.allowedMenuItemIds.length} menu items restricted</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">All restaurant locations</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 

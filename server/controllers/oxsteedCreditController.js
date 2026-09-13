@@ -588,6 +588,21 @@ async function listAdminPartners(req, res, next) {
   }
 }
 
+async function listAdminPartnerDirectory(req, res, next) {
+  try {
+    const result = await listPartners({
+      search: req.query.search || req.query.q,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function downloadAdminPartners(req, res, next) {
   try {
     const options = {
@@ -1289,6 +1304,7 @@ module.exports = {
   getAdminCreditRail,
   updateAdminCreditRail,
   listAdminPartners,
+  listAdminPartnerDirectory,
   downloadAdminPartners,
   listAdminCustomerAccounts,
   downloadAdminCustomerAccounts,

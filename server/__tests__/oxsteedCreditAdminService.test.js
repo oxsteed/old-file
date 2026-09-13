@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -44,6 +44,29 @@ test('lists bounded customer credit wallets with operator filters', async () => 
   expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'EUR', 'suspended']);
   expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $4 OFFSET $5');
   expect(mockQuery.mock.calls[1][1]).toEqual(['%alice%', 'EUR', 'suspended', 10, 20]);
+});
+
+test('lists a paginated partner directory with bounded database paging', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: 26 }] })
+    .mockResolvedValueOnce({ rows: [{
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: 'OxSteed Cafe',
+      status: 'active',
+      settlement_currency_code: 'USD',
+      agreement_count: 2,
+      active_agreement_count: 1,
+      updated_at: '2026-09-12T12:04:00.000Z',
+    }] });
+
+  const result = await listPartners({ search: 'cafe', status: 'active', limit: 10, offset: 20, includePagination: true });
+
+  expect(result).toMatchObject({ pagination: { limit: 10, offset: 20, total: 26, hasMore: false, nextOffset: null } });
+  expect(result.partners[0]).toMatchObject({ partnerId: '41', restaurantName: 'OxSteed Cafe', status: 'active' });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%cafe%', 'active']);
+  expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $3 OFFSET $4');
+  expect(mockQuery.mock.calls[1][1]).toEqual(['%cafe%', 'active', 11, 20]);
 });
 
 test('does not grant a Credit entitlement to a non-customer identity', async () => {

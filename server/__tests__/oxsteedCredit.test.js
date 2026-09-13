@@ -43,6 +43,7 @@ function createAdminApp() {
   app.post('/adjust/:customerId', controller.adminAdjustCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
+  app.get('/partners/directory', controller.listAdminPartnerDirectory);
   app.get('/partners.csv', controller.downloadAdminPartners);
   app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
   app.get('/settlements', controller.listAdminSettlements);
@@ -405,6 +406,29 @@ test('exports filtered Credit partner coverage with formula-safe values', async 
   expect(response.text).toContain('"\'+approved"');
   expect(mockQuery.mock.calls[0][1]).toEqual(['%restaurant%', 'active']);
   expect(mockQuery.mock.calls[1][1]).toEqual(['%restaurant%', 'active', 251, 0]);
+});
+
+test('lists a paginated Credit partner directory without changing selector results', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: '26' }] })
+    .mockResolvedValueOnce({ rows: [{
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: 'OxSteed Cafe',
+      status: 'active',
+      settlement_currency_code: 'USD',
+      agreement_count: 2,
+      active_agreement_count: 1,
+      updated_at: '2026-09-12T12:04:00.000Z',
+    }] });
+
+  const response = await request(createAdminApp()).get('/partners/directory?search=cafe&status=active&limit=10&offset=20');
+
+  expect(response.status).toBe(200);
+  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', restaurantName: 'OxSteed Cafe', status: 'active' });
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 20, total: 26, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%cafe%', 'active']);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['%cafe%', 'active', 11, 20]);
 });
 
 test('exports customer Credit wallets with active filters and formula-safe values', async () => {
