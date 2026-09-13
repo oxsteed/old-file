@@ -57,6 +57,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_account_integrity_guard',
   'oxsteed_credit_settlement_integrity_guard',
   'oxsteed_credit_settlement_state_guard',
+  'oxsteed_credit_settlement_immutability_guard',
   'oxsteed_credit_audit_immutable_guard',
   'oxsteed_credit_account_identity_guard',
   'oxsteed_credit_partner_identity_guard',
@@ -245,6 +246,16 @@ async function main() {
       ['445_oxsteed_credit_entitlement_required.sql']
     );
     checks.entitlementRequiredMigrationApplied = entitlementRequiredMigrationRows.length === 1;
+    const { rows: settlementCreatorMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['447_oxsteed_credit_settlement_creator.sql']
+    );
+    checks.settlementCreatorMigrationApplied = settlementCreatorMigrationRows.length === 1;
+    const { rows: settlementImmutabilityMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['448_oxsteed_credit_settlement_immutability.sql']
+    );
+    checks.settlementImmutabilityMigrationApplied = settlementImmutabilityMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -448,7 +459,8 @@ async function main() {
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_settlements
         WHERE (status = 'paid' AND paid_at IS NULL)
-           OR (status = 'paid' AND net_cents > 0 AND NULLIF(BTRIM(payment_reference), '') IS NULL)`,
+           OR (status = 'paid' AND net_cents > 0 AND NULLIF(BTRIM(payment_reference), '') IS NULL)
+           OR (status IN ('approved', 'paid') AND approved_by IS NULL)`,
     );
     checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
 
@@ -509,6 +521,8 @@ async function main() {
       !checks.partnerReportingMigrationApplied,
       !checks.agreementIdempotencyMigrationApplied,
       !checks.entitlementRequiredMigrationApplied,
+      !checks.settlementCreatorMigrationApplied,
+      !checks.settlementImmutabilityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
