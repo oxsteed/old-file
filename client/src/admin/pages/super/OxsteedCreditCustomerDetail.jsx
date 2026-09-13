@@ -90,6 +90,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   const entitlements = detail?.entitlements || [];
   const auditEvents = detail?.auditEvents || [];
   const disputes = detail?.disputes || [];
+  const riskLimits = detail?.riskLimits || null;
   const eligiblePartners = detail?.eligiblePartners || [];
   const eligiblePartnerPagination = detail?.eligiblePartnerPagination || null;
 
@@ -128,6 +129,19 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
           <div className="mt-3 space-y-2">{!holds.length ? <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600">No holds recorded for this wallet.</p> : holds.map((hold) => <div key={hold.id} className="rounded-lg border border-gray-800 bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="text-sm text-white">{hold.restaurantName || 'Restaurant authorization'}</strong><p className="mt-1 text-xs text-gray-500">{money(hold.amountCents, hold.currencyCode)} · expires {dateTime(hold.expiresAt)}</p></div><Badge status={hold.status} /></div>{hold.referenceId && <p className="mt-2 break-all font-mono text-[10px] text-gray-700">Reference: {hold.referenceId}</p>}{hold.captureReason && <p className="mt-2 text-[11px] leading-4 text-sky-200">Captured by {hold.captureActorType || 'operator'}: {hold.captureReason}</p>}{hold.releaseReason && <p className="mt-2 text-[11px] leading-4 text-gray-400">Released by {hold.releaseActorType || 'operator'}: {hold.releaseReason}</p>}</div>)}</div>
         </div>
       </div>
+
+      {riskLimits && <div className="mt-5 rounded-xl border border-violet-500/20 bg-violet-950/10 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-300">Risk guardrails</p><h3 className="mt-1 text-sm font-semibold text-white">Today’s Credit usage</h3><p className="mt-1 text-[11px] leading-5 text-gray-500">Read-only usage against the same daily spending and transfer caps enforced at checkout. The counters reset at {dateTime(riskLimits.resetsAt)}.</p></div>
+          <span className="rounded-full border border-violet-500/25 px-2 py-1 text-[10px] font-semibold text-violet-300">{riskLimits.currencyCode || profile.currencyCode}</span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-orange-500/20 bg-orange-950/10 p-3"><span className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-300">Spend amount</span><strong className="mt-2 block text-lg text-white">{money(riskLimits.spending?.centsUsed, riskLimits.currencyCode)}</strong><p className="mt-1 text-[11px] text-gray-500">{money(riskLimits.spending?.centsRemaining, riskLimits.currencyCode)} remaining</p></div>
+          <div className="rounded-lg border border-orange-500/20 bg-orange-950/10 p-3"><span className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-300">Spend movements</span><strong className="mt-2 block text-lg text-white">{riskLimits.spending?.countUsed || 0} / {riskLimits.spending?.countLimit || 0}</strong><p className="mt-1 text-[11px] text-gray-500">{riskLimits.spending?.countRemaining || 0} remaining today</p></div>
+          <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-950/10 p-3"><span className="text-[10px] font-bold uppercase tracking-[0.14em] text-fuchsia-300">Transfer amount</span><strong className="mt-2 block text-lg text-white">{riskLimits.transfers?.enabled ? money(riskLimits.transfers?.centsUsed, riskLimits.currencyCode) : 'Disabled'}</strong><p className="mt-1 text-[11px] text-gray-500">{riskLimits.transfers?.enabled ? `${money(riskLimits.transfers?.centsRemaining, riskLimits.currencyCode)} remaining` : 'Customer transfers are disabled'}</p></div>
+          <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-950/10 p-3"><span className="text-[10px] font-bold uppercase tracking-[0.14em] text-fuchsia-300">Transfer movements</span><strong className="mt-2 block text-lg text-white">{riskLimits.transfers?.enabled ? `${riskLimits.transfers?.countUsed || 0} / ${riskLimits.transfers?.countLimit || 0}` : 'Disabled'}</strong><p className="mt-1 text-[11px] text-gray-500">{riskLimits.transfers?.enabled ? `${riskLimits.transfers?.countRemaining || 0} remaining today` : 'No outbound transfers allowed'}</p></div>
+        </div>
+      </div>}
 
       <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4">
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">Customer reviews</p><h3 className="mt-1 text-sm font-semibold text-white">Credit disputes</h3></div><span className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500"><AlertTriangle className="h-3 w-3 text-amber-300" /> {disputes.length} records</span></div>
