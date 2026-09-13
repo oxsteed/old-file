@@ -40,6 +40,7 @@ function createAdminApp() {
     next();
   });
   app.post('/load/:customerId', controller.adminLoadCredit);
+  app.post('/adjust/:customerId', controller.adminAdjustCredit);
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
   app.get('/rail', controller.getAdminCreditRail);
@@ -458,6 +459,17 @@ test('requires a funding reference for Super Admin credit loads', async () => {
     .post(`/load/${CUSTOMER_ID}`)
     .set('Idempotency-Key', 'admin-load-test-1')
     .send({ amountCents: 10000, reason: 'test grant' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_funding_reference_required');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires a funding reference for positive administrative adjustments', async () => {
+  const response = await request(createAdminApp())
+    .post(`/adjust/${CUSTOMER_ID}`)
+    .set('Idempotency-Key', 'admin-adjustment-test-1')
+    .send({ amountCents: 10000, direction: 'credit', reason: 'test grant' });
 
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('credit_funding_reference_required');

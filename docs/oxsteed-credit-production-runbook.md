@@ -44,6 +44,11 @@ idempotent replay check, so retries do not consume additional issuance
 capacity. Set these values deliberately for each launch market and review the
 resulting limits with compliance and the funding owner.
 
+The load and positive-adjustment endpoints both require a traceable funding
+reference. Clawbacks remain debits from the customer wallet and require an
+operator reason; use a separate compensating credit with its own funding or
+correction reference when value must be restored.
+
 Holds default to 30 minutes and cannot be created more than 24 hours ahead by
 default. If operations need a different maximum, set
 `OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES` deliberately and keep it aligned with

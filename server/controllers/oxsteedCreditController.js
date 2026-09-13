@@ -333,12 +333,16 @@ async function adminLoadCredit(req, res, next) {
 async function adminAdjustCredit(req, res, next) {
   try {
     const customerId = parseUuid(req.params.customerId, 'customerId');
+    const direction = req.body?.direction;
     const referenceId = normalizeString(req.body?.referenceId || req.body?.reference_id, 160);
+    if (direction === 'credit' && !referenceId) {
+      throw new AppError('A funding reference is required for a positive administrative credit adjustment', 400, 'credit_funding_reference_required');
+    }
     const result = await adjustCustomerCredit({
       customerId,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       currencyCode: req.body?.currencyCode || req.body?.currency_code,
-      direction: req.body?.direction,
+      direction,
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       reason: req.body?.reason,
