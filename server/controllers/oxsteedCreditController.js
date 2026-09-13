@@ -27,6 +27,7 @@ const {
   resolveCreditDispute,
   loadCustomerCredit,
   getCreditRailStatus,
+  getCustomerCreditRailStatus,
   setCreditRailStatus,
   SUPPORTED_CREDIT_CURRENCIES,
   SUPPORTED_CREDIT_CURRENCY_META,
@@ -111,6 +112,14 @@ async function getMyAccount(req, res, next) {
 async function getMyAccounts(req, res, next) {
   try {
     res.json({ accounts: await listCustomerCreditAccounts(req.user.id) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getMyCreditStatus(req, res, next) {
+  try {
+    res.json({ credit: await getCustomerCreditRailStatus() });
   } catch (error) {
     next(error);
   }
@@ -1397,6 +1406,7 @@ async function downloadAdminCreditReconciliationRuns(req, res, next) {
 module.exports = {
   getMyAccount,
   getMyAccounts,
+  getMyCreditStatus,
   listMyHolds,
   getEligiblePartners,
   getMyTransactions,

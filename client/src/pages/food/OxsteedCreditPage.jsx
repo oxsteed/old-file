@@ -21,6 +21,7 @@ import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
   listOxsteedCreditAccounts,
+  getOxsteedCreditStatus,
   listOxsteedCreditHolds,
   getOxsteedCreditEligiblePartnerPage,
   getOxsteedCreditStatement,
@@ -106,6 +107,7 @@ export default function OxsteedCreditPage() {
   const [partnerOrderType, setPartnerOrderType] = useState('');
   const [partnerPagination, setPartnerPagination] = useState(null);
   const [holds, setHolds] = useState([]);
+  const [railStatus, setRailStatus] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
@@ -130,10 +132,11 @@ export default function OxsteedCreditPage() {
     try {
       const existingAccounts = await listOxsteedCreditAccounts();
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
-      const [accountResult, partnerResult, holdResult, statementResult, disputeResult] = await Promise.all([
+      const [accountResult, partnerResult, holdResult, railResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'active', limit: 50, offset: 0 }).catch(() => null),
+        getOxsteedCreditStatus().catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
       ]);
@@ -142,6 +145,7 @@ export default function OxsteedCreditPage() {
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setHolds(Array.isArray(holdResult?.holds) ? holdResult.holds : []);
+      setRailStatus(railResult);
       if (partnerRequestId === partnerPageRequestRef.current) {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
         setPartnerPagination(partnerResult?.pagination || null);
@@ -324,6 +328,8 @@ export default function OxsteedCreditPage() {
             <ShieldCheck size={19} />
             <div><strong>Stored-value credit, not a bank account</strong><span>OxSteed Credit is not a deposit account, cash balance, or promise of bank services. Spending is limited to the partners and terms shown below.</span></div>
           </section>
+
+          {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>OxSteed Credit is temporarily paused</strong><span>Your balance and history remain available. New Credit spending is paused while the network is being reviewed.</span></div></section>}
 
           {loading ? <div className="ox-credit-loading">Loading your credit account...</div> : (
             <>

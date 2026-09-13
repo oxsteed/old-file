@@ -20,6 +20,7 @@ function createCustomerApp(role = 'customer') {
     next();
   });
   app.get('/account', controller.getMyAccount);
+  app.get('/status', controller.getMyCreditStatus);
   app.get('/holds', controller.listMyHolds);
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
@@ -723,6 +724,15 @@ test('lists a customer credit hold page without exposing other account holds', a
   expect(response.body.holds[0].idempotencyKey).toBeUndefined();
   expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: true, nextOffset: 1 });
   expect(mockQuery.mock.calls[0][0]).toContain("a.account_type = 'customer_wallet'");
+});
+
+test('exposes only safe Credit rail status to customers', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, updated_by: ADMIN_ID, updated_at: '2026-09-13T09:00:00.000Z' }] });
+
+  const response = await request(createCustomerApp()).get('/status');
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ credit: { enabled: false, status: 'suspended' } });
 });
 
 test('rejects unsupported credit currencies before creating a wallet', async () => {

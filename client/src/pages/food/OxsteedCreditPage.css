@@ -27,6 +27,11 @@
 .ox-credit-disclaimer div { display: grid; gap: 4px; }
 .ox-credit-disclaimer strong { font-size: 13px; }
 .ox-credit-disclaimer span { color: #49757a; font-size: 12px; line-height: 1.55; }
+.ox-credit-rail-note { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 18px; padding: 15px 17px; border: 1px solid rgba(182,90,12,.24); border-radius: 16px; color: #9a551c; background: rgba(255,244,226,.9); }
+.ox-credit-rail-note svg { flex: 0 0 auto; margin-top: 1px; }
+.ox-credit-rail-note div { display: grid; gap: 4px; }
+.ox-credit-rail-note strong { font-size: 13px; }
+.ox-credit-rail-note span { color: #8a6a4c; font-size: 12px; line-height: 1.55; }
 .ox-credit-balance-card { position: relative; overflow: hidden; padding: 27px; border-radius: 27px; color: #fff; background: linear-gradient(130deg, #10253f 0%, #173b53 62%, #176d70 100%); box-shadow: 0 24px 70px rgba(16,37,63,.2); }
 .ox-credit-balance-card::after { content: ''; position: absolute; width: 360px; height: 360px; top: -205px; right: -110px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; box-shadow: 0 0 0 42px rgba(255,255,255,.03), 0 0 0 86px rgba(255,255,255,.025); }
 .ox-credit-balance-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; }

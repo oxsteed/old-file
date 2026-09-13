@@ -220,6 +220,11 @@ async function getCreditRailStatus() {
   }
 }
 
+async function getCustomerCreditRailStatus() {
+  const rail = await getCreditRailStatus();
+  return { enabled: rail.enabled, status: rail.status };
+}
+
 async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId }) {
   if (typeof enabled !== 'boolean') {
     throw new AppError('Rail enabled must be a boolean', 400, 'credit_rail_enabled_invalid');
@@ -2062,6 +2067,7 @@ module.exports = {
   isCreditRailEnabled,
   assertCreditRailEnabled,
   getCreditRailStatus,
+  getCustomerCreditRailStatus,
   setCreditRailStatus,
   computeEntryHash,
   ensureAccount,
