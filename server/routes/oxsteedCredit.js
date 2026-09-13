@@ -1,21 +1,23 @@
 'use strict';
 
 const router = require('express').Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/oxsteedCreditController');
 
-router.get('/account', authenticate, controller.getMyAccount);
-router.get('/accounts', authenticate, controller.getMyAccounts);
-router.get('/eligible-partners', authenticate, controller.getEligiblePartners);
-router.get('/statement.csv', authenticate, creditExportLimiter, controller.downloadMyStatement);
-router.get('/statement', authenticate, controller.getMyStatement);
-router.get('/transactions', authenticate, controller.getMyTransactions);
-router.get('/transactions/:transactionId', authenticate, controller.getMyTransaction);
-router.post('/holds', authenticate, creditMutationLimiter, controller.createMyHold);
-router.post('/holds/:holdId/release', authenticate, creditMutationLimiter, controller.releaseMyHold);
-router.post('/transfers', authenticate, creditMutationLimiter, controller.transferMyCredit);
-router.get('/disputes', authenticate, controller.listMyDisputes);
-router.post('/disputes', authenticate, creditMutationLimiter, controller.openMyDispute);
+router.use(authenticate, requireRole('customer'));
+
+router.get('/account', controller.getMyAccount);
+router.get('/accounts', controller.getMyAccounts);
+router.get('/eligible-partners', controller.getEligiblePartners);
+router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
+router.get('/statement', controller.getMyStatement);
+router.get('/transactions', controller.getMyTransactions);
+router.get('/transactions/:transactionId', controller.getMyTransaction);
+router.post('/holds', creditMutationLimiter, controller.createMyHold);
+router.post('/holds/:holdId/release', creditMutationLimiter, controller.releaseMyHold);
+router.post('/transfers', creditMutationLimiter, controller.transferMyCredit);
+router.get('/disputes', controller.listMyDisputes);
+router.post('/disputes', creditMutationLimiter, controller.openMyDispute);
 
 module.exports = router;
