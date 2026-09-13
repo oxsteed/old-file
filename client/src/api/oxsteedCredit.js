@@ -54,3 +54,7 @@ export const openOxsteedCreditDispute = (payload) =>
 export const listOxsteedCreditDisputes = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })
     .then((response) => response.data?.disputes || []);
+
+export const getOxsteedCreditDisputePage = (params = {}) =>
+  api.get('/oxsteed-credit/disputes', { params })
+    .then((response) => response.data || { disputes: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });

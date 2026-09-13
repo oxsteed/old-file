@@ -30,6 +30,7 @@ function createCustomerApp(role = 'customer') {
   app.post('/holds', controller.createMyHold);
   app.post('/transfers', controller.transferMyCredit);
   app.post('/disputes', controller.openMyDispute);
+  app.get('/disputes', controller.listMyDisputes);
   app.use(errorHandler);
   return app;
 }
@@ -1340,6 +1341,33 @@ test('includes safe transaction context when listing credit disputes', async () 
     postedAt: '2026-09-12T12:00:00.000Z',
   })]);
   expect(mockQuery.mock.calls[0][0]).toContain('LEFT JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id');
+});
+
+test('paginates the customer credit dispute history', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'dispute-4',
+    transaction_id: 'tx-4',
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    restaurant_name: 'OxSteed Cafe',
+    transaction_amount_cents: '900',
+    transaction_currency_code: 'USD',
+    transaction_type: 'purchase',
+    status: 'open',
+    reason_code: 'other',
+    description: 'Please review this transaction.',
+    opened_by: CUSTOMER_ID,
+    opened_at: '2026-09-12T15:00:00.000Z',
+    updated_at: '2026-09-12T15:00:00.000Z',
+  }] });
+
+  const response = await request(createCustomerApp()).get('/disputes?limit=10&offset=20');
+
+  expect(response.status).toBe(200);
+  expect(response.body.disputes[0]).toMatchObject({ id: 'dispute-4', amountCents: 900 });
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 20, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $2 OFFSET $3');
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, 11, 20]);
 });
 
 test('paginates and filters the admin credit dispute queue', async () => {

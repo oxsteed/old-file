@@ -28,7 +28,7 @@ import {
   downloadOxsteedCreditStatement,
   getOxsteedCreditTransactionPage,
   openOxsteedCreditDispute,
-  listOxsteedCreditDisputes,
+  getOxsteedCreditDisputePage,
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
@@ -111,10 +111,12 @@ export default function OxsteedCreditPage() {
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
+  const [disputePagination, setDisputePagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingMorePartners, setLoadingMorePartners] = useState(false);
+  const [loadingMoreDisputes, setLoadingMoreDisputes] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [disputeTransactionId, setDisputeTransactionId] = useState(null);
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
@@ -141,7 +143,7 @@ export default function OxsteedCreditPage() {
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'active', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
-        listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
+        getOxsteedCreditDisputePage({ limit: 50, offset: 0 }).catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
       const knownAccounts = Array.isArray(existingAccounts) ? existingAccounts : [];
@@ -155,7 +157,8 @@ export default function OxsteedCreditPage() {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
         setPartnerPagination(partnerResult?.pagination || null);
       }
-      setDisputes(Array.isArray(disputeResult) ? disputeResult : []);
+      setDisputes(Array.isArray(disputeResult?.disputes) ? disputeResult.disputes : []);
+      setDisputePagination(disputeResult?.pagination || null);
       if (statementResult) {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
@@ -268,14 +271,33 @@ export default function OxsteedCreditPage() {
     }
   };
 
+  const loadMoreDisputes = async () => {
+    if (!disputePagination?.hasMore || loadingMoreDisputes) return;
+    setLoadingMoreDisputes(true);
+    try {
+      const page = await getOxsteedCreditDisputePage({
+        limit: 50,
+        offset: disputePagination.nextOffset || disputes.length,
+      });
+      const nextDisputes = Array.isArray(page?.disputes) ? page.disputes : [];
+      setDisputes((current) => [...current, ...nextDisputes]);
+      setDisputePagination(page?.pagination || null);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setLoadingMoreDisputes(false);
+    }
+  };
+
   const submitDispute = async (event) => {
     event.preventDefault();
     if (!disputeTransactionId || !disputeDescription.trim()) return;
     setDisputeSubmitting(true);
     try {
       await openOxsteedCreditDispute({ transactionId: disputeTransactionId, reasonCode: disputeReason, description: disputeDescription.trim() });
-      const refreshedDisputes = await listOxsteedCreditDisputes({ limit: 50 });
-      setDisputes(Array.isArray(refreshedDisputes) ? refreshedDisputes : []);
+      const refreshedDisputes = await getOxsteedCreditDisputePage({ limit: 50, offset: 0 });
+      setDisputes(Array.isArray(refreshedDisputes?.disputes) ? refreshedDisputes.disputes : []);
+      setDisputePagination(refreshedDisputes?.pagination || null);
       toast.success('Your dispute was submitted for review.');
       setDisputeTransactionId(null);
       setDisputeDescription('');
@@ -364,7 +386,7 @@ export default function OxsteedCreditPage() {
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> Need help with a transaction? <Link to="/support/escalation">Contact support</Link></div>
                 </section>
               </div>
-              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Review history</p><h2>Your Credit disputes</h2></div><span className="ox-credit-count">{disputes.length}</span></div><p className="ox-credit-panel-copy">Disputes are reviewed separately from your balance. A status change never edits the original ledger entry.</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || 'OxSteed Credit transaction'}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{String(dispute.status || 'open').replace(/_/g, ' ')}</span></div><span>{String(dispute.reasonCode || 'other').replace(/_/g, ' ')}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {String(dispute.transactionType || 'transaction').replace(/_/g, ' ')}</small>}<small>Opened {dateTime(dispute.openedAt)} · Transaction {dispute.transactionId}</small><p>{dispute.description}</p>{dispute.resolution && <em>Resolution: {dispute.resolution}</em>}</div></article>)}</div></section>}
+              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Review history</p><h2>Your Credit disputes</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">Disputes are reviewed separately from your balance. A status change never edits the original ledger entry.</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || 'OxSteed Credit transaction'}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{String(dispute.status || 'open').replace(/_/g, ' ')}</span></div><span>{String(dispute.reasonCode || 'other').replace(/_/g, ' ')}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {String(dispute.transactionType || 'transaction').replace(/_/g, ' ')}</small>}<small>Opened {dateTime(dispute.openedAt)} · Transaction {dispute.transactionId}</small><p>{dispute.description}</p>{dispute.resolution && <em>Resolution: {dispute.resolution}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? 'Loading older disputes...' : 'Load older disputes'}</button>}</section>}
             </>
           )}
         </div>

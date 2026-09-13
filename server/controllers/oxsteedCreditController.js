@@ -370,7 +370,13 @@ async function openMyDispute(req, res, next) {
 
 async function listMyDisputes(req, res, next) {
   try {
-    res.json({ disputes: await listCreditDisputes({ customerId: req.user.id, status: req.query.status, limit: req.query.limit }) });
+    res.json(await listCreditDisputes({
+      customerId: req.user.id,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    }));
   } catch (error) {
     next(error);
   }
