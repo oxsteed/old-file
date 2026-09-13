@@ -8,7 +8,7 @@ const os = require('os');
  * Distributed lock for cron jobs
  * Ensures only one instance of a scheduled job runs at a time
  */
-async function acquireJobLock(jobName, ttlSeconds = 300) {
+async function acquireJobLock(jobName, ttlSeconds = 300, { throwOnError = false } = {}) {
   const lockId = `job_lock:${jobName}`;
   const lockValue = `${os.hostname()}-${process.pid}-${Date.now()}`;
 
@@ -35,6 +35,7 @@ async function acquireJobLock(jobName, ttlSeconds = 300) {
     return null;
   } catch (err) {
     logger.error('Lock acquisition failed', { jobName, error: err.message });
+    if (throwOnError) throw err;
     return null;
   }
 }
@@ -71,8 +72,8 @@ async function refreshJobLock(jobName, lockValue, ttlSeconds = 300) {
 /**
  * Wrapper for cron jobs with automatic locking
  */
-async function withJobLock(jobName, handler, ttlSeconds = 300) {
-  const lockValue = await acquireJobLock(jobName, ttlSeconds);
+async function withJobLock(jobName, handler, ttlSeconds = 300, { throwOnLockError = false } = {}) {
+  const lockValue = await acquireJobLock(jobName, ttlSeconds, { throwOnError: throwOnLockError });
 
   if (!lockValue) {
     logger.warn(`Skipping ${jobName} - another instance already running`);

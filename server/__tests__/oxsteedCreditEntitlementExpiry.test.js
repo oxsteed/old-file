@@ -29,7 +29,7 @@ test('expires ended entitlements under a durable job lock', async () => {
     agreements: [{ id: 'agreement-1' }],
     entitlements: [{ id: 'entitlement-1' }, { id: 'entitlement-2' }],
   });
-  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120);
+  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
   expect(expireCreditAgreements).toHaveBeenCalledWith({ limit: 25, now: undefined });
   expect(expireCreditEntitlements).toHaveBeenCalledWith({ limit: 25, now: undefined });
 });

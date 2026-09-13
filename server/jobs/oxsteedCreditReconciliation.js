@@ -26,6 +26,21 @@ function previousUtcDay(now = new Date()) {
   return { start, end };
 }
 
+async function recordReconciliationLockFailure(error, period) {
+  try {
+    return await incidentStore.recordIncident({
+      type: 'oxsteed_credit_reconciliation_lock_failed',
+      severity: 'critical',
+      message: 'OxSteed Credit reconciliation could not acquire its distributed lock',
+      dedupeKey: 'oxsteed-credit-reconciliation:lock-failed',
+      details: { error: error.message, periodStart: period.start.toISOString(), periodEnd: period.end.toISOString() },
+    });
+  } catch (incidentError) {
+    logger.error('OxSteed Credit reconciliation lock failure incident could not be persisted', { error: incidentError.message });
+    return null;
+  }
+}
+
 async function reconcileCurrency({ currencyCode, period }) {
   try {
     const result = await reconcileCreditLedger({
@@ -88,10 +103,22 @@ async function runOxsteedCreditReconciliation({ now = new Date(), currencyCode =
   const period = previousUtcDay(now);
   let result = { currencyCode, run: null, error: null, incident: null };
   let locked = false;
-  await withJobLock(JOB_NAME, async () => {
-    locked = true;
-    result = await reconcileCurrency({ currencyCode, period });
-  }, 300);
+  try {
+    await withJobLock(JOB_NAME, async () => {
+      locked = true;
+      result = await reconcileCurrency({ currencyCode, period });
+    }, 300, { throwOnLockError: true });
+  } catch (error) {
+    const incident = await recordReconciliationLockFailure(error, period);
+    return {
+      currencyCode,
+      locked,
+      run: null,
+      error: error.message,
+      incident,
+      period: { start: period.start.toISOString(), end: period.end.toISOString() },
+    };
+  }
 
   return {
     currencyCode,
@@ -110,12 +137,24 @@ async function runOxsteedCreditReconciliations({ now = new Date(), currencyCodes
   const period = previousUtcDay(now);
   const results = [];
   let locked = false;
-  await withJobLock(JOB_NAME, async () => {
-    locked = true;
-    for (const currencyCode of currencyCodes) {
-      results.push(await reconcileCurrency({ currencyCode, period }));
-    }
-  }, 300);
+  try {
+    await withJobLock(JOB_NAME, async () => {
+      locked = true;
+      for (const currencyCode of currencyCodes) {
+        results.push(await reconcileCurrency({ currencyCode, period }));
+      }
+    }, 300, { throwOnLockError: true });
+  } catch (error) {
+    const incident = await recordReconciliationLockFailure(error, period);
+    logger.error('OxSteed Credit reconciliation lock acquisition failed', { error: error.message });
+    return {
+      locked,
+      runs: [],
+      errors: [{ currencyCode: 'all', error: error.message }],
+      incidents: incident ? [incident] : [],
+      period: { start: period.start.toISOString(), end: period.end.toISOString() },
+    };
+  }
   return {
     locked,
     runs: results.flatMap((result) => result.run ? [result.run] : []),

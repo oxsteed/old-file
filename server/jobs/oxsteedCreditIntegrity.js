@@ -60,7 +60,7 @@ async function runOxsteedCreditIntegrity() {
     await withJobLock(JOB_NAME, async () => {
       locked = true;
       result = await verifyCreditLedger();
-    }, 900);
+    }, 900, { throwOnLockError: true });
   } catch (error) {
     const incident = await incidentStore.recordIncident({
       type: 'oxsteed_credit_integrity_check_failed',

@@ -34,7 +34,7 @@ test('verifies the complete posted journal and account heads under a distributed
   const result = await runOxsteedCreditIntegrity();
 
   expect(result).toMatchObject({ locked: true, ok: true, verification: { invalidEntryHashes: 0 } });
-  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 900);
+  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 900, { throwOnLockError: true });
   expect(verifyEntryHashes).toHaveBeenCalledWith(
     [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }],
     [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }]

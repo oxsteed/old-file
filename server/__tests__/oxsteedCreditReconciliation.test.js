@@ -46,7 +46,7 @@ test('uses the prior UTC day and records a balanced run under a distributed lock
       end: '2026-09-12T00:00:00.000Z',
     },
   });
-  expect(withJobLock).toHaveBeenCalledWith('oxsteed-credit-reconciliation', expect.any(Function), 300);
+  expect(withJobLock).toHaveBeenCalledWith('oxsteed-credit-reconciliation', expect.any(Function), 300, { throwOnLockError: true });
   expect(reconcileCreditLedger).toHaveBeenCalledWith(expect.objectContaining({
     currencyCode: 'USD',
     actorUserId: null,
@@ -119,6 +119,21 @@ test('runs all configured currencies under one distributed lock', async () => {
   expect(result).toMatchObject({ locked: true, runs: [{ id: 'usd-run' }, { id: 'eur-run' }] });
   expect(withJobLock).toHaveBeenCalledTimes(1);
   expect(reconcileCreditLedger.mock.calls.map(([input]) => input.currencyCode)).toEqual(['USD', 'EUR']);
+});
+
+test('records a durable incident when the reconciliation lock store is unavailable', async () => {
+  withJobLock.mockRejectedValueOnce(new Error('database unavailable'));
+
+  const result = await runOxsteedCreditReconciliations({ now: '2026-09-12T04:00:00.000Z' });
+
+  expect(result).toMatchObject({
+    locked: false,
+    errors: [{ currencyCode: 'all', error: 'database unavailable' }],
+  });
+  expect(incidentStore.recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_reconciliation_lock_failed',
+    severity: 'critical',
+  }));
 });
 
 test('exports a deterministic UTC schedule', () => {

@@ -20,7 +20,7 @@ async function runOxsteedCreditEntitlementExpiry({ limit = 500, now } = {}) {
       entitlements: entitlements.expired,
     };
     if (result.count) logger.info('OxSteed Credit lifecycle records expired', { count: result.count, agreements: agreements.count, entitlements: entitlements.count });
-  }, 120);
+  }, 120, { throwOnLockError: true });
   return result || { count: 0, agreements: [], entitlements: [] };
 }
 

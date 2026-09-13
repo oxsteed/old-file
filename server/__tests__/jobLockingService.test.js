@@ -48,6 +48,13 @@ test('skips the handler when another non-expired lease is active', async () => {
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
+test('can surface lock-store failures to critical workers', async () => {
+  mockQuery.mockRejectedValueOnce(new Error('database unavailable'));
+
+  await expect(withJobLock('credit-job', jest.fn(), 60, { throwOnLockError: true }))
+    .rejects.toThrow('database unavailable');
+});
+
 test('releases the lease and surfaces handler failures to the worker caller', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ lock_id: 'job_lock:test-job' }] })

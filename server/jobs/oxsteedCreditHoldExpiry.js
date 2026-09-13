@@ -14,7 +14,7 @@ async function runOxsteedCreditHoldExpiry() {
   await withJobLock(JOB_NAME, async () => {
     result = await expireCreditHolds({ limit: 500 });
     if (result.count) logger.info('OxSteed Credit holds expired', { count: result.count });
-  }, 120);
+  }, 120, { throwOnLockError: true });
   return result || { count: 0, expired: [] };
 }
 
