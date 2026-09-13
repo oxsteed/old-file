@@ -2870,3 +2870,33 @@ test('lists bounded OxSteed Credit audit events with state snapshots', async () 
   expect(response.body.pagination).toMatchObject({ limit: 10, offset: 0, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][1]).toEqual(['credit_rail', 11, 0]);
 });
+
+test('returns the customer ledger balance after a transaction on its receipt', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '250',
+    currency_code: 'USD',
+    reference_type: 'food_order',
+    reference_id: '12345',
+    description: 'Restaurant purchase',
+    posted_at: '2026-09-13T12:00:00.000Z',
+    created_at: '2026-09-13T12:00:00.000Z',
+    direction: 'debit',
+    related_partner_id: 41,
+    balance_after_cents: '750',
+    restaurant_name: 'Test Restaurant',
+  }] });
+
+  const response = await request(createCustomerApp())
+    .get('/transactions/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?currencyCode=USD');
+
+  expect(response.status).toBe(200);
+  expect(response.body.transaction).toMatchObject({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    balanceAfterCents: 750,
+    orderId: '12345',
+  });
+  expect(mockQuery.mock.calls[0][0]).toContain('oxsteed_credit_transaction_entries');
+});
