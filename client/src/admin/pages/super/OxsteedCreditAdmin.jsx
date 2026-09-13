@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -92,8 +92,10 @@ export default function OxsteedCreditAdmin() {
   const [customerAccountOffset, setCustomerAccountOffset] = useState(0);
   const [customerAccountHasMore, setCustomerAccountHasMore] = useState(false);
   const [railReason, setRailReason] = useState('');
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async ({ quiet = false, customerAccountsParams } = {}) => {
+    const requestId = ++loadRequestRef.current;
     if (!quiet) setLoading(true);
     setError('');
     try {
@@ -115,6 +117,7 @@ export default function OxsteedCreditAdmin() {
         adminApi.get('/admin/super/oxsteed-credit/audit-events').catch(() => ({ data: { auditEvents: [] } })),
         adminApi.get('/admin/super/oxsteed-credit/rail').catch(() => ({ data: { rail: null } })),
       ]);
+      if (requestId !== loadRequestRef.current) return;
       setOverview(overviewResponse.data || null);
       const loadedCustomerAccounts = customerAccountsResponse.data?.accounts || [];
       setCustomerAccounts(loadedCustomerAccounts);
@@ -128,9 +131,11 @@ export default function OxsteedCreditAdmin() {
       setAuditEvents(auditEventsResponse.data?.auditEvents || []);
       setRail(railResponse.data?.rail || null);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to load OxSteed Credit administration.');
+      if (requestId === loadRequestRef.current) {
+        setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to load OxSteed Credit administration.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestRef.current) setLoading(false);
     }
   }, [customerAccountQuery]);
 
