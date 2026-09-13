@@ -575,6 +575,36 @@ describe('food controller', () => {
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
+  test('requires idempotency for stored-value orders', async () => {
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMode: 'restaurant_credit',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('food_order_idempotency_required');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects conflicting header and body idempotency keys', async () => {
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .set('Idempotency-Key', 'header-key')
+      .send({
+        clientOrderId: 'body-key',
+        fulfillmentType: 'pickup',
+        paymentMode: 'restaurant_credit',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('food_order_idempotency_conflict');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('rejects idempotency key reuse for a different order request', async () => {
     const fingerprint = ctrl.buildFoodOrderIdempotencyFingerprint({
       restaurantId: 3,

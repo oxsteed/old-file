@@ -2160,7 +2160,15 @@ exports.createOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
-    const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120);
+    const headerClientOrderId = normalizeString(req.get('Idempotency-Key'), 120);
+    const bodyClientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120);
+    if (headerClientOrderId && bodyClientOrderId && headerClientOrderId !== bodyClientOrderId) {
+      throw new AppError('Idempotency-Key does not match clientOrderId', 400, 'food_order_idempotency_conflict');
+    }
+    const clientOrderId = headerClientOrderId || bodyClientOrderId;
+    if (['restaurant_credit', 'oxsteed_credit'].includes(paymentContract.canonical) && !clientOrderId) {
+      throw new AppError('Idempotency-Key is required for stored-value food orders', 400, 'food_order_idempotency_required');
+    }
     const idempotencyFingerprint = clientOrderId
       ? buildFoodOrderIdempotencyFingerprint({
         restaurantId,

@@ -8,7 +8,7 @@
 // restaurant payment flows now launch with restaurant credit, pay-at-restaurant,
 // and direct payment proof capture.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -201,6 +201,7 @@ export default function FoodRestaurantPage() {
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [placedTrackingToken, setPlacedTrackingToken] = useState(null);
+  const orderIdempotencyRef = useRef({ key: null, fingerprint: null });
   // Recovered order from a previous visit (tracking token in localStorage).
   const [recoveredOrder, setRecoveredOrder] = useState(null);
   const [draftHydrated, setDraftHydrated] = useState(false);
@@ -263,19 +264,19 @@ export default function FoodRestaurantPage() {
       return undefined;
     }
     let alive = true;
-    Promise.all([
-      getOxsteedCreditAccount({ currencyCode: creditCurrency }).catch(() => null),
-      listOxsteedCreditEligiblePartners({
+    getOxsteedCreditAccount({ currencyCode: creditCurrency }).catch(() => null).then((account) => {
+      if (!alive) return null;
+      setOxsteedCreditAccount(account?.status === 'active' ? account : null);
+      return listOxsteedCreditEligiblePartners({
         currencyCode: creditCurrency,
         city: restaurant.address_city,
         state: restaurant.address_state,
         postalCode: restaurant.address_zip,
         country: restaurant.address_country,
         orderType: oxsteedCreditOrderType,
-      }).catch(() => []),
-    ]).then(([account, partners]) => {
+      }).catch(() => []);
+    }).then((partners) => {
       if (!alive) return;
-      setOxsteedCreditAccount(account?.status === 'active' ? account : null);
       setOxsteedCreditPartner(
         (Array.isArray(partners) ? partners : []).find((partner) => String(partner.restaurantId) === String(restaurantId)) || null
       );
@@ -572,7 +573,19 @@ export default function FoodRestaurantPage() {
           country: restaurant.address_country || undefined,
         };
       }
-      const { order, trackingToken, payment } = await placeFoodOrder(restaurantId, payload);
+      const requestFingerprint = JSON.stringify(payload);
+      const previousRequest = orderIdempotencyRef.current;
+      const idempotencyKey = previousRequest.fingerprint === requestFingerprint && previousRequest.key
+        ? previousRequest.key
+        : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      orderIdempotencyRef.current = { key: idempotencyKey, fingerprint: requestFingerprint };
+      payload.clientOrderId = idempotencyKey;
+      const { order, trackingToken, payment } = await placeFoodOrder(
+        restaurantId,
+        payload,
+        { idempotencyKey }
+      );
+      orderIdempotencyRef.current = { key: null, fingerprint: null };
       setPlacedOrder(order || {});
       setPlacedTrackingToken(trackingToken || null);
       if (trackingToken) {

@@ -23,12 +23,21 @@ export const getFoodQueueBoard = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/queue-board`).then((r) => r.data);
 
 // ── Customer ─────────────────────────────────────────────────────────────────
-export const placeFoodOrder = (restaurantId, payload) =>
-  api.post(`/food/restaurants/${restaurantId}/orders`, payload).then((r) => ({
+export const placeFoodOrder = (restaurantId, payload, options = {}) => {
+  const idempotencyKey = options.idempotencyKey
+    || options.idempotency_key
+    || payload?.clientOrderId
+    || payload?.client_order_id;
+  return api.post(
+    `/food/restaurants/${restaurantId}/orders`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => ({
     order: r.data?.order,
     trackingToken: r.data?.trackingToken,
     payment: r.data?.payment || null,
   }));
+};
 
 export const listFoodPromotions = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/promotions`).then((r) => r.data?.promotions || []);
