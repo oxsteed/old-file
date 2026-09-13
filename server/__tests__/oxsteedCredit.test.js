@@ -100,6 +100,12 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
+test('credit verification treats customer activity protection as required', () => {
+  const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
+  expect(verifierSource).toContain("['457_oxsteed_credit_customer_activity.sql']");
+  expect(verifierSource).toContain('!checks.customerActivityMigrationApplied');
+});
+
 test('credit verification requires posted customer history indexes', () => {
   expect(REQUIRED_INDEXES).toEqual(expect.arrayContaining([
     'idx_oxsteed_credit_transactions_debit_posted_history',

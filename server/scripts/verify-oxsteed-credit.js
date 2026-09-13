@@ -599,6 +599,7 @@ async function main() {
       !checks.agreementTermsImmutabilityMigrationApplied,
       !checks.userRoleGuardMigrationApplied,
       !checks.disputeIntegrityMigrationApplied,
+      !checks.customerActivityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
