@@ -347,7 +347,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
   const account = accountRows[0];
   if (!account) throw new AppError('Customer credit account not found', 404, 'credit_account_not_found');
 
-  const [transactionResult, holdResult, entitlementResult] = await Promise.all([
+  const [transactionResult, holdResult, entitlementResult, auditResult] = await Promise.all([
     pool.query(
       `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
               t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
@@ -385,6 +385,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
       [account.id, customerId, currency, safeHoldLimit]
     ),
     listEntitlements({ customerId, limit: 250, offset: 0 }),
+    listCreditAuditEvents({ customerId, limit: 100, offset: 0 }),
   ]);
 
   return {
@@ -392,6 +393,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
     transactions: transactionResult.rows.map(formatAdminCreditTransaction),
     holds: holdResult.rows.map(formatAdminCreditHold),
     entitlements: entitlementResult.entitlements,
+    auditEvents: auditResult,
     limits: { transaction: safeTransactionLimit, holds: safeHoldLimit },
   };
 }
