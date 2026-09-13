@@ -42,6 +42,7 @@ const REQUIRED_COLUMNS = {
     'actor_owner_evidence_legacy',
     'purchase_reference_evidence_legacy',
     'restaurant_staff_evidence_legacy',
+    'purchase_reference_uniqueness_legacy',
   ],
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: [
@@ -71,6 +72,7 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_transactions_partner_reporting',
   'idx_oxsteed_credit_transactions_debit_posted_history',
   'idx_oxsteed_credit_transactions_credit_posted_history',
+  'uq_oxsteed_credit_food_order_purchase_reference',
   'uq_oxsteed_credit_agreement_creation_idempotency',
   'idx_oxsteed_credit_disputes_customer_history',
   'idx_oxsteed_credit_disputes_status_history',
@@ -145,6 +147,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_transaction_actor_owner_guard',
   'oxsteed_credit_purchase_reference_guard',
   'oxsteed_credit_restaurant_staff_evidence_guard',
+  'oxsteed_credit_purchase_reference_uniqueness_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
   'oxsteed_credit_agreement_entitlement_status_guard',
 ];
@@ -552,6 +555,11 @@ async function main() {
       ['499_oxsteed_credit_restaurant_staff_evidence.sql']
     );
     checks.restaurantStaffEvidenceMigrationApplied = restaurantStaffEvidenceMigrationRows.rows.length === 1;
+    const purchaseReferenceUniquenessMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['500_oxsteed_credit_purchase_reference_uniqueness.sql']
+    );
+    checks.purchaseReferenceUniquenessMigrationApplied = purchaseReferenceUniquenessMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -958,6 +966,22 @@ async function main() {
           )`,
     );
     checks.invalidCreditRestaurantStaffEvidence = Number(restaurantStaffEvidenceRows[0]?.invalid_count || 0);
+
+    const { rows: purchaseReferenceUniquenessRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM (
+           SELECT reference_type, reference_id
+             FROM oxsteed_credit_transactions
+            WHERE status = 'posted'
+              AND transaction_type = 'purchase'
+              AND reference_type = 'food_order'
+              AND NULLIF(BTRIM(reference_id), '') IS NOT NULL
+              AND NOT purchase_reference_uniqueness_legacy
+            GROUP BY reference_type, reference_id
+           HAVING COUNT(*) > 1
+         ) duplicate_references`,
+    );
+    checks.invalidCreditPurchaseReferenceUniqueness = Number(purchaseReferenceUniquenessRows[0]?.invalid_count || 0);
 
     const { rows: issuanceActorEvidenceRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1384,6 +1408,7 @@ async function main() {
       !checks.transactionActorOwnerMigrationApplied,
       !checks.purchaseReferenceMigrationApplied,
       !checks.restaurantStaffEvidenceMigrationApplied,
+      !checks.purchaseReferenceUniquenessMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1410,6 +1435,7 @@ async function main() {
       checks.invalidCreditActorIdentities > 0,
       checks.invalidCreditActorOwners > 0,
       checks.invalidCreditRestaurantStaffEvidence > 0,
+      checks.invalidCreditPurchaseReferenceUniqueness > 0,
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
       checks.invalidSettlementOverlaps > 0,
