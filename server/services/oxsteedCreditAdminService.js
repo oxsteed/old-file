@@ -22,6 +22,28 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function stableStringify(value) {
+  if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function settlementRequestHash({ partnerId, agreementId, currencyCode, periodStart, periodEnd, paymentReference, reason, metadata }) {
+  return crypto.createHash('sha256').update(stableStringify({
+    partnerId: String(partnerId),
+    agreementId: String(agreementId),
+    currencyCode: String(currencyCode || '').toUpperCase(),
+    periodStart: periodStart?.toISOString() || null,
+    periodEnd: periodEnd?.toISOString() || null,
+    paymentReference: normalizeString(paymentReference, 160),
+    reason: normalizeString(reason, 1000),
+    metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {},
+  })).digest('hex');
+}
+
 function requireAuditReason(value) {
   const reason = normalizeString(value, 1000);
   if (!reason) throw new AppError('An audit reason is required for this change', 400, 'credit_audit_reason_required');
@@ -193,6 +215,8 @@ function formatSettlement(row) {
     netCents: Number(row.net_cents || 0),
     status: row.status,
     paymentReference: row.payment_reference || null,
+    creationReason: row.creation_reason || null,
+    creationRequestHash: row.creation_request_hash || null,
     createdBy: row.created_by || null,
     approvedBy: row.approved_by || null,
     paidAt: row.paid_at || null,
@@ -337,13 +361,32 @@ async function listReconciliationRuns({ currencyCode, status, limit = 50, offset
   };
 }
 
-function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, currencyCode, periodStart, periodEnd }) {
+function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, currencyCode, periodStart, periodEnd, paymentReference, reason, metadata, requestHash }) {
   const mismatches = {};
   if (String(existing.partner_id) !== String(partnerId)) mismatches.partnerId = { existing: existing.partner_id, requested: partnerId };
   if (String(existing.agreement_id) !== String(agreementId)) mismatches.agreementId = { existing: existing.agreement_id, requested: agreementId };
   if (String(existing.currency_code || '').toUpperCase() !== String(currencyCode || '').toUpperCase()) mismatches.currencyCode = { existing: existing.currency_code, requested: currencyCode };
   if (new Date(existing.period_start).getTime() !== new Date(periodStart).getTime()) mismatches.periodStart = { existing: existing.period_start, requested: periodStart };
   if (new Date(existing.period_end).getTime() !== new Date(periodEnd).getTime()) mismatches.periodEnd = { existing: existing.period_end, requested: periodEnd };
+  if (existing.creation_request_hash) {
+    if (existing.creation_request_hash !== requestHash) {
+      mismatches.request = { existing: existing.creation_request_hash, requested: requestHash };
+    }
+  } else {
+    const normalizedPaymentReference = normalizeString(paymentReference, 160);
+    if (normalizedPaymentReference && normalizedPaymentReference !== normalizeString(existing.payment_reference, 160)) {
+      mismatches.paymentReference = { existing: existing.payment_reference || null, requested: normalizedPaymentReference };
+    }
+    const normalizedReason = normalizeString(reason, 1000);
+    if (normalizedReason && existing.creation_reason && normalizedReason !== normalizeString(existing.creation_reason, 1000)) {
+      mismatches.reason = { existing: normalizeString(existing.creation_reason, 1000), requested: normalizedReason };
+    }
+    const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+    if (Object.keys(normalizedMetadata).length > 0
+      && stableStringify(existing.metadata && typeof existing.metadata === 'object' ? existing.metadata : {}) !== stableStringify(normalizedMetadata)) {
+      mismatches.metadata = { existing: stableStringify(existing.metadata || {}), requested: stableStringify(normalizedMetadata) };
+    }
+  }
   if (Object.keys(mismatches).length) {
     throw new AppError('Settlement idempotency key was already used for a different settlement', 409, 'credit_settlement_idempotency_conflict', { mismatches });
   }
@@ -1103,7 +1146,7 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   };
 }
 
-async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata = {}, correlationId }) {
+async function createSettlement({ partnerId, agreementId, periodStart, periodEnd, idempotencyKey, actorUserId, paymentReference, reason, metadata, correlationId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(periodStart, 'periodStart', true);
   const ends = parseDate(periodEnd, 'periodEnd', true);
@@ -1111,6 +1154,9 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
   if (ends > new Date()) throw new AppError('Settlement period cannot end in the future', 400, 'credit_settlement_period_future');
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for settlements', 400, 'credit_idempotency_key_required');
+  const normalizedPaymentReference = normalizeString(paymentReference, 160);
+  const normalizedReason = normalizeString(reason, 1000);
+  const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
   return withTransaction(pool, async (client) => {
     const { rows: agreementRows } = await client.query(
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, p.settlement_currency_code,
@@ -1124,6 +1170,16 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     );
     const agreement = agreementRows[0];
     if (!agreement) throw new AppError('Credit agreement not found for settlement', 404, 'credit_agreement_not_found');
+    const requestHash = settlementRequestHash({
+      partnerId: normalizedPartnerId,
+      agreementId,
+      currencyCode: agreement.settlement_currency_code,
+      periodStart: starts,
+      periodEnd: ends,
+      paymentReference: normalizedPaymentReference,
+      reason: normalizedReason,
+      metadata: normalizedMetadata,
+    });
     // Serialize settlement periods for one agreement so concurrent admins cannot
     // both pass the overlap check before either transaction inserts a row.
     await client.query(
@@ -1138,10 +1194,14 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
         currencyCode: agreement.settlement_currency_code,
         periodStart: starts,
         periodEnd: ends,
+        paymentReference: normalizedPaymentReference,
+        reason: normalizedReason,
+        metadata: normalizedMetadata,
+        requestHash,
       });
       return { settlement: formatSettlement(existingRows[0]), replayed: true };
     }
-    const normalizedReason = requireAuditReason(reason);
+    const requiredReason = requireAuditReason(normalizedReason);
     if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
     if (!['active', 'suspended', 'expired'].includes(agreement.status)) {
       throw new AppError('This agreement is not eligible for settlement', 409, 'credit_agreement_not_settlementable');
@@ -1180,11 +1240,11 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       `INSERT INTO oxsteed_credit_settlements
          (partner_id, agreement_id, currency_code, period_start, period_end,
           gross_cents, refund_cents, fee_cents, net_cents, payment_reference,
-          idempotency_key, metadata, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
+          idempotency_key, metadata, creation_reason, creation_request_hash, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
-      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizeString(paymentReference, 160), normalizedIdempotencyKey, JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), actorUserId || null]
+      [normalizedPartnerId, agreementId, agreement.settlement_currency_code, starts, ends, grossCents, refundCents, feeCents, netCents, normalizedPaymentReference, normalizedIdempotencyKey, JSON.stringify(normalizedMetadata), requiredReason, requestHash, actorUserId || null]
     );
     if (!rows[0]) {
       const { rows: conflictRows } = await client.query(
@@ -1203,10 +1263,14 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
         currencyCode: agreement.settlement_currency_code,
         periodStart: starts,
         periodEnd: ends,
+        paymentReference: normalizedPaymentReference,
+        reason: requiredReason,
+        metadata: normalizedMetadata,
+        requestHash,
       });
       return { settlement: formatSettlement(conflictRows[0]), replayed: true };
     }
-    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: normalizedReason, correlationId, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.settlement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_settlement', resourceId: rows[0].id, reason: requiredReason, correlationId, afterState: rows[0] });
     return { settlement: formatSettlement({ ...rows[0], restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_create_settlement');
 }

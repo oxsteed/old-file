@@ -36,7 +36,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
   oxsteed_credit_holds: ['capture_idempotency_key', 'expires_at'],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
-  oxsteed_credit_settlements: ['created_by'],
+  oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_disputes: ['idempotency_key'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
@@ -94,6 +94,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_transaction_status_guard',
   'oxsteed_credit_posted_entry_guard',
   'oxsteed_credit_audit_hash_chain_guard',
+  'oxsteed_credit_settlement_creation_evidence_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -369,6 +370,11 @@ async function main() {
       ['469_oxsteed_credit_hold_immutability.sql']
     );
     checks.holdImmutabilityMigrationApplied = holdImmutabilityMigrationRows.rows.length === 1;
+    const settlementCreationEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['470_oxsteed_credit_settlement_creation_evidence.sql']
+    );
+    checks.settlementCreationEvidenceMigrationApplied = settlementCreationEvidenceMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -682,7 +688,10 @@ async function main() {
                    AND t.reference_type = 'credit_settlement'
                    AND t.reference_id = oxsteed_credit_settlements.id::TEXT
                    AND t.metadata->>'paymentReference' = oxsteed_credit_settlements.payment_reference
-              ))`,
+              ))
+           OR (creation_reason IS NULL) IS DISTINCT FROM (creation_request_hash IS NULL)
+           OR (creation_request_hash IS NOT NULL
+               AND creation_request_hash !~ '^[a-f0-9]{64}$')`,
     );
     checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
 
@@ -781,6 +790,7 @@ async function main() {
       !checks.auditHashChainMigrationApplied,
       !checks.adminRefundEvidenceMigrationApplied,
       !checks.holdImmutabilityMigrationApplied,
+      !checks.settlementCreationEvidenceMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

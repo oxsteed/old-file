@@ -1023,6 +1023,43 @@ test('rejects settlement idempotency reuse for a different period', async () => 
   })).rejects.toMatchObject({ code: 'credit_settlement_idempotency_conflict' });
 });
 
+test('rejects settlement idempotency reuse when creation evidence changes', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      partner_status: 'active',
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'settlement-existing',
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      currency_code: 'USD',
+      period_start: '2026-09-01T00:00:00.000Z',
+      period_end: '2026-09-02T00:00:00.000Z',
+      creation_reason: 'Original settlement review',
+      creation_request_hash: 'a'.repeat(64),
+      payment_reference: 'bank-1',
+      metadata: { source: 'bank' },
+    }] });
+
+  await expect(createSettlement({
+    partnerId: 41,
+    agreementId: 'agreement-1',
+    periodStart: '2026-09-01T00:00:00.000Z',
+    periodEnd: '2026-09-02T00:00:00.000Z',
+    idempotencyKey: 'settlement-existing-key',
+    paymentReference: 'bank-2',
+    reason: 'Original settlement review',
+    metadata: { source: 'bank' },
+  })).rejects.toMatchObject({ code: 'credit_settlement_idempotency_conflict' });
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+});
+
 test('replays an existing settlement after the partner is terminated', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{
