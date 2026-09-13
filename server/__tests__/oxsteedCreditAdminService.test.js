@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, listAdminCustomerCreditAccounts } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -232,4 +232,27 @@ test('requires a payment reference before paying a non-zero settlement', async (
     actorUserId: 'admin-1',
   })).rejects.toMatchObject({ code: 'credit_settlement_payment_reference_required' });
   expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('prevents two active agreements for one credit partner', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-2',
+      partner_id: 41,
+      partner_status: 'active',
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      status: 'pending_approval',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      settlement_currency_code: 'USD',
+    }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'agreement-1' }] });
+
+  await expect(transitionAgreement({
+    agreementId: 'agreement-2',
+    targetStatus: 'active',
+    actorUserId: 'admin-1',
+  })).rejects.toMatchObject({ code: 'credit_active_agreement_conflict', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
 });

@@ -789,6 +789,18 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
     if (normalizedTarget === 'active') {
       if (agreement.partner_status !== 'active') throw new AppError('Activate the credit partner before activating its agreement', 409, 'credit_partner_not_active');
       if (agreement.ends_at && new Date(agreement.ends_at) <= new Date()) throw new AppError('An expired agreement cannot be activated', 409, 'credit_agreement_expired');
+      const { rows: activeAgreementRows } = await client.query(
+        `SELECT id
+           FROM oxsteed_credit_partner_agreements
+          WHERE partner_id = $1 AND status = 'active' AND id <> $2
+          FOR UPDATE`,
+        [agreement.partner_id, agreement.id]
+      );
+      if (activeAgreementRows[0]) {
+        throw new AppError('This partner already has an active agreement; suspend it before activating another version', 409, 'credit_active_agreement_conflict', {
+          activeAgreementId: String(activeAgreementRows[0].id),
+        });
+      }
     }
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partner_agreements
