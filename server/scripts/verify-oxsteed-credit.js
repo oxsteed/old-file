@@ -39,8 +39,8 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_disputes: ['idempotency_key'],
-  oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids'],
-  oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id'],
+  oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
+  oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -99,6 +99,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_posted_entry_guard',
   'oxsteed_credit_audit_hash_chain_guard',
   'oxsteed_credit_settlement_creation_evidence_guard',
+  'oxsteed_credit_entitlement_bulk_request_immutable_guard',
+  'oxsteed_credit_entitlement_request_immutable_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -384,6 +386,11 @@ async function main() {
       ['471_oxsteed_credit_entitlement_idempotency.sql']
     );
     checks.entitlementIdempotencyMigrationApplied = entitlementIdempotencyMigrationRows.rows.length === 1;
+    const entitlementRequestResultsMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['472_oxsteed_credit_entitlement_request_results.sql']
+    );
+    checks.entitlementRequestResultsMigrationApplied = entitlementRequestResultsMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -443,7 +450,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_disputes'::regclass, 'users'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -801,6 +808,7 @@ async function main() {
       !checks.holdImmutabilityMigrationApplied,
       !checks.settlementCreationEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
+      !checks.entitlementRequestResultsMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

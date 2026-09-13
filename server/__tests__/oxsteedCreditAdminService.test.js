@@ -154,7 +154,7 @@ test('records the prior entitlement state when access is updated', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
-    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'request-hash' }] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1', request_hash: 'request-hash', response_payload: null }] })
     .mockResolvedValueOnce({ rows: [{
       id: 'entitlement-1',
       customer_id: customerId,
@@ -181,7 +181,8 @@ test('records the prior entitlement state when access is updated', async () => {
       reason: 'Temporarily restricted pending review',
       created_by: '33333333-3333-4333-8333-333333333333',
     }] })
-    .mockResolvedValueOnce({ rows: [] });
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-request-1' }] });
 
   const result = await upsertEntitlement({
     agreementId,
@@ -253,6 +254,69 @@ test('rejects single customer access idempotency reuse when details change', asy
   expect(mockQuery).toHaveBeenCalledTimes(4);
 });
 
+test('replays the original single customer access result after a later edit', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const agreementId = 'agreement-1';
+  const entitlement = {
+    id: 'entitlement-1',
+    customer_id: customerId,
+    agreement_id: agreementId,
+    status: 'active',
+    starts_at: null,
+    ends_at: null,
+    max_transaction_cents: 2500,
+    daily_limit_cents: 10000,
+    metadata: { source: 'partner-program' },
+    reason: 'Partner access',
+    created_by: 'admin-1',
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-replay-1', request_hash: 'stored-hash', response_payload: null }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [entitlement] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'entitlement-replay-1' }] });
+
+  const original = await upsertEntitlement({
+    agreementId,
+    customerId,
+    maxTransactionCents: 2500,
+    dailyLimitCents: 10000,
+    reason: 'Partner access',
+    metadata: { source: 'partner-program' },
+    actorUserId: 'admin-1',
+    idempotencyKey: 'entitlement-replay-1',
+  });
+  const requestHash = mockQuery.mock.calls[2][1][1];
+
+  resetMocks();
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      idempotency_key: 'entitlement-replay-1',
+      request_hash: requestHash,
+      response_payload: { entitlement: original.entitlement, replayed: false },
+    }] });
+
+  const replay = await upsertEntitlement({
+    agreementId,
+    customerId,
+    maxTransactionCents: 2500,
+    dailyLimitCents: 10000,
+    reason: 'Partner access',
+    metadata: { source: 'partner-program' },
+    actorUserId: 'admin-1',
+    idempotencyKey: 'entitlement-replay-1',
+  });
+
+  expect(replay).toEqual({ entitlement: original.entitlement, replayed: true });
+  expect(mockQuery).toHaveBeenCalledTimes(4);
+});
+
 test('bulk-upserts customer access across multiple restaurant agreements atomically', async () => {
   const customerId = '11111111-1111-4111-8111-111111111111';
   const agreementIds = [
@@ -266,11 +330,12 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
     ] })
     .mockResolvedValueOnce({ rows: [{ id: customerId }] })
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-entitlement-1', request_hash: 'request-hash' }] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-entitlement-1', request_hash: 'request-hash', response_payload: null }] })
     .mockResolvedValueOnce({ rows: [{ id: 'entitlement-1', customer_id: customerId, agreement_id: agreementIds[0], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: 'entitlement-2', customer_id: customerId, agreement_id: agreementIds[1], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
-    .mockResolvedValueOnce({ rows: [] });
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ idempotency_key: 'bulk-entitlement-1' }] });
 
   const result = await bulkUpsertEntitlements({
     agreementIds,
@@ -292,6 +357,7 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
   expect(mockQuery.mock.calls[3][0]).toContain('oxsteed_credit_entitlement_bulk_requests');
   expect(mockQuery.mock.calls[5][1]).toContain('credit.entitlement.bulk_upserted');
   expect(mockQuery.mock.calls[7][1]).toContain('credit.entitlement.bulk_upserted');
+  expect(mockQuery.mock.calls[8][0]).toContain('response_payload');
 });
 
 test('lists customer entitlements with restaurant context and bounded paging', async () => {

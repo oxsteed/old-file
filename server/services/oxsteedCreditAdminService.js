@@ -1629,12 +1629,12 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
          (idempotency_key, request_hash, customer_id, agreement_id, created_by)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (idempotency_key) DO NOTHING
-       RETURNING idempotency_key, request_hash`,
+        RETURNING idempotency_key, request_hash, response_payload`,
       [normalizedIdempotencyKey, requestHash, customerId, agreementId, actorUserId || null]
     );
     if (!requestRows[0]) {
       const { rows: existingRequestRows } = await client.query(
-        `SELECT idempotency_key, request_hash
+        `SELECT idempotency_key, request_hash, response_payload
            FROM oxsteed_credit_entitlement_requests
           WHERE idempotency_key = $1
           FOR UPDATE`,
@@ -1644,6 +1644,12 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
       if (!existingRequest) throw new AppError('Customer access could not be confirmed after an idempotent retry', 409, 'credit_entitlement_retry_required');
       if (existingRequest.request_hash !== requestHash) {
         throw new AppError('Customer access idempotency key was already used for different details', 409, 'credit_entitlement_idempotency_conflict');
+      }
+      if (existingRequest.response_payload !== null && existingRequest.response_payload !== undefined) {
+        if (!existingRequest.response_payload.entitlement) {
+          throw new AppError('Customer access replay result is invalid; please retry with a new key', 409, 'credit_entitlement_retry_required');
+        }
+        return { entitlement: existingRequest.response_payload.entitlement, replayed: true };
       }
       const { rows: replayRows } = await client.query(
         `SELECT *
@@ -1707,7 +1713,16 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
       }
     }
     await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, correlationId, beforeState, afterState: snapshotEntitlement(rows[0]) });
-    return { entitlement: formatEntitlement(rows[0]), replayed: false };
+    const result = { entitlement: formatEntitlement(rows[0]), replayed: false };
+    const { rows: resultRows } = await client.query(
+      `UPDATE oxsteed_credit_entitlement_requests
+          SET response_payload = $1::jsonb
+        WHERE idempotency_key = $2 AND response_payload IS NULL
+        RETURNING idempotency_key`,
+      [JSON.stringify(result), normalizedIdempotencyKey]
+    );
+    if (!resultRows[0]) throw new AppError('Customer access result could not be recorded for retry safety', 409, 'credit_entitlement_retry_required');
+    return result;
   }, 'credit_admin_upsert_entitlement');
 }
 
@@ -1826,12 +1841,12 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
          (idempotency_key, request_hash, customer_id, agreement_ids, created_by)
        VALUES ($1, $2, $3, $4::uuid[], $5)
        ON CONFLICT (idempotency_key) DO NOTHING
-       RETURNING idempotency_key, request_hash`,
+       RETURNING idempotency_key, request_hash, response_payload`,
       [normalizedIdempotencyKey, requestHash, customerId, normalizedAgreementIds, actorUserId || null]
     );
     if (!requestRows[0]) {
       const { rows: existingRequestRows } = await client.query(
-        `SELECT idempotency_key, request_hash, customer_id, agreement_ids
+        `SELECT idempotency_key, request_hash, customer_id, agreement_ids, response_payload
            FROM oxsteed_credit_entitlement_bulk_requests
           WHERE idempotency_key = $1
           FOR UPDATE`,
@@ -1841,6 +1856,12 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
       if (!existingRequest) throw new AppError('Bulk customer access could not be confirmed after an idempotent retry', 409, 'credit_entitlement_retry_required');
       if (existingRequest.request_hash !== requestHash) {
         throw new AppError('Bulk customer access idempotency key was already used for different details', 409, 'credit_entitlement_idempotency_conflict');
+      }
+      if (existingRequest.response_payload !== null && existingRequest.response_payload !== undefined) {
+        if (!Array.isArray(existingRequest.response_payload.entitlements)) {
+          throw new AppError('Bulk customer access replay result is invalid; please retry with a new key', 409, 'credit_entitlement_retry_required');
+        }
+        return { ...existingRequest.response_payload, replayed: true };
       }
       const replayEntitlements = normalizedAgreementIds.map((agreementId) => {
         const entitlement = existingByAgreementId.get(String(agreementId));
@@ -1884,7 +1905,16 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
       });
       entitlements.push(formatEntitlementWithAgreement(rows[0], agreement));
     }
-    return { entitlements, count: entitlements.length, replayed: false };
+    const result = { entitlements, count: entitlements.length, replayed: false };
+    const { rows: resultRows } = await client.query(
+      `UPDATE oxsteed_credit_entitlement_bulk_requests
+          SET response_payload = $1::jsonb
+        WHERE idempotency_key = $2 AND response_payload IS NULL
+        RETURNING idempotency_key`,
+      [JSON.stringify(result), normalizedIdempotencyKey]
+    );
+    if (!resultRows[0]) throw new AppError('Bulk customer access result could not be recorded for retry safety', 409, 'credit_entitlement_retry_required');
+    return result;
   }, 'credit_admin_bulk_upsert_entitlements');
 }
 
