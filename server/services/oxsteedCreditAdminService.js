@@ -163,6 +163,19 @@ function formatEntitlement(row) {
   };
 }
 
+function snapshotEntitlement(row) {
+  return {
+    status: row.status || null,
+    startsAt: row.starts_at || null,
+    endsAt: row.ends_at || null,
+    maxTransactionCents: row.max_transaction_cents === null || row.max_transaction_cents === undefined ? null : Number(row.max_transaction_cents),
+    dailyLimitCents: row.daily_limit_cents === null || row.daily_limit_cents === undefined ? null : Number(row.daily_limit_cents),
+    metadata: row.metadata || {},
+    reason: row.reason || null,
+    createdBy: row.created_by || null,
+  };
+}
+
 function formatSettlement(row) {
   return {
     id: row.id,
@@ -1400,19 +1413,62 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
     if (!agreementRows[0]) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
     const { rows: userRows } = await client.query(`SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`, [customerId]);
     if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
-    const { rows } = await client.query(
-      `INSERT INTO oxsteed_credit_customer_entitlements
-         (customer_id, agreement_id, status, starts_at, ends_at, max_transaction_cents,
-          daily_limit_cents, metadata, reason, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
-       ON CONFLICT (customer_id, agreement_id) DO UPDATE SET
-         status = EXCLUDED.status, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at,
-         max_transaction_cents = EXCLUDED.max_transaction_cents, daily_limit_cents = EXCLUDED.daily_limit_cents,
-         metadata = EXCLUDED.metadata, reason = EXCLUDED.reason, created_by = EXCLUDED.created_by, updated_at = NOW()
-       RETURNING *`,
-      [customerId, agreementId, normalizedStatus, starts, ends, parseLimit(maxTransactionCents, 'maxTransactionCents'), parseLimit(dailyLimitCents, 'dailyLimitCents'), JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), normalizedReason, actorUserId || null]
+    const maxTransaction = parseLimit(maxTransactionCents, 'maxTransactionCents');
+    const dailyLimit = parseLimit(dailyLimitCents, 'dailyLimitCents');
+    const serializedMetadata = JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {});
+    const values = [normalizedStatus, starts, ends, maxTransaction, dailyLimit, serializedMetadata, normalizedReason, actorUserId || null];
+    let beforeState = null;
+    let rows;
+    const { rows: existingRows } = await client.query(
+      `SELECT *
+         FROM oxsteed_credit_customer_entitlements
+        WHERE customer_id = $1 AND agreement_id = $2
+        FOR UPDATE`,
+      [customerId, agreementId]
     );
-    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
+    if (existingRows[0]) {
+      beforeState = snapshotEntitlement(existingRows[0]);
+      ({ rows } = await client.query(
+        `UPDATE oxsteed_credit_customer_entitlements
+            SET status = $1, starts_at = $2, ends_at = $3, max_transaction_cents = $4,
+                daily_limit_cents = $5, metadata = $6::jsonb, reason = $7,
+                created_by = $8, updated_at = NOW()
+          WHERE id = $9
+          RETURNING *`,
+        [...values, existingRows[0].id]
+      ));
+    } else {
+      ({ rows } = await client.query(
+        `INSERT INTO oxsteed_credit_customer_entitlements
+           (customer_id, agreement_id, status, starts_at, ends_at, max_transaction_cents,
+            daily_limit_cents, metadata, reason, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+         ON CONFLICT (customer_id, agreement_id) DO NOTHING
+         RETURNING *`,
+        [customerId, agreementId, ...values]
+      ));
+      if (!rows[0]) {
+        const { rows: conflictedRows } = await client.query(
+          `SELECT *
+             FROM oxsteed_credit_customer_entitlements
+            WHERE customer_id = $1 AND agreement_id = $2
+            FOR UPDATE`,
+          [customerId, agreementId]
+        );
+        if (!conflictedRows[0]) throw new AppError('Credit entitlement could not be saved', 409, 'credit_entitlement_conflict');
+        beforeState = snapshotEntitlement(conflictedRows[0]);
+        ({ rows } = await client.query(
+          `UPDATE oxsteed_credit_customer_entitlements
+              SET status = $1, starts_at = $2, ends_at = $3, max_transaction_cents = $4,
+                  daily_limit_cents = $5, metadata = $6::jsonb, reason = $7,
+                  created_by = $8, updated_at = NOW()
+            WHERE id = $9
+            RETURNING *`,
+          [...values, conflictedRows[0].id]
+        ));
+      }
+    }
+    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, beforeState, afterState: snapshotEntitlement(rows[0]) });
     return { entitlement: formatEntitlement(rows[0]), replayed: false };
   }, 'credit_admin_upsert_entitlement');
 }

@@ -119,6 +119,87 @@ test('does not grant a Credit entitlement to a non-customer identity', async () 
   expect(mockQuery.mock.calls[1][0]).toContain("role = 'customer'");
 });
 
+test('records the prior entitlement state when access is updated', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const agreementId = 'agreement-1';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'entitlement-1',
+      customer_id: customerId,
+      agreement_id: agreementId,
+      status: 'active',
+      starts_at: null,
+      ends_at: '2026-09-30T00:00:00.000Z',
+      max_transaction_cents: '2500',
+      daily_limit_cents: '10000',
+      metadata: { source: 'summer-program' },
+      reason: 'Original partner access',
+      created_by: '22222222-2222-4222-8222-222222222222',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'entitlement-1',
+      customer_id: customerId,
+      agreement_id: agreementId,
+      status: 'suspended',
+      starts_at: null,
+      ends_at: '2026-10-31T00:00:00.000Z',
+      max_transaction_cents: '5000',
+      daily_limit_cents: '20000',
+      metadata: { source: 'manual-review' },
+      reason: 'Temporarily restricted pending review',
+      created_by: '33333333-3333-4333-8333-333333333333',
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await upsertEntitlement({
+    agreementId,
+    customerId,
+    status: 'suspended',
+    endsAt: '2026-10-31T00:00:00.000Z',
+    maxTransactionCents: 5000,
+    dailyLimitCents: 20000,
+    reason: 'Temporarily restricted pending review',
+    metadata: { source: 'manual-review' },
+    actorUserId: '33333333-3333-4333-8333-333333333333',
+  });
+
+  expect(result.entitlement).toMatchObject({ id: 'entitlement-1', status: 'suspended', maxTransactionCents: 5000 });
+  expect(mockQuery.mock.calls[2][0]).toContain('FOR UPDATE');
+  expect(mockQuery.mock.calls[3][0]).toContain('UPDATE oxsteed_credit_customer_entitlements');
+  expect(mockQuery.mock.calls[4][1]).toEqual([
+    'credit.entitlement.upserted',
+    '33333333-3333-4333-8333-333333333333',
+    customerId,
+    41,
+    'credit_entitlement',
+    'entitlement-1',
+    'Temporarily restricted pending review',
+    JSON.stringify({
+      status: 'active',
+      startsAt: null,
+      endsAt: '2026-09-30T00:00:00.000Z',
+      maxTransactionCents: 2500,
+      dailyLimitCents: 10000,
+      metadata: { source: 'summer-program' },
+      reason: 'Original partner access',
+      createdBy: '22222222-2222-4222-8222-222222222222',
+    }),
+    JSON.stringify({
+      status: 'suspended',
+      startsAt: null,
+      endsAt: '2026-10-31T00:00:00.000Z',
+      maxTransactionCents: 5000,
+      dailyLimitCents: 20000,
+      metadata: { source: 'manual-review' },
+      reason: 'Temporarily restricted pending review',
+      createdBy: '33333333-3333-4333-8333-333333333333',
+    }),
+    JSON.stringify({}),
+  ]);
+});
+
 test('lists customer entitlements with restaurant context and bounded paging', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'entitlement-1',
