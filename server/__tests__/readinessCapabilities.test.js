@@ -69,6 +69,35 @@ describe('runtime readiness', () => {
     if (previousDedicatedSecret === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
     else process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = previousDedicatedSecret;
   });
+
+  test('rejects an invalid Credit ledger rotation keyring before accepting traffic', async () => {
+    const previous = {
+      NODE_ENV: process.env.NODE_ENV,
+      OXSTEED_CREDIT_LEDGER_HMAC_SECRET: process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET,
+      OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION: process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION,
+      OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON: process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON,
+    };
+    process.env.NODE_ENV = 'production';
+    process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-current-ledger-secret-32-chars!!';
+    process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION = 'v2';
+    process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON = '{not-json';
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: expectedMigrationFiles().map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.creditLedger).toMatchObject({ ok: false, dedicatedSecret: true });
+    expect(result.checks.creditLedger.error).toContain('valid JSON');
+
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
 });
 
 describe('public feature capabilities', () => {

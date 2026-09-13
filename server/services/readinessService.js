@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const runtimeState = require('./runtimeState');
 const logger = require('../utils/logger');
+const { getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -13,11 +14,20 @@ function creditLedgerReadiness() {
   const production = (process.env.NODE_ENV || 'production') === 'production';
   const secret = production ? dedicatedSecret : (dedicatedSecret || fallbackSecret);
   const ok = typeof secret === 'string' && secret.length >= 32;
+  let keyConfiguration = null;
+  let configurationError;
+  try {
+    keyConfiguration = getLedgerHashKeyConfiguration();
+  } catch (error) {
+    configurationError = error.message;
+  }
   return {
-    ok,
+    ok: ok && !configurationError,
     configured: Boolean(secret),
     dedicatedSecret: Boolean(dedicatedSecret),
-    error: ok ? undefined : 'Credit ledger signing secret is missing or weak',
+    keyVersion: keyConfiguration?.currentVersion,
+    previousKeyCount: keyConfiguration?.previousVersions.length || 0,
+    error: configurationError || (ok ? undefined : 'Credit ledger signing secret is missing or weak'),
   };
 }
 

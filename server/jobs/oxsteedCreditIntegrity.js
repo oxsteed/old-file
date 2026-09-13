@@ -16,7 +16,8 @@ async function verifyCreditLedger() {
     pool.query(
       `SELECT e.transaction_id, e.account_id, e.entry_side, e.amount_cents,
               e.balance_after_cents, e.sequence, e.previous_entry_hash,
-              e.entry_hash, e.metadata, t.transaction_type, t.currency_code
+              e.entry_hash, e.hash_key_version, e.metadata,
+              t.transaction_type, t.currency_code
          FROM oxsteed_credit_transaction_entries e
          JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
         WHERE t.status = 'posted'

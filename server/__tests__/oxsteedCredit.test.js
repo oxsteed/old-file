@@ -240,6 +240,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.workerHeartbeatMigrationApplied');
   expect(verifierSource).toContain("['509_oxsteed_credit_notification_queue_indexes.sql']");
   expect(verifierSource).toContain('!checks.notificationQueueIndexesMigrationApplied');
+  expect(verifierSource).toContain("['510_oxsteed_credit_hmac_key_version.sql']");
+  expect(verifierSource).toContain('!checks.ledgerHashKeyVersionMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditNotificationRecipients > 0');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
 });
@@ -2577,6 +2579,50 @@ test('recomputes the full OxSteed Credit hash chain and account heads', () => {
     invalidHashChains: 1,
     invalidAccountHashHeads: 1,
   });
+});
+
+test('verifies historical entries with a retained prior ledger signing key', () => {
+  const previousVersion = process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION;
+  const previousKeys = process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON;
+  process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION = 'v2';
+  process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON = JSON.stringify({
+    v1: 'credit-test-previous-ledger-secret-32!!',
+  });
+  const entry = {
+    transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    account_id: 7001,
+    entry_side: 'credit',
+    amount_cents: '1000',
+    balance_after_cents: '1000',
+    sequence: 1,
+    previous_entry_hash: null,
+    transaction_type: 'load',
+    currency_code: 'USD',
+    metadata: { source: 'rotation-test' },
+    hash_key_version: 'v1',
+  };
+  entry.entry_hash = service.computeEntryHash({
+    transactionId: entry.transaction_id,
+    transactionType: entry.transaction_type,
+    accountId: entry.account_id,
+    entrySide: entry.entry_side,
+    amountCents: 1000,
+    balanceAfterCents: 1000,
+    currencyCode: 'USD',
+    sequence: 1,
+    previousEntryHash: null,
+    metadata: entry.metadata,
+  }, 'v1');
+
+  expect(verifyEntryHashes([entry], [{ id: 7001, ledger_version: 1, last_entry_hash: entry.entry_hash }])).toEqual({
+    invalidEntryHashes: 0,
+    invalidHashChains: 0,
+    invalidAccountHashHeads: 0,
+  });
+  if (previousVersion === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION;
+  else process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION = previousVersion;
+  if (previousKeys === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON;
+  else process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON = previousKeys;
 });
 
 test('replays the winning transaction when a concurrent idempotent insert loses the race', async () => {

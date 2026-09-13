@@ -279,7 +279,7 @@ async function verifyCreditLedgerHashes(client, currency) {
     const { rows } = await client.query(
       `SELECT e.id, e.transaction_id, e.account_id, e.entry_side,
               e.amount_cents, e.balance_after_cents, e.sequence,
-              e.previous_entry_hash, e.entry_hash, e.metadata,
+              e.previous_entry_hash, e.entry_hash, e.hash_key_version, e.metadata,
               t.transaction_type, t.currency_code
          FROM oxsteed_credit_transaction_entries e
          JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
@@ -307,7 +307,7 @@ async function verifyCreditLedgerHashes(client, currency) {
         sequence,
         previousEntryHash: previousHash,
         metadata: entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {},
-      });
+      }, entry.hash_key_version || 'v1');
       if (!entry.entry_hash || entry.entry_hash !== expectedHash) invalidEntryHashes += 1;
       stateByAccount.set(accountId, { sequence, hash: entry.entry_hash || null });
     }
@@ -602,6 +602,7 @@ function formatAdminCreditEntry(row) {
     sequence: Number(row.sequence || 0),
     previousEntryHash: row.previous_entry_hash || null,
     entryHash: row.entry_hash || null,
+    hashKeyVersion: row.hash_key_version || 'v1',
     metadata: row.metadata || {},
     createdAt: row.created_at || null,
   };
@@ -637,7 +638,7 @@ async function getAdminCreditTransaction(transactionId) {
     pool.query(
       `SELECT e.id, e.account_id, e.entry_side, e.amount_cents,
               e.balance_after_cents, e.sequence, e.previous_entry_hash,
-              e.entry_hash, e.metadata, e.created_at,
+              e.entry_hash, e.hash_key_version, e.metadata, e.created_at,
               a.account_type, a.customer_id, a.partner_id
          FROM oxsteed_credit_transaction_entries e
          JOIN oxsteed_credit_accounts a ON a.id = e.account_id

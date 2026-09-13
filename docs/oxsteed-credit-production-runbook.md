@@ -9,7 +9,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - Legal and compliance counsel has reviewed stored-value, money-transmission, consumer-protection, tax, refund, expiry, and unclaimed-property requirements for every operating jurisdiction.
 - A custody and funding process exists for every credit load, including who owns the funds and how partner payables are funded.
 - Partner agreements define acceptance, eligible categories and locations, settlement timing, fees, refunds, disputes, termination, and data handling.
-- `OXSTEED_CREDIT_LEDGER_HMAC_SECRET` is set to a high-entropy secret and is protected separately from source control and ordinary application logs.
+- `OXSTEED_CREDIT_LEDGER_HMAC_SECRET` is set to a high-entropy secret and is protected separately from source control and ordinary application logs. The signing-key version is explicit, and any prior key versions needed to verify historical entries are supplied through the secret store rather than source control.
 - Production ledger verification does not fall back to `JWT_SECRET`; rotate and store the dedicated ledger secret independently from authentication secrets.
 - The database backup schedule is active, backups are stored outside the application host, and a restore test has been completed.
 - The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`. This includes the partner reporting index needed for settlement and transaction feeds as the restaurant network grows. After financial activity begins, do not change a partner's restaurant/currency, an agreement's partner, or an account's customer/partner/type/currency identity; create a replacement record instead.
@@ -200,6 +200,20 @@ settlement, tax, consumer-disclosure, support, and legal requirements for that
 market. Run `npm run migrate` and `npm run verify:credit` against the target
 database, then run a low-value load, purchase, refund, settlement, and
 reconciliation for that currency in a non-production environment.
+
+## Ledger Key Rotation
+
+Credit journal entries record the signing-key version used to create their HMAC.
+The initial migration labels existing entries `v1`; do not rewrite those rows
+when rotating a secret. To rotate, deploy the new secret as
+`OXSTEED_CREDIT_LEDGER_HMAC_SECRET`, set
+`OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION` to a new version such as `v2`, and
+set `OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON` to an object containing the prior
+version and secret, for example `{"v1":"<old-secret>"}`. Keep the prior key
+available until a restore drill and `npm run verify:credit` confirm that all
+historical entries still verify. Then remove only keys that are no longer
+required by the approved retention and audit policy. Never place key values in
+logs, exports, or this runbook.
 
 ## Provider and Compliance Gaps
 

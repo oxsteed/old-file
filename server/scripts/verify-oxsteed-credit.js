@@ -47,7 +47,7 @@ const REQUIRED_COLUMNS = {
     'purchase_reference_uniqueness_legacy',
     'purchase_actor_evidence_legacy',
   ],
-  oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence'],
+  oxsteed_credit_transaction_entries: ['entry_hash', 'previous_entry_hash', 'sequence', 'hash_key_version'],
   oxsteed_credit_holds: [
     'capture_idempotency_key',
     'expires_at',
@@ -193,7 +193,7 @@ function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
       sequence,
       previousEntryHash: previousHash,
       metadata: entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {},
-    });
+    }, entry.hash_key_version || 'v1');
     if (!entry.entry_hash || entry.entry_hash !== expectedHash) invalidEntryHashes += 1;
     stateByAccount.set(accountId, { sequence, hash: entry.entry_hash || null });
   }
@@ -623,6 +623,11 @@ async function main() {
       ['509_oxsteed_credit_notification_queue_indexes.sql']
     );
     checks.notificationQueueIndexesMigrationApplied = notificationQueueIndexesMigrationRows.rows.length === 1;
+    const ledgerHashKeyVersionMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['510_oxsteed_credit_hmac_key_version.sql']
+    );
+    checks.ledgerHashKeyVersionMigrationApplied = ledgerHashKeyVersionMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1463,7 +1468,8 @@ async function main() {
     const { rows: creditEntries } = await pool.query(
       `SELECT e.transaction_id, e.account_id, e.entry_side, e.amount_cents,
               e.balance_after_cents, e.sequence, e.previous_entry_hash,
-              e.entry_hash, e.metadata, t.transaction_type, t.currency_code
+              e.entry_hash, e.hash_key_version, e.metadata,
+              t.transaction_type, t.currency_code
          FROM oxsteed_credit_transaction_entries e
          JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
         WHERE t.status = 'posted'
@@ -1584,6 +1590,7 @@ async function main() {
       !checks.notificationRetentionMigrationApplied,
       !checks.workerHeartbeatMigrationApplied,
       !checks.notificationQueueIndexesMigrationApplied,
+      !checks.ledgerHashKeyVersionMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,

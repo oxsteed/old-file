@@ -47,6 +47,7 @@ const DEFAULT_STATEMENT_DAYS = 90;
 const MAX_STATEMENT_DAYS = 366;
 const MAX_STATEMENT_EXPORT_ROWS = 5000;
 const LEDGER_HASH_ALGORITHM = 'hmac_sha256_v1';
+const DEFAULT_LEDGER_HASH_KEY_VERSION = 'v1';
 const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
@@ -175,14 +176,57 @@ function resolveHoldExpiry(expiresAt) {
   return requestedExpiry;
 }
 
-function getLedgerSecret() {
+function getLedgerHashKeyVersion() {
+  const version = String(process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION || DEFAULT_LEDGER_HASH_KEY_VERSION).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(version)) {
+    throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION must be 1-64 alphanumeric, dot, underscore, or hyphen characters');
+  }
+  return version;
+}
+
+function getPreviousLedgerSecrets() {
+  const raw = process.env.OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON;
+  if (!raw) return {};
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON must be valid JSON');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON must be an object keyed by version');
+  }
+  const keyring = {};
+  for (const [version, secret] of Object.entries(parsed)) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(version) || typeof secret !== 'string' || secret.length < 32) {
+      throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON contains an invalid key version or weak secret');
+    }
+    keyring[version] = secret;
+  }
+  return keyring;
+}
+
+function getLedgerSecret(keyVersion = getLedgerHashKeyVersion()) {
   const dedicatedSecret = process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
   if (process.env.NODE_ENV === 'production' && !dedicatedSecret) {
     throw new Error('OXSTEED_CREDIT_LEDGER_HMAC_SECRET is required in production');
   }
+  const currentVersion = getLedgerHashKeyVersion();
+  if (keyVersion !== currentVersion) {
+    const previousSecret = getPreviousLedgerSecrets()[keyVersion];
+    if (!previousSecret) throw new Error(`No OxSteed Credit ledger key is configured for version ${keyVersion}`);
+    return previousSecret;
+  }
   const secret = dedicatedSecret || process.env.JWT_SECRET;
   if (!secret || secret.length < 32) throw new Error('Missing or weak OxSteed Credit ledger HMAC secret');
   return secret;
+}
+
+function getLedgerHashKeyConfiguration() {
+  const currentVersion = getLedgerHashKeyVersion();
+  getLedgerSecret(currentVersion);
+  const previousVersions = Object.keys(getPreviousLedgerSecrets()).filter((version) => version !== currentVersion).sort();
+  return { currentVersion, previousVersions };
 }
 
 async function isCreditRailEnabled(client) {
@@ -303,8 +347,8 @@ function stableStringify(value) {
   return JSON.stringify(value);
 }
 
-function computeEntryHash(payload) {
-  return crypto.createHmac('sha256', getLedgerSecret())
+function computeEntryHash(payload, keyVersion = getLedgerHashKeyVersion()) {
+  return crypto.createHmac('sha256', getLedgerSecret(keyVersion))
     .update(stableStringify(payload))
     .digest('hex');
 }
@@ -803,6 +847,7 @@ async function postJournalTransaction(client, input) {
     { account: debitAccount, nextBalance: nextDebitBalance, side: 'debit' },
     { account: creditAccount, nextBalance: nextCreditBalance, side: 'credit' },
   ];
+  const hashKeyVersion = getLedgerHashKeyVersion();
   const entryRows = [];
   for (const update of accountUpdates) {
     const sequence = Number(update.account.ledger_version || 0) + 1;
@@ -818,7 +863,7 @@ async function postJournalTransaction(client, input) {
       sequence,
       previousEntryHash,
       metadata: normalizeMetadata(input.metadata),
-    });
+    }, hashKeyVersion);
     const { rows: updatedRows } = await client.query(
       `WITH ledger_write AS (
          SELECT set_config('oxsteed.credit_ledger_transaction_id', $5::TEXT, TRUE)
@@ -835,10 +880,10 @@ async function postJournalTransaction(client, input) {
     const { rows: insertedEntries } = await client.query(
       `INSERT INTO oxsteed_credit_transaction_entries
          (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence,
-          previous_entry_hash, entry_hash, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+          previous_entry_hash, entry_hash, hash_key_version, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
        RETURNING *`,
-      [transaction.id, update.account.id, update.side, amountCents, update.nextBalance, sequence, previousEntryHash, entryHash, JSON.stringify(normalizeMetadata(input.metadata))]
+      [transaction.id, update.account.id, update.side, amountCents, update.nextBalance, sequence, previousEntryHash, entryHash, hashKeyVersion, JSON.stringify(normalizeMetadata(input.metadata))]
     );
     entryRows.push(insertedEntries[0]);
     update.updatedAccount = updatedAccount;
@@ -2384,6 +2429,7 @@ module.exports = {
   CREDIT_CURRENCY,
   SUPPORTED_CREDIT_CURRENCIES: [...SUPPORTED_CREDIT_CURRENCIES].sort(),
   SUPPORTED_CREDIT_CURRENCY_META,
+  DEFAULT_LEDGER_HASH_KEY_VERSION,
   assertSupportedCreditCurrency,
   MAX_TRANSACTION_CENTS,
   MAX_CUSTOMER_BALANCE_CENTS,
@@ -2396,6 +2442,8 @@ module.exports = {
   getCreditRailStatus,
   getCustomerCreditRailStatus,
   setCreditRailStatus,
+  getLedgerHashKeyVersion,
+  getLedgerHashKeyConfiguration,
   computeEntryHash,
   ensureAccount,
   findSpendAgreement,
