@@ -164,6 +164,7 @@ test('customer allowlist agreements require an active entitlement in eligibility
   expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE');
   expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE AND e.id IS NULL');
   expect(mockQuery.mock.calls[0][0]).toContain('e.id IS NOT NULL');
+  expect(mockQuery.mock.calls[0][0]).toContain("customer.role = 'customer' AND customer.is_active = TRUE");
 });
 
 test('lets admins preview the exact restaurants a customer can spend at', async () => {
