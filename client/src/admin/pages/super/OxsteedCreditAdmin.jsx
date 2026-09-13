@@ -212,6 +212,7 @@ export default function OxsteedCreditAdmin() {
   const [auditActionType, setAuditActionType] = useState('');
   const [auditResourceType, setAuditResourceType] = useState('');
   const [auditPartnerId, setAuditPartnerId] = useState('');
+  const [auditCorrelationId, setAuditCorrelationId] = useState('');
   const [auditPagination, setAuditPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loadingMoreAuditEvents, setLoadingMoreAuditEvents] = useState(false);
   const [rail, setRail] = useState(null);
@@ -283,6 +284,7 @@ export default function OxsteedCreditAdmin() {
       if (auditActionType) auditParams.actionType = auditActionType;
       if (auditResourceType) auditParams.resourceType = auditResourceType;
       if (auditPartnerId) auditParams.partnerId = auditPartnerId;
+      if (auditCorrelationId) auditParams.correlationId = auditCorrelationId;
       const reconciliationParams = { limit: 50, offset: appendReconciliationRuns ? reconciliationOffset : 0 };
       if (reconciliationStatus) reconciliationParams.status = reconciliationStatus;
       if (reconciliationCurrency !== 'all') reconciliationParams.currencyCode = reconciliationCurrency;
@@ -348,7 +350,7 @@ export default function OxsteedCreditAdmin() {
         if (appendReconciliationRuns) setLoadingMoreReconciliationRuns(false);
       }
     }
-  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, partnerDirectoryQuery, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
+  }, [auditActionType, auditCorrelationId, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, partnerDirectoryQuery, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -811,6 +813,7 @@ export default function OxsteedCreditAdmin() {
       if (auditActionType) params.actionType = auditActionType;
       if (auditResourceType) params.resourceType = auditResourceType;
       if (auditPartnerId) params.partnerId = auditPartnerId;
+      if (auditCorrelationId) params.correlationId = auditCorrelationId;
       const response = await adminApi.get('/admin/super/oxsteed-credit/audit-events.csv', { params, responseType: 'blob' });
       const url = window.URL.createObjectURL(response.data);
       const anchor = document.createElement('a');
@@ -907,10 +910,11 @@ export default function OxsteedCreditAdmin() {
     <Section eyebrow="Audit history controls" title="Search the Credit control trail" detail="Filter the append-only control history before reviewing state changes. Results are bounded and can be loaded in older pages without downloading the entire ledger."
       action={auditPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendAuditEvents: true, auditOffset: auditPagination.nextOffset || 0 })} disabled={loadingMoreAuditEvents || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreAuditEvents ? 'Loading...' : 'Load older audit events'}</button>}
     >
-      <div className="mt-4 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 sm:grid-cols-2 xl:grid-cols-4">
         <label><span className="mb-1 block text-xs font-semibold text-gray-500">Action type</span><input aria-label="Credit audit action filter" value={auditActionType} onChange={(event) => setAuditActionType(event.target.value)} placeholder="credit.rail.suspended" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
         <label><span className="mb-1 block text-xs font-semibold text-gray-500">Resource type</span><input aria-label="Credit audit resource filter" value={auditResourceType} onChange={(event) => setAuditResourceType(event.target.value)} placeholder="credit_transaction" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
         <label><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select aria-label="Credit audit partner filter" value={auditPartnerId} onChange={(event) => setAuditPartnerId(event.target.value)} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">All partners</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Partner ${partner.partnerId}`}</option>)}</select></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Request correlation</span><input aria-label="Credit audit correlation filter" value={auditCorrelationId} onChange={(event) => setAuditCorrelationId(event.target.value)} placeholder="request-id-from-logs" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
       </div>
       <p className="mt-2 text-[11px] text-gray-600">Showing {auditEvents.length} loaded event{auditEvents.length === 1 ? '' : 's'}{auditPagination.hasMore ? ' · older events available' : ''}.</p>
     </Section>

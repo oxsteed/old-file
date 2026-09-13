@@ -674,6 +674,16 @@ test('returns paginated admin Credit transactions with movement filters', async 
   expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: true, nextOffset: 3 });
 });
 
+test('filters Credit audit history by request correlation id', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp()).get('/audit-events?correlationId=request-incident-1');
+
+  expect(response.status).toBe(200);
+  expect(mockQuery.mock.calls[0][0]).toContain('correlation_id = $1');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['request-incident-1', 101, 0]);
+});
+
 test('exports a bounded filtered Credit transaction CSV safely', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'transaction-1',

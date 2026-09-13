@@ -520,7 +520,7 @@ async function retryCreditNotification({ notificationId, reason, actorUserId, co
   }, 'credit_retry_notification');
 }
 
-async function listCreditAuditEvents({ actionType, resourceType, resourceId, customerId, partnerId, limit = 100, offset = 0, includePagination = false } = {}) {
+async function listCreditAuditEvents({ actionType, resourceType, resourceId, customerId, partnerId, correlationId, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   const normalizedAction = normalizeString(actionType, 80);
@@ -545,6 +545,11 @@ async function listCreditAuditEvents({ actionType, resourceType, resourceId, cus
   if (partnerId) {
     params.push(partnerId);
     filters.push(`partner_id = $${params.length}`);
+  }
+  const normalizedCorrelationId = normalizeString(correlationId, 160);
+  if (normalizedCorrelationId) {
+    params.push(normalizedCorrelationId);
+    filters.push(`correlation_id = $${params.length}`);
   }
   const parsedLimit = Number.parseInt(String(limit), 10);
   const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 100;
