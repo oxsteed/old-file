@@ -83,11 +83,11 @@ async function checkNotificationBacklog() {
   const result = await db.query(
     `SELECT COUNT(*) FILTER (
               WHERE (status = 'pending' AND next_attempt_at <= NOW())
-                 OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '15 minutes'))
+              OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute')))
             )::int AS active_count,
             MIN(created_at) FILTER (
               WHERE (status = 'pending' AND next_attempt_at <= NOW())
-                 OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '15 minutes'))
+              OR (status = 'sending' AND (locked_at IS NULL OR locked_at < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute')))
             ) AS oldest_active_at
        FROM oxsteed_credit_notification_outbox`,
   );

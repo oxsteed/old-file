@@ -81,7 +81,7 @@ test('records one deduplicated incident when the notification backlog is stale',
 
   await expect(checkNotificationBacklog()).resolves.toMatchObject({ status: 'stale', activeCount: 2 });
   expect(db.query.mock.calls[0][0]).toContain('next_attempt_at <= NOW()');
-  expect(db.query.mock.calls[0][0]).toContain('locked_at < NOW() - INTERVAL');
+  expect(db.query.mock.calls[0][0]).toContain('locked_at < NOW() - (15 * INTERVAL');
   expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
     type: 'oxsteed_credit_notification_backlog_stale',
     severity: 'critical',
