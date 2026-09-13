@@ -99,6 +99,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_admin_refund_evidence_guard');
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
@@ -126,6 +127,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.settlementPaymentEvidenceMigrationApplied');
   expect(verifierSource).toContain("['467_oxsteed_credit_audit_hash_chain.sql']");
   expect(verifierSource).toContain('!checks.auditHashChainMigrationApplied');
+  expect(verifierSource).toContain("['468_oxsteed_credit_admin_refund_evidence.sql']");
+  expect(verifierSource).toContain('!checks.adminRefundEvidenceMigrationApplied');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -1432,6 +1435,17 @@ test('requires a reason before an administrative hold capture queries the databa
     idempotencyKey: 'capture-without-reason-1',
     actorType: 'admin',
   })).rejects.toMatchObject({ code: 'credit_capture_reason_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires a reason before an administrative Credit refund queries the database', async () => {
+  await expect(service.refundCreditInTransaction({ query: mockQuery }, {
+    purchaseTransactionId: 'purchase-without-refund-reason',
+    amountCents: 100,
+    idempotencyKey: 'refund-without-reason-1',
+    actorUserId: ADMIN_ID,
+    actorType: 'admin',
+  })).rejects.toMatchObject({ code: 'credit_refund_reason_required', status: 400 });
   expect(mockQuery).not.toHaveBeenCalled();
 });
 

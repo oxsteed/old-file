@@ -87,6 +87,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_dispute_integrity_guard',
   'oxsteed_credit_settlement_payment_evidence_guard',
   'oxsteed_credit_transaction_settlement_evidence_guard',
+  'oxsteed_credit_admin_refund_evidence_guard',
   'oxsteed_credit_account_reservation_guard',
   'oxsteed_credit_hold_reservation_guard',
   'oxsteed_credit_transaction_status_guard',
@@ -357,6 +358,11 @@ async function main() {
       ['467_oxsteed_credit_audit_hash_chain.sql']
     );
     checks.auditHashChainMigrationApplied = auditHashChainMigrationRows.rows.length === 1;
+    const adminRefundEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['468_oxsteed_credit_admin_refund_evidence.sql']
+    );
+    checks.adminRefundEvidenceMigrationApplied = adminRefundEvidenceMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -450,6 +456,15 @@ async function main() {
               ))`,
     );
     checks.invalidTransactionStates = Number(transactionStateRows[0]?.invalid_count || 0);
+
+    const { rows: adminRefundEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions
+        WHERE transaction_type = 'refund'
+          AND actor_type = 'admin'
+          AND (actor_user_id IS NULL OR NULLIF(BTRIM(reason), '') IS NULL)`,
+    );
+    checks.invalidAdministrativeRefunds = Number(adminRefundEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: balanceInvariantRows } = await pool.query(
       `WITH journal AS (
@@ -758,6 +773,7 @@ async function main() {
       !checks.transactionStatusMigrationApplied,
       !checks.settlementPaymentEvidenceMigrationApplied,
       !checks.auditHashChainMigrationApplied,
+      !checks.adminRefundEvidenceMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -766,6 +782,7 @@ async function main() {
       checks.missingIntegrityTriggers.length > 0,
       checks.invalidPostedTransactions > 0,
       checks.invalidTransactionStates > 0,
+      checks.invalidAdministrativeRefunds > 0,
       checks.invalidAccountBalances > 0,
       checks.invalidReservedBalances > 0,
       checks.invalidHoldLifecycles > 0,

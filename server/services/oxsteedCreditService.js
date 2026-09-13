@@ -1642,7 +1642,14 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
 
 async function refundCreditInTransaction(client, { purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
-  if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  const normalizedActorType = normalizeString(actorType, 32) || 'admin';
+  const normalizedReason = normalizeString(reason, 500);
+  const normalizedMetadata = normalizeMetadata(metadata);
+  const administrativeRefund = normalizedActorType === 'admin';
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  if (administrativeRefund && !normalizedReason) throw new AppError('A reason is required for administrative Credit refunds', 400, 'credit_refund_reason_required');
+  if (administrativeRefund && !actorUserId) throw new AppError('An administrator identity is required for administrative Credit refunds', 400, 'credit_refund_actor_required');
     const { rows: purchaseRows } = await client.query(
       `SELECT t.*, ca.customer_id
          FROM oxsteed_credit_transactions t
@@ -1653,7 +1660,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
     );
     const purchase = purchaseRows[0];
     if (!purchase) throw new AppError('Original credit purchase not found', 404, 'credit_purchase_not_found');
-    const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
+    const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
     if (existing) {
       return postJournalTransaction(client, {
         transactionType: 'refund',
@@ -1664,15 +1671,18 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
         customerId: purchase.customer_id,
         amountCents: amount,
         currencyCode: purchase.currency_code,
-        idempotencyKey,
-        actorType,
+        idempotencyKey: normalizedIdempotencyKey,
+        actorType: normalizedActorType,
         actorUserId,
         allowSuspendedAccounts: true,
+        reason: normalizedReason,
         referenceType: 'oxsteed_credit_purchase',
         referenceId: String(purchase.id),
         correlationId,
         description: 'OxSteed Credit refund',
-        metadata,
+        metadata: normalizedMetadata,
+        bindIdempotencySemantics: administrativeRefund,
+        existingTransaction: existing,
       });
     }
     const { rows: refundRows } = await client.query(
@@ -1693,25 +1703,27 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
       customerId: purchase.customer_id,
       amountCents: amount,
       currencyCode: purchase.currency_code,
-      idempotencyKey,
-      actorType,
+      idempotencyKey: normalizedIdempotencyKey,
+      actorType: normalizedActorType,
       actorUserId,
       allowSuspendedAccounts: true,
-      reason,
+      reason: normalizedReason,
       referenceType: 'oxsteed_credit_purchase',
       referenceId: String(purchase.id),
       correlationId,
       description: 'OxSteed Credit refund',
-      metadata,
+      metadata: normalizedMetadata,
+      bindIdempotencySemantics: administrativeRefund,
     });
 }
 
-async function refundCredit({ purchaseTransactionId, amountCents, idempotencyKey, actorUserId, reason, correlationId, metadata = {} }) {
+async function refundCredit({ purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, metadata = {} }) {
   return withTransaction(pool, (client) => refundCreditInTransaction(client, {
     purchaseTransactionId,
     amountCents,
     idempotencyKey,
     actorUserId,
+    actorType,
     reason,
     correlationId,
     metadata,
