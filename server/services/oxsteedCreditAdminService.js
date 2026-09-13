@@ -880,7 +880,7 @@ async function listEntitlements({ search, customerId, agreementId, status, limit
   return { entitlements: rows.map(formatEntitlement), total, limit: safeLimit, offset: safeOffset, hasMore: safeOffset + rows.length < total };
 }
 
-async function listSettlements({ partnerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
+async function listSettlements({ partnerId, status, currencyCode, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -892,6 +892,10 @@ async function listSettlements({ partnerId, status, limit = 100, offset = 0, inc
     if (!['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedStatus)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
     params.push(normalizedStatus);
     filters.push(`s.status = $${params.length}`);
+  }
+  if (currencyCode) {
+    params.push(assertSupportedCreditCurrency(currencyCode));
+    filters.push(`s.currency_code = $${params.length}`);
   }
   const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
   const parsedOffset = Number.parseInt(String(offset), 10);

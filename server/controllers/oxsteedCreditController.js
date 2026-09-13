@@ -766,11 +766,72 @@ async function listAdminSettlements(req, res, next) {
     const options = {
       partnerId: req.query.partnerId || req.query.partner_id,
       status: req.query.status,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
       limit: req.query.limit,
       includePagination: true,
     };
     if (req.query.offset !== undefined) options.offset = req.query.offset;
     res.json(await listSettlements(options));
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function downloadAdminSettlements(req, res, next) {
+  try {
+    const options = {
+      partnerId: req.query.partnerId || req.query.partner_id,
+      status: req.query.status,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      limit: 250,
+      offset: 0,
+      includePagination: true,
+    };
+    const settlements = [];
+    let page = await listSettlements(options);
+    settlements.push(...page.settlements);
+    while (page.pagination?.hasMore && settlements.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listSettlements({ ...options, offset: page.pagination.nextOffset });
+      settlements.push(...page.settlements);
+    }
+    if (page.pagination?.hasMore) {
+      throw new AppError('Settlement export is too large; narrow the filters first', 409, 'credit_settlement_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = [
+      'Settlement ID', 'Partner ID', 'Restaurant', 'Agreement ID', 'Period start', 'Period end',
+      'Gross cents', 'Refund cents', 'Fee cents', 'Net cents', 'Status', 'Currency',
+      'Payment reference', 'Approved by', 'Paid at', 'Created at', 'Updated at',
+    ];
+    const lines = [headers.map(csvCell).join(',')];
+    settlements.forEach((settlement) => {
+      lines.push([
+        settlement.id,
+        settlement.partnerId,
+        settlement.restaurantName,
+        settlement.agreementId,
+        settlement.periodStart,
+        settlement.periodEnd,
+        settlement.grossCents,
+        settlement.refundCents,
+        settlement.feeCents,
+        settlement.netCents,
+        settlement.status,
+        settlement.currencyCode,
+        settlement.paymentReference,
+        settlement.approvedBy,
+        settlement.paidAt,
+        settlement.createdAt,
+        settlement.updatedAt,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-settlements-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
   } catch (error) {
     next(error);
   }
@@ -898,6 +959,7 @@ module.exports = {
   upsertAdminEntitlement,
   listAdminEntitlements,
   listAdminSettlements,
+  downloadAdminSettlements,
   listAdminCreditAuditEvents,
   createAdminSettlement,
   transitionAdminSettlement,

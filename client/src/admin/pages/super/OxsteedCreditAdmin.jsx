@@ -128,6 +128,7 @@ export default function OxsteedCreditAdmin() {
   const [partners, setPartners] = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [settlementPartnerId, setSettlementPartnerId] = useState('');
   const [settlementStatus, setSettlementStatus] = useState('');
   const [settlementPagination, setSettlementPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loadingMoreSettlements, setLoadingMoreSettlements] = useState(false);
@@ -196,6 +197,7 @@ export default function OxsteedCreditAdmin() {
       if (walletQuery.status) walletParams.status = walletQuery.status;
       if (walletQuery.currencyCode) walletParams.currencyCode = walletQuery.currencyCode;
       const settlementParams = { limit: 50, offset: appendSettlements ? settlementOffset : 0 };
+      if (settlementPartnerId) settlementParams.partnerId = settlementPartnerId;
       if (settlementStatus) settlementParams.status = settlementStatus;
       const transactionParams = { limit: 50, offset: appendTransactions ? transactionOffset : 0 };
       if (transactionType) transactionParams.transactionType = transactionType;
@@ -266,7 +268,7 @@ export default function OxsteedCreditAdmin() {
         if (appendReconciliationRuns) setLoadingMoreReconciliationRuns(false);
       }
     }
-  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, reconciliationCurrency, reconciliationStatus, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
+  }, [auditActionType, auditPartnerId, auditResourceType, customerAccountQuery, disputeStatus, reconciliationCurrency, reconciliationStatus, settlementPartnerId, settlementStatus, transactionCurrency, transactionStatus, transactionType]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -536,6 +538,26 @@ export default function OxsteedCreditAdmin() {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit transactions.');
     } finally { setBusy(false); }
   };
+  const downloadSettlementHistory = async () => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const params = {};
+      if (settlementPartnerId) params.partnerId = settlementPartnerId;
+      if (settlementStatus) params.status = settlementStatus;
+      const response = await adminApi.get('/admin/super/oxsteed-credit/settlements.csv', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-settlements-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      setNotice('Settlement CSV downloaded with the active filters.');
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit settlements.');
+    } finally { setBusy(false); }
+  };
   return <><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => setTransactionDetail(null)} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
     <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">Super Admin</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> Stored-value control</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">OxSteed Credit</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">Operate a restricted credit network: customers can spend only at restaurants with an active partner agreement, and every movement is journaled, bounded, and auditable.</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh</button></div></header>
     <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
@@ -669,6 +691,13 @@ export default function OxsteedCreditAdmin() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <span>Partner</span>
+          <select aria-label="Settlement partner filter" value={settlementPartnerId} onChange={(event) => setSettlementPartnerId(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
+            <option value="">All partners</option>
+            {partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Partner ${partner.partnerId}`}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
           <span>Status</span>
           <select aria-label="Settlement status filter" value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
             <option value="">All statuses</option>
@@ -679,6 +708,7 @@ export default function OxsteedCreditAdmin() {
             <option value="voided">Voided</option>
           </select>
         </label>
+        <button type="button" onClick={downloadSettlementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>
         {settlementPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMoreSettlements || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreSettlements ? 'Loading...' : 'Load older'}</button>}
       </div>
     </div>

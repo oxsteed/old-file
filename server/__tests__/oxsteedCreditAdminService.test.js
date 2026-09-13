@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -149,6 +149,39 @@ test('lists platform Credit transactions with safe filters and pagination', asyn
   expect(mockQuery.mock.calls[0][0]).toContain('t.status = $3');
   expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $4');
   expect(mockQuery.mock.calls[0][1]).toEqual([41, 'purchase', 'posted', 'USD', 2, 2]);
+});
+
+test('lists settlements with partner, status, and currency filters', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-1',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'EUR',
+    period_start: '2026-09-01T00:00:00.000Z',
+    period_end: '2026-09-08T00:00:00.000Z',
+    gross_cents: '5000',
+    refund_cents: '500',
+    fee_cents: '100',
+    net_cents: '4400',
+    status: 'paid',
+    payment_reference: 'bank-1',
+    approved_by: 'admin-1',
+    paid_at: '2026-09-09T00:00:00.000Z',
+    metadata: {},
+    created_at: '2026-09-08T00:00:00.000Z',
+    updated_at: '2026-09-09T00:00:00.000Z',
+  }] });
+
+  const result = await listSettlements({ partnerId: 41, status: 'paid', currencyCode: 'EUR', limit: 10, offset: 20, includePagination: true });
+
+  expect(result).toMatchObject({ pagination: { limit: 10, offset: 20, hasMore: false, nextOffset: null } });
+  expect(result.settlements[0]).toMatchObject({ partnerId: '41', restaurantName: 'OxSteed Cafe', currencyCode: 'EUR', netCents: 4400 });
+  expect(mockQuery.mock.calls[0][0]).toContain('s.partner_id = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('s.status = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain('s.currency_code = $3');
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'paid', 'EUR', 11, 20]);
 });
 
 test('loads a complete admin Credit transaction with journal and audit context', async () => {

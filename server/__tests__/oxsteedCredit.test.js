@@ -44,6 +44,7 @@ function createAdminApp() {
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
   app.get('/settlements', controller.listAdminSettlements);
+  app.get('/settlements.csv', controller.downloadAdminSettlements);
   app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
   app.get('/transactions', controller.listAdminTransactions);
   app.get('/transactions.csv', controller.downloadAdminTransactions);
@@ -303,6 +304,40 @@ test('exports a bounded filtered Credit transaction CSV safely', async () => {
   expect(response.text).toContain('Transaction ID');
   expect(response.text).toContain('"\'=2+2"');
   expect(mockQuery.mock.calls[0][1]).toEqual(['purchase', 251, 0]);
+});
+
+test('exports a filtered settlement CSV without exposing spreadsheet formulas', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-1',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    restaurant_id: 9,
+    restaurant_name: '=Restaurant Cafe',
+    currency_code: 'USD',
+    period_start: '2026-09-01T00:00:00.000Z',
+    period_end: '2026-09-08T00:00:00.000Z',
+    gross_cents: '5000',
+    refund_cents: '500',
+    fee_cents: '100',
+    net_cents: '4400',
+    status: 'paid',
+    payment_reference: '+bank-1',
+    approved_by: ADMIN_ID,
+    paid_at: '2026-09-09T00:00:00.000Z',
+    metadata: {},
+    created_at: '2026-09-08T00:00:00.000Z',
+    updated_at: '2026-09-09T00:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/settlements.csv?partnerId=41&status=paid&currencyCode=USD');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-settlements-/);
+  expect(response.text).toContain('Settlement ID');
+  expect(response.text).toContain('"\'=Restaurant Cafe"');
+  expect(response.text).toContain('"\'+bank-1"');
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'paid', 'USD', 251, 0]);
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {
