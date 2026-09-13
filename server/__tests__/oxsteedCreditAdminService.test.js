@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, upsertEntitlement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -58,6 +58,14 @@ test('does not grant a Credit entitlement to a non-customer identity', async () 
   })).rejects.toMatchObject({ code: 'customer_not_found', status: 404 });
 
   expect(mockQuery.mock.calls[1][0]).toContain("role = 'customer'");
+});
+
+test('requires idempotency for agreement creation', async () => {
+  await expect(createAgreement({
+    partnerId: 41,
+    startsAt: '2026-09-12T00:00:00.000Z',
+  })).rejects.toMatchObject({ code: 'credit_idempotency_key_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
 });
 
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {

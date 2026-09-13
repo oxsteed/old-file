@@ -171,7 +171,7 @@ export default function OxsteedCreditAdmin() {
         maxTransactionCents: dollarsToCents(agreementForm.maxTransaction),
         dailyCustomerLimitCents: dollarsToCents(agreementForm.dailyLimit),
         lifetimeCustomerLimitCents: dollarsToCents(agreementForm.lifetimeLimit),
-      });
+      }, { headers: { 'Idempotency-Key': requestKey('credit-agreement') } });
       setNotice(`Agreement created for ${selectedPartner?.restaurantName || 'the selected partner'} in Draft status.`);
       setAgreementForm((current) => ({ ...current, customerTerms: '', allowedCategories: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '' }));
       await load({ quiet: true });

@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
@@ -64,6 +65,23 @@ function parseLimit(value, fieldName) {
     });
   }
   return parsed;
+}
+
+function agreementRequestHash({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, metadata }) {
+  return crypto.createHash('sha256').update(JSON.stringify({
+    partnerId,
+    startsAt: startsAt?.toISOString() || null,
+    endsAt: endsAt?.toISOString() || null,
+    customerTerms,
+    allowedOrderTypes,
+    allowedCategories,
+    allowedMenuItemIds,
+    geography,
+    maxTransactionCents,
+    dailyCustomerLimitCents,
+    lifetimeCustomerLimitCents,
+    metadata,
+  })).digest('hex');
 }
 
 function formatPartner(row) {
@@ -735,12 +753,52 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
   }, 'credit_admin_reconcile');
 }
 
-async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, metadata, actorUserId }) {
+async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, allowedOrderTypes, allowedCategories, allowedMenuItemIds, geography, maxTransactionCents, dailyCustomerLimitCents, lifetimeCustomerLimitCents, metadata, idempotencyKey, actorUserId }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const starts = parseDate(startsAt, 'startsAt', true);
   const ends = parseDate(endsAt, 'endsAt');
   if (ends && ends <= starts) throw new AppError('Agreement end must be after its start', 400, 'credit_agreement_dates_invalid');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for agreement creation', 400, 'credit_idempotency_key_required');
+  const normalizedCustomerTerms = normalizeString(customerTerms, 5000);
+  const normalizedAllowedOrderTypes = normalizeArray(allowedOrderTypes, 20, 40);
+  const normalizedAllowedCategories = normalizeArray(allowedCategories, 100, 120);
+  const normalizedAllowedMenuItemIds = normalizePositiveIntArray(allowedMenuItemIds, 500);
+  const normalizedGeography = geography && typeof geography === 'object' && !Array.isArray(geography) ? geography : {};
+  const normalizedMaxTransactionCents = parseLimit(maxTransactionCents, 'maxTransactionCents');
+  const normalizedDailyCustomerLimitCents = parseLimit(dailyCustomerLimitCents, 'dailyCustomerLimitCents');
+  const normalizedLifetimeCustomerLimitCents = parseLimit(lifetimeCustomerLimitCents, 'lifetimeCustomerLimitCents');
+  const normalizedMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+  const requestHash = agreementRequestHash({
+    partnerId: normalizedPartnerId,
+    startsAt: starts,
+    endsAt: ends,
+    customerTerms: normalizedCustomerTerms,
+    allowedOrderTypes: normalizedAllowedOrderTypes,
+    allowedCategories: normalizedAllowedCategories,
+    allowedMenuItemIds: normalizedAllowedMenuItemIds,
+    geography: normalizedGeography,
+    maxTransactionCents: normalizedMaxTransactionCents,
+    dailyCustomerLimitCents: normalizedDailyCustomerLimitCents,
+    lifetimeCustomerLimitCents: normalizedLifetimeCustomerLimitCents,
+    metadata: normalizedMetadata,
+  });
   return withTransaction(pool, async (client) => {
+    const { rows: existingRows } = await client.query(
+      `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE a.creation_idempotency_key = $1
+        FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    if (existingRows[0]) {
+      if (existingRows[0].creation_request_hash !== requestHash) {
+        throw new AppError('Agreement idempotency key was already used for different agreement details', 409, 'credit_agreement_idempotency_conflict');
+      }
+      return { agreement: formatAgreement(existingRows[0]), replayed: true };
+    }
     const { rows: partnerRows } = await client.query(`SELECT * FROM oxsteed_credit_partners WHERE id = $1 FOR UPDATE`, [normalizedPartnerId]);
     if (!partnerRows[0]) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
     const { rows: versionRows } = await client.query(`SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM oxsteed_credit_partner_agreements WHERE partner_id = $1`, [normalizedPartnerId]);
@@ -748,10 +806,11 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
       `INSERT INTO oxsteed_credit_partner_agreements
          (partner_id, version, starts_at, ends_at, customer_terms, allowed_order_types,
           allowed_categories, allowed_menu_item_ids, geography, max_transaction_cents,
-          daily_customer_limit_cents, lifetime_customer_limit_cents, metadata, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14)
+          daily_customer_limit_cents, lifetime_customer_limit_cents, metadata,
+          creation_idempotency_key, creation_request_hash, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7::text[], $8::bigint[], $9::jsonb, $10, $11, $12, $13::jsonb, $14, $15, $16)
        RETURNING *`,
-      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizeString(customerTerms, 5000), normalizeArray(allowedOrderTypes, 20, 40), normalizeArray(allowedCategories, 100, 120), normalizePositiveIntArray(allowedMenuItemIds, 500), geography && typeof geography === 'object' && !Array.isArray(geography) ? JSON.stringify(geography) : '{}', parseLimit(maxTransactionCents, 'maxTransactionCents'), parseLimit(dailyCustomerLimitCents, 'dailyCustomerLimitCents'), parseLimit(lifetimeCustomerLimitCents, 'lifetimeCustomerLimitCents'), JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), actorUserId || null]
+      [normalizedPartnerId, Number(versionRows[0].next_version), starts, ends, normalizedCustomerTerms, normalizedAllowedOrderTypes, normalizedAllowedCategories, normalizedAllowedMenuItemIds, JSON.stringify(normalizedGeography), normalizedMaxTransactionCents, normalizedDailyCustomerLimitCents, normalizedLifetimeCustomerLimitCents, JSON.stringify(normalizedMetadata), normalizedIdempotencyKey, requestHash, actorUserId || null]
     );
     await insertAudit(client, { actionType: 'credit.agreement.created', actorUserId, partnerId: normalizedPartnerId, resourceType: 'credit_agreement', resourceId: rows[0].id, afterState: rows[0] });
     return { agreement: formatAgreement({ ...rows[0], partner_id: normalizedPartnerId }), replayed: false };

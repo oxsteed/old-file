@@ -559,9 +559,10 @@ async function createAdminAgreement(req, res, next) {
       dailyCustomerLimitCents: req.body?.dailyCustomerLimitCents ?? req.body?.daily_customer_limit_cents,
       lifetimeCustomerLimitCents: req.body?.lifetimeCustomerLimitCents ?? req.body?.lifetime_customer_limit_cents,
       metadata: req.body?.metadata,
+      idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
     });
-    res.status(201).json(result);
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
     next(error);
   }
