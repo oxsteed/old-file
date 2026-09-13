@@ -63,6 +63,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_partner_identity_guard',
   'oxsteed_credit_agreement_identity_guard',
   'oxsteed_credit_transaction_partner_account_guard',
+  'oxsteed_credit_purchase_boundary_guard',
   'oxsteed_credit_customer_owner_guard',
   'oxsteed_credit_entitlement_owner_guard',
   'oxsteed_credit_transaction_customer_owner_guard',
@@ -256,6 +257,11 @@ async function main() {
       ['448_oxsteed_credit_settlement_immutability.sql']
     );
     checks.settlementImmutabilityMigrationApplied = settlementImmutabilityMigrationRows.length === 1;
+    const { rows: purchaseBoundaryMigrationRows } = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['449_oxsteed_credit_purchase_boundary.sql']
+    );
+    checks.purchaseBoundaryMigrationApplied = purchaseBoundaryMigrationRows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -393,6 +399,14 @@ async function main() {
     );
     checks.invalidPurchases = Number(purchaseInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: purchaseReferenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions
+        WHERE transaction_type = 'purchase'
+          AND NULLIF(BTRIM(reference_id), '') IS NULL`,
+    );
+    checks.invalidPurchaseReferences = Number(purchaseReferenceRows[0]?.invalid_count || 0);
+
     const { rows: transactionCurrencyRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions t
@@ -523,6 +537,7 @@ async function main() {
       !checks.entitlementRequiredMigrationApplied,
       !checks.settlementCreatorMigrationApplied,
       !checks.settlementImmutabilityMigrationApplied,
+      !checks.purchaseBoundaryMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -535,6 +550,7 @@ async function main() {
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
       checks.invalidPurchases > 0,
+      checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
       checks.invalidSettlementStates > 0,
