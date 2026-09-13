@@ -56,6 +56,7 @@ function createAdminApp() {
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
   app.get('/disputes', controller.listAdminDisputes);
   app.get('/disputes.csv', controller.downloadAdminCreditDisputes);
+  app.get('/entitlements.csv', controller.downloadAdminEntitlements);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
   app.get('/audit-events.csv', controller.downloadAdminCreditAuditEvents);
   app.use(errorHandler);
@@ -1073,6 +1074,44 @@ test('exports a filtered, formula-safe admin credit dispute queue', async () => 
   expect(mockQuery.mock.calls[0][0]).toContain('d.partner_id = $1');
   expect(mockQuery.mock.calls[0][0]).toContain('d.status = $2');
   expect(mockQuery.mock.calls[0][1]).toEqual([41, 'resolved', 251, 0]);
+});
+
+test('exports a filtered, formula-safe customer entitlement directory', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'entitlement-2',
+    customer_id: CUSTOMER_ID,
+    first_name: 'Alice',
+    last_name: 'Customer',
+    email: 'alice@example.com',
+    agreement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    partner_id: 41,
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    agreement_version: 3,
+    agreement_status: 'active',
+    settlement_currency_code: 'USD',
+    status: 'active',
+    starts_at: null,
+    ends_at: null,
+    max_transaction_cents: '2500',
+    daily_limit_cents: '10000',
+    reason: '=HYPERLINK("https://example.com")',
+    created_by: ADMIN_ID,
+    created_at: '2026-09-12T12:00:00.000Z',
+    updated_at: '2026-09-12T12:30:00.000Z',
+    total_count: 1,
+  }] });
+
+  const response = await request(createAdminApp()).get('/entitlements.csv?search=alice&status=active');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toContain('text/csv');
+  expect(response.headers['content-disposition']).toContain('oxsteed-credit-entitlements-');
+  expect(response.text).toContain("'=HYPERLINK(\"\"https://example.com\"\")");
+  expect(response.text).toContain('Alice Customer');
+  expect(mockQuery.mock.calls[0][0]).toContain('u.email ILIKE $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('e.status = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'active', 250, 0]);
 });
 
 test('hashes the same journal payload deterministically', () => {

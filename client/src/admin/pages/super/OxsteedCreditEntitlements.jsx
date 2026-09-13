@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
 const ENTITLEMENT_STATUSES = ['active', 'suspended', 'revoked', 'expired'];
@@ -66,6 +67,31 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     }
   };
 
+  const downloadEntitlements = async () => {
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const params = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (appliedSearch) params.search = appliedSearch;
+      const response = await adminApi.get('/admin/super/oxsteed-credit/entitlements.csv', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-entitlements-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      setNotice('Customer access CSV downloaded with the active filters.');
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Unable to export customer restaurant access.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => { load(); }, [statusFilter, offset, appliedSearch]);
 
   const visibleEntitlements = entitlements;
@@ -104,7 +130,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         <h2 className="mt-1 text-lg font-semibold text-white">Where each customer can spend</h2>
         <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">Access is assigned per partner agreement. Keep the same customer ID and submit another agreement to authorize spending at multiple restaurants. This does not move balance or bypass the agreement’s own rules.</p>
       </div>
-      <button type="button" onClick={load} disabled={loading || saving || busy} className="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Refresh access</button>
+      <div className="flex flex-wrap gap-2"><button type="button" onClick={downloadEntitlements} disabled={loading || saving || busy} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button><button type="button" onClick={load} disabled={loading || saving || busy} className="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Refresh access</button></div>
     </div>
 
     {(error || notice) && <div className={`mt-4 rounded-xl border px-3 py-3 text-xs ${error ? 'border-red-500/30 bg-red-950/20 text-red-300' : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300'}`}>{error || notice}</div>}

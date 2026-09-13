@@ -927,6 +927,71 @@ async function listAdminEntitlements(req, res, next) {
   }
 }
 
+async function downloadAdminEntitlements(req, res, next) {
+  try {
+    const customerId = req.query.customerId || req.query.customer_id
+      ? parseUuid(req.query.customerId || req.query.customer_id, 'customerId')
+      : undefined;
+    const agreementId = req.query.agreementId || req.query.agreement_id
+      ? parseUuid(req.query.agreementId || req.query.agreement_id, 'agreementId')
+      : undefined;
+    const options = {
+      search: req.query.search || req.query.q,
+      customerId,
+      agreementId,
+      status: req.query.status,
+      limit: 250,
+      offset: 0,
+    };
+    const entitlements = [];
+    let page = await listEntitlements(options);
+    entitlements.push(...page.entitlements);
+    while (page.hasMore && entitlements.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listEntitlements({ ...options, offset: page.offset + page.entitlements.length });
+      entitlements.push(...page.entitlements);
+    }
+    if (page.hasMore) {
+      throw new AppError('Credit entitlement export is too large; narrow the filters first', 409, 'credit_entitlement_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Entitlement ID', 'Customer ID', 'Customer name', 'Customer email', 'Agreement ID', 'Partner ID', 'Restaurant ID', 'Restaurant', 'Agreement version', 'Agreement status', 'Currency', 'Access status', 'Starts at', 'Ends at', 'Max transaction (cents)', 'Daily limit (cents)', 'Reason', 'Created by', 'Created at', 'Updated at'];
+    const lines = [headers.map(csvCell).join(',')];
+    entitlements.forEach((entitlement) => {
+      lines.push([
+        entitlement.id,
+        entitlement.customerId,
+        entitlement.customerName,
+        entitlement.customerEmail,
+        entitlement.agreementId,
+        entitlement.partnerId,
+        entitlement.restaurantId,
+        entitlement.restaurantName,
+        entitlement.agreementVersion,
+        entitlement.agreementStatus,
+        entitlement.currencyCode,
+        entitlement.status,
+        entitlement.startsAt,
+        entitlement.endsAt,
+        entitlement.maxTransactionCents,
+        entitlement.dailyLimitCents,
+        entitlement.reason,
+        entitlement.createdBy,
+        entitlement.createdAt,
+        entitlement.updatedAt,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-entitlements-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminSettlements(req, res, next) {
   try {
     const options = {
@@ -1186,6 +1251,7 @@ module.exports = {
   transitionAdminAgreement,
   upsertAdminEntitlement,
   listAdminEntitlements,
+  downloadAdminEntitlements,
   listAdminSettlements,
   downloadAdminSettlements,
   listAdminCreditAuditEvents,
