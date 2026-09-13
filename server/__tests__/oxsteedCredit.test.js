@@ -691,6 +691,7 @@ test('passes the requested agreement through purchase authorization', async () =
 
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
@@ -720,9 +721,48 @@ test('passes the requested agreement through purchase authorization', async () =
     referenceId: 'order-1',
   });
 
-  expect(mockQuery.mock.calls[3][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
-  expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
-  expect(mockQuery.mock.calls[4][1]).toEqual([41, agreementId, CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
+  expect(mockQuery.mock.calls[4][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
+  expect(mockQuery.mock.calls[4][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
+  expect(mockQuery.mock.calls[5][1]).toEqual([41, agreementId, CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
+});
+
+test('replays a committed purchase while the credit rail is suspended', async () => {
+  const existing = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'purchase',
+    status: 'posted',
+    debit_account_id: 7001,
+    credit_account_id: 8001,
+    amount_cents: '1250',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    idempotency_key: 'purchase-replay-rail-off',
+    reference_type: 'food_order',
+    reference_id: 'order-replay-1',
+    metadata: {},
+    debit_account_customer_id: CUSTOMER_ID,
+    credit_account_partner_id: 41,
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [existing] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await service.purchaseWithCreditInTransaction({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 1250,
+    currencyCode: 'USD',
+    idempotencyKey: existing.idempotency_key,
+    referenceType: existing.reference_type,
+    referenceId: existing.reference_id,
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.transaction).toMatchObject({ id: existing.id, amountCents: 1250, replayed: true });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery.mock.calls[0][0]).toContain('debit_account.customer_id');
+  expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
 });
 
 test('does not create a new hold for a suspended credit account', async () => {

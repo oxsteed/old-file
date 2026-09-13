@@ -403,6 +403,29 @@ async function getExistingTransaction(client, idempotencyKey) {
   return rows[0] || null;
 }
 
+async function findExistingPurchaseForReplay(client, { customerId, partnerId, idempotencyKey }) {
+  const { rows } = await client.query(
+    `SELECT t.*,
+            debit_account.customer_id AS debit_account_customer_id,
+            credit_account.partner_id AS credit_account_partner_id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+       JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+      WHERE t.idempotency_key = $1
+      FOR UPDATE`,
+    [idempotencyKey]
+  );
+  const existing = rows[0];
+  if (!existing) return null;
+  if (existing.transaction_type !== 'purchase'
+    || String(existing.debit_account_customer_id) !== String(customerId)
+    || String(existing.partner_id) !== String(partnerId)
+    || String(existing.credit_account_partner_id) !== String(partnerId)) {
+    throw new AppError('Credit idempotency key was already used for a different purchase', 409, 'credit_idempotency_conflict');
+  }
+  return existing;
+}
+
 async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT_CURRENCY) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   // The cap is global, so serialize the outstanding-balance check across all
@@ -868,7 +891,44 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
 
 async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
-  if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const existing = await findExistingPurchaseForReplay(client, { customerId, partnerId, idempotencyKey: normalizedIdempotencyKey });
+  if (existing) {
+    const settlementCurrency = assertSupportedCreditCurrency(existing.currency_code);
+    if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
+      throw new AppError('Credit currency does not match the committed purchase', 409, 'credit_currency_mismatch');
+    }
+    if (agreementId !== null && agreementId !== undefined && String(agreementId) !== String(existing.agreement_id)) {
+      throw new AppError('Credit idempotency key was already used for a different purchase', 409, 'credit_idempotency_conflict');
+    }
+    const requestedReferenceType = normalizeString(referenceType, 80);
+    if (requestedReferenceType && existing.reference_type && requestedReferenceType !== existing.reference_type) {
+      throw new AppError('Credit idempotency key was already used for a different purchase', 409, 'credit_idempotency_conflict');
+    }
+    if (referenceId !== null && referenceId !== undefined && String(referenceId) !== String(existing.reference_id)) {
+      throw new AppError('Credit idempotency key was already used for a different purchase', 409, 'credit_idempotency_conflict');
+    }
+    return postJournalTransaction(client, {
+      transactionType: 'purchase',
+      debitAccountId: existing.debit_account_id,
+      creditAccountId: existing.credit_account_id,
+      partnerId,
+      agreementId: existing.agreement_id,
+      customerId,
+      amountCents: amount,
+      currencyCode: settlementCurrency,
+      idempotencyKey: normalizedIdempotencyKey,
+      actorType: actorType || (actorUserId ? 'user' : 'system'),
+      actorUserId,
+      referenceType: existing.reference_type || referenceType,
+      referenceId: existing.reference_id || referenceId,
+      correlationId,
+      description,
+      metadata,
+      existingTransaction: existing,
+    });
+  }
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
   const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount, excludeHoldId });
@@ -887,7 +947,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
     customerId,
     amountCents: amount,
     currencyCode: settlementCurrency,
-    idempotencyKey,
+    idempotencyKey: normalizedIdempotencyKey,
     actorType: actorType || (actorUserId ? 'user' : 'system'),
     actorUserId,
     referenceType,
