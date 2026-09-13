@@ -58,6 +58,7 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       migrations: { ok: false },
       redis: { ok: true, configured: Boolean(process.env.REDIS_URL) },
       creditLedger: creditLedgerReadiness(),
+      creditRail: { ok: true, enabled: false, requiresSharedRedis: false },
       realtime: { ok: runtime.realtimeReady },
       workers: { ok: runtime.workersReady },
       traffic: { ok: includeTrafficState ? runtime.acceptingTraffic : true },
@@ -91,6 +92,37 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       result.checks.redis.ok = false;
       result.checks.redis.error = 'redis unavailable';
       logger.error('Readiness Redis check failed', { message: err.message });
+    }
+  }
+
+  if (result.checks.database.ok) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT is_enabled
+           FROM feature_flags
+          WHERE key = 'oxsteed_credit_enabled'
+          LIMIT 1`
+      );
+      const enabled = rows[0]?.is_enabled === true;
+      result.checks.creditRail = {
+        ok: !enabled || (result.checks.redis.configured && result.checks.redis.ok),
+        enabled,
+        requiresSharedRedis: enabled,
+        ...(enabled && !result.checks.redis.configured
+          ? { error: 'Shared Redis is required before enabling OxSteed Credit' }
+          : {}),
+        ...(enabled && result.checks.redis.configured && !result.checks.redis.ok
+          ? { error: 'Configured Redis is unavailable while OxSteed Credit is enabled' }
+          : {}),
+      };
+    } catch (err) {
+      result.checks.creditRail = {
+        ok: false,
+        enabled: false,
+        requiresSharedRedis: false,
+        error: 'Credit rail status unavailable',
+      };
+      logger.error('Readiness Credit rail check failed', { message: err.message });
     }
   }
 

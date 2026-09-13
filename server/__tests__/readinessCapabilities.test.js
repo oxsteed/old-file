@@ -98,6 +98,41 @@ describe('runtime readiness', () => {
       else process.env[key] = value;
     });
   });
+
+  test('requires shared Redis before an enabled Credit rail can receive traffic', async () => {
+    const previous = {
+      NODE_ENV: process.env.NODE_ENV,
+      REDIS_URL: process.env.REDIS_URL,
+      OXSTEED_CREDIT_LEDGER_HMAC_SECRET: process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET,
+    };
+    process.env.NODE_ENV = 'production';
+    delete process.env.REDIS_URL;
+    process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-current-ledger-secret-32-chars!!';
+
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => {
+        if (sql.includes('_migrations')) return { rows: files.map((filename) => ({ filename })) };
+        if (sql.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+        return { rows: [{ '?column?': 1 }] };
+      }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.creditRail).toMatchObject({
+      ok: false,
+      enabled: true,
+      requiresSharedRedis: true,
+    });
+    expect(result.checks.creditRail.error).toContain('Shared Redis');
+
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
 });
 
 describe('public feature capabilities', () => {
