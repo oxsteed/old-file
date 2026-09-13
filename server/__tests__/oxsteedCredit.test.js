@@ -1426,6 +1426,15 @@ test('rejects malformed hold capture ids before any database query', async () =>
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('requires a reason before an administrative hold capture queries the database', async () => {
+  await expect(service.captureCreditHold({
+    holdId: 'hold-without-reason',
+    idempotencyKey: 'capture-without-reason-1',
+    actorType: 'admin',
+  })).rejects.toMatchObject({ code: 'credit_capture_reason_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('opens disputes only for posted transactions with an atomic duplicate guard', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'tx-1', partner_id: 41 }] })

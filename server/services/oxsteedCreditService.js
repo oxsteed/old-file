@@ -1491,6 +1491,8 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
 
 async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, description, reason, metadata = {} }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
+  const normalizedReason = normalizeString(reason, 500);
+  if (actorType === 'admin' && !normalizedReason) throw new AppError('A reason is required for administrative hold captures', 400, 'credit_capture_reason_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT h.*, a.currency_code AS account_currency_code
@@ -1530,7 +1532,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
         `INSERT INTO oxsteed_credit_audit_events
            (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, after_state)
          VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, $5, $6, $7::jsonb)`,
-        [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizeString(reason, 500) || 'Hold expired before capture', normalizeString(correlationId, 160), JSON.stringify({ amountCents: Number(hold.amount_cents) })]
+        [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason || 'Hold expired before capture', normalizeString(correlationId, 160), JSON.stringify({ amountCents: Number(hold.amount_cents) })]
       );
       return { hold: formatHold(expiredRows[0] || { ...hold, status: 'expired' }), expired: true, replayed: false };
     }
@@ -1563,7 +1565,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       referenceId: referenceId || hold.reference_id || String(hold.id),
       correlationId,
       description: description || hold.purpose || 'OxSteed Credit hold capture',
-      reason,
+      reason: normalizedReason,
       metadata: { ...normalizeMetadata(hold.metadata), ...normalizeMetadata(metadata), capturedHoldId: String(hold.id) },
     });
     const { rows: capturedRows } = await client.query(
@@ -1578,7 +1580,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       `INSERT INTO oxsteed_credit_audit_events
          (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, after_state)
        VALUES ('credit.hold.captured', $1, $2, $3, 'credit_hold', $4, $5, $6, $7::jsonb)`,
-      [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizeString(reason, 500), normalizeString(correlationId, 160), JSON.stringify({ amountCents: requestedAmount, transactionId: transactionResult.transaction.id })]
+      [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason, normalizeString(correlationId, 160), JSON.stringify({ amountCents: requestedAmount, transactionId: transactionResult.transaction.id })]
     );
     return { hold: formatHold(capturedRows[0]), transaction: transactionResult.transaction, replayed: false };
   }, 'credit_capture_hold');
