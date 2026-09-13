@@ -7,6 +7,9 @@ beforeEach(resetMocks);
 
 test('lists bounded customer credit wallets with operator filters', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
+    total: 1,
+  }] });
+  mockQuery.mockResolvedValueOnce({ rows: [{
     account_id: 7001,
     customer_id: '11111111-1111-4111-8111-111111111111',
     email: 'alice@example.com',
@@ -23,9 +26,10 @@ test('lists bounded customer credit wallets with operator filters', async () => 
     updated_at: '2026-09-12T12:00:00.000Z',
   }] });
 
-  const accounts = await listAdminCustomerCreditAccounts({ search: 'alice', currencyCode: 'EUR', status: 'suspended', limit: 10, offset: 20 });
+  const result = await listAdminCustomerCreditAccounts({ search: 'alice', currencyCode: 'EUR', status: 'suspended', limit: 10, offset: 20 });
 
-  expect(accounts).toEqual([expect.objectContaining({
+  expect(result).toMatchObject({ total: 1, limit: 10, offset: 20, hasMore: false });
+  expect(result.accounts).toEqual([expect.objectContaining({
     accountId: '7001',
     customerId: '11111111-1111-4111-8111-111111111111',
     name: 'Alice Customer',
@@ -37,7 +41,9 @@ test('lists bounded customer credit wallets with operator filters', async () => 
   expect(mockQuery.mock.calls[0][0]).toContain('u.email ILIKE');
   expect(mockQuery.mock.calls[0][0]).toContain('a.currency_code =');
   expect(mockQuery.mock.calls[0][0]).toContain('a.status =');
-  expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'EUR', 'suspended', 10, 20]);
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'EUR', 'suspended']);
+  expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $4 OFFSET $5');
+  expect(mockQuery.mock.calls[1][1]).toEqual(['%alice%', 'EUR', 'suspended', 10, 20]);
 });
 
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {

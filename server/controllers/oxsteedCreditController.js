@@ -490,14 +490,14 @@ async function listAdminPartners(req, res, next) {
 
 async function listAdminCustomerAccounts(req, res, next) {
   try {
-    const accounts = await listAdminCustomerCreditAccounts({
+    const result = await listAdminCustomerCreditAccounts({
       search: req.query.search || req.query.q,
       currencyCode: req.query.currencyCode || req.query.currency_code,
       status: req.query.status,
       limit: req.query.limit,
       offset: req.query.offset,
     });
-    res.json({ accounts });
+    res.json(result);
   } catch (error) {
     next(error);
   }

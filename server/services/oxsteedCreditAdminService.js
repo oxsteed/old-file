@@ -260,7 +260,7 @@ async function listAdminCustomerCreditAccounts({ search, currencyCode, status, l
   const normalizedStatus = normalizeString(status, 20);
   if (normalizedSearch) {
     params.push(`%${normalizedSearch}%`);
-    filters.push(`(u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR CAST(a.customer_id AS TEXT) ILIKE $${params.length})`);
+    filters.push(`(u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR CAST(a.customer_id AS TEXT) ILIKE $${params.length} OR a.currency_code ILIKE $${params.length} OR a.status ILIKE $${params.length})`);
   }
   if (normalizedCurrency) {
     params.push(normalizedCurrency);
@@ -275,6 +275,15 @@ async function listAdminCustomerCreditAccounts({ search, currencyCode, status, l
   const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 100;
   const parsedOffset = Number.parseInt(String(offset), 10);
   const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  const filterParams = [...params];
+  const { rows: countRows } = await pool.query(
+    `SELECT COUNT(*)::int AS total
+       FROM oxsteed_credit_accounts a
+       JOIN users u ON u.id = a.customer_id
+      WHERE ${filters.join(' AND ')}`,
+    filterParams
+  );
+  const total = Number(countRows[0]?.total || 0);
   params.push(safeLimit);
   const limitParam = params.length;
   params.push(safeOffset);
@@ -290,7 +299,13 @@ async function listAdminCustomerCreditAccounts({ search, currencyCode, status, l
       LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatCustomerCreditAccount);
+  return {
+    accounts: rows.map(formatCustomerCreditAccount),
+    total,
+    limit: safeLimit,
+    offset: safeOffset,
+    hasMore: safeOffset + rows.length < total,
+  };
 }
 
 async function listPartners({ search, status } = {}) {
