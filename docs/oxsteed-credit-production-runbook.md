@@ -188,6 +188,15 @@ Authenticated customers can retrieve a bounded statement from `GET /api/oxsteed-
 
 Customers can download the same period as CSV from `GET /api/oxsteed-credit/statement.csv`. The export is capped at 5,000 transactions and returns a clear error rather than a partial file when the selected period is larger. Exported data intentionally excludes idempotency keys, ledger hashes, internal actor data, and raw transaction metadata.
 
+Each posted transaction also has a customer-only receipt at
+`/oxsteed-credit/transactions/:transactionId`. The receipt shows the posted
+amount, restaurant or order context, transaction identifier, and the
+server-recorded customer balance immediately after that ledger entry. The
+balance-after value is read from the matching customer journal entry rather
+than calculated in the browser, and the endpoint never exposes the other
+side's account details or ledger integrity metadata. Customers can use the
+browser print action to save a PDF copy.
+
 Super Admin customer statement exports use the same bounded statement format
 and are available from the Customer 360 panel. All Credit CSV exports quote
 cells and neutralize formula-leading values so customer-controlled descriptions
