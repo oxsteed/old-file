@@ -112,6 +112,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.holdLifecycleMigrationApplied');
   expect(verifierSource).toContain("['460_oxsteed_credit_settlement_period.sql']");
   expect(verifierSource).toContain('!checks.settlementPeriodMigrationApplied');
+  expect(verifierSource).toContain("['461_oxsteed_credit_adjustment_direction.sql']");
+  expect(verifierSource).toContain('!checks.adjustmentDirectionMigrationApplied');
 });
 
 test('credit verification requires posted customer history indexes', () => {
@@ -1278,6 +1280,7 @@ test('allows approved adjustments into suspended wallets but never closed wallet
     actorUserId: ADMIN_ID,
     customerId: CUSTOMER_ID,
     reason: 'Approved customer grant',
+    metadata: { direction: 'credit' },
     referenceType: 'admin_adjustment',
     referenceId: 'funding-1',
     allowSuspendedAccounts: true,
@@ -1297,6 +1300,7 @@ test('allows approved adjustments into suspended wallets but never closed wallet
     currencyCode: 'USD',
     idempotencyKey: 'closed-adjustment-1',
     reason: 'Closed wallet test',
+    metadata: { direction: 'credit' },
     allowSuspendedAccounts: true,
   })).rejects.toMatchObject({ code: 'credit_account_inactive', status: 409 });
 });

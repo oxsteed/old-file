@@ -313,6 +313,11 @@ async function main() {
       ['460_oxsteed_credit_settlement_period.sql']
     );
     checks.settlementPeriodMigrationApplied = settlementPeriodMigrationRows.rows.length === 1;
+    const adjustmentDirectionMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['461_oxsteed_credit_adjustment_direction.sql']
+    );
+    checks.adjustmentDirectionMigrationApplied = adjustmentDirectionMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -518,7 +523,17 @@ async function main() {
            OR (t.transaction_type = 'settlement'
                AND (debit_account.account_type <> 'partner_payable'
                  OR credit_account.account_type <> 'platform_treasury'
-                 OR t.partner_id IS NULL OR t.agreement_id IS NULL))`,
+                 OR t.partner_id IS NULL OR t.agreement_id IS NULL))
+           OR (t.transaction_type = 'adjustment'
+               AND (t.partner_id IS NOT NULL
+                 OR t.agreement_id IS NOT NULL
+                 OR (t.metadata->>'direction' = 'credit'
+                   AND (debit_account.account_type <> 'platform_treasury'
+                     OR credit_account.account_type <> 'customer_wallet'))
+                 OR (t.metadata->>'direction' = 'debit'
+                   AND (debit_account.account_type <> 'customer_wallet'
+                     OR credit_account.account_type <> 'platform_treasury'))
+                 OR COALESCE(t.metadata->>'direction', '') NOT IN ('credit', 'debit'))))`,
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
 
@@ -652,6 +667,7 @@ async function main() {
       !checks.issuanceTraceMigrationApplied,
       !checks.holdLifecycleMigrationApplied,
       !checks.settlementPeriodMigrationApplied,
+      !checks.adjustmentDirectionMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

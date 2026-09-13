@@ -589,6 +589,21 @@ async function postJournalTransaction(client, input) {
   if (!debitAccount || !creditAccount || debitAccount.id === creditAccount.id) {
     throw new AppError('Invalid credit account movement', 400, 'credit_account_movement_invalid');
   }
+  if (input.transactionType === 'adjustment') {
+    const direction = normalizeString(normalizeMetadata(input.metadata).direction, 20);
+    const validDirection = direction === 'credit'
+      ? debitAccount.account_type === 'platform_treasury' && creditAccount.account_type === 'customer_wallet'
+      : direction === 'debit'
+        ? debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'platform_treasury'
+        : false;
+    if (
+      !validDirection
+      || (input.partnerId !== null && input.partnerId !== undefined)
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit adjustment account direction is invalid', 400, 'credit_adjustment_direction_invalid');
+    }
+  }
   if (normalizeCurrency(debitAccount.currency_code) !== requested.currency_code || normalizeCurrency(creditAccount.currency_code) !== requested.currency_code) {
     throw new AppError('Credit currency mismatch', 409, 'credit_currency_mismatch');
   }
