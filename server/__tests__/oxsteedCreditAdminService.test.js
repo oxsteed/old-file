@@ -1,9 +1,44 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, listAdminCustomerCreditAccounts } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
+
+test('lists bounded customer credit wallets with operator filters', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    account_id: 7001,
+    customer_id: '11111111-1111-4111-8111-111111111111',
+    email: 'alice@example.com',
+    first_name: 'Alice',
+    last_name: 'Customer',
+    is_active: true,
+    is_banned: false,
+    currency_code: 'EUR',
+    balance_cents: '12500',
+    reserved_cents: '2500',
+    status: 'suspended',
+    ledger_version: '4',
+    last_posted_at: '2026-09-12T12:00:00.000Z',
+    updated_at: '2026-09-12T12:00:00.000Z',
+  }] });
+
+  const accounts = await listAdminCustomerCreditAccounts({ search: 'alice', currencyCode: 'EUR', status: 'suspended', limit: 10, offset: 20 });
+
+  expect(accounts).toEqual([expect.objectContaining({
+    accountId: '7001',
+    customerId: '11111111-1111-4111-8111-111111111111',
+    name: 'Alice Customer',
+    availableBalanceCents: 10000,
+    currencyCode: 'EUR',
+    status: 'suspended',
+  })]);
+  expect(mockQuery.mock.calls[0][0]).toContain("a.account_type = 'customer_wallet'");
+  expect(mockQuery.mock.calls[0][0]).toContain('u.email ILIKE');
+  expect(mockQuery.mock.calls[0][0]).toContain('a.currency_code =');
+  expect(mockQuery.mock.calls[0][0]).toContain('a.status =');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', 'EUR', 'suspended', 10, 20]);
+});
 
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {
   mockQuery

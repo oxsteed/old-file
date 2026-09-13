@@ -232,6 +232,66 @@ async function listCreditAuditEvents({ actionType, resourceType, customerId, par
   return rows.map(formatCreditAuditEvent);
 }
 
+function formatCustomerCreditAccount(row) {
+  return {
+    accountId: String(row.account_id),
+    customerId: String(row.customer_id),
+    email: row.email || null,
+    name: [row.first_name, row.last_name].filter(Boolean).join(' ') || null,
+    isActive: row.is_active === true,
+    isBanned: row.is_banned === true,
+    currencyCode: row.currency_code,
+    balanceCents: Number(row.balance_cents || 0),
+    reservedCents: Number(row.reserved_cents || 0),
+    availableBalanceCents: Math.max(0, Number(row.balance_cents || 0) - Number(row.reserved_cents || 0)),
+    status: row.status,
+    ledgerVersion: Number(row.ledger_version || 0),
+    lastPostedAt: row.last_posted_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+async function listAdminCustomerCreditAccounts({ search, currencyCode, status, limit = 100, offset = 0 } = {}) {
+  const params = [];
+  const filters = ["a.account_type = 'customer_wallet'"];
+  const normalizedSearch = normalizeString(search, 120);
+  const normalizedCurrency = currencyCode ? assertSupportedCreditCurrency(currencyCode) : null;
+  const normalizedStatus = normalizeString(status, 20);
+  if (normalizedSearch) {
+    params.push(`%${normalizedSearch}%`);
+    filters.push(`(u.email ILIKE $${params.length} OR u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR CAST(a.customer_id AS TEXT) ILIKE $${params.length})`);
+  }
+  if (normalizedCurrency) {
+    params.push(normalizedCurrency);
+    filters.push(`a.currency_code = $${params.length}`);
+  }
+  if (normalizedStatus) {
+    if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid customer account status', 400, 'invalid_credit_account_status');
+    params.push(normalizedStatus);
+    filters.push(`a.status = $${params.length}`);
+  }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 100;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
+  const { rows } = await pool.query(
+    `SELECT a.id AS account_id, a.customer_id, a.currency_code, a.balance_cents,
+            a.reserved_cents, a.status, a.ledger_version, a.last_posted_at, a.updated_at,
+            u.email, u.first_name, u.last_name, u.is_active, u.is_banned
+       FROM oxsteed_credit_accounts a
+       JOIN users u ON u.id = a.customer_id
+      WHERE ${filters.join(' AND ')}
+      ORDER BY a.updated_at DESC, a.id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  return rows.map(formatCustomerCreditAccount);
+}
+
 async function listPartners({ search, status } = {}) {
   const params = [];
   const filters = [];
@@ -753,6 +813,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
 
 module.exports = {
   listPartners,
+  listAdminCustomerCreditAccounts,
   registerPartner,
   transitionPartner,
   listAgreements,

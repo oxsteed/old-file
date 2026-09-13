@@ -27,6 +27,7 @@ const {
 } = require('../services/oxsteedCreditService');
 const {
   listPartners,
+  listAdminCustomerCreditAccounts,
   registerPartner,
   transitionPartner,
   listAgreements,
@@ -487,6 +488,21 @@ async function listAdminPartners(req, res, next) {
   }
 }
 
+async function listAdminCustomerAccounts(req, res, next) {
+  try {
+    const accounts = await listAdminCustomerCreditAccounts({
+      search: req.query.search || req.query.q,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ accounts });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminAgreements(req, res, next) {
   try {
     const agreements = await listAgreements({
@@ -693,6 +709,7 @@ module.exports = {
   getAdminCreditRail,
   updateAdminCreditRail,
   listAdminPartners,
+  listAdminCustomerAccounts,
   listAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,
