@@ -88,6 +88,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_settlement_payment_evidence_guard',
   'oxsteed_credit_transaction_settlement_evidence_guard',
   'oxsteed_credit_admin_refund_evidence_guard',
+  'oxsteed_credit_hold_immutable_guard',
   'oxsteed_credit_account_reservation_guard',
   'oxsteed_credit_hold_reservation_guard',
   'oxsteed_credit_transaction_status_guard',
@@ -363,6 +364,11 @@ async function main() {
       ['468_oxsteed_credit_admin_refund_evidence.sql']
     );
     checks.adminRefundEvidenceMigrationApplied = adminRefundEvidenceMigrationRows.rows.length === 1;
+    const holdImmutabilityMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['469_oxsteed_credit_hold_immutability.sql']
+    );
+    checks.holdImmutabilityMigrationApplied = holdImmutabilityMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -774,6 +780,7 @@ async function main() {
       !checks.settlementPaymentEvidenceMigrationApplied,
       !checks.auditHashChainMigrationApplied,
       !checks.adminRefundEvidenceMigrationApplied,
+      !checks.holdImmutabilityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
