@@ -335,12 +335,29 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
     if (current.is_enabled === enabled) {
       return { rail: formatCreditRailStatus(current), changed: false, replayed: true };
     }
-    if (enabled && (process.env.NODE_ENV || 'production') === 'production' && !process.env.REDIS_URL) {
-      throw new AppError(
-        'Configure shared Redis before enabling OxSteed Credit in production',
-        409,
-        'credit_shared_redis_required'
-      );
+    if (enabled && (process.env.NODE_ENV || 'production') === 'production') {
+      const prerequisites = getCreditRailPrerequisites();
+      if (!prerequisites.sharedRedisConfigured) {
+        throw new AppError(
+          'Configure shared Redis before enabling OxSteed Credit in production',
+          409,
+          'credit_shared_redis_required'
+        );
+      }
+      if (!prerequisites.dedicatedLedgerSecretConfigured) {
+        throw new AppError(
+          'Configure the dedicated OxSteed Credit ledger key before enabling the rail in production',
+          409,
+          'credit_ledger_secret_required'
+        );
+      }
+      if (!prerequisites.ledgerKeyConfigurationValid) {
+        throw new AppError(
+          'Correct the OxSteed Credit ledger key configuration before enabling the rail in production',
+          409,
+          'credit_ledger_key_configuration_invalid'
+        );
+      }
     }
     requireAdministrativeActor(actorUserId, 'An identified administrator is required to change the OxSteed Credit rail status', 'credit_rail_actor_required');
     const { rows: updatedRows } = await client.query(
