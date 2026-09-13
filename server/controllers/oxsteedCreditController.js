@@ -618,7 +618,18 @@ async function getAdminOverview(req, res, next) {
                ORDER BY created_at DESC, id DESC
                LIMIT 25
             ) failed
-          ), '[]'::json) AS failed_notifications
+          ), '[]'::json) AS failed_notifications,
+          COALESCE((
+            SELECT json_build_object(
+              'lastRunAt', heartbeat.last_run_at,
+              'lastSuccessAt', heartbeat.last_success_at,
+              'lastError', heartbeat.last_error,
+              'runCount', heartbeat.run_count,
+              'consecutiveFailures', heartbeat.consecutive_failures
+            )
+              FROM oxsteed_credit_worker_heartbeats heartbeat
+             WHERE heartbeat.job_name = 'oxsteed-credit-notification-outbox'
+          ), '{}'::json) AS worker_heartbeat
         FROM oxsteed_credit_notification_outbox`),
     ]);
     const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
@@ -639,6 +650,9 @@ async function getAdminOverview(req, res, next) {
       oldestPendingAt: notificationHealthRow.oldest_pending_at || null,
       oldestFailedAt: notificationHealthRow.oldest_failed_at || null,
       failedNotifications: Array.isArray(notificationHealthRow.failed_notifications) ? notificationHealthRow.failed_notifications : [],
+      workerHeartbeat: notificationHealthRow.worker_heartbeat && typeof notificationHealthRow.worker_heartbeat === 'object'
+        ? notificationHealthRow.worker_heartbeat
+        : {},
     };
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',

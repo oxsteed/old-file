@@ -7,6 +7,7 @@ const { sendNotification } = require('../services/notificationService');
 const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const incidentStore = require('../services/incidentStore');
+const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-notification-outbox';
@@ -214,12 +215,20 @@ async function purgeSentCreditNotifications(limit = 1000, retentionDays = getSen
 
 async function runOxsteedCreditNotificationOutbox() {
   let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 };
-  await withJobLock(JOB_NAME, async () => {
-    const processed = await processOxsteedCreditNotificationOutbox();
-    const purged = await purgeSentCreditNotifications();
-    result = { ...processed, purged };
-    if (result.claimed || result.purged) logger.info('OxSteed Credit notification outbox processed', result);
-  }, 120, { throwOnLockError: true });
+  let lockAcquired = false;
+  try {
+    await withJobLock(JOB_NAME, async () => {
+      lockAcquired = true;
+      const processed = await processOxsteedCreditNotificationOutbox();
+      const purged = await purgeSentCreditNotifications();
+      result = { ...processed, purged };
+      if (result.claimed || result.purged) logger.info('OxSteed Credit notification outbox processed', result);
+    }, 120, { throwOnLockError: true });
+    if (lockAcquired) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, result });
+  } catch (error) {
+    if (lockAcquired) await recordOxsteedCreditWorkerRun({ jobName: JOB_NAME, error });
+    throw error;
+  }
   return result;
 }
 

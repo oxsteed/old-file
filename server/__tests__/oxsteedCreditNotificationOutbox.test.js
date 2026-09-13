@@ -13,11 +13,15 @@ jest.mock('../jobs/oxsteedCreditJobFailure', () => ({
 jest.mock('../services/incidentStore', () => ({
   recordIncident: jest.fn().mockResolvedValue({ persisted: true }),
 }));
+jest.mock('../services/oxsteedCreditWorkerHeartbeat', () => ({
+  recordOxsteedCreditWorkerRun: jest.fn().mockResolvedValue({ persisted: true }),
+}));
 
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { withJobLock } = require('../jobs/jobLockingService');
 const { recordIncident } = require('../services/incidentStore');
+const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const {
   CRON_EXPRESSION,
   JOB_NAME,
@@ -103,6 +107,7 @@ test('runs under the distributed Credit worker lock', async () => {
 
   await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 });
   expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
+  expect(recordOxsteedCreditWorkerRun).toHaveBeenCalledWith({ jobName: JOB_NAME, result: { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 } });
   expect(CRON_EXPRESSION).toBe('* * * * *');
 });
 

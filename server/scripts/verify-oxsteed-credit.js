@@ -28,6 +28,7 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
   'oxsteed_credit_notification_outbox',
+  'oxsteed_credit_worker_heartbeats',
   'cron_job_locks',
 ];
 
@@ -65,6 +66,7 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
   oxsteed_credit_notification_outbox: ['transaction_id', 'hold_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
+  oxsteed_credit_worker_heartbeats: ['last_run_at', 'last_success_at', 'last_error', 'last_result', 'run_count', 'consecutive_failures', 'updated_at'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
 };
 
@@ -86,6 +88,7 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_notification_outbox_due',
   'idx_oxsteed_credit_notification_outbox_user',
   'idx_oxsteed_credit_notification_outbox_sent_retention',
+  'idx_oxsteed_credit_worker_heartbeats_last_run',
   'uq_oxsteed_credit_hold_notification',
   'uq_oxsteed_credit_audit_event_hash',
 ];
@@ -607,6 +610,11 @@ async function main() {
       ['507_oxsteed_credit_notification_retention.sql']
     );
     checks.notificationRetentionMigrationApplied = notificationRetentionMigrationRows.rows.length === 1;
+    const workerHeartbeatMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['508_oxsteed_credit_worker_heartbeat.sql']
+    );
+    checks.workerHeartbeatMigrationApplied = workerHeartbeatMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1566,6 +1574,7 @@ async function main() {
       !checks.notificationOutboxMigrationApplied,
       !checks.holdNotificationOutboxMigrationApplied,
       !checks.notificationRetentionMigrationApplied,
+      !checks.workerHeartbeatMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,

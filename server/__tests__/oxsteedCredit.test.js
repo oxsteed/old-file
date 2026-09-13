@@ -236,6 +236,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.holdNotificationOutboxMigrationApplied');
   expect(verifierSource).toContain("['507_oxsteed_credit_notification_retention.sql']");
   expect(verifierSource).toContain('!checks.notificationRetentionMigrationApplied');
+  expect(verifierSource).toContain("['508_oxsteed_credit_worker_heartbeat.sql']");
+  expect(verifierSource).toContain('!checks.workerHeartbeatMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditNotificationRecipients > 0');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
 });
@@ -286,6 +288,7 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_disputes_status_history',
     'uq_oxsteed_credit_dispute_idempotency',
     'idx_oxsteed_credit_notification_outbox_sent_retention',
+    'idx_oxsteed_credit_worker_heartbeats_last_run',
   ]));
 });
 
@@ -484,7 +487,7 @@ test('keeps admin credit overview balances separated by currency', async () => {
   ]));
   expect(response.body.partnerCounts).toEqual({ total: 125, active: 118 });
   expect(response.body.coverageAlerts).toEqual({ pendingPartners: 4, activePartnersWithoutAgreement: 2, expiringAgreements: 3 });
-  expect(response.body.notificationHealth).toEqual({ pending: 2, sending: 1, failed: 1, oldestPendingAt: '2026-09-13T12:00:00.000Z', oldestFailedAt: '2026-09-12T12:00:00.000Z', failedNotifications: [] });
+  expect(response.body.notificationHealth).toEqual({ pending: 2, sending: 1, failed: 1, oldestPendingAt: '2026-09-13T12:00:00.000Z', oldestFailedAt: '2026-09-12T12:00:00.000Z', failedNotifications: [], workerHeartbeat: {} });
   expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
 });
