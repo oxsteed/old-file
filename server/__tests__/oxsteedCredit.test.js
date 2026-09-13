@@ -60,6 +60,7 @@ function createAdminApp() {
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
+  app.post('/entitlements/bulk', controller.bulkUpsertAdminEntitlements);
   app.get('/disputes', controller.listAdminDisputes);
   app.get('/disputes.csv', controller.downloadAdminCreditDisputes);
   app.get('/entitlements.csv', controller.downloadAdminEntitlements);
@@ -839,6 +840,16 @@ test('keeps credit transfers restricted to customer accounts', async () => {
 
   expect(response.status).toBe(403);
   expect(response.body.code).toBe('credit_transfer_customer_only');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('rejects an empty bulk Credit entitlement request before database work', async () => {
+  const response = await request(createAdminApp())
+    .post('/entitlements/bulk')
+    .send({ customerId: CUSTOMER_ID, agreementIds: [], reason: 'Partner access' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_entitlement_agreements_required');
   expect(mockQuery).not.toHaveBeenCalled();
 });
 

@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -226,6 +226,44 @@ test('records the prior entitlement state when access is updated', async () => {
     }),
     JSON.stringify({}),
   ]);
+});
+
+test('bulk-upserts customer access across multiple restaurant agreements atomically', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const agreementIds = [
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  ];
+  mockQuery
+    .mockResolvedValueOnce({ rows: [
+      { id: agreementIds[0], partner_id: 41, restaurant_id: 9, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Cafe', version: 1, status: 'active' },
+      { id: agreementIds[1], partner_id: 42, restaurant_id: 10, settlement_currency_code: 'USD', restaurant_name: 'OxSteed Bistro', version: 1, status: 'active' },
+    ] })
+    .mockResolvedValueOnce({ rows: [{ id: customerId }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'entitlement-1', customer_id: customerId, agreement_id: agreementIds[0], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'entitlement-2', customer_id: customerId, agreement_id: agreementIds[1], status: 'active', starts_at: null, ends_at: null, max_transaction_cents: 2500, daily_limit_cents: 10000, metadata: {}, reason: 'Restaurant benefit', created_by: 'admin-1', created_at: '2026-09-13T10:00:00.000Z', updated_at: '2026-09-13T10:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await bulkUpsertEntitlements({
+    agreementIds,
+    customerId,
+    maxTransactionCents: 2500,
+    dailyLimitCents: 10000,
+    reason: 'Restaurant benefit',
+    actorUserId: 'admin-1',
+  });
+
+  expect(result).toMatchObject({ count: 2, replayed: false });
+  expect(result.entitlements).toEqual([
+    expect.objectContaining({ agreementId: agreementIds[0], restaurantName: 'OxSteed Cafe', partnerId: '41' }),
+    expect.objectContaining({ agreementId: agreementIds[1], restaurantName: 'OxSteed Bistro', partnerId: '42' }),
+  ]);
+  expect(mockQuery.mock.calls[0][0]).toContain('a.id = ANY($1::uuid[])');
+  expect(mockQuery.mock.calls[2][0]).toContain('agreement_id = ANY($2::uuid[])');
+  expect(mockQuery.mock.calls[4][1]).toContain('credit.entitlement.bulk_upserted');
+  expect(mockQuery.mock.calls[6][1]).toContain('credit.entitlement.bulk_upserted');
 });
 
 test('lists customer entitlements with restaurant context and bounded paging', async () => {

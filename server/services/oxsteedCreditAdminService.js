@@ -14,6 +14,7 @@ const CREDIT_TRANSACTION_STATUSES = new Set(['pending', 'posted', 'reversed', 'v
 const MAX_AGREEMENT_LIMIT_CENTS = Number.isSafeInteger(Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS || '', 10))
   ? Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS, 10)
   : 5000000;
+const MAX_BULK_ENTITLEMENTS = 50;
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -1487,6 +1488,108 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
   }, 'credit_admin_upsert_entitlement');
 }
 
+function normalizeBulkAgreementIds(agreementIds) {
+  if (!Array.isArray(agreementIds) || agreementIds.length === 0) {
+    throw new AppError('At least one credit agreement is required', 400, 'credit_entitlement_agreements_required');
+  }
+  const ids = [...new Set(agreementIds.map((value) => normalizeString(value, 80)).filter(Boolean))];
+  if (ids.length > MAX_BULK_ENTITLEMENTS) {
+    throw new AppError(`A bulk entitlement action cannot include more than ${MAX_BULK_ENTITLEMENTS} agreements`, 400, 'credit_entitlement_bulk_limit_exceeded', { maxAgreements: MAX_BULK_ENTITLEMENTS });
+  }
+  if (ids.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) {
+    throw new AppError('Every credit agreement ID must be a valid UUID', 400, 'credit_entitlement_agreement_invalid');
+  }
+  return ids;
+}
+
+async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId }) {
+  const normalizedAgreementIds = normalizeBulkAgreementIds(agreementIds);
+  const normalizedStatus = normalizeString(status, 20) || 'active';
+  if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
+  const normalizedReason = requireAuditReason(reason);
+  const starts = parseDate(startsAt, 'startsAt');
+  const ends = parseDate(endsAt, 'endsAt');
+  if (starts && ends && ends <= starts) throw new AppError('Entitlement end must be after its start', 400, 'credit_entitlement_dates_invalid');
+  const maxTransaction = parseLimit(maxTransactionCents, 'maxTransactionCents');
+  const dailyLimit = parseLimit(dailyLimitCents, 'dailyLimitCents');
+  const serializedMetadata = JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {});
+  const values = [normalizedStatus, starts, ends, maxTransaction, dailyLimit, serializedMetadata, normalizedReason, actorUserId || null];
+
+  return withTransaction(pool, async (client) => {
+    const { rows: agreementRows } = await client.query(
+      `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE a.id = ANY($1::uuid[])
+        ORDER BY a.id ASC
+        FOR SHARE`,
+      [normalizedAgreementIds]
+    );
+    const agreementById = new Map(agreementRows.map((agreement) => [String(agreement.id), agreement]));
+    const missingAgreementIds = normalizedAgreementIds.filter((agreementId) => !agreementById.has(String(agreementId)));
+    if (missingAgreementIds.length) {
+      throw new AppError('One or more credit agreements were not found', 404, 'credit_agreement_not_found', { missingAgreementIds });
+    }
+    const { rows: userRows } = await client.query(
+      `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`,
+      [customerId]
+    );
+    if (!userRows[0]) throw new AppError('Customer not found', 404, 'customer_not_found');
+    const { rows: existingRows } = await client.query(
+      `SELECT *
+         FROM oxsteed_credit_customer_entitlements
+        WHERE customer_id = $1 AND agreement_id = ANY($2::uuid[])
+        FOR UPDATE`,
+      [customerId, normalizedAgreementIds]
+    );
+    const existingByAgreementId = new Map(existingRows.map((entitlement) => [String(entitlement.agreement_id), entitlement]));
+    const entitlements = [];
+
+    for (const agreementId of normalizedAgreementIds) {
+      const agreement = agreementById.get(String(agreementId));
+      const before = existingByAgreementId.get(String(agreementId));
+      const { rows } = await client.query(
+        `INSERT INTO oxsteed_credit_customer_entitlements
+           (customer_id, agreement_id, status, starts_at, ends_at, max_transaction_cents,
+            daily_limit_cents, metadata, reason, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+         ON CONFLICT (customer_id, agreement_id) DO UPDATE
+           SET status = EXCLUDED.status, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at,
+               max_transaction_cents = EXCLUDED.max_transaction_cents,
+               daily_limit_cents = EXCLUDED.daily_limit_cents, metadata = EXCLUDED.metadata,
+               reason = EXCLUDED.reason, created_by = EXCLUDED.created_by, updated_at = NOW()
+         RETURNING *`,
+        [customerId, agreement.id, ...values]
+      );
+      if (!rows[0]) throw new AppError('Credit entitlement could not be saved', 409, 'credit_entitlement_conflict');
+      const entitlement = {
+        ...rows[0],
+        partner_id: agreement.partner_id,
+        restaurant_id: agreement.restaurant_id,
+        restaurant_name: agreement.restaurant_name,
+        agreement_version: agreement.version,
+        agreement_status: agreement.status,
+        settlement_currency_code: agreement.settlement_currency_code,
+      };
+      await insertAudit(client, {
+        actionType: 'credit.entitlement.bulk_upserted',
+        actorUserId,
+        customerId,
+        partnerId: agreement.partner_id,
+        resourceType: 'credit_entitlement',
+        resourceId: rows[0].id,
+        reason: normalizedReason,
+        beforeState: before ? snapshotEntitlement(before) : null,
+        afterState: snapshotEntitlement(rows[0]),
+        metadata: { bulk: true, agreementCount: normalizedAgreementIds.length },
+      });
+      entitlements.push(formatEntitlement(entitlement));
+    }
+    return { entitlements, count: entitlements.length, replayed: false };
+  }, 'credit_admin_bulk_upsert_entitlements');
+}
+
 async function expireCreditEntitlements({ limit = 500, now = new Date(), actorUserId = null } = {}) {
   const effectiveNow = now instanceof Date ? now : new Date(now);
   if (Number.isNaN(effectiveNow.getTime())) throw new TypeError('Invalid entitlement expiry clock');
@@ -1611,6 +1714,7 @@ module.exports = {
   createAgreement,
   transitionAgreement,
   upsertEntitlement,
+  bulkUpsertEntitlements,
   listCreditAuditEvents,
   formatAgreement,
   formatPartner,
@@ -1622,4 +1726,5 @@ module.exports = {
   formatReconciliationRun,
   CREDIT_TRANSACTION_TYPES,
   CREDIT_TRANSACTION_STATUSES,
+  MAX_BULK_ENTITLEMENTS,
 };

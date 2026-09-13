@@ -50,6 +50,8 @@ const {
   createAgreement,
   transitionAgreement,
   upsertEntitlement,
+  bulkUpsertEntitlements,
+  MAX_BULK_ENTITLEMENTS,
   listCreditAuditEvents,
 } = require('../services/oxsteedCreditAdminService');
 
@@ -1068,6 +1070,35 @@ async function upsertAdminEntitlement(req, res, next) {
   }
 }
 
+async function bulkUpsertAdminEntitlements(req, res, next) {
+  try {
+    const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    const rawAgreementIds = req.body?.agreementIds || req.body?.agreement_ids;
+    if (!Array.isArray(rawAgreementIds) || rawAgreementIds.length === 0) {
+      throw new AppError('At least one credit agreement is required', 400, 'credit_entitlement_agreements_required');
+    }
+    if (rawAgreementIds.length > MAX_BULK_ENTITLEMENTS) {
+      throw new AppError(`A bulk entitlement action cannot include more than ${MAX_BULK_ENTITLEMENTS} agreements`, 400, 'credit_entitlement_bulk_limit_exceeded');
+    }
+    const agreementIds = [...new Set(rawAgreementIds.map((agreementId) => parseUuid(agreementId, 'agreementId')))];
+    const result = await bulkUpsertEntitlements({
+      agreementIds,
+      customerId,
+      status: req.body?.status,
+      startsAt: req.body?.startsAt || req.body?.starts_at,
+      endsAt: req.body?.endsAt || req.body?.ends_at,
+      maxTransactionCents: req.body?.maxTransactionCents ?? req.body?.max_transaction_cents,
+      dailyLimitCents: req.body?.dailyLimitCents ?? req.body?.daily_limit_cents,
+      reason: req.body?.reason,
+      metadata: req.body?.metadata,
+      actorUserId: req.user.id,
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminEntitlements(req, res, next) {
   try {
     const customerId = req.query.customerId || req.query.customer_id
@@ -1473,6 +1504,7 @@ module.exports = {
   createAdminAgreement,
   transitionAdminAgreement,
   upsertAdminEntitlement,
+  bulkUpsertAdminEntitlements,
   listAdminEntitlements,
   downloadAdminEntitlements,
   listAdminSettlements,

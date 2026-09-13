@@ -54,6 +54,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
   const [agreementLookupTotal, setAgreementLookupTotal] = useState(0);
   const [loadingAgreementOptions, setLoadingAgreementOptions] = useState(false);
   const [agreementOptionsError, setAgreementOptionsError] = useState('');
+  const [bulkAgreementIds, setBulkAgreementIds] = useState([]);
   const agreementLookupRequestRef = useRef(0);
 
   const load = async () => {
@@ -164,9 +165,44 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
       });
       setNotice(response.data?.replayed ? 'That customer access record was already up to date.' : `Customer access saved for ${selectedAgreement?.restaurantName || 'the selected restaurant'}.`);
       setForm((current) => ({ ...current, agreementId: '', maxTransaction: '', dailyLimit: '', reason: '' }));
+      setBulkAgreementIds([]);
       await load();
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Customer access update failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitBulk = async () => {
+    if (!form.customerId.trim() || !form.reason.trim()) {
+      setError('Customer UUID and a reason are required for bulk customer access.');
+      return;
+    }
+    if (!bulkAgreementIds.length) {
+      setError('Select at least one restaurant agreement for bulk customer access.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await adminApi.post('/admin/super/oxsteed-credit/entitlements/bulk', {
+        customerId: form.customerId.trim(),
+        agreementIds: bulkAgreementIds,
+        status: form.status,
+        startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
+        endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
+        maxTransactionCents: dollarsToCents(form.maxTransaction),
+        dailyLimitCents: dollarsToCents(form.dailyLimit),
+        reason: form.reason.trim(),
+      });
+      setNotice(`Customer access saved across ${response.data?.count || bulkAgreementIds.length} restaurant agreements.`);
+      setForm((current) => ({ ...current, agreementId: '', maxTransaction: '', dailyLimit: '', reason: '' }));
+      setBulkAgreementIds([]);
+      await load();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Bulk customer access update failed. No partial changes were saved.');
     } finally {
       setSaving(false);
     }
@@ -186,7 +222,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
     <form onSubmit={submit} className="mt-5 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Customer UUID</span><input required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} list="oxsteed-credit-customers" placeholder="Paste UUID or choose from loaded wallets" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /><datalist id="oxsteed-credit-customers">{customerAccounts.map((account) => <option key={account.accountId} value={account.customerId}>{account.name || account.email || account.customerId}</option>)}</datalist></label>
-      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner agreement</span><div className="mb-2 flex flex-wrap gap-2"><input value={agreementSearch} onChange={(event) => setAgreementSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyAgreementLookup(); }} placeholder="Search restaurant or partner ID" className="min-w-[180px] flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="button" onClick={applyAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingAgreementOptions ? 'Searching...' : 'Find agreements'}</button>{agreementLookupQuery && <button type="button" onClick={clearAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Clear</button>}</div><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} disabled={loadingAgreementOptions} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingAgreementOptions ? 'Loading agreements...' : 'Choose a restaurant agreement'}</option>{selectableAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || 'Partner restaurant'} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select>{agreementOptionsError && <p className="mt-2 text-xs font-semibold text-red-300">{agreementOptionsError}</p>}<p className="mt-2 text-[11px] text-gray-600">{agreementLookupQuery ? `Showing ${agreementLookupTotal} matching agreement${agreementLookupTotal === 1 ? '' : 's'}.` : 'Use Find agreements to search beyond the initial agreement list.'}</p></label>
+      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner agreement</span><div className="mb-2 flex flex-wrap gap-2"><input value={agreementSearch} onChange={(event) => setAgreementSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyAgreementLookup(); }} placeholder="Search restaurant or partner ID" className="min-w-[180px] flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="button" onClick={applyAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingAgreementOptions ? 'Searching...' : 'Find agreements'}</button>{agreementLookupQuery && <button type="button" onClick={clearAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Clear</button>}</div><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} disabled={loadingAgreementOptions} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingAgreementOptions ? 'Loading agreements...' : 'Choose a restaurant agreement'}</option>{selectableAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || 'Partner restaurant'} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select>{agreementOptionsError && <p className="mt-2 text-xs font-semibold text-red-300">{agreementOptionsError}</p>}<p className="mt-2 text-[11px] text-gray-600">{agreementLookupQuery ? `Showing ${agreementLookupTotal} matching agreement${agreementLookupTotal === 1 ? '' : 's'}.` : 'Use Find agreements to search beyond the initial agreement list.'}</p><div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-semibold text-sky-200">Authorize the same customer at multiple restaurants</span><span className="text-[10px] text-gray-600">{bulkAgreementIds.length} selected</span></div><div className="mt-2 grid max-h-36 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{selectableAgreements.map((agreement) => <label key={`bulk-${agreement.id}`} className="flex min-w-0 items-start gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-2 py-2 text-[11px] text-gray-300"><input type="checkbox" checked={bulkAgreementIds.includes(String(agreement.id))} onChange={(event) => setBulkAgreementIds((current) => event.target.checked ? [...new Set([...current, String(agreement.id)])] : current.filter((id) => id !== String(agreement.id)))} disabled={loadingAgreementOptions || loading || saving || busy} className="mt-0.5 accent-sky-500" /><span className="truncate">{agreement.restaurantName || 'Partner restaurant'} <span className="text-gray-600">· v{agreement.version}</span></span></label>)}</div><button type="button" onClick={submitBulk} disabled={busy || saving || !bulkAgreementIds.length} className="mt-3 w-full rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/10 disabled:opacity-50">Authorize selected restaurants atomically</button></div></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Access state</span><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Starts (optional)</span><input type="datetime-local" value={form.startsAt} onChange={(event) => setForm({ ...form, startsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Ends (optional)</span><input type="datetime-local" value={form.endsAt} onChange={(event) => setForm({ ...form, endsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
