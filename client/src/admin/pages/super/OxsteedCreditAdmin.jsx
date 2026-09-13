@@ -636,7 +636,7 @@ export default function OxsteedCreditAdmin() {
   const coverageAlerts = overview?.coverageAlerts || { pendingPartners: 0, activePartnersWithoutAgreement: 0, expiringAgreements: 0 };
   const notificationHealth = overview?.notificationHealth || { pending: 0, sending: 0, failed: 0, oldestPendingAt: null, oldestFailedAt: null, failedNotifications: [], workerHeartbeat: {} };
   const workerHeartbeat = notificationHealth.workerHeartbeat || {};
-  const workerHeartbeatFailed = Boolean(workerHeartbeat.lastError) || Number(workerHeartbeat.consecutiveFailures || 0) > 0;
+  const workerHeartbeatFailed = Boolean(workerHeartbeat.lastError) || workerHeartbeat.stale === true || Number(workerHeartbeat.consecutiveFailures || 0) > 0;
   const workerHeartbeatLabel = !workerHeartbeat.lastRunAt ? 'Awaiting first run' : workerHeartbeatFailed ? 'Needs attention' : 'Healthy';
   const riskLimits = overview?.riskLimits || null;
   const currencyOptions = overview?.supportedCurrencies?.length ? overview.supportedCurrencies : DEFAULT_CURRENCY_OPTIONS;

@@ -625,7 +625,9 @@ async function getAdminOverview(req, res, next) {
               'lastSuccessAt', heartbeat.last_success_at,
               'lastError', heartbeat.last_error,
               'runCount', heartbeat.run_count,
-              'consecutiveFailures', heartbeat.consecutive_failures
+              'consecutiveFailures', heartbeat.consecutive_failures,
+              'stale', heartbeat.last_run_at IS NOT NULL
+                AND heartbeat.last_run_at < NOW() - INTERVAL '10 minutes'
             )
               FROM oxsteed_credit_worker_heartbeats heartbeat
              WHERE heartbeat.job_name = 'oxsteed-credit-notification-outbox'

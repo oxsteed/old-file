@@ -1,0 +1,66 @@
+'use strict';
+
+jest.mock('../db', () => ({ query: jest.fn() }));
+jest.mock('../services/incidentStore', () => ({
+  recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 'incident-1' } }),
+}));
+jest.mock('../jobs/jobLockingService', () => ({
+  withJobLock: jest.fn(async (_jobName, handler) => handler()),
+}));
+
+const db = require('../db');
+const { recordIncident } = require('../services/incidentStore');
+const { withJobLock } = require('../jobs/jobLockingService');
+const {
+  CRON_EXPRESSION,
+  JOB_NAME,
+  NOTIFICATION_WORKER_NAME,
+  STALE_AFTER_MINUTES,
+  checkNotificationWorker,
+  runOxsteedCreditWorkerWatchdog,
+} = require('../jobs/oxsteedCreditWorkerWatchdog');
+
+beforeEach(() => jest.clearAllMocks());
+
+test('does not alert before the notification worker has completed once', async () => {
+  db.query.mockResolvedValueOnce({ rows: [] });
+
+  await expect(checkNotificationWorker()).resolves.toEqual({ status: 'awaiting_first_run', heartbeat: null });
+  expect(recordIncident).not.toHaveBeenCalled();
+});
+
+test('records one deduplicated incident when the notification worker is stale', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{
+    job_name: NOTIFICATION_WORKER_NAME,
+    last_run_at: '2026-09-12T12:00:00.000Z',
+    last_success_at: '2026-09-12T12:00:00.000Z',
+    last_error: null,
+    run_count: 4,
+    consecutive_failures: 0,
+    stale: true,
+  }] });
+
+  await expect(checkNotificationWorker()).resolves.toMatchObject({ status: 'stale' });
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_worker_stale',
+    severity: 'critical',
+    dedupeKey: `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:stale`,
+  }));
+});
+
+test('runs the watchdog under its distributed lock', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{
+    job_name: NOTIFICATION_WORKER_NAME,
+    last_run_at: '2026-09-13T12:00:00.000Z',
+    last_success_at: '2026-09-13T12:00:00.000Z',
+    last_error: null,
+    run_count: 4,
+    consecutive_failures: 0,
+    stale: false,
+  }] });
+
+  await expect(runOxsteedCreditWorkerWatchdog()).resolves.toMatchObject({ locked: true, status: 'healthy' });
+  expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
+  expect(CRON_EXPRESSION).toBe('*/5 * * * *');
+  expect(STALE_AFTER_MINUTES).toBe(10);
+});
