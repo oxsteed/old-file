@@ -846,7 +846,7 @@ test('marks ended agreements expired and records the transition', async () => {
   const result = await expireCreditAgreements({ now: new Date('2026-09-13T00:00:00.000Z'), limit: 10 });
 
   expect(result).toMatchObject({ count: 1, expired: [{ id: 'agreement-1', status: 'expired', restaurantName: 'OxSteed Cafe' }] });
-  expect(mockQuery.mock.calls[0][0]).toContain("a.status NOT IN ('expired', 'terminated')");
+  expect(mockQuery.mock.calls[0][0]).toContain("a.status IN ('active', 'suspended')");
   expect(mockQuery.mock.calls[0][0]).toContain('FOR UPDATE SKIP LOCKED');
   expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'expired'");
   expect(mockQuery.mock.calls[2][1]).toEqual([

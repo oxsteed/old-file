@@ -1980,7 +1980,7 @@ async function expireCreditAgreements({ limit = 250, now = new Date(), actorUser
          FROM oxsteed_credit_partner_agreements a
          JOIN oxsteed_credit_partners p ON p.id = a.partner_id
          JOIN food_restaurants fr ON fr.id = p.restaurant_id
-        WHERE a.status NOT IN ('expired', 'terminated')
+        WHERE a.status IN ('active', 'suspended')
           AND a.ends_at IS NOT NULL
           AND a.ends_at <= $1
         ORDER BY a.ends_at ASC, a.id ASC
@@ -1994,7 +1994,7 @@ async function expireCreditAgreements({ limit = 250, now = new Date(), actorUser
         `UPDATE oxsteed_credit_partner_agreements
             SET status = 'expired', updated_at = NOW()
           WHERE id = $1
-            AND status NOT IN ('expired', 'terminated')
+            AND status IN ('active', 'suspended')
             AND ends_at IS NOT NULL
             AND ends_at <= $2
           RETURNING *`,

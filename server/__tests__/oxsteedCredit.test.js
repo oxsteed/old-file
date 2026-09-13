@@ -153,6 +153,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.approvalHistoryMigrationApplied');
   expect(verifierSource).toContain("['482_oxsteed_credit_account_state.sql']");
   expect(verifierSource).toContain('!checks.accountStateMigrationApplied');
+  expect(verifierSource).toContain("['483_oxsteed_credit_suspended_expiry.sql']");
+  expect(verifierSource).toContain('!checks.suspendedExpiryMigrationApplied');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
