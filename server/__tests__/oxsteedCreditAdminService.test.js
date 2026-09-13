@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, expireCreditEntitlements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -226,6 +226,64 @@ test('requires idempotency for agreement creation', async () => {
     startsAt: '2026-09-12T00:00:00.000Z',
   })).rejects.toMatchObject({ code: 'credit_idempotency_key_required', status: 400 });
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('marks ended customer entitlements expired and records the transition', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const endedAt = new Date('2026-09-12T00:00:00.000Z');
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'entitlement-1',
+      customer_id: customerId,
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      status: 'active',
+      starts_at: null,
+      ends_at: endedAt,
+      max_transaction_cents: null,
+      daily_limit_cents: null,
+      metadata: {},
+      reason: 'Summer program',
+      created_by: null,
+      created_at: endedAt,
+      updated_at: endedAt,
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'entitlement-1',
+      customer_id: customerId,
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      status: 'expired',
+      starts_at: null,
+      ends_at: endedAt,
+      max_transaction_cents: null,
+      daily_limit_cents: null,
+      metadata: {},
+      reason: 'Summer program',
+      created_by: null,
+      created_at: endedAt,
+      updated_at: new Date('2026-09-13T00:00:00.000Z'),
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await expireCreditEntitlements({ now: new Date('2026-09-13T00:00:00.000Z'), limit: 10 });
+
+  expect(result).toMatchObject({ count: 1, expired: [{ id: 'entitlement-1', status: 'expired', customerId }] });
+  expect(mockQuery.mock.calls[0][0]).toContain("e.status IN ('active', 'suspended')");
+  expect(mockQuery.mock.calls[0][0]).toContain('FOR UPDATE SKIP LOCKED');
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'expired'");
+  expect(mockQuery.mock.calls[2][1]).toEqual([
+    'credit.entitlement.expired',
+    null,
+    customerId,
+    41,
+    'credit_entitlement',
+    'entitlement-1',
+    'Entitlement validity window ended',
+    JSON.stringify({ status: 'active', endsAt: endedAt }),
+    JSON.stringify({ status: 'expired', endsAt: endedAt }),
+    JSON.stringify({}),
+  ]);
 });
 
 test('reconciliation uses the same posted-transaction currency invariant as verification', async () => {

@@ -121,6 +121,7 @@ replacement agreement is created.
 - Review partner and agreement status, open disputes, pending settlements, and reconciliation results in the OxSteed Credit Super Admin workspace.
 - Run `npm run verify:credit` after migrations, ledger incidents, or any database maintenance.
 - Confirm the hold-expiry worker is healthy. Expired active holds are non-blocking in the verifier but must not accumulate.
+- Confirm the entitlement-expiry worker is healthy. Entitlements whose validity window ends are marked `expired` under a distributed lock; the access record and audit trail remain available for review.
 - A UTC reconciliation worker runs daily at 02:10 UTC under one durable distributed job lock for the complete configured currency batch. The owning worker renews its lease while the handler runs, so a slow database operation does not allow a second replica to interleave or duplicate the batch. It records a reconciliation run for the prior UTC day per currency and creates a critical durable incident if the account balances and journal differ or the check fails.
 - Generate non-overlapping settlement periods that end no later than the current time, and require a traceable payment reference before marking a settlement paid.
 - Treat every customer dispute as a review record. Never edit or delete a journal entry to correct a customer balance; post a compensating refund or adjustment with a reason and idempotency key.

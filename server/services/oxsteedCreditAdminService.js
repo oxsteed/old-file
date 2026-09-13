@@ -1090,6 +1090,55 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
   }, 'credit_admin_upsert_entitlement');
 }
 
+async function expireCreditEntitlements({ limit = 500, now = new Date(), actorUserId = null } = {}) {
+  const effectiveNow = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(effectiveNow.getTime())) throw new TypeError('Invalid entitlement expiry clock');
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const batchSize = Math.max(1, Math.min(Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : 500, 500));
+
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT e.*, a.partner_id
+         FROM oxsteed_credit_customer_entitlements e
+         JOIN oxsteed_credit_partner_agreements a ON a.id = e.agreement_id
+        WHERE e.status IN ('active', 'suspended')
+          AND e.ends_at IS NOT NULL
+          AND e.ends_at <= $1
+        ORDER BY e.ends_at ASC, e.id ASC
+        LIMIT $2
+        FOR UPDATE SKIP LOCKED`,
+      [effectiveNow, batchSize]
+    );
+    const expired = [];
+    for (const entitlement of rows) {
+      const { rows: updatedRows } = await client.query(
+        `UPDATE oxsteed_credit_customer_entitlements
+            SET status = 'expired', updated_at = NOW()
+          WHERE id = $1
+            AND status IN ('active', 'suspended')
+            AND ends_at IS NOT NULL
+            AND ends_at <= $2
+          RETURNING *`,
+        [entitlement.id, effectiveNow]
+      );
+      if (!updatedRows[0]) continue;
+      await insertAudit(client, {
+        actionType: 'credit.entitlement.expired',
+        actorUserId,
+        customerId: entitlement.customer_id,
+        partnerId: entitlement.partner_id,
+        resourceType: 'credit_entitlement',
+        resourceId: entitlement.id,
+        reason: 'Entitlement validity window ended',
+        beforeState: { status: entitlement.status, endsAt: entitlement.ends_at },
+        afterState: { status: 'expired', endsAt: entitlement.ends_at },
+      });
+      expired.push(formatEntitlement({ ...updatedRows[0], partner_id: entitlement.partner_id }));
+    }
+    return { expired, count: expired.length };
+  }, 'credit_expire_entitlements');
+}
+
 module.exports = {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -1098,6 +1147,7 @@ module.exports = {
   transitionPartner,
   listAgreements,
   listEntitlements,
+  expireCreditEntitlements,
   listSettlements,
   createSettlement,
   transitionSettlement,
