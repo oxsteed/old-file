@@ -101,6 +101,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_settlement_creation_evidence_guard',
   'oxsteed_credit_entitlement_bulk_request_immutable_guard',
   'oxsteed_credit_entitlement_request_immutable_guard',
+  'oxsteed_credit_entitlement_customer_activity_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -391,6 +392,11 @@ async function main() {
       ['472_oxsteed_credit_entitlement_request_results.sql']
     );
     checks.entitlementRequestResultsMigrationApplied = entitlementRequestResultsMigrationRows.rows.length === 1;
+    const entitlementActivityMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['473_oxsteed_credit_entitlement_activity.sql']
+    );
+    checks.entitlementActivityMigrationApplied = entitlementActivityMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -450,7 +456,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'users'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -569,6 +575,15 @@ async function main() {
         WHERE u.id IS NULL OR u.role <> 'customer'`,
     );
     checks.invalidEntitlementOwners = Number(entitlementOwnerInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: entitlementActivityInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_customer_entitlements e
+         LEFT JOIN users u ON u.id = e.customer_id
+        WHERE e.status = 'active'
+          AND (u.id IS NULL OR u.role <> 'customer' OR u.is_active IS DISTINCT FROM TRUE)`,
+    );
+    checks.invalidActiveEntitlementCustomers = Number(entitlementActivityInvariantRows[0]?.invalid_count || 0);
 
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -809,6 +824,7 @@ async function main() {
       !checks.settlementCreationEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
+      !checks.entitlementActivityMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -823,6 +839,7 @@ async function main() {
       checks.invalidHoldLifecycles > 0,
       checks.invalidCustomerWalletOwners > 0,
       checks.invalidEntitlementOwners > 0,
+      checks.invalidActiveEntitlementCustomers > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
