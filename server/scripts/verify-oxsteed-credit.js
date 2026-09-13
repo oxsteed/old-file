@@ -117,6 +117,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_entitlement_creator_guard',
   'oxsteed_credit_settlement_creator_guard',
   'oxsteed_credit_settlement_overlap_guard',
+  'oxsteed_credit_settlement_reference_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -472,6 +473,11 @@ async function main() {
       ['489_oxsteed_credit_settlement_overlap.sql']
     );
     checks.settlementOverlapMigrationApplied = settlementOverlapMigrationRows.rows.length === 1;
+    const settlementReferenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['490_oxsteed_credit_settlement_reference.sql']
+    );
+    checks.settlementReferenceMigrationApplied = settlementReferenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -955,6 +961,31 @@ async function main() {
     );
     checks.invalidSettlementOverlaps = Number(settlementOverlapRows[0]?.invalid_count || 0);
 
+    const { rows: settlementReferenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions t
+         LEFT JOIN oxsteed_credit_settlements s ON s.id::TEXT = t.reference_id
+        WHERE t.transaction_type = 'settlement'
+          AND (t.reference_type IS DISTINCT FROM 'credit_settlement'
+            OR NULLIF(BTRIM(t.reference_id), '') IS NULL
+            OR s.id IS NULL
+            OR s.status NOT IN ('approved', 'paid')
+            OR s.partner_id IS DISTINCT FROM t.partner_id
+            OR s.agreement_id IS DISTINCT FROM t.agreement_id
+            OR s.net_cents IS DISTINCT FROM t.amount_cents
+            OR s.currency_code IS DISTINCT FROM t.currency_code
+            OR EXISTS (
+              SELECT 1
+                FROM oxsteed_credit_transactions duplicate
+               WHERE duplicate.transaction_type = 'settlement'
+                 AND duplicate.status = 'posted'
+                 AND duplicate.reference_type = t.reference_type
+                 AND duplicate.reference_id = t.reference_id
+                 AND duplicate.id <> t.id
+            ))`,
+    );
+    checks.invalidSettlementReferences = Number(settlementReferenceRows[0]?.invalid_count || 0);
+
     const { rows: settlementStateRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_settlements s
@@ -1096,6 +1127,7 @@ async function main() {
       !checks.issuanceActorEvidenceMigrationApplied,
       !checks.adminProvenanceMigrationApplied,
       !checks.settlementOverlapMigrationApplied,
+      !checks.settlementReferenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1120,6 +1152,7 @@ async function main() {
       checks.invalidCreditIssuanceActors > 0,
       checks.invalidCreditCreatorEvidence > 0,
       checks.invalidSettlementOverlaps > 0,
+      checks.invalidSettlementReferences > 0,
       checks.invalidActiveCreditHolds > 0,
       checks.invalidActiveAgreements > 0,
       checks.invalidActiveRestaurantPartners > 0,

@@ -111,6 +111,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_entitlement_creator_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_creator_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_overlap_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_reference_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -178,6 +179,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['489_oxsteed_credit_settlement_overlap.sql']");
   expect(verifierSource).toContain('!checks.settlementOverlapMigrationApplied');
   expect(verifierSource).toContain('checks.invalidSettlementOverlaps > 0');
+  expect(verifierSource).toContain("['490_oxsteed_credit_settlement_reference.sql']");
+  expect(verifierSource).toContain('!checks.settlementReferenceMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidSettlementReferences > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
