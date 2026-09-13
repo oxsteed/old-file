@@ -55,6 +55,13 @@ const {
   listCreditAuditEvents,
   retryCreditNotification,
 } = require('../services/oxsteedCreditAdminService');
+const {
+  NOTIFICATION_WORKER_NAME,
+  STALE_AFTER_MINUTES,
+  DAILY_WORKER_STALE_AFTER_MINUTES,
+  WORKER_NAMES_SQL,
+  FAST_WORKER_NAMES_SQL,
+} = require('../services/oxsteedCreditWorkerConfig');
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -627,10 +634,10 @@ async function getAdminOverview(req, res, next) {
               'runCount', heartbeat.run_count,
               'consecutiveFailures', heartbeat.consecutive_failures,
               'stale', heartbeat.last_run_at IS NOT NULL
-                AND heartbeat.last_run_at < NOW() - INTERVAL '10 minutes'
+                AND heartbeat.last_run_at < NOW() - (${STALE_AFTER_MINUTES} * INTERVAL '1 minute')
             )
               FROM oxsteed_credit_worker_heartbeats heartbeat
-             WHERE heartbeat.job_name = 'oxsteed-credit-notification-outbox'
+             WHERE heartbeat.job_name = '${NOTIFICATION_WORKER_NAME}'
           ), '{}'::json) AS worker_heartbeat
           ,COALESCE((
             SELECT json_object_agg(heartbeat.job_name, json_build_object(
@@ -642,21 +649,14 @@ async function getAdminOverview(req, res, next) {
               'consecutiveFailures', heartbeat.consecutive_failures,
               'stale', heartbeat.last_run_at IS NOT NULL
                 AND heartbeat.last_run_at < NOW() - (
-                  CASE WHEN heartbeat.job_name IN (
-                    'oxsteed-credit-notification-outbox',
-                    'oxsteed-credit-hold-expiry',
-                    'oxsteed-credit-entitlement-expiry'
-                  ) THEN 10 ELSE 2880 END * INTERVAL '1 minute'
+                  CASE WHEN heartbeat.job_name IN (${FAST_WORKER_NAMES_SQL})
+                    THEN ${STALE_AFTER_MINUTES}
+                    ELSE ${DAILY_WORKER_STALE_AFTER_MINUTES}
+                  END * INTERVAL '1 minute'
                 )
             ))
               FROM oxsteed_credit_worker_heartbeats heartbeat
-             WHERE heartbeat.job_name IN (
-               'oxsteed-credit-notification-outbox',
-               'oxsteed-credit-hold-expiry',
-               'oxsteed-credit-entitlement-expiry',
-               'oxsteed-credit-reconciliation',
-               'oxsteed-credit-integrity'
-             )
+             WHERE heartbeat.job_name IN (${WORKER_NAMES_SQL})
           ), '{}'::json) AS worker_heartbeats
         FROM oxsteed_credit_notification_outbox`),
     ]);

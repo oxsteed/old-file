@@ -5,24 +5,19 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const incidentStore = require('../services/incidentStore');
 const { withJobLock } = require('./jobLockingService');
+const {
+  NOTIFICATION_WORKER_NAME,
+  HOLD_EXPIRY_WORKER_NAME,
+  ENTITLEMENT_EXPIRY_WORKER_NAME,
+  RECONCILIATION_WORKER_NAME,
+  INTEGRITY_WORKER_NAME,
+  STALE_AFTER_MINUTES,
+  DAILY_WORKER_STALE_AFTER_MINUTES,
+  WORKER_CONFIG,
+} = require('../services/oxsteedCreditWorkerConfig');
 
 const CRON_EXPRESSION = '*/5 * * * *';
 const JOB_NAME = 'oxsteed-credit-worker-watchdog';
-const NOTIFICATION_WORKER_NAME = 'oxsteed-credit-notification-outbox';
-const HOLD_EXPIRY_WORKER_NAME = 'oxsteed-credit-hold-expiry';
-const ENTITLEMENT_EXPIRY_WORKER_NAME = 'oxsteed-credit-entitlement-expiry';
-const RECONCILIATION_WORKER_NAME = 'oxsteed-credit-reconciliation';
-const INTEGRITY_WORKER_NAME = 'oxsteed-credit-integrity';
-const STALE_AFTER_MINUTES = 10;
-const DAILY_WORKER_STALE_AFTER_MINUTES = 48 * 60;
-
-const WORKER_CONFIG = Object.freeze([
-  { jobName: NOTIFICATION_WORKER_NAME, label: 'notification worker', staleAfterMinutes: STALE_AFTER_MINUTES },
-  { jobName: HOLD_EXPIRY_WORKER_NAME, label: 'hold expiry worker', staleAfterMinutes: STALE_AFTER_MINUTES },
-  { jobName: ENTITLEMENT_EXPIRY_WORKER_NAME, label: 'entitlement expiry worker', staleAfterMinutes: STALE_AFTER_MINUTES },
-  { jobName: RECONCILIATION_WORKER_NAME, label: 'reconciliation worker', staleAfterMinutes: DAILY_WORKER_STALE_AFTER_MINUTES },
-  { jobName: INTEGRITY_WORKER_NAME, label: 'integrity worker', staleAfterMinutes: DAILY_WORKER_STALE_AFTER_MINUTES },
-]);
 
 async function checkWorker({ jobName, label, staleAfterMinutes }) {
   const result = await db.query(
