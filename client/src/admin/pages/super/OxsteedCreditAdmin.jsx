@@ -190,6 +190,7 @@ export default function OxsteedCreditAdmin() {
   const [railReason, setRailReason] = useState('');
   const [disputeResolutionDrafts, setDisputeResolutionDrafts] = useState({});
   const loadRequestRef = useRef(0);
+  const partnerLookupRequestRef = useRef(0);
 
   const load = useCallback(async ({ quiet = false, customerAccountsParams, appendPartnerDirectory = false, partnerDirectoryOffset = 0, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
@@ -297,6 +298,7 @@ export default function OxsteedCreditAdmin() {
   useEffect(() => { load(); }, [load]);
 
   const loadPartnerOptions = useCallback(async (search) => {
+    const requestId = ++partnerLookupRequestRef.current;
     setLoadingPartnerOptions(true);
     setPartnerOptionsError('');
     try {
@@ -304,13 +306,16 @@ export default function OxsteedCreditAdmin() {
       const response = await adminApi.get('/admin/super/oxsteed-credit/partners/directory', {
         params: { limit: 250, offset: 0, ...(query ? { search: query } : {}) },
       });
+      if (requestId !== partnerLookupRequestRef.current) return;
       const loadedOptions = response.data?.partners || [];
       setPartnerOptions(loadedOptions);
       setPartnerPickerTotal(Number(response.data?.pagination?.total ?? loadedOptions.length));
     } catch (err) {
-      setPartnerOptionsError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Partner lookup failed.');
+      if (requestId === partnerLookupRequestRef.current) {
+        setPartnerOptionsError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Partner lookup failed.');
+      }
     } finally {
-      setLoadingPartnerOptions(false);
+      if (requestId === partnerLookupRequestRef.current) setLoadingPartnerOptions(false);
     }
   }, []);
 
@@ -321,6 +326,7 @@ export default function OxsteedCreditAdmin() {
   };
 
   const clearPartnerPickerSearch = () => {
+    partnerLookupRequestRef.current += 1;
     setPartnerPickerSearch('');
     setPartnerPickerQuery('');
     setPartnerOptions([]);
