@@ -2255,7 +2255,7 @@ function formatCustomerStatementTransaction(row) {
   return transaction;
 }
 
-async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100, currencyCode = CREDIT_CURRENCY } = {}) {
+async function getCustomerCreditStatement(customerId, { from, to, limit = 100, offset = 0, maxRows = 100, currencyCode = CREDIT_CURRENCY, requireActiveOwner = true } = {}) {
   const period = statementPeriod(from, to);
   const pageSize = parseStatementPageSize(limit, Math.min(Number(maxRows) || 100, MAX_STATEMENT_EXPORT_ROWS));
   const pageOffset = parseOffset(offset);
@@ -2264,7 +2264,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
     `WITH customer_account AS (
        SELECT a.id, a.currency_code
          FROM oxsteed_credit_accounts a
-         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer'${requireActiveOwner ? ' AND owner.is_active = TRUE' : ''}
         WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND a.currency_code = $6
         LIMIT 1
      ), filtered_transactions AS (

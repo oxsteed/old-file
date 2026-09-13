@@ -53,6 +53,7 @@ function createAdminApp() {
   app.get('/agreements.csv', controller.downloadAdminAgreements);
   app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
   app.get('/accounts/:customerId/eligible-partners', controller.getAdminCustomerEligiblePartners);
+  app.get('/accounts/:customerId/statement.csv', controller.downloadAdminCustomerStatement);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
   app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
@@ -1236,6 +1237,39 @@ test('returns a bounded customer statement with period totals and safe transacti
   expect(response.body.statement.transactions[0].idempotencyKey).toBeUndefined();
   expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, '2026-09-01', '2026-09-12', 50, 0, 'USD']);
   expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $6');
+});
+
+test('allows super admins to export a customer statement with inactive-owner history', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    account_id: 7001,
+    currency_code: 'USD',
+    opening_balance_cents: '1000',
+    closing_balance_cents: '800',
+    transaction_count: 1,
+    total_credits_cents: '0',
+    total_debits_cents: '200',
+    transactions: [{
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '200',
+      currency_code: 'USD',
+      direction: 'debit',
+      restaurant_name: 'Ox Burger Lab',
+      description: 'Archived customer history',
+      posted_at: '2026-09-10T15:00:00.000Z',
+    }],
+  }] });
+
+  const response = await request(createAdminApp())
+    .get(`/accounts/${CUSTOMER_ID}/statement.csv?from=2026-09-01&to=2026-09-12`);
+
+  expect(response.status).toBe(200);
+  expect(response.headers['cache-control']).toBe('no-store');
+  expect(response.headers['content-disposition']).toContain(`oxsteed-credit-customer-${CUSTOMER_ID}-statement-2026-09-01-2026-09-12.csv`);
+  expect(response.text).toContain('Archived customer history');
+  expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, '2026-09-01', '2026-09-12', 5000, 0, 'USD']);
+  expect(mockQuery.mock.calls[0][0]).not.toContain('owner.is_active = TRUE');
 });
 
 test('keeps legacy customer transaction reads free of ledger secrets', async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, RefreshCw, ShieldCheck, Store, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, Download, RefreshCw, ShieldCheck, Store, WalletCards, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
 function money(cents, currency = 'USD') {
@@ -45,7 +45,29 @@ function transactionLabel(transaction) {
 export default function OxsteedCreditCustomerDetail({ account, onClose, busy = false }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
+
+  const downloadStatement = async () => {
+    if (!account?.customerId || downloading) return;
+    setDownloading(true);
+    setError('');
+    try {
+      const response = await adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/statement.csv`, { params: { currencyCode: account.currencyCode }, responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-customer-${account.customerId}-statement.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Unable to download this customer Credit statement.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const load = async () => {
     if (!account?.customerId) return;
@@ -102,6 +124,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
         <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-400">One read-only view of this customer wallet, all restaurant assignments, reserved funds, and ledger history. Assignment rows can cover multiple restaurants without combining their agreements or currencies.</p>
       </div>
       <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={downloadStatement} disabled={loading || downloading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {downloading ? 'Preparing...' : 'Download statement'}</button>
         <button type="button" onClick={load} disabled={loading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> Refresh profile</button>
         <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800"><X className="h-3.5 w-3.5" /> Close</button>
       </div>

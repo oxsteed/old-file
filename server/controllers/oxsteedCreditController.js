@@ -271,6 +271,33 @@ async function downloadMyStatement(req, res, next) {
   }
 }
 
+async function downloadAdminCustomerStatement(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const statement = await getCustomerCreditStatement(customerId, {
+      from: req.query.from,
+      to: req.query.to,
+      limit: MAX_STATEMENT_EXPORT_ROWS,
+      offset: 0,
+      maxRows: MAX_STATEMENT_EXPORT_ROWS,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      requireActiveOwner: false,
+    });
+    if (statement.hasMore) {
+      throw new AppError('Statement is too large to export in one file; narrow the date range', 409, 'credit_statement_export_too_large');
+    }
+    const filename = `oxsteed-credit-customer-${customerId}-statement-${statement.period.from}-${statement.period.to}.csv`;
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(customerCreditStatementCsv(statement));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getMyTransaction(req, res, next) {
   try {
     const transactionId = parseUuid(req.params.transactionId, 'transactionId');
@@ -1666,6 +1693,7 @@ module.exports = {
   getMyTransactions,
   getMyStatement,
   downloadMyStatement,
+  downloadAdminCustomerStatement,
   getMyTransaction,
   createMyHold,
   adminCaptureHold,
