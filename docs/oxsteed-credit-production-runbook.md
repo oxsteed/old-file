@@ -159,6 +159,23 @@ Authenticated customers can retrieve a bounded statement from `GET /api/oxsteed-
 
 Customers can download the same period as CSV from `GET /api/oxsteed-credit/statement.csv`. The export is capped at 5,000 transactions and returns a clear error rather than a partial file when the selected period is larger. Exported data intentionally excludes idempotency keys, ledger hashes, internal actor data, and raw transaction metadata.
 
+## Customer Partner Directory
+
+Customers can query `GET /api/oxsteed-credit/eligible-partners` to see the
+restaurants where their selected currency and current account status permit
+OxSteed Credit spending. The endpoint is the eligibility source of truth; it
+applies the active rail, customer wallet, partner, agreement, entitlement,
+currency, order-type, and agreement-geography rules on the server before
+returning a restaurant.
+
+The directory is bounded and supports `search`, `orderType`, `city`, `state`,
+`postalCode`, `country`, `limit`, and `offset` query parameters. Responses
+include `pagination.hasMore` and `pagination.nextOffset`; clients must use
+those fields rather than assuming the first page contains the entire partner
+network. A restaurant with geographic restrictions remains visible before a
+customer enters a location, but is returned only when the supplied location
+matches its agreement rules.
+
 ## Currency Isolation
 
 OxSteed Credit supports a configured set of ISO 4217 currencies with verified
