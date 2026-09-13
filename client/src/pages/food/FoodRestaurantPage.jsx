@@ -209,6 +209,7 @@ export default function FoodRestaurantPage() {
   const restaurant = data?.restaurant;
   const currency = restaurant?.currency_code || 'USD';
   const creditCurrency = String(currency).toUpperCase();
+  const oxsteedCreditOrderType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
 
   // Item modal
   const [modalItem, setModalItem] = useState(null);
@@ -270,6 +271,7 @@ export default function FoodRestaurantPage() {
         state: restaurant.address_state,
         postalCode: restaurant.address_zip,
         country: restaurant.address_country,
+        orderType: oxsteedCreditOrderType,
       }).catch(() => []),
     ]).then(([account, partners]) => {
       if (!alive) return;
@@ -279,7 +281,7 @@ export default function FoodRestaurantPage() {
       );
     });
     return () => { alive = false; };
-  }, [user, restaurantId, restaurant?.id, restaurant?.currency_code, restaurant?.address_city, restaurant?.address_state, restaurant?.address_zip, restaurant?.address_country, creditCurrency]);
+  }, [user, restaurantId, restaurant?.id, restaurant?.currency_code, restaurant?.address_city, restaurant?.address_state, restaurant?.address_zip, restaurant?.address_country, creditCurrency, oxsteedCreditOrderType]);
 
   // Never leave restaurant_credit selected if the wallet disappears (sign-out,
   // wallet suspended, or restaurant switch).
@@ -1851,7 +1853,7 @@ export default function FoodRestaurantPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>{t('food.order.total')}</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(orderTotalCents, currency)}</span></div>
                     </div>
                     <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
-                      {paymentMethod === 'restaurant_credit'
+                      {['restaurant_credit', 'oxsteed_credit'].includes(paymentMethod)
                         ? t('food.restaurant.creditChargeNote')
                         : paymentMethod === 'direct_payment'
                           ? t('food.restaurant.directPaymentNote')
