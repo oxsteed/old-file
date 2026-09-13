@@ -28,6 +28,7 @@ const {
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
+  getAdminCustomerCreditAccount,
   registerPartner,
   transitionPartner,
   listAgreements,
@@ -504,6 +505,21 @@ async function listAdminCustomerAccounts(req, res, next) {
   }
 }
 
+async function getAdminCustomerAccount(req, res, next) {
+  try {
+    const customerId = parseUuid(req.params.customerId, 'customerId');
+    const result = await getAdminCustomerCreditAccount({
+      customerId,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      transactionLimit: req.query.transactionLimit || req.query.transaction_limit,
+      holdLimit: req.query.holdLimit || req.query.hold_limit,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminAgreements(req, res, next) {
   try {
     const agreements = await listAgreements({
@@ -737,6 +753,7 @@ module.exports = {
   updateAdminCreditRail,
   listAdminPartners,
   listAdminCustomerAccounts,
+  getAdminCustomerAccount,
   listAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,

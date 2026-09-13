@@ -81,6 +81,15 @@ balance:
    use `suspended`, `revoked`, or `expired` to preserve history without
    silently deleting access.
 
+Use **View details** from the customer wallet directory to open the read-only
+Customer 360 profile. It combines the selected currency wallet, all customer
+restaurant assignments (including assignments in other currencies), recent
+holds, and recent ledger transactions with status and references. This is the
+operator view for answering “where can this customer spend?” without relying
+on the customer to report their own history. The profile endpoint is
+`GET /api/admin/super/oxsteed-credit/accounts/:customerId` and is protected by
+the existing Super Admin gate.
+
 The public eligibility query still requires the Credit rail, customer wallet,
 partner, agreement, entitlement when the agreement is allowlisted, currency,
 geography, category, order type, and limit checks to pass. On a partner-wide

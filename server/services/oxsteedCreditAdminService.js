@@ -280,6 +280,122 @@ function formatCustomerCreditAccount(row) {
   };
 }
 
+function formatAdminCreditTransaction(row) {
+  return {
+    id: String(row.id),
+    transactionType: row.transaction_type,
+    status: row.status,
+    amountCents: Number(row.amount_cents || 0),
+    currencyCode: row.currency_code,
+    direction: row.direction || null,
+    partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+    restaurantName: row.restaurant_name || null,
+    agreementId: row.agreement_id || null,
+    referenceType: row.reference_type || null,
+    referenceId: row.reference_id || null,
+    description: row.description || null,
+    actorType: row.actor_type || null,
+    actorUserId: row.actor_user_id || null,
+    metadata: row.metadata || {},
+    postedAt: row.posted_at || null,
+    createdAt: row.created_at || null,
+  };
+}
+
+function formatAdminCreditHold(row) {
+  return {
+    id: String(row.id),
+    customerId: row.customer_id || null,
+    partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+    restaurantId: row.restaurant_id === null || row.restaurant_id === undefined ? null : String(row.restaurant_id),
+    restaurantName: row.restaurant_name || null,
+    agreementId: row.agreement_id || null,
+    amountCents: Number(row.amount_cents || 0),
+    currencyCode: row.currency_code,
+    status: row.status,
+    purpose: row.purpose || null,
+    referenceType: row.reference_type || null,
+    referenceId: row.reference_id || null,
+    capturedTransactionId: row.captured_transaction_id || null,
+    expiresAt: row.expires_at || null,
+    capturedAt: row.captured_at || null,
+    releasedAt: row.released_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD', transactionLimit = 50, holdLimit = 50 } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const parsedTransactionLimit = Number.parseInt(String(transactionLimit), 10);
+  const parsedHoldLimit = Number.parseInt(String(holdLimit), 10);
+  const safeTransactionLimit = Number.isSafeInteger(parsedTransactionLimit) && parsedTransactionLimit > 0 ? Math.min(parsedTransactionLimit, 100) : 50;
+  const safeHoldLimit = Number.isSafeInteger(parsedHoldLimit) && parsedHoldLimit > 0 ? Math.min(parsedHoldLimit, 100) : 50;
+
+  const { rows: accountRows } = await pool.query(
+    `SELECT a.id AS account_id, a.customer_id, a.currency_code, a.balance_cents,
+            a.reserved_cents, a.status, a.ledger_version, a.last_posted_at, a.updated_at,
+            u.email, u.first_name, u.last_name, u.is_active, u.is_banned
+       FROM oxsteed_credit_accounts a
+       JOIN users u ON u.id = a.customer_id AND u.role = 'customer'
+      WHERE a.account_type = 'customer_wallet'
+        AND a.customer_id = $1
+        AND a.currency_code = $2
+      LIMIT 1`,
+    [customerId, currency]
+  );
+  const account = accountRows[0];
+  if (!account) throw new AppError('Customer credit account not found', 404, 'credit_account_not_found');
+
+  const [transactionResult, holdResult, entitlementResult] = await Promise.all([
+    pool.query(
+      `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+              t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
+              t.description, t.actor_type, t.actor_user_id, t.metadata,
+              t.posted_at, t.created_at,
+              CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts a ON a.id = $1
+         LEFT JOIN food_restaurants fr ON fr.id = (
+           SELECT p.restaurant_id
+             FROM oxsteed_credit_partners p
+            WHERE p.id = t.partner_id
+         )
+        WHERE (t.debit_account_id = a.id OR t.credit_account_id = a.id)
+          AND t.currency_code = $2
+        ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
+        LIMIT $3`,
+      [account.id, currency, safeTransactionLimit]
+    ),
+    pool.query(
+      `SELECT h.id, h.customer_id, h.partner_id, h.agreement_id, h.amount_cents,
+              h.currency_code, h.status, h.purpose, h.reference_type, h.reference_id,
+              h.captured_transaction_id, h.expires_at, h.captured_at, h.released_at,
+              h.created_at, h.updated_at, p.restaurant_id,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_holds h
+         JOIN oxsteed_credit_partners p ON p.id = h.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE h.account_id = $1
+          AND h.customer_id = $2
+          AND h.currency_code = $3
+        ORDER BY h.created_at DESC, h.id DESC
+        LIMIT $4`,
+      [account.id, customerId, currency, safeHoldLimit]
+    ),
+    listEntitlements({ customerId, limit: 250, offset: 0 }),
+  ]);
+
+  return {
+    account: formatCustomerCreditAccount(account),
+    transactions: transactionResult.rows.map(formatAdminCreditTransaction),
+    holds: holdResult.rows.map(formatAdminCreditHold),
+    entitlements: entitlementResult.entitlements,
+    limits: { transaction: safeTransactionLimit, holds: safeHoldLimit },
+  };
+}
+
 async function listAdminCustomerCreditAccounts({ search, currencyCode, status, limit = 100, offset = 0 } = {}) {
   const params = [];
   const filters = ["a.account_type = 'customer_wallet'", "u.role = 'customer'"];
@@ -968,6 +1084,7 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
 module.exports = {
   listPartners,
   listAdminCustomerCreditAccounts,
+  getAdminCustomerCreditAccount,
   registerPartner,
   transitionPartner,
   listAgreements,

@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, listEntitlements, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -104,6 +104,103 @@ test('lists customer entitlements with restaurant context and bounded paging', a
   expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $2');
   expect(mockQuery.mock.calls[0][0]).toContain('e.status = $3');
   expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', '11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
+});
+
+test('loads a customer Credit profile with multi-restaurant access and ledger context', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      account_id: 7001,
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      email: 'alice@example.com',
+      first_name: 'Alice',
+      last_name: 'Customer',
+      is_active: true,
+      is_banned: false,
+      currency_code: 'USD',
+      balance_cents: '12500',
+      reserved_cents: '2500',
+      status: 'active',
+      ledger_version: '4',
+      last_posted_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'transaction-1',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '2500',
+      currency_code: 'USD',
+      direction: 'debit',
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      restaurant_name: 'OxSteed Cafe',
+      reference_type: 'food_order',
+      reference_id: 'order-1',
+      description: 'Lunch',
+      actor_type: 'customer',
+      actor_user_id: null,
+      metadata: {},
+      posted_at: '2026-09-12T12:00:00.000Z',
+      created_at: '2026-09-12T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'hold-1',
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      partner_id: 42,
+      restaurant_id: 10,
+      restaurant_name: 'OxSteed Bistro',
+      agreement_id: 'agreement-2',
+      amount_cents: '1000',
+      currency_code: 'USD',
+      status: 'active',
+      purpose: 'Dinner',
+      reference_type: 'food_order',
+      reference_id: 'order-2',
+      captured_transaction_id: null,
+      expires_at: '2026-09-12T12:30:00.000Z',
+      captured_at: null,
+      released_at: null,
+      created_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'entitlement-1',
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      first_name: 'Alice',
+      last_name: 'Customer',
+      email: 'alice@example.com',
+      agreement_id: 'agreement-1',
+      partner_id: 41,
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      agreement_version: 1,
+      agreement_status: 'active',
+      settlement_currency_code: 'USD',
+      status: 'active',
+      starts_at: null,
+      ends_at: null,
+      max_transaction_cents: '2500',
+      daily_limit_cents: '10000',
+      reason: 'Customer benefit',
+      metadata: {},
+      created_by: null,
+      created_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:00:00.000Z',
+    }] });
+
+  const result = await getAdminCustomerCreditAccount({
+    customerId: '11111111-1111-4111-8111-111111111111',
+    currencyCode: 'USD',
+  });
+
+  expect(result.account).toMatchObject({ accountId: '7001', customerId: '11111111-1111-4111-8111-111111111111', availableBalanceCents: 10000 });
+  expect(result.transactions[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', direction: 'debit', status: 'posted' });
+  expect(result.holds[0]).toMatchObject({ restaurantName: 'OxSteed Bistro', status: 'active', amountCents: 1000 });
+  expect(result.entitlements[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', status: 'active' });
+  expect(mockQuery.mock.calls[0][0]).toContain("u.role = 'customer'");
+  expect(mockQuery.mock.calls[1][0]).toContain('t.debit_account_id = a.id OR t.credit_account_id = a.id');
+  expect(mockQuery.mock.calls[2][0]).toContain('h.account_id = $1');
+  expect(mockQuery.mock.calls[3][0]).toContain('e.customer_id = $1');
 });
 
 test('requires idempotency for agreement creation', async () => {
