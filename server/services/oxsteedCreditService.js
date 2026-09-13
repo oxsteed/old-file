@@ -60,6 +60,10 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function escapeLikePattern(value) {
+  return normalizeString(value, 120)?.replace(/[\\%_]/g, '\\$&') || null;
+}
+
 function normalizeCurrency(value) {
   return (normalizeString(value, 8) || CREDIT_CURRENCY).toUpperCase();
 }
@@ -868,7 +872,7 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
 async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType, search, limit, offset, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
-  const normalizedSearch = normalizeString(search, 120);
+  const normalizedSearch = escapeLikePattern(search);
   const normalizedCity = normalizeString(city, 120);
   const normalizedState = normalizeString(state, 120);
   const normalizedPostalCode = normalizeString(postalCode, 120);
@@ -935,9 +939,9 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
         AND ${CUSTOMER_SPEND_ACCESS_SQL}
         AND ($3::text IS NULL OR cardinality(a.allowed_order_types) = 0 OR $3 = ANY(a.allowed_order_types))
-        AND ($4::text IS NULL OR fr.display_name ILIKE '%' || $4 || '%'
-          OR COALESCE(fr.address_city, '') ILIKE '%' || $4 || '%'
-          OR COALESCE(fr.address_state, '') ILIKE '%' || $4 || '%')
+        AND ($4::text IS NULL OR fr.display_name ILIKE '%' || $4 || '%' ESCAPE '\\'
+          OR COALESCE(fr.address_city, '') ILIKE '%' || $4 || '%' ESCAPE '\\'
+          OR COALESCE(fr.address_state, '') ILIKE '%' || $4 || '%' ESCAPE '\\')
         AND ($5::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'cities') = 'array' THEN a.geography->'cities' ELSE '[]'::jsonb END) = 0
           OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(a.geography->'cities') = 'array' THEN a.geography->'cities' ELSE '[]'::jsonb END) city_rule WHERE LOWER(city_rule) = LOWER($5)))
         AND ($6::text IS NULL OR jsonb_array_length(CASE WHEN jsonb_typeof(a.geography->'states') = 'array' THEN a.geography->'states' ELSE '[]'::jsonb END) = 0
