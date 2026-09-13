@@ -91,7 +91,9 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_notification_outbox_pending_due',
   'idx_oxsteed_credit_notification_outbox_sending_lock',
   'idx_oxsteed_credit_notification_outbox_failed_history',
-  'idx_oxsteed_credit_worker_heartbeats_last_run',
+    'idx_oxsteed_credit_worker_heartbeats_last_run',
+    'idx_oxsteed_credit_transactions_debit_velocity',
+    'idx_oxsteed_credit_holds_customer_currency_active',
   'uq_oxsteed_credit_hold_notification',
   'uq_oxsteed_credit_audit_event_hash',
 ];
@@ -628,6 +630,11 @@ async function main() {
       ['510_oxsteed_credit_hmac_key_version.sql']
     );
     checks.ledgerHashKeyVersionMigrationApplied = ledgerHashKeyVersionMigrationRows.rows.length === 1;
+    const velocityIndexesMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['511_oxsteed_credit_velocity_indexes.sql']
+    );
+    checks.velocityIndexesMigrationApplied = velocityIndexesMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1591,6 +1598,7 @@ async function main() {
       !checks.workerHeartbeatMigrationApplied,
       !checks.notificationQueueIndexesMigrationApplied,
       !checks.ledgerHashKeyVersionMigrationApplied,
+      !checks.velocityIndexesMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,

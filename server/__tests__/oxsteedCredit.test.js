@@ -296,7 +296,15 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_notification_outbox_sending_lock',
     'idx_oxsteed_credit_notification_outbox_failed_history',
     'idx_oxsteed_credit_worker_heartbeats_last_run',
+    'idx_oxsteed_credit_transactions_debit_velocity',
+    'idx_oxsteed_credit_holds_customer_currency_active',
   ]));
+});
+
+test('credit verification requires velocity query indexes', () => {
+  const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
+  expect(verifierSource).toContain("['511_oxsteed_credit_velocity_indexes.sql']");
+  expect(verifierSource).toContain('!checks.velocityIndexesMigrationApplied');
 });
 
 test('customer Credit mutation responses omit internal hold and ledger fields', () => {
