@@ -118,6 +118,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_settlement_creator_guard',
   'oxsteed_credit_settlement_overlap_guard',
   'oxsteed_credit_settlement_reference_guard',
+  'oxsteed_credit_account_ledger_write_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -478,6 +479,11 @@ async function main() {
       ['490_oxsteed_credit_settlement_reference.sql']
     );
     checks.settlementReferenceMigrationApplied = settlementReferenceMigrationRows.rows.length === 1;
+    const accountLedgerWriteMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['491_oxsteed_credit_account_ledger_write.sql']
+    );
+    checks.accountLedgerWriteMigrationApplied = accountLedgerWriteMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -618,6 +624,18 @@ async function main() {
         WHERE COALESCE(j.journal_balance, 0) <> a.balance_cents`,
     );
     checks.invalidAccountBalances = Number(balanceInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: accountLedgerStateRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_accounts
+        WHERE (ledger_version = 0
+               AND (balance_cents <> 0
+                 OR last_entry_hash IS NOT NULL
+                 OR last_posted_at IS NOT NULL))
+           OR (ledger_version > 0
+               AND (last_entry_hash IS NULL OR last_posted_at IS NULL))`,
+    );
+    checks.invalidAccountLedgerStates = Number(accountLedgerStateRows[0]?.invalid_count || 0);
 
     const { rows: reservationInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1128,6 +1146,7 @@ async function main() {
       !checks.adminProvenanceMigrationApplied,
       !checks.settlementOverlapMigrationApplied,
       !checks.settlementReferenceMigrationApplied,
+      !checks.accountLedgerWriteMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1141,6 +1160,7 @@ async function main() {
       checks.invalidTransactionStates > 0,
       checks.invalidAdministrativeRefunds > 0,
       checks.invalidAccountBalances > 0,
+      checks.invalidAccountLedgerStates > 0,
       checks.invalidReservedBalances > 0,
       checks.invalidHoldLifecycles > 0,
       checks.invalidCustomerWalletOwners > 0,

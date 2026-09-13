@@ -770,12 +770,16 @@ async function postJournalTransaction(client, input) {
       metadata: normalizeMetadata(input.metadata),
     });
     const { rows: updatedRows } = await client.query(
-      `UPDATE oxsteed_credit_accounts
+      `WITH ledger_write AS (
+         SELECT set_config('oxsteed.credit_ledger_transaction_id', $5::TEXT, TRUE)
+       )
+       UPDATE oxsteed_credit_accounts
           SET balance_cents = $1, ledger_version = $2, last_entry_hash = $3,
               last_posted_at = NOW(), updated_at = NOW()
+        FROM ledger_write
         WHERE id = $4
         RETURNING *`,
-      [update.nextBalance, sequence, entryHash, update.account.id]
+      [update.nextBalance, sequence, entryHash, update.account.id, transaction.id]
     );
     const updatedAccount = updatedRows[0];
     const { rows: insertedEntries } = await client.query(
