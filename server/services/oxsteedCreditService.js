@@ -583,7 +583,12 @@ async function postJournalTransaction(client, input) {
   if (normalizeCurrency(debitAccount.currency_code) !== requested.currency_code || normalizeCurrency(creditAccount.currency_code) !== requested.currency_code) {
     throw new AppError('Credit currency mismatch', 409, 'credit_currency_mismatch');
   }
-  if (debitAccount.status !== 'active' || creditAccount.status !== 'active') {
+  const canUseSuspendedAccounts = input.allowSuspendedAccounts === true
+    && ['adjustment', 'refund'].includes(input.transactionType)
+    && debitAccount.status !== 'closed'
+    && creditAccount.status !== 'closed';
+  if (debitAccount.status === 'closed' || creditAccount.status === 'closed'
+    || (!canUseSuspendedAccounts && (debitAccount.status !== 'active' || creditAccount.status !== 'active'))) {
     throw new AppError('Credit account is not active', 409, 'credit_account_inactive');
   }
 
@@ -1008,6 +1013,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
       actorType: 'admin',
       actorUserId,
       reason,
+      allowSuspendedAccounts: true,
       referenceType,
       referenceId,
       correlationId,
@@ -1488,6 +1494,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
         idempotencyKey,
         actorType,
         actorUserId,
+        allowSuspendedAccounts: true,
         referenceType: 'oxsteed_credit_purchase',
         referenceId: String(purchase.id),
         correlationId,
@@ -1516,6 +1523,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
       idempotencyKey,
       actorType,
       actorUserId,
+      allowSuspendedAccounts: true,
       reason,
       referenceType: 'oxsteed_credit_purchase',
       referenceId: String(purchase.id),

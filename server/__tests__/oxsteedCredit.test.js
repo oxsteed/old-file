@@ -989,6 +989,55 @@ test('replays a committed credit load while the rail is suspended', async () => 
   expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
 });
 
+test('allows approved adjustments into suspended wallets but never closed wallets', async () => {
+  const treasury = { id: 9001, account_type: 'platform_treasury', customer_id: null, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active', ledger_version: '0', last_entry_hash: null };
+  const customer = { id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'suspended', ledger_version: '0', last_entry_hash: null };
+  const transaction = { id: 'suspended-adjustment-transaction', transaction_type: 'adjustment', status: 'posted', debit_account_id: treasury.id, credit_account_id: customer.id, amount_cents: '100', currency_code: 'USD', partner_id: null, agreement_id: null, idempotency_key: 'suspended-adjustment-1', reference_type: 'admin_adjustment', reference_id: 'funding-1', description: 'Credit grant', actor_type: 'admin', actor_user_id: ADMIN_ID, metadata: {}, posted_at: '2026-09-13T00:00:00.000Z', created_at: '2026-09-13T00:00:00.000Z' };
+  const client = { query: (...args) => mockQuery(...args) };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [customer, treasury] })
+    .mockResolvedValueOnce({ rows: [transaction] })
+    .mockResolvedValueOnce({ rows: [{ ...treasury, balance_cents: '-100', ledger_version: '1', last_entry_hash: 'hash-treasury' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 1, transaction_id: transaction.id, account_id: treasury.id, entry_side: 'debit', amount_cents: '100', balance_after_cents: '-100', sequence: '1', previous_entry_hash: null, entry_hash: 'hash-treasury', metadata: {}, created_at: transaction.created_at }] })
+    .mockResolvedValueOnce({ rows: [{ ...customer, balance_cents: '100', ledger_version: '1', last_entry_hash: 'hash-customer' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 2, transaction_id: transaction.id, account_id: customer.id, entry_side: 'credit', amount_cents: '100', balance_after_cents: '100', sequence: '1', previous_entry_hash: null, entry_hash: 'hash-customer', metadata: {}, created_at: transaction.created_at }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await service.postJournalTransaction(client, {
+    transactionType: 'adjustment',
+    debitAccountId: treasury.id,
+    creditAccountId: customer.id,
+    amountCents: 100,
+    currencyCode: 'USD',
+    idempotencyKey: 'suspended-adjustment-1',
+    actorType: 'admin',
+    actorUserId: ADMIN_ID,
+    customerId: CUSTOMER_ID,
+    reason: 'Approved customer grant',
+    referenceType: 'admin_adjustment',
+    referenceId: 'funding-1',
+    allowSuspendedAccounts: true,
+  });
+
+  expect(result.transaction.amountCents).toBe(100);
+  expect(mockQuery.mock.calls[1][0]).toContain('FOR UPDATE');
+
+  mockQuery.mockReset();
+  mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+  mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ ...customer, status: 'closed' }, treasury] });
+  await expect(service.postJournalTransaction(client, {
+    transactionType: 'adjustment',
+    debitAccountId: treasury.id,
+    creditAccountId: customer.id,
+    amountCents: 100,
+    currencyCode: 'USD',
+    idempotencyKey: 'closed-adjustment-1',
+    reason: 'Closed wallet test',
+    allowSuspendedAccounts: true,
+  })).rejects.toMatchObject({ code: 'credit_account_inactive', status: 409 });
+});
+
 test('applies the global issuance cap to positive administrative adjustments', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
