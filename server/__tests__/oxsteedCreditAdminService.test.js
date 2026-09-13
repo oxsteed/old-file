@@ -706,7 +706,7 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
 
   expect(result.account).toMatchObject({ accountId: '7001', customerId: '11111111-1111-4111-8111-111111111111', availableBalanceCents: 10000 });
   expect(result.transactions[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', direction: 'debit', status: 'posted', orderId: '123' });
-  expect(result.holds[0]).toMatchObject({ restaurantName: 'OxSteed Bistro', status: 'active', amountCents: 1000, captureReason: null, releaseReason: null });
+  expect(result.holds[0]).toMatchObject({ restaurantName: 'OxSteed Bistro', status: 'active', amountCents: 1000, captureReason: null, releaseReason: null, actorEvidenceLegacy: false });
   expect(result.entitlements[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', status: 'active' });
   expect(result.auditEvents[0]).toMatchObject({ actionType: 'credit.entitlement.upserted', customerId: '11111111-1111-4111-8111-111111111111' });
   expect(result.disputes[0]).toMatchObject({ id: 'dispute-1', status: 'in_review', reasonCode: 'incorrect_amount', restaurantName: 'OxSteed Cafe' });
@@ -715,6 +715,7 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
   expect(mockQuery.mock.calls[1][0]).toContain('t.description, t.reason, t.actor_type');
   expect(mockQuery.mock.calls[2][0]).toContain('h.account_id = $1');
   expect(mockQuery.mock.calls[2][0]).toContain('h.capture_actor_type');
+  expect(mockQuery.mock.calls[2][0]).toContain('h.actor_evidence_legacy');
   expect(mockQuery.mock.calls[3][0]).toContain('e.customer_id = $1');
   expect(mockQuery.mock.calls[4][0]).toContain('customer_id = $1');
   expect(mockQuery.mock.calls[5][0]).toContain('d.customer_id = $1');

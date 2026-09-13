@@ -1509,6 +1509,7 @@ function formatHold(row) {
     releaseActorType: row.release_actor_type || null,
     releasedBy: row.released_by || null,
     releaseReason: row.release_reason || null,
+    actorEvidenceLegacy: row.actor_evidence_legacy === true,
     createdAt: row.created_at,
     capturedAt: row.captured_at || null,
     releasedAt: row.released_at || null,
@@ -1537,6 +1538,7 @@ function formatCustomerHold(row) {
     releaseActorType,
     releasedBy,
     releaseReason,
+    actorEvidenceLegacy,
     ...safeHold
   } = hold;
   return safeHold;

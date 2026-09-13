@@ -115,6 +115,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_account_ledger_write_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_terminal_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_actor_evidence_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -194,6 +195,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['493_oxsteed_credit_dispute_actor_evidence.sql']");
   expect(verifierSource).toContain('!checks.disputeActorEvidenceMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditDisputeActors > 0');
+  expect(verifierSource).toContain("['494_oxsteed_credit_hold_actor_evidence.sql']");
+  expect(verifierSource).toContain('!checks.holdActorEvidenceMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidCreditHoldActors > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -979,6 +983,7 @@ test('lists a customer credit hold page without exposing other account holds', a
   expect(response.body.holds).toHaveLength(1);
   expect(response.body.holds[0]).toMatchObject({ restaurantName: 'Ox Burger Lab', amountCents: 1200, status: 'active' });
   expect(response.body.holds[0].idempotencyKey).toBeUndefined();
+  expect(response.body.holds[0].actorEvidenceLegacy).toBeUndefined();
   expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: true, nextOffset: 1 });
   expect(mockQuery.mock.calls[0][0]).toContain("a.account_type = 'customer_wallet'");
 });

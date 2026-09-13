@@ -45,6 +45,7 @@ const REQUIRED_COLUMNS = {
     'released_by',
     'release_reason',
     'terminal_evidence_legacy',
+    'actor_evidence_legacy',
   ],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
@@ -131,6 +132,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_account_ledger_write_guard',
   'oxsteed_credit_hold_terminal_evidence_guard',
   'oxsteed_credit_dispute_actor_evidence_guard',
+  'oxsteed_credit_hold_actor_evidence_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -506,6 +508,11 @@ async function main() {
       ['493_oxsteed_credit_dispute_actor_evidence.sql']
     );
     checks.disputeActorEvidenceMigrationApplied = disputeActorEvidenceMigrationRows.rows.length === 1;
+    const holdActorEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['494_oxsteed_credit_hold_actor_evidence.sql']
+    );
+    checks.holdActorEvidenceMigrationApplied = holdActorEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -725,6 +732,46 @@ async function main() {
                  OR (h.capture_actor_type = 'admin' AND h.captured_by IS NULL)))`,
     );
     checks.invalidHoldTerminalEvidence = Number(holdTerminalEvidenceRows[0]?.invalid_count || 0);
+
+    const { rows: holdActorEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_holds h
+         LEFT JOIN users creator ON creator.id = h.created_by
+         LEFT JOIN users capture_actor ON capture_actor.id = h.captured_by
+         LEFT JOIN users release_actor ON release_actor.id = h.released_by
+        WHERE NOT h.actor_evidence_legacy
+          AND (
+            creator.id IS NULL
+            OR creator.id IS DISTINCT FROM h.customer_id
+            OR creator.role <> 'customer'
+            OR creator.is_active IS DISTINCT FROM TRUE
+            OR (h.status = 'captured' AND (
+              (h.capture_actor_type = 'admin' AND (
+                capture_actor.id IS NULL
+                OR capture_actor.role NOT IN ('admin', 'super_admin')
+                OR capture_actor.is_active IS DISTINCT FROM TRUE
+              ))
+              OR (h.capture_actor_type = 'system' AND h.captured_by IS NOT NULL)
+              OR COALESCE(h.capture_actor_type, '') NOT IN ('admin', 'system')
+            ))
+            OR (h.status IN ('released', 'expired') AND (
+              (h.release_actor_type = 'customer' AND (
+                release_actor.id IS NULL
+                OR release_actor.id IS DISTINCT FROM h.customer_id
+                OR release_actor.role <> 'customer'
+                OR release_actor.is_active IS DISTINCT FROM TRUE
+              ))
+              OR (h.release_actor_type = 'admin' AND (
+                release_actor.id IS NULL
+                OR release_actor.role NOT IN ('admin', 'super_admin')
+                OR release_actor.is_active IS DISTINCT FROM TRUE
+              ))
+              OR (h.release_actor_type = 'system' AND h.released_by IS NOT NULL)
+              OR COALESCE(h.release_actor_type, '') NOT IN ('customer', 'admin', 'system')
+            ))
+          )`,
+    );
+    checks.invalidCreditHoldActors = Number(holdActorEvidenceRows[0]?.invalid_count || 0);
 
     const { rows: customerOwnerInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1218,6 +1265,7 @@ async function main() {
       !checks.accountLedgerWriteMigrationApplied,
       !checks.holdTerminalEvidenceMigrationApplied,
       !checks.disputeActorEvidenceMigrationApplied,
+      !checks.holdActorEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1259,6 +1307,7 @@ async function main() {
       checks.invalidTransactionPartnerAccounts > 0,
       checks.invalidDisputes > 0,
       checks.invalidCreditDisputeActors > 0,
+      checks.invalidCreditHoldActors > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,
