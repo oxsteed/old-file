@@ -88,6 +88,9 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_notification_outbox_due',
   'idx_oxsteed_credit_notification_outbox_user',
   'idx_oxsteed_credit_notification_outbox_sent_retention',
+  'idx_oxsteed_credit_notification_outbox_pending_due',
+  'idx_oxsteed_credit_notification_outbox_sending_lock',
+  'idx_oxsteed_credit_notification_outbox_failed_history',
   'idx_oxsteed_credit_worker_heartbeats_last_run',
   'uq_oxsteed_credit_hold_notification',
   'uq_oxsteed_credit_audit_event_hash',
@@ -615,6 +618,11 @@ async function main() {
       ['508_oxsteed_credit_worker_heartbeat.sql']
     );
     checks.workerHeartbeatMigrationApplied = workerHeartbeatMigrationRows.rows.length === 1;
+    const notificationQueueIndexesMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['509_oxsteed_credit_notification_queue_indexes.sql']
+    );
+    checks.notificationQueueIndexesMigrationApplied = notificationQueueIndexesMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1575,6 +1583,7 @@ async function main() {
       !checks.holdNotificationOutboxMigrationApplied,
       !checks.notificationRetentionMigrationApplied,
       !checks.workerHeartbeatMigrationApplied,
+      !checks.notificationQueueIndexesMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
