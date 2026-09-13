@@ -882,7 +882,7 @@ export default function OxsteedCreditAdmin() {
           <span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span>
           <select required value={agreementForm.partnerId} onChange={(event) => setAgreementForm({ ...agreementForm, partnerId: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
             <option value="">Select partner</option>
-            {selectablePartners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.status}</option>)}
+            {selectablePartners.filter((partner) => partner.status !== 'terminated').map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.status}</option>)}
           </select>
         </label>
         <label>

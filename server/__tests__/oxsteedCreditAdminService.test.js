@@ -588,6 +588,21 @@ test('requires idempotency for agreement creation', async () => {
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('does not create new agreements for terminated partners', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 41, status: 'terminated' }] });
+
+  await expect(createAgreement({
+    partnerId: 41,
+    startsAt: '2026-09-12T00:00:00.000Z',
+    reason: 'Attempted reactivation review',
+    idempotencyKey: 'credit-agreement-terminated-1',
+  })).rejects.toMatchObject({ code: 'credit_partner_terminated', status: 409 });
+
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+});
+
 test('marks ended customer entitlements expired and records the transition', async () => {
   const customerId = '11111111-1111-4111-8111-111111111111';
   const endedAt = new Date('2026-09-12T00:00:00.000Z');

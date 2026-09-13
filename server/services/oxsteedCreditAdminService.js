@@ -1331,6 +1331,7 @@ async function createAgreement({ partnerId, startsAt, endsAt, customerTerms, all
     }
     const { rows: partnerRows } = await client.query(`SELECT * FROM oxsteed_credit_partners WHERE id = $1 FOR UPDATE`, [normalizedPartnerId]);
     if (!partnerRows[0]) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
+    if (partnerRows[0].status === 'terminated') throw new AppError('Terminated credit partners cannot receive new agreements', 409, 'credit_partner_terminated');
     const normalizedReason = requireAuditReason(reason);
     const { rows: versionRows } = await client.query(`SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM oxsteed_credit_partner_agreements WHERE partner_id = $1`, [normalizedPartnerId]);
     const { rows } = await client.query(
