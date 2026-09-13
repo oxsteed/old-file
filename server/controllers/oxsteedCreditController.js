@@ -59,6 +59,7 @@ const {
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
   DAILY_WORKER_STALE_AFTER_MINUTES,
+  NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES,
   WORKER_NAMES_SQL,
   FAST_WORKER_NAMES_SQL,
 } = require('../services/oxsteedCreditWorkerConfig');
@@ -603,6 +604,7 @@ async function getAdminOverview(req, res, next) {
           COUNT(*) FILTER (WHERE status = 'sending')::int AS sending_count,
           COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_count,
           MIN(created_at) FILTER (WHERE status IN ('pending', 'sending')) AS oldest_pending_at,
+          (MIN(created_at) FILTER (WHERE status IN ('pending', 'sending'))) < NOW() - (${NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES} * INTERVAL '1 minute') AS backlog_stale,
           MIN(created_at) FILTER (WHERE status = 'failed') AS oldest_failed_at,
           COALESCE((
             SELECT json_agg(json_build_object(
@@ -678,6 +680,8 @@ async function getAdminOverview(req, res, next) {
       sending: Number(notificationHealthRow.sending_count || 0),
       failed: Number(notificationHealthRow.failed_count || 0),
       oldestPendingAt: notificationHealthRow.oldest_pending_at || null,
+      backlogStale: Boolean(notificationHealthRow.backlog_stale),
+      backlogStaleAfterMinutes: NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES,
       oldestFailedAt: notificationHealthRow.oldest_failed_at || null,
       failedNotifications: Array.isArray(notificationHealthRow.failed_notifications) ? notificationHealthRow.failed_notifications : [],
       workerHeartbeat: notificationHealthRow.worker_heartbeat && typeof notificationHealthRow.worker_heartbeat === 'object'

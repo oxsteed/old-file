@@ -503,7 +503,7 @@ test('keeps admin credit overview balances separated by currency', async () => {
   ]));
   expect(response.body.partnerCounts).toEqual({ total: 125, active: 118 });
   expect(response.body.coverageAlerts).toEqual({ pendingPartners: 4, activePartnersWithoutAgreement: 2, expiringAgreements: 3 });
-  expect(response.body.notificationHealth).toEqual({ pending: 2, sending: 1, failed: 1, oldestPendingAt: '2026-09-13T12:00:00.000Z', oldestFailedAt: '2026-09-12T12:00:00.000Z', failedNotifications: [], workerHeartbeat: {} });
+  expect(response.body.notificationHealth).toEqual({ pending: 2, sending: 1, failed: 1, oldestPendingAt: '2026-09-13T12:00:00.000Z', backlogStale: false, backlogStaleAfterMinutes: 15, oldestFailedAt: '2026-09-12T12:00:00.000Z', failedNotifications: [], workerHeartbeat: {} });
   expect(response.body.workerHeartbeats).toEqual({
     'oxsteed-credit-reconciliation': { jobName: 'oxsteed-credit-reconciliation', stale: false, consecutiveFailures: 0 },
   });

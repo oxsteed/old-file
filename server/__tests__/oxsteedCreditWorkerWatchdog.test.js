@@ -17,9 +17,12 @@ const {
   JOB_NAME,
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
+  NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES,
+  NOTIFICATION_BACKLOG_DEDUPE_KEY,
   WORKER_CONFIG,
   checkNotificationWorker,
   checkAllWorkers,
+  checkNotificationBacklog,
   runOxsteedCreditWorkerWatchdog,
 } = require('../jobs/oxsteedCreditWorkerWatchdog');
 
@@ -70,6 +73,20 @@ test('alerts when a worker reports a recent failed run', async () => {
   }));
 });
 
+test('records one deduplicated incident when the notification backlog is stale', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{
+    active_count: 2,
+    oldest_active_at: new Date(Date.now() - (NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES + 1) * 60000).toISOString(),
+  }] });
+
+  await expect(checkNotificationBacklog()).resolves.toMatchObject({ status: 'stale', activeCount: 2 });
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_notification_backlog_stale',
+    severity: 'critical',
+    dedupeKey: NOTIFICATION_BACKLOG_DEDUPE_KEY,
+  }));
+});
+
 test('runs the watchdog under its distributed lock', async () => {
   for (const worker of WORKER_CONFIG) {
     db.query.mockResolvedValueOnce({ rows: [{
@@ -82,10 +99,12 @@ test('runs the watchdog under its distributed lock', async () => {
       stale: false,
     }] });
   }
+  db.query.mockResolvedValueOnce({ rows: [{ active_count: 0, oldest_active_at: null }] });
 
   await expect(runOxsteedCreditWorkerWatchdog()).resolves.toMatchObject({
     locked: true,
     status: 'healthy',
+    notificationBacklog: expect.objectContaining({ status: 'healthy', activeCount: 0 }),
     workers: expect.arrayContaining([
       expect.objectContaining({ status: 'healthy', heartbeat: expect.objectContaining({ job_name: NOTIFICATION_WORKER_NAME }) }),
     ]),
@@ -94,6 +113,7 @@ test('runs the watchdog under its distributed lock', async () => {
   expect(resolveOpenIncidentsByDedupeKeys).toHaveBeenCalledWith(expect.arrayContaining([
     `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:stale`,
     `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:failed`,
+    NOTIFICATION_BACKLOG_DEDUPE_KEY,
   ]), expect.any(String));
   expect(CRON_EXPRESSION).toBe('*/5 * * * *');
   expect(STALE_AFTER_MINUTES).toBe(10);
