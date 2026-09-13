@@ -40,6 +40,7 @@
 - Customer-to-customer Credit transfers, when explicitly enabled, now use a database-serialized daily amount and count cap per sender and currency (`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_CENTS`, `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_COUNT`) after idempotent replay checks.
 - Customer Credit spending now has a database-serialized daily amount and movement-count cap across all partner restaurants, counting posted purchases plus active holds while excluding the hold being captured (`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_CENTS`, `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_COUNT`).
 - Migration `511_oxsteed_credit_velocity_indexes.sql` keeps the cross-partner spend and transfer velocity queries bounded with partial indexes for posted movements and active holds; `verify:credit` requires both indexes and the migration marker.
+- Credit admin overview now exposes the configured daily spend and transfer ceilings alongside issuance guardrails so operators can review the effective safety posture before enabling movement.
 - Positive administrative adjustments share the serialized global issuance cap with loads; debit corrections remain available for controlled balance remediation.
 - Optional customer transfers now enforce customer-only sender and recipient scope at the route and database lookup boundary.
 - Hold idempotent retries now compare amount, partner/agreement, currency, purpose, and references so a reused key cannot silently attach to a different order.

@@ -504,6 +504,10 @@ test('keeps admin credit overview balances separated by currency', async () => {
     maxCustomerBalanceCents: expect.any(Number),
     maxTotalIssuanceCents: expect.any(Number),
     maxDailyCustomerIssuanceCents: expect.any(Number),
+    maxDailyCustomerTransferCents: expect.any(Number),
+    maxDailyCustomerTransferCount: expect.any(Number),
+    maxDailyCustomerSpendCents: expect.any(Number),
+    maxDailyCustomerSpendCount: expect.any(Number),
   }));
   expect(response.body.summaryByCurrency).toEqual(expect.arrayContaining([
     expect.objectContaining({ currencyCode: 'EUR', customerBalanceCents: 2500, customerAvailableCents: 2000 }),
