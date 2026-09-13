@@ -5,6 +5,7 @@ const { AppError } = require('../middleware/errorHandler');
 const {
   getCustomerCreditAccount,
   getCustomerCreditLimitSummary,
+  getCustomerCreditEligibility,
   listCustomerCreditAccounts,
   listCustomerCreditHolds,
   listEligiblePartners,
@@ -217,6 +218,28 @@ async function getEligiblePartners(req, res, next) {
       includePagination: true,
     });
     res.json(partners);
+  } catch (error) {
+    next(error);
+  }
+}
+
+function parseQueryList(value) {
+  const values = Array.isArray(value) ? value : String(value || '').split(',');
+  return values.map((entry) => String(entry).trim()).filter(Boolean).slice(0, 100);
+}
+
+async function getCustomerEligibility(req, res, next) {
+  try {
+    const result = await getCustomerCreditEligibility({
+      customerId: req.user.id,
+      restaurantId: req.query.restaurantId || req.query.restaurant_id,
+      amountCents: req.query.amountCents || req.query.amount_cents,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      orderType: req.query.orderType || req.query.order_type,
+      categories: parseQueryList(req.query.categories || req.query.category),
+      menuItemIds: parseQueryList(req.query.menuItemIds || req.query.menu_item_ids),
+    });
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -1696,6 +1719,7 @@ module.exports = {
   getMyCreditStatus,
   listMyHolds,
   getEligiblePartners,
+  getCustomerEligibility,
   getMyTransactions,
   getMyStatement,
   downloadMyStatement,

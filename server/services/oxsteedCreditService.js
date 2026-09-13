@@ -1218,6 +1218,89 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
   return agreement;
 }
 
+const CREDIT_ELIGIBILITY_FAILURE_CODES = new Set([
+  'credit_rail_suspended',
+  'credit_partner_not_eligible',
+  'credit_partner_currency_mismatch',
+  'credit_order_type_not_eligible',
+  'credit_category_not_eligible',
+  'credit_menu_item_not_eligible',
+  'credit_location_not_eligible',
+  'credit_agreement_transaction_limit',
+  'credit_daily_limit_reached',
+  'credit_lifetime_limit_reached',
+]);
+
+async function getCustomerCreditEligibility({ customerId, restaurantId, currencyCode = CREDIT_CURRENCY, amountCents = 0, orderType, categories, menuItemIds } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedRestaurantId = Number.parseInt(String(restaurantId), 10);
+  if (!Number.isSafeInteger(normalizedRestaurantId) || normalizedRestaurantId <= 0) {
+    throw new AppError('Invalid restaurantId', 400, 'invalid_restaurantId');
+  }
+  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
+    ? 0
+    : parseAmountCents(amountCents);
+  const normalizedCategories = Array.isArray(categories)
+    ? categories.filter(Boolean).map((value) => String(value).trim()).filter(Boolean).slice(0, 100)
+    : [];
+  const normalizedMenuItemIds = Array.isArray(menuItemIds)
+    ? menuItemIds.filter(Boolean).map(String).filter(Boolean).slice(0, 100)
+    : [];
+
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT p.id AS partner_id, p.settlement_currency_code,
+              fr.address_city, fr.address_state, fr.address_zip, fr.address_country
+         FROM oxsteed_credit_partners p
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE p.restaurant_id = $1
+        ORDER BY CASE WHEN p.status = 'active' THEN 0 ELSE 1 END, p.id
+        LIMIT 1`,
+      [normalizedRestaurantId]
+    );
+    const partner = rows[0];
+    if (!partner) {
+      return { eligible: false, reasonCode: 'credit_partner_not_eligible', message: 'This restaurant does not currently accept OxSteed Credit' };
+    }
+    try {
+      await assertCreditRailEnabled(client);
+      const agreement = await findSpendAgreement(client, {
+        customerId,
+        partnerId: partner.partner_id,
+        amountCents: normalizedAmount,
+        currencyCode: currency,
+        orderType,
+        categories: normalizedCategories,
+        menuItemIds: normalizedMenuItemIds,
+        city: partner.address_city,
+        state: partner.address_state,
+        postalCode: partner.address_zip,
+        country: partner.address_country,
+      });
+      return {
+        eligible: true,
+        reasonCode: null,
+        message: null,
+        partnerId: String(partner.partner_id),
+        agreementId: String(agreement.id),
+        currencyCode: assertSupportedCreditCurrency(agreement.settlement_currency_code),
+      };
+    } catch (error) {
+      if (error instanceof AppError && CREDIT_ELIGIBILITY_FAILURE_CODES.has(error.code)) {
+        return {
+          eligible: false,
+          reasonCode: error.code,
+          message: error.message,
+          partnerId: String(partner.partner_id),
+          agreementId: null,
+          currencyCode: currency,
+        };
+      }
+      throw error;
+    }
+  }, 'credit_check_customer_eligibility');
+}
+
 async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY, city, state, postalCode, country, orderType, search, limit, offset, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
@@ -2698,6 +2781,7 @@ module.exports = {
   formatTransaction,
   getCustomerCreditAccount,
   getCustomerCreditLimitSummary,
+  getCustomerCreditEligibility,
   listCustomerCreditAccounts,
   listEligiblePartners,
   listCustomerCreditHolds,

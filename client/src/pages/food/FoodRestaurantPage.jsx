@@ -24,6 +24,7 @@ import {
 } from '../../api/food';
 import {
   getOxsteedCreditAccount,
+  getOxsteedCreditEligibility,
   listOxsteedCreditEligiblePartners,
 } from '../../api/oxsteedCredit';
 import { useLiveFoodOrder } from './useLiveFoodOrder';
@@ -198,6 +199,8 @@ export default function FoodRestaurantPage() {
   const [wallet, setWallet] = useState(null);
   const [oxsteedCreditAccount, setOxsteedCreditAccount] = useState(null);
   const [oxsteedCreditPartner, setOxsteedCreditPartner] = useState(null);
+  const [oxsteedCreditEligibility, setOxsteedCreditEligibility] = useState(null);
+  const [oxsteedCreditEligibilityLoading, setOxsteedCreditEligibilityLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [placedTrackingToken, setPlacedTrackingToken] = useState(null);
@@ -256,11 +259,13 @@ export default function FoodRestaurantPage() {
     if (!user || !restaurantId) {
       setOxsteedCreditAccount(null);
       setOxsteedCreditPartner(null);
+      setOxsteedCreditEligibility(null);
       return undefined;
     }
     if (!restaurant || String(restaurant.id) !== String(restaurantId)) {
       setOxsteedCreditAccount(null);
       setOxsteedCreditPartner(null);
+      setOxsteedCreditEligibility(null);
       return undefined;
     }
     let alive = true;
@@ -477,6 +482,37 @@ export default function FoodRestaurantPage() {
   const orderTotalCents = subtotalCents + feeCents;
   const checkoutRequiresLogin = !user;
   const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim());
+
+  const oxsteedCreditCategories = useMemo(
+    () => [...new Set(cartItems.map((item) => item.creditCategory).filter(Boolean))],
+    [cartItems]
+  );
+  const oxsteedCreditMenuItemIds = useMemo(
+    () => [...new Set(cartItems.map((item) => item.menuItemId).filter(Boolean).map(String))],
+    [cartItems]
+  );
+
+  useEffect(() => {
+    if (!user || !restaurantId || !oxsteedCreditAccount || !oxsteedCreditPartner || cartItems.length === 0) {
+      setOxsteedCreditEligibility(null);
+      setOxsteedCreditEligibilityLoading(false);
+      return undefined;
+    }
+    let alive = true;
+    setOxsteedCreditEligibilityLoading(true);
+    getOxsteedCreditEligibility({
+      restaurantId,
+      amountCents: orderTotalCents,
+      currencyCode: oxsteedCreditAccount.currencyCode || creditCurrency,
+      orderType: oxsteedCreditOrderType,
+      categories: oxsteedCreditCategories.join(','),
+      menuItemIds: oxsteedCreditMenuItemIds.join(','),
+    })
+      .then((result) => { if (alive) setOxsteedCreditEligibility(result); })
+      .catch(() => { if (alive) setOxsteedCreditEligibility({ eligible: false, reasonCode: 'credit_eligibility_unavailable', message: 'Credit eligibility could not be checked' }); })
+      .finally(() => { if (alive) setOxsteedCreditEligibilityLoading(false); });
+    return () => { alive = false; };
+  }, [user, restaurantId, oxsteedCreditAccount, oxsteedCreditPartner, cartItems.length, orderTotalCents, creditCurrency, oxsteedCreditOrderType, oxsteedCreditCategories, oxsteedCreditMenuItemIds]);
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
@@ -843,6 +879,7 @@ export default function FoodRestaurantPage() {
       id: `${item.id}::`,
       menuItemId: item.id,
       name: item.name,
+      creditCategory: item.sectionName || item.category_name || item.category || null,
       unitCents: Number(item.price_cents) || 0,
       qty: 1,
       photoGrad: item.photoGrad,
@@ -934,6 +971,7 @@ export default function FoodRestaurantPage() {
       id: `${modalItem.id}::${ids.join(',')}::${modalInstructions.trim()}`,
       menuItemId: modalItem.id,
       name: modalItem.name,
+      creditCategory: modalItem.sectionName || modalItem.category_name || modalItem.category || null,
       unitCents: modalUnitCents,
       qty: modalQty,
       photoGrad: modalItem.photoGrad || gradFor(modalItem.sectionName),
@@ -953,6 +991,7 @@ export default function FoodRestaurantPage() {
         id: `${mid}::reorder`,
         menuItemId: mid,
         name: it.item_name || it.name || t('food.restaurant.item'),
+        creditCategory: it.category_name || it.category || null,
         unitCents: Number(it.unit_price_cents ?? it.unitPriceCents ?? it.price_cents) || 0,
         qty: Number(it.quantity || 1) || 1,
         photoGrad: gradFor(it.item_name || it.name),
@@ -1019,7 +1058,11 @@ export default function FoodRestaurantPage() {
     : Number(oxsteedCreditPartner.maxTransactionCents);
   const oxsteedCreditExceedsTransactionLimit = Number.isFinite(oxsteedCreditMaxTransactionCents)
     && orderTotalCents > oxsteedCreditMaxTransactionCents;
-  const oxsteedCreditPaymentIssue = oxsteedCreditExceedsTransactionLimit
+  const oxsteedCreditPaymentIssue = oxsteedCreditEligibilityLoading
+    ? 'Checking eligibility...'
+    : oxsteedCreditEligibility && !oxsteedCreditEligibility.eligible
+      ? (oxsteedCreditEligibility.message || 'Not eligible for this order')
+      : oxsteedCreditExceedsTransactionLimit
     ? `Restaurant limit ${formatFoodMoney(oxsteedCreditMaxTransactionCents, oxsteedCreditAccount?.currencyCode || currency)}`
     : !oxsteedCreditCoversOrder
       ? `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)}`

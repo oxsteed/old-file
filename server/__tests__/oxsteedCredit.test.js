@@ -23,6 +23,7 @@ function createCustomerApp(role = 'customer') {
   app.get('/limits', controller.getMyCreditLimits);
   app.get('/status', controller.getMyCreditStatus);
   app.get('/holds', controller.listMyHolds);
+  app.get('/eligibility', controller.getCustomerEligibility);
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
   app.get('/statement', controller.getMyStatement);
@@ -1082,6 +1083,46 @@ test('supports bounded server-side partner directory search and pagination', asy
   expect(mockQuery.mock.calls[0][0]).toContain('fr.display_name ILIKE');
   expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $9 OFFSET $10');
   expect(mockQuery.mock.calls[0][1].slice(-2)).toEqual([2, 1]);
+});
+
+test('checks restaurant checkout eligibility with the same agreement policy as spending', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ partner_id: 41 }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-41',
+      partner_id: 41,
+      settlement_currency_code: 'USD',
+      restaurant_currency_code: 'USD',
+      restaurant_id: 7,
+      restaurant_name: 'Springfield Kitchen',
+      partner_status: 'active',
+      restaurant_status: 'active',
+      starts_at: '2026-01-01T00:00:00.000Z',
+      ends_at: null,
+      requires_customer_entitlement: false,
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      max_transaction_cents: 5000,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+    }] });
+
+  const response = await request(createCustomerApp()).get('/eligibility?restaurantId=7&amountCents=1200&currencyCode=USD&orderType=pickup&categories=Mains&menuItemIds=99');
+
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({ eligible: true, partnerId: '41', agreementId: 'agreement-41', currencyCode: 'USD' });
+  expect(mockQuery.mock.calls[0][1]).toEqual([7]);
+  expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, null]);
 });
 
 test('lists a customer credit hold page without exposing other account holds', async () => {
