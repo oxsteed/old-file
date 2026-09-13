@@ -243,7 +243,7 @@ async function getCustomerCreditRailStatus() {
   return { enabled: rail.enabled, status: rail.status };
 }
 
-async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId }) {
+async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId, requestIp }) {
   if (typeof enabled !== 'boolean') {
     throw new AppError('Rail enabled must be a boolean', 400, 'credit_rail_enabled_invalid');
   }
@@ -277,13 +277,14 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
          (action_type, actor_user_id, resource_type, resource_id, reason,
-          correlation_id, before_state, after_state, metadata)
-       VALUES ($1, $2, 'credit_rail', 'oxsteed_credit_enabled', $3, $4, $5::jsonb, $6::jsonb, $7::jsonb)`,
+          correlation_id, request_ip, before_state, after_state, metadata)
+       VALUES ($1, $2, 'credit_rail', 'oxsteed_credit_enabled', $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb)`,
       [
         enabled ? 'credit.rail.enabled' : 'credit.rail.suspended',
         actorUserId || null,
         normalizedReason,
         normalizeString(correlationId, 160),
+        requestIp || null,
         JSON.stringify({ enabled: current.is_enabled === true }),
         JSON.stringify({ enabled }),
         JSON.stringify({ emergencyControl: true }),
@@ -812,8 +813,8 @@ async function postJournalTransaction(client, input) {
   await client.query(
     `INSERT INTO oxsteed_credit_audit_events
        (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id,
-        reason, correlation_id, after_state, metadata)
-     VALUES ($1, $2, $3, $4, 'credit_transaction', $5, $6, $7, $8::jsonb, $9::jsonb)`,
+        reason, correlation_id, request_ip, after_state, metadata)
+     VALUES ($1, $2, $3, $4, 'credit_transaction', $5, $6, $7, $8, $9::jsonb, $10::jsonb)`,
     [
       `credit.${input.transactionType}.posted`,
       input.actorUserId || null,
@@ -822,6 +823,7 @@ async function postJournalTransaction(client, input) {
       String(transaction.id),
       normalizeString(input.reason, 500),
       normalizeString(input.correlationId, 160),
+      input.requestIp || null,
       JSON.stringify({ transactionId: transaction.id, amountCents, debitAccountId: debitAccount.id, creditAccountId: creditAccount.id }),
       JSON.stringify(normalizeMetadata(input.metadata)),
     ]
@@ -1127,7 +1129,7 @@ async function listCustomerCreditAccounts(customerId) {
   return rows.map(formatAccount);
 }
 
-async function loadCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, metadata = {} }) {
+async function loadCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, reason, referenceType = 'admin_load', referenceId, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -1163,6 +1165,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
         referenceType,
         referenceId,
         correlationId,
+        requestIp,
         metadata,
         bindIdempotencySemantics: true,
         existingTransaction: existing,
@@ -1189,13 +1192,14 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
       referenceType,
       referenceId,
       correlationId,
+      requestIp,
       metadata,
       bindIdempotencySemantics: true,
     });
   }, 'credit_load_customer');
 }
 
-async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
+async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, requestIp, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const normalizedActorType = normalizeString(actorType, 32) || (actorUserId ? 'user' : 'system');
   if (['user', 'customer'].includes(normalizedActorType)) {
@@ -1243,6 +1247,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
       referenceType: existing.reference_type || referenceType,
       referenceId: existing.reference_id || referenceId,
       correlationId,
+      requestIp,
       description,
       metadata,
       existingTransaction: existing,
@@ -1272,6 +1277,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
     referenceType,
     referenceId,
     correlationId,
+    requestIp,
     description,
     metadata: {
       ...normalizeMetadata(metadata),
@@ -1296,7 +1302,7 @@ async function purchaseWithCredit(args) {
   return withTransaction(pool, (client) => purchaseWithCreditInTransaction(client, args), 'credit_purchase');
 }
 
-async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, description, metadata = {} }) {
+async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {} }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
@@ -1324,6 +1330,7 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
         referenceType,
         referenceId,
         correlationId,
+        requestIp,
         description,
         metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
         existingTransaction: existing,
@@ -1352,13 +1359,14 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
       referenceType,
       referenceId,
       correlationId,
+      requestIp,
       description,
       metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
     });
   }, 'credit_transfer');
 }
 
-async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, metadata = {} }) {
+async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
@@ -1387,6 +1395,7 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
       referenceType,
       referenceId,
       correlationId,
+      requestIp,
       description: direction === 'credit' ? 'OxSteed Credit administrative grant' : 'OxSteed Credit administrative clawback',
       metadata: { ...normalizeMetadata(metadata), direction },
       bindIdempotencySemantics: true,
@@ -1394,7 +1403,7 @@ async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CR
   }, 'credit_adjust_customer');
 }
 
-async function updateCustomerCreditAccountStatus({ customerId, status, currencyCode = CREDIT_CURRENCY, actorUserId, reason }) {
+async function updateCustomerCreditAccountStatus({ customerId, status, currencyCode = CREDIT_CURRENCY, actorUserId, reason, correlationId, requestIp }) {
   const normalizedStatus = normalizeString(status, 20);
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid credit account status', 400, 'credit_account_status_invalid');
@@ -1413,15 +1422,15 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
     const { rows } = await client.query(`UPDATE oxsteed_credit_accounts SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [normalizedStatus, account.id]);
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, before_state, after_state)
-       VALUES ('credit.customer_account.status_changed', $1, $2, 'credit_account', $3, $4, $5::jsonb, $6::jsonb)`,
-      [actorUserId || null, customerId, String(account.id), normalizeString(reason, 1000), JSON.stringify({ status: account.status }), JSON.stringify({ status: normalizedStatus })]
+         (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, correlation_id, request_ip, before_state, after_state)
+       VALUES ('credit.customer_account.status_changed', $1, $2, 'credit_account', $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
+      [actorUserId || null, customerId, String(account.id), normalizeString(reason, 1000), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ status: account.status }), JSON.stringify({ status: normalizedStatus })]
     );
     return { account: formatAccount(rows[0]), replayed: false };
   }, 'credit_update_customer_status');
 }
 
-async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
+async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
   requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must create the hold', 'credit_hold_actor_required');
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -1505,9 +1514,9 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
     );
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, after_state)
-       VALUES ('credit.hold.created', $1, $2, $3, 'credit_hold', $4, $5, $6, $7::jsonb)`,
-      [actorUserId || null, customerId, partnerId, String(holdRows[0].id), normalizeString(purpose, 100), normalizeString(correlationId, 160), JSON.stringify({ amountCents: amount, expiresAt: requestedExpiry.toISOString() })]
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.hold.created', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
+      [actorUserId || null, customerId, partnerId, String(holdRows[0].id), normalizeString(purpose, 100), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: amount, expiresAt: requestedExpiry.toISOString() })]
     );
     return { hold: formatHold(holdRows[0]), replayed: false };
   }, 'credit_create_hold');
@@ -1610,7 +1619,7 @@ async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRE
   };
 }
 
-async function releaseCreditHold({ customerId, holdId, actorUserId, reason, correlationId }) {
+async function releaseCreditHold({ customerId, holdId, actorUserId, reason, correlationId, requestIp }) {
   requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must release the hold', 'credit_hold_release_actor_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(`SELECT * FROM oxsteed_credit_holds WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [holdId, customerId]);
@@ -1628,12 +1637,12 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
         RETURNING *`,
       [actorUserId || customerId, releaseReason, hold.id]
     );
-    await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6)`, [actorUserId || customerId, customerId, hold.partner_id, String(hold.id), releaseReason, normalizeString(correlationId, 160)]);
+    await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6, $7)`, [actorUserId || customerId, customerId, hold.partner_id, String(hold.id), releaseReason, normalizeString(correlationId, 160), requestIp || null]);
     return { hold: formatHold(updatedRows[0]), replayed: false };
   }, 'credit_release_hold');
 }
 
-async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, description, reason, metadata = {} }) {
+async function captureCreditHold({ holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {} }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
   const normalizedActorType = normalizeString(actorType, 20) || 'admin';
   if (!['admin', 'system'].includes(normalizedActorType)) throw new AppError('Invalid credit hold capture actor', 400, 'credit_capture_actor_invalid');
@@ -1697,9 +1706,9 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       );
       await client.query(
         `INSERT INTO oxsteed_credit_audit_events
-           (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, after_state)
-         VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, $5, $6, $7::jsonb)`,
-        [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason || 'Hold expired before capture', normalizeString(correlationId, 160), JSON.stringify({ amountCents: Number(hold.amount_cents) })]
+           (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+         VALUES ('credit.hold.expired', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
+        [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason || 'Hold expired before capture', normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: Number(hold.amount_cents) })]
       );
       return { hold: formatHold(expiredRows[0] || { ...hold, status: 'expired' }), expired: true, replayed: false };
     }
@@ -1729,6 +1738,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
       referenceType: requestedReferenceType,
       referenceId: requestedReferenceId,
       correlationId,
+      requestIp,
       description: requestedDescription,
       reason: normalizedReason || 'System hold capture',
       metadata: requestedMetadata,
@@ -1744,9 +1754,9 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
     );
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, after_state)
-       VALUES ('credit.hold.captured', $1, $2, $3, 'credit_hold', $4, $5, $6, $7::jsonb)`,
-      [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason, normalizeString(correlationId, 160), JSON.stringify({ amountCents: requestedAmount, transactionId: transactionResult.transaction.id })]
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.hold.captured', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
+      [actorUserId || null, hold.customer_id, hold.partner_id, String(hold.id), normalizedReason, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: requestedAmount, transactionId: transactionResult.transaction.id })]
     );
     return { hold: formatHold(capturedRows[0]), transaction: transactionResult.transaction, replayed: false };
   }, 'credit_capture_hold');
@@ -1793,7 +1803,7 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
   }, 'credit_expire_holds');
 }
 
-async function refundCreditInTransaction(client, { purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, metadata = {} }) {
+async function refundCreditInTransaction(client, { purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   const normalizedActorType = normalizeString(actorType, 32) || 'admin';
@@ -1832,6 +1842,7 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
         referenceType: 'oxsteed_credit_purchase',
         referenceId: String(purchase.id),
         correlationId,
+        requestIp,
         description: 'OxSteed Credit refund',
         metadata: normalizedMetadata,
         bindIdempotencySemantics: administrativeRefund,
@@ -1864,13 +1875,14 @@ async function refundCreditInTransaction(client, { purchaseTransactionId, amount
       referenceType: 'oxsteed_credit_purchase',
       referenceId: String(purchase.id),
       correlationId,
+      requestIp,
       description: 'OxSteed Credit refund',
       metadata: normalizedMetadata,
       bindIdempotencySemantics: administrativeRefund,
     });
 }
 
-async function refundCredit({ purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, metadata = {} }) {
+async function refundCredit({ purchaseTransactionId, amountCents, idempotencyKey, actorUserId, actorType = 'admin', reason, correlationId, requestIp, metadata = {} }) {
   return withTransaction(pool, (client) => refundCreditInTransaction(client, {
     purchaseTransactionId,
     amountCents,
@@ -1879,11 +1891,12 @@ async function refundCredit({ purchaseTransactionId, amountCents, idempotencyKey
     actorType,
     reason,
     correlationId,
+    requestIp,
     metadata,
   }), 'credit_refund');
 }
 
-async function refundCreditForReferenceInTransaction(client, { referenceType, referenceId, amountCents, idempotencyKey, actorUserId, actorType = 'system', reason, correlationId, metadata = {} }) {
+async function refundCreditForReferenceInTransaction(client, { referenceType, referenceId, amountCents, idempotencyKey, actorUserId, actorType = 'system', reason, correlationId, requestIp, metadata = {} }) {
   const { rows } = await client.query(
     `SELECT id
        FROM oxsteed_credit_transactions
@@ -1903,6 +1916,7 @@ async function refundCreditForReferenceInTransaction(client, { referenceType, re
     actorType,
     reason,
     correlationId,
+    requestIp,
     metadata,
   });
 }
@@ -2153,7 +2167,7 @@ function formatDispute(row) {
   };
 }
 
-async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey }) {
+async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
   if (!customerId || !actorUserId || String(actorUserId) !== String(customerId)) throw new AppError('A customer identity is required to open a credit dispute', 403, 'credit_dispute_actor_required');
@@ -2226,9 +2240,9 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
     }
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, after_state)
-       VALUES ('credit.dispute.opened', $1, $2, $3, 'credit_dispute', $4, $5, $6::jsonb)`,
-      [actorUserId || customerId, customerId, transaction.partner_id || null, rows[0].id, normalizedReason, JSON.stringify({ transactionId: transaction.id, status: 'open' })]
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, request_ip, after_state)
+       VALUES ('credit.dispute.opened', $1, $2, $3, 'credit_dispute', $4, $5, $6, $7::jsonb)`,
+      [actorUserId || customerId, customerId, transaction.partner_id || null, rows[0].id, normalizedReason, requestIp || null, JSON.stringify({ transactionId: transaction.id, status: 'open' })]
     );
     return { dispute: formatDispute(rows[0]), replayed: false };
   }, 'credit_open_dispute');
@@ -2293,7 +2307,7 @@ async function listCreditDisputes({ customerId, partnerId, status, limit = 100, 
   };
 }
 
-async function resolveCreditDispute({ disputeId, status, resolution, actorUserId }) {
+async function resolveCreditDispute({ disputeId, status, resolution, actorUserId, requestIp }) {
   const normalizedStatus = normalizeString(status, 20);
   const normalizedResolution = normalizeString(resolution, 4000);
   if (!['in_review', 'resolved', 'rejected'].includes(normalizedStatus)) throw new AppError('Invalid dispute resolution status', 400, 'credit_dispute_status_invalid');
@@ -2316,9 +2330,9 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
     );
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, before_state, after_state)
-       VALUES ('credit.dispute.status_changed', $1, $2, $3, 'credit_dispute', $4, $5, $6::jsonb, $7::jsonb)`,
-      [actorUserId || null, dispute.customer_id, dispute.partner_id || null, String(dispute.id), normalizedResolution || null, JSON.stringify({ status: dispute.status }), JSON.stringify({ status: normalizedStatus })]
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, request_ip, before_state, after_state)
+       VALUES ('credit.dispute.status_changed', $1, $2, $3, 'credit_dispute', $4, $5, $6, $7::jsonb, $8::jsonb)`,
+      [actorUserId || null, dispute.customer_id, dispute.partner_id || null, String(dispute.id), normalizedResolution || null, requestIp || null, JSON.stringify({ status: dispute.status }), JSON.stringify({ status: normalizedStatus })]
     );
     return { dispute: formatDispute({ ...updatedRows[0], restaurant_name: dispute.restaurant_name }), replayed: false };
   }, 'credit_resolve_dispute');

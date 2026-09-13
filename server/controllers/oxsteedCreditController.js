@@ -98,6 +98,7 @@ function getRequestContext(req) {
   return {
     actorUserId: req.user?.id || null,
     correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    requestIp: req.ip || null,
     metadata: { source: 'api', requestPath: req.path },
   };
 }
@@ -318,6 +319,7 @@ async function adminCaptureHold(req, res, next) {
       referenceType: req.body?.referenceType || req.body?.reference_type,
       referenceId: req.body?.referenceId || req.body?.reference_id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
       description: req.body?.description,
       reason: req.body?.reason,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
@@ -362,6 +364,7 @@ async function openMyDispute(req, res, next) {
       description: req.body?.description,
       actorUserId: req.user.id,
       idempotencyKey: getIdempotencyKey(req),
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -395,6 +398,7 @@ async function adminLoadCredit(req, res, next) {
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
       reason: req.body?.reason,
       referenceType: 'admin_load',
       referenceId,
@@ -425,6 +429,7 @@ async function adminAdjustCredit(req, res, next) {
       referenceType: 'admin_adjustment',
       referenceId,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -436,7 +441,7 @@ async function adminAdjustCredit(req, res, next) {
 async function adminUpdateCreditAccountStatus(req, res, next) {
   try {
     const customerId = parseUuid(req.params.customerId, 'customerId');
-    const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, currencyCode: req.body?.currencyCode || req.body?.currency_code, actorUserId: req.user.id, reason: req.body?.reason });
+    const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, currencyCode: req.body?.currencyCode || req.body?.currency_code, actorUserId: req.user.id, reason: req.body?.reason, correlationId: req.correlationId || req.get('X-Request-ID') || null, requestIp: req.ip || null });
     res.json(result);
   } catch (error) {
     next(error);
@@ -525,7 +530,7 @@ async function downloadAdminCreditDisputes(req, res, next) {
 async function resolveAdminDispute(req, res, next) {
   try {
     const disputeId = parseUuid(req.params.disputeId, 'disputeId');
-    const result = await resolveCreditDispute({ disputeId, status: req.body?.status, resolution: req.body?.resolution, actorUserId: req.user.id });
+    const result = await resolveCreditDispute({ disputeId, status: req.body?.status, resolution: req.body?.resolution, actorUserId: req.user.id, requestIp: req.ip || null });
     res.json(result);
   } catch (error) {
     next(error);
@@ -664,6 +669,7 @@ async function updateAdminCreditRail(req, res, next) {
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.json(result);
   } catch (error) {
@@ -1014,6 +1020,7 @@ async function registerAdminPartner(req, res, next) {
       reason: req.body?.reason,
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1029,6 +1036,7 @@ async function transitionAdminPartner(req, res, next) {
       reason: req.body?.reason,
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.json(result);
   } catch (error) {
@@ -1058,6 +1066,7 @@ async function createAdminAgreement(req, res, next) {
       idempotencyKey: getIdempotencyKey(req),
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1074,6 +1083,7 @@ async function transitionAdminAgreement(req, res, next) {
       reason: req.body?.reason,
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.json(result);
   } catch (error) {
@@ -1098,6 +1108,7 @@ async function upsertAdminEntitlement(req, res, next) {
       actorUserId: req.user.id,
       idempotencyKey: getIdempotencyKey(req),
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1129,6 +1140,7 @@ async function bulkUpsertAdminEntitlements(req, res, next) {
       actorUserId: req.user.id,
       idempotencyKey: getIdempotencyKey(req),
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1352,7 +1364,7 @@ async function downloadAdminCreditAuditEvents(req, res, next) {
         maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
       });
     }
-    const headers = ['Event ID', 'Created at', 'Action', 'Resource type', 'Resource ID', 'Actor user ID', 'Customer ID', 'Partner ID', 'Reason', 'Before state', 'After state', 'Metadata', 'Correlation ID', 'Previous event hash', 'Event hash'];
+    const headers = ['Event ID', 'Created at', 'Action', 'Resource type', 'Resource ID', 'Actor user ID', 'Customer ID', 'Partner ID', 'Reason', 'Before state', 'After state', 'Metadata', 'Correlation ID', 'Request IP', 'Previous event hash', 'Event hash'];
     const lines = [headers.map(csvCell).join(',')];
     auditEvents.forEach((event) => {
       lines.push([
@@ -1369,6 +1381,7 @@ async function downloadAdminCreditAuditEvents(req, res, next) {
         JSON.stringify(event.afterState || null),
         JSON.stringify(event.metadata || {}),
         event.correlationId,
+        event.requestIp,
         event.previousEventHash,
         event.eventHash,
       ].map(csvCell).join(','));
@@ -1398,6 +1411,7 @@ async function createAdminSettlement(req, res, next) {
       reason: req.body?.reason,
       metadata: req.body?.metadata,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
@@ -1415,6 +1429,7 @@ async function transitionAdminSettlement(req, res, next) {
       reason: req.body?.reason,
       paymentReference: req.body?.paymentReference || req.body?.payment_reference,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.json(result);
   } catch (error) {
@@ -1431,6 +1446,7 @@ async function reconcileAdminCredit(req, res, next) {
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
     });
     res.json(result);
   } catch (error) {

@@ -2801,6 +2801,7 @@ exports.createOrder = async (req, res, next) => {
             referenceType: 'food_order',
             referenceId: String(created.id),
             correlationId: clientOrderId || `food-order:${created.id}:oxsteed-credit`,
+            requestIp: req.ip || null,
             description: `Order #${created.id} · ${fulfillmentType}`,
             metadata: {
               orderId: created.id,
@@ -3384,6 +3385,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           actorType: 'restaurant_staff',
           reason: `Order ${status}`,
           correlationId: `food-order-status:${order.id}:${status}`,
+          requestIp: req.ip || null,
           metadata: {
             orderId: order.id,
             orderStatus: status,
