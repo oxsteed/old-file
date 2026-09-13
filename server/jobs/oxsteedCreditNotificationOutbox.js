@@ -12,6 +12,9 @@ const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-notification-outbox';
 const MAX_ATTEMPTS = 8;
 const STALE_LOCK_MINUTES = 15;
+const DEFAULT_SENT_RETENTION_DAYS = 90;
+const MIN_SENT_RETENTION_DAYS = 30;
+const MAX_SENT_RETENTION_DAYS = 730;
 
 function formatAmount(amountCents, currencyCode) {
   const amount = (Number(amountCents || 0) / 100).toFixed(2);
@@ -180,11 +183,42 @@ async function processOxsteedCreditNotificationOutbox(limit = 50) {
   return { claimed: rows.length, sent, retried, failed };
 }
 
+function getSentRetentionDays(value = process.env.OXSTEED_CREDIT_NOTIFICATION_RETENTION_DAYS) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_SENT_RETENTION_DAYS;
+  return Math.max(MIN_SENT_RETENTION_DAYS, Math.min(Math.floor(parsed), MAX_SENT_RETENTION_DAYS));
+}
+
+async function purgeSentCreditNotifications(limit = 1000, retentionDays = getSentRetentionDays()) {
+  const boundedLimit = Math.max(1, Math.min(Number(limit) || 1000, 5000));
+  const boundedRetentionDays = getSentRetentionDays(retentionDays);
+  const result = await db.query(
+    `WITH stale AS (
+       SELECT id
+       FROM oxsteed_credit_notification_outbox
+       WHERE status = 'sent'
+         AND sent_at IS NOT NULL
+         AND sent_at < NOW() - ($2::integer * INTERVAL '1 day')
+       ORDER BY sent_at ASC, id ASC
+       FOR UPDATE SKIP LOCKED
+       LIMIT $1
+     )
+     DELETE FROM oxsteed_credit_notification_outbox outbox
+     USING stale
+     WHERE outbox.id = stale.id
+     RETURNING outbox.id`,
+    [boundedLimit, boundedRetentionDays],
+  );
+  return result.rows?.length || 0;
+}
+
 async function runOxsteedCreditNotificationOutbox() {
-  let result = { claimed: 0, sent: 0, retried: 0, failed: 0 };
+  let result = { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 };
   await withJobLock(JOB_NAME, async () => {
-    result = await processOxsteedCreditNotificationOutbox();
-    if (result.claimed) logger.info('OxSteed Credit notification outbox processed', result);
+    const processed = await processOxsteedCreditNotificationOutbox();
+    const purged = await purgeSentCreditNotifications();
+    result = { ...processed, purged };
+    if (result.claimed || result.purged) logger.info('OxSteed Credit notification outbox processed', result);
   }, 120, { throwOnLockError: true });
   return result;
 }
@@ -206,11 +240,16 @@ module.exports = {
   CRON_EXPRESSION,
   JOB_NAME,
   MAX_ATTEMPTS,
+  DEFAULT_SENT_RETENTION_DAYS,
+  MIN_SENT_RETENTION_DAYS,
+  MAX_SENT_RETENTION_DAYS,
   buildNotification,
   claimCreditNotifications,
   finishCreditNotification,
   recordTerminalCreditNotificationFailure,
   processOxsteedCreditNotificationOutbox,
+  getSentRetentionDays,
+  purgeSentCreditNotifications,
   runOxsteedCreditNotificationOutbox,
   startOxsteedCreditNotificationOutboxJob,
 };

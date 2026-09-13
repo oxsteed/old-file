@@ -24,6 +24,8 @@ const {
   buildNotification,
   finishCreditNotification,
   processOxsteedCreditNotificationOutbox,
+  getSentRetentionDays,
+  purgeSentCreditNotifications,
   runOxsteedCreditNotificationOutbox,
 } = require('../jobs/oxsteedCreditNotificationOutbox');
 
@@ -95,9 +97,23 @@ test('retries delivery failures and eventually marks the event failed', async ()
 });
 
 test('runs under the distributed Credit worker lock', async () => {
-  db.query.mockResolvedValueOnce({ rows: [] });
+  db.query
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
 
-  await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0 });
+  await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 });
   expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
   expect(CRON_EXPRESSION).toBe('* * * * *');
+});
+
+test('bounds notification retention and purges only old sent rows', async () => {
+  expect(getSentRetentionDays('1')).toBe(30);
+  expect(getSentRetentionDays('9999')).toBe(730);
+  expect(getSentRetentionDays('not-a-number')).toBe(90);
+  db.query.mockResolvedValueOnce({ rows: [{ id: 'event-1' }, { id: 'event-2' }] });
+
+  await expect(purgeSentCreditNotifications(10, 45)).resolves.toBe(2);
+  expect(db.query.mock.calls[0][0]).toContain("status = 'sent'");
+  expect(db.query.mock.calls[0][0]).toContain('DELETE FROM oxsteed_credit_notification_outbox');
+  expect(db.query.mock.calls[0][1]).toEqual([10, 45]);
 });

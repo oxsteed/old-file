@@ -234,6 +234,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.notificationOutboxMigrationApplied');
   expect(verifierSource).toContain("['506_oxsteed_credit_hold_notification_outbox.sql']");
   expect(verifierSource).toContain('!checks.holdNotificationOutboxMigrationApplied');
+  expect(verifierSource).toContain("['507_oxsteed_credit_notification_retention.sql']");
+  expect(verifierSource).toContain('!checks.notificationRetentionMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditNotificationRecipients > 0');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
 });
@@ -283,6 +285,7 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_disputes_customer_history',
     'idx_oxsteed_credit_disputes_status_history',
     'uq_oxsteed_credit_dispute_idempotency',
+    'idx_oxsteed_credit_notification_outbox_sent_retention',
   ]));
 });
 
