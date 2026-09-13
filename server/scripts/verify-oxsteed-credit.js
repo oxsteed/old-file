@@ -572,6 +572,11 @@ async function main() {
       ['502_oxsteed_credit_purchase_actor_evidence.sql']
     );
     checks.purchaseActorEvidenceMigrationApplied = purchaseActorEvidenceMigrationRows.rows.length === 1;
+    const systemHoldReleaseEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['503_oxsteed_credit_system_hold_release_evidence.sql']
+    );
+    checks.systemHoldReleaseEvidenceMigrationApplied = systemHoldReleaseEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1490,6 +1495,7 @@ async function main() {
       !checks.purchaseReferenceUniquenessMigrationApplied,
       !checks.restaurantStaffRefundReasonMigrationApplied,
       !checks.purchaseActorEvidenceMigrationApplied,
+      !checks.systemHoldReleaseEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
