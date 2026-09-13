@@ -299,6 +299,27 @@ function assertFoodOrderIdempotencyMatch(order, fingerprint, clientOrderId) {
   );
 }
 
+function buildFoodOrderIdempotencyLookup({ restaurantId, customerId, clientOrderId }) {
+  if (customerId) {
+    return {
+      text: `SELECT * FROM food_orders
+            WHERE restaurant_id = $1
+              AND customer_id = $2
+              AND metadata->>'clientOrderId' = $3
+            LIMIT 1`,
+      values: [restaurantId, customerId, clientOrderId],
+    };
+  }
+  return {
+    text: `SELECT * FROM food_orders
+          WHERE restaurant_id = $1
+            AND customer_id IS NULL
+            AND metadata->>'clientOrderId' = $2
+          LIMIT 1`,
+    values: [restaurantId, clientOrderId],
+  };
+}
+
 function normalizeFoodPaymentMode(value) {
   const requested = normalizeString(value, 40) || 'pay_at_restaurant';
   const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
@@ -2150,14 +2171,12 @@ exports.createOrder = async (req, res, next) => {
 
     const createdOrder = await withTransaction(pool, async (client) => {
       if (clientOrderId) {
-        const { rows: existingOrders } = await client.query(
-          `SELECT * FROM food_orders
-            WHERE restaurant_id = $1
-              AND customer_id = $2
-              AND metadata->>'clientOrderId' = $3
-            LIMIT 1`,
-          [restaurantId, req.user.id, clientOrderId]
-        );
+        const lookup = buildFoodOrderIdempotencyLookup({
+          restaurantId,
+          customerId: req.user?.id,
+          clientOrderId,
+        });
+        const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
           const { rows: restaurants } = await client.query(
@@ -2201,14 +2220,12 @@ exports.createOrder = async (req, res, next) => {
       // The fast-path check above can race with another request. Recheck after
       // locking the restaurant row so concurrent offline retries replay cleanly.
       if (clientOrderId) {
-        const { rows: existingOrders } = await client.query(
-          `SELECT * FROM food_orders
-            WHERE restaurant_id = $1
-              AND customer_id = $2
-              AND metadata->>'clientOrderId' = $3
-            LIMIT 1`,
-          [restaurantId, req.user.id, clientOrderId]
-        );
+        const lookup = buildFoodOrderIdempotencyLookup({
+          restaurantId,
+          customerId: req.user?.id,
+          clientOrderId,
+        });
+        const { rows: existingOrders } = await client.query(lookup.text, lookup.values);
         if (existingOrders[0]) {
           assertFoodOrderIdempotencyMatch(existingOrders[0], idempotencyFingerprint, clientOrderId);
           const existing = existingOrders[0];

@@ -31,6 +31,14 @@ function buildApp() {
   return app;
 }
 
+function buildGuestApp() {
+  const app = express();
+  app.use(express.json());
+  app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
+  app.use(errorHandler);
+  return app;
+}
+
 beforeEach(() => resetMocks());
 
 describe('food controller', () => {
@@ -637,6 +645,37 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls[2][0]).toMatch(/customer_id = \$2/);
     expect(mockQuery.mock.calls[2][1]).toEqual([3, '00000000-0000-4000-8000-000000000123', 'offline-race']);
     expect(mockQuery.mock.calls).toHaveLength(3);
+  });
+
+  test('supports guest order idempotency without assuming an authenticated user', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 102,
+          restaurant_id: 3,
+          queue_number: 6,
+          metadata: { clientOrderId: 'guest-offline-1', trackingToken: 'guest-track-1' },
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, business_id: 42, currency_code: 'USD' }],
+      });
+
+    const res = await request(buildGuestApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        clientOrderId: 'guest-offline-1',
+        fulfillmentType: 'pickup',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(res.body.order.id).toBe(102);
+    expect(res.body.trackingToken).toBe('guest-track-1');
+    expect(mockQuery.mock.calls[0][0]).toMatch(/customer_id IS NULL/);
+    expect(mockQuery.mock.calls[0][1]).toEqual([3, 'guest-offline-1']);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
   test('updates order status through restaurant-scoped access', async () => {
