@@ -444,6 +444,27 @@ async function findExistingPurchaseForReplay(client, { customerId, partnerId, id
   return existing;
 }
 
+async function findExistingTransferForReplay(client, { senderCustomerId, recipientCustomerId, idempotencyKey }) {
+  const { rows } = await client.query(
+    `SELECT t.*, debit_account.customer_id AS sender_customer_id,
+            credit_account.customer_id AS recipient_customer_id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+       JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
+      WHERE t.idempotency_key = $1
+      FOR UPDATE`,
+    [idempotencyKey]
+  );
+  if (!rows.length) return null;
+  const existing = rows[0];
+  if (existing.transaction_type !== 'transfer'
+    || String(existing.sender_customer_id) !== String(senderCustomerId)
+    || String(existing.recipient_customer_id) !== String(recipientCustomerId)) {
+    throw new AppError('Credit idempotency key was already used for a different transfer', 409, 'credit_idempotency_conflict');
+  }
+  return existing;
+}
+
 async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT_CURRENCY) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   // The cap is global, so serialize the outstanding-balance check across all
@@ -1000,8 +1021,33 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
-  if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    const existing = await findExistingTransferForReplay(client, {
+      senderCustomerId,
+      recipientCustomerId,
+      idempotencyKey: normalizedIdempotencyKey,
+    });
+    if (existing) {
+      return postJournalTransaction(client, {
+        transactionType: 'transfer',
+        debitAccountId: existing.debit_account_id,
+        creditAccountId: existing.credit_account_id,
+        customerId: senderCustomerId,
+        amountCents: amount,
+        currencyCode: currency,
+        idempotencyKey: normalizedIdempotencyKey,
+        actorType: 'user',
+        actorUserId,
+        referenceType,
+        referenceId,
+        correlationId,
+        description,
+        metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
+        existingTransaction: existing,
+      });
+    }
     await assertCreditRailEnabled(client);
     const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
@@ -1019,7 +1065,7 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
       customerId: senderCustomerId,
       amountCents: amount,
       currencyCode: currency,
-      idempotencyKey,
+      idempotencyKey: normalizedIdempotencyKey,
       actorType: 'user',
       actorUserId,
       referenceType,
@@ -1778,6 +1824,7 @@ module.exports = {
   getCustomerCreditAccount,
   listCustomerCreditAccounts,
   listEligiblePartners,
+  findExistingTransferForReplay,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
   customerCreditStatementCsv,

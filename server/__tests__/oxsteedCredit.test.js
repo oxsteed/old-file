@@ -66,6 +66,36 @@ test('credit verification identifies records outside the configured currency all
   ]);
 });
 
+test('transfer replay requires the original sender and recipient', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'transfer-1',
+    transaction_type: 'transfer',
+    sender_customer_id: CUSTOMER_ID,
+    recipient_customer_id: '33333333-3333-4333-8333-333333333333',
+  }] });
+
+  await expect(service.findExistingTransferForReplay({ query: mockQuery }, {
+    senderCustomerId: CUSTOMER_ID,
+    recipientCustomerId: '33333333-3333-4333-8333-333333333333',
+    idempotencyKey: 'transfer-replay-1',
+  })).resolves.toMatchObject({ id: 'transfer-1' });
+});
+
+test('transfer replay rejects reuse by a different recipient', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'transfer-2',
+    transaction_type: 'transfer',
+    sender_customer_id: CUSTOMER_ID,
+    recipient_customer_id: '33333333-3333-4333-8333-333333333333',
+  }] });
+
+  await expect(service.findExistingTransferForReplay({ query: mockQuery }, {
+    senderCustomerId: CUSTOMER_ID,
+    recipientCustomerId: '44444444-4444-4444-8444-444444444444',
+    idempotencyKey: 'transfer-replay-2',
+  })).rejects.toMatchObject({ code: 'credit_idempotency_conflict', status: 409 });
+});
+
 afterAll(() => {
   delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
 });
