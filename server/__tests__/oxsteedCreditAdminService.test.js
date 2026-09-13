@@ -829,7 +829,29 @@ test('requires a payment reference before paying a non-zero settlement', async (
     settlementId: 'settlement-approved',
     targetStatus: 'paid',
     actorUserId: 'admin-1',
+    reason: 'Payment review completed',
   })).rejects.toMatchObject({ code: 'credit_settlement_payment_reference_required' });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('requires an audit reason for a real settlement transition', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-pending',
+    partner_id: 41,
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'USD',
+    net_cents: '0',
+    status: 'pending',
+    payment_reference: null,
+  }] });
+
+  await expect(transitionSettlement({
+    settlementId: 'settlement-pending',
+    targetStatus: 'approved',
+    actorUserId: 'admin-1',
+  })).rejects.toMatchObject({ code: 'credit_audit_reason_required', status: 400 });
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 

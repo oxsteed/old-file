@@ -21,6 +21,12 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function requireAuditReason(value) {
+  const reason = normalizeString(value, 1000);
+  if (!reason) throw new AppError('An audit reason is required for this change', 400, 'credit_audit_reason_required');
+  return reason;
+}
+
 function normalizeArray(value, maxItems = 100, itemMax = 120) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => normalizeString(String(item), itemMax)).filter(Boolean))].slice(0, maxItems);
@@ -812,6 +818,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId 
     if (normalizedTarget === 'active' && partner.restaurant_status !== 'active') {
       throw new AppError('The restaurant must be active before its credit partner can be activated', 409, 'credit_restaurant_not_active');
     }
+    const normalizedReason = requireAuditReason(reason);
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partners
           SET status = $1, updated_at = NOW()
@@ -825,7 +832,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId 
       partnerId: normalizedPartnerId,
       resourceType: 'credit_partner',
       resourceId: normalizedPartnerId,
-      reason,
+      reason: normalizedReason,
       beforeState: { status: partner.status },
       afterState: { status: normalizedTarget },
     });
@@ -1125,6 +1132,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         throw new AppError('A payment reference is required before a settlement can be marked paid', 400, 'credit_settlement_payment_reference_required');
       }
       if (Number(settlement.net_cents || 0) === 0) {
+        const normalizedReason = requireAuditReason(reason);
         const { rows: zeroPaidRows } = await client.query(
           `UPDATE oxsteed_credit_settlements
               SET status = 'paid', payment_reference = COALESCE($1, payment_reference), paid_at = NOW(), updated_at = NOW()
@@ -1132,7 +1140,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
             RETURNING *`,
           [resolvedPaymentReference, settlement.id]
         );
-        await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: reason || 'No payable balance', beforeState: { status: settlement.status }, afterState: { status: 'paid', amountCents: 0 } });
+        await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: 'paid', amountCents: 0 } });
         return { settlement: formatSettlement({ ...zeroPaidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
       }
       const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId: settlement.partner_id, currencyCode: settlement.currency_code });
@@ -1142,6 +1150,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
           settlementCents: String(settlement.net_cents || 0),
         });
       }
+      const normalizedReason = requireAuditReason(reason);
       const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: settlement.currency_code });
       const payment = await postJournalTransaction(client, {
         transactionType: 'settlement',
@@ -1156,7 +1165,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         actorUserId,
         referenceType: 'credit_settlement',
         referenceId: String(settlement.id),
-        reason,
+        reason: normalizedReason,
         description: 'OxSteed Credit partner settlement',
         metadata: { paymentReference: resolvedPaymentReference },
       });
@@ -1167,9 +1176,10 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
           RETURNING *`,
         [resolvedPaymentReference, settlement.id]
       );
-      await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason, beforeState: { status: settlement.status }, afterState: { status: 'paid', transactionId: payment.transaction.id } });
+      await insertAudit(client, { actionType: 'credit.settlement.paid', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: 'paid', transactionId: payment.transaction.id } });
       return { settlement: formatSettlement({ ...paidRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), transaction: payment.transaction, replayed: false };
     }
+    const normalizedReason = requireAuditReason(reason);
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_settlements
           SET status = $1,
@@ -1179,7 +1189,7 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         RETURNING *`,
       [normalizedTarget, actorUserId || null, normalizeString(paymentReference, 160), settlement.id]
     );
-    await insertAudit(client, { actionType: 'credit.settlement.transitioned', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason, beforeState: { status: settlement.status }, afterState: { status: normalizedTarget } });
+    await insertAudit(client, { actionType: 'credit.settlement.transitioned', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, beforeState: { status: settlement.status }, afterState: { status: normalizedTarget } });
     return { settlement: formatSettlement({ ...updatedRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_settlement');
 }
@@ -1360,6 +1370,7 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
         });
       }
     }
+    const normalizedReason = requireAuditReason(reason);
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_partner_agreements
           SET status = $1,
@@ -1369,7 +1380,7 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
         RETURNING *`,
       [normalizedTarget, actorUserId || null, agreementId]
     );
-    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId, partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
+    await insertAudit(client, { actionType: 'credit.agreement.transitioned', actorUserId, partnerId: agreement.partner_id, resourceType: 'credit_agreement', resourceId: agreement.id, reason: normalizedReason, beforeState: { status: agreement.status }, afterState: { status: normalizedTarget } });
     return { agreement: formatAgreement({ ...updatedRows[0], partner_id: agreement.partner_id, restaurant_id: agreement.restaurant_id, restaurant_name: agreement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_agreement');
 }
@@ -1377,6 +1388,7 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
 async function upsertEntitlement({ agreementId, customerId, status = 'active', startsAt, endsAt, maxTransactionCents, dailyLimitCents, reason, metadata, actorUserId }) {
   const normalizedStatus = normalizeString(status, 20) || 'active';
   if (!ENTITLEMENT_STATUSES.has(normalizedStatus)) throw new AppError('Invalid customer entitlement status', 400, 'invalid_credit_entitlement_status');
+  const normalizedReason = requireAuditReason(reason);
   const starts = parseDate(startsAt, 'startsAt');
   const ends = parseDate(endsAt, 'endsAt');
   if (starts && ends && ends <= starts) throw new AppError('Entitlement end must be after its start', 400, 'credit_entitlement_dates_invalid');
@@ -1395,9 +1407,9 @@ async function upsertEntitlement({ agreementId, customerId, status = 'active', s
          max_transaction_cents = EXCLUDED.max_transaction_cents, daily_limit_cents = EXCLUDED.daily_limit_cents,
          metadata = EXCLUDED.metadata, reason = EXCLUDED.reason, created_by = EXCLUDED.created_by, updated_at = NOW()
        RETURNING *`,
-      [customerId, agreementId, normalizedStatus, starts, ends, parseLimit(maxTransactionCents, 'maxTransactionCents'), parseLimit(dailyLimitCents, 'dailyLimitCents'), JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), normalizeString(reason, 1000), actorUserId || null]
+      [customerId, agreementId, normalizedStatus, starts, ends, parseLimit(maxTransactionCents, 'maxTransactionCents'), parseLimit(dailyLimitCents, 'dailyLimitCents'), JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), normalizedReason, actorUserId || null]
     );
-    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason, afterState: rows[0] });
+    await insertAudit(client, { actionType: 'credit.entitlement.upserted', actorUserId, customerId, partnerId: agreementRows[0].partner_id, resourceType: 'credit_entitlement', resourceId: rows[0].id, reason: normalizedReason, afterState: rows[0] });
     return { entitlement: formatEntitlement(rows[0]), replayed: false };
   }, 'credit_admin_upsert_entitlement');
 }
