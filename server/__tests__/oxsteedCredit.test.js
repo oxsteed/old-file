@@ -72,6 +72,7 @@ test('customer allowlist agreements require an active entitlement in eligibility
   await expect(service.listEligiblePartners({ customerId: CUSTOMER_ID, currencyCode: 'USD' })).resolves.toEqual([]);
 
   expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE');
+  expect(mockQuery.mock.calls[0][0]).toContain('a.requires_customer_entitlement = FALSE AND e.id IS NULL');
   expect(mockQuery.mock.calls[0][0]).toContain('e.id IS NOT NULL');
 });
 

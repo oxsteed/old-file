@@ -83,10 +83,13 @@ balance:
 
 The public eligibility query still requires the Credit rail, customer wallet,
 partner, agreement, entitlement when the agreement is allowlisted, currency,
-geography, category, order type, and limit checks to pass. An entitlement by
-itself never makes a draft, suspended, expired, or terminated agreement
-spendable. Existing agreements are partner-wide unless the restricted mode is
-explicitly enabled when a replacement agreement is created.
+geography, category, order type, and limit checks to pass. On a partner-wide
+agreement, a customer-specific non-active entitlement overrides the default
+access and blocks that customer; an active entitlement can instead apply
+stricter customer limits. An entitlement by itself never makes a draft,
+suspended, expired, or terminated agreement spendable. Existing agreements are
+partner-wide unless the restricted mode is explicitly enabled when a
+replacement agreement is created.
 
 ## Daily Operations
 

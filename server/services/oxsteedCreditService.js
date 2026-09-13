@@ -703,7 +703,7 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
         AND ($3::uuid IS NULL OR a.id = $3::uuid)
         AND a.starts_at <= NOW()
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
-        AND (a.requires_customer_entitlement = FALSE OR (e.id IS NOT NULL AND e.status = 'active'
+        AND ((a.requires_customer_entitlement = FALSE AND e.id IS NULL) OR (e.id IS NOT NULL AND e.status = 'active'
           AND (e.starts_at IS NULL OR e.starts_at <= NOW())
           AND (e.ends_at IS NULL OR e.ends_at > NOW())))
       ORDER BY a.version DESC
@@ -843,7 +843,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
         AND (fr.currency_code IS NULL OR UPPER(fr.currency_code) = UPPER(p.settlement_currency_code))
         AND a.status = 'active' AND a.starts_at <= NOW()
         AND (a.ends_at IS NULL OR a.ends_at > NOW())
-        AND (a.requires_customer_entitlement = FALSE OR (e.id IS NOT NULL AND e.status = 'active'
+        AND ((a.requires_customer_entitlement = FALSE AND e.id IS NULL) OR (e.id IS NOT NULL AND e.status = 'active'
           AND (e.starts_at IS NULL OR e.starts_at <= NOW())
           AND (e.ends_at IS NULL OR e.ends_at > NOW())))
         AND ($3::text IS NULL OR cardinality(a.allowed_order_types) = 0 OR $3 = ANY(a.allowed_order_types))
