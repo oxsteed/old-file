@@ -105,6 +105,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_refund_boundary_guard',
   'oxsteed_credit_transaction_actor_identity_guard',
   'oxsteed_credit_user_activity_guard',
+  'oxsteed_credit_agreement_state_guard',
+  'oxsteed_credit_partner_status_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -405,6 +407,11 @@ async function main() {
       ['478_oxsteed_credit_deactivation_policy.sql']
     );
     checks.deactivationPolicyMigrationApplied = deactivationPolicyMigrationRows.rows.length === 1;
+    const agreementStateMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['479_oxsteed_credit_agreement_state.sql']
+    );
+    checks.agreementStateMigrationApplied = agreementStateMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -688,6 +695,16 @@ async function main() {
     );
     checks.invalidActiveCreditHolds = Number(inactiveHoldInvariantRows[0]?.invalid_count || 0);
 
+    const { rows: activeAgreementInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE a.status = 'active'
+          AND (p.status <> 'active' OR fr.status <> 'active')`,
+    );
+    checks.invalidActiveAgreements = Number(activeAgreementInvariantRows[0]?.invalid_count || 0);
+
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_transactions
@@ -930,6 +947,7 @@ async function main() {
       !checks.refundBoundaryMigrationApplied,
       !checks.actorIdentityMigrationApplied,
       !checks.deactivationPolicyMigrationApplied,
+      !checks.agreementStateMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -952,6 +970,7 @@ async function main() {
       checks.invalidRefunds > 0,
       checks.invalidCreditActorIdentities > 0,
       checks.invalidActiveCreditHolds > 0,
+      checks.invalidActiveAgreements > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
