@@ -332,7 +332,7 @@ export default function RestaurantPOSPage() {
     return false;
   };
 
-  const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal }) => {
+  const handlePay = async ({ method, discountId, discountCents, tipCents, finalTotal, creditHoldId }) => {
     if (!requireOpenShift()) return;
     setSubmitting(true);
     try {
