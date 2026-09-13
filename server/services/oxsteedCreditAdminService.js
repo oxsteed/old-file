@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { assertSupportedCreditCurrency, ensureAccount, postJournalTransaction } = require('./oxsteedCreditService');
+const { assertSupportedCreditCurrency, ensureAccount, listCreditDisputes, postJournalTransaction } = require('./oxsteedCreditService');
 
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
@@ -354,7 +354,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
   const account = accountRows[0];
   if (!account) throw new AppError('Customer credit account not found', 404, 'credit_account_not_found');
 
-  const [transactionResult, holdResult, entitlementResult, auditResult] = await Promise.all([
+  const [transactionResult, holdResult, entitlementResult, auditResult, disputeResult] = await Promise.all([
     pool.query(
       `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
               t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
@@ -393,6 +393,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
     ),
     listEntitlements({ customerId, limit: 250, offset: 0 }),
     listCreditAuditEvents({ customerId, limit: 100, offset: 0 }),
+    listCreditDisputes({ customerId, limit: 100 }),
   ]);
 
   return {
@@ -401,6 +402,7 @@ async function getAdminCustomerCreditAccount({ customerId, currencyCode = 'USD',
     holds: holdResult.rows.map(formatAdminCreditHold),
     entitlements: entitlementResult.entitlements,
     auditEvents: auditResult,
+    disputes: disputeResult,
     limits: { transaction: safeTransactionLimit, holds: safeHoldLimit },
   };
 }

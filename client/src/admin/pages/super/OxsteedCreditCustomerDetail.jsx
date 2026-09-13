@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Clock3, RefreshCw, Store, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, RefreshCw, Store, WalletCards, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
 function money(cents, currency = 'USD') {
@@ -79,6 +79,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   const holds = detail?.holds || [];
   const entitlements = detail?.entitlements || [];
   const auditEvents = detail?.auditEvents || [];
+  const disputes = detail?.disputes || [];
 
   return <section className="rounded-2xl border border-sky-500/25 bg-[#0e1622] p-4 shadow-lg shadow-sky-950/10 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -113,6 +114,11 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
           <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">Reserved funds</p><h3 className="mt-1 text-sm font-semibold text-white">Holds and authorizations</h3></div><span className="rounded-full border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500">{holds.length} records</span></div>
           <div className="mt-3 space-y-2">{!holds.length ? <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600">No holds recorded for this wallet.</p> : holds.map((hold) => <div key={hold.id} className="rounded-lg border border-gray-800 bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><strong className="text-sm text-white">{hold.restaurantName || 'Restaurant authorization'}</strong><p className="mt-1 text-xs text-gray-500">{money(hold.amountCents, hold.currencyCode)} · expires {dateTime(hold.expiresAt)}</p></div><Badge status={hold.status} /></div>{hold.referenceId && <p className="mt-2 break-all font-mono text-[10px] text-gray-700">Reference: {hold.referenceId}</p>}</div>)}</div>
         </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4">
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">Customer reviews</p><h3 className="mt-1 text-sm font-semibold text-white">Credit disputes</h3></div><span className="inline-flex items-center gap-1.5 rounded-full border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-500"><AlertTriangle className="h-3 w-3 text-amber-300" /> {disputes.length} records</span></div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">{!disputes.length ? <p className="rounded-lg border border-dashed border-gray-800 px-3 py-6 text-center text-xs text-gray-600 md:col-span-2">No Credit disputes recorded for this customer.</p> : disputes.map((dispute) => <div key={dispute.id} className="rounded-lg border border-gray-800 bg-gray-950/55 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><strong className="text-sm text-white">{dispute.restaurantName || 'OxSteed Credit transaction'}</strong><Badge status={dispute.status} /></div><p className="mt-2 text-[11px] font-semibold capitalize text-amber-200">{String(dispute.reasonCode || 'other').replace(/_/g, ' ')}</p><p className="mt-1 text-[11px] leading-4 text-gray-400">{dispute.description}</p><p className="mt-2 break-all font-mono text-[10px] text-gray-700">Transaction {dispute.transactionId} · Opened {dateTime(dispute.openedAt)}</p>{dispute.resolution && <p className="mt-2 text-[11px] leading-4 text-emerald-300">Resolution: {dispute.resolution}</p>}</div>)}</div>
       </div>
 
       <div className="mt-5 rounded-xl border border-gray-800 bg-gray-950/35 p-4">

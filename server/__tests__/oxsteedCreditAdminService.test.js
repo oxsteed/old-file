@@ -201,6 +201,22 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
       after_state: { status: 'active' },
       metadata: {},
       created_at: '2026-09-12T12:00:00.000Z',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'dispute-1',
+      transaction_id: 'transaction-1',
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      partner_id: 41,
+      restaurant_name: 'OxSteed Cafe',
+      status: 'in_review',
+      reason_code: 'incorrect_amount',
+      description: 'The posted amount does not match the order.',
+      resolution: null,
+      opened_by: '11111111-1111-4111-8111-111111111111',
+      resolved_by: null,
+      opened_at: '2026-09-12T12:30:00.000Z',
+      resolved_at: null,
+      updated_at: '2026-09-12T12:30:00.000Z',
     }] });
 
   const result = await getAdminCustomerCreditAccount({
@@ -213,11 +229,13 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
   expect(result.holds[0]).toMatchObject({ restaurantName: 'OxSteed Bistro', status: 'active', amountCents: 1000 });
   expect(result.entitlements[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', status: 'active' });
   expect(result.auditEvents[0]).toMatchObject({ actionType: 'credit.entitlement.upserted', customerId: '11111111-1111-4111-8111-111111111111' });
+  expect(result.disputes[0]).toMatchObject({ id: 'dispute-1', status: 'in_review', reasonCode: 'incorrect_amount', restaurantName: 'OxSteed Cafe' });
   expect(mockQuery.mock.calls[0][0]).toContain("u.role = 'customer'");
   expect(mockQuery.mock.calls[1][0]).toContain('t.debit_account_id = a.id OR t.credit_account_id = a.id');
   expect(mockQuery.mock.calls[2][0]).toContain('h.account_id = $1');
   expect(mockQuery.mock.calls[3][0]).toContain('e.customer_id = $1');
   expect(mockQuery.mock.calls[4][0]).toContain('customer_id = $1');
+  expect(mockQuery.mock.calls[5][0]).toContain('d.customer_id = $1');
 });
 
 test('requires idempotency for agreement creation', async () => {
