@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -550,6 +550,45 @@ test('reconciliation uses the same posted-transaction currency invariant as veri
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
   expect(mockQuery.mock.calls[0][0]).toContain("t.currency_code = $1");
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD']);
+});
+
+test('lists bounded reconciliation history with currency and status filters', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'run-2',
+    currency_code: 'USD',
+    period_start: '2026-09-12T00:00:00.000Z',
+    period_end: '2026-09-13T00:00:00.000Z',
+    status: 'difference',
+    account_balance_cents: '1000',
+    journal_balance_cents: '900',
+    difference_cents: '100',
+    account_count: 2,
+    entry_count: 4,
+    completed_by: '22222222-2222-4222-8222-222222222222',
+    started_at: '2026-09-13T01:00:00.000Z',
+    completed_at: '2026-09-13T01:00:02.000Z',
+    metadata: { scope: 'all_time_ledger' },
+  }, {
+    id: 'run-older',
+    currency_code: 'USD',
+    period_start: '2026-09-11T00:00:00.000Z',
+    period_end: '2026-09-12T00:00:00.000Z',
+    status: 'difference',
+    account_balance_cents: '900',
+    journal_balance_cents: '800',
+    difference_cents: '100',
+    account_count: 2,
+    entry_count: 3,
+    started_at: '2026-09-12T01:00:00.000Z',
+  }] });
+
+  const result = await listReconciliationRuns({ currencyCode: 'USD', status: 'difference', limit: 1, offset: 2 });
+
+  expect(result.runs).toEqual([expect.objectContaining({ id: 'run-2', currencyCode: 'USD', status: 'difference', differenceCents: 100 })]);
+  expect(result.pagination).toEqual({ limit: 1, offset: 2, hasMore: true, nextOffset: 3 });
+  expect(mockQuery.mock.calls[0][0]).toContain('currency_code = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('status = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['USD', 'difference', 2, 2]);
 });
 
 test('serializes settlement creation per partner agreement before checking overlap', async () => {

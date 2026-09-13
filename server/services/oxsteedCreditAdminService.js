@@ -181,6 +181,73 @@ function formatSettlement(row) {
   };
 }
 
+function formatReconciliationRun(row) {
+  return {
+    id: String(row.id),
+    currencyCode: row.currency_code,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    status: row.status,
+    accountBalanceCents: Number(row.account_balance_cents || 0),
+    journalBalanceCents: Number(row.journal_balance_cents || 0),
+    differenceCents: Number(row.difference_cents || 0),
+    accountCount: Number(row.account_count || 0),
+    entryCount: Number(row.entry_count || 0),
+    errorMessage: row.error_message || null,
+    completedBy: row.completed_by || null,
+    startedAt: row.started_at || null,
+    completedAt: row.completed_at || null,
+    metadata: row.metadata || {},
+  };
+}
+
+async function listReconciliationRuns({ currencyCode, status, limit = 50, offset = 0 } = {}) {
+  const params = [];
+  const filters = [];
+  if (currencyCode) {
+    const currency = assertSupportedCreditCurrency(currencyCode);
+    params.push(currency);
+    filters.push(`currency_code = $${params.length}`);
+  }
+  if (status) {
+    const normalizedStatus = normalizeString(status, 20);
+    if (!['running', 'balanced', 'difference', 'failed'].includes(normalizedStatus)) {
+      throw new AppError('Invalid reconciliation status', 400, 'invalid_credit_reconciliation_status');
+    }
+    params.push(normalizedStatus);
+    filters.push(`status = $${params.length}`);
+  }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 50;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(safeLimit + 1);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
+  const { rows } = await pool.query(
+    `SELECT id, currency_code, period_start, period_end, status,
+            account_balance_cents, journal_balance_cents, difference_cents,
+            account_count, entry_count, error_message, completed_by,
+            started_at, completed_at, metadata
+       FROM oxsteed_credit_reconciliation_runs
+      ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+      ORDER BY started_at DESC, id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  const hasMore = rows.length > safeLimit;
+  return {
+    runs: rows.slice(0, safeLimit).map(formatReconciliationRun),
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
+}
+
 function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, currencyCode, periodStart, periodEnd }) {
   const mismatches = {};
   if (String(existing.partner_id) !== String(partnerId)) mismatches.partnerId = { existing: existing.partner_id, requested: partnerId };
@@ -1091,12 +1158,6 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
           journal_balance_cents, difference_cents, account_count, entry_count,
           completed_by, completed_at, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11::jsonb)
-       ON CONFLICT (currency_code, period_start, period_end) DO UPDATE SET
-         status = EXCLUDED.status, account_balance_cents = EXCLUDED.account_balance_cents,
-         journal_balance_cents = EXCLUDED.journal_balance_cents, difference_cents = EXCLUDED.difference_cents,
-         account_count = EXCLUDED.account_count, entry_count = EXCLUDED.entry_count,
-         completed_by = EXCLUDED.completed_by, completed_at = EXCLUDED.completed_at,
-         metadata = EXCLUDED.metadata
        RETURNING *`,
       [currency, starts, ends, status, Number(result.account_balance_cents || 0), Number(result.journal_balance_cents || 0), differenceCents, Number(result.account_count || 0), Number(result.entry_count || 0), actorUserId || null, JSON.stringify({ scope: reconciliationScope, requestedPeriodStart: starts.toISOString(), requestedPeriodEnd: ends.toISOString() })]
     );
@@ -1389,6 +1450,7 @@ module.exports = {
   expireCreditEntitlements,
   expireCreditAgreements,
   listSettlements,
+  listReconciliationRuns,
   createSettlement,
   transitionSettlement,
   reconcileCreditLedger,
@@ -1403,6 +1465,7 @@ module.exports = {
   ENTITLEMENT_STATUSES,
   formatEntitlement,
   formatSettlement,
+  formatReconciliationRun,
   CREDIT_TRANSACTION_TYPES,
   CREDIT_TRANSACTION_STATUSES,
 };

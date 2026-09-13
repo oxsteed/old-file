@@ -44,6 +44,7 @@ function createAdminApp() {
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
   app.get('/settlements', controller.listAdminSettlements);
+  app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
   app.get('/transactions', controller.listAdminTransactions);
   app.get('/transactions.csv', controller.downloadAdminTransactions);
   app.get('/transactions/:transactionId', controller.getAdminTransaction);
@@ -216,6 +217,30 @@ test('returns paginated admin Credit settlements with status filters', async () 
   expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][0]).toContain('s.status = $1');
   expect(mockQuery.mock.calls[0][1]).toEqual(['pending', 2, 2]);
+});
+
+test('returns paginated Credit reconciliation history for admins', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'run-1',
+    currency_code: 'USD',
+    period_start: '2026-09-01T00:00:00.000Z',
+    period_end: '2026-09-02T00:00:00.000Z',
+    status: 'balanced',
+    account_balance_cents: '2500',
+    journal_balance_cents: '2500',
+    difference_cents: '0',
+    account_count: 2,
+    entry_count: 4,
+    started_at: '2026-09-02T01:00:00.000Z',
+    completed_at: '2026-09-02T01:00:01.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/reconciliation?currencyCode=USD&status=balanced&limit=10&offset=20');
+
+  expect(response.status).toBe(200);
+  expect(response.body.runs[0]).toMatchObject({ id: 'run-1', status: 'balanced', differenceCents: 0 });
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 20, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][1]).toEqual(['USD', 'balanced', 11, 20]);
 });
 
 test('returns paginated admin Credit transactions with movement filters', async () => {

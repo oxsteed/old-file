@@ -284,6 +284,7 @@ router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtr
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
+router.get('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditReconciliationRuns);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);

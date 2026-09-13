@@ -41,6 +41,7 @@ const {
   listAgreements,
   listEntitlements,
   listSettlements,
+  listReconciliationRuns,
   createSettlement,
   transitionSettlement,
   reconcileCreditLedger,
@@ -847,6 +848,20 @@ async function reconcileAdminCredit(req, res, next) {
   }
 }
 
+async function listAdminCreditReconciliationRuns(req, res, next) {
+  try {
+    const result = await listReconciliationRuns({
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getMyAccount,
   getMyAccounts,
@@ -887,4 +902,5 @@ module.exports = {
   createAdminSettlement,
   transitionAdminSettlement,
   reconcileAdminCredit,
+  listAdminCreditReconciliationRuns,
 };
