@@ -25,6 +25,7 @@ import {
   downloadOxsteedCreditStatement,
   listOxsteedCreditTransactions,
   openOxsteedCreditDispute,
+  listOxsteedCreditDisputes,
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
@@ -88,6 +89,7 @@ export default function OxsteedCreditPage() {
   const [partners, setPartners] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
+  const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -106,16 +108,18 @@ export default function OxsteedCreditPage() {
     try {
       const existingAccounts = await listOxsteedCreditAccounts();
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
-      const [accountResult, partnerResult, statementResult] = await Promise.all([
+      const [accountResult, partnerResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
         listOxsteedCreditEligiblePartners({ currencyCode: preferredCurrency }),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
+        listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
       ]);
       if (!isCurrentRequest()) return;
       setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setPartners(Array.isArray(partnerResult) ? partnerResult : []);
+      setDisputes(Array.isArray(disputeResult) ? disputeResult : []);
       if (statementResult) {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
@@ -194,6 +198,8 @@ export default function OxsteedCreditPage() {
     setDisputeSubmitting(true);
     try {
       await openOxsteedCreditDispute({ transactionId: disputeTransactionId, reasonCode: disputeReason, description: disputeDescription.trim() });
+      const refreshedDisputes = await listOxsteedCreditDisputes({ limit: 50 });
+      setDisputes(Array.isArray(refreshedDisputes) ? refreshedDisputes : []);
       toast.success('Your dispute was submitted for review.');
       setDisputeTransactionId(null);
       setDisputeDescription('');
@@ -265,6 +271,7 @@ export default function OxsteedCreditPage() {
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> Need help with a transaction? <Link to="/support/escalation">Contact support</Link></div>
                 </section>
               </div>
+              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Review history</p><h2>Your Credit disputes</h2></div><span className="ox-credit-count">{disputes.length}</span></div><p className="ox-credit-panel-copy">Disputes are reviewed separately from your balance. A status change never edits the original ledger entry.</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || 'OxSteed Credit transaction'}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{String(dispute.status || 'open').replace(/_/g, ' ')}</span></div><span>{String(dispute.reasonCode || 'other').replace(/_/g, ' ')}</span><small>Opened {dateTime(dispute.openedAt)} · Transaction {dispute.transactionId}</small><p>{dispute.description}</p>{dispute.resolution && <em>Resolution: {dispute.resolution}</em>}</div></article>)}</div></section>}
             </>
           )}
         </div>

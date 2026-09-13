@@ -139,6 +139,21 @@
 .ox-credit-error-panel strong { color: #10253f; font-size: 18px; }
 .ox-credit-error-panel span { max-width: 520px; color: #71808c; font-size: 13px; line-height: 1.55; }
 .ox-credit-error-panel .ox-credit-refresh { margin-top: 5px; }
+.ox-credit-dispute-history { grid-column: 1 / -1; }
+.ox-credit-dispute-list { margin-top: 4px; border-top: 1px solid rgba(16,37,63,.08); }
+.ox-credit-dispute-list article { padding: 16px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
+.ox-credit-dispute-list article:last-child { border-bottom: 0; }
+.ox-credit-dispute-list article > div { display: grid; gap: 5px; }
+.ox-credit-dispute-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ox-credit-dispute-title strong { color: #10253f; font-size: 13px; }
+.ox-credit-dispute-title span:not(.ox-credit-dispute-status), .ox-credit-dispute-list article > div > span { color: #80909c; font-size: 11px; text-transform: capitalize; }
+.ox-credit-dispute-status { width: fit-content; padding: 4px 7px; border-radius: 999px; color: #a6530c; background: #fff0dd; font-size: 10px; font-weight: 850; text-transform: capitalize; }
+.ox-credit-dispute-status.in_review { color: #236b9b; background: #e7f4ff; }
+.ox-credit-dispute-status.resolved { color: #14754d; background: #e2f7ec; }
+.ox-credit-dispute-status.rejected { color: #b44b25; background: #fff0e8; }
+.ox-credit-dispute-list small { color: #a0abb2; font-size: 10px; }
+.ox-credit-dispute-list p { margin: 2px 0 0; color: #647582; font-size: 12px; line-height: 1.5; }
+.ox-credit-dispute-list em { color: #7a8992; font-size: 11px; line-height: 1.45; }
 
 @media print {
   .ox-credit-page { background: #fff; }
@@ -180,4 +195,6 @@
   .ox-credit-receipt-grid { grid-template-columns: 1fr; }
   .ox-credit-detail-list > div { grid-template-columns: 1fr; gap: 5px; padding-left: 16px; padding-right: 16px; }
   .ox-credit-help-content { padding-left: 16px; padding-right: 16px; }
+  .ox-credit-dispute-list article { padding-left: 16px; padding-right: 16px; }
+  .ox-credit-dispute-title { align-items: flex-start; flex-direction: column; }
 }
