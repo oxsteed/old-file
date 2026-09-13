@@ -434,6 +434,11 @@ async function main() {
       ['483_oxsteed_credit_suspended_expiry.sql']
     );
     checks.suspendedExpiryMigrationApplied = suspendedExpiryMigrationRows.rows.length === 1;
+    const partnerHoldReleaseMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['484_oxsteed_credit_partner_hold_release.sql']
+    );
+    checks.partnerHoldReleaseMigrationApplied = partnerHoldReleaseMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -991,6 +996,7 @@ async function main() {
       !checks.approvalHistoryMigrationApplied,
       !checks.accountStateMigrationApplied,
       !checks.suspendedExpiryMigrationApplied,
+      !checks.partnerHoldReleaseMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
