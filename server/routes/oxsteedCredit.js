@@ -9,6 +9,7 @@ router.use(authenticate, requireRole('customer'));
 
 router.get('/account', controller.getMyAccount);
 router.get('/accounts', controller.getMyAccounts);
+router.get('/holds', controller.listMyHolds);
 router.get('/eligible-partners', controller.getEligiblePartners);
 router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', controller.getMyStatement);

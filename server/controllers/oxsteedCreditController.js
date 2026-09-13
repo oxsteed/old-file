@@ -5,6 +5,7 @@ const { AppError } = require('../middleware/errorHandler');
 const {
   getCustomerCreditAccount,
   listCustomerCreditAccounts,
+  listCustomerCreditHolds,
   listEligiblePartners,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
@@ -110,6 +111,20 @@ async function getMyAccount(req, res, next) {
 async function getMyAccounts(req, res, next) {
   try {
     res.json({ accounts: await listCustomerCreditAccounts(req.user.id) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function listMyHolds(req, res, next) {
+  try {
+    res.json(await listCustomerCreditHolds(req.user.id, {
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      status: req.query.status || 'active',
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    }));
   } catch (error) {
     next(error);
   }
@@ -1382,6 +1397,7 @@ async function downloadAdminCreditReconciliationRuns(req, res, next) {
 module.exports = {
   getMyAccount,
   getMyAccounts,
+  listMyHolds,
   getEligiblePartners,
   getMyTransactions,
   getMyStatement,

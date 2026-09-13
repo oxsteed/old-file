@@ -21,6 +21,7 @@ import PageMeta from '../../components/PageMeta';
 import {
   getOxsteedCreditAccount,
   listOxsteedCreditAccounts,
+  listOxsteedCreditHolds,
   getOxsteedCreditEligiblePartnerPage,
   getOxsteedCreditStatement,
   downloadOxsteedCreditStatement,
@@ -104,6 +105,7 @@ export default function OxsteedCreditPage() {
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerOrderType, setPartnerOrderType] = useState('');
   const [partnerPagination, setPartnerPagination] = useState(null);
+  const [holds, setHolds] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [statement, setStatement] = useState(null);
   const [disputes, setDisputes] = useState([]);
@@ -128,9 +130,10 @@ export default function OxsteedCreditPage() {
     try {
       const existingAccounts = await listOxsteedCreditAccounts();
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
-      const [accountResult, partnerResult, statementResult, disputeResult] = await Promise.all([
+      const [accountResult, partnerResult, holdResult, statementResult, disputeResult] = await Promise.all([
         getOxsteedCreditAccount({ currencyCode: preferredCurrency }),
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
+        listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'active', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatement({ limit: 50, currencyCode: preferredCurrency }).catch(() => null),
         listOxsteedCreditDisputes({ limit: 50 }).catch(() => []),
       ]);
@@ -138,6 +141,7 @@ export default function OxsteedCreditPage() {
       setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
       setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
+      setHolds(Array.isArray(holdResult?.holds) ? holdResult.holds : []);
       if (partnerRequestId === partnerPageRequestRef.current) {
         setPartners(Array.isArray(partnerResult?.partners) ? partnerResult.partners : []);
         setPartnerPagination(partnerResult?.pagination || null);
@@ -327,6 +331,8 @@ export default function OxsteedCreditPage() {
                 <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>OxSteed Credit balance</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{accountStatus}</span></div>
                 <div className="ox-credit-balance-grid"><div><span>Available to spend</span><strong>{money(availableCents, currency)}</strong></div><div><span>Reserved</span><strong>{money(reservedCents, currency)}</strong></div><div><span>Currency</span><strong>{currency}</strong></div></div>
               </section>
+
+              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Reserved credit</p><h2>Active holds</h2></div><span className="ox-credit-count">{holds.length}</span></div><p className="ox-credit-panel-copy">These amounts are temporarily reserved for a partner order and are not available to spend until captured, released, or expired.</p><div className="ox-credit-hold-list">{holds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>Expires {dateTime(hold.expiresAt)}</small></div><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></article>)}</div></section>}
 
               <div className="ox-credit-sections">
                 <section className="ox-credit-panel">

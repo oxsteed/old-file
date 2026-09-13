@@ -40,6 +40,15 @@
 .ox-credit-balance-grid div { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 15px; background: rgba(255,255,255,.055); }
 .ox-credit-balance-grid span { color: #a9c0c8; font-size: 12px; }
 .ox-credit-balance-grid strong { font-size: 18px; }
+.ox-credit-holds-panel { margin-top: 18px; }
+.ox-credit-hold-list { border-top: 1px solid rgba(16,37,63,.08); }
+.ox-credit-hold-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
+.ox-credit-hold-list article:last-child { border-bottom: 0; }
+.ox-credit-hold-list article > div { display: grid; gap: 3px; min-width: 0; }
+.ox-credit-hold-list strong { overflow: hidden; color: #10253f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-credit-hold-list span { overflow: hidden; color: #80909c; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-credit-hold-list small { color: #a0abb2; font-size: 10px; }
+.ox-credit-hold-list b { flex: 0 0 auto; color: #b44b25; font-size: 13px; white-space: nowrap; }
 .ox-credit-sections { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-top: 18px; }
 .ox-credit-panel { overflow: hidden; border: 1px solid rgba(16,37,63,.1); border-radius: 23px; background: rgba(255,255,255,.86); box-shadow: 0 16px 50px rgba(44,47,50,.06); }
 .ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }

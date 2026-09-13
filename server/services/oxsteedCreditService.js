@@ -1355,6 +1355,7 @@ function formatHold(row) {
     customerId: row.customer_id,
     partnerId: String(row.partner_id),
     agreementId: row.agreement_id,
+    restaurantName: row.restaurant_name || null,
     amountCents: Number(row.amount_cents),
     currencyCode: normalizeCurrency(row.currency_code),
     status: row.status,
@@ -1366,6 +1367,46 @@ function formatHold(row) {
     createdAt: row.created_at,
     capturedAt: row.captured_at || null,
     releasedAt: row.released_at || null,
+  };
+}
+
+async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRENCY, status = 'active', limit = 25, offset = 0, includePagination = false } = {}) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  const normalizedStatus = status === 'all' ? null : normalizeString(status, 20);
+  if (normalizedStatus && !['active', 'captured', 'released', 'expired'].includes(normalizedStatus)) {
+    throw new AppError('Invalid credit hold status', 400, 'credit_hold_status_invalid');
+  }
+  const pageSize = parsePageSize(limit);
+  const pageOffset = parseOffset(offset);
+  const { rows } = await pool.query(
+    `SELECT h.*, fr.display_name AS restaurant_name
+       FROM oxsteed_credit_holds h
+       JOIN oxsteed_credit_accounts a
+         ON a.id = h.account_id
+        AND a.account_type = 'customer_wallet'
+        AND a.customer_id = $1
+        AND a.currency_code = $4
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer'
+       LEFT JOIN oxsteed_credit_partners p ON p.id = h.partner_id
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+      WHERE h.customer_id = $1
+        AND h.currency_code = $4
+        AND ($5::text IS NULL OR h.status = $5)
+      ORDER BY h.created_at DESC, h.id DESC
+      LIMIT $2 OFFSET $3`,
+    [customerId, pageSize + (includePagination ? 1 : 0), pageOffset, currency, normalizedStatus]
+  );
+  const hasMore = includePagination && rows.length > pageSize;
+  const holds = rows.slice(0, pageSize).map(formatHold);
+  if (!includePagination) return holds;
+  return {
+    holds,
+    pagination: {
+      limit: pageSize,
+      offset: pageOffset,
+      hasMore,
+      nextOffset: hasMore ? pageOffset + pageSize : null,
+    },
   };
 }
 
@@ -2024,6 +2065,7 @@ module.exports = {
   getCustomerCreditAccount,
   listCustomerCreditAccounts,
   listEligiblePartners,
+  listCustomerCreditHolds,
   findExistingTransferForReplay,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,

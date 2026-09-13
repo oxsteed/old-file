@@ -20,6 +20,7 @@ function createCustomerApp(role = 'customer') {
     next();
   });
   app.get('/account', controller.getMyAccount);
+  app.get('/holds', controller.listMyHolds);
   app.get('/eligible-partners', controller.getEligiblePartners);
   app.get('/statement.csv', controller.downloadMyStatement);
   app.get('/statement', controller.getMyStatement);
@@ -694,6 +695,33 @@ test('supports bounded server-side partner directory search and pagination', asy
   expect(mockQuery.mock.calls[0][0]).toContain('fr.display_name ILIKE');
   expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $9 OFFSET $10');
   expect(mockQuery.mock.calls[0][1].slice(-2)).toEqual([2, 1]);
+});
+
+test('lists a customer credit hold page without exposing other account holds', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [
+    {
+      id: 'hold-1', customer_id: CUSTOMER_ID, partner_id: 41, agreement_id: 'agreement-1',
+      amount_cents: 1200, currency_code: 'USD', status: 'active', purpose: 'Dinner order',
+      reference_type: 'food_order', reference_id: 'order-1', idempotency_key: 'hold-key-1',
+      expires_at: '2026-09-13T10:00:00.000Z', created_at: '2026-09-13T09:30:00.000Z',
+      restaurant_name: 'Ox Burger Lab',
+    },
+    {
+      id: 'hold-2', customer_id: CUSTOMER_ID, partner_id: 42, agreement_id: 'agreement-2',
+      amount_cents: 900, currency_code: 'USD', status: 'active', purpose: 'Coffee order',
+      reference_type: 'food_order', reference_id: 'order-2', idempotency_key: 'hold-key-2',
+      expires_at: '2026-09-13T10:30:00.000Z', created_at: '2026-09-13T09:20:00.000Z',
+      restaurant_name: 'Ox Cafe',
+    },
+  ] });
+
+  const response = await request(createCustomerApp()).get('/holds?currencyCode=USD&limit=1&offset=0');
+
+  expect(response.status).toBe(200);
+  expect(response.body.holds).toHaveLength(1);
+  expect(response.body.holds[0]).toMatchObject({ restaurantName: 'Ox Burger Lab', amountCents: 1200, status: 'active' });
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: true, nextOffset: 1 });
+  expect(mockQuery.mock.calls[0][0]).toContain("a.account_type = 'customer_wallet'");
 });
 
 test('rejects unsupported credit currencies before creating a wallet', async () => {
