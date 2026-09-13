@@ -3285,6 +3285,17 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
       }
 
+      const paymentMode = order.metadata && typeof order.metadata === 'object'
+        ? order.metadata.paymentMode || order.metadata.payment_mode || null
+        : null;
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit') {
+        await assertRestaurantPermission(
+          restaurant,
+          ['credit.manage'],
+          'Credit-funded order refunds require the credit management permission'
+        );
+      }
+
       await client.query(
         `INSERT INTO restaurant_kitchen_events
            (restaurant_id, food_order_id, event_type, from_status, to_status,
@@ -3314,9 +3325,6 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       let walletRefund = null;
       let payment = null;
-      const paymentMode = order.metadata && typeof order.metadata === 'object'
-        ? order.metadata.paymentMode || order.metadata.payment_mode || null
-        : null;
       if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id) {
         const refundResult = await refundWalletDebitForReference(client, {
           restaurantId,

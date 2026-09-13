@@ -739,6 +739,37 @@ describe('food controller', () => {
     expect(res.body.order.previous_status).toBeUndefined();
   });
 
+  test('requires credit management permission before refunding a Credit-funded order', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 44, business_id: 44, owner_user_id: '00000000-0000-4000-8000-000000000999', effective_role: 'manager', effective_membership_id: 944, settings: {} }],
+      })
+      .mockResolvedValueOnce({ rows: [{ code: 'orders.manage', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 144,
+          restaurant_id: 44,
+          customer_id: '00000000-0000-4000-8000-000000000456',
+          status: 'cancelled',
+          kitchen_stage: 'cancelled',
+          previous_status: 'received',
+          previous_kitchen_stage: 'acknowledged',
+          fulfillment_type: 'pickup',
+          total_cents: 2500,
+          metadata: { paymentMode: 'oxsteed_credit' },
+        }],
+      });
+
+    const res = await request(buildApp())
+      .patch('/api/food/restaurants/44/orders/144/status')
+      .send({ status: 'cancelled' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_kitchen_events/.test(sql))).toBe(false);
+  });
+
   test('does not publish a kitchen order as ready while required items are incomplete', async () => {
     mockQuery
       .mockResolvedValueOnce({
