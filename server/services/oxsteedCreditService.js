@@ -2081,7 +2081,7 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
   const normalizedStatus = normalizeString(status, 20);
   const normalizedResolution = normalizeString(resolution, 4000);
   if (!['in_review', 'resolved', 'rejected'].includes(normalizedStatus)) throw new AppError('Invalid dispute resolution status', 400, 'credit_dispute_status_invalid');
-  if (['resolved', 'rejected'].includes(normalizedStatus) && !normalizedResolution) throw new AppError('A resolution note is required', 400, 'credit_dispute_resolution_required');
+  if (!normalizedResolution) throw new AppError('A status-change note is required', 400, 'credit_dispute_resolution_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(`SELECT d.*, fr.display_name AS restaurant_name FROM oxsteed_credit_disputes d LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE d.id = $1 FOR UPDATE`, [disputeId]);
     const dispute = rows[0];

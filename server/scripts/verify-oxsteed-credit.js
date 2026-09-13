@@ -323,6 +323,11 @@ async function main() {
       ['462_oxsteed_credit_reserved_transaction_types.sql']
     );
     checks.reservedTransactionTypesMigrationApplied = reservedTransactionTypesMigrationRows.rows.length === 1;
+    const disputeStatusEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['463_oxsteed_credit_dispute_status_evidence.sql']
+    );
+    checks.disputeStatusEvidenceMigrationApplied = disputeStatusEvidenceMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -675,6 +680,7 @@ async function main() {
       !checks.settlementPeriodMigrationApplied,
       !checks.adjustmentDirectionMigrationApplied,
       !checks.reservedTransactionTypesMigrationApplied,
+      !checks.disputeStatusEvidenceMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

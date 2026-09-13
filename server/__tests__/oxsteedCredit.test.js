@@ -116,6 +116,17 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.adjustmentDirectionMigrationApplied');
   expect(verifierSource).toContain("['462_oxsteed_credit_reserved_transaction_types.sql']");
   expect(verifierSource).toContain('!checks.reservedTransactionTypesMigrationApplied');
+  expect(verifierSource).toContain("['463_oxsteed_credit_dispute_status_evidence.sql']");
+  expect(verifierSource).toContain('!checks.disputeStatusEvidenceMigrationApplied');
+});
+
+test('requires a note for every administrative Credit dispute status change', async () => {
+  await expect(service.resolveCreditDispute({
+    disputeId: 'dispute-1',
+    status: 'in_review',
+    actorUserId: ADMIN_ID,
+  })).rejects.toMatchObject({ code: 'credit_dispute_resolution_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
 });
 
 test('credit verification requires posted customer history indexes', () => {

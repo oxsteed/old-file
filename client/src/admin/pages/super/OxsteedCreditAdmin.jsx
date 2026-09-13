@@ -582,8 +582,8 @@ export default function OxsteedCreditAdmin() {
 
   const resolveDispute = async (dispute, status) => {
     const resolution = String(disputeResolutionDrafts[dispute.id] || '').trim();
-    if (['resolved', 'rejected'].includes(status) && !resolution) {
-      setError('Add a resolution note before closing a Credit dispute.');
+    if (!resolution) {
+      setError('Add a status-change note before updating a Credit dispute.');
       return;
     }
     setBusy(true); setNotice(''); setError('');
