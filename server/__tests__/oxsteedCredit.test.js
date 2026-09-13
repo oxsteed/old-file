@@ -181,7 +181,7 @@ test('keeps admin credit overview balances separated by currency', async () => {
       { currency_code: 'EUR', customer_accounts: 1, customer_balance_cents: '2500', customer_reserved_cents: '500', partner_accounts: 1, partner_payable_cents: '2000', inactive_accounts: 0 },
       { currency_code: 'USD', customer_accounts: 2, customer_balance_cents: '10000', customer_reserved_cents: '1000', partner_accounts: 2, partner_payable_cents: '9000', inactive_accounts: 1 },
     ] })
-    .mockResolvedValueOnce({ rows: [{ partner_id: 41, restaurant_id: 7, restaurant_name: 'Ox Burger Lab', status: 'active', settlement_currency_code: 'EUR', agreement_count: 1, active_agreement_count: 1, total_partner_count: 125, active_partner_count: 118 }] })
+    .mockResolvedValueOnce({ rows: [{ partner_id: 41, restaurant_id: 7, restaurant_name: 'Ox Burger Lab', status: 'active', settlement_currency_code: 'EUR', agreement_count: 1, active_agreement_count: 1, total_partner_count: 125, active_partner_count: 118, pending_partner_count: 4, active_partners_without_agreement_count: 2, expiring_agreement_count: 3 }] })
     .mockResolvedValueOnce({ rows: [] });
 
   const response = await request(createAdminApp()).get('/overview');
@@ -200,6 +200,7 @@ test('keeps admin credit overview balances separated by currency', async () => {
     expect.objectContaining({ currencyCode: 'USD', customerBalanceCents: 10000, customerAvailableCents: 9000 }),
   ]));
   expect(response.body.partnerCounts).toEqual({ total: 125, active: 118 });
+  expect(response.body.coverageAlerts).toEqual({ pendingPartners: 4, activePartnersWithoutAgreement: 2, expiringAgreements: 3 });
   expect(response.body.partners[0].settlementCurrencyCode).toBe('EUR');
   expect(mockQuery.mock.calls[0][0]).toContain('GROUP BY currency_code');
 });

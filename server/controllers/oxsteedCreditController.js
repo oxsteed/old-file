@@ -483,17 +483,31 @@ async function getAdminOverview(req, res, next) {
         GROUP BY currency_code
         ORDER BY currency_code`),
       pool.query(`
-        SELECT p.id AS partner_id, p.restaurant_id, fr.display_name AS restaurant_name,
-               p.status, p.settlement_currency_code, COUNT(a.id)::int AS agreement_count,
-               COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
-                 AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count,
-               COUNT(*) OVER ()::int AS total_partner_count,
-               (COUNT(*) FILTER (WHERE p.status = 'active') OVER ())::int AS active_partner_count
-          FROM oxsteed_credit_partners p
-          JOIN food_restaurants fr ON fr.id = p.restaurant_id
-          LEFT JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
-         GROUP BY p.id, p.restaurant_id, fr.display_name, p.status, p.settlement_currency_code, p.updated_at
-         ORDER BY p.updated_at DESC, p.id DESC
+        WITH partner_coverage AS (
+          SELECT p.id AS partner_id, p.restaurant_id, fr.display_name AS restaurant_name,
+                 p.status, p.settlement_currency_code, p.updated_at,
+                 COUNT(a.id)::int AS agreement_count,
+                 COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
+                   AND (a.ends_at IS NULL OR a.ends_at > NOW()))::int AS active_agreement_count,
+                 COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.starts_at <= NOW()
+                   AND a.ends_at > NOW()
+                   AND a.ends_at <= NOW() + INTERVAL '30 days')::int AS expiring_agreement_count
+            FROM oxsteed_credit_partners p
+            JOIN food_restaurants fr ON fr.id = p.restaurant_id
+            LEFT JOIN oxsteed_credit_partner_agreements a ON a.partner_id = p.id
+           GROUP BY p.id, p.restaurant_id, fr.display_name, p.status, p.settlement_currency_code, p.updated_at
+        ), partner_metrics AS (
+          SELECT COUNT(*)::int AS total_partner_count,
+                 COUNT(*) FILTER (WHERE status = 'active')::int AS active_partner_count,
+                 COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_partner_count,
+                 COUNT(*) FILTER (WHERE status = 'active' AND active_agreement_count = 0)::int AS active_partners_without_agreement_count,
+                 COALESCE(SUM(expiring_agreement_count), 0)::int AS expiring_agreement_count
+            FROM partner_coverage
+        )
+        SELECT pc.*, pm.*
+          FROM partner_coverage pc
+          CROSS JOIN partner_metrics pm
+         ORDER BY pc.updated_at DESC, pc.partner_id DESC
          LIMIT 100`),
       pool.query(`
         SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
@@ -510,6 +524,11 @@ async function getAdminOverview(req, res, next) {
     const partnerCounts = {
       total: Number(partnersResult.rows[0]?.total_partner_count ?? partnersResult.rows.length),
       active: Number(partnersResult.rows[0]?.active_partner_count ?? partnersResult.rows.filter((row) => row.status === 'active').length),
+    };
+    const coverageAlerts = {
+      pendingPartners: Number(partnersResult.rows[0]?.pending_partner_count || 0),
+      activePartnersWithoutAgreement: Number(partnersResult.rows[0]?.active_partners_without_agreement_count || 0),
+      expiringAgreements: Number(partnersResult.rows[0]?.expiring_agreement_count || 0),
     };
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',
@@ -534,6 +553,7 @@ async function getAdminOverview(req, res, next) {
       summary: formatSummary(summary),
       summaryByCurrency: summaryResult.rows.map(formatSummary),
       partnerCounts,
+      coverageAlerts,
       partners: partnersResult.rows.map((row) => ({
         partnerId: String(row.partner_id),
         restaurantId: String(row.restaurant_id),
