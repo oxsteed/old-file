@@ -1579,6 +1579,36 @@ test('requires an administrator identity before an administrative hold capture q
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('requires the customer owner before creating a Credit hold', async () => {
+  await expect(service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    idempotencyKey: 'hold-without-actor-1',
+  })).rejects.toMatchObject({ code: 'credit_hold_actor_required', status: 403 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires the customer owner before releasing a Credit hold', async () => {
+  await expect(service.releaseCreditHold({
+    customerId: CUSTOMER_ID,
+    holdId: 'hold-without-release-actor',
+  })).rejects.toMatchObject({ code: 'credit_hold_release_actor_required', status: 403 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('rejects a Credit purchase when its customer actor does not own the balance', async () => {
+  await expect(service.purchaseWithCreditInTransaction({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    idempotencyKey: 'purchase-wrong-actor-1',
+    actorType: 'customer',
+    actorUserId: ADMIN_ID,
+  })).rejects.toMatchObject({ code: 'credit_purchase_actor_required', status: 403 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('requires a reason before an administrative Credit refund queries the database', async () => {
   await expect(service.refundCreditInTransaction({ query: mockQuery }, {
     purchaseTransactionId: 'purchase-without-refund-reason',
@@ -2216,6 +2246,7 @@ test('does not create a new hold for a suspended credit account', async () => {
 
   await expect(service.createCreditHold({
     customerId: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
     partnerId: 41,
     amountCents: 100,
     idempotencyKey: 'suspended-hold-1',
@@ -2269,6 +2300,7 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
 
   await expect(service.createCreditHold({
     customerId: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
     partnerId: 41,
     amountCents: 100,
     idempotencyKey: 'hold-replay-conflict-1',
@@ -2333,6 +2365,7 @@ test('replays a non-USD credit hold when the settlement currency matches', async
 
   const result = await service.createCreditHold({
     customerId: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
     partnerId: 41,
     amountCents: 100,
     currencyCode: 'EUR',
@@ -2367,6 +2400,7 @@ test('replays a committed credit hold while the rail is suspended', async () => 
 
   const result = await service.createCreditHold({
     customerId: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
     partnerId: 41,
     amountCents: 100,
     currencyCode: 'USD',
@@ -2411,6 +2445,7 @@ test('rejects a Credit hold replay when its stored spend scope differs', async (
 
   await expect(service.createCreditHold({
     customerId: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
     partnerId: 41,
     amountCents: 100,
     idempotencyKey: existing.idempotency_key,

@@ -71,6 +71,13 @@ function requireAdministrativeActor(value, message, code) {
   return value;
 }
 
+function requireCustomerActor(actorUserId, customerId, message, code) {
+  if (!normalizeString(actorUserId, 160) || String(actorUserId) !== String(customerId)) {
+    throw new AppError(message, 403, code);
+  }
+  return actorUserId;
+}
+
 function escapeLikePattern(value) {
   return normalizeString(value, 120)?.replace(/[\\%_]/g, '\\$&') || null;
 }
@@ -1190,6 +1197,10 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
 
 async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
+  const normalizedActorType = normalizeString(actorType, 32) || (actorUserId ? 'user' : 'system');
+  if (['user', 'customer'].includes(normalizedActorType)) {
+    requireCustomerActor(actorUserId, customerId, 'The Credit purchase actor must be the customer spending the balance', 'credit_purchase_actor_required');
+  }
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   const existing = await findExistingPurchaseForReplay(client, {
@@ -1227,7 +1238,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
       amountCents: amount,
       currencyCode: settlementCurrency,
       idempotencyKey: normalizedIdempotencyKey,
-      actorType: actorType || (actorUserId ? 'user' : 'system'),
+      actorType: normalizedActorType,
       actorUserId,
       referenceType: existing.reference_type || referenceType,
       referenceId: existing.reference_id || referenceId,
@@ -1256,7 +1267,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
     amountCents: amount,
     currencyCode: settlementCurrency,
     idempotencyKey: normalizedIdempotencyKey,
-    actorType: actorType || (actorUserId ? 'user' : 'system'),
+    actorType: normalizedActorType,
     actorUserId,
     referenceType,
     referenceId,
@@ -1288,6 +1299,7 @@ async function purchaseWithCredit(args) {
 async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, description, metadata = {} }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
+  requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -1410,6 +1422,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
 }
 
 async function createCreditHold({ customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, expiresAt, metadata = {} }) {
+  requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must create the hold', 'credit_hold_actor_required');
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit holds', 400, 'credit_idempotency_key_required');
@@ -1598,6 +1611,7 @@ async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRE
 }
 
 async function releaseCreditHold({ customerId, holdId, actorUserId, reason, correlationId }) {
+  requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must release the hold', 'credit_hold_release_actor_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(`SELECT * FROM oxsteed_credit_holds WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [holdId, customerId]);
     const hold = rows[0];
