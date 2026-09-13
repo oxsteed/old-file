@@ -2817,6 +2817,30 @@ test('requires an administrator identity for a real rail status change', async (
   expect(mockQuery).toHaveBeenCalledTimes(2);
 });
 
+test('blocks enabling the Credit rail in production without shared Redis', async () => {
+  const previous = {
+    NODE_ENV: process.env.NODE_ENV,
+    REDIS_URL: process.env.REDIS_URL,
+  };
+  process.env.NODE_ENV = 'production';
+  delete process.env.REDIS_URL;
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] });
+
+  await expect(service.setCreditRailStatus({
+    enabled: true,
+    actorUserId: ADMIN_ID,
+    reason: 'Approved after custody review',
+  })).rejects.toMatchObject({ code: 'credit_shared_redis_required', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+
+  if (previous.NODE_ENV === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previous.NODE_ENV;
+  if (previous.REDIS_URL === undefined) delete process.env.REDIS_URL;
+  else process.env.REDIS_URL = previous.REDIS_URL;
+});
+
 test('changes the rail status with an audit reason and serialized control lock', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })

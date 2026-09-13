@@ -314,6 +314,13 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
     if (current.is_enabled === enabled) {
       return { rail: formatCreditRailStatus(current), changed: false, replayed: true };
     }
+    if (enabled && (process.env.NODE_ENV || 'production') === 'production' && !process.env.REDIS_URL) {
+      throw new AppError(
+        'Configure shared Redis before enabling OxSteed Credit in production',
+        409,
+        'credit_shared_redis_required'
+      );
+    }
     requireAdministrativeActor(actorUserId, 'An identified administrator is required to change the OxSteed Credit rail status', 'credit_rail_actor_required');
     const { rows: updatedRows } = await client.query(
       `UPDATE feature_flags
