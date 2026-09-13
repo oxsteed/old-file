@@ -1607,6 +1607,21 @@ test('applies the per-customer daily issuance cap to positive administrative adj
   expect(mockQuery.mock.calls[7][1]).toEqual(['USD', CUSTOMER_ID]);
 });
 
+test('serializes customer Credit transfer velocity and rejects the daily cap', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ transfer_count: 20, total_cents: '250000' }] });
+
+  await expect(service.assertCustomerTransferCapacity({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    currencyCode: 'USD',
+  })).rejects.toMatchObject({ code: 'credit_daily_transfer_limit' });
+
+  expect(mockQuery.mock.calls[0][1]).toEqual([`oxsteed-credit-transfer-limit:${CUSTOMER_ID}:USD`]);
+  expect(mockQuery.mock.calls[1][1]).toEqual(['USD', CUSTOMER_ID]);
+});
+
 test('rejects malformed hold capture ids before any database query', async () => {
   const response = await request(createAdminApp())
     .post('/capture/not-a-uuid')

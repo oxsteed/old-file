@@ -41,6 +41,8 @@ const MAX_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TRANSACTION_CENTS'
 const MAX_CUSTOMER_BALANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CUSTOMER_BALANCE_CENTS', 1000000);
 const MAX_TOTAL_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS', 5000000);
 const MAX_DAILY_CUSTOMER_ISSUANCE_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_ISSUANCE_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
+const MAX_DAILY_CUSTOMER_TRANSFER_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
+const MAX_DAILY_CUSTOMER_TRANSFER_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_COUNT', 20);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
 const MAX_HOLD_TTL_MINUTES = Math.max(DEFAULT_HOLD_TTL_MINUTES, positiveEnv('OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES', 1440));
 const DEFAULT_STATEMENT_DAYS = 90;
@@ -674,6 +676,38 @@ async function assertIssuanceCapacity(client, amountCents, currencyCode = CREDIT
         maxDailyIssuanceCents: String(MAX_DAILY_CUSTOMER_ISSUANCE_CENTS),
       });
     }
+  }
+}
+
+async function assertCustomerTransferCapacity(client, { customerId, amountCents, currencyCode }) {
+  const currency = assertSupportedCreditCurrency(currencyCode);
+  // Serialize by sender and currency so concurrent transfers cannot both pass
+  // the daily velocity check before either transaction is posted.
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer-limit:${customerId}:${currency}`]);
+  const { rows } = await client.query(
+    `SELECT COUNT(*)::int AS transfer_count,
+            COALESCE(SUM(t.amount_cents), 0) AS total_cents
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
+      WHERE t.status = 'posted'
+        AND t.transaction_type = 'transfer'
+        AND t.created_at >= CURRENT_DATE
+        AND t.currency_code = $1
+        AND debit_account.account_type = 'customer_wallet'
+        AND debit_account.customer_id = $2`,
+    [currency, customerId]
+  );
+  const transferCount = Number(rows[0]?.transfer_count || 0);
+  const transferredCents = Number(rows[0]?.total_cents || 0);
+  if (transferCount >= MAX_DAILY_CUSTOMER_TRANSFER_COUNT
+    || transferredCents + amountCents > MAX_DAILY_CUSTOMER_TRANSFER_CENTS) {
+    throw new AppError('Daily OxSteed Credit transfer limit reached for this customer', 409, 'credit_daily_transfer_limit', {
+      transfersToday: String(transferCount),
+      transferredTodayCents: String(transferredCents),
+      requestedCents: String(amountCents),
+      maxDailyTransferCount: String(MAX_DAILY_CUSTOMER_TRANSFER_COUNT),
+      maxDailyTransferCents: String(MAX_DAILY_CUSTOMER_TRANSFER_CENTS),
+    });
   }
 }
 
@@ -1431,6 +1465,11 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
       [recipientCustomerId]
     );
     if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
+    await assertCustomerTransferCapacity(client, {
+      customerId: senderCustomerId,
+      amountCents: amount,
+      currencyCode: currency,
+    });
     const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
     const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
     return postJournalTransaction(client, {
@@ -2435,6 +2474,8 @@ module.exports = {
   MAX_CUSTOMER_BALANCE_CENTS,
   MAX_TOTAL_ISSUANCE_CENTS,
   MAX_DAILY_CUSTOMER_ISSUANCE_CENTS,
+  MAX_DAILY_CUSTOMER_TRANSFER_CENTS,
+  MAX_DAILY_CUSTOMER_TRANSFER_COUNT,
   MAX_STATEMENT_EXPORT_ROWS,
   CUSTOMER_TRANSFERS_ENABLED,
   isCreditRailEnabled,
@@ -2455,6 +2496,7 @@ module.exports = {
   listEligiblePartners,
   listCustomerCreditHolds,
   findExistingTransferForReplay,
+  assertCustomerTransferCapacity,
   listCustomerCreditTransactions,
   getCustomerCreditStatement,
   customerCreditStatementCsv,

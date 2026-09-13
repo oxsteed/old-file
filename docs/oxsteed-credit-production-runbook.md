@@ -44,6 +44,16 @@ idempotent replay check, so retries do not consume additional issuance
 capacity. Set these values deliberately for each launch market and review the
 resulting limits with compliance and the funding owner.
 
+If customer-to-customer transfers are enabled, outbound transfers are also
+bounded per customer and currency by
+`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_CENTS` (default: the customer
+wallet balance cap) and `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_COUNT`
+(default: 20). The check uses the database accounting day, serializes by
+sender and currency, and runs after the idempotent replay check. This limits
+rapid value movement without changing restaurant purchases or partner
+settlement. Keep `OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS=false` unless the
+program rules, fraud controls, and compliance review explicitly approve it.
+
 The load and positive-adjustment endpoints both require a traceable funding
 reference. Clawbacks remain debits from the customer wallet and require an
 operator reason; use a separate compensating credit with its own funding or
