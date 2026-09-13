@@ -731,6 +731,21 @@ function matchesGeography(geography, input) {
   });
 }
 
+function formatGeography(geography) {
+  const rules = normalizeMetadata(geography);
+  return ['cities', 'states', 'postalCodes', 'countries'].reduce((result, key) => {
+    const values = Array.isArray(rules[key])
+      ? rules[key]
+        .filter((value) => typeof value === 'string' || typeof value === 'number')
+        .map((value) => normalizeString(String(value), 120))
+        .filter(Boolean)
+        .slice(0, 100)
+      : [];
+    if (values.length) result[key] = values;
+    return result;
+  }, {});
+}
+
 async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true }) {
   const { rows } = await client.query(
     `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
@@ -853,7 +868,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
             fr.display_name AS restaurant_name, fr.logo_url, fr.address_city, fr.address_state,
             fr.currency_code AS restaurant_currency_code,
             a.id AS agreement_id, a.version, a.customer_terms, a.allowed_order_types,
-            a.allowed_categories, a.geography,
+            a.allowed_categories, a.geography, a.requires_customer_entitlement,
             CASE
               WHEN a.max_transaction_cents IS NULL THEN e.max_transaction_cents
               WHEN e.max_transaction_cents IS NULL THEN a.max_transaction_cents
@@ -897,8 +912,9 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
       ORDER BY p.id, a.version DESC`,
     [customerId, currency, normalizeString(orderType, 40)?.toLowerCase() || null]
   );
+  const hasLocationInput = [city, state, postalCode, country].some((value) => normalizeString(value, 120));
   return rows.filter((row) => (!row.restaurant_currency_code || normalizeCurrency(row.restaurant_currency_code) === currency)
-    && matchesGeography(row.geography, { city, state, postalCode, country })).map((row) => ({
+    && (!hasLocationInput || matchesGeography(row.geography, { city, state, postalCode, country }))).map((row) => ({
     partnerId: String(row.partner_id),
     restaurantId: String(row.restaurant_id),
     restaurantName: row.restaurant_name,
@@ -912,6 +928,7 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
     customerTerms: row.customer_terms || null,
     allowedOrderTypes: row.allowed_order_types || [],
     allowedCategories: row.allowed_categories || [],
+    geography: formatGeography(row.geography),
     maxTransactionCents: row.effective_max_transaction_cents === null ? null : Number(row.effective_max_transaction_cents),
     dailyCustomerLimitCents: row.effective_daily_customer_limit_cents === null ? null : Number(row.effective_daily_customer_limit_cents),
     lifetimeCustomerLimitCents: row.lifetime_customer_limit_cents === null ? null : Number(row.lifetime_customer_limit_cents),

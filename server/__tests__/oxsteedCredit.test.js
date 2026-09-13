@@ -270,11 +270,43 @@ test('shows only spendable partner restaurants in the customer currency', async 
 
   expect(response.status).toBe(200);
   expect(response.body.partners).toHaveLength(1);
-  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD', maxTransactionCents: 4500, dailyCustomerLimitCents: 4500, lifetimeCustomerLimitCents: 10000 });
+  expect(response.body.partners[0]).toMatchObject({ partnerId: '41', currencyCode: 'USD', maxTransactionCents: 4500, dailyCustomerLimitCents: 4500, lifetimeCustomerLimitCents: 10000, geography: {} });
   expect(mockQuery.mock.calls[0][0]).toContain('fr.currency_code');
   expect(mockQuery.mock.calls[0][0]).toContain('p.settlement_currency_code = $2');
   expect(mockQuery.mock.calls[0][0]).toContain("ca.status = 'active'");
   expect(mockQuery.mock.calls[0][0]).toContain('LEAST(a.max_transaction_cents, e.max_transaction_cents)');
+});
+
+test('shows geographic partner coverage before a customer enters a location and filters it when they do', async () => {
+  const row = {
+    partner_id: 41,
+    restaurant_id: 7,
+    settlement_currency_code: 'USD',
+    restaurant_currency_code: 'USD',
+    restaurant_name: 'Springfield Kitchen',
+    agreement_id: 'agreement-geography',
+    version: 1,
+    customer_terms: null,
+    geography: { cities: ['Springfield'], states: ['OH'], countries: ['US'], ignored: ['not public'] },
+    allowed_order_types: [],
+    allowed_categories: [],
+    effective_max_transaction_cents: null,
+    effective_daily_customer_limit_cents: null,
+    lifetime_customer_limit_cents: null,
+    entitlement_id: null,
+    requires_customer_entitlement: true,
+  };
+
+  mockQuery.mockResolvedValueOnce({ rows: [row] });
+  const directory = await service.listEligiblePartners({ customerId: CUSTOMER_ID, currencyCode: 'USD' });
+  expect(directory).toHaveLength(1);
+  expect(directory[0]).toMatchObject({
+    requiresCustomerEntitlement: true,
+    geography: { cities: ['Springfield'], states: ['OH'], countries: ['US'] },
+  });
+
+  mockQuery.mockResolvedValueOnce({ rows: [row] });
+  await expect(service.listEligiblePartners({ customerId: CUSTOMER_ID, currencyCode: 'USD', city: 'Dayton', state: 'OH', country: 'US' })).resolves.toEqual([]);
 });
 
 test('rejects unsupported credit currencies before creating a wallet', async () => {

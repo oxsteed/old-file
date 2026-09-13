@@ -71,6 +71,7 @@
 .ox-credit-tags span { padding: 4px 7px; border-radius: 999px; color: #516e76; background: #edf7f5; font-size: 10px; font-weight: 800; text-transform: capitalize; }
 .ox-credit-partner-content p { margin: 10px 0 7px; color: #647582; font-size: 12px; line-height: 1.5; }
 .ox-credit-partner-meta { display: flex; flex-wrap: wrap; gap: 10px; color: #a06b31; font-size: 11px; font-weight: 800; }
+.ox-credit-partner-meta span { overflow-wrap: anywhere; }
 .ox-credit-secondary-link { display: inline-flex; align-items: center; gap: 7px; margin: 16px 23px 20px; color: #b65a0c; font-size: 12px; font-weight: 850; text-decoration: none; }
 .ox-credit-transaction-list article { display: grid; grid-template-columns: 37px minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 15px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
 .ox-credit-transaction-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; }
