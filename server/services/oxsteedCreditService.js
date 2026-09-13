@@ -366,34 +366,51 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
   }
 
-  await client.query(
-    `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, currency_code)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT DO NOTHING`,
-    [accountType, customerId, partnerId, currency]
-  );
+  const insertQuery = accountType === 'customer_wallet'
+    ? `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, currency_code)
+         SELECT $1, $2, $3, $4
+          WHERE EXISTS (
+            SELECT 1 FROM users
+             WHERE id = $2 AND role = 'customer'
+          )
+         ON CONFLICT DO NOTHING`
+    : `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, partner_id, currency_code)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING`;
+  await client.query(insertQuery, [accountType, customerId, partnerId, currency]);
 
-  const ownershipFilter = accountType === 'customer_wallet'
-    ? 'customer_id = $2 AND partner_id IS NULL'
+  const scopedOwnershipFilter = accountType === 'customer_wallet'
+    ? 'a.customer_id = $2 AND a.partner_id IS NULL'
     : accountType === 'partner_payable'
-      ? 'partner_id = $2 AND customer_id IS NULL'
-      : 'customer_id IS NULL AND partner_id IS NULL';
+      ? 'a.partner_id = $2 AND a.customer_id IS NULL'
+      : 'a.customer_id IS NULL AND a.partner_id IS NULL';
   const ownerValue = accountType === 'customer_wallet' ? customerId : accountType === 'partner_payable' ? partnerId : accountType;
+  const ownerJoin = accountType === 'customer_wallet'
+    ? `JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer'`
+    : '';
   const { rows } = await client.query(
-    `SELECT * FROM oxsteed_credit_accounts
-      WHERE account_type = $1 AND ${ownershipFilter} AND currency_code = $3
+    `SELECT a.* FROM oxsteed_credit_accounts a
+      ${ownerJoin}
+      WHERE a.account_type = $1 AND ${scopedOwnershipFilter} AND a.currency_code = $3
       FOR UPDATE`,
     [accountType, ownerValue, currency]
   );
-  if (!rows[0]) throw new AppError('Credit account could not be created', 500, 'credit_account_create_failed');
+  if (!rows[0]) {
+    if (accountType === 'customer_wallet') {
+      throw new AppError('OxSteed Credit is only available to customer accounts', 404, 'credit_customer_not_found');
+    }
+    throw new AppError('Credit account could not be created', 500, 'credit_account_create_failed');
+  }
   return rows[0];
 }
 
 async function findCustomerAccount(client, customerId, currencyCode = CREDIT_CURRENCY, forUpdate = false) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await client.query(
-    `SELECT * FROM oxsteed_credit_accounts
-      WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $2
+    `SELECT a.*
+       FROM oxsteed_credit_accounts a
+       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer'
+      WHERE a.account_type = 'customer_wallet' AND a.customer_id = $1 AND a.currency_code = $2
       ${forUpdate ? 'FOR UPDATE' : ''}`,
     [customerId, currency]
   );

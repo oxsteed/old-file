@@ -117,6 +117,15 @@ test('creates a customer OxSteed Credit account with zero balance', async () => 
   });
 });
 
+test('does not create or expose an OxSteed Credit wallet for a non-customer role', async () => {
+  const response = await request(createCustomerApp('helper')).get('/account');
+
+  expect(response.status).toBe(404);
+  expect(response.body.code).toBe('credit_customer_not_found');
+  expect(mockQuery.mock.calls[0][0]).toContain("role = 'customer'");
+  expect(mockQuery.mock.calls[1][0]).toContain('JOIN users owner');
+});
+
 test('creates and reads a customer account in a supported non-USD currency', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [], rowCount: 0 })
