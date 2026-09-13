@@ -6,7 +6,7 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
-const { REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
+const { REQUIRED_INDEXES, REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -93,6 +93,13 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_user_role_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
+});
+
+test('credit verification requires posted customer history indexes', () => {
+  expect(REQUIRED_INDEXES).toEqual(expect.arrayContaining([
+    'idx_oxsteed_credit_transactions_debit_posted_history',
+    'idx_oxsteed_credit_transactions_credit_posted_history',
+  ]));
 });
 
 test('customer Credit mutation responses omit internal hold and ledger fields', () => {

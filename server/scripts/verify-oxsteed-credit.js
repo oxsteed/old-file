@@ -43,6 +43,8 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_holds_customer_agreement_active',
   'uq_oxsteed_credit_one_active_agreement',
   'idx_oxsteed_credit_transactions_partner_reporting',
+  'idx_oxsteed_credit_transactions_debit_posted_history',
+  'idx_oxsteed_credit_transactions_credit_posted_history',
   'uq_oxsteed_credit_agreement_creation_idempotency',
 ];
 
@@ -626,4 +628,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes };
+module.exports = { REQUIRED_INDEXES, REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes };
