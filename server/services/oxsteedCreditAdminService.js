@@ -151,10 +151,11 @@ function formatSettlement(row) {
   };
 }
 
-function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, periodStart, periodEnd }) {
+function assertSettlementIdempotencyReplayMatches(existing, { partnerId, agreementId, currencyCode, periodStart, periodEnd }) {
   const mismatches = {};
   if (String(existing.partner_id) !== String(partnerId)) mismatches.partnerId = { existing: existing.partner_id, requested: partnerId };
   if (String(existing.agreement_id) !== String(agreementId)) mismatches.agreementId = { existing: existing.agreement_id, requested: agreementId };
+  if (String(existing.currency_code || '').toUpperCase() !== String(currencyCode || '').toUpperCase()) mismatches.currencyCode = { existing: existing.currency_code, requested: currencyCode };
   if (new Date(existing.period_start).getTime() !== new Date(periodStart).getTime()) mismatches.periodStart = { existing: existing.period_start, requested: periodStart };
   if (new Date(existing.period_end).getTime() !== new Date(periodEnd).getTime()) mismatches.periodEnd = { existing: existing.period_end, requested: periodEnd };
   if (Object.keys(mismatches).length) {
@@ -477,7 +478,6 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
     );
     const agreement = agreementRows[0];
     if (!agreement) throw new AppError('Credit agreement not found for settlement', 404, 'credit_agreement_not_found');
-    if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
     // Serialize settlement periods for one agreement so concurrent admins cannot
     // both pass the overlap check before either transaction inserts a row.
     await client.query(
@@ -489,11 +489,13 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       assertSettlementIdempotencyReplayMatches(existingRows[0], {
         partnerId: normalizedPartnerId,
         agreementId,
+        currencyCode: agreement.settlement_currency_code,
         periodStart: starts,
         periodEnd: ends,
       });
       return { settlement: formatSettlement(existingRows[0]), replayed: true };
     }
+    if (agreement.partner_status === 'terminated') throw new AppError('Terminated credit partners cannot be settled', 409, 'credit_partner_terminated');
     const { rows: overlapRows } = await client.query(
       `SELECT id, status
          FROM oxsteed_credit_settlements
@@ -543,6 +545,7 @@ async function createSettlement({ partnerId, agreementId, periodStart, periodEnd
       assertSettlementIdempotencyReplayMatches(conflictRows[0], {
         partnerId: normalizedPartnerId,
         agreementId,
+        currencyCode: agreement.settlement_currency_code,
         periodStart: starts,
         periodEnd: ends,
       });
