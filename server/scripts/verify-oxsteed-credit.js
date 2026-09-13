@@ -102,6 +102,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_entitlement_bulk_request_immutable_guard',
   'oxsteed_credit_entitlement_request_immutable_guard',
   'oxsteed_credit_entitlement_customer_activity_guard',
+  'oxsteed_credit_refund_boundary_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -387,6 +388,11 @@ async function main() {
       ['475_oxsteed_credit_idempotency_keys.sql']
     );
     checks.idempotencyKeysMigrationApplied = idempotencyKeysMigrationRows.rows.length === 1;
+    const refundBoundaryMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['476_oxsteed_credit_refund_boundary.sql']
+    );
+    checks.refundBoundaryMigrationApplied = refundBoundaryMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -619,6 +625,35 @@ async function main() {
          ) invalid_keys`,
     );
     checks.invalidCreditIdempotencyKeys = Number(idempotencyKeyInvariantRows[0]?.invalid_count || 0);
+
+    const { rows: refundInvariantRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_transactions r
+         LEFT JOIN oxsteed_credit_transactions p
+           ON p.id::text = r.reference_id
+          AND p.transaction_type = 'purchase'
+          AND p.status = 'posted'
+         LEFT JOIN (
+           SELECT reference_id, SUM(amount_cents)::bigint AS refunded_cents
+             FROM oxsteed_credit_transactions
+            WHERE transaction_type = 'refund'
+              AND status = 'posted'
+              AND reference_type = 'oxsteed_credit_purchase'
+            GROUP BY reference_id
+         ) totals ON totals.reference_id = r.reference_id
+        WHERE r.transaction_type = 'refund'
+          AND r.status = 'posted'
+          AND (r.reference_type IS DISTINCT FROM 'oxsteed_credit_purchase'
+            OR NULLIF(BTRIM(r.reference_id), '') IS NULL
+            OR p.id IS NULL
+            OR r.debit_account_id IS DISTINCT FROM p.credit_account_id
+            OR r.credit_account_id IS DISTINCT FROM p.debit_account_id
+            OR r.currency_code IS DISTINCT FROM p.currency_code
+            OR r.partner_id IS DISTINCT FROM p.partner_id
+            OR r.agreement_id IS DISTINCT FROM p.agreement_id
+            OR COALESCE(totals.refunded_cents, 0) > p.amount_cents)`,
+    );
+    checks.invalidRefunds = Number(refundInvariantRows[0]?.invalid_count || 0);
 
     const { rows: purchaseInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -859,6 +894,7 @@ async function main() {
       !checks.settlementCreationEvidenceMigrationApplied,
       !checks.identityRetentionMigrationApplied,
       !checks.idempotencyKeysMigrationApplied,
+      !checks.refundBoundaryMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -878,6 +914,7 @@ async function main() {
       checks.invalidEntitlementOwners > 0,
       checks.invalidActiveEntitlementCustomers > 0,
       checks.invalidCreditIdempotencyKeys > 0,
+      checks.invalidRefunds > 0,
       checks.invalidPurchases > 0,
       checks.invalidPurchaseReferences > 0,
       checks.invalidTransactionCurrencies > 0,
