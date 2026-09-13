@@ -7,7 +7,7 @@ const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { creditExportLimiter, creditPurchaseLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -39,16 +39,16 @@ router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
 router.get('/customer/wallets', authenticate, walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', authenticate, walletCtrl.getCustomerWallet);
 router.get('/customer/wallets/:restaurantId/integrity', authenticate, walletCtrl.verifyMyWalletIntegrity);
-router.post('/customer/wallets/:restaurantId/payment-sessions', authenticate, walletCtrl.createCustomerWalletPaymentSession);
-router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', authenticate, walletCtrl.cancelCustomerWalletPaymentSession);
-router.post('/customer/wallets/:restaurantId/holds', authenticate, walletCtrl.createMyWalletHold);
+router.post('/customer/wallets/:restaurantId/payment-sessions', authenticate, restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', authenticate, restaurantCreditMutationLimiter, walletCtrl.cancelCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/holds', authenticate, restaurantCreditMutationLimiter, walletCtrl.createMyWalletHold);
 router.get('/customer/wallets/:restaurantId/holds', authenticate, walletCtrl.listMyWalletHolds);
-router.post('/customer/wallets/:restaurantId/holds/:holdId/release', authenticate, walletCtrl.releaseMyWalletHold);
-router.post('/customer/wallets/:restaurantId/transfers', authenticate, walletCtrl.createMyWalletTransfer);
+router.post('/customer/wallets/:restaurantId/holds/:holdId/release', authenticate, restaurantCreditMutationLimiter, walletCtrl.releaseMyWalletHold);
+router.post('/customer/wallets/:restaurantId/transfers', authenticate, restaurantCreditMutationLimiter, walletCtrl.createMyWalletTransfer);
 router.get('/customer/wallets/:restaurantId/transfers', authenticate, walletCtrl.listMyWalletTransfers);
-router.post('/customer/wallets/:restaurantId/load-requests', authenticate, walletCtrl.createMyWalletLoadRequest);
+router.post('/customer/wallets/:restaurantId/load-requests', authenticate, restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
 router.get('/customer/wallets/:restaurantId/load-requests', authenticate, walletCtrl.listMyWalletLoadRequests);
-router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', authenticate, walletCtrl.cancelMyWalletLoadRequest);
+router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', authenticate, restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
@@ -76,20 +76,20 @@ router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctr
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.patch('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.updateModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
-router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, walletCtrl.loadCustomerWallet);
+router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
 router.get('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, walletCtrl.listCustomerWalletLoadRequests);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', authenticate, walletCtrl.approveCustomerWalletLoadRequest);
-router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', authenticate, walletCtrl.cancelCustomerWalletLoadRequest);
-router.patch('/restaurants/:restaurantId/customer-wallet-status', authenticate, walletCtrl.updateCustomerWalletStatus);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', authenticate, restaurantCreditMutationLimiter, walletCtrl.approveCustomerWalletLoadRequest);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', authenticate, restaurantCreditMutationLimiter, walletCtrl.cancelCustomerWalletLoadRequest);
+router.patch('/restaurants/:restaurantId/customer-wallet-status', authenticate, restaurantCreditMutationLimiter, walletCtrl.updateCustomerWalletStatus);
 router.get('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, walletCtrl.verifyCustomerWalletIntegrity);
 router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', authenticate, walletCtrl.getCustomerWalletReconciliation);
 router.get('/restaurants/:restaurantId/customer-wallet-statement', authenticate, walletCtrl.getCustomerWalletStatement);
 router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
 router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
 router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, noStoreCreditResponse, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
-router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', authenticate, walletCtrl.captureCustomerWalletHold);
-router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', authenticate, walletCtrl.releaseCustomerWalletHold);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', authenticate, restaurantCreditMutationLimiter, walletCtrl.captureCustomerWalletHold);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', authenticate, restaurantCreditMutationLimiter, walletCtrl.releaseCustomerWalletHold);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.

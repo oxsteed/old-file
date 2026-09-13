@@ -376,6 +376,24 @@ const creditMutationLimiter = rateLimit({
   },
 });
 
+// The restaurant wallet is a separate stored-value rail from OxSteed Credit,
+// but its holds, transfers, payment sessions, and load approvals are equally
+// sensitive. Keep a distinct bucket so wallet activity cannot consume the
+// OxSteed Credit budget and so normal restaurant reads remain unaffected.
+const restaurantCreditMutationLimiter = rateLimit({
+  ...createStoreOption('rl:restaurant_credit_mutation:'),
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many restaurant credit changes. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // OxSteed Credit orders create a new stored-value spend attempt when they
 // create a food order. Keep this limit separate from holds and disputes so a
 // customer cannot exhaust the mutation budget with order retries, while
@@ -451,6 +469,7 @@ module.exports = {
   paymentsLimiter,
   connectAccountLimiter,
   creditMutationLimiter,
+  restaurantCreditMutationLimiter,
   creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,

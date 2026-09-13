@@ -7,6 +7,7 @@ const {
   creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,
+  restaurantCreditMutationLimiter,
 } = require('../middleware/rateLimiter');
 
 function createLimiterApp(limiter, method = 'post') {
@@ -88,4 +89,23 @@ test('Credit purchase limits only apply to OxSteed Credit orders and are scoped 
     .set('X-Test-User', 'credit-purchase-customer-b')
     .send({ paymentMode: 'oxsteed_credit' })
     .expect(204);
+});
+
+test('restaurant credit mutations use an independent per-user bucket', async () => {
+  const app = createLimiterApp(restaurantCreditMutationLimiter);
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    await request(app).post('/test').set('X-Test-User', 'restaurant-credit-customer-a').expect(204);
+  }
+
+  const blocked = await request(app)
+    .post('/test')
+    .set('X-Test-User', 'restaurant-credit-customer-a');
+  expect(blocked.status).toBe(429);
+  expect(blocked.body).toMatchObject({
+    error: 'Too many restaurant credit changes. Please wait before trying again.',
+    retryAfter: '15 minutes',
+  });
+
+  await request(app).post('/test').set('X-Test-User', 'restaurant-credit-customer-b').expect(204);
 });
