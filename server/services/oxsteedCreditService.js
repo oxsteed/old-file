@@ -1019,6 +1019,8 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
+  const normalizedReason = normalizeString(reason, 500);
+  if (!normalizedReason) throw new AppError('A reason is required for administrative credit loads', 400, 'credit_load_reason_required');
   return withTransaction(pool, async (client) => {
     const { rows: existingRows } = await client.query(
       `SELECT t.*, customer_account.customer_id AS customer_account_customer_id
@@ -1043,7 +1045,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
         idempotencyKey: normalizedIdempotencyKey,
         actorType: 'admin',
         actorUserId,
-        reason,
+        reason: normalizedReason,
         referenceType,
         referenceId,
         correlationId,
@@ -1065,7 +1067,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
       idempotencyKey,
       actorType: 'admin',
       actorUserId,
-      reason,
+      reason: normalizedReason,
       allowSuspendedAccounts: true,
       referenceType,
       referenceId,

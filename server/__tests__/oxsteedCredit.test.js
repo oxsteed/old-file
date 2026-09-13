@@ -1090,6 +1090,17 @@ test('requires a funding reference for Super Admin credit loads', async () => {
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('requires an audit reason for Super Admin credit loads', async () => {
+  const response = await request(createAdminApp())
+    .post(`/load/${CUSTOMER_ID}`)
+    .set('Idempotency-Key', 'admin-load-reason-test-1')
+    .send({ amountCents: 10000, referenceId: 'funding-1' });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_load_reason_required');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('requires a funding reference for positive administrative adjustments', async () => {
   const response = await request(createAdminApp())
     .post(`/adjust/${CUSTOMER_ID}`)
@@ -1181,6 +1192,7 @@ test('serializes the global outstanding issuance cap before a new load', async (
     customerId: CUSTOMER_ID,
     amountCents: 100,
     idempotencyKey: 'issuance-test-1',
+    reason: 'Approved customer grant',
   });
 
   expect(result.transaction.amountCents).toBe(100);
@@ -1216,6 +1228,7 @@ test('replays a committed credit load while the rail is suspended', async () => 
     customerId: CUSTOMER_ID,
     amountCents: 100,
     idempotencyKey: existing.idempotency_key,
+    reason: 'Replay approved customer grant',
     referenceId: existing.reference_id,
   });
 
