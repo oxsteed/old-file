@@ -539,7 +539,7 @@ async function resolveAdminDispute(req, res, next) {
 
 async function getAdminOverview(req, res, next) {
   try {
-    const [summaryResult, partnersResult, recentResult] = await Promise.all([
+    const [summaryResult, partnersResult, recentResult, notificationHealthResult] = await Promise.all([
       pool.query(`
         SELECT
           currency_code,
@@ -589,6 +589,14 @@ async function getAdminOverview(req, res, next) {
           JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
          ORDER BY t.created_at DESC
          LIMIT 100`),
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_count,
+          COUNT(*) FILTER (WHERE status = 'sending')::int AS sending_count,
+          COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_count,
+          MIN(created_at) FILTER (WHERE status IN ('pending', 'sending')) AS oldest_pending_at,
+          MIN(created_at) FILTER (WHERE status = 'failed') AS oldest_failed_at
+        FROM oxsteed_credit_notification_outbox`),
     ]);
     const summary = summaryResult.rows.find((row) => row.currency_code === 'USD') || {};
     const partnerCounts = {
@@ -599,6 +607,14 @@ async function getAdminOverview(req, res, next) {
       pendingPartners: Number(partnersResult.rows[0]?.pending_partner_count || 0),
       activePartnersWithoutAgreement: Number(partnersResult.rows[0]?.active_partners_without_agreement_count || 0),
       expiringAgreements: Number(partnersResult.rows[0]?.expiring_agreement_count || 0),
+    };
+    const notificationHealthRow = notificationHealthResult.rows[0] || {};
+    const notificationHealth = {
+      pending: Number(notificationHealthRow.pending_count || 0),
+      sending: Number(notificationHealthRow.sending_count || 0),
+      failed: Number(notificationHealthRow.failed_count || 0),
+      oldestPendingAt: notificationHealthRow.oldest_pending_at || null,
+      oldestFailedAt: notificationHealthRow.oldest_failed_at || null,
     };
     const formatSummary = (row) => ({
       currencyCode: row.currency_code || 'USD',
@@ -624,6 +640,7 @@ async function getAdminOverview(req, res, next) {
       summaryByCurrency: summaryResult.rows.map(formatSummary),
       partnerCounts,
       coverageAlerts,
+      notificationHealth,
       partners: partnersResult.rows.map((row) => ({
         partnerId: String(row.partner_id),
         restaurantId: String(row.restaurant_id),
