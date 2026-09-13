@@ -46,6 +46,7 @@ function createAdminApp() {
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
+  app.get('/disputes', controller.listAdminDisputes);
   app.get('/audit-events', controller.listAdminCreditAuditEvents);
   app.use(errorHandler);
   return app;
@@ -720,6 +721,40 @@ test('includes safe transaction context when listing credit disputes', async () 
     postedAt: '2026-09-12T12:00:00.000Z',
   })]);
   expect(mockQuery.mock.calls[0][0]).toContain('LEFT JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id');
+});
+
+test('paginates and filters the admin credit dispute queue', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'dispute-2',
+    transaction_id: 'tx-2',
+    customer_id: CUSTOMER_ID,
+    partner_id: 41,
+    restaurant_name: 'OxSteed Cafe',
+    transaction_amount_cents: '1800',
+    transaction_currency_code: 'USD',
+    transaction_type: 'purchase',
+    transaction_reference_type: 'food_order',
+    transaction_reference_id: '456',
+    transaction_posted_at: '2026-09-12T13:00:00.000Z',
+    status: 'resolved',
+    reason_code: 'duplicate_charge',
+    description: 'The order was charged twice.',
+    resolution: 'Refund issued through the compensating ledger flow.',
+    opened_by: CUSTOMER_ID,
+    resolved_by: ADMIN_ID,
+    opened_at: '2026-09-12T13:30:00.000Z',
+    resolved_at: '2026-09-12T14:00:00.000Z',
+    updated_at: '2026-09-12T14:00:00.000Z',
+  }] });
+
+  const response = await request(createAdminApp()).get('/disputes?status=resolved&limit=10&offset=20');
+
+  expect(response.status).toBe(200);
+  expect(response.body.disputes[0]).toMatchObject({ id: 'dispute-2', status: 'resolved', amountCents: 1800 });
+  expect(response.body.pagination).toEqual({ limit: 10, offset: 20, hasMore: false, nextOffset: null });
+  expect(mockQuery.mock.calls[0][0]).toContain('d.status = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('LIMIT $2 OFFSET $3');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['resolved', 11, 20]);
 });
 
 test('hashes the same journal payload deterministically', () => {

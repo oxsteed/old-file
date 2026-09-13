@@ -1838,7 +1838,9 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
   }, 'credit_open_dispute');
 }
 
-async function listCreditDisputes({ customerId, status, limit = 100 } = {}) {
+const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected']);
+
+async function listCreditDisputes({ customerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (customerId) {
@@ -1846,10 +1848,18 @@ async function listCreditDisputes({ customerId, status, limit = 100 } = {}) {
     filters.push(`d.customer_id = $${params.length}`);
   }
   if (status) {
-    params.push(normalizeString(status, 20));
+    const normalizedStatus = normalizeString(status, 20);
+    if (!CREDIT_DISPUTE_STATUSES.has(normalizedStatus)) throw new AppError('Invalid credit dispute status', 400, 'credit_dispute_status_invalid');
+    params.push(normalizedStatus);
     filters.push(`d.status = $${params.length}`);
   }
-  params.push(Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250)));
+  const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
   const { rows } = await pool.query(
     `SELECT d.*, fr.display_name AS restaurant_name,
             t.amount_cents AS transaction_amount_cents,
@@ -1863,11 +1873,22 @@ async function listCreditDisputes({ customerId, status, limit = 100 } = {}) {
        LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
        LEFT JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
-      ORDER BY d.opened_at DESC
-      LIMIT $${params.length}`,
+      ORDER BY d.opened_at DESC, d.id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatDispute);
+  const hasMore = includePagination && rows.length > safeLimit;
+  const disputes = rows.slice(0, safeLimit).map(formatDispute);
+  if (!includePagination) return disputes;
+  return {
+    disputes,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 async function resolveCreditDispute({ disputeId, status, resolution, actorUserId }) {

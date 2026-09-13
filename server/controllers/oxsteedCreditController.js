@@ -369,7 +369,13 @@ async function adminUpdateCreditAccountStatus(req, res, next) {
 
 async function listAdminDisputes(req, res, next) {
   try {
-    res.json({ disputes: await listCreditDisputes({ status: req.query.status, limit: req.query.limit }) });
+    const result = await listCreditDisputes({
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    });
+    res.json(result);
   } catch (error) {
     next(error);
   }
