@@ -44,6 +44,7 @@ function createAdminApp() {
   app.post('/capture/:holdId', controller.adminCaptureHold);
   app.get('/overview', controller.getAdminOverview);
   app.get('/settlements', controller.listAdminSettlements);
+  app.get('/transactions', controller.listAdminTransactions);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
@@ -213,6 +214,40 @@ test('returns paginated admin Credit settlements with status filters', async () 
   expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][0]).toContain('s.status = $1');
   expect(mockQuery.mock.calls[0][1]).toEqual(['pending', 2, 2]);
+});
+
+test('returns paginated admin Credit transactions with movement filters', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'transaction-1',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '2500',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    reference_type: 'food_order',
+    reference_id: '9001',
+    debit_customer_id: CUSTOMER_ID,
+    credit_customer_id: null,
+    posted_at: '2026-09-12T12:00:00.000Z',
+    created_at: '2026-09-12T12:00:00.000Z',
+  }, {
+    id: 'transaction-older',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '1000',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    reference_type: 'food_order',
+    reference_id: '8999',
+  }] });
+
+  const response = await request(createAdminApp()).get('/transactions?partnerId=41&transactionType=purchase&status=posted&currencyCode=USD&limit=1&offset=2');
+
+  expect(response.status).toBe(200);
+  expect(response.body.transactions[0]).toMatchObject({ id: 'transaction-1', orderId: '9001', partnerId: '41' });
+  expect(response.body.pagination).toEqual({ limit: 1, offset: 2, hasMore: true, nextOffset: 3 });
 });
 
 test('updates the selected non-USD customer credit wallet status', async () => {

@@ -266,6 +266,7 @@ router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutation
 router.get('/super/oxsteed-credit/overview', requireSuperAdmin, oxsteedCreditCtrl.getAdminOverview);
 router.get('/super/oxsteed-credit/accounts', requireSuperAdmin, oxsteedCreditCtrl.listAdminCustomerAccounts);
 router.get('/super/oxsteed-credit/accounts/:customerId', requireSuperAdmin, oxsteedCreditCtrl.getAdminCustomerAccount);
+router.get('/super/oxsteed-credit/transactions', requireSuperAdmin, oxsteedCreditCtrl.listAdminTransactions);
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
 router.get('/super/oxsteed-credit/entitlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminEntitlements);

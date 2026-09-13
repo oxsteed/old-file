@@ -34,6 +34,7 @@ const {
   listPartners,
   listAdminCustomerCreditAccounts,
   getAdminCustomerCreditAccount,
+  listAdminCreditTransactions,
   registerPartner,
   transitionPartner,
   listAgreements,
@@ -542,6 +543,23 @@ async function getAdminCustomerAccount(req, res, next) {
   }
 }
 
+async function listAdminTransactions(req, res, next) {
+  try {
+    const options = {
+      partnerId: req.query.partnerId || req.query.partner_id,
+      transactionType: req.query.transactionType || req.query.transaction_type,
+      status: req.query.status,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      limit: req.query.limit,
+      includePagination: true,
+    };
+    if (req.query.offset !== undefined) options.offset = req.query.offset;
+    res.json(await listAdminCreditTransactions(options));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminAgreements(req, res, next) {
   try {
     const agreements = await listAgreements({
@@ -780,6 +798,7 @@ module.exports = {
   listAdminPartners,
   listAdminCustomerAccounts,
   getAdminCustomerAccount,
+  listAdminTransactions,
   listAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,

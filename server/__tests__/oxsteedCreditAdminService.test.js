@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -104,6 +104,51 @@ test('lists customer entitlements with restaurant context and bounded paging', a
   expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $2');
   expect(mockQuery.mock.calls[0][0]).toContain('e.status = $3');
   expect(mockQuery.mock.calls[0][1]).toEqual(['%alice%', '11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
+});
+
+test('lists platform Credit transactions with safe filters and pagination', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'transaction-1',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '2500',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    reference_type: 'food_order',
+    reference_id: '9001',
+    description: 'Restaurant order',
+    actor_type: 'customer',
+    actor_user_id: '11111111-1111-4111-8111-111111111111',
+    metadata: {},
+    posted_at: '2026-09-12T12:00:00.000Z',
+    created_at: '2026-09-12T12:00:00.000Z',
+    debit_customer_id: '11111111-1111-4111-8111-111111111111',
+    credit_customer_id: null,
+    restaurant_name: 'OxSteed Cafe',
+  }, {
+    id: 'transaction-older',
+    transaction_type: 'purchase',
+    status: 'posted',
+    amount_cents: '1000',
+    currency_code: 'USD',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    reference_type: 'food_order',
+    reference_id: '8999',
+    posted_at: '2026-09-11T12:00:00.000Z',
+    created_at: '2026-09-11T12:00:00.000Z',
+  }] });
+
+  const result = await listAdminCreditTransactions({ partnerId: 41, transactionType: 'purchase', status: 'posted', currencyCode: 'USD', limit: 1, offset: 2, includePagination: true });
+
+  expect(result).toMatchObject({ pagination: { limit: 1, offset: 2, hasMore: true, nextOffset: 3 } });
+  expect(result.transactions[0]).toMatchObject({ id: 'transaction-1', orderId: '9001', restaurantName: 'OxSteed Cafe' });
+  expect(mockQuery.mock.calls[0][0]).toContain('t.partner_id = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('t.transaction_type = $2');
+  expect(mockQuery.mock.calls[0][0]).toContain('t.status = $3');
+  expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $4');
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'purchase', 'posted', 'USD', 2, 2]);
 });
 
 test('loads a customer Credit profile with multi-restaurant access and ledger context', async () => {

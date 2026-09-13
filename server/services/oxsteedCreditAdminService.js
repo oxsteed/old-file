@@ -9,6 +9,8 @@ const { assertSupportedCreditCurrency, ensureAccount, listCreditDisputes, postJo
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
 const ENTITLEMENT_STATUSES = new Set(['active', 'suspended', 'revoked', 'expired']);
+const CREDIT_TRANSACTION_TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'fee', 'expiration', 'chargeback']);
+const CREDIT_TRANSACTION_STATUSES = new Set(['pending', 'posted', 'reversed', 'voided']);
 const MAX_AGREEMENT_LIMIT_CENTS = Number.isSafeInteger(Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS || '', 10))
   ? Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS, 10)
   : 5000000;
@@ -306,6 +308,70 @@ function formatAdminCreditTransaction(row) {
     metadata: row.metadata || {},
     postedAt: row.posted_at || null,
     createdAt: row.created_at || null,
+  };
+}
+
+async function listAdminCreditTransactions({ partnerId, transactionType, status, currencyCode, limit = 50, offset = 0, includePagination = false } = {}) {
+  const params = [];
+  const filters = [];
+  if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
+    params.push(parsePositiveInt(partnerId, 'partnerId'));
+    filters.push(`t.partner_id = $${params.length}`);
+  }
+  if (transactionType) {
+    const normalizedType = normalizeString(transactionType, 32);
+    if (!CREDIT_TRANSACTION_TYPES.has(normalizedType)) throw new AppError('Invalid Credit transaction type', 400, 'invalid_credit_transaction_type');
+    params.push(normalizedType);
+    filters.push(`t.transaction_type = $${params.length}`);
+  }
+  if (status) {
+    const normalizedStatus = normalizeString(status, 20);
+    if (!CREDIT_TRANSACTION_STATUSES.has(normalizedStatus)) throw new AppError('Invalid Credit transaction status', 400, 'invalid_credit_transaction_status');
+    params.push(normalizedStatus);
+    filters.push(`t.status = $${params.length}`);
+  }
+  if (currencyCode) {
+    const currency = assertSupportedCreditCurrency(currencyCode);
+    params.push(currency);
+    filters.push(`t.currency_code = $${params.length}`);
+  }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 50;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
+  const { rows } = await pool.query(
+    `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+            t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
+            t.description, t.actor_type, t.actor_user_id, t.metadata,
+            t.posted_at, t.created_at,
+            da.customer_id AS debit_customer_id,
+            ca.customer_id AS credit_customer_id,
+            fr.display_name AS restaurant_name
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
+       JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
+       LEFT JOIN oxsteed_credit_partners p ON p.id = t.partner_id
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+      ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+      ORDER BY COALESCE(t.posted_at, t.created_at) DESC, t.id DESC
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  const hasMore = includePagination && rows.length > safeLimit;
+  const transactions = rows.slice(0, safeLimit).map(formatAdminCreditTransaction);
+  if (!includePagination) return transactions;
+  return {
+    transactions,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
   };
 }
 
@@ -1211,6 +1277,7 @@ module.exports = {
   listPartners,
   listAdminCustomerCreditAccounts,
   getAdminCustomerCreditAccount,
+  listAdminCreditTransactions,
   registerPartner,
   transitionPartner,
   listAgreements,
@@ -1232,4 +1299,6 @@ module.exports = {
   ENTITLEMENT_STATUSES,
   formatEntitlement,
   formatSettlement,
+  CREDIT_TRANSACTION_TYPES,
+  CREDIT_TRANSACTION_STATUSES,
 };
