@@ -1277,13 +1277,17 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
         postalCode: partner.address_zip,
         country: partner.address_country,
       });
+      const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
+      if (settlementCurrency !== currency) {
+        throw new AppError('The partner settlement currency does not match the customer Credit account', 409, 'credit_partner_currency_mismatch');
+      }
       return {
         eligible: true,
         reasonCode: null,
         message: null,
         partnerId: String(partner.partner_id),
         agreementId: String(agreement.id),
-        currencyCode: assertSupportedCreditCurrency(agreement.settlement_currency_code),
+        currencyCode: settlementCurrency,
       };
     } catch (error) {
       if (error instanceof AppError && CREDIT_ELIGIBILITY_FAILURE_CODES.has(error.code)) {
