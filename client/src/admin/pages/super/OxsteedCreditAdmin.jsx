@@ -103,7 +103,8 @@ function transactionPartyLabel(transaction) {
 }
 
 function requestKey(prefix) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  if (globalThis.crypto?.randomUUID) return `${prefix}:${globalThis.crypto.randomUUID()}`;
+  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }
 
 function Section({ eyebrow, title, detail, children, action }) {
