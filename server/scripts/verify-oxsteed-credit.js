@@ -134,6 +134,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_dispute_actor_evidence_guard',
   'oxsteed_credit_hold_actor_evidence_guard',
   'oxsteed_credit_entitlement_agreement_state_guard',
+  'oxsteed_credit_agreement_entitlement_status_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -519,6 +520,11 @@ async function main() {
       ['495_oxsteed_credit_entitlement_agreement_state.sql']
     );
     checks.entitlementAgreementStateMigrationApplied = entitlementAgreementStateMigrationRows.rows.length === 1;
+    const agreementEntitlementStateMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['496_oxsteed_credit_agreement_entitlement_state.sql']
+    );
+    checks.agreementEntitlementStateMigrationApplied = agreementEntitlementStateMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -1287,6 +1293,7 @@ async function main() {
       !checks.disputeActorEvidenceMigrationApplied,
       !checks.holdActorEvidenceMigrationApplied,
       !checks.entitlementAgreementStateMigrationApplied,
+      !checks.agreementEntitlementStateMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
