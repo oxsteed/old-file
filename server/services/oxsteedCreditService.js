@@ -2127,6 +2127,7 @@ function formatDispute(row) {
 async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
+  if (!customerId || !actorUserId || String(actorUserId) !== String(customerId)) throw new AppError('A customer identity is required to open a credit dispute', 403, 'credit_dispute_actor_required');
   if (!normalizedReason || !normalizedDescription) throw new AppError('A dispute reason and description are required', 400, 'credit_dispute_details_required');
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit disputes', 400, 'credit_idempotency_key_required');
@@ -2268,6 +2269,7 @@ async function resolveCreditDispute({ disputeId, status, resolution, actorUserId
   const normalizedResolution = normalizeString(resolution, 4000);
   if (!['in_review', 'resolved', 'rejected'].includes(normalizedStatus)) throw new AppError('Invalid dispute resolution status', 400, 'credit_dispute_status_invalid');
   if (!normalizedResolution) throw new AppError('A status-change note is required', 400, 'credit_dispute_resolution_required');
+  if (!actorUserId) throw new AppError('An administrator identity is required to update a credit dispute', 403, 'credit_dispute_actor_required');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(`SELECT d.*, fr.display_name AS restaurant_name FROM oxsteed_credit_disputes d LEFT JOIN oxsteed_credit_partners p ON p.id = d.partner_id LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id WHERE d.id = $1 FOR UPDATE`, [disputeId]);
     const dispute = rows[0];

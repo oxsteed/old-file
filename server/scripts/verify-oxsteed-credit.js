@@ -48,7 +48,7 @@ const REQUIRED_COLUMNS = {
   ],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
-  oxsteed_credit_disputes: ['idempotency_key'],
+  oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
   cron_job_locks: ['lock_id', 'lock_value', 'acquired_at', 'expires_at'],
@@ -130,6 +130,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_settlement_reference_guard',
   'oxsteed_credit_account_ledger_write_guard',
   'oxsteed_credit_hold_terminal_evidence_guard',
+  'oxsteed_credit_dispute_actor_evidence_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -500,6 +501,11 @@ async function main() {
       ['492_oxsteed_credit_hold_terminal_evidence.sql']
     );
     checks.holdTerminalEvidenceMigrationApplied = holdTerminalEvidenceMigrationRows.rows.length === 1;
+    const disputeActorEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['493_oxsteed_credit_dispute_actor_evidence.sql']
+    );
+    checks.disputeActorEvidenceMigrationApplied = disputeActorEvidenceMigrationRows.rows.length === 1;
     const settlementCreationEvidenceMigrationRows = await pool.query(
       `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
       ['470_oxsteed_credit_settlement_creation_evidence.sql']
@@ -990,6 +996,29 @@ async function main() {
     );
     checks.invalidDisputes = Number(disputeIntegrityRows[0]?.invalid_count || 0);
 
+    const { rows: disputeActorEvidenceRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_disputes d
+         LEFT JOIN users opener ON opener.id = d.opened_by
+         LEFT JOIN users resolver ON resolver.id = d.resolved_by
+        WHERE NOT d.actor_evidence_legacy
+          AND (
+            opener.id IS NULL
+            OR opener.role <> 'customer'
+            OR opener.is_active IS DISTINCT FROM TRUE
+            OR (d.resolved_by IS NOT NULL AND (
+              resolver.id IS NULL
+              OR resolver.role NOT IN ('admin', 'super_admin')
+              OR resolver.is_active IS DISTINCT FROM TRUE
+            ))
+            OR (d.status IN ('resolved', 'rejected') AND (
+              d.resolved_by IS NULL
+              OR d.resolved_at IS NULL
+            ))
+          )`,
+    );
+    checks.invalidCreditDisputeActors = Number(disputeActorEvidenceRows[0]?.invalid_count || 0);
+
     const { rows: settlementIntegrityRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
          FROM oxsteed_credit_settlements s
@@ -1188,6 +1217,7 @@ async function main() {
       !checks.settlementReferenceMigrationApplied,
       !checks.accountLedgerWriteMigrationApplied,
       !checks.holdTerminalEvidenceMigrationApplied,
+      !checks.disputeActorEvidenceMigrationApplied,
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
@@ -1228,6 +1258,7 @@ async function main() {
       checks.invalidTransactionTypes > 0,
       checks.invalidTransactionPartnerAccounts > 0,
       checks.invalidDisputes > 0,
+      checks.invalidCreditDisputeActors > 0,
       checks.invalidHashLinks > 0,
       checks.invalidEntryHashes > 0,
       checks.invalidHashChains > 0,

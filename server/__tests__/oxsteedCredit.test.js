@@ -114,6 +114,7 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_settlement_reference_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_account_ledger_write_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_terminal_evidence_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_actor_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_lifecycle_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_issuance_trace_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
@@ -190,6 +191,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['492_oxsteed_credit_hold_terminal_evidence.sql']");
   expect(verifierSource).toContain('!checks.holdTerminalEvidenceMigrationApplied');
   expect(verifierSource).toContain('checks.invalidHoldTerminalEvidence > 0');
+  expect(verifierSource).toContain("['493_oxsteed_credit_dispute_actor_evidence.sql']");
+  expect(verifierSource).toContain('!checks.disputeActorEvidenceMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidCreditDisputeActors > 0');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -210,6 +214,23 @@ test('requires a note for every administrative Credit dispute status change', as
     status: 'in_review',
     actorUserId: ADMIN_ID,
   })).rejects.toMatchObject({ code: 'credit_dispute_resolution_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires an explicit actor for Credit dispute mutations', async () => {
+  await expect(service.openCreditDispute({
+    customerId: CUSTOMER_ID,
+    transactionId: 'transaction-1',
+    reasonCode: 'unauthorized',
+    description: 'Please review this transaction.',
+    idempotencyKey: 'dispute-actor-1',
+  })).rejects.toMatchObject({ code: 'credit_dispute_actor_required', status: 403 });
+
+  await expect(service.resolveCreditDispute({
+    disputeId: 'dispute-1',
+    status: 'in_review',
+    resolution: 'Assigned for review.',
+  })).rejects.toMatchObject({ code: 'credit_dispute_actor_required', status: 403 });
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
