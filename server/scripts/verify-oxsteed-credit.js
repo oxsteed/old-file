@@ -83,6 +83,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_lifecycle_guard',
   'oxsteed_credit_issuance_trace_guard',
   'oxsteed_credit_dispute_integrity_guard',
+  'oxsteed_credit_settlement_payment_evidence_guard',
+  'oxsteed_credit_transaction_settlement_evidence_guard',
   'oxsteed_credit_account_reservation_guard',
   'oxsteed_credit_hold_reservation_guard',
   'oxsteed_credit_transaction_status_guard',
@@ -342,6 +344,11 @@ async function main() {
       ['465_oxsteed_credit_transaction_status.sql']
     );
     checks.transactionStatusMigrationApplied = transactionStatusMigrationRows.rows.length === 1;
+    const settlementPaymentEvidenceMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['466_oxsteed_credit_settlement_payment_evidence.sql']
+    );
+    checks.settlementPaymentEvidenceMigrationApplied = settlementPaymentEvidenceMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -633,7 +640,20 @@ async function main() {
          FROM oxsteed_credit_settlements
         WHERE (status = 'paid' AND paid_at IS NULL)
            OR (status = 'paid' AND net_cents > 0 AND NULLIF(BTRIM(payment_reference), '') IS NULL)
-           OR (status IN ('approved', 'paid') AND approved_by IS NULL)`,
+           OR (status IN ('approved', 'paid') AND approved_by IS NULL)
+           OR (status = 'paid' AND net_cents > 0 AND NOT EXISTS (
+                SELECT 1
+                  FROM oxsteed_credit_transactions t
+                 WHERE t.transaction_type = 'settlement'
+                   AND t.status = 'posted'
+                   AND t.partner_id = oxsteed_credit_settlements.partner_id
+                   AND t.agreement_id = oxsteed_credit_settlements.agreement_id
+                   AND t.amount_cents = oxsteed_credit_settlements.net_cents
+                   AND t.currency_code = oxsteed_credit_settlements.currency_code
+                   AND t.reference_type = 'credit_settlement'
+                   AND t.reference_id = oxsteed_credit_settlements.id::TEXT
+                   AND t.metadata->>'paymentReference' = oxsteed_credit_settlements.payment_reference
+              ))`,
     );
     checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
 
@@ -709,6 +729,7 @@ async function main() {
       !checks.disputeStatusEvidenceMigrationApplied,
       !checks.reservationConsistencyMigrationApplied,
       !checks.transactionStatusMigrationApplied,
+      !checks.settlementPaymentEvidenceMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,

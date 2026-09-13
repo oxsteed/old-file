@@ -122,6 +122,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.reservationConsistencyMigrationApplied');
   expect(verifierSource).toContain("['465_oxsteed_credit_transaction_status.sql']");
   expect(verifierSource).toContain('!checks.transactionStatusMigrationApplied');
+  expect(verifierSource).toContain("['466_oxsteed_credit_settlement_payment_evidence.sql']");
+  expect(verifierSource).toContain('!checks.settlementPaymentEvidenceMigrationApplied');
 });
 
 test('credit verification requires deferred reservation consistency guards', () => {
@@ -130,6 +132,8 @@ test('credit verification requires deferred reservation consistency guards', () 
     'oxsteed_credit_hold_reservation_guard',
     'oxsteed_credit_transaction_status_guard',
     'oxsteed_credit_posted_entry_guard',
+    'oxsteed_credit_settlement_payment_evidence_guard',
+    'oxsteed_credit_transaction_settlement_evidence_guard',
   ]));
 });
 

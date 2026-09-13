@@ -1153,14 +1153,28 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
     );
     const settlement = rows[0];
     if (!settlement) throw new AppError('Credit settlement not found', 404, 'credit_settlement_not_found');
-    if (settlement.status === normalizedTarget) return { settlement: formatSettlement(settlement), replayed: true };
+    const requestedPaymentReference = normalizeString(paymentReference, 160);
+    if (settlement.status === normalizedTarget) {
+      if (normalizedTarget === 'paid'
+        && requestedPaymentReference
+        && settlement.payment_reference
+        && requestedPaymentReference !== settlement.payment_reference) {
+        throw new AppError('A paid Credit settlement cannot change its payment reference', 409, 'credit_settlement_payment_reference_conflict');
+      }
+      return { settlement: formatSettlement(settlement), replayed: true };
+    }
     if (!SETTLEMENT_TRANSITIONS[settlement.status]?.has(normalizedTarget)) throw new AppError(`Cannot move settlement from '${settlement.status}' to '${normalizedTarget}'`, 409, 'credit_settlement_transition_invalid');
     if (normalizedTarget === 'approved' && !actorUserId) {
       throw new AppError('An identified admin is required to approve a settlement', 400, 'credit_settlement_approver_required');
     }
     if (normalizedTarget === 'paid') {
       if (settlement.partner_status !== 'active') throw new AppError('Partner must be active before settlement is paid', 409, 'credit_partner_not_active');
-      const resolvedPaymentReference = normalizeString(paymentReference, 160) || settlement.payment_reference || null;
+      const resolvedPaymentReference = requestedPaymentReference || settlement.payment_reference || null;
+      if (settlement.payment_reference
+        && resolvedPaymentReference
+        && resolvedPaymentReference !== settlement.payment_reference) {
+        throw new AppError('A Credit settlement payment reference cannot change after it is recorded', 409, 'credit_settlement_payment_reference_conflict');
+      }
       if (Number(settlement.net_cents || 0) > 0 && !resolvedPaymentReference) {
         throw new AppError('A payment reference is required before a settlement can be marked paid', 400, 'credit_settlement_payment_reference_required');
       }
@@ -1205,6 +1219,12 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
         description: 'OxSteed Credit partner settlement',
         metadata: { paymentReference: resolvedPaymentReference },
       });
+      if (payment.replayed) {
+        const committedPaymentReference = normalizeString(payment.transaction?.metadata?.paymentReference, 160);
+        if (committedPaymentReference !== resolvedPaymentReference) {
+          throw new AppError('Credit settlement payment evidence does not match its journal entry', 409, 'credit_settlement_payment_reference_conflict');
+        }
+      }
       const { rows: paidRows } = await client.query(
         `UPDATE oxsteed_credit_settlements
             SET status = 'paid', payment_reference = COALESCE($1, payment_reference), paid_at = NOW(), updated_at = NOW()
