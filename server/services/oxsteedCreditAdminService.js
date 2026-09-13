@@ -836,7 +836,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId 
   }, 'credit_admin_transition_partner');
 }
 
-async function listAgreements({ partnerId, status } = {}) {
+async function listAgreements({ partnerId, status, limit = 250, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (partnerId !== undefined && partnerId !== null && partnerId !== '') {
@@ -849,6 +849,27 @@ async function listAgreements({ partnerId, status } = {}) {
     params.push(normalizedStatus);
     filters.push(`a.status = $${params.length}`);
   }
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 250) : 250;
+  const parsedOffset = Number.parseInt(String(offset), 10);
+  const safeOffset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0 ? Math.min(parsedOffset, 1000000) : 0;
+  const filterParams = [...params];
+  let total = null;
+  if (includePagination) {
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}`,
+      filterParams
+    );
+    total = Number(countRows[0]?.total || 0);
+  }
+  params.push(includePagination ? safeLimit + 1 : safeLimit);
+  const limitParam = params.length;
+  params.push(safeOffset);
+  const offsetParam = params.length;
   const { rows } = await pool.query(
     `SELECT a.*, p.restaurant_id, p.settlement_currency_code, fr.display_name AS restaurant_name
        FROM oxsteed_credit_partner_agreements a
@@ -856,10 +877,22 @@ async function listAgreements({ partnerId, status } = {}) {
        JOIN food_restaurants fr ON fr.id = p.restaurant_id
       ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
       ORDER BY a.updated_at DESC, a.version DESC
-      LIMIT 250`,
+      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     params
   );
-  return rows.map(formatAgreement);
+  const hasMore = includePagination && rows.length > safeLimit;
+  const agreements = rows.slice(0, safeLimit).map(formatAgreement);
+  if (!includePagination) return agreements;
+  return {
+    agreements,
+    pagination: {
+      limit: safeLimit,
+      offset: safeOffset,
+      total,
+      hasMore,
+      nextOffset: hasMore ? safeOffset + safeLimit : null,
+    },
+  };
 }
 
 async function listEntitlements({ search, customerId, agreementId, status, limit = 100, offset = 0 } = {}) {

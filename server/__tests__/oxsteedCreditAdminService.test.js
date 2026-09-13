@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -67,6 +67,42 @@ test('lists a paginated partner directory with bounded database paging', async (
   expect(mockQuery.mock.calls[0][1]).toEqual(['%cafe%', 'active']);
   expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $3 OFFSET $4');
   expect(mockQuery.mock.calls[1][1]).toEqual(['%cafe%', 'active', 11, 20]);
+});
+
+test('lists a paginated agreement directory with bounded database paging', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: 26 }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+      version: 2,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      customer_terms: 'Approved terms',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      requires_customer_entitlement: false,
+      metadata: {},
+      created_at: '2026-09-01T00:00:00.000Z',
+      updated_at: '2026-09-02T00:00:00.000Z',
+    }] });
+
+  const result = await listAgreements({ partnerId: 41, status: 'active', limit: 10, offset: 20, includePagination: true });
+
+  expect(result).toMatchObject({ pagination: { limit: 10, offset: 20, total: 26, hasMore: false, nextOffset: null } });
+  expect(result.agreements[0]).toMatchObject({ id: 'agreement-1', partnerId: '41', restaurantName: 'OxSteed Cafe', status: 'active' });
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'active']);
+  expect(mockQuery.mock.calls[1][0]).toContain('LIMIT $3 OFFSET $4');
+  expect(mockQuery.mock.calls[1][1]).toEqual([41, 'active', 11, 20]);
 });
 
 test('does not grant a Credit entitlement to a non-customer identity', async () => {

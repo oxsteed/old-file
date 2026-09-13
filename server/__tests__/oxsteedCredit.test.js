@@ -45,6 +45,7 @@ function createAdminApp() {
   app.get('/overview', controller.getAdminOverview);
   app.get('/partners/directory', controller.listAdminPartnerDirectory);
   app.get('/partners.csv', controller.downloadAdminPartners);
+  app.get('/agreements.csv', controller.downloadAdminAgreements);
   app.get('/accounts.csv', controller.downloadAdminCustomerAccounts);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
@@ -429,6 +430,47 @@ test('lists a paginated Credit partner directory without changing selector resul
   expect(response.body.pagination).toEqual({ limit: 10, offset: 20, total: 26, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][1]).toEqual(['%cafe%', 'active']);
   expect(mockQuery.mock.calls[1][1]).toEqual(['%cafe%', 'active', 11, 20]);
+});
+
+test('exports filtered Credit agreements with formula-safe terms', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      restaurant_id: 12,
+      restaurant_name: '=Cafe',
+      settlement_currency_code: 'USD',
+      version: 2,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      customer_terms: '+approved terms',
+      allowed_order_types: ['pickup'],
+      allowed_categories: ['food'],
+      allowed_menu_item_ids: [7],
+      geography: { cities: ['Springfield'] },
+      max_transaction_cents: '5000',
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      requires_customer_entitlement: false,
+      approved_by: ADMIN_ID,
+      created_by: ADMIN_ID,
+      created_at: '2026-09-01T00:00:00.000Z',
+      updated_at: '2026-09-02T00:00:00.000Z',
+      metadata: {},
+    }] });
+
+  const response = await request(createAdminApp()).get('/agreements.csv?partnerId=41&status=active');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toMatch(/text\/csv/);
+  expect(response.headers['content-disposition']).toMatch(/oxsteed-credit-agreements-/);
+  expect(response.text).toContain('Allowed order types');
+  expect(response.text).toContain('"\'=Cafe"');
+  expect(response.text).toContain('"\'+approved terms"');
+  expect(mockQuery.mock.calls[0][1]).toEqual([41, 'active']);
+  expect(mockQuery.mock.calls[1][1]).toEqual([41, 'active', 251, 0]);
 });
 
 test('exports customer Credit wallets with active filters and formula-safe values', async () => {

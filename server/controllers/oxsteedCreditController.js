@@ -827,6 +827,67 @@ async function listAdminAgreements(req, res, next) {
   }
 }
 
+async function downloadAdminAgreements(req, res, next) {
+  try {
+    const options = {
+      partnerId: req.query.partnerId || req.query.partner_id,
+      status: req.query.status,
+      limit: 250,
+      offset: 0,
+      includePagination: true,
+    };
+    const agreements = [];
+    let page = await listAgreements(options);
+    agreements.push(...page.agreements);
+    while (page.pagination.hasMore && agreements.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listAgreements({ ...options, offset: page.pagination.nextOffset || agreements.length });
+      agreements.push(...page.agreements);
+    }
+    if (page.pagination.hasMore) {
+      throw new AppError('Credit agreement export is too large; narrow the filters first', 409, 'credit_agreement_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Agreement ID', 'Partner ID', 'Restaurant ID', 'Restaurant', 'Version', 'Status', 'Settlement currency', 'Starts at', 'Ends at', 'Customer terms', 'Allowed order types', 'Allowed categories', 'Allowed menu item IDs', 'Geography', 'Max transaction (cents)', 'Daily customer limit (cents)', 'Lifetime customer limit (cents)', 'Customer entitlement required', 'Approved by', 'Created by', 'Created at', 'Updated at', 'Metadata'];
+    const lines = [headers.map(csvCell).join(',')];
+    agreements.forEach((agreement) => {
+      lines.push([
+        agreement.id,
+        agreement.partnerId,
+        agreement.restaurantId,
+        agreement.restaurantName,
+        agreement.version,
+        agreement.status,
+        agreement.settlementCurrencyCode,
+        agreement.startsAt,
+        agreement.endsAt,
+        agreement.customerTerms,
+        JSON.stringify(agreement.allowedOrderTypes || []),
+        JSON.stringify(agreement.allowedCategories || []),
+        JSON.stringify(agreement.allowedMenuItemIds || []),
+        JSON.stringify(agreement.geography || {}),
+        agreement.maxTransactionCents,
+        agreement.dailyCustomerLimitCents,
+        agreement.lifetimeCustomerLimitCents,
+        agreement.requiresCustomerEntitlement,
+        agreement.approvedBy,
+        agreement.createdBy,
+        agreement.createdAt,
+        agreement.updatedAt,
+        JSON.stringify(agreement.metadata || {}),
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-agreements-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function registerAdminPartner(req, res, next) {
   try {
     const result = await registerPartner({
@@ -1313,6 +1374,7 @@ module.exports = {
   downloadAdminTransactions,
   getAdminTransaction,
   listAdminAgreements,
+  downloadAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,
   createAdminAgreement,
