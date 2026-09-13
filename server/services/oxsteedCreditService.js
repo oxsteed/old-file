@@ -2351,7 +2351,8 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
 
 function csvCell(value) {
   const normalized = value === null || value === undefined ? '' : String(value);
-  return `"${normalized.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 function customerCreditStatementCsv(statement) {

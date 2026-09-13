@@ -1375,7 +1375,7 @@ test('creates a quoted CSV statement without exposing ledger secrets', () => {
       postedAt: '2026-09-10T15:00:00.000Z',
       id: 'tx-1',
       transactionType: 'purchase',
-      description: 'Lunch, "special"',
+      description: '=HYPERLINK("https://example.com","special")',
       restaurantName: 'Ox Burger Lab',
       direction: 'debit',
       amountCents: 700,
@@ -1389,7 +1389,7 @@ test('creates a quoted CSV statement without exposing ledger secrets', () => {
   expect(csv).toContain('"Description","Restaurant"');
   expect(csv).toContain('"Order ID"');
   expect(csv).toContain('"123"');
-  expect(csv).toContain('"Lunch, ""special"""');
+  expect(csv).toContain('"\'=HYPERLINK(""https://example.com"",""special"")"');
   expect(csv).not.toContain('idempotency');
 });
 
