@@ -119,6 +119,8 @@ replacement agreement is created.
 ## Daily Operations
 
 - Review partner and agreement status, open disputes, pending settlements, and reconciliation results in the OxSteed Credit Super Admin workspace.
+- Review the Partner agreement health watch on the Credit overview. Resolve active partners without an active agreement before treating them as customer coverage, review agreements expiring within 30 days, and clear pending partner activations after commercial approval.
+- Every partner enrollment, agreement creation, settlement snapshot, entitlement update, rail change, and lifecycle transition requires an operator reason. Use a reason that identifies the approval, funding, contract, or incident record an auditor should follow.
 - Run `npm run verify:credit` after migrations, ledger incidents, or any database maintenance.
 - Confirm the hold-expiry worker is healthy. Expired active holds are non-blocking in the verifier but must not accumulate.
 - Confirm the Credit lifecycle-expiry worker is healthy. Agreements and customer entitlements whose validity window ends are marked `expired` under one distributed lock; the records and audit trail remain available for review.
