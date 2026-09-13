@@ -457,12 +457,12 @@ test('serializes the global outstanding issuance cap before a new load', async (
   const updatedCustomer = { ...customerAccount, balance_cents: '100', ledger_version: '1', last_entry_hash: 'hash-2' };
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [customerAccount] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [treasuryAccount] })
-    .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ total_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -484,6 +484,40 @@ test('serializes the global outstanding issuance cap before a new load', async (
   expect(mockQuery.mock.calls[7][0]).toContain('pg_advisory_xact_lock');
   expect(mockQuery.mock.calls[7][1]).toEqual(['oxsteed-credit:issuance-limit:USD']);
   expect(mockQuery.mock.calls[8][0]).toContain('SUM(balance_cents)');
+});
+
+test('replays a committed credit load while the rail is suspended', async () => {
+  const existing = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    transaction_type: 'load',
+    status: 'posted',
+    debit_account_id: 9001,
+    credit_account_id: 7001,
+    amount_cents: '100',
+    currency_code: 'USD',
+    partner_id: null,
+    agreement_id: null,
+    idempotency_key: 'load-replay-rail-off',
+    reference_type: 'admin_load',
+    reference_id: 'funding-1',
+    metadata: {},
+    customer_account_customer_id: CUSTOMER_ID,
+  };
+  mockQuery
+    .mockResolvedValueOnce({ rows: [existing] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await service.loadCustomerCredit({
+    customerId: CUSTOMER_ID,
+    amountCents: 100,
+    idempotencyKey: existing.idempotency_key,
+    referenceId: existing.reference_id,
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.transaction).toMatchObject({ id: existing.id, amountCents: 100, replayed: true });
+  expect(mockQuery.mock.calls[0][0]).toContain('customer_account.customer_id');
+  expect(mockQuery.mock.calls[1][0]).toContain('oxsteed_credit_transaction_entries');
 });
 
 test('applies the global issuance cap to positive administrative adjustments', async () => {

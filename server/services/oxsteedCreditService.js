@@ -438,7 +438,7 @@ async function postJournalTransaction(client, input) {
     reference_type: normalizeString(input.referenceType, 80),
     reference_id: normalizeString(input.referenceId, 160),
   };
-  const existing = await getExistingTransaction(client, idempotencyKey);
+  const existing = input.existingTransaction || await getExistingTransaction(client, idempotencyKey);
   if (existing) {
     assertIdempotencyReplayMatches(existing, { ...requested, ...Object.fromEntries(Object.entries(requested).map(([key, value]) => [key, value])) });
     return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
@@ -812,11 +812,41 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    const { rows: existingRows } = await client.query(
+      `SELECT t.*, customer_account.customer_id AS customer_account_customer_id
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts customer_account ON customer_account.id = t.credit_account_id
+        WHERE t.idempotency_key = $1
+        FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    const existing = existingRows[0];
+    if (existing) {
+      if (String(existing.customer_account_customer_id) !== String(customerId)) {
+        throw new AppError('Credit idempotency key was already used for a different transaction', 409, 'credit_idempotency_conflict');
+      }
+      return postJournalTransaction(client, {
+        transactionType: 'load',
+        debitAccountId: existing.debit_account_id,
+        creditAccountId: existing.credit_account_id,
+        customerId,
+        amountCents: amount,
+        currencyCode: currency,
+        idempotencyKey: normalizedIdempotencyKey,
+        actorType: 'admin',
+        actorUserId,
+        reason,
+        referenceType,
+        referenceId,
+        correlationId,
+        metadata,
+        existingTransaction: existing,
+      });
+    }
     await assertCreditRailEnabled(client);
     const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
-    const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
-    if (!existing) await assertIssuanceCapacity(client, amount, currency);
+    await assertIssuanceCapacity(client, amount, currency);
     return postJournalTransaction(client, {
       transactionType: 'load',
       debitAccountId: treasuryAccount.id,
