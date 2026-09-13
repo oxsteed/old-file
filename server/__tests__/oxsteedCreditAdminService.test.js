@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, getAdminCreditTransaction, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -149,6 +149,101 @@ test('lists platform Credit transactions with safe filters and pagination', asyn
   expect(mockQuery.mock.calls[0][0]).toContain('t.status = $3');
   expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $4');
   expect(mockQuery.mock.calls[0][1]).toEqual([41, 'purchase', 'posted', 'USD', 2, 2]);
+});
+
+test('loads a complete admin Credit transaction with journal and audit context', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'transaction-1',
+      transaction_type: 'purchase',
+      status: 'posted',
+      amount_cents: '2500',
+      currency_code: 'USD',
+      partner_id: 41,
+      agreement_id: 'agreement-1',
+      reference_type: 'food_order',
+      reference_id: '9001',
+      idempotency_key: 'purchase-9001',
+      correlation_id: 'request-1',
+      description: 'Restaurant order',
+      actor_type: 'customer',
+      actor_user_id: '11111111-1111-4111-8111-111111111111',
+      metadata: { source: 'checkout' },
+      posted_at: '2026-09-12T12:00:00.000Z',
+      reversed_at: null,
+      created_at: '2026-09-12T12:00:00.000Z',
+      updated_at: '2026-09-12T12:00:00.000Z',
+      debit_account_id: 7001,
+      debit_account_type: 'customer_wallet',
+      debit_customer_id: '11111111-1111-4111-8111-111111111111',
+      debit_partner_id: null,
+      debit_customer_email: 'alice@example.com',
+      credit_account_id: 8001,
+      credit_account_type: 'partner_payable',
+      credit_customer_id: null,
+      credit_partner_id: 41,
+      credit_customer_email: null,
+      restaurant_name: 'OxSteed Cafe',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 91,
+      account_id: 7001,
+      entry_side: 'debit',
+      amount_cents: '2500',
+      balance_after_cents: '10000',
+      sequence: '8',
+      previous_entry_hash: 'hash-7',
+      entry_hash: 'hash-8',
+      metadata: {},
+      created_at: '2026-09-12T12:00:00.000Z',
+      account_type: 'customer_wallet',
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      partner_id: null,
+    }, {
+      id: 92,
+      account_id: 8001,
+      entry_side: 'credit',
+      amount_cents: '2500',
+      balance_after_cents: '2500',
+      sequence: '3',
+      previous_entry_hash: null,
+      entry_hash: 'hash-9',
+      metadata: {},
+      created_at: '2026-09-12T12:00:00.000Z',
+      account_type: 'partner_payable',
+      customer_id: null,
+      partner_id: 41,
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 300,
+      action_type: 'credit.purchase.posted',
+      actor_user_id: null,
+      customer_id: '11111111-1111-4111-8111-111111111111',
+      partner_id: 41,
+      resource_type: 'credit_transaction',
+      resource_id: 'transaction-1',
+      reason: 'Food order captured',
+      correlation_id: 'request-1',
+      before_state: null,
+      after_state: { status: 'posted' },
+      metadata: {},
+      created_at: '2026-09-12T12:00:01.000Z',
+    }] });
+
+  const result = await getAdminCreditTransaction('transaction-1');
+
+  expect(result.transaction).toMatchObject({
+    id: 'transaction-1',
+    orderId: '9001',
+    restaurantName: 'OxSteed Cafe',
+    idempotencyKey: 'purchase-9001',
+    debitAccount: { accountId: '7001', accountType: 'customer_wallet', customerEmail: 'alice@example.com' },
+    creditAccount: { accountId: '8001', accountType: 'partner_payable', partnerId: '41' },
+  });
+  expect(result.transaction.entries).toHaveLength(2);
+  expect(result.transaction.auditEvents[0]).toMatchObject({ actionType: 'credit.purchase.posted', resourceId: 'transaction-1' });
+  expect(mockQuery.mock.calls[1][1]).toEqual(['transaction-1']);
+  expect(mockQuery.mock.calls[2][1]).toEqual(['credit_transaction', 'transaction-1', 100, 0]);
 });
 
 test('loads a customer Credit profile with multi-restaurant access and ledger context', async () => {

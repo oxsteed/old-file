@@ -45,6 +45,7 @@ function createAdminApp() {
   app.get('/overview', controller.getAdminOverview);
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/transactions', controller.listAdminTransactions);
+  app.get('/transactions/:transactionId', controller.getAdminTransaction);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);

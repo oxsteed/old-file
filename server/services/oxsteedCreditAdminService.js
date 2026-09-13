@@ -221,7 +221,7 @@ function formatCreditAuditEvent(row) {
   };
 }
 
-async function listCreditAuditEvents({ actionType, resourceType, customerId, partnerId, limit = 100, offset = 0, includePagination = false } = {}) {
+async function listCreditAuditEvents({ actionType, resourceType, resourceId, customerId, partnerId, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   const normalizedAction = normalizeString(actionType, 80);
@@ -233,6 +233,11 @@ async function listCreditAuditEvents({ actionType, resourceType, customerId, par
   if (normalizedResource) {
     params.push(normalizedResource);
     filters.push(`resource_type = $${params.length}`);
+  }
+  const normalizedResourceId = normalizeString(resourceId, 160);
+  if (normalizedResourceId) {
+    params.push(normalizedResourceId);
+    filters.push(`resource_id = $${params.length}`);
   }
   if (customerId) {
     params.push(customerId);
@@ -274,6 +279,91 @@ async function listCreditAuditEvents({ actionType, resourceType, customerId, par
   };
 }
 
+function formatAdminCreditAccountReference(row, prefix) {
+  const accountId = row[`${prefix}_account_id`];
+  return {
+    accountId: accountId === null || accountId === undefined ? null : String(accountId),
+    accountType: row[`${prefix}_account_type`] || null,
+    customerId: row[`${prefix}_customer_id`] || null,
+    customerEmail: row[`${prefix}_customer_email`] || null,
+    partnerId: row[`${prefix}_partner_id`] === null || row[`${prefix}_partner_id`] === undefined ? null : String(row[`${prefix}_partner_id`]),
+  };
+}
+
+function formatAdminCreditEntry(row) {
+  return {
+    id: String(row.id),
+    accountId: String(row.account_id),
+    accountType: row.account_type || null,
+    customerId: row.customer_id || null,
+    partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
+    side: row.entry_side,
+    amountCents: Number(row.amount_cents || 0),
+    balanceAfterCents: Number(row.balance_after_cents || 0),
+    sequence: Number(row.sequence || 0),
+    previousEntryHash: row.previous_entry_hash || null,
+    entryHash: row.entry_hash || null,
+    metadata: row.metadata || {},
+    createdAt: row.created_at || null,
+  };
+}
+
+async function getAdminCreditTransaction(transactionId) {
+  const { rows } = await pool.query(
+    `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
+            t.partner_id, t.agreement_id, t.reference_type, t.reference_id,
+            t.idempotency_key, t.correlation_id, t.description, t.actor_type,
+            t.actor_user_id, t.metadata, t.posted_at, t.reversed_at,
+            t.created_at, t.updated_at,
+            da.id AS debit_account_id, da.account_type AS debit_account_type,
+            da.customer_id AS debit_customer_id, da.partner_id AS debit_partner_id,
+            dcu.email AS debit_customer_email,
+            ca.id AS credit_account_id, ca.account_type AS credit_account_type,
+            ca.customer_id AS credit_customer_id, ca.partner_id AS credit_partner_id,
+            ccu.email AS credit_customer_email,
+            fr.display_name AS restaurant_name
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts da ON da.id = t.debit_account_id
+       JOIN oxsteed_credit_accounts ca ON ca.id = t.credit_account_id
+       LEFT JOIN users dcu ON dcu.id = da.customer_id
+       LEFT JOIN users ccu ON ccu.id = ca.customer_id
+       LEFT JOIN oxsteed_credit_partners p ON p.id = t.partner_id
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+      WHERE t.id = $1
+      LIMIT 1`,
+    [transactionId]
+  );
+  if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+  const [entryResult, auditEvents] = await Promise.all([
+    pool.query(
+      `SELECT e.id, e.account_id, e.entry_side, e.amount_cents,
+              e.balance_after_cents, e.sequence, e.previous_entry_hash,
+              e.entry_hash, e.metadata, e.created_at,
+              a.account_type, a.customer_id, a.partner_id
+         FROM oxsteed_credit_transaction_entries e
+         JOIN oxsteed_credit_accounts a ON a.id = e.account_id
+        WHERE e.transaction_id = $1
+        ORDER BY e.id ASC`,
+      [transactionId]
+    ),
+    listCreditAuditEvents({ resourceType: 'credit_transaction', resourceId: transactionId, limit: 100, offset: 0 }),
+  ]);
+  const row = rows[0];
+  return {
+    transaction: {
+      ...formatAdminCreditTransaction(row),
+      idempotencyKey: row.idempotency_key || null,
+      correlationId: row.correlation_id || null,
+      reversedAt: row.reversed_at || null,
+      updatedAt: row.updated_at || null,
+      debitAccount: formatAdminCreditAccountReference(row, 'debit'),
+      creditAccount: formatAdminCreditAccountReference(row, 'credit'),
+      entries: entryResult.rows.map(formatAdminCreditEntry),
+      auditEvents,
+    },
+  };
+}
+
 function formatCustomerCreditAccount(row) {
   return {
     accountId: String(row.account_id),
@@ -307,6 +397,8 @@ function formatAdminCreditTransaction(row) {
     amountCents: Number(row.amount_cents || 0),
     currencyCode: row.currency_code,
     direction: row.direction || null,
+    debitCustomerId: row.debit_customer_id || null,
+    creditCustomerId: row.credit_customer_id || null,
     partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
     restaurantName: row.restaurant_name || null,
     agreementId: row.agreement_id || null,
@@ -1289,6 +1381,7 @@ module.exports = {
   listAdminCustomerCreditAccounts,
   getAdminCustomerCreditAccount,
   listAdminCreditTransactions,
+  getAdminCreditTransaction,
   registerPartner,
   transitionPartner,
   listAgreements,

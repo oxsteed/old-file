@@ -35,6 +35,7 @@ const {
   listAdminCustomerCreditAccounts,
   getAdminCustomerCreditAccount,
   listAdminCreditTransactions,
+  getAdminCreditTransaction,
   registerPartner,
   transitionPartner,
   listAgreements,
@@ -560,6 +561,15 @@ async function listAdminTransactions(req, res, next) {
   }
 }
 
+async function getAdminTransaction(req, res, next) {
+  try {
+    const transactionId = parseUuid(req.params.transactionId, 'transactionId');
+    res.json(await getAdminCreditTransaction(transactionId));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminAgreements(req, res, next) {
   try {
     const agreements = await listAgreements({
@@ -800,6 +810,7 @@ module.exports = {
   listAdminCustomerAccounts,
   getAdminCustomerAccount,
   listAdminTransactions,
+  getAdminTransaction,
   listAdminAgreements,
   registerAdminPartner,
   transitionAdminPartner,
