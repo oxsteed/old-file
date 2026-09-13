@@ -291,6 +291,7 @@ router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, oxsteedC
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
 router.get('/super/oxsteed-credit/settlements.csv', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminSettlements);
 router.get('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditReconciliationRuns);
+router.get('/super/oxsteed-credit/reconciliation.csv', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminCreditReconciliationRuns);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);

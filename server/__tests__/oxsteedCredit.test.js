@@ -48,6 +48,7 @@ function createAdminApp() {
   app.get('/settlements', controller.listAdminSettlements);
   app.get('/settlements.csv', controller.downloadAdminSettlements);
   app.get('/reconciliation', controller.listAdminCreditReconciliationRuns);
+  app.get('/reconciliation.csv', controller.downloadAdminCreditReconciliationRuns);
   app.get('/transactions', controller.listAdminTransactions);
   app.get('/transactions.csv', controller.downloadAdminTransactions);
   app.get('/transactions/:transactionId', controller.getAdminTransaction);
@@ -247,6 +248,37 @@ test('returns paginated Credit reconciliation history for admins', async () => {
   expect(response.body.runs[0]).toMatchObject({ id: 'run-1', status: 'balanced', differenceCents: 0 });
   expect(response.body.pagination).toEqual({ limit: 10, offset: 20, hasMore: false, nextOffset: null });
   expect(mockQuery.mock.calls[0][1]).toEqual(['USD', 'balanced', 11, 20]);
+});
+
+test('exports filtered, formula-safe Credit reconciliation evidence', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'run-2',
+    currency_code: 'USD',
+    period_start: '2026-09-03T00:00:00.000Z',
+    period_end: '2026-09-04T00:00:00.000Z',
+    status: 'failed',
+    account_balance_cents: '3000',
+    journal_balance_cents: '2999',
+    difference_cents: '1',
+    account_count: 3,
+    entry_count: 6,
+    error_message: '=CMD("unsafe")',
+    completed_by: ADMIN_ID,
+    started_at: '2026-09-04T01:00:00.000Z',
+    completed_at: '2026-09-04T01:00:02.000Z',
+    metadata: { scope: 'all_time_ledger' },
+  }] });
+
+  const response = await request(createAdminApp()).get('/reconciliation.csv?currencyCode=USD&status=failed');
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toContain('text/csv');
+  expect(response.headers['content-disposition']).toContain('oxsteed-credit-reconciliation-');
+  expect(response.text).toContain("'=CMD(\"\"unsafe\"\")");
+  expect(response.text).toContain('all_time_ledger');
+  expect(mockQuery.mock.calls[0][0]).toContain('currency_code = $1');
+  expect(mockQuery.mock.calls[0][0]).toContain('status = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['USD', 'failed', 251, 0]);
 });
 
 test('returns paginated admin Credit transactions with movement filters', async () => {

@@ -1213,6 +1213,58 @@ async function listAdminCreditReconciliationRuns(req, res, next) {
   }
 }
 
+async function downloadAdminCreditReconciliationRuns(req, res, next) {
+  try {
+    const options = {
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+      status: req.query.status,
+      limit: 250,
+      offset: 0,
+    };
+    const runs = [];
+    let page = await listReconciliationRuns(options);
+    runs.push(...page.runs);
+    while (page.pagination.hasMore && runs.length < MAX_ADMIN_CREDIT_EXPORT_ROWS) {
+      page = await listReconciliationRuns({ ...options, offset: page.pagination.nextOffset || runs.length });
+      runs.push(...page.runs);
+    }
+    if (page.pagination.hasMore) {
+      throw new AppError('Credit reconciliation export is too large; narrow the filters first', 409, 'credit_reconciliation_export_too_large', {
+        maxRows: MAX_ADMIN_CREDIT_EXPORT_ROWS,
+      });
+    }
+    const headers = ['Run ID', 'Currency', 'Period start', 'Period end', 'Status', 'Account balance (cents)', 'Journal balance (cents)', 'Difference (cents)', 'Account count', 'Entry count', 'Error', 'Completed by', 'Started at', 'Completed at', 'Scope'];
+    const lines = [headers.map(csvCell).join(',')];
+    runs.forEach((run) => {
+      lines.push([
+        run.id,
+        run.currencyCode,
+        run.periodStart,
+        run.periodEnd,
+        run.status,
+        run.accountBalanceCents,
+        run.journalBalanceCents,
+        run.differenceCents,
+        run.accountCount,
+        run.entryCount,
+        run.errorMessage,
+        run.completedBy,
+        run.startedAt,
+        run.completedAt,
+        run.metadata?.scope || null,
+      ].map(csvCell).join(','));
+    });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="oxsteed-credit-reconciliation-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getMyAccount,
   getMyAccounts,
@@ -1260,4 +1312,5 @@ module.exports = {
   transitionAdminSettlement,
   reconcileAdminCredit,
   listAdminCreditReconciliationRuns,
+  downloadAdminCreditReconciliationRuns,
 };
