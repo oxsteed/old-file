@@ -281,6 +281,12 @@ function formatCustomerCreditAccount(row) {
 }
 
 function formatAdminCreditTransaction(row) {
+  const referenceType = row.reference_type || null;
+  const referenceId = row.reference_id || null;
+  const orderId = ['food_order', 'food_order_refund'].includes(referenceType)
+    && /^\d+$/.test(String(referenceId || ''))
+    ? String(referenceId)
+    : null;
   return {
     id: String(row.id),
     transactionType: row.transaction_type,
@@ -291,8 +297,9 @@ function formatAdminCreditTransaction(row) {
     partnerId: row.partner_id === null || row.partner_id === undefined ? null : String(row.partner_id),
     restaurantName: row.restaurant_name || null,
     agreementId: row.agreement_id || null,
-    referenceType: row.reference_type || null,
-    referenceId: row.reference_id || null,
+    referenceType,
+    referenceId,
+    orderId,
     description: row.description || null,
     actorType: row.actor_type || null,
     actorUserId: row.actor_user_id || null,

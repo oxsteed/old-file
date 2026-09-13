@@ -80,6 +80,9 @@
 .ox-credit-transaction-list article strong { overflow: hidden; color: #10253f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .ox-credit-transaction-list article div span { overflow: hidden; color: #80909c; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .ox-credit-transaction-list article small { color: #a0abb2; font-size: 10px; }
+.ox-credit-transaction-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 2px; }
+.ox-credit-order-link { color: #15727a; font-size: 10px; font-weight: 850; text-decoration: none; }
+.ox-credit-order-link:hover { color: #0e5960; text-decoration: underline; }
 .ox-credit-dispute-button { width: fit-content; padding: 0; border: 0; color: #b65a0c; background: transparent; font-size: 10px; font-weight: 850; cursor: pointer; }
 .ox-credit-dispute-button:hover { color: #da6909; text-decoration: underline; }
 .ox-credit-dispute-form { display: grid; gap: 9px; margin: 15px 23px 20px; padding: 14px; border: 1px solid rgba(214,110,12,.24); border-radius: 15px; background: #fff9f0; }

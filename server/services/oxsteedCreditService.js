@@ -1551,6 +1551,12 @@ function formatCustomerCreditTransaction(row) {
   const partnerId = row.related_partner_id === null || row.related_partner_id === undefined
     ? null
     : String(row.related_partner_id);
+  const referenceType = row.reference_type || null;
+  const referenceId = row.reference_id || null;
+  const orderId = ['food_order', 'food_order_refund'].includes(referenceType)
+    && /^\d+$/.test(String(referenceId || ''))
+    ? String(referenceId)
+    : null;
   return {
     id: String(row.id),
     transactionType: row.transaction_type,
@@ -1562,8 +1568,9 @@ function formatCustomerCreditTransaction(row) {
     relatedPartnerId: partnerId,
     restaurantName: row.restaurant_name || null,
     description: row.description || null,
-    referenceType: row.reference_type || null,
-    referenceId: row.reference_id || null,
+    referenceType,
+    referenceId,
+    orderId,
     postedAt: row.posted_at || row.created_at || null,
     createdAt: row.created_at || null,
   };
@@ -1676,7 +1683,7 @@ function csvCell(value) {
 }
 
 function customerCreditStatementCsv(statement) {
-  const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Direction', 'Amount (cents)', 'Currency', 'Reference'];
+  const headers = ['Date', 'Transaction ID', 'Type', 'Description', 'Restaurant', 'Order ID', 'Direction', 'Amount (cents)', 'Currency', 'Reference'];
   const lines = [headers.map(csvCell).join(',')];
   for (const transaction of statement.transactions) {
     lines.push([
@@ -1685,6 +1692,7 @@ function customerCreditStatementCsv(statement) {
       transaction.transactionType,
       transaction.description,
       transaction.restaurantName,
+      transaction.orderId,
       transaction.direction,
       transaction.amountCents,
       transaction.currencyCode,

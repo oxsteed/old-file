@@ -135,7 +135,7 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
       agreement_id: 'agreement-1',
       restaurant_name: 'OxSteed Cafe',
       reference_type: 'food_order',
-      reference_id: 'order-1',
+      reference_id: '123',
       description: 'Lunch',
       actor_type: 'customer',
       actor_user_id: null,
@@ -209,7 +209,7 @@ test('loads a customer Credit profile with multi-restaurant access and ledger co
   });
 
   expect(result.account).toMatchObject({ accountId: '7001', customerId: '11111111-1111-4111-8111-111111111111', availableBalanceCents: 10000 });
-  expect(result.transactions[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', direction: 'debit', status: 'posted' });
+  expect(result.transactions[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', direction: 'debit', status: 'posted', orderId: '123' });
   expect(result.holds[0]).toMatchObject({ restaurantName: 'OxSteed Bistro', status: 'active', amountCents: 1000 });
   expect(result.entitlements[0]).toMatchObject({ restaurantName: 'OxSteed Cafe', status: 'active' });
   expect(result.auditEvents[0]).toMatchObject({ actionType: 'credit.entitlement.upserted', customerId: '11111111-1111-4111-8111-111111111111' });
