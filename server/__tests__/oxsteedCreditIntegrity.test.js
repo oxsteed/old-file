@@ -28,7 +28,8 @@ beforeEach(() => {
 test('verifies the complete posted journal and account heads under a distributed lock', async () => {
   pool.query
     .mockResolvedValueOnce({ rows: [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }] })
-    .mockResolvedValueOnce({ rows: [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }] });
+    .mockResolvedValueOnce({ rows: [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }] })
+    .mockResolvedValueOnce({ rows: [{ invalid_count: '0' }] });
   verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 0, invalidHashChains: 0, invalidAccountHashHeads: 0 });
 
   const result = await runOxsteedCreditIntegrity();
@@ -39,13 +40,15 @@ test('verifies the complete posted journal and account heads under a distributed
     [{ transaction_id: 'tx-1', account_id: 7, sequence: 1 }],
     [{ id: 7, ledger_version: 1, last_entry_hash: 'hash-1' }]
   );
+  expect(pool.query.mock.calls.some(([sql]) => /compute_oxsteed_credit_audit_event_hash/.test(sql))).toBe(true);
   expect(incidentStore.recordIncident).not.toHaveBeenCalled();
 });
 
 test('records a critical incident when the journal hash chain is invalid', async () => {
   pool.query
     .mockResolvedValueOnce({ rows: [{ transaction_id: 'tx-2', account_id: 8, sequence: 2 }] })
-    .mockResolvedValueOnce({ rows: [{ id: 8, ledger_version: 2, last_entry_hash: 'hash-2' }] });
+    .mockResolvedValueOnce({ rows: [{ id: 8, ledger_version: 2, last_entry_hash: 'hash-2' }] })
+    .mockResolvedValueOnce({ rows: [{ invalid_count: '0' }] });
   verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 1, invalidHashChains: 0, invalidAccountHashHeads: 1 });
 
   const result = await verifyCreditLedger();
@@ -56,6 +59,22 @@ test('records a critical incident when the journal hash chain is invalid', async
     severity: 'critical',
     dedupeKey: 'oxsteed-credit-integrity:hash-chain',
     details: expect.objectContaining({ postedEntryCount: 1, accountCount: 1 }),
+  }));
+});
+
+test('records a critical incident when the audit event hash chain is invalid', async () => {
+  pool.query
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ invalid_count: '1' }] });
+  verifyEntryHashes.mockReturnValueOnce({ invalidEntryHashes: 0, invalidHashChains: 0, invalidAccountHashHeads: 0 });
+
+  const result = await verifyCreditLedger();
+
+  expect(result).toMatchObject({ ok: false, verification: { invalidAuditHashEvents: 1 } });
+  expect(incidentStore.recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_integrity_failure',
+    severity: 'critical',
   }));
 });
 

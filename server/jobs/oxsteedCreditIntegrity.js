@@ -11,7 +11,7 @@ const CRON_EXPRESSION = '40 2 * * *';
 const CRON_TIMEZONE = 'UTC';
 
 async function verifyCreditLedger() {
-  const [{ rows: entries }, { rows: accounts }] = await Promise.all([
+  const [{ rows: entries }, { rows: accounts }, { rows: auditHashRows }] = await Promise.all([
     pool.query(
       `SELECT e.transaction_id, e.account_id, e.entry_side, e.amount_cents,
               e.balance_after_cents, e.sequence, e.previous_entry_hash,
@@ -22,9 +22,25 @@ async function verifyCreditLedger() {
         ORDER BY e.account_id, e.sequence, e.id`
     ),
     pool.query(`SELECT id, ledger_version, last_entry_hash FROM oxsteed_credit_accounts`),
+    pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM (
+           SELECT e.id,
+                  e.previous_event_hash,
+                  e.event_hash,
+                  LAG(e.event_hash) OVER (ORDER BY e.created_at ASC, e.id ASC) AS expected_previous_event_hash,
+                  compute_oxsteed_credit_audit_event_hash(e.previous_event_hash, e) AS expected_event_hash
+             FROM oxsteed_credit_audit_events e
+         ) chain
+        WHERE chain.previous_event_hash IS DISTINCT FROM chain.expected_previous_event_hash
+           OR chain.event_hash IS DISTINCT FROM chain.expected_event_hash`
+    ),
   ]);
 
-  const verification = verifyEntryHashes(entries, accounts);
+  const verification = {
+    ...verifyEntryHashes(entries, accounts),
+    invalidAuditHashEvents: Number(auditHashRows[0]?.invalid_count || 0),
+  };
   const invalidCount = Object.values(verification).reduce((sum, value) => sum + Number(value || 0), 0);
   if (invalidCount > 0) {
     const incident = await incidentStore.recordIncident({
