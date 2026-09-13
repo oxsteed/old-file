@@ -89,6 +89,18 @@ test('records one deduplicated incident when the notification backlog is stale',
   }));
 });
 
+test('does not alert for a scheduled future notification retry', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{ active_count: 0, oldest_active_at: null }] });
+
+  await expect(checkNotificationBacklog()).resolves.toMatchObject({
+    status: 'healthy',
+    activeCount: 0,
+    oldestActiveAt: null,
+    ageMinutes: 0,
+  });
+  expect(recordIncident).not.toHaveBeenCalled();
+});
+
 test('runs the watchdog under its distributed lock', async () => {
   for (const worker of WORKER_CONFIG) {
     db.query.mockResolvedValueOnce({ rows: [{
