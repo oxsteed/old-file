@@ -25,6 +25,7 @@ const {
   purchaseWithCreditInTransaction,
   refundCreditForReferenceInTransaction,
   formatCreditAmount,
+  getCustomerCreditEligibility,
 } = require('../services/oxsteedCreditService');
 const {
   recordWalletCreditPaymentForOrder,
@@ -2023,6 +2024,8 @@ exports.quoteOrder = async (req, res, next) => {
         modifier_total_cents: modifierTotalCents,
         lineTotalCents,
         line_total_cents: lineTotalCents,
+        category: menuItem.category_name || null,
+        category_name: menuItem.category_name || null,
         modifiers: modifiers.map((modifier) => ({
           id: modifier.id,
           name: modifier.name,
@@ -2089,7 +2092,28 @@ exports.quoteOrder = async (req, res, next) => {
     const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
     const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
-    if (req.user?.id) supportedPaymentModes.push('oxsteed_credit');
+    let oxsteedCreditEligibility = null;
+    if (req.user?.id) {
+      try {
+        oxsteedCreditEligibility = await getCustomerCreditEligibility({
+          customerId: req.user.id,
+          restaurantId,
+          amountCents: totalCents,
+          currencyCode: restaurant.currency_code,
+          orderType: fulfillmentType,
+          categories: lineItems.map((item) => item.category_name).filter(Boolean),
+          menuItemIds: lineItems.map((item) => item.menuItemId),
+        });
+        if (oxsteedCreditEligibility.eligible) supportedPaymentModes.push('oxsteed_credit');
+      } catch (error) {
+        logger.warn('OxSteed Credit quote eligibility check unavailable', {
+          restaurantId,
+          customerId: req.user.id,
+          code: error.code || null,
+          message: error.message,
+        });
+      }
+    }
     if (stripeStatus.readyForCheckout) supportedPaymentModes.push('pay_now');
 
     const quote = {
@@ -2109,6 +2133,7 @@ exports.quoteOrder = async (req, res, next) => {
         legacyMode: legacyPaymentMode,
         collection: paymentContract.canonical,
         supportedModes: supportedPaymentModes,
+        oxsteedCreditEligibility,
       },
       lineItems,
       line_items: lineItems,
@@ -2135,6 +2160,7 @@ exports.quoteOrder = async (req, res, next) => {
       discount,
       deliveryAddress,
       delivery_address: deliveryAddress,
+      oxsteedCreditEligibility,
     };
     res.json({
       quote,
