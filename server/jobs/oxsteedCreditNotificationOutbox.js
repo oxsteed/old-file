@@ -8,11 +8,12 @@ const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
+const { NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES } = require('../services/oxsteedCreditWorkerConfig');
 
 const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-notification-outbox';
 const MAX_ATTEMPTS = 8;
-const STALE_LOCK_MINUTES = 15;
+const STALE_LOCK_MINUTES = NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES;
 const DEFAULT_SENT_RETENTION_DAYS = 90;
 const MIN_SENT_RETENTION_DAYS = 30;
 const MAX_SENT_RETENTION_DAYS = 730;
