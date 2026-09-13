@@ -1320,6 +1320,7 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
       WHERE t.status = 'posted'
         AND a.account_type = 'customer_wallet' AND a.customer_id = $1
         AND a.currency_code = $4
+        AND t.currency_code = $4
       ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
     [customerId, pageSize, pageOffset, currency]
@@ -1380,6 +1381,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
            ON partner.id = CASE WHEN t.debit_account_id = ca.id THEN credit_account.partner_id ELSE debit_account.partner_id END
          LEFT JOIN food_restaurants fr ON fr.id = partner.restaurant_id
         WHERE t.status = 'posted'
+          AND t.currency_code = $6
           AND COALESCE(t.posted_at, t.created_at) >= $2::date
           AND COALESCE(t.posted_at, t.created_at) < ($3::date + INTERVAL '1 day')
      ), period_transactions AS (
@@ -1392,7 +1394,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
                 SELECT e.balance_after_cents
                   FROM oxsteed_credit_transaction_entries e
                   JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
-                 WHERE e.account_id = ca.id AND t.status = 'posted'
+                 WHERE e.account_id = ca.id AND t.status = 'posted' AND t.currency_code = $6
                    AND COALESCE(t.posted_at, t.created_at) < $2::date
                  ORDER BY COALESCE(t.posted_at, t.created_at) DESC, e.id DESC
                  LIMIT 1
@@ -1401,7 +1403,7 @@ async function getCustomerCreditStatement(customerId, { from, to, limit = 100, o
                 SELECT e.balance_after_cents
                   FROM oxsteed_credit_transaction_entries e
                   JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
-                 WHERE e.account_id = ca.id AND t.status = 'posted'
+                 WHERE e.account_id = ca.id AND t.status = 'posted' AND t.currency_code = $6
                    AND COALESCE(t.posted_at, t.created_at) < ($3::date + INTERVAL '1 day')
                  ORDER BY COALESCE(t.posted_at, t.created_at) DESC, e.id DESC
                  LIMIT 1
@@ -1489,6 +1491,7 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
       WHERE t.id = $1 AND t.status = 'posted'
         AND a.account_type = 'customer_wallet' AND a.customer_id = $2
         AND a.currency_code = $3
+        AND t.currency_code = $3
       LIMIT 1`,
     [transactionId, customerId, currency]
   );

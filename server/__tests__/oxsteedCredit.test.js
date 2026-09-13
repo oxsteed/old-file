@@ -312,6 +312,7 @@ test('returns a bounded customer statement with period totals and safe transacti
   }));
   expect(response.body.statement.transactions[0].idempotencyKey).toBeUndefined();
   expect(mockQuery.mock.calls[0][1]).toEqual([CUSTOMER_ID, '2026-09-01', '2026-09-12', 50, 0, 'USD']);
+  expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $6');
 });
 
 test('keeps legacy customer transaction reads free of ledger secrets', async () => {
@@ -354,6 +355,7 @@ test('keeps legacy customer transaction reads free of ledger secrets', async () 
   expect(mockQuery).toHaveBeenCalledTimes(1);
   expect(mockQuery.mock.calls[0][0]).not.toContain('SELECT t.*');
   expect(mockQuery.mock.calls[0][0]).toContain("t.status = 'posted'");
+  expect(mockQuery.mock.calls[0][0]).toContain('t.currency_code = $3');
 });
 
 test('rejects an invalid or oversized customer statement period before querying', async () => {
