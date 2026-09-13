@@ -497,7 +497,7 @@ async function listEntitlements({ customerId, agreementId, status, limit = 100, 
             fr.display_name AS restaurant_name,
             COUNT(*) OVER()::int AS total_count
        FROM oxsteed_credit_customer_entitlements e
-       JOIN users u ON u.id = e.customer_id
+       JOIN users u ON u.id = e.customer_id AND u.role = 'customer'
        JOIN oxsteed_credit_partner_agreements a ON a.id = e.agreement_id
        JOIN oxsteed_credit_partners p ON p.id = a.partner_id
        JOIN food_restaurants fr ON fr.id = p.restaurant_id

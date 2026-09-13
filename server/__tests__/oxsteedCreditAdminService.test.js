@@ -99,6 +99,7 @@ test('lists customer entitlements with restaurant context and bounded paging', a
     maxTransactionCents: 2500,
   });
   expect(mockQuery.mock.calls[0][0]).toContain('JOIN food_restaurants fr');
+  expect(mockQuery.mock.calls[0][0]).toContain("u.role = 'customer'");
   expect(mockQuery.mock.calls[0][0]).toContain('e.customer_id = $1');
   expect(mockQuery.mock.calls[0][0]).toContain('e.status = $2');
   expect(mockQuery.mock.calls[0][1]).toEqual(['11111111-1111-4111-8111-111111111111', 'active', 10, 20]);
