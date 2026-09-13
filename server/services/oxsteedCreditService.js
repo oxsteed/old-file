@@ -801,17 +801,17 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
   const allowedOrderTypes = normalizeList(agreement.allowed_order_types);
   const allowedCategories = normalizeList(agreement.allowed_categories);
   const allowedMenuItems = (agreement.allowed_menu_item_ids || []).map((value) => String(value));
-  if (normalizedOrderType && allowedOrderTypes.length && !allowedOrderTypes.includes(normalizedOrderType)) {
+  if (allowedOrderTypes.length && (!normalizedOrderType || !allowedOrderTypes.includes(normalizedOrderType))) {
     throw new AppError('This order type is not covered by the OxSteed Credit agreement', 403, 'credit_order_type_not_eligible');
   }
   const requestedCategories = (Array.isArray(categories) && categories.length ? categories : [category])
     .filter(Boolean)
     .map((value) => String(value).trim().toLowerCase());
-  if (allowedCategories.length && requestedCategories.some((value) => !allowedCategories.includes(value))) {
+  if (allowedCategories.length && (!requestedCategories.length || requestedCategories.some((value) => !allowedCategories.includes(value)))) {
     throw new AppError('This menu category is not covered by the OxSteed Credit agreement', 403, 'credit_category_not_eligible');
   }
   const requestedMenuItems = (Array.isArray(menuItemIds) && menuItemIds.length ? menuItemIds : [menuItemId]).filter(Boolean).map(String);
-  if (allowedMenuItems.length && requestedMenuItems.some((itemId) => !allowedMenuItems.includes(itemId))) {
+  if (allowedMenuItems.length && (!requestedMenuItems.length || requestedMenuItems.some((itemId) => !allowedMenuItems.includes(itemId)))) {
     throw new AppError('This menu item is not covered by the OxSteed Credit agreement', 403, 'credit_menu_item_not_eligible');
   }
   if (!matchesGeography(agreement.geography, { city, state, postalCode, country })) {

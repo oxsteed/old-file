@@ -1696,6 +1696,52 @@ test('can exclude the hold being captured from agreement usage totals', async ()
   expect(mockQuery.mock.calls[1][1]).toEqual([41, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
 });
 
+test('fails closed when a scoped agreement is missing request context', async () => {
+  const agreement = {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    partner_id: 41,
+    status: 'active',
+    starts_at: '2026-09-01T00:00:00.000Z',
+    ends_at: null,
+    allowed_order_types: ['pickup'],
+    allowed_categories: ['food'],
+    allowed_menu_item_ids: [7],
+    geography: {},
+    settlement_currency_code: 'USD',
+    entitlement_id: null,
+    entitlement_status: null,
+  };
+
+  mockQuery.mockResolvedValueOnce({ rows: [agreement] });
+  await expect(service.findSpendAgreement({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    category: 'food',
+    menuItemId: 7,
+    amountCents: 100,
+  })).rejects.toMatchObject({ code: 'credit_order_type_not_eligible' });
+
+  resetMocks();
+  mockQuery.mockResolvedValueOnce({ rows: [agreement] });
+  await expect(service.findSpendAgreement({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    orderType: 'pickup',
+    menuItemId: 7,
+    amountCents: 100,
+  })).rejects.toMatchObject({ code: 'credit_category_not_eligible' });
+
+  resetMocks();
+  mockQuery.mockResolvedValueOnce({ rows: [agreement] });
+  await expect(service.findSpendAgreement({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    orderType: 'pickup',
+    category: 'food',
+    amountCents: 100,
+  })).rejects.toMatchObject({ code: 'credit_menu_item_not_eligible' });
+});
+
 test('passes the requested agreement through purchase authorization', async () => {
   const agreementId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   const customerAccount = { id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '1000', reserved_cents: '0', status: 'active', ledger_version: '0', last_entry_hash: null };
