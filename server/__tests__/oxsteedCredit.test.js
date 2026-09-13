@@ -646,6 +646,46 @@ test('can exclude the hold being captured from agreement usage totals', async ()
   expect(mockQuery.mock.calls[1][1]).toEqual([41, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
 });
 
+test('passes the requested agreement through purchase authorization', async () => {
+  const agreementId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const customerAccount = { id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '1000', reserved_cents: '0', status: 'active', ledger_version: '0', last_entry_hash: null };
+  const partnerAccount = { id: 8001, account_type: 'partner_payable', customer_id: null, partner_id: 41, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active', ledger_version: '0', last_entry_hash: null };
+  const transaction = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', transaction_type: 'purchase', status: 'posted', debit_account_id: 7001, credit_account_id: 8001, amount_cents: '100', currency_code: 'USD', partner_id: 41, agreement_id: agreementId, idempotency_key: 'purchase-agreement-1', reference_type: 'food_order', reference_id: 'order-1', metadata: {}, posted_at: '2026-09-12T12:00:00.000Z' };
+  const entry = { id: 1, account_id: 7001, entry_side: 'debit', amount_cents: '100', balance_after_cents: '900', sequence: 1, previous_entry_hash: null, entry_hash: 'hash-1' };
+
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', entitlement_id: null, entitlement_status: null }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [customerAccount] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [partnerAccount] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [customerAccount, partnerAccount] })
+    .mockResolvedValueOnce({ rows: [transaction] })
+    .mockResolvedValueOnce({ rows: [{ ...customerAccount, balance_cents: '900', ledger_version: '1', last_entry_hash: 'hash-1' }] })
+    .mockResolvedValueOnce({ rows: [entry] })
+    .mockResolvedValueOnce({ rows: [{ ...partnerAccount, balance_cents: '100', ledger_version: '1', last_entry_hash: 'hash-2' }] })
+    .mockResolvedValueOnce({ rows: [{ ...entry, id: 2, account_id: 8001, entry_side: 'credit', balance_after_cents: '100', entry_hash: 'hash-2' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  await service.purchaseWithCreditInTransaction({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    agreementId,
+    amountCents: 100,
+    currencyCode: 'USD',
+    idempotencyKey: 'purchase-agreement-1',
+    referenceType: 'food_order',
+    referenceId: 'order-1',
+  });
+
+  expect(mockQuery.mock.calls[3][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
+  expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
+});
+
 test('does not create a new hold for a suspended credit account', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
