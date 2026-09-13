@@ -50,6 +50,25 @@ test('records one deduplicated incident when the notification worker is stale', 
   }));
 });
 
+test('alerts when a worker reports a recent failed run', async () => {
+  db.query.mockResolvedValueOnce({ rows: [{
+    job_name: NOTIFICATION_WORKER_NAME,
+    last_run_at: '2026-09-13T12:00:00.000Z',
+    last_success_at: '2026-09-13T11:59:00.000Z',
+    last_error: 'provider unavailable',
+    run_count: 4,
+    consecutive_failures: 1,
+    stale: false,
+  }] });
+
+  await expect(checkNotificationWorker()).resolves.toMatchObject({ status: 'failed' });
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_worker_failed',
+    severity: 'critical',
+    dedupeKey: `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:failed`,
+  }));
+});
+
 test('runs the watchdog under its distributed lock', async () => {
   for (const worker of WORKER_CONFIG) {
     db.query.mockResolvedValueOnce({ rows: [{

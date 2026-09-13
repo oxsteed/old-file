@@ -54,6 +54,23 @@ async function checkWorker({ jobName, label, staleAfterMinutes }) {
     });
     return { status: 'stale', heartbeat, incident };
   }
+  if (heartbeat.last_error || Number(heartbeat.consecutive_failures || 0) > 0) {
+    const incident = await incidentStore.recordIncident({
+      type: 'oxsteed_credit_worker_failed',
+      severity: 'critical',
+      message: `OxSteed Credit ${label} reported a failure`,
+      dedupeKey: `oxsteed-credit-worker:${jobName}:failed`,
+      details: {
+        jobName,
+        lastRunAt: heartbeat.last_run_at,
+        lastSuccessAt: heartbeat.last_success_at,
+        lastError: heartbeat.last_error,
+        consecutiveFailures: Number(heartbeat.consecutive_failures || 0),
+        staleAfterMinutes,
+      },
+    });
+    return { status: 'failed', heartbeat, incident };
+  }
   return { status: 'healthy', heartbeat };
 }
 
@@ -76,6 +93,8 @@ async function runOxsteedCreditWorkerWatchdog() {
       const incidents = workers.flatMap((worker) => worker.incident ? [worker.incident] : []);
       const status = workers.some((worker) => worker.status === 'stale')
         ? 'stale'
+        : workers.some((worker) => worker.status === 'failed')
+          ? 'failed'
         : workers.some((worker) => worker.status === 'awaiting_first_run')
           ? 'awaiting_first_run'
           : 'healthy';
