@@ -836,12 +836,12 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
   }, 'credit_load_customer');
 }
 
-async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
+async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
-  const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount });
+  const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount, excludeHoldId });
   const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
   if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
     throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');

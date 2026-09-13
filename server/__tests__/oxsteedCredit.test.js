@@ -657,7 +657,8 @@ test('passes the requested agreement through purchase authorization', async () =
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', entitlement_id: null, entitlement_status: null }] })
+    .mockResolvedValueOnce({ rows: [{ id: agreementId, partner_id: 41, status: 'active', starts_at: '2026-09-01T00:00:00.000Z', ends_at: null, allowed_order_types: [], allowed_categories: [], allowed_menu_item_ids: [], geography: {}, settlement_currency_code: 'USD', restaurant_currency_code: 'USD', daily_customer_limit_cents: '10000', entitlement_id: null, entitlement_status: null }] })
+    .mockResolvedValueOnce({ rows: [{ daily_cents: '0', lifetime_cents: '0' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [customerAccount] })
     .mockResolvedValueOnce({ rows: [] })
@@ -675,6 +676,7 @@ test('passes the requested agreement through purchase authorization', async () =
     customerId: CUSTOMER_ID,
     partnerId: 41,
     agreementId,
+    excludeHoldId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     amountCents: 100,
     currencyCode: 'USD',
     idempotencyKey: 'purchase-agreement-1',
@@ -684,6 +686,7 @@ test('passes the requested agreement through purchase authorization', async () =
 
   expect(mockQuery.mock.calls[3][0]).toContain('AND ($3::uuid IS NULL OR a.id = $3::uuid)');
   expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, agreementId]);
+  expect(mockQuery.mock.calls[4][1]).toEqual([41, agreementId, CUSTOMER_ID, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
 });
 
 test('does not create a new hold for a suspended credit account', async () => {
