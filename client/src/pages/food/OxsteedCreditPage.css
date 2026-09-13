@@ -47,6 +47,16 @@
 .ox-credit-balance-grid strong { font-size: 18px; }
 .ox-credit-holds-panel { margin-top: 18px; }
 .ox-credit-authorize-panel { margin-top: 18px; }
+.ox-credit-release-panel { margin-top: 18px; }
+.ox-credit-release-list { border-top: 1px solid rgba(16,37,63,.08); }
+.ox-credit-release-list > div { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 23px; border-bottom: 1px solid rgba(16,37,63,.07); }
+.ox-credit-release-list > div:last-child { border-bottom: 0; }
+.ox-credit-release-list > div > div { display: grid; gap: 4px; min-width: 0; }
+.ox-credit-release-list strong { overflow: hidden; color: #10253f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-credit-release-list span { color: #80909c; font-size: 11px; }
+.ox-credit-release-list button { flex: 0 0 auto; min-height: 32px; padding: 0 11px; border: 1px solid rgba(182,90,12,.2); border-radius: 9px; color: #a6530c; background: #fff9f0; font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-release-list button:hover { border-color: rgba(182,90,12,.42); background: #fff0dd; }
+.ox-credit-release-list button:disabled { opacity: .55; cursor: wait; }
 .ox-credit-authorize-panel > .ox-credit-panel-heading > svg { flex: 0 0 auto; color: #14754d; }
 .ox-credit-authorize-form { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(110px, .7fr) minmax(110px, .65fr) minmax(0, 1fr) auto; gap: 10px; margin: 0 23px 17px; }
 .ox-credit-authorize-form label { display: grid; gap: 6px; color: #71808c; font-size: 11px; font-weight: 800; }
@@ -241,6 +251,7 @@
   .ox-credit-authorize-form { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
   .ox-credit-authorize-form > button { min-height: 42px; }
   .ox-credit-created-hold { margin-left: 16px; margin-right: 16px; }
+  .ox-credit-release-list > div { align-items: flex-start; padding-left: 16px; padding-right: 16px; }
   .ox-credit-panel-actions { width: 100%; justify-content: flex-start; }
   .ox-credit-statement-summary { margin-left: 16px; margin-right: 16px; }
   .ox-credit-limit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: 16px; margin-right: 16px; }
