@@ -705,6 +705,73 @@ test('rejects credit hold idempotency reuse for a different agreement or referen
   })).rejects.toMatchObject({ code: 'credit_hold_idempotency_conflict' });
 });
 
+test('replays a non-USD credit hold when the settlement currency matches', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-eur',
+      partner_id: 41,
+      status: 'active',
+      starts_at: '2026-09-01T00:00:00.000Z',
+      ends_at: null,
+      allowed_order_types: [],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      settlement_currency_code: 'EUR',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      entitlement_id: null,
+      entitlement_status: null,
+      entitlement_starts_at: null,
+      entitlement_ends_at: null,
+      entitlement_max_transaction_cents: null,
+      entitlement_daily_limit_cents: null,
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 7001,
+      account_type: 'customer_wallet',
+      customer_id: CUSTOMER_ID,
+      currency_code: 'EUR',
+      balance_cents: '1000',
+      reserved_cents: '0',
+      status: 'active',
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'hold-eur',
+      amount_cents: '100',
+      partner_id: 41,
+      agreement_id: 'agreement-eur',
+      currency_code: 'EUR',
+      purpose: 'Order retry',
+      reference_type: 'food_order',
+      reference_id: 'order-eur',
+      idempotency_key: 'hold-eur-replay-1',
+      status: 'active',
+      expires_at: '2026-09-12T13:00:00.000Z',
+      created_at: '2026-09-12T12:00:00.000Z',
+    }] });
+
+  const result = await service.createCreditHold({
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 100,
+    currencyCode: 'EUR',
+    idempotencyKey: 'hold-eur-replay-1',
+    purpose: 'Order retry',
+    referenceType: 'food_order',
+    referenceId: 'order-eur',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  });
+
+  expect(result.replayed).toBe(true);
+  expect(result.hold).toMatchObject({ id: 'hold-eur', currencyCode: 'EUR' });
+});
+
 test('recomputes the full OxSteed Credit hash chain and account heads', () => {
   const first = {
     transaction_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

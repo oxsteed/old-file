@@ -990,7 +990,7 @@ async function createCreditHold({ customerId, partnerId, amountCents, currencyCo
         amount_cents: amount,
         partner_id: partnerId,
         agreement_id: agreement.id,
-        currency_code: CREDIT_CURRENCY,
+        currency_code: settlementCurrency,
         purpose: normalizeString(purpose, 100),
         reference_type: normalizeString(referenceType, 80),
         reference_id: normalizeString(referenceId, 160),
