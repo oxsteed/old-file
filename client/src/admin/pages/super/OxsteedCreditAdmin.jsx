@@ -263,6 +263,7 @@ export default function OxsteedCreditAdmin() {
 
   const adjustCustomerCredit = async (event) => {
     event.preventDefault();
+    if (typeof window !== 'undefined' && !window.confirm(`Confirm clawback of ${customerForm.amount || 'this amount'} from customer ${customerForm.customerId || 'this wallet'}? This posts an immutable debit and cannot be edited.`)) return;
     setBusy(true); setNotice(''); setError('');
     try {
       await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, { amountCents: dollarsToCents(customerForm.amount), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-adjustment') } });
