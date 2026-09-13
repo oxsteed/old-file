@@ -256,7 +256,7 @@ export default function OxsteedCreditPage() {
           <Link to="/restaurants" className="ox-credit-back"><ArrowLeft size={16} /> Back to restaurants</Link>
           <header className="ox-credit-hero">
             <div>
-              <p className="ox-credit-eyebrow">OxSteed financial services</p>
+              <p className="ox-credit-eyebrow">OxSteed partner credit</p>
               <h1>OxSteed Credit</h1>
               <p>One restricted credit balance you can use at participating restaurants under their current partner agreements.</p>
             </div>
