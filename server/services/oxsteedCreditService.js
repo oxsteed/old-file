@@ -1397,6 +1397,17 @@ function formatHold(row) {
   };
 }
 
+async function releaseHoldReservation(client, hold) {
+  const { rows } = await client.query(
+    `UPDATE oxsteed_credit_accounts
+        SET reserved_cents = reserved_cents - $1, updated_at = NOW()
+      WHERE id = $2 AND reserved_cents >= $1
+      RETURNING id`,
+    [hold.amount_cents, hold.account_id]
+  );
+  if (!rows[0]) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
+}
+
 function formatCustomerHold(row) {
   const hold = formatHold(row);
   if (!hold) return null;
@@ -1451,7 +1462,7 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
     if (!hold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
     if (hold.status === 'released' || hold.status === 'expired') return { hold: formatHold(hold), replayed: true };
     if (hold.status !== 'active') throw new AppError('Credit hold cannot be released', 409, 'credit_hold_state_invalid');
-    await client.query(`UPDATE oxsteed_credit_accounts SET reserved_cents = GREATEST(0, reserved_cents - $1), updated_at = NOW() WHERE id = $2`, [hold.amount_cents, hold.account_id]);
+    await releaseHoldReservation(client, hold);
     const { rows: updatedRows } = await client.query(`UPDATE oxsteed_credit_holds SET status = 'released', released_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`, [hold.id]);
     await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6)`, [actorUserId || null, customerId, hold.partner_id, String(hold.id), normalizeString(reason, 500), normalizeString(correlationId, 160)]);
     return { hold: formatHold(updatedRows[0]), replayed: false };
@@ -1487,7 +1498,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
     }
     if (hold.status !== 'active') throw new AppError('Credit hold cannot be captured', 409, 'credit_hold_state_invalid');
     if (new Date(hold.expires_at) <= new Date()) {
-      await client.query(`UPDATE oxsteed_credit_accounts SET reserved_cents = GREATEST(0, reserved_cents - $1), updated_at = NOW() WHERE id = $2`, [hold.amount_cents, hold.account_id]);
+      await releaseHoldReservation(client, hold);
       const { rows: expiredRows } = await client.query(
         `UPDATE oxsteed_credit_holds
             SET status = 'expired', released_at = NOW(), updated_at = NOW()
@@ -1508,7 +1519,7 @@ async function captureCreditHold({ holdId, amountCents, currencyCode = null, ide
     const { rows: accountRows } = await client.query(`SELECT * FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE`, [hold.account_id]);
     const account = accountRows[0];
     if (!account || Number(account.reserved_cents || 0) < requestedAmount) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
-    await client.query(`UPDATE oxsteed_credit_accounts SET reserved_cents = reserved_cents - $1, updated_at = NOW() WHERE id = $2`, [requestedAmount, hold.account_id]);
+    await releaseHoldReservation(client, { ...hold, amount_cents: requestedAmount });
     const transactionResult = await purchaseWithCreditInTransaction(client, {
       customerId: hold.customer_id,
       partnerId: hold.partner_id,
@@ -1572,7 +1583,7 @@ async function expireCreditHolds({ limit = 100, actorUserId = null } = {}) {
     );
     const expired = [];
     for (const hold of rows) {
-      await client.query(`UPDATE oxsteed_credit_accounts SET reserved_cents = GREATEST(0, reserved_cents - $1), updated_at = NOW() WHERE id = $2`, [hold.amount_cents, hold.account_id]);
+      await releaseHoldReservation(client, hold);
       const { rows: updatedRows } = await client.query(
         `UPDATE oxsteed_credit_holds SET status = 'expired', released_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'active' RETURNING *`,
         [hold.id]

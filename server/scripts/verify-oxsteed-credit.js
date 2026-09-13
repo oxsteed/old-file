@@ -83,6 +83,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_lifecycle_guard',
   'oxsteed_credit_issuance_trace_guard',
   'oxsteed_credit_dispute_integrity_guard',
+  'oxsteed_credit_account_reservation_guard',
+  'oxsteed_credit_hold_reservation_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -328,6 +330,11 @@ async function main() {
       ['463_oxsteed_credit_dispute_status_evidence.sql']
     );
     checks.disputeStatusEvidenceMigrationApplied = disputeStatusEvidenceMigrationRows.rows.length === 1;
+    const reservationConsistencyMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['464_oxsteed_credit_reservation_consistency.sql']
+    );
+    checks.reservationConsistencyMigrationApplied = reservationConsistencyMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -681,6 +688,7 @@ async function main() {
       !checks.adjustmentDirectionMigrationApplied,
       !checks.reservedTransactionTypesMigrationApplied,
       !checks.disputeStatusEvidenceMigrationApplied,
+      !checks.reservationConsistencyMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
