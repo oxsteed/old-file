@@ -6,6 +6,7 @@ const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
+const incidentStore = require('../services/incidentStore');
 
 const CRON_EXPRESSION = '* * * * *';
 const JOB_NAME = 'oxsteed-credit-notification-outbox';
@@ -120,6 +121,31 @@ async function finishCreditNotification(id, attempts, result) {
   return status;
 }
 
+async function recordTerminalCreditNotificationFailure(row, result) {
+  try {
+    await incidentStore.recordIncident({
+      type: 'oxsteed_credit_notification_delivery_failed',
+      severity: 'critical',
+      message: 'An OxSteed Credit customer notification reached its retry limit',
+      dedupeKey: 'oxsteed-credit-notifications:terminal-failure',
+      details: {
+        notificationId: row.id,
+        userId: row.user_id,
+        transactionId: row.transaction_id || null,
+        holdId: row.hold_id || null,
+        eventType: row.event_type || 'transaction_posted',
+        attempts: Number(row.attempts || 0),
+        error: String(result?.error || 'Credit notification delivery failed').slice(0, 2000),
+      },
+    });
+  } catch (error) {
+    logger.error('OxSteed Credit notification failure incident could not be persisted', {
+      notificationId: row.id,
+      error: error.message,
+    });
+  }
+}
+
 async function processOxsteedCreditNotificationOutbox(limit = 50) {
   const rows = await claimCreditNotifications(limit);
   let sent = 0;
@@ -137,11 +163,17 @@ async function processOxsteedCreditNotificationOutbox(limit = 50) {
       const status = await finishCreditNotification(row.id, Number(row.attempts || 0), notification);
       if (status === 'sent') sent += 1;
       else if (status === 'pending') retried += 1;
-      else failed += 1;
+      else {
+        failed += 1;
+        await recordTerminalCreditNotificationFailure(row, notification);
+      }
     } catch (error) {
       const status = await finishCreditNotification(row.id, Number(row.attempts || 0), { success: false, error: error.message });
       if (status === 'pending') retried += 1;
-      else failed += 1;
+      else {
+        failed += 1;
+        await recordTerminalCreditNotificationFailure(row, { success: false, error: error.message });
+      }
     }
   }
 
@@ -177,6 +209,7 @@ module.exports = {
   buildNotification,
   claimCreditNotifications,
   finishCreditNotification,
+  recordTerminalCreditNotificationFailure,
   processOxsteedCreditNotificationOutbox,
   runOxsteedCreditNotificationOutbox,
   startOxsteedCreditNotificationOutboxJob,

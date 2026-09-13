@@ -10,10 +10,14 @@ jest.mock('../jobs/jobLockingService', () => ({
 jest.mock('../jobs/oxsteedCreditJobFailure', () => ({
   recordOxsteedCreditJobFailure: jest.fn(),
 }));
+jest.mock('../services/incidentStore', () => ({
+  recordIncident: jest.fn().mockResolvedValue({ persisted: true }),
+}));
 
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { withJobLock } = require('../jobs/jobLockingService');
+const { recordIncident } = require('../services/incidentStore');
 const {
   CRON_EXPRESSION,
   JOB_NAME,
@@ -83,6 +87,11 @@ test('retries delivery failures and eventually marks the event failed', async ()
 
   await expect(processOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
   expect(db.query.mock.calls[1][1].slice(0, 2)).toEqual(['failed', 'provider unavailable']);
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'oxsteed_credit_notification_delivery_failed',
+    severity: 'critical',
+    dedupeKey: 'oxsteed-credit-notifications:terminal-failure',
+  }));
 });
 
 test('runs under the distributed Credit worker lock', async () => {
