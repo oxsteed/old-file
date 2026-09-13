@@ -2,7 +2,7 @@
 
 const cron = require('node-cron');
 const logger = require('../utils/logger');
-const { expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
+const { expireCreditAgreements, expireCreditEntitlements } = require('../services/oxsteedCreditAdminService');
 const { withJobLock } = require('./jobLockingService');
 
 const CRON_EXPRESSION = '* * * * *';
@@ -11,10 +11,16 @@ const JOB_NAME = 'oxsteed-credit-entitlement-expiry';
 async function runOxsteedCreditEntitlementExpiry({ limit = 500, now } = {}) {
   let result;
   await withJobLock(JOB_NAME, async () => {
-    result = await expireCreditEntitlements({ limit, now });
-    if (result.count) logger.info('OxSteed Credit entitlements expired', { count: result.count });
+    const agreements = await expireCreditAgreements({ limit, now });
+    const entitlements = await expireCreditEntitlements({ limit, now });
+    result = {
+      count: agreements.count + entitlements.count,
+      agreements: agreements.expired,
+      entitlements: entitlements.expired,
+    };
+    if (result.count) logger.info('OxSteed Credit lifecycle records expired', { count: result.count, agreements: agreements.count, entitlements: entitlements.count });
   }, 120);
-  return result || { count: 0, expired: [] };
+  return result || { count: 0, agreements: [], entitlements: [] };
 }
 
 function startOxsteedCreditEntitlementExpiryJob() {

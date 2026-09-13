@@ -1139,6 +1139,61 @@ async function expireCreditEntitlements({ limit = 500, now = new Date(), actorUs
   }, 'credit_expire_entitlements');
 }
 
+async function expireCreditAgreements({ limit = 250, now = new Date(), actorUserId = null } = {}) {
+  const effectiveNow = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(effectiveNow.getTime())) throw new TypeError('Invalid agreement expiry clock');
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const batchSize = Math.max(1, Math.min(Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : 250, 250));
+
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT a.*, p.restaurant_id, p.settlement_currency_code,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_partner_agreements a
+         JOIN oxsteed_credit_partners p ON p.id = a.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE a.status NOT IN ('expired', 'terminated')
+          AND a.ends_at IS NOT NULL
+          AND a.ends_at <= $1
+        ORDER BY a.ends_at ASC, a.id ASC
+        LIMIT $2
+        FOR UPDATE SKIP LOCKED`,
+      [effectiveNow, batchSize]
+    );
+    const expired = [];
+    for (const agreement of rows) {
+      const { rows: updatedRows } = await client.query(
+        `UPDATE oxsteed_credit_partner_agreements
+            SET status = 'expired', updated_at = NOW()
+          WHERE id = $1
+            AND status NOT IN ('expired', 'terminated')
+            AND ends_at IS NOT NULL
+            AND ends_at <= $2
+          RETURNING *`,
+        [agreement.id, effectiveNow]
+      );
+      if (!updatedRows[0]) continue;
+      await insertAudit(client, {
+        actionType: 'credit.agreement.expired',
+        actorUserId,
+        partnerId: agreement.partner_id,
+        resourceType: 'credit_agreement',
+        resourceId: agreement.id,
+        reason: 'Agreement validity window ended',
+        beforeState: { status: agreement.status, endsAt: agreement.ends_at },
+        afterState: { status: 'expired', endsAt: agreement.ends_at },
+      });
+      expired.push(formatAgreement({
+        ...updatedRows[0],
+        restaurant_id: agreement.restaurant_id,
+        settlement_currency_code: agreement.settlement_currency_code,
+        restaurant_name: agreement.restaurant_name,
+      }));
+    }
+    return { expired, count: expired.length };
+  }, 'credit_expire_agreements');
+}
+
 module.exports = {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -1148,6 +1203,7 @@ module.exports = {
   listAgreements,
   listEntitlements,
   expireCreditEntitlements,
+  expireCreditAgreements,
   listSettlements,
   createSettlement,
   transitionSettlement,

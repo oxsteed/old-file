@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, expireCreditEntitlements, createAgreement } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listEntitlements, upsertEntitlement, expireCreditEntitlements, expireCreditAgreements, createAgreement } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -280,6 +280,76 @@ test('marks ended customer entitlements expired and records the transition', asy
     'credit_entitlement',
     'entitlement-1',
     'Entitlement validity window ended',
+    JSON.stringify({ status: 'active', endsAt: endedAt }),
+    JSON.stringify({ status: 'expired', endsAt: endedAt }),
+    JSON.stringify({}),
+  ]);
+});
+
+test('marks ended agreements expired and records the transition', async () => {
+  const endedAt = new Date('2026-09-12T00:00:00.000Z');
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      restaurant_id: 9,
+      restaurant_name: 'OxSteed Cafe',
+      settlement_currency_code: 'USD',
+      version: 2,
+      status: 'active',
+      starts_at: new Date('2026-09-01T00:00:00.000Z'),
+      ends_at: endedAt,
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      customer_terms: 'Summer program',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      metadata: {},
+      created_by: null,
+      approved_by: null,
+      created_at: new Date('2026-09-01T00:00:00.000Z'),
+      updated_at: endedAt,
+    }] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 'agreement-1',
+      partner_id: 41,
+      version: 2,
+      status: 'expired',
+      starts_at: new Date('2026-09-01T00:00:00.000Z'),
+      ends_at: endedAt,
+      allowed_order_types: ['pickup'],
+      allowed_categories: [],
+      allowed_menu_item_ids: [],
+      geography: {},
+      customer_terms: 'Summer program',
+      max_transaction_cents: null,
+      daily_customer_limit_cents: null,
+      lifetime_customer_limit_cents: null,
+      metadata: {},
+      created_by: null,
+      approved_by: null,
+      created_at: new Date('2026-09-01T00:00:00.000Z'),
+      updated_at: new Date('2026-09-13T00:00:00.000Z'),
+    }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const result = await expireCreditAgreements({ now: new Date('2026-09-13T00:00:00.000Z'), limit: 10 });
+
+  expect(result).toMatchObject({ count: 1, expired: [{ id: 'agreement-1', status: 'expired', restaurantName: 'OxSteed Cafe' }] });
+  expect(mockQuery.mock.calls[0][0]).toContain("a.status NOT IN ('expired', 'terminated')");
+  expect(mockQuery.mock.calls[0][0]).toContain('FOR UPDATE SKIP LOCKED');
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'expired'");
+  expect(mockQuery.mock.calls[2][1]).toEqual([
+    'credit.agreement.expired',
+    null,
+    null,
+    41,
+    'credit_agreement',
+    'agreement-1',
+    'Agreement validity window ended',
     JSON.stringify({ status: 'active', endsAt: endedAt }),
     JSON.stringify({ status: 'expired', endsAt: endedAt }),
     JSON.stringify({}),
