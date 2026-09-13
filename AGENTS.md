@@ -16,6 +16,14 @@
 - Explicit `admin_2fa_required` challenges navigate once to the new authenticated `/admin/2fa-setup` route using the existing authenticator setup screen. Security enforcement remains unchanged.
 - Regression checks: `node --test client/scripts/admin-challenge.test.mjs`. User must complete authenticator enrollment personally before admin APIs become available.
 
+## Session progress - OxSteed Credit long-term controls (2026-09-13)
+
+- Credit maintenance workers now write durable heartbeats for notification delivery, hold expiry, entitlement expiry, reconciliation, and integrity verification; a distributed watchdog records stale/recent-failure incidents and auto-resolves recovered worker alerts.
+- The notification outbox has bounded sent-record retention and queue-state indexes; the Super Admin Credit workspace shows worker status, last result, last success, run counts, and an explicit first-run state.
+- Ledger HMAC entries now record a signing-key version. Migration `510_oxsteed_credit_hmac_key_version.sql` labels existing history `v1`, supports retained prior keys during rotation, and makes malformed rotation configuration fail readiness. Admin journal details show the key version without exposing secrets.
+- Verified: focused Credit and readiness suites pass (143 tests), changed server files pass `node --check`, and the client production build/typecheck passes. These changes were pushed through GitHub Desktop; deployment status was intentionally not polled.
+- Remaining external release evidence: apply migrations and run `npm run verify:credit` against production, complete custody/legal/compliance review, configure managed backups and restore drills, malware scanning, MFA/passkeys, alert routing, Sentry or equivalent observability, and browser/concurrency/provider tests before enabling real customer value.
+
 1. **Read this file first** - It is the authoritative source of truth for what exists and what needs to be done.
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
