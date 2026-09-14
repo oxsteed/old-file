@@ -7,7 +7,9 @@ const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
-const CRON_EXPRESSION = '* * * * *';
+// Run every minute, offset from the other maintenance workers to avoid a
+// connection-pool burst at the minute boundary.
+const CRON_EXPRESSION = '10 * * * * *';
 const JOB_NAME = 'oxsteed-credit-hold-expiry';
 
 async function runOxsteedCreditHoldExpiry() {

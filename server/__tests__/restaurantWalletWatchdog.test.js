@@ -101,7 +101,7 @@ test('runs under the distributed lock and records an operational heartbeat', asy
     result: { status: 'healthy', incidentCount: 0 },
     error: null,
   });
-  expect(CRON_EXPRESSION).toBe('*/5 * * * *');
+  expect(CRON_EXPRESSION).toBe('55 */5 * * * *');
 });
 
 test('records a durable incident when the watchdog cannot query', async () => {

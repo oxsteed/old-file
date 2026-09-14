@@ -1,5 +1,15 @@
 const DEFAULT_MINOR_UNITS = 2;
 
+// Keep the fallback admin selector aligned with the server's explicitly
+// verified ISO 4217 allowlist when the overview request is unavailable.
+export const DEFAULT_CREDIT_CURRENCIES = Object.freeze([
+  'AED', 'AUD', 'BHD', 'BRL', 'CAD', 'CHF', 'CLP', 'CNY', 'CZK', 'DOP',
+  'EGP', 'EUR', 'GBP', 'HKD', 'HTG', 'HUF', 'ILS', 'INR', 'IQD', 'ISK',
+  'JOD', 'JPY', 'KRW', 'KWD', 'LYD', 'MAD', 'MXN', 'NGN', 'NOK', 'NZD',
+  'OMR', 'PHP', 'PLN', 'PYG', 'RON', 'SAR', 'SEK', 'SGD', 'THB', 'TND',
+  'TRY', 'UGX', 'USD', 'VND', 'VUV', 'XAF', 'XOF', 'XPF', 'ZAR',
+]);
+
 function normalizeCurrency(currency) {
   return String(currency || 'USD').trim().toUpperCase();
 }

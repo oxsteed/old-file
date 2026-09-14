@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, RefreshCw, ShieldCheck, Store, WalletCards } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   formatFoodMoney,
   downloadFoodRestaurantOxsteedCreditReport,
@@ -8,16 +9,27 @@ import {
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 
-function displayDate(value) {
-  if (!value) return 'Not available';
+function displayDate(value, language, unavailableText) {
+  if (!value) return unavailableText;
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? 'Not available'
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    ? unavailableText
+    : new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-function label(value) {
-  return String(value || 'activity').replaceAll('_', ' ');
+function label(value, t) {
+  const normalized = String(value || 'activity').toLowerCase();
+  const translated = {
+    activity: 'partnerLabelActivity',
+    purchase: 'partnerLabelPurchase',
+    refund: 'partnerLabelRefund',
+    pending: 'partnerLabelPending',
+    approved: 'partnerLabelApproved',
+    paid: 'partnerLabelPaid',
+    disputed: 'partnerLabelDisputed',
+    voided: 'partnerLabelVoided',
+  }[normalized];
+  return translated ? t(translated) : normalized.replaceAll('_', ' ');
 }
 
 function statusClass(value) {
@@ -25,6 +37,7 @@ function statusClass(value) {
 }
 
 export default function OxsteedCreditPartnerManager({ restaurant }) {
+  const { t, i18n } = useTranslation('credit');
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [partnerStatus, setPartnerStatus] = useState(null);
@@ -66,13 +79,13 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       }
       setPartnerStatus(transactionResult?.partnerStatus || settlementResult?.partnerStatus || null);
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'OxSteed Credit partner activity could not be loaded.'));
+      setError(apiErrorMessage(loadError, t('partnerActivityError')));
     } finally {
       if (appendTransactions || appendSettlements) setLoadingMore(false);
       else setLoading(false);
       setRefreshing(false);
     }
-  }, [restaurant.id, settlementStatus]);
+  }, [restaurant.id, settlementStatus, t]);
 
   useEffect(() => { load({ quiet: Boolean(settlementStatus) }); }, [load, settlementStatus]);
 
@@ -96,7 +109,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       anchor.remove();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
-      setError(apiErrorMessage(downloadError, 'OxSteed Credit report could not be downloaded.'));
+      setError(apiErrorMessage(downloadError, t('partnerReportError')));
     } finally {
       setDownloading(false);
     }
@@ -106,76 +119,76 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
     <section className="fd-section fd-ox-credit-partner">
       <div className="fd-ox-credit-partner-head">
         <div>
-          <p className="fd-credit-manager-kicker">Partner operations</p>
+          <p className="fd-credit-manager-kicker">{t('partnerOperations')}</p>
           <h2>OxSteed Credit</h2>
-          <p className="fd-card-meta">Review restricted-credit purchases and settlement records for this restaurant. Customer identity stays private.</p>
+          <p className="fd-card-meta">{t('partnerActivityDescription')}</p>
         </div>
         <div className="fd-ox-credit-partner-actions">
-          {partnerStatus && <span className={statusClass(partnerStatus)}>{label(partnerStatus)}</span>}
+          {partnerStatus && <span className={statusClass(partnerStatus)}>{label(partnerStatus, t)}</span>}
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading}>
-            <Download size={14} /> {downloading ? 'Preparing…' : 'Download report'}
+            <Download size={14} /> {downloading ? t('preparingReport') : t('downloadReport')}
           </button>
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'fd-ox-credit-spin' : ''} /> Refresh
+            <RefreshCw size={14} className={refreshing ? 'fd-ox-credit-spin' : ''} /> {t('refresh')}
           </button>
         </div>
       </div>
 
-      {error && <div className="fd-ox-credit-error" role="alert">{error} <button type="button" onClick={() => load()}>Retry</button></div>}
+      {error && <div className="fd-ox-credit-error" role="alert">{error} <button type="button" onClick={() => load()}>{t('retry')}</button></div>}
 
-      {loading ? <div className="fd-empty">Loading partner credit activity…</div> : (
+      {loading ? <div className="fd-empty">{t('loadingPartnerActivity')}</div> : (
         <>
-          <div className="fd-ox-credit-summary" aria-label="OxSteed Credit summary">
-            <div><WalletCards size={17} /><strong>{transactions.length}</strong><span>Credit events</span></div>
-            <div><Store size={17} /><strong>{settlements.length}</strong><span>Settlement records</span></div>
-            <div><ShieldCheck size={17} /><strong>{formatFoodMoney(pendingSettlementCents, currency)}</strong><span>Pending settlement value</span></div>
+          <div className="fd-ox-credit-summary" aria-label={t('partnerSummaryLabel')}>
+            <div><WalletCards size={17} /><strong>{transactions.length}</strong><span>{t('creditEvents')}</span></div>
+            <div><Store size={17} /><strong>{settlements.length}</strong><span>{t('settlementRecords')}</span></div>
+            <div><ShieldCheck size={17} /><strong>{formatFoodMoney(pendingSettlementCents, currency)}</strong><span>{t('pendingSettlementValue')}</span></div>
           </div>
 
           <div className="fd-ox-credit-columns">
             <div className="fd-ox-credit-panel">
-              <div className="fd-ox-credit-panel-title"><h3>Recent credit activity</h3><span>{transactions.length} loaded</span></div>
-              {transactions.length === 0 ? <p className="fd-card-meta">No OxSteed Credit activity has posted for this restaurant.</p> : (
+              <div className="fd-ox-credit-panel-title"><h3>{t('recentCreditActivity')}</h3><span>{t('loadedCount', { count: transactions.length })}</span></div>
+              {transactions.length === 0 ? <p className="fd-card-meta">{t('noPartnerActivity')}</p> : (
                 <div className="fd-ox-credit-list">
                   {transactions.map((transaction) => (
                     <div key={transaction.id} className="fd-ox-credit-row">
-                      <div><strong>{label(transaction.transactionType)}</strong><span>{transaction.description || transaction.referenceType || 'OxSteed Credit ledger event'}</span><small>{displayDate(transaction.postedAt || transaction.createdAt)}</small></div>
-                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(transaction.amountCents, transaction.currencyCode || currency)}</strong><span className={statusClass(transaction.status)}>{label(transaction.status)}</span></div>
+                      <div><strong>{label(transaction.transactionType, t)}</strong><span>{transaction.description || transaction.referenceType || t('ledgerEvent')}</span><small>{displayDate(transaction.postedAt || transaction.createdAt, i18n.language, t('notAvailable'))}</small></div>
+                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(transaction.amountCents, transaction.currencyCode || currency)}</strong><span className={statusClass(transaction.status)}>{label(transaction.status, t)}</span></div>
                     </div>
                   ))}
                 </div>
               )}
-              {transactionPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendTransactions: true, transactionOffset: transactionPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? 'Loading…' : 'Load older activity'}</button>}
+              {transactionPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendTransactions: true, transactionOffset: transactionPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? t('loading') : t('loadOlderActivity')}</button>}
             </div>
 
             <div className="fd-ox-credit-panel">
               <div className="fd-ox-credit-panel-title">
                 <div>
-                  <h3>Settlement records</h3>
-                  <span>{settlements.length} loaded</span>
+                  <h3>{t('settlementRecords')}</h3>
+                  <span>{t('loadedCount', { count: settlements.length })}</span>
                 </div>
                 <label className="fd-ox-credit-filter">
-                  <span className="sr-only">Filter settlements by status</span>
+                  <span className="sr-only">{t('filterSettlementStatus')}</span>
                   <select value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || refreshing || loadingMore}>
-                    <option value="">All statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="paid">Paid</option>
-                    <option value="disputed">Disputed</option>
-                    <option value="voided">Voided</option>
+                    <option value="">{t('allStatuses')}</option>
+                    <option value="pending">{t('partnerLabelPending')}</option>
+                    <option value="approved">{t('partnerLabelApproved')}</option>
+                    <option value="paid">{t('partnerLabelPaid')}</option>
+                    <option value="disputed">{t('partnerLabelDisputed')}</option>
+                    <option value="voided">{t('partnerLabelVoided')}</option>
                   </select>
                 </label>
               </div>
-              {settlements.length === 0 ? <p className="fd-card-meta">No settlement records have been created yet.</p> : (
+              {settlements.length === 0 ? <p className="fd-card-meta">{t('noSettlementRecords')}</p> : (
                 <div className="fd-ox-credit-list">
                   {settlements.map((settlement) => (
                     <div key={settlement.id} className="fd-ox-credit-row">
-                      <div><strong>{displayDate(settlement.periodStart)} – {displayDate(settlement.periodEnd)}</strong><span>Gross {formatFoodMoney(settlement.grossCents, settlement.currencyCode || currency)} · Fees {formatFoodMoney(settlement.feeCents, settlement.currencyCode || currency)}</span><small>{settlement.paymentReference || 'No payment reference'}</small></div>
-                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(settlement.netCents, settlement.currencyCode || currency)}</strong><span className={statusClass(settlement.status)}>{label(settlement.status)}</span></div>
+                      <div><strong>{displayDate(settlement.periodStart, i18n.language, t('notAvailable'))} – {displayDate(settlement.periodEnd, i18n.language, t('notAvailable'))}</strong><span>{t('settlementAmounts', { gross: formatFoodMoney(settlement.grossCents, settlement.currencyCode || currency), fees: formatFoodMoney(settlement.feeCents, settlement.currencyCode || currency) })}</span><small>{settlement.paymentReference || t('noPaymentReference')}</small></div>
+                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(settlement.netCents, settlement.currencyCode || currency)}</strong><span className={statusClass(settlement.status)}>{label(settlement.status, t)}</span></div>
                     </div>
                   ))}
                 </div>
               )}
-              {settlementPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? 'Loading…' : 'Load older settlements'}</button>}
+              {settlementPagination.hasMore && <button type="button" className="fd-ox-credit-load-more" onClick={() => load({ appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMore || loading || refreshing}>{loadingMore ? t('loading') : t('loadOlderSettlements')}</button>}
             </div>
           </div>
         </>

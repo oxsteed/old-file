@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const runtimeState = require('./runtimeState');
 const logger = require('../utils/logger');
-const { getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
+const { getCreditRailPrerequisites, getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
+const { getProductionConfigurationErrors } = require('../utils/validateEnv');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -50,10 +51,20 @@ async function migrationStatus(pool) {
 
 async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   const runtime = runtimeState.snapshot();
+  const productionConfigurationErrors = getProductionConfigurationErrors();
   const result = {
     status: 'ready',
     timestamp: new Date().toISOString(),
+    // Release identifiers are safe operational metadata; never expose secrets
+    // or the full deployment environment through readiness.
+    release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA || process.env.SOURCE_COMMIT || null,
     checks: {
+      productionConfiguration: {
+        ok: productionConfigurationErrors.length === 0,
+        ...(productionConfigurationErrors.length > 0
+          ? { error: 'unsafe production environment configuration' }
+          : {}),
+      },
       database: { ok: false },
       migrations: { ok: false },
       redis: { ok: true, configured: Boolean(process.env.REDIS_URL) },
@@ -105,7 +116,11 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
       );
       const enabled = rows[0]?.is_enabled === true;
       result.checks.creditRail = {
-        ok: !enabled || (result.checks.redis.configured && result.checks.redis.ok),
+        ok: !enabled || (
+          result.checks.redis.configured
+          && result.checks.redis.ok
+          && getCreditRailPrerequisites().readyForProductionActivation
+        ),
         enabled,
         requiresSharedRedis: enabled,
         ...(enabled && !result.checks.redis.configured
@@ -113,6 +128,15 @@ async function checkReadiness({ pool, redis, includeTrafficState = true }) {
           : {}),
         ...(enabled && result.checks.redis.configured && !result.checks.redis.ok
           ? { error: 'Configured Redis is unavailable while OxSteed Credit is enabled' }
+          : {}),
+        ...(enabled && result.checks.redis.configured && result.checks.redis.ok && !getCreditRailPrerequisites().dedicatedLedgerSecretConfigured
+          ? { error: 'A dedicated Credit ledger secret is required before enabling OxSteed Credit' }
+          : {}),
+        ...(enabled && result.checks.redis.configured && result.checks.redis.ok && !getCreditRailPrerequisites().ledgerKeyConfigurationValid
+          ? { error: 'Credit ledger key rotation configuration is invalid' }
+          : {}),
+        ...(enabled && result.checks.redis.configured && result.checks.redis.ok && !getCreditRailPrerequisites().serverErrorMonitoringConfigured
+          ? { error: 'Server error monitoring is required before enabling OxSteed Credit' }
           : {}),
       };
     } catch (err) {

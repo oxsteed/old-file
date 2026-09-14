@@ -38,6 +38,14 @@ class WebSocketService {
     const room = `staff-ticket:${ticketId}`;
     socket.join(room);
     let viewer = { id: socket.userId, name: 'Support staff', role: socket.userRole || 'support' };
+
+    // Reserve the socket before the async profile lookup. Without this,
+    // concurrent joins can both read the old map and overwrite each other.
+    const viewers = this.ticketViewers.get(ticketId) || new Map();
+    viewers.set(socket.id, viewer);
+    this.ticketViewers.set(ticketId, viewers);
+    this.broadcastTicketViewerPresence(ticketId);
+
     try {
       const { rows } = await pool.query(
         `SELECT id, first_name, last_name, email, role
@@ -58,9 +66,9 @@ class WebSocketService {
       logger.warn('Could not resolve support viewer name', { ticketId, userId: socket.userId, error: error.message });
     }
     if (!socket.connected || !socket.rooms.has(room)) return;
-    const viewers = this.ticketViewers.get(ticketId) || new Map();
-    viewers.set(socket.id, viewer);
-    this.ticketViewers.set(ticketId, viewers);
+    const currentViewers = this.ticketViewers.get(ticketId);
+    if (!currentViewers?.has(socket.id)) return;
+    currentViewers.set(socket.id, viewer);
     this.broadcastTicketViewerPresence(ticketId);
   }
 
@@ -139,7 +147,7 @@ class WebSocketService {
       });
 
       // Customer joins specific ticket chat
-      socket.on('ticket:join', async (data) => {
+      socket.on('ticket:join', async (data, acknowledgement) => {
         const { ticketId } = data || {};
         if (!ticketId || (!socket.userId && socket.guestConversationId !== ticketId)) return;
         const { rows } = await pool.query(
@@ -177,6 +185,13 @@ class WebSocketService {
         await this.registerTicketViewer(socket, ticketId);
 
         logger.info('Joined ticket room', { ticketId, userId: socket.userId, socketId: socket.id });
+        if (typeof acknowledgement === 'function') {
+          acknowledgement({
+            joined: true,
+            ticketId,
+            viewerCount: this.ticketViewers.get(ticketId)?.size || 0,
+          });
+        }
       });
 
       // Customer typing presence is ephemeral and only broadcasts inside an

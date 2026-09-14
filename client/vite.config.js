@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
             org: sentryOrg,
             project: sentryProject,
             authToken: sentryAuthToken,
-            release: process.env.SENTRY_RELEASE || undefined,
+            release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA || process.env.SOURCE_COMMIT || undefined,
           }),
         ]
       : []),

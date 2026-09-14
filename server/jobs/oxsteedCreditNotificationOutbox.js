@@ -4,13 +4,16 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const db = require('../db');
 const { sendNotification } = require('../services/notificationService');
+const { SUPPORTED_CREDIT_CURRENCY_META } = require('../services/oxsteedCreditService');
 const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditJobFailure } = require('./oxsteedCreditJobFailure');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const { NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES } = require('../services/oxsteedCreditWorkerConfig');
 
-const CRON_EXPRESSION = '* * * * *';
+// Run every minute, offset from the other maintenance workers to avoid a
+// connection-pool burst at the minute boundary.
+const CRON_EXPRESSION = '30 * * * * *';
 const JOB_NAME = 'oxsteed-credit-notification-outbox';
 const MAX_ATTEMPTS = 8;
 const STALE_LOCK_MINUTES = NOTIFICATION_BACKLOG_STALE_AFTER_MINUTES;
@@ -19,8 +22,16 @@ const MIN_SENT_RETENTION_DAYS = 30;
 const MAX_SENT_RETENTION_DAYS = 730;
 
 function formatAmount(amountCents, currencyCode) {
-  const amount = (Number(amountCents || 0) / 100).toFixed(2);
-  return `${String(currencyCode || 'USD').toUpperCase()} ${amount}`;
+  const currency = String(currencyCode || 'USD').toUpperCase();
+  const minorUnits = Number.isInteger(SUPPORTED_CREDIT_CURRENCY_META[currency]?.minorUnits)
+    ? SUPPORTED_CREDIT_CURRENCY_META[currency].minorUnits
+    : 2;
+  const amount = (Number(amountCents || 0) / (10 ** minorUnits));
+  return `${currency} ${amount.toLocaleString('en-US', {
+    useGrouping: false,
+    minimumFractionDigits: minorUnits,
+    maximumFractionDigits: minorUnits,
+  })}`;
 }
 
 function buildNotification(payload) {

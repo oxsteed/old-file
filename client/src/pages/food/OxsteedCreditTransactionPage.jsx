@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -17,49 +18,53 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import { getOxsteedCreditTransaction } from '../../api/oxsteedCredit';
+import { formatCreditMinorUnits } from '../../lib/creditCurrency';
 import './OxsteedCreditPage.css';
 
-function money(cents, currency = 'USD') {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format((Number(cents) || 0) / 100);
-  } catch {
-    return `${((Number(cents) || 0) / 100).toFixed(2)} ${currency || 'USD'}`;
-  }
-}
+const money = formatCreditMinorUnits;
 
-function dateTime(value) {
-  if (!value) return 'No date recorded';
+function dateTime(value, t) {
+  if (!value) return t('noDate');
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? 'No date recorded'
+    ? t('noDate')
     : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-function errorMessage(error) {
+function errorMessage(error, t) {
   return error?.response?.data?.error?.message
     || error?.response?.data?.message
     || error?.message
-    || 'Unable to load this OxSteed Credit transaction.';
+    || t('transactionUnavailable');
 }
 
-function transactionLabel(transaction) {
+function transactionLabel(transaction, t) {
   return {
-    load: 'Credit added',
-    purchase: 'Restaurant purchase',
-    refund: 'Purchase refunded',
-    transfer: 'Credit transfer',
-    adjustment: 'Account adjustment',
-    expiration: 'Credit expired',
-    chargeback: 'Chargeback',
-  }[transaction?.transactionType] || String(transaction?.transactionType || 'Credit activity').replace(/_/g, ' ');
+    load: t('transactionLoad'),
+    purchase: t('transactionPurchase'),
+    refund: t('transactionRefund'),
+    transfer: t('transactionTransfer'),
+    adjustment: t('transactionAdjustment'),
+    expiration: t('transactionExpiration'),
+    chargeback: t('transactionChargeback'),
+  }[transaction?.transactionType] || t('transactionActivity');
 }
 
-function referenceLabel(value) {
-  if (!value) return 'Not provided';
-  return String(value).replace(/_/g, ' ');
+function referenceLabel(value, t) {
+  if (!value) return t('notProvided');
+  return {
+    food_order: t('referenceFoodOrder'),
+    food_order_refund: t('referenceFoodOrderRefund'),
+    customer_transfer: t('referenceCustomerTransfer'),
+    admin_load: t('referenceAdminLoad'),
+    admin_adjustment: t('referenceAdminAdjustment'),
+    oxsteed_credit_purchase: t('referenceCreditPurchase'),
+    credit_settlement: t('referenceCreditSettlement'),
+  }[value] || t('referenceOther');
 }
 
 export default function OxsteedCreditTransactionPage() {
+  const { t } = useTranslation('credit');
   const { transactionId } = useParams();
   const [searchParams] = useSearchParams();
   const currencyCode = searchParams.get('currency') || 'USD';
@@ -73,7 +78,7 @@ export default function OxsteedCreditTransactionPage() {
     try {
       setTransaction(await getOxsteedCreditTransaction(transactionId, { currencyCode }));
     } catch (requestError) {
-      const message = errorMessage(requestError);
+      const message = errorMessage(requestError, t);
       setError(message);
       toast.error(message);
     } finally {
@@ -92,61 +97,61 @@ export default function OxsteedCreditTransactionPage() {
 
   return (
     <>
-      <PageMeta title="OxSteed Credit transaction" description="Review a detailed OxSteed Credit transaction receipt." noIndex />
+      <PageMeta title={t('transactionReceipt')} description={t('transactionDescription')} noIndex />
       <Navbar />
       <main className="ox-credit-page">
         <div className="ox-credit-shell">
-          <Link to="/oxsteed-credit" className="ox-credit-back"><ArrowLeft size={16} /> Back to OxSteed Credit</Link>
+          <Link to="/oxsteed-credit" className="ox-credit-back"><ArrowLeft size={16} /> {t('backToRestaurants')}</Link>
           <header className="ox-credit-hero">
             <div>
-              <p className="ox-credit-eyebrow">OxSteed financial services</p>
-              <h1>Transaction receipt</h1>
-              <p>Review the posted details for this OxSteed Credit balance change. Your access is limited to your own account activity.</p>
+              <p className="ox-credit-eyebrow">{t('partnerEyebrow')}</p>
+              <h1>{t('transactionReceipt')}</h1>
+              <p>{t('transactionDescription')}</p>
             </div>
-            <button type="button" className="ox-credit-refresh ox-credit-print-button" onClick={printReceipt} disabled={!transaction}><Printer size={16} /> Print / save PDF</button>
+            <button type="button" className="ox-credit-refresh ox-credit-print-button" onClick={printReceipt} disabled={!transaction}><Printer size={16} /> {t('printPdf')}</button>
           </header>
 
-          {loading ? <div className="ox-credit-loading">Loading transaction details...</div> : error ? (
+          {loading ? <div className="ox-credit-loading">{t('loadingTransaction')}</div> : error ? (
             <section className="ox-credit-panel ox-credit-error-panel" role="alert">
               <AlertCircle size={26} />
-              <strong>Transaction unavailable</strong>
+              <strong>{t('transactionUnavailable')}</strong>
               <span>{error}</span>
-              <button type="button" className="ox-credit-refresh" onClick={load}><RefreshCw size={15} /> Try again</button>
+              <button type="button" className="ox-credit-refresh" onClick={load}><RefreshCw size={15} /> {t('tryAgain')}</button>
             </section>
           ) : transaction ? (
             <>
               <section className={`ox-credit-receipt-card ${positive ? 'positive' : 'negative'}`}>
                 <div className="ox-credit-receipt-top">
                   <span className="ox-credit-receipt-icon">{positive ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}</span>
-                  <div><p className="ox-credit-eyebrow">{transactionLabel(transaction)}</p><strong>{positive ? '+' : '-'}{money(transaction.amountCents, currency)}</strong><span>{dateTime(transaction.postedAt || transaction.createdAt)}</span></div>
-                  <span className="ox-credit-receipt-status"><ShieldCheck size={14} /> Posted</span>
+                  <div><p className="ox-credit-eyebrow">{transactionLabel(transaction, t)}</p><strong>{positive ? '+' : '-'}{money(transaction.amountCents, currency)}</strong><span>{dateTime(transaction.postedAt || transaction.createdAt, t)}</span></div>
+                  <span className="ox-credit-receipt-status"><ShieldCheck size={14} /> {t('posted')}</span>
                 </div>
                 <div className="ox-credit-receipt-grid">
-                  <div><span>Currency</span><strong>{currency}</strong></div>
-                  <div><span>Activity type</span><strong>{referenceLabel(transaction.transactionType)}</strong></div>
-                  <div><span>Balance after</span><strong>{money(transaction.balanceAfterCents, currency)}</strong></div>
-                  <div><span>Transaction ID</span><strong>{transaction.id}</strong></div>
+                  <div><span>{t('currencyLabel')}</span><strong>{currency}</strong></div>
+                  <div><span>{t('activityType')}</span><strong>{transactionLabel(transaction, t)}</strong></div>
+                  <div><span>{t('balanceAfter')}</span><strong>{money(transaction.balanceAfterCents, currency)}</strong></div>
+                  <div><span>{t('transactionId')}</span><strong>{transaction.id}</strong></div>
                 </div>
               </section>
 
               <div className="ox-credit-sections ox-credit-detail-sections">
                 <section className="ox-credit-panel">
-                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Context</p><h2>Related details</h2></div><Receipt size={21} color="#d66e0c" /></div>
+                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('context')}</p><h2>{t('relatedDetails')}</h2></div><Receipt size={21} color="#d66e0c" /></div>
                   <div className="ox-credit-detail-list">
-                    <div><span>Description</span><strong>{transaction.description || 'OxSteed Credit ledger entry'}</strong></div>
-                    <div><span>Restaurant</span><strong>{transaction.restaurantName || 'Not tied to a restaurant'}</strong></div>
-                    {orderPath && <div><span>Food order</span><strong><Link to={orderPath}>Order #{transaction.orderId} <ExternalLink size={13} /></Link></strong></div>}
-                    <div><span>Reference type</span><strong>{referenceLabel(transaction.referenceType)}</strong></div>
-                    <div><span>Reference ID</span><strong className="ox-credit-detail-code">{transaction.referenceId || 'Not provided'}</strong></div>
+                    <div><span>{t('description')}</span><strong>{transaction.description || t('ledgerEntry')}</strong></div>
+                    <div><span>{t('restaurant')}</span><strong>{transaction.restaurantName || t('notTiedRestaurant')}</strong></div>
+                    {orderPath && <div><span>{t('foodOrder')}</span><strong><Link to={orderPath}>{t('viewOrder')} #{transaction.orderId} <ExternalLink size={13} /></Link></strong></div>}
+                    <div><span>{t('referenceType')}</span><strong>{referenceLabel(transaction.referenceType, t)}</strong></div>
+                    <div><span>{t('referenceId')}</span><strong className="ox-credit-detail-code">{transaction.referenceId || t('notProvided')}</strong></div>
                   </div>
                 </section>
 
                 <section className="ox-credit-panel">
-                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Assistance</p><h2>Need help?</h2></div><Building2 size={21} color="#15727a" /></div>
+                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('assistance')}</p><h2>{t('needHelp')}</h2></div><Building2 size={21} color="#15727a" /></div>
                   <div className="ox-credit-help-content">
-                    <p>If this entry looks incorrect or you do not recognize it, report it from your Credit activity list. A dispute creates a review record without changing your balance automatically.</p>
-                    <Link to="/oxsteed-credit#credit-activity" className="ox-credit-secondary-link">Report a problem <ArrowUpRight size={15} /></Link>
-                    <div className="ox-credit-security-note"><AlertCircle size={15} /> Need more help? <Link to="/support/escalation">Contact support</Link></div>
+                    <p>{t('incorrectEntryCopy')}</p>
+                    <Link to="/oxsteed-credit#credit-activity" className="ox-credit-secondary-link">{t('reportAProblem')} <ArrowUpRight size={15} /></Link>
+                    <div className="ox-credit-security-note"><AlertCircle size={15} /> {t('needHelp')} <Link to="/support/escalation">{t('contactSupport')}</Link></div>
                   </div>
                 </section>
               </div>

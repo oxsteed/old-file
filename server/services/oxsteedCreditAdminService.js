@@ -639,7 +639,7 @@ async function getAdminCreditTransaction(transactionId) {
     [transactionId]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
-  const [entryResult, auditEvents] = await Promise.all([
+  const [entryResult, auditEvents, refundResult] = await Promise.all([
     pool.query(
       `SELECT e.id, e.account_id, e.entry_side, e.amount_cents,
               e.balance_after_cents, e.sequence, e.previous_entry_hash,
@@ -652,11 +652,26 @@ async function getAdminCreditTransaction(transactionId) {
       [transactionId]
     ),
     listCreditAuditEvents({ resourceType: 'credit_transaction', resourceId: transactionId, limit: 100, offset: 0 }),
+    pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS refunded_cents
+         FROM oxsteed_credit_transactions
+        WHERE transaction_type = 'refund' AND status = 'posted'
+          AND reference_type = 'oxsteed_credit_purchase' AND reference_id = $1`,
+      [String(transactionId)]
+    ),
   ]);
   const row = rows[0];
+  const originalAmountCents = Number(row.amount_cents || 0);
+  const refundedCents = row.transaction_type === 'purchase'
+    ? Number(refundResult.rows[0]?.refunded_cents || 0)
+    : 0;
   return {
     transaction: {
       ...formatAdminCreditTransaction(row),
+      refundedCents,
+      remainingRefundableCents: row.transaction_type === 'purchase'
+        ? Math.max(0, originalAmountCents - refundedCents)
+        : 0,
       idempotencyKey: row.idempotency_key || null,
       correlationId: row.correlation_id || null,
       reversedAt: row.reversed_at || null,

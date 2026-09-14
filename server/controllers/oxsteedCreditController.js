@@ -32,6 +32,7 @@ const {
   listCreditDisputes,
   resolveCreditDispute,
   loadCustomerCredit,
+  refundCredit,
   getCreditRailStatus,
   getCustomerCreditRailStatus,
   setCreditRailStatus,
@@ -510,6 +511,26 @@ async function adminAdjustCredit(req, res, next) {
       reason: req.body?.reason,
       referenceType: 'admin_adjustment',
       referenceId,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+      metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function refundAdminCredit(req, res, next) {
+  try {
+    const purchaseTransactionId = parseUuid(req.params.transactionId, 'transactionId');
+    const result = await refundCredit({
+      purchaseTransactionId,
+      amountCents: req.body?.amountCents ?? req.body?.amount_cents,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      actorType: 'admin',
+      reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
       requestIp: req.ip || null,
       metadata: { source: 'super_admin_api', ...(req.body?.metadata || {}) },
@@ -1733,6 +1754,7 @@ module.exports = {
   listMyDisputes,
   adminLoadCredit,
   adminAdjustCredit,
+  refundAdminCredit,
   adminUpdateCreditAccountStatus,
   listAdminDisputes,
   downloadAdminCreditDisputes,

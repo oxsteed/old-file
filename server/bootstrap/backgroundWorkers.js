@@ -84,37 +84,37 @@ class BackgroundWorkers {
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('25 * * * * *', () => {
         runSupportSlaMonitor().catch((error) => {
           this.log.error('Support SLA monitor failed', { error: error.message });
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('35 * * * * *', () => {
         processSupportEmailOutbox().catch((error) => {
           this.log.warn('Support email outbox worker failed', { error: error.message });
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('40 * * * * *', () => {
         recoverStaleSupportChannelDeliveries().catch((error) => {
           this.log.warn('Support channel delivery recovery failed', { error: error.message });
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('45 * * * * *', () => {
         processSupportFollowUpReminders().catch((error) => {
           this.log.warn('Support follow-up reminder worker failed', { error: error.message });
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('50 * * * * *', () => {
         releaseExpiredInventoryReservations().catch((error) => {
           this.log.warn('Restaurant inventory reservation cleanup failed', { error: error.message });
         });
       });
 
-      cron.schedule('* * * * *', () => {
+      cron.schedule('15 * * * * *', () => {
         cleanupExpiredWalletOperations().catch((error) => {
           this.log.warn('Restaurant credit expiry cleanup failed', { error: error.message });
         });

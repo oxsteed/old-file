@@ -13,6 +13,7 @@ const {
   SUPPORTED_CREDIT_CURRENCIES,
   getCreditRailPrerequisites,
 } = require('../services/oxsteedCreditService');
+const { getProductionConfigurationErrors } = require('../utils/validateEnv');
 
 const REQUIRED_TABLES = [
   'oxsteed_credit_partners',
@@ -249,12 +250,19 @@ function findUnsupportedCurrencyRecords(rows, supportedCurrencies = SUPPORTED_CR
 
 async function main() {
   if ((process.env.NODE_ENV || 'production') === 'production') {
+    const productionConfigurationErrors = getProductionConfigurationErrors();
+    if (productionConfigurationErrors.length > 0) {
+      console.error(`verify-oxsteed-credit: unsafe production configuration: ${productionConfigurationErrors.join('; ')}`);
+      process.exitCode = 1;
+      return;
+    }
     const prerequisites = getCreditRailPrerequisites();
     if (!prerequisites.readyForProductionActivation) {
       const missing = [
         !prerequisites.sharedRedisConfigured && 'REDIS_URL',
         !prerequisites.dedicatedLedgerSecretConfigured && 'OXSTEED_CREDIT_LEDGER_HMAC_SECRET',
         !prerequisites.ledgerKeyConfigurationValid && 'ledger key rotation configuration',
+        !prerequisites.serverErrorMonitoringConfigured && 'SENTRY_DSN with SENTRY_ENABLED not false',
       ].filter(Boolean);
       console.error(`verify-oxsteed-credit: production prerequisites missing: ${missing.join(', ')}`);
       process.exitCode = 1;
@@ -759,7 +767,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'users'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'oxsteed_credit_notification_outbox'::regclass, 'food_restaurants'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -1360,7 +1368,7 @@ async function main() {
                  AND (debit_account.account_type <> 'customer_wallet'
                      OR credit_account.account_type <> 'platform_treasury'))
                  OR COALESCE(t.metadata->>'direction', '') NOT IN ('credit', 'debit')))
-           OR t.transaction_type IN ('fee', 'expiration', 'chargeback'))`,
+           OR t.transaction_type IN ('fee', 'expiration', 'chargeback')`,
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
 

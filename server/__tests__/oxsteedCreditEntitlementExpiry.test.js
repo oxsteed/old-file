@@ -46,5 +46,5 @@ test('returns an empty result when another worker owns the lock', async () => {
 });
 
 test('runs every minute', () => {
-  expect(CRON_EXPRESSION).toBe('* * * * *');
+  expect(CRON_EXPRESSION).toBe('20 * * * * *');
 });

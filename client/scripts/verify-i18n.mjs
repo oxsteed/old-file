@@ -306,9 +306,36 @@ function verifyPageHasNoHardcodedUiText(relativePath, { allowedJsxText = [], all
   console.log(`ok ${relativePath} has no unapproved hard-coded UI text or missing static keys`);
 }
 
+function verifyCreditTranslationSurface() {
+  const creditKeys = new Set(flattenKeys(readJson('src/i18n/locales/en/credit.json')));
+  const pages = [
+    'src/pages/food/OxsteedCreditPage.jsx',
+    'src/pages/food/OxsteedCreditTransactionPage.jsx',
+    'src/pages/food/OxsteedCreditPartnerManager.jsx',
+  ];
+  const failures = [];
+
+  for (const relativePath of pages) {
+    const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+    if (!source.includes("useTranslation('credit')")) {
+      failures.push(`${relativePath} must use the credit translation namespace`);
+    }
+    for (const match of source.matchAll(/\bt\(\s*['"]([^'"]+)['"]/g)) {
+      if (!creditKeys.has(match[1])) {
+        const line = source.slice(0, match.index).split('\n').length;
+        failures.push(`${relativePath}:${line}: missing credit key ${match[1]}`);
+      }
+    }
+  }
+
+  if (failures.length) throw new Error(`Credit translation surface failed:\n${failures.join('\n')}`);
+  console.log(`ok Credit customer and receipt pages use the credit namespace (${creditKeys.size} keys)`);
+}
+
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);
 compareKeySets('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
 compareKeySets('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
+compareKeySets('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
@@ -371,3 +398,4 @@ verifyPageHasNoHardcodedUiText('src/pages/OrderHistoryPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/OrderDetailsPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/SupportEscalationPage.jsx');
 verifyPageHasNoHardcodedUiText('src/pages/SupportTicketDetailPage.jsx');
+verifyCreditTranslationSurface();

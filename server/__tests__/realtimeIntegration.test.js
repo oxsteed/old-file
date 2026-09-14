@@ -201,10 +201,9 @@ describe('shared realtime server', () => {
 
     firstAgent.emit('agent:join');
     secondAgent.emit('agent:join');
-    firstAgent.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => firstAgent.emit('ticket:join', { ticketId: 'ticket-1' }, resolve));
     customer.emit('customer:join', { visitorName: 'Customer' });
-    customer.emit('ticket:join', { ticketId: 'ticket-1' });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await new Promise((resolve) => customer.emit('ticket:join', { ticketId: 'ticket-1' }, resolve));
 
     const firstPresence = once(firstAgent, 'ticket:viewer-presence');
     const customerPresence = new Promise((resolve) => {
@@ -215,7 +214,7 @@ describe('shared realtime server', () => {
       });
     });
     const viewerDetails = new Promise((resolve) => firstAgent.once('ticket:viewer-details', resolve));
-    secondAgent.emit('ticket:join', { ticketId: 'ticket-1' });
+    await new Promise((resolve) => secondAgent.emit('ticket:join', { ticketId: 'ticket-1' }, resolve));
 
     await expect(firstPresence).resolves.toEqual({ ticketId: 'ticket-1', viewerCount: 2 });
     await expect(customerPresence).resolves.toBeNull();

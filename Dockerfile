@@ -1,15 +1,34 @@
 # Multi-stage production build for OxSteed (Node.js + React SPA)
 # Stage 1: Build client (Vite)
-FROM node:20-alpine AS client-build
+FROM node:22-alpine AS client-build
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
 COPY client/ .
-RUN npm run build
+ARG VITE_SENTRY_DSN
+ARG VITE_SENTRY_SEND_DEFAULT_PII=false
+ARG SENTRY_RELEASE
+ARG COMMIT_SHA
+ARG SOURCE_COMMIT
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+ENV VITE_SENTRY_SEND_DEFAULT_PII=${VITE_SENTRY_SEND_DEFAULT_PII}
+ENV SENTRY_RELEASE=${SENTRY_RELEASE}
+ENV COMMIT_SHA=${COMMIT_SHA}
+ENV SOURCE_COMMIT=${SOURCE_COMMIT}
+RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}"; \
+    SENTRY_RELEASE="$release" VITE_SENTRY_RELEASE="$release" npm run build
 
 # Stage 2: Build and run server + client
-FROM node:20-alpine
+FROM node:22-alpine
 LABEL maintainer="OxSteed Team"
+ARG SENTRY_RELEASE
+ARG COMMIT_SHA
+ARG SOURCE_COMMIT
+ENV SENTRY_RELEASE=${SENTRY_RELEASE}
+ENV COMMIT_SHA=${COMMIT_SHA}
+ENV SOURCE_COMMIT=${SOURCE_COMMIT}
+LABEL org.opencontainers.image.revision="${SOURCE_COMMIT}" \
+      org.opencontainers.image.version="${SENTRY_RELEASE}"
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init curl
@@ -19,7 +38,8 @@ WORKDIR /app
 # Copy server dependencies
 COPY server/package*.json server/
 WORKDIR /app/server
-RUN npm ci
+# Keep test and development tooling out of the production runtime image.
+RUN npm ci --omit=dev
 # Copy server code
 COPY server/ .
 

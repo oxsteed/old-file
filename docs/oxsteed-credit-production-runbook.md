@@ -6,6 +6,10 @@ OxSteed Credit is a restricted stored-value rail. It is not a bank account, depo
 
 Do not enable OxSteed Credit for real customers until all of the following are true:
 
+- Production startup must use non-placeholder authentication, database, encryption,
+  Credit-ledger, and live Stripe credentials. The server now fails closed instead
+  of accepting `dev-*`, placeholder, or Stripe test credentials in
+  `NODE_ENV=production`.
 - Legal and compliance counsel has reviewed stored-value, money-transmission, consumer-protection, tax, refund, expiry, and unclaimed-property requirements for every operating jurisdiction.
 - A custody and funding process exists for every credit load, including who owns the funds and how partner payables are funded.
 - Partner agreements define acceptance, eligible categories and locations, settlement timing, fees, refunds, disputes, termination, and data handling.
@@ -16,6 +20,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - Customer wallets and customer-specific partner entitlements are restricted to users with the `customer` role at both the service and database layers. Wallet updates and ledger postings re-check current ownership, so a later role change cannot be used to move value through a non-customer identity. Helpers, restaurant owners, and administrative identities must not receive customer Credit access.
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
+- Server-side error monitoring must be configured before activation; the production admin gate checks `SENTRY_DSN`.
 
 ## API Abuse Controls
 
@@ -32,6 +37,12 @@ database constraints, and the immutable audit trail. Configure `REDIS_URL` in
 production so every application replica shares the same rate-limit buckets. The
 in-memory fallback is for local development and is not sufficient for a
 multi-instance deployment.
+
+Set `DB_CONNECTION_TIMEOUT_MS` between 1,000 and 30,000 milliseconds when the
+database host or VM needs a different pool wait budget. The default is 5,000 ms,
+which tolerates short host scheduling pauses without hiding a persistently
+exhausted pool; do not use this setting as a substitute for investigating pool
+utilization or database capacity.
 
 Positive administrative issuance is also bounded inside the transaction:
 `OXSTEED_CREDIT_MAX_TRANSACTION_CENTS` caps one movement,
@@ -75,14 +86,27 @@ the partner order window.
 
 ## First Deployment
 
+The first deployment should be treated as a controlled release. The GitHub
+Actions deployment job triggers Coolify only after the server and client checks
+pass. It then polls the public `/ready` endpoint and the API `/health` endpoint
+for up to five minutes. It also requires readiness JSON to report zero pending
+migrations, a healthy Credit ledger check, and a non-empty release identifier.
+This is still a service and schema gate, not proof that every database
+invariant or external provider is configured. Coolify's predefined
+`SOURCE_COMMIT` value is accepted as a fallback, but enable Configuration >
+Advanced > Include Source Commit in Build so the exact commit also reaches the
+Docker build and frontend release metadata. You may override it with
+`SENTRY_RELEASE` or `COMMIT_SHA`; these values must never contain a secret.
+
 Run these commands from the server directory against the intended database:
 
 ```sh
 npm run migrate
 npm run verify:credit
+curl --silent --show-error --fail https://oxsteed.com/ready | npm run verify:readiness
 ```
 
-The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, required hold lookup and one-active-agreement indexes exist, database-level transaction, transaction-currency, transaction-type, transaction-partner, transaction-immutability, journal-entry-immutability, audit-immutability, hold-reference, account-integrity, settlement-integrity, settlement-state, financial-identity-stability, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, customer reservations equal their active holds, established transaction directions are valid, restaurant movements point to the partner payable account named by their partner and agreement, purchases have partner/agreement references, transaction currencies and settlements match their agreements, every stored credit currency belongs to the configured OxSteed Credit allowlist, paid non-zero settlements have payment evidence, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, the scheduled-job lock table is present, and the restaurant wallet, POS payment, receipt-event, operator-audit, and incident-monitoring dependencies required by the restricted stored-value flows are installed with their critical columns and indexes. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry.
+The migration runner applies the OxSteed Credit migrations and the durable `cron_job_locks` migration in order. The verification command is read-only and checks that the foundation is applied, the emergency flag exists, required columns exist, required hold lookup and one-active-agreement indexes exist, database-level transaction, transaction-currency, transaction-type, transaction-partner, transaction-immutability, journal-entry-immutability, audit-immutability, hold-reference, account-integrity, settlement-integrity, settlement-state, financial-identity-stability, and journal-entry guards are installed, posted transactions have one debit and one credit entry, account balances agree with the journal, customer reservations equal their active holds, established transaction directions are valid, restaurant movements point to the partner payable account named by their partner and agreement, purchases have partner/agreement references, transaction currencies and settlements match their agreements, every stored credit currency belongs to the configured OxSteed Credit allowlist, paid non-zero settlements have payment evidence, every entry HMAC recomputes correctly, each account chain is contiguous, each account head matches its final entry, the scheduled-job lock table is present, and the restaurant wallet, POS payment, receipt-event, operator-audit, and incident-monitoring dependencies required by the restricted stored-value flows are installed with their critical columns and indexes. Expired job leases are reclaimed atomically, so a crashed worker does not permanently disable hold expiry. The readiness command separately validates the live service contract, including its non-secret release identifier, migration state, shared Redis, Credit ledger configuration, and runtime worker checks.
 
 The application readiness endpoint (`/ready` or `/api/ready`) also checks the
 Credit rail control. An enabled Credit rail cannot receive traffic unless
@@ -190,6 +214,8 @@ allow a POS operator to debit Credit from an email or phone lookup alone.
 - Review the Credit worker health panel for all six maintenance workers: notification delivery, hold expiry, entitlement expiry, reconciliation, integrity verification, and restaurant wallet operations. Notification, hold-expiry, entitlement-expiry, and restaurant-wallet checkpoints older than 10 minutes are stale; reconciliation and integrity checkpoints older than 48 hours are stale because they run daily. A recent checkpoint with a recorded error or consecutive failures still requires investigation. The watchdog checks these states every five minutes under a distributed lock and deduplicates critical incidents by worker.
 - The restaurant wallet watchdog also checks for active QR sessions past expiry, overdue wallet POS payments, recent failed wallet POS payments, reserved-balance versus active-hold drift, account-balance versus latest-ledger drift, and recent wallet integrity locks. Each condition creates a durable deduplicated incident and auto-resolves after the next healthy check. The existing one-minute expiry cleanup remains the remediation path for expired sessions and holds; the watchdog is an independent detection and alerting path.
 - Review notification backlog age separately from worker heartbeat. A due pending notification or a sending notification with a stale lock older than 15 minutes raises `oxsteed_credit_notification_backlog_stale`; scheduled future retries are excluded so they do not create false alerts. The watchdog deduplicates this incident and auto-resolves it after the active queue returns within the threshold.
+- On the MacBook host, `com.oxsteed.production-backup-monitor` runs every 15 minutes and validates the newest snapshot age, required artifacts, checksums, backup-directory permissions, free disk space, Docker health, and the public readiness endpoint. Its latest state is recorded in `/Users/oxsteed/server-backups/production/backup-monitor.status`; this local monitor does not replace off-device backup storage or centralized alerting.
+- The backup script also supports an optional second copy. Set `BACKUP_MIRROR_ROOT` to a mounted recovery volume such as `/Volumes/OxSteedBackups` in both LaunchAgent environment blocks. The backup job copies each verified snapshot there and the monitor verifies the matching mirror checksum every 15 minutes. Leave it unset for the current local-only setup; do not point it at the local backup root.
 - A UTC reconciliation worker runs daily at 02:10 UTC under one durable distributed job lock for the complete configured currency batch. The owning worker renews its lease while the handler runs, so a slow database operation does not allow a second replica to interleave or duplicate the batch. It records a reconciliation run for the prior UTC day per currency and creates a critical durable incident if the account balances and journal differ or the check fails.
 - Generate non-overlapping settlement periods that end no later than the current time, and require a traceable payment reference before marking a settlement paid.
 - Treat every customer dispute as a review record. Never edit or delete a journal entry to correct a customer balance; post a compensating refund or adjustment with a reason and idempotency key.
@@ -216,6 +242,21 @@ For a restore drill:
 3. Run `npm run verify:credit` against the isolated database.
 4. Compare account balances, transaction counts, entry counts, and the latest reconciliation result with the source environment.
 5. Record the test duration, restore point, rows verified, and any difference in the backup monitor.
+
+On the MacBook deployment host, the safe database-only drill can be run from
+the production repository against an existing custom-format snapshot without
+overwriting production:
+
+```sh
+cd /Users/oxsteed/Documents/GitHub/6
+npm --prefix server run verify:restore -- \
+  /Users/oxsteed/server-backups/production/20260914T094542Z/oxsteed-db.dump
+```
+
+The verifier restores into a temporary database on the healthy Postgres
+container, checks that migrations and all required Credit tables are present,
+and drops the temporary database on exit. It does not replace the separate
+full restore-and-cutover procedure required for a disaster recovery exercise.
 
 Never restore over the live database as a first response. Preserve the original database for forensic review and use a planned cutover only after the restored copy passes verification.
 
@@ -264,11 +305,12 @@ minor-unit handling. The server keeps an explicit precision map, including
 zero-, two-, and three-decimal currencies, so precision is never inferred
 from an arbitrary currency code. Set
 `OXSTEED_CREDIT_SUPPORTED_CURRENCIES` to the same comma-separated allowlist on
-every application replica; when it is unset, the built-in allowlist is used.
+every application replica; when it is unset, every currency in the verified
+precision map is available by default.
 Configured currencies outside the verified precision map are omitted and a
 startup warning is emitted, so they cannot silently enter the ledger. The
-built-in allowlist remains intentionally conservative; add a mapped currency
-to the environment only after its funding and settlement path is tested.
+Use the environment allowlist to narrow a launch market until each enabled
+currency's funding and settlement path is tested.
 Customer wallets, partner agreements, restaurant settlement currency, holds,
 transactions, refunds, and reconciliation runs remain currency-isolated. The
 application does not perform foreign-exchange conversion, combine balances from
@@ -298,6 +340,26 @@ available until a restore drill and `npm run verify:credit` confirm that all
 historical entries still verify. Then remove only keys that are no longer
 required by the approved retention and audit policy. Never place key values in
 logs, exports, or this runbook.
+
+## Observability Configuration
+
+Before enabling the Credit rail in production, configure the server Sentry DSN
+in the deployment environment as `SENTRY_DSN`. Keep `SENTRY_ENABLED=true` (the
+default) and leave `SENTRY_SEND_DEFAULT_PII=false` unless a documented privacy
+review approves otherwise. Set `SENTRY_ENVIRONMENT` when the deployment label
+should differ from `NODE_ENV`. Optional `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE`,
+and `SENTRY_PROFILES_SAMPLE_RATE` values may identify the release and control
+sampling without exposing secrets. Configure the browser bundle with
+`VITE_SENTRY_DSN` so the root, admin, and shared frontend logger report to the
+same approved project. The server rail gate checks only that the server DSN is
+present; provider delivery, alert routing, retention, and on-call ownership
+must still be verified outside the application.
+
+If Credit workflows accept customer or partner uploads, configure `CLAMAV_HOST`
+and keep `FILE_SCAN_REQUIRE_MALWARE=true`; verify the ClamAV health endpoint
+before launch. When uploads are not part of the Credit workflow, static
+validation remains available for the rest of the application, but it is not a
+substitute for malware scanning in a high-risk stored-value deployment.
 
 ## Provider and Compliance Gaps
 

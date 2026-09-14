@@ -3,7 +3,8 @@
  *
  * Structured logging for frontend.
  * In development: logs to console.
- * In production: can be wired to Sentry, Datadog, or other error tracking services.
+ * In production: emits structured console logs and reports exceptions to Sentry
+ * when the application has been configured with a Sentry DSN.
  *
  * Usage:
  *   import logger from './frontendLogger';
@@ -12,7 +13,10 @@
  *   logger.info('User logged in', { userId: 42 });
  */
 
+import * as Sentry from '@sentry/react';
+
 const IS_PROD = import.meta.env.PROD;
+const SENTRY_CONFIGURED = Boolean(import.meta.env.VITE_SENTRY_DSN);
 
 const LEVELS = {
   debug: 1,
@@ -79,8 +83,6 @@ function formatEntry(level, message, context = {}) {
  */
 function output(level, entry) {
   if (IS_PROD) {
-    // In production: send to Sentry/Datadog (currently just console)
-    // TODO: Wire to error tracking service
     const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
     logFn(JSON.stringify(entry));
   } else {
@@ -110,6 +112,19 @@ function output(level, entry) {
     const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
     logFn(output);
   }
+}
+
+function reportException(error, entry) {
+  if (!IS_PROD || !SENTRY_CONFIGURED || !(error instanceof Error)) return;
+
+  // Keep financial, identity, and request payloads out of the error provider.
+  Sentry.withScope((scope) => {
+    scope.setTag('logger_source', 'frontend');
+    scope.setExtra('log_message', entry.msg);
+    if (entry.err?.code) scope.setExtra('error_code', entry.err.code);
+    if (entry.err?.status !== undefined) scope.setExtra('http_status', entry.err.status);
+    Sentry.captureException(error);
+  });
 }
 
 /**
@@ -161,12 +176,8 @@ const logger = {
     if (LEVELS.error >= MIN_LEVEL) {
       const entry = formatEntry('error', message, context);
       output('error', entry);
-
-      // In production, also send to error tracking service
-      if (IS_PROD && context instanceof Error) {
-        // TODO: Send to Sentry/Datadog
-        // Sentry.captureException(context, { contexts: { ...entry } });
-      }
+      const error = context instanceof Error ? context : context?.error instanceof Error ? context.error : null;
+      reportException(error, entry);
     }
   },
 
@@ -196,10 +207,7 @@ const logger = {
       stackTrace: err?.stack,
     });
 
-    // In production, report to error tracking
-    if (IS_PROD) {
-      // TODO: Sentry.captureException(err);
-    }
+    reportException(err, formatEntry('error', `Unhandled error in ${context}`, { error: err }));
   },
 };
 

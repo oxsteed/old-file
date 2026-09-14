@@ -62,6 +62,7 @@ function createAdminApp() {
   app.get('/transactions', controller.listAdminTransactions);
   app.get('/transactions.csv', controller.downloadAdminTransactions);
   app.get('/transactions/:transactionId', controller.getAdminTransaction);
+  app.post('/transactions/:transactionId/refund', controller.refundAdminCredit);
   app.get('/rail', controller.getAdminCreditRail);
   app.post('/rail', controller.updateAdminCreditRail);
   app.post('/status/:customerId', controller.adminUpdateCreditAccountStatus);
@@ -140,6 +141,11 @@ test('credit verification checks every declared integrity trigger', () => {
 
 test('credit verification treats customer activity protection as required', () => {
   const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
+  expect(verifierSource).toContain("'oxsteed_credit_notification_outbox'::regclass");
+  expect(verifierSource).toContain("'food_restaurants'::regclass");
+  expect(verifierSource).toContain("'SENTRY_DSN with SENTRY_ENABLED not false'");
+  expect(verifierSource).toContain('getProductionConfigurationErrors');
+  expect(verifierSource).toContain('unsafe production configuration');
   expect(verifierSource).toContain("['457_oxsteed_credit_customer_activity.sql']");
   expect(verifierSource).toContain('!checks.customerActivityMigrationApplied');
   expect(verifierSource).toContain("['458_oxsteed_credit_issuance_trace.sql']");
@@ -371,12 +377,19 @@ test('admin refund evidence migration creates its trigger after the reason colum
   expect(triggerDefinition).toBeGreaterThan(reasonColumn);
 });
 
+test('POS OxSteed Credit capture returns the authorized customer without a missing lookup row', () => {
+  const source = require('fs').readFileSync(require.resolve('../controllers/restaurantAppFlowController'), 'utf8');
+  expect(source).toContain('customer: { id: customerId }');
+  expect(source).not.toContain('formatPosCustomerWallet(customerRow).customer');
+});
+
 test('exposes only currencies with explicitly verified minor-unit support', () => {
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.USD).toEqual({ code: 'USD', minorUnits: 2 });
-  expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits === 2)).toBe(true);
-  expect(service.SUPPORTED_CREDIT_CURRENCY_META.JPY).toBeUndefined();
+  expect(service.SUPPORTED_CREDIT_CURRENCY_META.JPY).toEqual({ code: 'JPY', minorUnits: 0 });
+  expect(service.SUPPORTED_CREDIT_CURRENCY_META.KWD).toEqual({ code: 'KWD', minorUnits: 3 });
+  expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits >= 0 && currency.minorUnits <= 3)).toBe(true);
   expect(service.assertSupportedCreditCurrency('USD')).toBe('USD');
-  expect(() => service.assertSupportedCreditCurrency('JPY')).toThrow('not enabled');
+  expect(service.assertSupportedCreditCurrency('JPY')).toBe('JPY');
   expect(service.formatCreditAmount(1250, 'USD')).toBe(12.5);
   expect(service.formatCreditAmount(1250, 'JPY')).toBe(1250);
   expect(service.formatCreditAmount(1250, 'KWD')).toBe(1.25);
@@ -1214,8 +1227,8 @@ test('exposes only safe Credit rail status to customers', async () => {
   });
 });
 
-test('rejects unsupported credit currencies before creating a wallet', async () => {
-  const response = await request(createCustomerApp()).get('/account?currencyCode=JPY');
+test('rejects unknown credit currencies before creating a wallet', async () => {
+  const response = await request(createCustomerApp()).get('/account?currencyCode=ZZZ');
 
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('credit_currency_not_supported');
@@ -1885,6 +1898,17 @@ test('requires a reason before an administrative Credit refund queries the datab
     actorUserId: ADMIN_ID,
     actorType: 'admin',
   })).rejects.toMatchObject({ code: 'credit_refund_reason_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('requires a reason before the Super Admin Credit refund endpoint queries the database', async () => {
+  const response = await request(createAdminApp())
+    .post('/transactions/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/refund')
+    .set('Idempotency-Key', 'refund-endpoint-without-reason-1')
+    .send({ amountCents: 100 });
+
+  expect(response.status).toBe(400);
+  expect(response.body.code).toBe('credit_refund_reason_required');
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
@@ -2916,7 +2940,11 @@ test('requires an administrator identity for a real rail status change', async (
 
 test('reports non-secret Credit rail activation prerequisites', async () => {
   const previousRedisUrl = process.env.REDIS_URL;
+  const previousSentryDsn = process.env.SENTRY_DSN;
+  const previousSentryEnabled = process.env.SENTRY_ENABLED;
   process.env.REDIS_URL = 'redis://configured';
+  process.env.SENTRY_DSN = 'https://public@example.ingest.sentry.io/1';
+  process.env.SENTRY_ENABLED = 'true';
   mockQuery.mockResolvedValueOnce({ rows: [{
     key: 'oxsteed_credit_enabled',
     is_enabled: false,
@@ -2932,11 +2960,16 @@ test('reports non-secret Credit rail activation prerequisites', async () => {
     sharedRedisConfigured: true,
     dedicatedLedgerSecretConfigured: true,
     ledgerKeyConfigurationValid: true,
+    serverErrorMonitoringConfigured: true,
   }));
   expect(JSON.stringify(response.body)).not.toContain(process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET);
 
   if (previousRedisUrl === undefined) delete process.env.REDIS_URL;
   else process.env.REDIS_URL = previousRedisUrl;
+  if (previousSentryDsn === undefined) delete process.env.SENTRY_DSN;
+  else process.env.SENTRY_DSN = previousSentryDsn;
+  if (previousSentryEnabled === undefined) delete process.env.SENTRY_ENABLED;
+  else process.env.SENTRY_ENABLED = previousSentryEnabled;
 });
 
 test('blocks enabling the Credit rail in production without shared Redis', async () => {
@@ -2989,6 +3022,69 @@ test('blocks enabling the Credit rail in production without a dedicated ledger s
   else process.env.REDIS_URL = previous.REDIS_URL;
   if (previous.OXSTEED_CREDIT_LEDGER_HMAC_SECRET === undefined) delete process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
   else process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = previous.OXSTEED_CREDIT_LEDGER_HMAC_SECRET;
+});
+
+test('blocks enabling the Credit rail in production without server error monitoring', async () => {
+  const previous = {
+    NODE_ENV: process.env.NODE_ENV,
+    REDIS_URL: process.env.REDIS_URL,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_ENABLED: process.env.SENTRY_ENABLED,
+  };
+  process.env.NODE_ENV = 'production';
+  process.env.REDIS_URL = 'redis://configured';
+  delete process.env.SENTRY_DSN;
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] });
+
+  await expect(service.setCreditRailStatus({
+    enabled: true,
+    actorUserId: ADMIN_ID,
+    reason: 'Approved after custody review',
+  })).rejects.toMatchObject({ code: 'credit_server_monitoring_required', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+
+  if (previous.NODE_ENV === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previous.NODE_ENV;
+  if (previous.REDIS_URL === undefined) delete process.env.REDIS_URL;
+  else process.env.REDIS_URL = previous.REDIS_URL;
+  if (previous.SENTRY_DSN === undefined) delete process.env.SENTRY_DSN;
+  else process.env.SENTRY_DSN = previous.SENTRY_DSN;
+  if (previous.SENTRY_ENABLED === undefined) delete process.env.SENTRY_ENABLED;
+  else process.env.SENTRY_ENABLED = previous.SENTRY_ENABLED;
+});
+
+test('blocks enabling the Credit rail when server error monitoring is explicitly disabled', async () => {
+  const previous = {
+    NODE_ENV: process.env.NODE_ENV,
+    REDIS_URL: process.env.REDIS_URL,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_ENABLED: process.env.SENTRY_ENABLED,
+  };
+  process.env.NODE_ENV = 'production';
+  process.env.REDIS_URL = 'redis://configured';
+  process.env.SENTRY_DSN = 'https://public@example.ingest.sentry.io/1';
+  process.env.SENTRY_ENABLED = 'false';
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] });
+
+  await expect(service.setCreditRailStatus({
+    enabled: true,
+    actorUserId: ADMIN_ID,
+    reason: 'Approved after custody review',
+  })).rejects.toMatchObject({ code: 'credit_server_monitoring_required', status: 409 });
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+
+  if (previous.NODE_ENV === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previous.NODE_ENV;
+  if (previous.REDIS_URL === undefined) delete process.env.REDIS_URL;
+  else process.env.REDIS_URL = previous.REDIS_URL;
+  if (previous.SENTRY_DSN === undefined) delete process.env.SENTRY_DSN;
+  else process.env.SENTRY_DSN = previous.SENTRY_DSN;
+  if (previous.SENTRY_ENABLED === undefined) delete process.env.SENTRY_ENABLED;
+  else process.env.SENTRY_ENABLED = previous.SENTRY_ENABLED;
 });
 
 test('changes the rail status with an audit reason and serialized control lock', async () => {

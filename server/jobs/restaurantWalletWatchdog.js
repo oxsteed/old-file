@@ -8,7 +8,7 @@ const { withJobLock } = require('./jobLockingService');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 
 const JOB_NAME = 'restaurant-credit-wallet-watchdog';
-const CRON_EXPRESSION = '*/5 * * * *';
+const CRON_EXPRESSION = '55 */5 * * * *';
 const CRON_TIMEZONE = 'UTC';
 const PENDING_PAYMENT_STALE_MINUTES = 15;
 const FAILED_PAYMENT_WINDOW_MINUTES = 15;

@@ -6,10 +6,6 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 
 const CREDIT_CURRENCY = 'USD';
-const DEFAULT_SUPPORTED_CREDIT_CURRENCIES = [
-  'USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP',
-  'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL',
-];
 // Credit amounts are stored as integer minor units. Keep this map explicit:
 // currency precision must never be inferred from an admin-provided code.
 const CREDIT_CURRENCY_MINOR_UNITS = Object.freeze({
@@ -20,6 +16,10 @@ const CREDIT_CURRENCY_MINOR_UNITS = Object.freeze({
   BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
   CLP: 0, ISK: 0, JPY: 0, KRW: 0, PYG: 0, UGX: 0, VND: 0, VUV: 0, XAF: 0, XOF: 0, XPF: 0,
 });
+// Every currency in the verified precision map is available by default.
+// Deployments can still narrow this set with the explicit environment allowlist
+// until funding, settlement, tax, and compliance checks are complete.
+const DEFAULT_SUPPORTED_CREDIT_CURRENCIES = Object.keys(CREDIT_CURRENCY_MINOR_UNITS);
 const configuredCreditCurrencies = String(process.env.OXSTEED_CREDIT_SUPPORTED_CURRENCIES || '')
   .split(',')
   .map((value) => value.trim().toUpperCase())
@@ -285,6 +285,8 @@ function formatCreditRailStatus(row) {
 function getCreditRailPrerequisites() {
   const production = (process.env.NODE_ENV || 'production') === 'production';
   const dedicatedLedgerSecretConfigured = Boolean(process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET);
+  const serverErrorMonitoringConfigured = process.env.SENTRY_ENABLED !== 'false'
+    && Boolean(String(process.env.SENTRY_DSN || '').trim());
   let ledgerKeyConfigurationValid = true;
   try {
     getLedgerHashKeyConfiguration();
@@ -295,8 +297,13 @@ function getCreditRailPrerequisites() {
     sharedRedisConfigured: Boolean(process.env.REDIS_URL),
     dedicatedLedgerSecretConfigured,
     ledgerKeyConfigurationValid,
+    serverErrorMonitoringConfigured,
     readyForProductionActivation: Boolean(process.env.REDIS_URL)
-      && (!production || (dedicatedLedgerSecretConfigured && ledgerKeyConfigurationValid)),
+      && (!production || (
+        dedicatedLedgerSecretConfigured
+        && ledgerKeyConfigurationValid
+        && serverErrorMonitoringConfigured
+      )),
   };
 }
 
@@ -368,6 +375,13 @@ async function setCreditRailStatus({ enabled, actorUserId, reason, correlationId
           'Correct the OxSteed Credit ledger key configuration before enabling the rail in production',
           409,
           'credit_ledger_key_configuration_invalid'
+        );
+      }
+      if (!prerequisites.serverErrorMonitoringConfigured) {
+        throw new AppError(
+          'Configure server-side error monitoring before enabling the OxSteed Credit rail in production',
+          409,
+          'credit_server_monitoring_required'
         );
       }
     }

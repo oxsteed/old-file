@@ -20,6 +20,7 @@ const localeLoaders = {
     import('../locales/privacy/en.content.json'),
     import('./locales/en/common.json'),
     import('./locales/en/translator.json'),
+    import('./locales/en/credit.json'),
   ]),
   es: () => Promise.all([
     import('../locales/es.json'),
@@ -27,6 +28,7 @@ const localeLoaders = {
     import('../locales/privacy/es.content.json'),
     import('./locales/es/common.json'),
     import('./locales/es/translator.json'),
+    import('./locales/es/credit.json'),
   ]),
   fr: () => Promise.all([
     import('../locales/fr.json'),
@@ -34,6 +36,7 @@ const localeLoaders = {
     import('../locales/privacy/fr.content.json'),
     import('./locales/fr/common.json'),
     import('./locales/fr/translator.json'),
+    import('./locales/fr/credit.json'),
   ]),
   ht: () => Promise.all([
     import('../locales/ht.json'),
@@ -41,6 +44,7 @@ const localeLoaders = {
     import('../locales/privacy/ht.content.json'),
     import('./locales/ht/common.json'),
     import('./locales/ht/translator.json'),
+    import('./locales/ht/credit.json'),
   ]),
   ar: () => Promise.all([
     import('../locales/ar.json'),
@@ -48,13 +52,14 @@ const localeLoaders = {
     import('../locales/privacy/ar.content.json'),
     import('./locales/ar/common.json'),
     import('./locales/ar/translator.json'),
+    import('./locales/ar/credit.json'),
   ]),
 };
 
 const localePromises = new Map();
 
 function getLocaleResources(modules) {
-  const [legacy, terms, privacy, common, translator] = modules;
+  const [legacy, terms, privacy, common, translator, credit] = modules;
   return {
     translation: {
       ...legacy.default,
@@ -63,6 +68,7 @@ function getLocaleResources(modules) {
     },
     common: common.default,
     translator: translator.default,
+    credit: credit.default,
   };
 }
 
@@ -137,7 +143,7 @@ export const i18nReady = Promise.all([
     lng: initialLanguage,
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((language) => language.code),
-    ns: ['translation', 'common', 'translator'],
+    ns: ['translation', 'common', 'translator', 'credit'],
     defaultNS: 'translation',
     fallbackNS: ['common'],
     interpolation: { escapeValue: false },
@@ -153,6 +159,7 @@ export function ensureLanguageLoaded(code) {
       i18n.addResourceBundle(normalizedCode, 'translation', resourcesForLanguage.translation, true, true);
       i18n.addResourceBundle(normalizedCode, 'common', resourcesForLanguage.common, true, true);
       i18n.addResourceBundle(normalizedCode, 'translator', resourcesForLanguage.translator, true, true);
+      i18n.addResourceBundle(normalizedCode, 'credit', resourcesForLanguage.credit, true, true);
     });
   });
 }

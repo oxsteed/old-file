@@ -14,6 +14,8 @@ const REQUIRED = [
 
 // Missing these degrades features but doesn't break auth / payments
 const OPTIONAL = [
+  ['SENTRY_DSN',               'Server error monitoring unavailable; Credit production activation disabled'],
+  ['CLAMAV_HOST',              'ClamAV malware scanning unavailable unless static validation is approved'],
   ['AWS_ACCESS_KEY_ID',        'S3 file uploads disabled'],
   ['AWS_SECRET_ACCESS_KEY',    'S3 file uploads disabled'],
   ['RESEND_API_KEY',           'Transactional emails disabled'],
@@ -55,6 +57,34 @@ function warnIfSuspicious(key, note) {
   }
 }
 
+function getProductionConfigurationErrors(env = process.env) {
+  if ((env.NODE_ENV || 'production') !== 'production') return [];
+
+  const errors = [];
+  const requiredProductionSecrets = [
+    'JWT_SECRET',
+    'DATABASE_URL',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'ENCRYPTION_KEY',
+    'OXSTEED_CREDIT_LEDGER_HMAC_SECRET',
+  ];
+  requiredProductionSecrets.forEach((key) => {
+    if (!env[key]) {
+      errors.push(`${key} is required in production`);
+    } else if (looksLikePlaceholder(env[key])) {
+      errors.push(`${key} contains a placeholder value`);
+    }
+  });
+  if (String(env.STRIPE_SECRET_KEY || '').toLowerCase().startsWith('sk_test_')) {
+    errors.push('STRIPE_SECRET_KEY must use a live Stripe key in production');
+  }
+  if (String(env.STRIPE_WEBHOOK_SECRET || '').toLowerCase().startsWith('whsec_test_')) {
+    errors.push('STRIPE_WEBHOOK_SECRET must use a live Stripe signing secret in production');
+  }
+  return errors;
+}
+
 module.exports = function validateEnv() {
   const missing = REQUIRED.filter(k => !process.env[k]);
 
@@ -87,11 +117,27 @@ module.exports = function validateEnv() {
     return;
   }
 
+  const productionConfigurationErrors = getProductionConfigurationErrors();
+  if (productionConfigurationErrors.length > 0) {
+    logger.error('Unsafe production environment configuration', {
+      variables: productionConfigurationErrors,
+    });
+    console.error('Production startup blocked: replace placeholder or test credentials before accepting traffic.');
+    process.exit(1);
+    return;
+  }
+
   OPTIONAL.forEach(([key, note]) => {
     if (!process.env[key]) {
       logger.warn('Optional environment variable not set', { key, impact: note });
     }
   });
+
+  if ((process.env.NODE_ENV || 'production') === 'production' && process.env.SENTRY_ENABLED === 'false') {
+    logger.warn('Server error monitoring is explicitly disabled', {
+      impact: 'OxSteed Credit production activation disabled',
+    });
+  }
 
   warnIfSuspicious('JWT_SECRET', 'Auth tokens may be easy to guess');
   warnIfSuspicious('ENCRYPTION_KEY', 'Stored secrets may not be protected');
@@ -100,3 +146,6 @@ module.exports = function validateEnv() {
 
   logger.info('All required environment variables present');
 };
+
+module.exports.getProductionConfigurationErrors = getProductionConfigurationErrors;
+module.exports.looksLikePlaceholder = looksLikePlaceholder;

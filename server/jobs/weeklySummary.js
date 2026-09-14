@@ -43,8 +43,17 @@ const startWeeklySummaryJob = () => {
       const { rows: helpers } = await db.query(
         `SELECT
           u.id, u.first_name, u.email,
-          hp.earnings_mtd,
-          hp.completed_jobs,
+          COALESCE((
+            SELECT SUM(COALESCE(p.helper_payout, 0))
+              FROM payments p
+             WHERE p.payee_id = u.id
+               AND p.status IN ('captured', 'released')
+               AND COALESCE(
+                     CASE WHEN p.status = 'released' THEN p.released_at ELSE p.captured_at END,
+                     p.released_at, p.captured_at, p.updated_at, p.created_at
+                   ) >= date_trunc('month', CURRENT_DATE)
+          ), 0) AS earnings_mtd,
+          hp.completed_jobs_count AS completed_jobs,
           (SELECT COUNT(*) FROM bids b
            JOIN jobs j ON b.job_id = j.id
            WHERE b.helper_id = u.id

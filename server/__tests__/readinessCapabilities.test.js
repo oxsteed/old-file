@@ -33,6 +33,73 @@ describe('runtime readiness', () => {
     else process.env.REDIS_URL = previousRedisUrl;
   });
 
+  test('exposes the configured non-secret release identifier for deployment checks', async () => {
+    const previousRelease = process.env.SENTRY_RELEASE;
+    const previousCommit = process.env.COMMIT_SHA;
+    process.env.SENTRY_RELEASE = 'release-2026-09-14';
+    delete process.env.COMMIT_SHA;
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: files.map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.release).toBe('release-2026-09-14');
+    if (previousRelease === undefined) delete process.env.SENTRY_RELEASE;
+    else process.env.SENTRY_RELEASE = previousRelease;
+    if (previousCommit === undefined) delete process.env.COMMIT_SHA;
+    else process.env.COMMIT_SHA = previousCommit;
+  });
+
+  test('falls back to the source commit when Sentry release is not supplied', async () => {
+    const previousRelease = process.env.SENTRY_RELEASE;
+    const previousCommit = process.env.COMMIT_SHA;
+    delete process.env.SENTRY_RELEASE;
+    process.env.COMMIT_SHA = 'commit-2026-09-14';
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: files.map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.release).toBe('commit-2026-09-14');
+    if (previousRelease === undefined) delete process.env.SENTRY_RELEASE;
+    else process.env.SENTRY_RELEASE = previousRelease;
+    if (previousCommit === undefined) delete process.env.COMMIT_SHA;
+    else process.env.COMMIT_SHA = previousCommit;
+  });
+
+  test('falls back to Coolify source commit when generic commit SHA is not supplied', async () => {
+    const previous = {
+      SENTRY_RELEASE: process.env.SENTRY_RELEASE,
+      COMMIT_SHA: process.env.COMMIT_SHA,
+      SOURCE_COMMIT: process.env.SOURCE_COMMIT,
+    };
+    delete process.env.SENTRY_RELEASE;
+    delete process.env.COMMIT_SHA;
+    process.env.SOURCE_COMMIT = 'coolify-source-2026-09-14';
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: files.map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.release).toBe('coolify-source-2026-09-14');
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
+
   test('reports not_ready when a migration is pending or workers are stopped', async () => {
     runtimeState.update({ acceptingTraffic: true, realtimeReady: true, workersReady: false });
     const files = expectedMigrationFiles();
@@ -47,6 +114,32 @@ describe('runtime readiness', () => {
     expect(result.status).toBe('not_ready');
     expect(result.checks.migrations.pendingCount).toBe(1);
     expect(result.checks.workers.ok).toBe(false);
+  });
+
+  test('reports unsafe production configuration through readiness', async () => {
+    const previous = {
+      NODE_ENV: process.env.NODE_ENV,
+      JWT_SECRET: process.env.JWT_SECRET,
+    };
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'dev-jwt-secret-min-32-characters-long!!';
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: expectedMigrationFiles().map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.productionConfiguration).toEqual({
+      ok: false,
+      error: 'unsafe production environment configuration',
+    });
+
+    process.env.NODE_ENV = previous.NODE_ENV;
+    if (previous.JWT_SECRET === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previous.JWT_SECRET;
   });
 
   test('requires the dedicated Credit ledger secret in production', async () => {
@@ -127,6 +220,44 @@ describe('runtime readiness', () => {
       requiresSharedRedis: true,
     });
     expect(result.checks.creditRail.error).toContain('Shared Redis');
+
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
+
+  test('requires server error monitoring before an enabled production Credit rail can receive traffic', async () => {
+    const previous = {
+      NODE_ENV: process.env.NODE_ENV,
+      REDIS_URL: process.env.REDIS_URL,
+      OXSTEED_CREDIT_LEDGER_HMAC_SECRET: process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET,
+      SENTRY_DSN: process.env.SENTRY_DSN,
+      SENTRY_ENABLED: process.env.SENTRY_ENABLED,
+    };
+    process.env.NODE_ENV = 'production';
+    process.env.REDIS_URL = 'redis://configured';
+    process.env.OXSTEED_CREDIT_LEDGER_HMAC_SECRET = 'credit-current-ledger-secret-32-chars!!';
+    delete process.env.SENTRY_DSN;
+    delete process.env.SENTRY_ENABLED;
+
+    const pool = {
+      query: jest.fn(async (sql) => {
+        if (sql.includes('_migrations')) return { rows: expectedMigrationFiles().map((filename) => ({ filename })) };
+        if (sql.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+        return { rows: [{ '?column?': 1 }] };
+      }),
+    };
+
+    const result = await checkReadiness({ pool, redis: { ping: jest.fn().mockResolvedValue('PONG') } });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.creditRail).toMatchObject({
+      ok: false,
+      enabled: true,
+      requiresSharedRedis: true,
+      error: 'Server error monitoring is required before enabling OxSteed Credit',
+    });
 
     Object.entries(previous).forEach(([key, value]) => {
       if (value === undefined) delete process.env[key];

@@ -22,8 +22,8 @@ const profilesSampleRate = parseSampleRate(process.env.SENTRY_PROFILES_SAMPLE_RA
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   enabled: sentryEnabled,
-  environment: process.env.NODE_ENV || 'production',
-  release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA,
+  environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'production',
+  release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA || process.env.SOURCE_COMMIT,
   sendDefaultPii,
   tracesSampleRate,
   profilesSampleRate,

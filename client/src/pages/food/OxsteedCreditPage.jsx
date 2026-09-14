@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowDownLeft,
   ArrowLeft,
@@ -35,53 +36,83 @@ import {
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
-import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { formatCreditMinorUnits, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 
 const money = formatCreditMinorUnits;
 
-function dateTime(value) {
-  if (!value) return 'No date recorded';
+function dateTime(value, t) {
+  if (!value) return t('noDate');
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? 'No date recorded'
+    ? t('noDate')
     : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-function errorMessage(error) {
+function errorMessage(error, t) {
   return error?.response?.data?.error?.message
     || error?.response?.data?.message
     || error?.message
-    || 'Unable to load OxSteed Credit right now.';
+    || t('errorLoad');
 }
 
-function partnerLimit(partner) {
+function partnerLimit(partner, t) {
   if (!partner.maxTransactionCents) return null;
-  return `Up to ${money(partner.maxTransactionCents, partner.currencyCode)} per transaction`;
+  return t('upToPerTransaction', { amount: money(partner.maxTransactionCents, partner.currencyCode) });
 }
 
-function geographySummary(partner) {
+function geographySummary(partner, t) {
   const geography = partner?.geography || {};
   const labels = [
-    ['cities', 'Cities'],
-    ['states', 'States'],
-    ['postalCodes', 'Postal codes'],
-    ['countries', 'Countries'],
+    ['cities', t('cities')],
+    ['states', t('states')],
+    ['postalCodes', t('postalCodes')],
+    ['countries', t('countries')],
   ].flatMap(([key, label]) => Array.isArray(geography[key]) && geography[key].length
     ? [`${label}: ${geography[key].join(', ')}`]
     : []);
-  return labels.join(' · ') || 'Coverage follows the restaurant location';
+  return labels.join(' · ') || t('coverageFallback');
 }
 
-function transactionLabel(transaction) {
+function transactionLabel(transaction, t) {
   return {
-    load: 'Credit added',
-    purchase: 'Restaurant purchase',
-    refund: 'Purchase refunded',
-    transfer: 'Credit transfer',
-    adjustment: 'Account adjustment',
-    expiration: 'Credit expired',
-    chargeback: 'Chargeback',
-}[transaction.transactionType] || String(transaction.transactionType || 'Credit activity').replace(/_/g, ' ');
+    load: t('transactionLoad'),
+    purchase: t('transactionPurchase'),
+    refund: t('transactionRefund'),
+    transfer: t('transactionTransfer'),
+    adjustment: t('transactionAdjustment'),
+    expiration: t('transactionExpiration'),
+    chargeback: t('transactionChargeback'),
+  }[transaction.transactionType] || String(transaction.transactionType || t('transactionActivity')).replace(/_/g, ' ');
+}
+
+function orderTypeLabel(value, t) {
+  return {
+    pickup: t('orderTypePickup'),
+    dine_in: t('orderTypeDineIn'),
+    delivery: t('orderTypeDelivery'),
+  }[value] || String(value || '').replace(/_/g, ' ');
+}
+
+function disputeReasonLabel(value, t) {
+  return {
+    incorrect_amount: t('disputeIncorrectAmount'),
+    unauthorized: t('disputeUnauthorized'),
+    duplicate: t('disputeDuplicate'),
+    restaurant_issue: t('disputeRestaurantIssue'),
+    other: t('other'),
+  }[value] || t('other');
+}
+
+function creditStatusLabel(value, t) {
+  return {
+    active: t('activeStatus'),
+    open: t('openStatus'),
+    suspended: t('suspendedStatus'),
+    closed: t('closedStatus'),
+    under_review: t('underReviewStatus'),
+    resolved: t('resolvedStatus'),
+    rejected: t('rejectedStatus'),
+  }[value] || t('statusUnknown');
 }
 
 function transactionOrderPath(transaction) {
@@ -93,22 +124,28 @@ function transactionDetailPath(transaction, currency) {
   return `/oxsteed-credit/transactions/${encodeURIComponent(transaction.id)}?currency=${encodeURIComponent(transactionCurrency)}`;
 }
 
-function holdStatusLabel(status) {
+function holdStatusLabel(status, t) {
   return {
-    active: 'Reserved',
-    captured: 'Captured',
-    released: 'Released',
-    expired: 'Expired',
-  }[status] || 'Reservation';
+    active: t('reservedStatus'),
+    captured: t('capturedStatus'),
+    released: t('releasedStatus'),
+    expired: t('expiredStatus'),
+  }[status] || t('reservationStatus');
 }
 
-function holdTerminalDate(hold) {
-  if (hold.status === 'captured' && hold.capturedAt) return `Captured ${dateTime(hold.capturedAt)}`;
-  if (['released', 'expired'].includes(hold.status) && hold.releasedAt) return `${holdStatusLabel(hold.status)} ${dateTime(hold.releasedAt)}`;
-  return `Expires ${dateTime(hold.expiresAt)}`;
+function holdTerminalDate(hold, t) {
+  if (hold.status === 'captured' && hold.capturedAt) return t('capturedAt', { date: dateTime(hold.capturedAt, t) });
+  if (['released', 'expired'].includes(hold.status) && hold.releasedAt) return t('releasedAt', { status: holdStatusLabel(hold.status, t), date: dateTime(hold.releasedAt, t) });
+  return t('expiresAt', { date: dateTime(hold.expiresAt, t) });
+}
+
+function amountPlaceholder(currency, metadata) {
+  const minorUnits = getCreditMinorUnits(currency, metadata);
+  return `${minorUnits ? `0.${'0'.repeat(minorUnits)}` : '0'} ${currency}`;
 }
 
 export default function OxsteedCreditPage() {
+  const { t } = useTranslation('credit');
   const [account, setAccount] = useState(null);
   const [limitSummary, setLimitSummary] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -195,14 +232,14 @@ export default function OxsteedCreditPage() {
         setTransactions(Array.isArray(transactionResult?.transactions) ? transactionResult.transactions : []);
       }
     } catch (error) {
-      if (isCurrentRequest()) toast.error(errorMessage(error));
+      if (isCurrentRequest()) toast.error(errorMessage(error, t));
     } finally {
       if (isCurrentRequest()) {
         setLoading(false);
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -233,7 +270,7 @@ export default function OxsteedCreditPage() {
       setPartners((current) => append ? [...current, ...nextPartners] : nextPartners);
       setPartnerPagination(page?.pagination || null);
     } catch (error) {
-      if (requestId === partnerPageRequestRef.current) toast.error(errorMessage(error));
+      if (requestId === partnerPageRequestRef.current) toast.error(errorMessage(error, t));
     } finally {
       if (requestId === partnerPageRequestRef.current) {
         if (append) setLoadingMorePartners(false);
@@ -271,7 +308,7 @@ export default function OxsteedCreditPage() {
       setHolds((current) => [...current, ...nextHolds]);
       setHoldPagination(page?.pagination || null);
     } catch (error) {
-      if (requestId === holdPageRequestRef.current) toast.error(errorMessage(error));
+      if (requestId === holdPageRequestRef.current) toast.error(errorMessage(error, t));
     } finally {
       if (requestId === holdPageRequestRef.current) setLoadingMoreHolds(false);
     }
@@ -290,9 +327,9 @@ export default function OxsteedCreditPage() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      toast.success('Statement downloaded.');
+      toast.success(t('statementDownloaded'));
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setDownloading(false);
     }
@@ -313,7 +350,7 @@ export default function OxsteedCreditPage() {
       setTransactions((current) => [...current, ...nextTransactions]);
       setStatement((current) => current ? { ...nextStatement, transactions: [...(current.transactions || []), ...nextTransactions] } : nextStatement);
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setLoadingMore(false);
     }
@@ -331,7 +368,7 @@ export default function OxsteedCreditPage() {
       setDisputes((current) => [...current, ...nextDisputes]);
       setDisputePagination(page?.pagination || null);
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setLoadingMoreDisputes(false);
     }
@@ -341,7 +378,7 @@ export default function OxsteedCreditPage() {
     event.preventDefault();
     const amountCents = parseCreditMajorAmount(holdAmount, selectedCurrency);
     if (!holdPartnerId || !amountCents) {
-      toast.error('Choose an eligible restaurant and enter a valid amount.');
+      toast.error(t('chooseEligibleAmount'));
       return;
     }
     setHoldSubmitting(true);
@@ -359,9 +396,9 @@ export default function OxsteedCreditPage() {
       setHoldAmount('');
       setHoldPurpose('');
       await load({ quiet: true, currencyCode: selectedCurrency });
-      toast.success('Authorization created. Give the hold ID to the cashier.');
+      toast.success(t('authorizationCreated'));
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setHoldSubmitting(false);
     }
@@ -371,9 +408,9 @@ export default function OxsteedCreditPage() {
     if (!createdHold?.id || !navigator.clipboard) return;
     try {
       await navigator.clipboard.writeText(createdHold.id);
-      toast.success('Hold ID copied.');
+      toast.success(t('holdIdCopied'));
     } catch {
-      toast.error('Unable to copy the hold ID.');
+      toast.error(t('holdIdCopyError'));
     }
   };
 
@@ -386,10 +423,10 @@ export default function OxsteedCreditPage() {
         ? { ...item, status: 'released', releasedAt: new Date().toISOString() }
         : item));
       setCreatedHold((current) => current?.id === hold.id ? null : current);
-      toast.success('Authorization released.');
+      toast.success(t('authorizationReleased'));
       await load({ quiet: true, currencyCode: selectedCurrency });
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setReleasingHoldId(null);
     }
@@ -408,12 +445,12 @@ export default function OxsteedCreditPage() {
       const refreshedDisputes = await getOxsteedCreditDisputePage({ limit: 50, offset: 0 });
       setDisputes(Array.isArray(refreshedDisputes?.disputes) ? refreshedDisputes.disputes : []);
       setDisputePagination(refreshedDisputes?.pagination || null);
-      toast.success('Your dispute was submitted for review.');
+      toast.success(t('disputeSubmitted'));
       setDisputeTransactionId(null);
       setDisputeDescription('');
       disputeRequestKeyRef.current = '';
     } catch (error) {
-      toast.error(errorMessage(error));
+      toast.error(errorMessage(error, t));
     } finally {
       setDisputeSubmitting(false);
     }
@@ -446,70 +483,70 @@ export default function OxsteedCreditPage() {
   return (
     <>
       <PageMeta
-        title="OxSteed Credit"
-        description="See your OxSteed Credit balance and the partner restaurants where your restricted stored value can be spent."
+        title={t('balance')}
+        description={t('heroDescription')}
         noIndex
       />
       <Navbar />
       <main className="ox-credit-page">
         <div className="ox-credit-shell">
-          <Link to="/restaurants" className="ox-credit-back"><ArrowLeft size={16} /> Back to restaurants</Link>
+          <Link to="/restaurants" className="ox-credit-back"><ArrowLeft size={16} /> {t('backToRestaurants')}</Link>
           <header className="ox-credit-hero">
             <div>
-              <p className="ox-credit-eyebrow">OxSteed partner credit</p>
-              <h1>OxSteed Credit</h1>
-              <p>One restricted credit balance you can use at participating restaurants under their current partner agreements.</p>
+              <p className="ox-credit-eyebrow">{t('partnerEyebrow')}</p>
+              <h1>{t('balance')}</h1>
+              <p>{t('heroDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
-              <label className="ox-credit-currency-picker">Currency<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
+              <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...(railStatus?.supportedCurrencies || []), ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
               <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true, currencyCode: selectedCurrency })} disabled={loading || refreshing}>
-                <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> Refresh
+                <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> {t('refresh')}
               </button>
             </div>
           </header>
 
           <section className="ox-credit-disclaimer" role="note">
             <ShieldCheck size={19} />
-            <div><strong>Stored-value credit, not a bank account</strong><span>OxSteed Credit is not a deposit account, cash balance, or promise of bank services. Spending is limited to the partners and terms shown below.</span></div>
+            <div><strong>{t('disclaimerTitle')}</strong><span>{t('disclaimerBody')}</span></div>
           </section>
 
-          {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>OxSteed Credit is temporarily paused</strong><span>Your balance and history remain available. New Credit spending is paused while the network is being reviewed.</span></div></section>}
+          {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
 
-          {loading ? <div className="ox-credit-loading">Loading your credit account...</div> : (
+          {loading ? <div className="ox-credit-loading">{t('loadingAccount')}</div> : (
             <>
               <section className="ox-credit-balance-card">
-                <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>OxSteed Credit balance</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{accountStatus}</span></div>
-                <div className="ox-credit-balance-grid"><div><span>Available to spend</span><strong>{money(availableCents, currency)}</strong></div><div><span>Reserved</span><strong>{money(reservedCents, currency)}</strong></div><div><span>Currency</span><strong>{currency}</strong></div></div>
+                <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>{t('balance')}</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{creditStatusLabel(accountStatus, t)}</span></div>
+                <div className="ox-credit-balance-grid"><div><span>{t('availableToSpend')}</span><strong>{money(availableCents, currency)}</strong></div><div><span>{t('reserved')}</span><strong>{money(reservedCents, currency)}</strong></div><div><span>{t('currency')}</span><strong>{currency}</strong></div></div>
               </section>
 
-              {limitSummary && <section className="ox-credit-panel ox-credit-limits-panel" aria-labelledby="credit-limits-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Daily controls</p><h2 id="credit-limits-heading">Your spending guardrails</h2></div><span className="ox-credit-count">Resets {dateTime(limitSummary.resetsAt)}</span></div><p className="ox-credit-panel-copy">These limits help protect your restricted balance. Reservations count toward spending until they are captured, released, or expired.</p><div className="ox-credit-limit-grid"><div><span>Spend amount remaining</span><strong>{money(limitSummary.spending.centsRemaining, currency)}</strong><small>{limitSummary.spending.centsUsed.toLocaleString()} of {limitSummary.spending.centsLimit.toLocaleString()} cents committed today</small></div><div><span>Spend movements remaining</span><strong>{limitSummary.spending.countRemaining}</strong><small>{limitSummary.spending.countUsed} of {limitSummary.spending.countLimit} purchases or reservations today</small></div>{limitSummary.transfers.enabled && <><div><span>Transfer amount remaining</span><strong>{money(limitSummary.transfers.centsRemaining, currency)}</strong><small>{limitSummary.transfers.centsUsed.toLocaleString()} of {limitSummary.transfers.centsLimit.toLocaleString()} cents transferred today</small></div><div><span>Transfers remaining</span><strong>{limitSummary.transfers.countRemaining}</strong><small>{limitSummary.transfers.countUsed} of {limitSummary.transfers.countLimit} transfers today</small></div></>}</div></section>}
+              {limitSummary && <section className="ox-credit-panel ox-credit-limits-panel" aria-labelledby="credit-limits-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('dailyControls')}</p><h2 id="credit-limits-heading">{t('spendingGuardrails')}</h2></div><span className="ox-credit-count">{t('resets', { date: dateTime(limitSummary.resetsAt, t) })}</span></div><p className="ox-credit-panel-copy">{t('guardrailsCopy')}</p><div className="ox-credit-limit-grid"><div><span>{t('spendAmountRemaining')}</span><strong>{money(limitSummary.spending.centsRemaining, currency)}</strong><small>{t('centsCommittedToday', { used: limitSummary.spending.centsUsed.toLocaleString(), limit: limitSummary.spending.centsLimit.toLocaleString() })}</small></div><div><span>{t('spendMovementsRemaining')}</span><strong>{limitSummary.spending.countRemaining}</strong><small>{t('purchasesReservationsToday', { used: limitSummary.spending.countUsed, limit: limitSummary.spending.countLimit })}</small></div>{limitSummary.transfers.enabled && <><div><span>{t('transferAmountRemaining')}</span><strong>{money(limitSummary.transfers.centsRemaining, currency)}</strong><small>{t('centsTransferredToday', { used: limitSummary.transfers.centsUsed.toLocaleString(), limit: limitSummary.transfers.centsLimit.toLocaleString() })}</small></div><div><span>{t('transfersRemaining')}</span><strong>{limitSummary.transfers.countRemaining}</strong><small>{t('transfersToday', { used: limitSummary.transfers.countUsed, limit: limitSummary.transfers.countLimit })}</small></div></>}</div></section>}
 
-              {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Customer authorization</p><h2 id="credit-authorize-heading">Authorize an in-store payment</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">Choose a participating restaurant and reserve the exact amount. The cashier can capture it once, and the hold expires automatically if it is not used.</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>Restaurant<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">Select a participating restaurant</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>Order type<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{String(type).replace(/_/g, ' ')}</option>)}</select></label><label>Amount<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={`0.00 ${currency}`} /></label><label>Purpose <span>(optional)</span><input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder="Restaurant purchase" /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? 'Creating authorization...' : 'Create authorization'}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>Give this hold ID to the cashier</strong><code>{createdHold.id}</code><span>It is for {money(createdHold.amountCents, createdHold.currencyCode || currency)} and expires {dateTime(createdHold.expiresAt)}. Never share your account password.</span><button type="button" onClick={copyHoldId}>Copy hold ID</button></div>}</section>}
+                  {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{orderTypeLabel(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 
-              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Reservation history</p><h2>Credit holds</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">Active reservations reduce your spendable balance until captured, released, or expired. Completed reservations stay here so you can reconcile every temporary balance change.</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Active reservations</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>Completed reservations</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{hold.purpose || 'Partner order authorization'}</span><small>{holdTerminalDate(hold)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? 'Loading older holds...' : 'Load older holds'}</button>}</section>}
+              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
 
-              {!!activeHolds.length && <section className="ox-credit-panel ox-credit-release-panel" aria-labelledby="credit-release-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Authorization controls</p><h2 id="credit-release-heading">Unused authorizations</h2></div></div><p className="ox-credit-panel-copy">Cancel an authorization if you will not use it. This immediately returns the reserved amount to your spendable balance.</p><div className="ox-credit-release-list">{activeHolds.map((hold) => <div key={hold.id}><div><strong>{hold.restaurantName || 'Partner restaurant'}</strong><span>{money(hold.amountCents, hold.currencyCode || currency)} · {holdTerminalDate(hold)}</span></div><button type="button" onClick={() => releaseHold(hold)} disabled={releasingHoldId === hold.id}>{releasingHoldId === hold.id ? 'Releasing...' : 'Release hold'}</button></div>)}</div></section>}
+              {!!activeHolds.length && <section className="ox-credit-panel ox-credit-release-panel" aria-labelledby="credit-release-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('authorizationControls')}</p><h2 id="credit-release-heading">{t('unusedAuthorizations')}</h2></div></div><p className="ox-credit-panel-copy">{t('cancelAuthorizationCopy')}</p><div className="ox-credit-release-list">{activeHolds.map((hold) => <div key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{money(hold.amountCents, hold.currencyCode || currency)} · {holdTerminalDate(hold, t)}</span></div><button type="button" onClick={() => releaseHold(hold)} disabled={releasingHoldId === hold.id}>{releasingHoldId === hold.id ? t('releasing') : t('releaseHold')}</button></div>)}</div></section>}
 
               <div className="ox-credit-sections">
                 <section className="ox-credit-panel">
-                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Partner network</p><h2>Where you can spend</h2></div><span className="ox-credit-count">{visiblePartners.length}{visiblePartners.length !== partners.length ? ` / ${partners.length}` : ''}</span></div>
-                  <p className="ox-credit-panel-copy">Only active restaurants with a current agreement appear here. The list is the source of truth for where your balance can be used today.</p>
-                  {accountStatus === 'active' && <form className="ox-credit-partner-filters" onSubmit={submitPartnerFilters}><label><Search size={15} /><input aria-label="Search eligible restaurants" value={partnerSearch} onChange={(event) => setPartnerSearch(event.target.value)} placeholder="Search restaurant or city" /></label><select aria-label="Filter eligible restaurants by order type" value={partnerOrderType} onChange={(event) => setPartnerOrderType(event.target.value)}><option value="">All order types</option>{partnerOrderTypes.map((type) => <option key={type} value={type}>{String(type).replace(/_/g, ' ')}</option>)}</select><button type="submit" className="ox-credit-partner-search" disabled={refreshing}>{refreshing ? 'Searching...' : 'Search'}</button></form>}
-                  {accountStatus !== 'active' || (!partners.length && !hasPartnerFilters) ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>Credit account {accountStatus}</strong><span>Partner restaurants are hidden until your OxSteed Credit account is active. Contact support if you need help.</span></> : <><strong>No partner restaurants yet</strong><span>OxSteed Credit becomes spendable as participating restaurants are activated.</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>No eligible restaurants match</strong><span>Try another restaurant, city, or order type.</span><button type="button" className="ox-credit-clear-filters" onClick={clearPartnerFilters}>Clear filters</button></div> : <><div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || 'Partner restaurant'}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || 'Location not listed'}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> Eligible</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{String(type).replace(/_/g, ' ')}</span>)}{partner.hasCustomerEntitlement && <span>Customer entitlement</span>}</div><p>{partner.customerTerms || 'Use is subject to the active partner agreement and restaurant terms.'}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner)}</span>{partnerLimit(partner)}{partner.dailyCustomerLimitCents ? <span>Daily limit {money(partner.dailyCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>Lifetime limit {money(partner.lifetimeCustomerLimitCents, partner.currencyCode)}</span> : null}{partner.allowedCategories?.length ? <span>{partner.allowedCategories.length} covered categories</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>Open restaurant menu <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>{partnerPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMorePartners} disabled={loadingMorePartners}>{loadingMorePartners ? 'Loading more restaurants...' : 'Show more eligible restaurants'}</button>}</>}
-                  <Link to="/restaurants" className="ox-credit-secondary-link">Browse participating restaurants <ArrowUpRight size={15} /></Link>
+                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('partnerNetwork')}</p><h2>{t('whereSpend')}</h2></div><span className="ox-credit-count">{visiblePartners.length}{visiblePartners.length !== partners.length ? ` / ${partners.length}` : ''}</span></div>
+                  <p className="ox-credit-panel-copy">{t('partnerNetworkCopy')}</p>
+                  {accountStatus === 'active' && <form className="ox-credit-partner-filters" onSubmit={submitPartnerFilters}><label><Search size={15} /><input aria-label={t('searchEligible')} value={partnerSearch} onChange={(event) => setPartnerSearch(event.target.value)} placeholder={t('searchRestaurantCity')} /></label><select aria-label={t('searchEligible')} value={partnerOrderType} onChange={(event) => setPartnerOrderType(event.target.value)}><option value="">{t('allOrderTypes')}</option>{partnerOrderTypes.map((type) => <option key={type} value={type}>{orderTypeLabel(type, t)}</option>)}</select><button type="submit" className="ox-credit-partner-search" disabled={refreshing}>{refreshing ? t('searching') : t('search')}</button></form>}
+                  {accountStatus !== 'active' || (!partners.length && !hasPartnerFilters) ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>{t('creditAccountStatus', { status: creditStatusLabel(accountStatus, t) })}</strong><span>{t('partnerHidden')}</span></> : <><strong>{t('noPartnerRestaurants')}</strong><span>{t('creditBecomesSpendable')}</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>{t('noEligibleMatch')}</strong><span>{t('tryAnother')}</span><button type="button" className="ox-credit-clear-filters" onClick={clearPartnerFilters}>{t('clearFilters')}</button></div> : <><div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || t('partnerRestaurant')}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || t('locationNotListed')}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> {t('eligible')}</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{orderTypeLabel(type, t)}</span>)}{partner.hasCustomerEntitlement && <span>{t('customerEntitlement')}</span>}</div><p>{partner.customerTerms || t('termsFallback')}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner, t)}</span>{partnerLimit(partner, t)}{partner.dailyCustomerLimitCents ? <span>{t('dailyLimit', { amount: money(partner.dailyCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>{t('lifetimeLimit', { amount: money(partner.lifetimeCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.allowedCategories?.length ? <span>{t('coveredCategories', { count: partner.allowedCategories.length })}</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>{t('openMenu')} <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>{partnerPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMorePartners} disabled={loadingMorePartners}>{loadingMorePartners ? t('loadingMoreRestaurants') : t('showMoreRestaurants')}</button>}</>}
+                  <Link to="/restaurants" className="ox-credit-secondary-link">{t('browseParticipating')} <ArrowUpRight size={15} /></Link>
                 </section>
 
                 <section className="ox-credit-panel" id="credit-activity">
-                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Statement</p><h2>Recent activity</h2></div><div className="ox-credit-panel-actions"><span className="ox-credit-count">{transactions.length}</span><button type="button" className="ox-credit-download" onClick={downloadStatement} disabled={downloading || !statement}><Download size={14} /> {downloading ? 'Preparing...' : 'Download CSV'}</button></div></div>
-                  <p className="ox-credit-panel-copy">Every balance change is recorded in the OxSteed Credit ledger with a timestamp and transaction type. Showing {statement?.period?.from || 'recent'} through {statement?.period?.to || 'today'}.</p>
-                  {statement && <div className="ox-credit-statement-summary"><div><span>Credits</span><strong className="positive">+{money(statement.totalCreditsCents, currency)}</strong></div><div><span>Debits</span><strong className="negative">-{money(statement.totalDebitsCents, currency)}</strong></div><div><span>Closing balance</span><strong>{money(statement.closingBalanceCents, currency)}</strong></div></div>}
-                  {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>No activity yet</strong><span>Your credit activity will appear here when a load, purchase, transfer, or refund is posted.</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); const orderPath = transactionOrderPath(transaction); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction)}</strong><span>{transaction.description || 'OxSteed Credit ledger entry'}</span><small>{dateTime(transaction.postedAt || transaction.createdAt)}{transaction.orderId ? ` · Order #${transaction.orderId}` : ''}</small><div className="ox-credit-transaction-actions"><Link to={transactionDetailPath(transaction, currency)} className="ox-credit-detail-link"><Receipt size={12} /> View details</Link>{orderPath && <Link to={orderPath} className="ox-credit-order-link">View order</Link>}<button type="button" className="ox-credit-dispute-button" onClick={() => { if (String(disputeTransactionId) !== String(transaction.id)) disputeRequestKeyRef.current = ''; setDisputeTransactionId(transaction.id); }}>Report a problem</button></div></div><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b></article>; })}</div>}
-                  {statement?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadOlderActivity} disabled={loadingMore || refreshing}><RefreshCw size={14} className={loadingMore ? 'ox-credit-spin' : ''} /> {loadingMore ? 'Loading older activity...' : 'Load older activity'}</button>}
-                  {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>Report a transaction problem</strong><span>This creates a review record without changing your balance automatically. If the connection drops, submitting the same form again is safe.</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">Incorrect amount</option><option value="unauthorized">I do not recognize this</option><option value="duplicate">Duplicate transaction</option><option value="restaurant_issue">Restaurant or order issue</option><option value="other">Other</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder="Tell us what happened" rows={3} /><div><button type="button" onClick={() => { setDisputeTransactionId(null); disputeRequestKeyRef.current = ''; }}>Cancel</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? 'Submitting...' : 'Submit dispute'}</button></div></form>}
-                  <div className="ox-credit-security-note"><AlertCircle size={15} /> Need help with a transaction? <Link to="/support/escalation">Contact support</Link></div>
+                  <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('statement')}</p><h2>{t('recentActivity')}</h2></div><div className="ox-credit-panel-actions"><span className="ox-credit-count">{transactions.length}</span><button type="button" className="ox-credit-download" onClick={downloadStatement} disabled={downloading || !statement}><Download size={14} /> {downloading ? t('preparing') : t('downloadCsv')}</button></div></div>
+                  <p className="ox-credit-panel-copy">{t('statementCopy', { from: statement?.period?.from || 'recent', to: statement?.period?.to || 'today' })}</p>
+                  {statement && <div className="ox-credit-statement-summary"><div><span>{t('credits')}</span><strong className="positive">+{money(statement.totalCreditsCents, currency)}</strong></div><div><span>{t('debits')}</span><strong className="negative">-{money(statement.totalDebitsCents, currency)}</strong></div><div><span>{t('closingBalance')}</span><strong>{money(statement.closingBalanceCents, currency)}</strong></div></div>}
+                  {!transactions.length ? <div className="ox-credit-empty"><Clock3 size={27} /><strong>{t('noActivity')}</strong><span>{t('activityCopy')}</span></div> : <div className="ox-credit-transaction-list">{transactions.map((transaction) => { const positive = transaction.direction === 'credit' || ['load', 'refund'].includes(transaction.transactionType); const orderPath = transactionOrderPath(transaction); return <article key={transaction.id}><span className={`ox-credit-transaction-icon ${positive ? 'positive' : 'negative'}`}>{positive ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</span><div><strong>{transactionLabel(transaction, t)}</strong><span>{transaction.description || t('ledgerEntry')}</span><small>{dateTime(transaction.postedAt || transaction.createdAt, t)}{transaction.orderId ? ` · ${t('orderNumber', { id: transaction.orderId })}` : ''}</small><div className="ox-credit-transaction-actions"><Link to={transactionDetailPath(transaction, currency)} className="ox-credit-detail-link"><Receipt size={12} /> {t('viewDetails')}</Link>{orderPath && <Link to={orderPath} className="ox-credit-order-link">{t('viewOrder')}</Link>}<button type="button" className="ox-credit-dispute-button" onClick={() => { if (String(disputeTransactionId) !== String(transaction.id)) disputeRequestKeyRef.current = ''; setDisputeTransactionId(transaction.id); }}>{t('reportProblem')}</button></div></div><b className={positive ? 'positive' : 'negative'}>{positive ? '+' : '-'}{money(transaction.amountCents, transaction.currencyCode || currency)}</b></article>; })}</div>}
+                  {statement?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadOlderActivity} disabled={loadingMore || refreshing}><RefreshCw size={14} className={loadingMore ? 'ox-credit-spin' : ''} /> {loadingMore ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}
+                  {disputeTransactionId && <form className="ox-credit-dispute-form" onSubmit={submitDispute}><strong>{t('reportTransactionProblem')}</strong><span>{t('disputeCopy')}</span><select value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)}><option value="incorrect_amount">{t('disputeIncorrectAmount')}</option><option value="unauthorized">{t('disputeUnauthorized')}</option><option value="duplicate">{t('disputeDuplicate')}</option><option value="restaurant_issue">{t('disputeRestaurantIssue')}</option><option value="other">{t('other')}</option></select><textarea required maxLength={4000} value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} placeholder={t('tellWhatHappened')} rows={3} /><div><button type="button" onClick={() => { setDisputeTransactionId(null); disputeRequestKeyRef.current = ''; }}>{t('cancel')}</button><button type="submit" disabled={disputeSubmitting}>{disputeSubmitting ? t('submitting') : t('submitDispute')}</button></div></form>}
+                  <div className="ox-credit-security-note"><AlertCircle size={15} /> {t('needHelpTransaction')} <Link to="/support/escalation">{t('contactSupport')}</Link></div>
                 </section>
               </div>
-              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">Review history</p><h2>Your Credit disputes</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">Disputes are reviewed separately from your balance. A status change never edits the original ledger entry.</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || 'OxSteed Credit transaction'}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{String(dispute.status || 'open').replace(/_/g, ' ')}</span></div><span>{String(dispute.reasonCode || 'other').replace(/_/g, ' ')}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {String(dispute.transactionType || 'transaction').replace(/_/g, ' ')}</small>}<small>Opened {dateTime(dispute.openedAt)} · Transaction {dispute.transactionId}</small><p>{dispute.description}</p>{dispute.resolution && <em>Resolution: {dispute.resolution}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? 'Loading older disputes...' : 'Load older disputes'}</button>}</section>}
+              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
             </>
           )}
         </div>

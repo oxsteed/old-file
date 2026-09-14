@@ -33,16 +33,18 @@ async function claimDelivery(requestId, reminderType, recipientEmail) {
 
 async function processDirectCalendarReminders() {
   const { rows: requests } = await db.query(
-    `SELECT id, first_name, email, service_category, service_location, scheduled_start_at,
+    `SELECT quote_requests.id, quote_requests.first_name, quote_requests.email,
+            quote_requests.service_category, quote_requests.service_location,
+            quote_requests.scheduled_start_at,
             assignee.email AS assignee_email
        FROM quote_requests
        LEFT JOIN users assignee ON assignee.id = quote_requests.assigned_to
-      WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
-        AND status NOT IN ('cancelled', 'closed', 'completed')
-        AND scheduled_start_at >= NOW() + INTERVAL '1 hour'
-        AND scheduled_start_at < NOW() + INTERVAL '25 hours'
-        AND email IS NOT NULL
-      ORDER BY scheduled_start_at ASC
+      WHERE COALESCE(quote_requests.metadata->>'flow', 'direct') = 'direct'
+        AND quote_requests.status NOT IN ('cancelled', 'closed', 'completed')
+        AND quote_requests.scheduled_start_at >= NOW() + INTERVAL '1 hour'
+        AND quote_requests.scheduled_start_at < NOW() + INTERVAL '25 hours'
+        AND quote_requests.email IS NOT NULL
+      ORDER BY quote_requests.scheduled_start_at ASC
       LIMIT 200`
   );
   let sent = 0;

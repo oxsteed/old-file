@@ -67,6 +67,23 @@ test('builds a customer-facing notification for a hold lifecycle event', () => {
   }));
 });
 
+test('formats international currency notifications using the currency precision', () => {
+  expect(buildNotification({
+    transactionId: 'tx-jpy',
+    transactionType: 'load',
+    direction: 'credit',
+    amountCents: 1250,
+    currencyCode: 'JPY',
+  }).body).toBe('You received JPY 1250 in OxSteed Credit (load).');
+  expect(buildNotification({
+    transactionId: 'tx-kwd',
+    transactionType: 'purchase',
+    direction: 'debit',
+    amountCents: 1250,
+    currencyCode: 'KWD',
+  }).body).toBe('You spent KWD 1.250 in OxSteed Credit (purchase).');
+});
+
 test('delivers claimed Credit events and marks them sent', async () => {
   db.query
     .mockResolvedValueOnce({ rows: [{ id: 'event-1', user_id: 'user-1', attempts: 1, payload: {
@@ -108,7 +125,7 @@ test('runs under the distributed Credit worker lock', async () => {
   await expect(runOxsteedCreditNotificationOutbox()).resolves.toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 });
   expect(withJobLock).toHaveBeenCalledWith(JOB_NAME, expect.any(Function), 120, { throwOnLockError: true });
   expect(recordOxsteedCreditWorkerRun).toHaveBeenCalledWith({ jobName: JOB_NAME, result: { claimed: 0, sent: 0, retried: 0, failed: 0, purged: 0 } });
-  expect(CRON_EXPRESSION).toBe('* * * * *');
+  expect(CRON_EXPRESSION).toBe('30 * * * * *');
 });
 
 test('bounds notification retention and purges only old sent rows', async () => {

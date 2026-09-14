@@ -4,14 +4,14 @@ const { withChatTransaction } = require('../services/chatTransactionService');
 const logger = require('../utils/logger');
 
 /**
- * Every 1 minute (every :00 second)
+ * Every 1 minute (offset to the :05 second)
  * Check for guest chat sessions in "waiting_for_helper" state that have exceeded their 5-minute response deadline.
  * Transition them to "ai_fallback_pending" state and notify available helpers.
  *
  * This cron job ensures reliability across server restarts - timeouts are database-driven, not in-memory.
  */
 const startGuestChatSessionTimeoutJob = () => {
-  cron.schedule('* * * * *', async () => {
+  cron.schedule('5 * * * * *', async () => {
     try {
       // Find all sessions waiting for helper whose deadline has passed
       const { rows: staleSessions } = await db.query(

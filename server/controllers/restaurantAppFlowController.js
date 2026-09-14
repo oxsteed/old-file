@@ -4250,7 +4250,9 @@ async function recordPosOxsteedCreditPayment(client, {
   return {
     payment,
     ...reconciliation,
-    customer: formatPosCustomerWallet(customerRow).customer,
+    // The hold query intentionally returns only the customer identity needed
+    // for authorization. Do not perform a second PII lookup after capture.
+    customer: { id: customerId },
     oxsteedCredit: {
       transactionId,
       amountCents,

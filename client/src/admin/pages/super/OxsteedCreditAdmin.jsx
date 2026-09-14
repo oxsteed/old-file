@@ -16,11 +16,11 @@ import {
   WalletCards,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
-import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
+import { DEFAULT_CREDIT_CURRENCIES, formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
 import OxsteedCreditEntitlements from './OxsteedCreditEntitlements';
 import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 
-const DEFAULT_CURRENCY_OPTIONS = ['USD', 'CAD', 'MXN', 'DOP', 'HTG', 'EUR', 'GBP', 'AED', 'SAR', 'EGP', 'MAD', 'NGN', 'BRL'];
+const DEFAULT_CURRENCY_OPTIONS = DEFAULT_CREDIT_CURRENCIES;
 const CUSTOMER_ACCOUNT_PAGE_SIZE = 50;
 const PARTNER_DIRECTORY_PAGE_SIZE = 50;
 const CREDIT_WORKER_NAMES = [
@@ -149,6 +149,7 @@ function CreditRailPrerequisites({ prerequisites }) {
     ['Shared Redis', prerequisites.sharedRedisConfigured, 'Required for safe multi-instance locks and worker coordination.'],
     ['Dedicated ledger key', prerequisites.dedicatedLedgerSecretConfigured, 'Keeps ledger integrity separate from authentication secrets.'],
     ['Ledger key configuration', prerequisites.ledgerKeyConfigurationValid, 'Current and previous key versions are configured for verification.'],
+    ['Server error monitoring', prerequisites.serverErrorMonitoringConfigured, 'Required to detect production failures and trigger incident response.'],
   ];
   const ready = prerequisites.readyForProductionActivation === true;
   return <section className={`rounded-2xl border p-4 sm:p-5 ${ready ? 'border-emerald-500/25 bg-emerald-950/10' : 'border-amber-500/25 bg-amber-950/10'}`}>
@@ -156,19 +157,23 @@ function CreditRailPrerequisites({ prerequisites }) {
       <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Activation readiness</p><h2 className="mt-1 text-lg font-semibold text-white">Production prerequisites</h2><p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">These checks are safe signals only. Keep the Credit rail suspended until infrastructure, custody, compliance, and the production runbook have also been approved.</p></div>
       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${ready ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>{ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}{ready ? 'Infrastructure ready' : 'Not ready'}</span>
     </div>
-    <div className="mt-4 grid gap-3 md:grid-cols-3">{checks.map(([label, passed, detail]) => <div key={label} className={`rounded-xl border p-3 ${passed ? 'border-emerald-500/20 bg-emerald-950/10' : 'border-red-500/20 bg-red-950/10'}`}><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{label}</strong>{passed ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <AlertTriangle className="h-4 w-4 text-red-300" />}</div><p className="mt-2 text-[11px] leading-5 text-gray-500">{detail}</p><p className={`mt-2 text-[10px] font-bold uppercase tracking-[0.14em] ${passed ? 'text-emerald-300' : 'text-red-300'}`}>{passed ? 'Pass' : 'Action required'}</p></div>)}</div>
+    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{checks.map(([label, passed, detail]) => <div key={label} className={`rounded-xl border p-3 ${passed ? 'border-emerald-500/20 bg-emerald-950/10' : 'border-red-500/20 bg-red-950/10'}`}><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{label}</strong>{passed ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <AlertTriangle className="h-4 w-4 text-red-300" />}</div><p className="mt-2 text-[11px] leading-5 text-gray-500">{detail}</p><p className={`mt-2 text-[10px] font-bold uppercase tracking-[0.14em] ${passed ? 'text-emerald-300' : 'text-red-300'}`}>{passed ? 'Pass' : 'Action required'}</p></div>)}</div>
   </section>;
 }
 
-function AdminCreditTransactionDetail({ transaction, onClose }) {
+function AdminCreditTransactionDetail({ transaction, onClose, onRefund, refundForm, setRefundForm, busy }) {
   if (!transaction) return null;
   const accountLabel = (account) => account?.customerEmail || account?.customerId || account?.partnerId || account?.accountType || 'Unknown account';
+  const isPostedPurchase = transaction.transactionType === 'purchase' && transaction.status === 'posted';
+  const canRefund = isPostedPurchase && Number(transaction.remainingRefundableCents || 0) > 0;
   return <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" aria-label="Credit transaction detail">
     <section className="my-2 w-full max-w-5xl rounded-2xl border border-gray-700 bg-[#111318] p-4 shadow-2xl sm:my-8 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-800 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Transaction detail</p><h2 className="mt-1 text-xl font-semibold text-white">{creditTransactionLabel(transaction)}</h2><p className="mt-1 break-all font-mono text-[11px] text-gray-600">{transaction.id}</p></div><button type="button" onClick={onClose} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800">Close</button></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-4"><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Amount</span><strong className="mt-1 block text-lg text-emerald-300">{money(transaction.amountCents, transaction.currencyCode)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Status</span><div className="mt-2"><Badge status={transaction.status} /></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Posted</span><strong className="mt-1 block text-sm text-gray-300">{dateTime(transaction.postedAt || transaction.createdAt)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Restaurant</span><strong className="mt-1 block break-words text-sm text-gray-300">{transaction.restaurantName || 'Platform movement'}</strong></div></div>
     <div className="mt-4 grid gap-4 lg:grid-cols-2"><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Journal accounts</p><div className="mt-3 space-y-3 text-xs"><div><span className="text-gray-600">Debit</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.debitAccount)} <span className="text-gray-600">· {transaction.debitAccount?.accountType || 'account'}</span></p></div><div><span className="text-gray-600">Credit</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.creditAccount)} <span className="text-gray-600">· {transaction.creditAccount?.accountType || 'account'}</span></p></div><div><span className="text-gray-600">Reference</span><p className="mt-1 break-all text-gray-300">{transaction.referenceType || 'None'}{transaction.referenceId ? ` · ${transaction.referenceId}` : ''}</p></div><div><span className="text-gray-600">Idempotency key</span><p className="mt-1 break-all font-mono text-[10px] text-gray-500">{transaction.idempotencyKey || 'Not recorded'}</p></div></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Immutable entries</p><div className="mt-3 space-y-2">{!transaction.entries?.length ? <p className="text-xs text-gray-600">No journal entries returned.</p> : transaction.entries.map((entry) => <div key={entry.id} className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold uppercase tracking-[0.12em] text-sky-300">{entry.side}</span><strong className="text-emerald-300">{money(entry.amountCents, transaction.currencyCode)}</strong></div><p className="mt-1 break-all text-gray-600">{entry.accountType || 'account'} · balance after {money(entry.balanceAfterCents, transaction.currencyCode)} · sequence {entry.sequence}</p><p className="mt-1 break-all font-mono text-[10px] text-gray-700">hash {entry.entryHash || 'not recorded'} · key version {entry.hashKeyVersion || 'v1'}</p></div>)}</div></div></div>
       <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Related audit events</p><div className="mt-3 space-y-2">{!transaction.auditEvents?.length ? <p className="text-xs text-gray-600">No transaction-specific audit events returned.</p> : transaction.auditEvents.map((event) => <div key={event.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 px-3 py-2 text-xs"><div><strong className="font-mono text-orange-300">{event.actionType}</strong><p className="mt-1 text-gray-500">{event.reason || 'No reason recorded'}</p></div><span className="text-gray-600">{dateTime(event.createdAt)}</span></div>)}</div></div>
+      {isPostedPurchase && !canRefund && <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4 text-xs text-gray-500">No refundable balance remains for this purchase. Posted refunds: {money(transaction.refundedCents, transaction.currencyCode)}.</div>}
+      {canRefund && <form onSubmit={onRefund} className="mt-4 rounded-xl border border-amber-500/25 bg-amber-950/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">Operator action</p><h3 className="mt-1 text-sm font-semibold text-white">Refund this purchase</h3><p className="mt-1 text-xs leading-5 text-gray-500">Post a partial or full immutable refund. The server rejects refunds above the remaining refundable purchase amount.</p></div><span className="text-xs font-semibold text-amber-200">Remaining {money(transaction.remainingRefundableCents, transaction.currencyCode)}</span></div><div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto]"><label><span className="mb-1 block text-xs font-semibold text-gray-500">Refund amount ({transaction.currencyCode})</span><input required inputMode="decimal" autoComplete="off" value={refundForm.amount} onChange={(event) => setRefundForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" aria-label="Refund amount" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Required reason</span><input required maxLength={500} value={refundForm.reason} onChange={(event) => setRefundForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Customer cancellation, duplicate charge, or dispute outcome" aria-label="Refund reason" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={busy} className="self-end rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{busy ? 'Posting...' : 'Post refund'}</button></div></form>}
     </section>
   </div>;
 }
@@ -212,6 +217,7 @@ export default function OxsteedCreditAdmin() {
   const [loadingMoreTransactions, setLoadingMoreTransactions] = useState(false);
   const [transactionDetail, setTransactionDetail] = useState(null);
   const [loadingTransactionId, setLoadingTransactionId] = useState('');
+  const [refundForm, setRefundForm] = useState({ amount: '', reason: '' });
   const [disputes, setDisputes] = useState([]);
   const [disputeStatus, setDisputeStatus] = useState('');
   const [disputePagination, setDisputePagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
@@ -741,6 +747,7 @@ export default function OxsteedCreditAdmin() {
     } finally { setBusy(false); }
   };
   const inspectTransaction = async (transaction) => {
+    setRefundForm({ amount: '', reason: '' });
     setLoadingTransactionId(transaction.id);
     setError('');
     try {
@@ -751,6 +758,34 @@ export default function OxsteedCreditAdmin() {
     } finally {
       setLoadingTransactionId('');
     }
+  };
+  const refundAdminCredit = async (event) => {
+    event.preventDefault();
+    if (!transactionDetail?.id || transactionDetail.transactionType !== 'purchase' || transactionDetail.status !== 'posted') {
+      setError('Only a posted Credit purchase can be refunded from this view.');
+      return;
+    }
+    const amountCents = dollarsToCents(refundForm.amount, transactionDetail.currencyCode);
+    const reason = String(refundForm.reason || '').trim();
+    if (!amountCents) {
+      setError(`Enter a positive refund amount in ${transactionDetail.currencyCode}.`);
+      return;
+    }
+    if (!reason) {
+      setError('A reason is required before posting a Credit refund.');
+      return;
+    }
+    if (typeof window !== 'undefined' && !window.confirm(`Post a ${refundForm.amount} ${transactionDetail.currencyCode} refund for this purchase? This creates an immutable ledger movement.`)) return;
+    setBusy(true); setNotice(''); setError('');
+    try {
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, { amountCents, reason }, { headers: { 'Idempotency-Key': requestKey('credit-refund') } });
+      setRefundForm({ amount: '', reason: '' });
+      setNotice(response.data?.replayed ? 'The Credit refund request was already recorded; no duplicate movement was posted.' : 'Credit refund posted to the immutable ledger.');
+      await inspectTransaction(transactionDetail);
+      await load({ quiet: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Credit refund failed.');
+    } finally { setBusy(false); }
   };
   const downloadTransactionHistory = async () => {
     setBusy(true); setError(''); setNotice('');
@@ -909,7 +944,7 @@ export default function OxsteedCreditAdmin() {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit agreements.');
     } finally { setBusy(false); }
   };
-  return <><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => setTransactionDetail(null)} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
+  return <><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => { setTransactionDetail(null); setRefundForm({ amount: '', reason: '' }); }} onRefund={refundAdminCredit} refundForm={refundForm} setRefundForm={setRefundForm} busy={busy} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
     <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">Super Admin</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> Stored-value control</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">OxSteed Credit</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">Operate a restricted credit network: customers can spend only at restaurants with an active partner agreement, and every movement is journaled, bounded, and auditable.</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh</button></div></header>
     <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
     {rail?.prerequisites && <CreditRailPrerequisites prerequisites={rail.prerequisites} />}

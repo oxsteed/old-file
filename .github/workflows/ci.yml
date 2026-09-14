@@ -2,14 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [old-files-claude]
   pull_request:
-    branches: [main]
+    branches: [old-files-claude]
 
 jobs:
   install-check:
-    name: Install Dependencies
+    name: Server and Client Verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
@@ -18,36 +20,106 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install server dependencies
         working-directory: server
-        run: npm install
+        run: npm ci
+
+      - name: Server regression and security tests
+        working-directory: server
+        env:
+          NODE_ENV: test
+        run: npm test -- --runInBand --forceExit
 
       - name: Active job status checks (Jest + optional pg_enum)
         working-directory: server
         env:
           DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          NODE_ENV: test
         run: |
           npm run test:active-job-statuses
           if [ -n "${DATABASE_URL}" ]; then
             npm run verify:active-job-statuses
+            npm run verify:credit
           else
-            echo "Skipping verify:active-job-statuses (set CI_DATABASE_URL secret for live DB check)."
+            echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job and Credit schema checks)."
           fi
 
       - name: Install client dependencies
         working-directory: client
-        run: npm install
+        run: npm ci
+
+      - name: Client smoke tests
+        working-directory: client
+        run: node --test scripts/*.test.mjs
+
+      - name: Client localization, type, and production build checks
+        working-directory: client
+        run: npm run build:ci
 
   deploy:
     name: Deploy to Coolify
     runs-on: ubuntu-latest
     needs: install-check
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/old-files-claude' && github.event_name == 'push'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Coolify deployment secrets
+        env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          test -n "$COOLIFY_WEBHOOK_URL" || { echo "COOLIFY_WEBHOOK_URL is not configured." >&2; exit 1; }
+          test -n "$COOLIFY_TOKEN" || { echo "COOLIFY_TOKEN is not configured." >&2; exit 1; }
+          case "$COOLIFY_WEBHOOK_URL" in
+            https://*) ;;
+            *) echo "COOLIFY_WEBHOOK_URL must use HTTPS." >&2; exit 1 ;;
+          esac
+
       - name: Trigger Coolify deploy
         run: |
-          curl -f -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
+          curl --fail-with-body --silent --show-error -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+
+      - name: Verify production recovered after deploy
+        env:
+          PUBLIC_READY_URL: https://oxsteed.com/ready
+          API_HEALTH_URL: https://api.oxsteed.com/health
+        run: |
+          set -euo pipefail
+
+          wait_for_healthy_endpoint() {
+            local url="$1"
+            local label="$2"
+            local status=""
+
+            for attempt in $(seq 1 30); do
+              status="$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' "$url" || true)"
+              if [ "$status" = "200" ]; then
+                echo "$label is healthy (attempt $attempt)."
+                return 0
+              fi
+              echo "$label is not ready yet (HTTP $status, attempt $attempt/30); waiting 10s."
+              sleep 10
+            done
+
+            echo "$label did not become healthy within the deployment window."
+            return 1
+          }
+
+          wait_for_healthy_endpoint "$PUBLIC_READY_URL" "Public readiness"
+          wait_for_healthy_endpoint "$API_HEALTH_URL" "API health"
+
+          ready_payload="$(curl --silent --show-error --fail --max-time 15 "$PUBLIC_READY_URL")"
+          printf '%s' "$ready_payload" | node server/scripts/verify-readiness-payload.js

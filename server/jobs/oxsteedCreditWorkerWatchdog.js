@@ -17,7 +17,7 @@ const {
   WORKER_CONFIG,
 } = require('../services/oxsteedCreditWorkerConfig');
 
-const CRON_EXPRESSION = '*/5 * * * *';
+const CRON_EXPRESSION = '50 */5 * * * *';
 const JOB_NAME = 'oxsteed-credit-worker-watchdog';
 const NOTIFICATION_BACKLOG_DEDUPE_KEY = 'oxsteed-credit-notifications:backlog-stale';
 

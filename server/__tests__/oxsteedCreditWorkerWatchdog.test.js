@@ -129,7 +129,7 @@ test('runs the watchdog under its distributed lock', async () => {
     `oxsteed-credit-worker:${NOTIFICATION_WORKER_NAME}:failed`,
     NOTIFICATION_BACKLOG_DEDUPE_KEY,
   ]), expect.any(String));
-  expect(CRON_EXPRESSION).toBe('*/5 * * * *');
+  expect(CRON_EXPRESSION).toBe('50 */5 * * * *');
   expect(STALE_AFTER_MINUTES).toBe(10);
 });
 

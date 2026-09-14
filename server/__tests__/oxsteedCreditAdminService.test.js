@@ -634,6 +634,7 @@ test('loads a complete admin Credit transaction with journal and audit context',
       metadata: {},
       created_at: '2026-09-12T12:00:01.000Z',
     }] });
+  mockQuery.mockResolvedValueOnce({ rows: [{ refunded_cents: '500' }] });
 
   const result = await getAdminCreditTransaction('transaction-1');
 
@@ -641,6 +642,8 @@ test('loads a complete admin Credit transaction with journal and audit context',
     id: 'transaction-1',
     orderId: '9001',
     restaurantName: 'OxSteed Cafe',
+    refundedCents: 500,
+    remainingRefundableCents: 2000,
     idempotencyKey: 'purchase-9001',
     debitAccount: { accountId: '7001', accountType: 'customer_wallet', customerEmail: 'alice@example.com' },
     creditAccount: { accountId: '8001', accountType: 'partner_payable', partnerId: '41' },
@@ -649,6 +652,7 @@ test('loads a complete admin Credit transaction with journal and audit context',
   expect(result.transaction.auditEvents[0]).toMatchObject({ actionType: 'credit.purchase.posted', resourceId: 'transaction-1' });
   expect(mockQuery.mock.calls[1][1]).toEqual(['transaction-1']);
   expect(mockQuery.mock.calls[2][1]).toEqual(['credit_transaction', 'transaction-1', 100, 0]);
+  expect(mockQuery.mock.calls[3][1]).toEqual(['transaction-1']);
 });
 
 test('loads a customer Credit profile with multi-restaurant access and ledger context', async () => {
