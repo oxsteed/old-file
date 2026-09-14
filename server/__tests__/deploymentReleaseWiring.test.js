@@ -64,10 +64,14 @@ describe('deployment release identity wiring', () => {
     const restoreVerifier = path.join(repositoryRoot, 'scripts/verify-production-restore.sh');
     const runbook = fs.readFileSync(path.join(repositoryRoot, 'docs/oxsteed-credit-production-runbook.md'), 'utf8');
     const packageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'server/package.json'), 'utf8'));
+    const restoreScript = fs.readFileSync(restoreVerifier, 'utf8');
 
     expect(fs.statSync(restoreVerifier).mode & 0o111).toBeTruthy();
-    expect(fs.readFileSync(restoreVerifier, 'utf8')).toContain('--exit-on-error');
-    expect(fs.readFileSync(restoreVerifier, 'utf8')).toContain('TEMP_DB');
+    expect(restoreScript).toContain('--exit-on-error');
+    expect(restoreScript).toContain('TEMP_DB');
+    expect(restoreScript).toContain('== "10"');
+    expect(restoreScript).toContain('== "4"');
+    expect(restoreScript).toContain('credit_integrity_trigger_count');
     expect(runbook).toContain('npm --prefix server run verify:restore');
     expect(packageJson.scripts['verify:restore']).toBe('bash ../scripts/verify-production-restore.sh');
   });

@@ -6,24 +6,25 @@ cannot be called production-ready until the listed isolated or live check has
 been run. Human licensing, custody, contracts, and provider approval belong in
 the separate launch handoff.
 
-Current evidence: the live Colima PostgreSQL database is at migration `514`;
-the isolated `514 -> 515` upgrade and conversion drill pass
-`verify-oxsteed-credit.js` with no missing schema objects, integrity triggers,
-invalid conversion records, or invalid ledger hashes. The latest production application
-container is still stopped because its Coolify environment contains placeholder
-production secrets; that is a deployment configuration handoff, not a reason to
-weaken the startup safety gate.
+Current evidence: the live Colima PostgreSQL database is at migration `515`;
+the live application container is healthy and its public `/`, `/direct`, and
+`/ready` routes return HTTP 200. A fresh production dump was restored into a
+temporary database and passed the restore verifier with 515 migrations, all 10
+required Credit tables, and all 4 partner/conversion integrity triggers. The
+live `verify:credit` command still stops at the production prerequisite gate
+because Sentry monitoring is not configured; that is an activation/configuration
+gap, not a reason to weaken the safety gate.
 
 ## Core Accounting
 
 | Requirement | Implementation evidence | Verification evidence | Status / remaining gap |
 | --- | --- | --- | --- |
-| Central authority ledger and immutable journal | `server/migrations/421_oxsteed_credit_foundation.sql`, `server/services/oxsteedCreditService.js` | `server/scripts/verify-oxsteed-credit.js`, backend Credit tests | implemented; run against target database |
-| Independent restaurant payable and reserve ledgers | `server/migrations/514_oxsteed_credit_partner_ledgers.sql`, `server/services/oxsteedCreditPartnerLedgerService.js` | isolated upgrade from the latest dump, live `verify:credit`, partner-ledger unit tests | implemented; live funding drill remains |
+| Central authority ledger and immutable journal | `server/migrations/421_oxsteed_credit_foundation.sql`, `server/services/oxsteedCreditService.js` | live non-activating `verify:credit` passed with zero invalid balances, entries, chains, or audit hashes; backend Credit tests | implemented; activation remains gated by production monitoring |
+| Independent restaurant payable and reserve ledgers | `server/migrations/514_oxsteed_credit_partner_ledgers.sql`, `server/services/oxsteedCreditPartnerLedgerService.js` | live non-activating `verify:credit` passed with zero invalid partner ledgers/funding records; partner-ledger unit tests | implemented; external funding evidence remains an operator handoff |
 | Funding and reserve release traceability | `oxsteed_credit_partner_funding_records`, admin ledger UI and routes | idempotency and integrity tests; live treasury drill | implemented; external transfer evidence must be supplied by operators |
-| Loads, purchases, holds, captures, releases, refunds, transfers, and adjustments | `server/services/oxsteedCreditService.js` and Credit controllers | backend suite and API route tests | implemented; real database concurrency run remains |
-| Settlement, reversal, reconciliation, statements, disputes, and audit | Credit admin service, controllers, UI, and migrations | backend suite, verifier, restore script | implemented; restore and failure-injection evidence remains |
-| Double-spend, limits, tenant isolation, and replay defense | advisory locks, account guards, idempotency and role middleware | focused tests plus real PostgreSQL/Redis concurrency test | partial: live concurrency evidence remains |
+| Loads, purchases, holds, captures, releases, refunds, transfers, and adjustments | `server/services/oxsteedCreditService.js` and Credit controllers | backend suite plus isolated PostgreSQL/Redis concurrency and insufficient-funds rollback drill | implemented; broader failure-injection and browser workflow evidence remains |
+| Settlement, reversal, reconciliation, statements, disputes, and audit | Credit admin service, controllers, UI, and migrations | backend suite, live verifier, restore script | implemented; settlement failure-injection and end-to-end browser evidence remains |
+| Double-spend, limits, tenant isolation, and replay defense | advisory locks, account guards, idempotency and role middleware | isolated `verify:credit-concurrency` passed: one concurrent spend committed, one rolled back, duplicate retry shared one transaction, and insufficient-funds failure left state unchanged; live schema verifier passed | partial: broader failure-injection and multi-restaurant browser evidence remains |
 
 ## Product And International Support
 
@@ -39,11 +40,11 @@ weaken the startup safety gate.
 
 | Requirement | Implementation evidence | Verification evidence | Status / remaining gap |
 | --- | --- | --- | --- |
-| Secrets, HMAC ledger integrity, authorization, and audit | Credit service secret validation, HMAC entries, role middleware, audit events | backend security tests and `verify:credit` | implemented; deployment secret rotation drill remains |
-| Provider adapters, webhooks, reconciliation, and outage handling | provider-specific adapters and webhook handlers in `server/` | contract fixtures and failure-path tests | partial: live provider credentials and sandbox runs remain |
+| Secrets, HMAC ledger integrity, authorization, and audit | Credit service secret validation, HMAC entries, role middleware, audit events | live non-activating verifier and deployed secret replacement/restart passed; backend security tests | implemented; Sentry monitoring is still required before activation |
+| Provider adapters, webhooks, reconciliation, and outage handling | provider-specific adapters and webhook handlers in `server/` | contract fixtures and failure-path tests; live Stripe credentials are deployed | partial: provider sandbox/event-delivery and outage runs remain |
 | Workers, diagnostics, health, and readiness | worker config, `/ready`, `/health`, verifier scripts | worker tests and readiness checks | partial: live worker recovery observation remains |
-| Reproducible build, migration upgrade, and release identification | Dockerfile, compose deployment, migration runner, build metadata | `client` build, `npm run migrate`, `verify:credit` | partial: target-environment upgrade run remains |
-| Automated backup and tested restoration | deployment backup procedure and `scripts/verify-production-restore.sh` | restore verifier checks 10 Credit tables and 4 partner/conversion triggers; isolated schema upgrade passed | partial: full restore verifier still requires a healthy database container and a complete snapshot |
+| Reproducible build, migration upgrade, and release identification | Dockerfile, compose deployment, migration runner, build metadata | client `build:ci`, deployed image `6b2bdf8d`, migration 515 startup, and live non-activating verifier | partial: CI/deploy rerun with the current uncommitted monitoring change remains |
+| Automated backup and tested restoration | deployment backup procedure and `scripts/verify-production-restore.sh` | fresh production dump restored and verified with 515 migrations, 10 Credit tables, and 4 partner/conversion triggers; temporary database removed | partial: backup scheduling/off-host retention and recurring restore evidence remain |
 | Performance and resource targets | bounded page sizes, transaction and export limits, retry controls | documented workload benchmark | partial: run and record target workload measurements |
 
 ## Completion Gate

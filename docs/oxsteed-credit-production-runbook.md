@@ -30,11 +30,15 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 
 ## Coolify Environment Repair
 
-The current Coolify OxSteed application is intentionally stopped because its
-production environment still contains placeholder values for `JWT_SECRET` and
-`DATABASE_URL`. Do not copy values from this document into Coolify. Replace
-them in the Coolify application Environment page, mark them as secrets, and
-redeploy only after the values have been checked.
+The Coolify OxSteed application has been repaired and is currently healthy.
+Its production environment now contains non-placeholder database, JWT, and
+Stripe values, and the deployed container has completed migration 515. Do not
+copy values from this document into Coolify. Keep all credentials in Coolify's
+secret store and redeploy only after the values have been checked.
+
+The live `verify:credit` release check remains intentionally fail-closed until
+server error monitoring is configured with `SENTRY_DSN`; do not bypass that
+requirement or activate real Credit value without it.
 
 `JWT_SECRET` must be one stable, high-entropy value shared by every OxSteed
 application replica. Generate it on the trusted MacBook with
@@ -191,6 +195,24 @@ this prevents a multi-instance deployment from silently falling back to
 process-local rate limits and coordination. The check is inactive when Credit
 is disabled, so ordinary platform traffic can remain available while the rail
 is being prepared.
+
+### Isolated concurrency drill
+
+Restore a current production-shaped dump into a disposable database whose name
+starts with `oxsteed_verify_`, set `CREDIT_CONCURRENCY_TEST_MODE=true`, and run
+the service-level race through the application image:
+
+```sh
+npm --prefix server run verify:credit-concurrency
+```
+
+The drill requires `DATABASE_URL`, `REDIS_URL`, and the dedicated ledger secret.
+It races two spends against one customer balance, verifies that only one is
+posted, then retries one idempotency key concurrently and verifies that both
+callers receive one transaction. It also injects an insufficient-funds failure
+and verifies that the account balance, reservations, and purchase journal are
+unchanged. Drop the disposable database after the run; never point this command
+at the live production database.
 
 ## Enabling a Partner
 

@@ -21,6 +21,7 @@ class IncidentAlertService {
       this._logAlert.bind(this),
       this._metricsAlert.bind(this),
       this._emailAlert.bind(this),
+      this._slackAlert.bind(this),
     ];
 
     // Check alerts periodically
@@ -117,7 +118,7 @@ class IncidentAlertService {
   }
 
   /**
-   * Email alert (stub - integrate with Resend/SendGrid)
+   * Send critical alerts through the configured transactional email provider.
    */
   async _emailAlert(incident) {
     if (incident.severity !== 'critical') return;
@@ -128,13 +129,25 @@ class IncidentAlertService {
   }
 
   /**
-   * Slack alert (stub - integrate with Slack webhook)
+   * Send critical alerts to Slack without accepting arbitrary outbound URLs.
    */
-  _slackAlert(incident) {
+  async _slackAlert(incident) {
     if (incident.severity !== 'critical') return;
 
-    const slackWebhook = process.env.SLACK_SECURITY_WEBHOOK;
-    if (!slackWebhook) return;
+    const configuredWebhook = String(process.env.SLACK_SECURITY_WEBHOOK || '').trim();
+    if (!configuredWebhook) return;
+
+    let slackWebhook;
+    try {
+      const parsed = new URL(configuredWebhook);
+      if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 'hooks.slack.com') {
+        throw new Error('Slack security webhook must use the hooks.slack.com HTTPS endpoint');
+      }
+      slackWebhook = parsed.toString();
+    } catch (error) {
+      logger.error('Slack security webhook rejected', { error: error.message });
+      return;
+    }
 
     const message = {
       text: `🚨 ${incident.type}`,
@@ -151,8 +164,18 @@ class IncidentAlertService {
       ],
     };
 
-    // TODO: Post to Slack
-    logger.info('Slack alert queued', { incident });
+    const response = await fetch(slackWebhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+      body: JSON.stringify(message),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Slack webhook returned HTTP ${response.status}`);
+    }
+
+    logger.info('Slack security alert sent', { type: incident.type });
   }
 
   /**

@@ -15,6 +15,8 @@
     "test:food-promotions": "jest __tests__/foodPromotions.test.js --runInBand --forceExit",
     "verify:active-job-statuses": "node scripts/verify-active-job-statuses.js",
     "verify:credit": "node scripts/verify-oxsteed-credit.js",
+    "verify:credit-concurrency": "node scripts/verify-credit-concurrency.js",
+    "verify:credit-performance": "node scripts/verify-credit-performance.js",
     "verify:readiness": "node scripts/verify-readiness-payload.js",
     "verify:restore": "bash ../scripts/verify-production-restore.sh",
     "verify:i18n": "node scripts/verify-server-localization.mjs",
@@ -34,6 +36,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.1021.0",
     "@aws-sdk/s3-request-presigner": "3.1021.0",
+    "@json2csv/plainjs": "^7.0.8",
     "@opentelemetry/api": "1.9.1",
     "@otplib/v12-adapter": "^13.4.0",
     "@sentry/node": "10.66.0",

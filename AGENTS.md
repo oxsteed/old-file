@@ -11,6 +11,48 @@
 - Re-audit current code against the required accounting architecture and maintain requirement-to-evidence coverage. Prior test counts and deployment blockers are historical evidence, not proof of current completeness.
 - This repository scope update does not edit or resume the Codex app's saved goal.
 
+### Session progress - OxSteed Credit recovery evidence (2026-09-14)
+
+- Corrected `scripts/verify-production-restore.sh` to require the 10 Credit
+  tables and 4 partner/conversion integrity triggers that it enumerates.
+- Created a fresh production dump from the live migration-515 database and
+  passed the isolated restore drill; the temporary verification database was
+  removed after checking the schema.
+- The deployed application is healthy with zero restarts and public `/`,
+  `/direct`, and `/ready` checks returning HTTP 200. `verify:credit` remains
+  fail-closed because `SENTRY_DSN` is not configured; this must stay a release
+  gate until monitoring is supplied.
+- Verification: focused Credit suite 148 tests passed, client `build:ci`
+  passed, deployment wiring tests 6 passed, restore script syntax passed, and
+  `git diff --check` passed.
+- The live deployed artifact's non-activating Credit verifier also passed all
+  schema, trigger, balance, ownership, currency, settlement, conversion,
+  idempotency, and hash-chain checks with zero invalid records. The production
+  verifier remains correctly blocked until `SENTRY_DSN` is supplied.
+- The isolated `verify:credit-concurrency` drill passed against a restored
+  migration-515 database using live PostgreSQL and Redis: two concurrent
+  spends produced one commit and one rollback, and two retries with one
+  idempotency key returned the same transaction with correct final totals. An
+  insufficient-funds failure also left the account and purchase journal
+  unchanged.
+
+### Session progress - OxSteed Credit monitoring and restore hardening (2026-09-14)
+
+- Incident alerting now sends critical Slack notifications through a validated
+  `hooks.slack.com` HTTPS webhook with timeout and non-2xx failure handling;
+  optional email/Slack settings are wired into the Coolify compose environment.
+- Affiliate payout and analytics PDF exports now generate real PDF documents
+  with `pdfkit`; the CSV exporter now uses the maintained
+  `@json2csv/plainjs` runtime dependency and is covered by export regression
+  tests.
+- The restore verifier now checks the 10 Credit tables and 4 partner/conversion
+  integrity triggers it enumerates, preventing false negatives during recovery.
+- Verification: full backend regression passed (149 suites, 1,058 tests),
+  production dependency audit reported 0 high-severity vulnerabilities, the
+  client CI build passed, Slack/validation/deployment tests passed (16 tests),
+  and a fresh production dump restored successfully in an isolated temporary
+  database.
+
 ### Admin reload loop fix (2026-09-05)
 - 2FA setup follow-up: corrected malformed production encryption key in Coolify after confirming zero encrypted TOTP/payment/tax records. Startup now rejects malformed encryption keys. Setup verification now displays the returned recovery codes instead of discarding them.
 
@@ -2316,7 +2358,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [x] SellerPayoutDashboard.jsx: Payout method management, payment method CRUD, payout history table, stats cards
 - [x] AffiliateAnalytics.jsx: Time-series charts (Recharts), conversion funnel visualization, top products grid, device breakdown pie chart, referrer performance table
 - [x] payoutRoutes.js: 9 API route definitions for payouts and analytics endpoints
-- [x] ExportService.js: CSV export for payouts, analytics, products, referrers; PDF placeholders
+- [x] ExportService.js: CSV export for payouts, analytics, products, referrers; real payout and analytics PDF reports
 - [x] Responsive design: Mobile-first grid layouts, dark mode theming, Recharts with dark colors
 - [ ] Route integration into main server.js (requires merge into server/index.js)
 - [ ] Testing with real data (requires database setup)

@@ -15,6 +15,8 @@ const REQUIRED = [
 // Missing these degrades features but doesn't break auth / payments
 const OPTIONAL = [
   ['SENTRY_DSN',               'Server error monitoring unavailable; Credit production activation disabled'],
+  ['SECURITY_ALERT_EMAIL',     'Security incident email alerts use the default recipient'],
+  ['SLACK_SECURITY_WEBHOOK',   'Slack security incident alerts disabled'],
   ['CLAMAV_HOST',              'ClamAV malware scanning unavailable unless static validation is approved'],
   ['AWS_ACCESS_KEY_ID',        'S3 file uploads disabled'],
   ['AWS_SECRET_ACCESS_KEY',    'S3 file uploads disabled'],

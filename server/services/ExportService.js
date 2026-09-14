@@ -1,6 +1,45 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { Parser } = require('json2csv');
+const { Parser } = require('@json2csv/plainjs');
+const PDFDocument = require('pdfkit');
+
+function createPdfBuffer(render) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 48, size: 'LETTER' });
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    try {
+      render(doc);
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function formatDate(value) {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().slice(0, 10);
+}
+
+function formatCents(value) {
+  const cents = Number(value);
+  return Number.isFinite(cents) ? `$${(cents / 100).toFixed(2)}` : 'N/A';
+}
+
+function writeReportTitle(doc, title, subtitle) {
+  doc.font('Helvetica-Bold').fontSize(18).text(title);
+  doc.moveDown(0.35).font('Helvetica').fontSize(9).fillColor('#555555').text(subtitle);
+  doc.moveDown(1).fillColor('#000000');
+}
+
+function writeKeyValue(doc, label, value) {
+  doc.font('Helvetica-Bold').fontSize(9).text(`${label}: `, { continued: true });
+  doc.font('Helvetica').text(String(value ?? 'N/A'));
+}
 
 class ExportService {
   // Export payout history to CSV
@@ -173,16 +212,14 @@ class ExportService {
     }
   }
 
-  // Generate PDF report (using external service - placeholder)
+  // Generate a self-contained payout report without an external renderer.
   static async generatePayoutPDF(helper_id, payoutIds = []) {
     try {
-      // In production, integrate with a PDF generation library:
-      // - Use puppeteer for HTML-to-PDF conversion
-      // - Use pdfkit for programmatic PDF generation
-      // - Use a service like AWS Lambda + wkhtmltopdf
-
       const query = `
-        SELECT * FROM affiliate_payouts
+        SELECT id, period_start, period_end, gross_payout_cents,
+               processor_fee_cents, net_payout_cents, status,
+               payment_processor, created_at
+        FROM affiliate_payouts
         WHERE helper_id = $1 ${payoutIds.length > 0 ? `AND id = ANY($2)` : ''}
         ORDER BY period_end DESC
       `;
@@ -190,12 +227,33 @@ class ExportService {
       const params = payoutIds.length > 0 ? [helper_id, payoutIds] : [helper_id];
       const result = await pool.query(query, params);
 
-      // Return PDF data (would be actual PDF bytes in production)
+      const reportDate = new Date().toISOString().split('T')[0];
+      const data = await createPdfBuffer((doc) => {
+        writeReportTitle(doc, 'OxSteed Payout Report', `Helper ${helper_id} | Generated ${reportDate}`);
+        if (result.rows.length === 0) {
+          doc.font('Helvetica').fontSize(11).text('No payouts matched the requested filters.');
+          return;
+        }
+
+        result.rows.forEach((payout, index) => {
+          if (index > 0) doc.moveDown(0.8).moveTo(48, doc.y).lineTo(564, doc.y).strokeColor('#cccccc').stroke().moveDown(0.8);
+          doc.font('Helvetica-Bold').fontSize(12).text(`Payout #${payout.id}`);
+          doc.moveDown(0.25);
+          writeKeyValue(doc, 'Period', `${formatDate(payout.period_start)} to ${formatDate(payout.period_end)}`);
+          writeKeyValue(doc, 'Status', payout.status);
+          writeKeyValue(doc, 'Payment processor', payout.payment_processor || 'N/A');
+          writeKeyValue(doc, 'Gross amount', formatCents(payout.gross_payout_cents));
+          writeKeyValue(doc, 'Processor fee', formatCents(payout.processor_fee_cents));
+          writeKeyValue(doc, 'Net amount', formatCents(payout.net_payout_cents));
+          writeKeyValue(doc, 'Created', formatDate(payout.created_at));
+        });
+      });
+
       logger.info('Generated payout PDF', { helper_id, payout_count: result.rows.length });
 
       return {
-        filename: `payouts-${new Date().toISOString().split('T')[0]}.pdf`,
-        data: Buffer.from(JSON.stringify(result.rows)) // Placeholder
+        filename: `payouts-${reportDate}.pdf`,
+        data,
       };
     } catch (err) {
       logger.error('Failed to generate payout PDF', { error: err.message });
@@ -206,14 +264,47 @@ class ExportService {
   // Generate analytics report PDF
   static async generateAnalyticsPDF(program_id, helper_id, metrics, funnel, topProducts) {
     try {
-      // In production, create a formatted PDF with charts and summaries
       const timestamp = new Date().toISOString().split('T')[0];
+      const metricRows = Array.isArray(metrics) ? metrics : [];
+      const funnelRows = Array.isArray(funnel) ? funnel : [];
+      const productRows = Array.isArray(topProducts) ? topProducts : [];
+      const data = await createPdfBuffer((doc) => {
+        writeReportTitle(doc, 'OxSteed Affiliate Analytics', `Program ${program_id} | Helper ${helper_id} | Generated ${timestamp}`);
+        doc.font('Helvetica-Bold').fontSize(12).text('Summary');
+        doc.moveDown(0.35);
+        if (metricRows.length === 0) {
+          doc.font('Helvetica').fontSize(10).text('No daily metrics were supplied.');
+        } else {
+          metricRows.slice(0, 90).forEach((metric) => {
+            writeKeyValue(doc, formatDate(metric.metric_date || metric.date), [
+              `${metric.total_clicks ?? metric.clicks ?? 0} clicks`,
+              `${metric.total_conversions ?? metric.conversions ?? 0} conversions`,
+              `${metric.conversion_rate ?? metric.conversionRate ?? 0}% conversion`,
+              `revenue ${formatCents(metric.total_order_value_cents ?? metric.revenueCents)}`,
+            ].join(' | '));
+          });
+        }
+
+        doc.moveDown(0.8).font('Helvetica-Bold').fontSize(12).text('Conversion funnel');
+        doc.moveDown(0.35);
+        if (funnelRows.length === 0) doc.font('Helvetica').fontSize(10).text('No funnel data were supplied.');
+        else funnelRows.slice(0, 30).forEach((row) => writeKeyValue(doc, row.stage || row.name || 'Stage', row.count ?? row.value ?? 0));
+
+        doc.moveDown(0.8).font('Helvetica-Bold').fontSize(12).text('Top products');
+        doc.moveDown(0.35);
+        if (productRows.length === 0) doc.font('Helvetica').fontSize(10).text('No product data were supplied.');
+        else productRows.slice(0, 50).forEach((product, index) => writeKeyValue(doc, `${product.rank ?? index + 1}. ${product.product_name || product.productName || 'Product'}`, [
+          `${product.total_clicks_30d ?? product.clicks ?? 0} clicks`,
+          `${product.total_conversions_30d ?? product.conversions ?? 0} conversions`,
+          `revenue ${formatCents(product.total_revenue_30d_cents ?? product.revenueCents)}`,
+        ].join(' | ')));
+      });
 
       logger.info('Generated analytics PDF', { program_id, helper_id });
 
       return {
         filename: `analytics-${timestamp}.pdf`,
-        data: Buffer.from(JSON.stringify({ metrics, funnel, topProducts })) // Placeholder
+        data,
       };
     } catch (err) {
       logger.error('Failed to generate analytics PDF', { error: err.message });

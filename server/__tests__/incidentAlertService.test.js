@@ -20,7 +20,11 @@ afterAll(() => {
 });
 
 describe('incident alert dispatch', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    delete process.env.SLACK_SECURITY_WEBHOOK;
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
 
   test('suppresses repeated channel notifications inside the durable cooldown', async () => {
     const channel = jest.fn();
@@ -62,5 +66,51 @@ describe('incident alert dispatch', () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(channel).toHaveBeenCalledTimes(1);
+  });
+
+  test('delivers critical alerts to the constrained Slack webhook', async () => {
+    process.env.SLACK_SECURITY_WEBHOOK = 'https://hooks.slack.com/services/test/webhook/token';
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 200 });
+
+    await incidentAlertService._slackAlert({
+      type: 'BACKUP_FAILURE',
+      severity: 'critical',
+      message: 'Backup is late',
+      timestamp: '2026-09-14T22:00:00.000Z',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      process.env.SLACK_SECURITY_WEBHOOK,
+      expect.objectContaining({ method: 'POST', signal: expect.anything() })
+    );
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toMatchObject({
+      text: '🚨 BACKUP_FAILURE',
+    });
+  });
+
+  test('rejects non-Slack webhook destinations without making a request', async () => {
+    process.env.SLACK_SECURITY_WEBHOOK = 'https://example.com/webhook';
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    await expect(incidentAlertService._slackAlert({
+      type: 'AUDIT_CHAIN_FAILURE',
+      severity: 'critical',
+      message: 'Audit chain failed',
+      timestamp: '2026-09-14T22:00:00.000Z',
+    })).resolves.toBeUndefined();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('surfaces Slack delivery failures to the channel dispatcher', async () => {
+    process.env.SLACK_SECURITY_WEBHOOK = 'https://hooks.slack.com/services/test/webhook/token';
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 503 });
+
+    await expect(incidentAlertService._slackAlert({
+      type: 'BACKUP_FAILURE',
+      severity: 'critical',
+      message: 'Backup is late',
+      timestamp: '2026-09-14T22:00:00.000Z',
+    })).rejects.toThrow('HTTP 503');
   });
 });
