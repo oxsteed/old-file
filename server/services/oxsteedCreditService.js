@@ -1158,7 +1158,17 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
   if (allowedMenuItems.length && (!requestedMenuItems.length || requestedMenuItems.some((itemId) => !allowedMenuItems.includes(itemId)))) {
     throw new AppError('This menu item is not covered by the OxSteed Credit agreement', 403, 'credit_menu_item_not_eligible');
   }
-  if (!matchesGeography(agreement.geography, { city, state, postalCode, country })) {
+  // Restaurant authorizations may be created before checkout has a delivery
+  // address. In that case, evaluate the agreement against the partner's
+  // verified restaurant location instead of treating missing input as a
+  // mismatch or trusting an arbitrary customer-supplied location.
+  const agreementLocation = {
+    city: city || agreement.address_city,
+    state: state || agreement.address_state,
+    postalCode: postalCode || agreement.address_zip,
+    country: country || agreement.address_country,
+  };
+  if (!matchesGeography(agreement.geography, agreementLocation)) {
     throw new AppError('This location is not covered by the OxSteed Credit agreement', 403, 'credit_location_not_eligible');
   }
 

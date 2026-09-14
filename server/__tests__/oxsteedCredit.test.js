@@ -1125,6 +1125,43 @@ test('checks restaurant checkout eligibility with the same agreement policy as s
   expect(mockQuery.mock.calls[3][1]).toEqual([CUSTOMER_ID, 41, null]);
 });
 
+test('uses the verified restaurant location when creating a hold without customer location input', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-springfield',
+    partner_id: 41,
+    restaurant_id: 7,
+    settlement_currency_code: 'USD',
+    restaurant_currency_code: 'USD',
+    address_city: 'Springfield',
+    address_state: 'OH',
+    address_zip: '45503',
+    address_country: 'US',
+    status: 'active',
+    partner_status: 'active',
+    restaurant_status: 'active',
+    starts_at: '2026-01-01T00:00:00.000Z',
+    ends_at: null,
+    requires_customer_entitlement: false,
+    entitlement_id: null,
+    entitlement_status: null,
+    allowed_order_types: [],
+    allowed_categories: [],
+    allowed_menu_item_ids: [],
+    geography: { cities: ['Springfield'], states: ['OH'], postalCodes: ['45503'], countries: ['US'] },
+    max_transaction_cents: null,
+    daily_customer_limit_cents: null,
+    lifetime_customer_limit_cents: null,
+    entitlement_max_transaction_cents: null,
+    entitlement_daily_limit_cents: null,
+  }] });
+
+  await expect(service.findSpendAgreement({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    partnerId: 41,
+    amountCents: 0,
+  })).resolves.toMatchObject({ id: 'agreement-springfield' });
+});
+
 test('lists a customer credit hold page without exposing other account holds', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [
     {
