@@ -52,11 +52,18 @@ migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_
 }
 
 credit_table_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_audit_events')")"
-[[ "$credit_table_count" == "6" ]] || {
-  echo "Restored database is missing required Credit tables (found $credit_table_count/6)" >&2
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_audit_events', 'oxsteed_credit_partner_ledgers', 'oxsteed_credit_partner_funding_records')")"
+[[ "$credit_table_count" == "8" ]] || {
+  echo "Restored database is missing required Credit tables (found $credit_table_count/8)" >&2
   exit 1
 }
 
-printf 'Production restore verification passed: migrations=%s credit_tables=%s temporary_database=%s\n' \
-  "$migration_count" "$credit_table_count" "$TEMP_DB"
+partner_ledger_trigger_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('oxsteed_credit_partner_ledger_guard', 'oxsteed_credit_partner_funding_guard')")"
+[[ "$partner_ledger_trigger_count" == "2" ]] || {
+  echo "Restored database is missing required Credit partner-ledger integrity triggers (found $partner_ledger_trigger_count/2)" >&2
+  exit 1
+}
+
+printf 'Production restore verification passed: migrations=%s credit_tables=%s partner_ledger_triggers=%s temporary_database=%s\n' \
+  "$migration_count" "$credit_table_count" "$partner_ledger_trigger_count" "$TEMP_DB"

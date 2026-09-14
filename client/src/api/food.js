@@ -122,6 +122,14 @@ export const listFoodRestaurantOxsteedCreditTransactions = (restaurantId, params
     pagination: r.data?.pagination || { limit: 100, offset: 0, hasMore: false, nextOffset: null },
   }));
 
+export const getFoodRestaurantOxsteedCreditLedger = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/oxsteed-credit/ledger`, { params }).then((r) => ({
+    partnerId: r.data?.partnerId || null,
+    partnerStatus: r.data?.partnerStatus || null,
+    ledger: r.data?.ledger || null,
+    funding: r.data?.funding || { records: [], pagination: { limit: 100, offset: 0, hasMore: false, nextOffset: null } },
+  }));
+
 export const downloadFoodRestaurantOxsteedCreditReport = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}/oxsteed-credit/report.csv`, { params, responseType: 'blob' });
 

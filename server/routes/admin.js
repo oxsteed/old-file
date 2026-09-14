@@ -285,6 +285,8 @@ router.post('/super/oxsteed-credit/transactions/:transactionId/refund', requireS
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/partners/directory', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartnerDirectory);
 router.get('/super/oxsteed-credit/partners.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminPartners);
+router.get('/super/oxsteed-credit/partners/:partnerId/ledger', requireSuperAdmin, noStoreCreditResponse, oxsteedCreditCtrl.getAdminPartnerLedger);
+router.post('/super/oxsteed-credit/partners/:partnerId/funding', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.recordAdminPartnerFunding);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
 router.get('/super/oxsteed-credit/agreements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminAgreements);
 router.get('/super/oxsteed-credit/entitlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminEntitlements);

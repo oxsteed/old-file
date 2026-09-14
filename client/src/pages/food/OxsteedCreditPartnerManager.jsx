@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   formatFoodMoney,
   downloadFoodRestaurantOxsteedCreditReport,
+  getFoodRestaurantOxsteedCreditLedger,
   listFoodRestaurantOxsteedCreditSettlements,
   listFoodRestaurantOxsteedCreditTransactions,
 } from '../../api/food';
@@ -41,6 +42,8 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [partnerStatus, setPartnerStatus] = useState(null);
+  const [ledger, setLedger] = useState(null);
+  const [fundingRecords, setFundingRecords] = useState([]);
   const [transactionPagination, setTransactionPagination] = useState({ limit: 100, offset: 0, hasMore: false, nextOffset: null });
   const [settlementPagination, setSettlementPagination] = useState({ limit: 50, offset: 0, hasMore: false, nextOffset: null });
   const [loading, setLoading] = useState(true);
@@ -59,9 +62,10 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
     setError('');
     try {
       const effectiveSettlementStatus = settlementStatusOverride === undefined ? settlementStatus : settlementStatusOverride;
-      const [transactionResult, settlementResult] = await Promise.all([
+      const [transactionResult, settlementResult, ledgerResult] = await Promise.all([
         appendSettlements ? Promise.resolve(null) : listFoodRestaurantOxsteedCreditTransactions(restaurant.id, { limit: 100, offset: transactionOffset }),
         appendTransactions ? Promise.resolve(null) : listFoodRestaurantOxsteedCreditSettlements(restaurant.id, { limit: 50, offset: settlementOffset, ...(effectiveSettlementStatus ? { status: effectiveSettlementStatus } : {}) }),
+        getFoodRestaurantOxsteedCreditLedger(restaurant.id, { limit: 25, offset: 0 }),
       ]);
       if (requestId !== requestIdRef.current) return;
       const nextTransactions = Array.isArray(transactionResult?.transactions) ? transactionResult.transactions : [];
@@ -77,7 +81,9 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       if (appendSettlements || fullLoad) {
         setSettlementPagination(settlementResult?.pagination || { limit: 50, offset: settlementOffset, hasMore: false, nextOffset: null });
       }
-      setPartnerStatus(transactionResult?.partnerStatus || settlementResult?.partnerStatus || null);
+      setLedger(ledgerResult?.ledger || null);
+      setFundingRecords(ledgerResult?.funding?.records || []);
+      setPartnerStatus(transactionResult?.partnerStatus || settlementResult?.partnerStatus || ledgerResult?.partnerStatus || null);
     } catch (loadError) {
       setError(apiErrorMessage(loadError, t('partnerActivityError')));
     } finally {
@@ -143,6 +149,18 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
             <div><Store size={17} /><strong>{settlements.length}</strong><span>{t('settlementRecords')}</span></div>
             <div><ShieldCheck size={17} /><strong>{formatFoodMoney(pendingSettlementCents, currency)}</strong><span>{t('pendingSettlementValue')}</span></div>
           </div>
+
+          {ledger && <div className="fd-ox-credit-panel fd-ox-credit-ledger-panel">
+            <div className="fd-ox-credit-panel-title"><div><h3>Restaurant Credit ledger</h3><span>{ledger.ledgerCode} · {ledger.status}</span></div><span className={statusClass(ledger.status)}>{label(ledger.status, t)}</span></div>
+            <div className="fd-ox-credit-summary">
+              <div><WalletCards size={17} /><strong>{formatFoodMoney(ledger.payableAccount?.balanceCents, ledger.currencyCode)}</strong><span>Payable balance</span></div>
+              <div><ShieldCheck size={17} /><strong>{formatFoodMoney(ledger.reserveAccount?.balanceCents, ledger.currencyCode)}</strong><span>Reserve balance</span></div>
+              <div><Store size={17} /><strong>{formatFoodMoney(ledger.totalFundedCents, ledger.currencyCode)}</strong><span>Total funded</span></div>
+            </div>
+            {fundingRecords.length > 0 && <div className="fd-ox-credit-list">
+              {fundingRecords.map((record) => <div key={record.id} className="fd-ox-credit-row"><div><strong>{record.direction === 'fund' ? 'Reserve funded' : 'Reserve released'}</strong><span>{record.externalReference} · {record.reason}</span><small>{displayDate(record.createdAt, i18n.language, t('notAvailable'))}</small></div><div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(record.amountCents, record.currencyCode)}</strong><span className={statusClass(record.direction === 'fund' ? 'active' : 'approved')}>{record.direction}</span></div></div>)}
+            </div>}
+          </div>}
 
           <div className="fd-ox-credit-columns">
             <div className="fd-ox-credit-panel">

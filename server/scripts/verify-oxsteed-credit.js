@@ -27,6 +27,8 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_reconciliation_runs',
   'oxsteed_credit_audit_events',
   'oxsteed_credit_disputes',
+  'oxsteed_credit_partner_ledgers',
+  'oxsteed_credit_partner_funding_records',
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
   'oxsteed_credit_notification_outbox',
@@ -74,6 +76,8 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
+  oxsteed_credit_partner_ledgers: ['partner_id', 'ledger_code', 'currency_code', 'payable_account_id', 'reserve_account_id', 'status'],
+  oxsteed_credit_partner_funding_records: ['partner_ledger_id', 'partner_id', 'reserve_account_id', 'transaction_id', 'direction', 'amount_cents', 'currency_code', 'external_reference', 'idempotency_key', 'reason'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
   oxsteed_credit_notification_outbox: ['transaction_id', 'hold_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
@@ -124,6 +128,10 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_audit_correlation',
   'uq_oxsteed_credit_hold_notification',
   'uq_oxsteed_credit_audit_event_hash',
+  'idx_oxsteed_credit_partner_ledgers_status',
+  'idx_oxsteed_credit_partner_funding_ledger',
+  'idx_oxsteed_credit_partner_funding_partner',
+  'uq_oxsteed_credit_partner_reserve_account',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
@@ -198,6 +206,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_agreement_entitlement_status_guard',
   'oxsteed_credit_notification_outbox_source_guard',
   'oxsteed_credit_hold_notification_outbox_guard',
+  'oxsteed_credit_partner_ledger_guard',
+  'oxsteed_credit_partner_funding_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -708,6 +718,11 @@ async function main() {
       ['473_oxsteed_credit_entitlement_activity.sql']
     );
     checks.entitlementActivityMigrationApplied = entitlementActivityMigrationRows.rows.length === 1;
+    const partnerLedgerMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['514_oxsteed_credit_partner_ledgers.sql']
+    );
+    checks.partnerLedgerMigrationApplied = partnerLedgerMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -767,7 +782,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'oxsteed_credit_notification_outbox'::regclass, 'food_restaurants'::regclass, 'users'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'oxsteed_credit_notification_outbox'::regclass, 'oxsteed_credit_partner_ledgers'::regclass, 'oxsteed_credit_partner_funding_records'::regclass, 'food_restaurants'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -1368,6 +1383,14 @@ async function main() {
                  AND (debit_account.account_type <> 'customer_wallet'
                      OR credit_account.account_type <> 'platform_treasury'))
                  OR COALESCE(t.metadata->>'direction', '') NOT IN ('credit', 'debit')))
+           OR (t.transaction_type = 'funding'
+               AND (debit_account.account_type <> 'platform_treasury'
+                 OR credit_account.account_type <> 'partner_reserve'
+                 OR t.partner_id IS NULL OR t.agreement_id IS NOT NULL))
+           OR (t.transaction_type = 'reserve_release'
+               AND (debit_account.account_type <> 'partner_reserve'
+                 OR credit_account.account_type <> 'platform_treasury'
+                 OR t.partner_id IS NULL OR t.agreement_id IS NOT NULL))
            OR t.transaction_type IN ('fee', 'expiration', 'chargeback')`,
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
@@ -1386,6 +1409,43 @@ async function main() {
             OR (t.transaction_type IN ('refund', 'settlement') AND debit_account.partner_id IS DISTINCT FROM t.partner_id))`,
     );
     checks.invalidTransactionPartnerAccounts = Number(transactionPartnerRows[0]?.invalid_count || 0);
+
+    const { rows: partnerLedgerIntegrityRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_partner_ledgers l
+         JOIN oxsteed_credit_partners p ON p.id = l.partner_id
+         LEFT JOIN oxsteed_credit_accounts payable
+           ON payable.id = l.payable_account_id
+          AND payable.account_type = 'partner_payable'
+          AND payable.partner_id = l.partner_id
+          AND payable.currency_code = l.currency_code
+         LEFT JOIN oxsteed_credit_accounts reserve
+           ON reserve.id = l.reserve_account_id
+          AND reserve.account_type = 'partner_reserve'
+          AND reserve.partner_id = l.partner_id
+          AND reserve.currency_code = l.currency_code
+        WHERE p.settlement_currency_code <> l.currency_code
+           OR payable.id IS NULL
+           OR reserve.id IS NULL`,
+    );
+    checks.invalidPartnerLedgers = Number(partnerLedgerIntegrityRows[0]?.invalid_count || 0);
+
+    const { rows: partnerFundingIntegrityRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_partner_funding_records f
+         JOIN oxsteed_credit_partner_ledgers l ON l.id = f.partner_ledger_id
+         LEFT JOIN oxsteed_credit_transactions t ON t.id = f.transaction_id
+        WHERE f.partner_id IS DISTINCT FROM l.partner_id
+           OR f.currency_code IS DISTINCT FROM l.currency_code
+           OR f.reserve_account_id IS DISTINCT FROM l.reserve_account_id
+           OR t.id IS NULL
+           OR t.status <> 'posted'
+           OR t.partner_id IS DISTINCT FROM f.partner_id
+           OR t.currency_code IS DISTINCT FROM f.currency_code
+           OR t.transaction_type IS DISTINCT FROM CASE f.direction
+             WHEN 'fund' THEN 'funding' ELSE 'reserve_release' END`,
+    );
+    checks.invalidPartnerFundingRecords = Number(partnerFundingIntegrityRows[0]?.invalid_count || 0);
 
     const { rows: disputeIntegrityRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1656,6 +1716,7 @@ async function main() {
       !checks.entitlementIdempotencyMigrationApplied,
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
+      !checks.partnerLedgerMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -1701,6 +1762,8 @@ async function main() {
       checks.invalidSettlementStates > 0,
       checks.invalidTransactionTypes > 0,
       checks.invalidTransactionPartnerAccounts > 0,
+      checks.invalidPartnerLedgers > 0,
+      checks.invalidPartnerFundingRecords > 0,
       checks.invalidDisputes > 0,
       checks.invalidCreditDisputeActors > 0,
       checks.invalidCreditHoldActors > 0,

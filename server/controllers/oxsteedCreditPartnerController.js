@@ -3,6 +3,10 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
+const {
+  getPartnerLedger,
+  listPartnerFundingRecords,
+} = require('../services/oxsteedCreditPartnerLedgerService');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const MAX_PARTNER_CREDIT_EXPORT_ROWS = 5000;
@@ -146,6 +150,31 @@ async function listPartnerTransactions(req, res, next) {
   }
 }
 
+async function getPartnerCreditLedger(req, res, next) {
+  try {
+    const restaurantId = parseRestaurantId(req.params.restaurantId);
+    await requireRestaurantManager(req.user.id, restaurantId);
+    const partner = await getPartnerId(restaurantId);
+    const result = await getPartnerLedger({
+      partnerId: partner.id,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+    });
+    const funding = await listPartnerFundingRecords({
+      partnerId: partner.id,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({
+      ...result,
+      partnerId: String(partner.id),
+      partnerStatus: partner.status,
+      funding,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function downloadPartnerCreditReport(req, res, next) {
   try {
     const restaurantId = parseRestaurantId(req.params.restaurantId);
@@ -219,4 +248,9 @@ async function downloadPartnerCreditReport(req, res, next) {
   }
 }
 
-module.exports = { listPartnerSettlements, listPartnerTransactions, downloadPartnerCreditReport };
+module.exports = {
+  listPartnerSettlements,
+  listPartnerTransactions,
+  getPartnerCreditLedger,
+  downloadPartnerCreditReport,
+};

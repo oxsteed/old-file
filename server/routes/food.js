@@ -94,6 +94,7 @@ router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', walletCt
 router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.getCustomerWalletStatement);
 router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
 router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
+router.get('/restaurants/:restaurantId/oxsteed-credit/ledger', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.getPartnerCreditLedger);
 router.get('/restaurants/:restaurantId/oxsteed-credit/report.csv', authenticate, noStoreCreditResponse, creditExportLimiter, oxsteedCreditPartnerCtrl.downloadPartnerCreditReport);
 router.use('/restaurants/:restaurantId/customer-wallet-holds', authenticate, noStoreCreditResponse);
 router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', restaurantCreditMutationLimiter, walletCtrl.captureCustomerWalletHold);

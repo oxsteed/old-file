@@ -60,6 +60,7 @@ const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
+  'funding', 'reserve_release',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -556,7 +557,7 @@ async function findExistingCreditHoldForReplay(client, { customerId, partnerId, 
 
 async function ensureAccount(client, { accountType, customerId = null, partnerId = null, currencyCode = CREDIT_CURRENCY }) {
   const currency = assertSupportedCreditCurrency(currencyCode);
-  if (!['customer_wallet', 'partner_payable', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
+  if (!['customer_wallet', 'partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue'].includes(accountType)) {
     throw new AppError('Unsupported credit account type', 400, 'credit_account_type_invalid');
   }
 
@@ -575,10 +576,12 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
 
   const scopedOwnershipFilter = accountType === 'customer_wallet'
     ? 'a.customer_id = $2 AND a.partner_id IS NULL'
-    : accountType === 'partner_payable'
+    : ['partner_payable', 'partner_reserve'].includes(accountType)
       ? 'a.partner_id = $2 AND a.customer_id IS NULL'
       : 'a.customer_id IS NULL AND a.partner_id IS NULL';
-  const ownerValue = accountType === 'customer_wallet' ? customerId : accountType === 'partner_payable' ? partnerId : accountType;
+  const ownerValue = accountType === 'customer_wallet' || ['partner_payable', 'partner_reserve'].includes(accountType)
+    ? (accountType === 'customer_wallet' ? customerId : partnerId)
+    : accountType;
   const ownerJoin = accountType === 'customer_wallet'
     ? `JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE`
     : '';

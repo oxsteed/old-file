@@ -63,6 +63,11 @@ const {
   retryCreditNotification,
 } = require('../services/oxsteedCreditAdminService');
 const {
+  getPartnerLedger,
+  listPartnerFundingRecords,
+  recordPartnerFunding,
+} = require('../services/oxsteedCreditPartnerLedgerService');
+const {
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
   DAILY_WORKER_STALE_AFTER_MINUTES,
@@ -1666,6 +1671,46 @@ async function reconcileAdminCredit(req, res, next) {
   }
 }
 
+async function getAdminPartnerLedger(req, res, next) {
+  try {
+    const partnerId = parsePositiveInt(req.params.partnerId, 'partnerId');
+    const result = await getPartnerLedger({
+      partnerId,
+      currencyCode: req.query.currencyCode || req.query.currency_code,
+    });
+    const funding = await listPartnerFundingRecords({
+      partnerId,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ ...result, funding });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function recordAdminPartnerFunding(req, res, next) {
+  try {
+    const partnerId = parsePositiveInt(req.params.partnerId, 'partnerId');
+    const result = await recordPartnerFunding({
+      partnerId,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      amountCents: req.body?.amountCents || req.body?.amount_cents,
+      direction: req.body?.direction,
+      externalReference: req.body?.externalReference || req.body?.external_reference,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+      metadata: req.body?.metadata,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminCreditReconciliationRuns(req, res, next) {
   try {
     const result = await listReconciliationRuns({
@@ -1790,6 +1835,8 @@ module.exports = {
   createAdminSettlement,
   transitionAdminSettlement,
   reconcileAdminCredit,
+  getAdminPartnerLedger,
+  recordAdminPartnerFunding,
   listAdminCreditReconciliationRuns,
   downloadAdminCreditReconciliationRuns,
 };

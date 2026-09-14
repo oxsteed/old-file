@@ -4,6 +4,12 @@ OxSteed Credit is a restricted stored-value rail. It is not a bank account, depo
 
 ## Release Gate
 
+Engineering completion is governed by the
+[code completion goal](oxsteed-credit-code-completion-goal.md). The release gate
+below governs activation for real customers. Human launch prerequisites do not
+block completion of implementation, isolated integration tests, or recovery
+verification, and passing software checks does not automatically enable Credit.
+
 Do not enable OxSteed Credit for real customers until all of the following are true:
 
 - Production startup must use non-placeholder authentication, database, encryption,
@@ -125,6 +131,23 @@ is being prepared.
 5. Add customer entitlements only when the commercial or program rules require customer-specific access.
 6. Run one low-value test load, purchase, refund, and settlement in the approved environment.
 7. Enable `oxsteed_credit_enabled` only after the release gate is signed off.
+
+### Restaurant Operating Ledger
+
+Each enrolled restaurant has an explicit Credit operating ledger with two
+separate accounts: the payable account for earned restaurant value and a
+protected reserve account for central treasury funding. The Super Admin
+workspace can inspect both balances and record a `fund` or `release` movement
+through `POST /api/admin/super/oxsteed-credit/partners/:partnerId/funding`.
+Every movement requires an idempotency key, positive amount, external
+reference, and operator reason. The journal direction is enforced by the
+database: funding moves central treasury to the restaurant reserve, while a
+release moves reserve back to central treasury. The restaurant operator view
+at `GET /api/food/restaurants/:restaurantId/oxsteed-credit/ledger` exposes its
+own payable/reserve balances and funding history without exposing customer
+identity. An external reference is audit evidence supplied by the operator;
+the application must not represent it as proof that an external bank or
+custody transfer actually completed.
 
 ## Customer-Specific Partner Access
 

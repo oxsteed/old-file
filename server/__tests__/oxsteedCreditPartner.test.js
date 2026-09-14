@@ -8,8 +8,13 @@ const { errorHandler } = require('../middleware/errorHandler');
 jest.mock('../services/oxsteedCreditAdminService', () => ({
   listSettlements: jest.fn(),
 }));
+jest.mock('../services/oxsteedCreditPartnerLedgerService', () => ({
+  getPartnerLedger: jest.fn(),
+  listPartnerFundingRecords: jest.fn(),
+}));
 
 const { listSettlements } = require('../services/oxsteedCreditAdminService');
+const { getPartnerLedger, listPartnerFundingRecords } = require('../services/oxsteedCreditPartnerLedgerService');
 const controller = require('../controllers/oxsteedCreditPartnerController');
 
 function buildApp(role = 'owner') {
@@ -21,6 +26,7 @@ function buildApp(role = 'owner') {
   });
   app.get('/restaurants/:restaurantId/settlements', controller.listPartnerSettlements);
   app.get('/restaurants/:restaurantId/transactions', controller.listPartnerTransactions);
+  app.get('/restaurants/:restaurantId/ledger', controller.getPartnerCreditLedger);
   app.get('/restaurants/:restaurantId/report.csv', controller.downloadPartnerCreditReport);
   app.use(errorHandler);
   return app;
@@ -29,6 +35,8 @@ function buildApp(role = 'owner') {
 beforeEach(() => {
   resetMocks();
   listSettlements.mockReset();
+  getPartnerLedger.mockReset();
+  listPartnerFundingRecords.mockReset();
 });
 
 test('allows an owner to view partner settlements without customer data', async () => {
@@ -112,6 +120,33 @@ test('removes internal settlement fields from the partner response', async () =>
   expect(response.body.settlements[0]).not.toHaveProperty('approvedBy');
   expect(response.body.settlements[0]).not.toHaveProperty('metadata');
   expect(response.body.pagination).toEqual({ limit: 1, offset: 0, hasMore: false, nextOffset: null });
+});
+
+test('allows a restaurant manager to view its payable and reserve ledger without customer data', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 9, effective_role: 'owner' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 55, status: 'active', settlement_currency_code: 'USD' }] });
+  getPartnerLedger.mockResolvedValueOnce({ ledger: {
+    id: 'ledger-1',
+    partnerId: '55',
+    restaurantId: '9',
+    currencyCode: 'USD',
+    payableAccount: { accountId: '701', balanceCents: 12500 },
+    reserveAccount: { accountId: '702', balanceCents: 30000 },
+  } });
+  listPartnerFundingRecords.mockResolvedValueOnce({ records: [{ id: 'funding-1', direction: 'fund', amountCents: 30000 }], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
+
+  const response = await request(buildApp()).get('/restaurants/9/ledger?limit=25');
+
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({
+    partnerId: '55',
+    partnerStatus: 'active',
+    ledger: { payableAccount: { accountId: '701' }, reserveAccount: { accountId: '702' } },
+    funding: { records: [{ id: 'funding-1', direction: 'fund' }] },
+  });
+  expect(getPartnerLedger).toHaveBeenCalledWith({ partnerId: 55, currencyCode: undefined });
+  expect(listPartnerFundingRecords).toHaveBeenCalledWith({ partnerId: 55, limit: '25', offset: undefined });
 });
 
 test('exports a bounded partner Credit report without customer identity fields', async () => {

@@ -136,12 +136,16 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_dispute_integrity_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_admin_refund_evidence_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_immutable_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_partner_ledger_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_partner_funding_guard');
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
 test('credit verification treats customer activity protection as required', () => {
   const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
   expect(verifierSource).toContain("'oxsteed_credit_notification_outbox'::regclass");
+  expect(verifierSource).toContain("'oxsteed_credit_partner_ledgers'::regclass");
+  expect(verifierSource).toContain("'oxsteed_credit_partner_funding_records'::regclass");
   expect(verifierSource).toContain("'food_restaurants'::regclass");
   expect(verifierSource).toContain("'SENTRY_DSN with SENTRY_ENABLED not false'");
   expect(verifierSource).toContain('getProductionConfigurationErrors');
@@ -250,6 +254,10 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['509_oxsteed_credit_notification_queue_indexes.sql']");
   expect(verifierSource).toContain('!checks.notificationQueueIndexesMigrationApplied');
   expect(verifierSource).toContain("['510_oxsteed_credit_hmac_key_version.sql']");
+  expect(verifierSource).toContain("['514_oxsteed_credit_partner_ledgers.sql']");
+  expect(verifierSource).toContain('!checks.partnerLedgerMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidPartnerLedgers > 0');
+  expect(verifierSource).toContain('checks.invalidPartnerFundingRecords > 0');
   expect(verifierSource).toContain('!checks.ledgerHashKeyVersionMigrationApplied');
   expect(verifierSource).toContain('checks.invalidCreditNotificationRecipients > 0');
   expect(verifierSource).toContain('checks.invalidCreditSpendAccountStates > 0');
@@ -265,6 +273,13 @@ test('credit verification requires deferred reservation consistency guards', () 
     'oxsteed_credit_transaction_settlement_evidence_guard',
     'oxsteed_credit_audit_hash_chain_guard',
   ]));
+});
+
+test('partner ledger migration qualifies funding trigger account references', () => {
+  const migrationSource = require('fs').readFileSync(require.resolve('../migrations/514_oxsteed_credit_partner_ledgers.sql'), 'utf8');
+  expect(migrationSource).toContain("NEW.credit_account_id IS DISTINCT FROM ledger_reserve_id");
+  expect(migrationSource).toContain("NEW.debit_account_id IS DISTINCT FROM ledger_reserve_id");
+  expect(migrationSource).toContain("transaction_type IS DISTINCT FROM (CASE NEW.direction");
 });
 
 test('requires a note for every administrative Credit dispute status change', async () => {

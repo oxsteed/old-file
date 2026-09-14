@@ -4,6 +4,13 @@
 
 ## Instructions for Every Session
 
+### OxSteed Credit code completion scope (2026-09-14)
+
+- The user prioritizes completion of all production-readiness software for the central OxSteed credit authority and independently accounted restaurant credit operators. Use `docs/oxsteed-credit-code-completion-goal.md` for scope and acceptance criteria.
+- Human licensing, agreements, provider approvals, custody arrangements, and hardware work belong to the later launch handoff. Continue implementation and isolated verification without waiting for those activities; preserve runtime security and activation controls.
+- Re-audit current code against the required accounting architecture and maintain requirement-to-evidence coverage. Prior test counts and deployment blockers are historical evidence, not proof of current completeness.
+- This repository scope update does not edit or resume the Codex app's saved goal.
+
 ### Admin reload loop fix (2026-09-05)
 - 2FA setup follow-up: corrected malformed production encryption key in Coolify after confirming zero encrypted TOTP/payment/tax records. Startup now rejects malformed encryption keys. Setup verification now displays the returned recovery codes instead of discarding them.
 
