@@ -45,6 +45,9 @@ function transactionLabel(transaction, t) {
     refund: t('transactionRefund'),
     transfer: t('transactionTransfer'),
     adjustment: t('transactionAdjustment'),
+    conversion_debit: t('transactionConversionDebit'),
+    conversion_fee: t('transactionConversionFee'),
+    conversion_credit: t('transactionConversionCredit'),
     expiration: t('transactionExpiration'),
     chargeback: t('transactionChargeback'),
   }[transaction?.transactionType] || t('transactionActivity');

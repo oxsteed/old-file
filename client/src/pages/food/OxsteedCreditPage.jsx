@@ -33,6 +33,8 @@ import {
   getOxsteedCreditDisputePage,
   createOxsteedCreditHold,
   releaseOxsteedCreditHold,
+  getOxsteedCreditConversionQuote,
+  convertOxsteedCredit,
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
@@ -80,6 +82,9 @@ function transactionLabel(transaction, t) {
     refund: t('transactionRefund'),
     transfer: t('transactionTransfer'),
     adjustment: t('transactionAdjustment'),
+    conversion_debit: t('transactionConversionDebit'),
+    conversion_fee: t('transactionConversionFee'),
+    conversion_credit: t('transactionConversionCredit'),
     expiration: t('transactionExpiration'),
     chargeback: t('transactionChargeback'),
   }[transaction.transactionType] || String(transaction.transactionType || t('transactionActivity')).replace(/_/g, ' ');
@@ -175,6 +180,10 @@ export default function OxsteedCreditPage() {
   const [holdSubmitting, setHoldSubmitting] = useState(false);
   const [createdHold, setCreatedHold] = useState(null);
   const [releasingHoldId, setReleasingHoldId] = useState(null);
+  const [conversionQuoteId, setConversionQuoteId] = useState('');
+  const [conversionAmount, setConversionAmount] = useState('');
+  const [conversionSubmitting, setConversionSubmitting] = useState(false);
+  const [createdConversion, setCreatedConversion] = useState(null);
   const [disputeTransactionId, setDisputeTransactionId] = useState(null);
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
@@ -432,6 +441,35 @@ export default function OxsteedCreditPage() {
     }
   };
 
+  const submitConversion = async (event) => {
+    event.preventDefault();
+    const quoteId = conversionQuoteId.trim();
+    const sourceAmountMinorUnits = parseCreditMajorAmount(conversionAmount, selectedCurrency, railStatus?.currencyMetadata);
+    if (!quoteId || !sourceAmountMinorUnits) {
+      toast.error(t('conversionQuoteRequired'));
+      return;
+    }
+    setConversionSubmitting(true);
+    try {
+      const quote = await getOxsteedCreditConversionQuote(quoteId);
+      if (!quote || quote.status !== 'open' || quote.sourceCurrencyCode !== selectedCurrency || quote.sourceAmountMinorUnits !== sourceAmountMinorUnits) {
+        throw new Error(t('conversionQuoteMismatch'));
+      }
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        || `credit-conversion-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const result = await convertOxsteedCredit({ quoteId, sourceAmountMinorUnits }, idempotencyKey);
+      setCreatedConversion(result?.conversion || result || null);
+      setConversionQuoteId('');
+      setConversionAmount('');
+      await load({ quiet: true, currencyCode: selectedCurrency });
+      toast.success(t('conversionCompleted'));
+    } catch (error) {
+      toast.error(errorMessage(error, t));
+    } finally {
+      setConversionSubmitting(false);
+    }
+  };
+
   const submitDispute = async (event) => {
     event.preventDefault();
     if (!disputeTransactionId || !disputeDescription.trim()) return;
@@ -520,6 +558,8 @@ export default function OxsteedCreditPage() {
               </section>
 
               {limitSummary && <section className="ox-credit-panel ox-credit-limits-panel" aria-labelledby="credit-limits-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('dailyControls')}</p><h2 id="credit-limits-heading">{t('spendingGuardrails')}</h2></div><span className="ox-credit-count">{t('resets', { date: dateTime(limitSummary.resetsAt, t) })}</span></div><p className="ox-credit-panel-copy">{t('guardrailsCopy')}</p><div className="ox-credit-limit-grid"><div><span>{t('spendAmountRemaining')}</span><strong>{money(limitSummary.spending.centsRemaining, currency)}</strong><small>{t('centsCommittedToday', { used: limitSummary.spending.centsUsed.toLocaleString(), limit: limitSummary.spending.centsLimit.toLocaleString() })}</small></div><div><span>{t('spendMovementsRemaining')}</span><strong>{limitSummary.spending.countRemaining}</strong><small>{t('purchasesReservationsToday', { used: limitSummary.spending.countUsed, limit: limitSummary.spending.countLimit })}</small></div>{limitSummary.transfers.enabled && <><div><span>{t('transferAmountRemaining')}</span><strong>{money(limitSummary.transfers.centsRemaining, currency)}</strong><small>{t('centsTransferredToday', { used: limitSummary.transfers.centsUsed.toLocaleString(), limit: limitSummary.transfers.centsLimit.toLocaleString() })}</small></div><div><span>{t('transfersRemaining')}</span><strong>{limitSummary.transfers.countRemaining}</strong><small>{t('transfersToday', { used: limitSummary.transfers.countUsed, limit: limitSummary.transfers.countLimit })}</small></div></>}</div></section>}
+
+              {accountStatus === 'active' && <section className="ox-credit-panel ox-credit-conversion-panel" aria-labelledby="credit-conversion-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('currencyTools')}</p><h2 id="credit-conversion-heading">{t('convertCredit')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('conversionCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitConversion}><label>{t('quoteId')}<input required inputMode="numeric" value={conversionQuoteId} onChange={(event) => setConversionQuoteId(event.target.value)} placeholder={t('quoteIdPlaceholder')} /></label><label>{t('sourceAmount')}<input required inputMode="decimal" value={conversionAmount} onChange={(event) => setConversionAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><button type="submit" disabled={conversionSubmitting}>{conversionSubmitting ? t('convertingCredit') : t('convertCredit')}</button></form>{createdConversion?.id && <div className="ox-credit-created-hold"><strong>{t('conversionCompleted')}</strong><span>{t('conversionDetails', { source: money(createdConversion.sourceAmountMinorUnits, createdConversion.sourceCurrencyCode), target: money(createdConversion.targetAmountMinorUnits, createdConversion.targetCurrencyCode) })}</span><code>{createdConversion.id}</code></div>}</section>}
 
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{orderTypeLabel(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 

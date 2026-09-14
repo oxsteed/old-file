@@ -28,6 +28,58 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
 - Server-side error monitoring must be configured before activation; the production admin gate checks `SENTRY_DSN`.
 
+## Coolify Environment Repair
+
+The current Coolify OxSteed application is intentionally stopped because its
+production environment still contains placeholder values for `JWT_SECRET` and
+`DATABASE_URL`. Do not copy values from this document into Coolify. Replace
+them in the Coolify application Environment page, mark them as secrets, and
+redeploy only after the values have been checked.
+
+`JWT_SECRET` must be one stable, high-entropy value shared by every OxSteed
+application replica. Generate it on the trusted MacBook with
+`openssl rand -hex 64`, paste the result into Coolify, and never commit it,
+print it in logs, or regenerate it during an ordinary restart. Changing it
+logs out existing sessions and requires an intentional authentication-secret
+rotation plan.
+
+`DATABASE_URL` must be the private PostgreSQL connection string for the
+Coolify-managed OxSteed database, not a public URL and not a placeholder. Use
+the database service's actual username, password, internal hostname, port,
+and database name. For the current Colima deployment the known identifiers are
+user `oxsteed`, database `oxsteed_db`, and container hostname
+`postgres-twsam5aiyvm0w1l2jqxx9ih3`; obtain the password from Coolify's secret
+store rather than exposing it in chat or source control. The final value should
+follow this shape, with the password supplied privately:
+
+```text
+postgresql://oxsteed:<POSTGRES_PASSWORD>@postgres-twsam5aiyvm0w1l2jqxx9ih3:5432/oxsteed_db
+```
+
+If the database is intentionally configured for non-TLS traffic inside the
+private Colima network, append `?sslmode=disable`; otherwise use the database's
+approved TLS settings. Do not point the app at `localhost`, the public domain,
+or the Coolify control-plane database. `DATABASE_URL` must be identical across
+application replicas and must be tested by the migration and readiness checks.
+
+The current startup log also reports placeholder Stripe values. Those must be
+replaced with the approved live Stripe secret and webhook signing secret before
+production traffic is accepted; do not bypass the fail-closed configuration
+validator to bring the app online.
+
+After saving the environment, redeploy the application and confirm:
+
+```sh
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+curl --silent --show-error --fail https://oxsteed.com/ready | npm run verify:readiness
+npm run verify:credit
+```
+
+The expected result is a healthy app container, readiness JSON with no pending
+migrations, and `verify:credit` reporting `ok: true`. The local database is
+already at migration `514`; the pre-migration dump is stored under
+`/Users/oxsteed/server-backups/production/`.
+
 ## API Abuse Controls
 
 Credit reads use the normal authenticated API budget. Financially sensitive
@@ -79,6 +131,24 @@ active holds in the selected currency, serializes concurrent partner activity,
 and excludes the hold being captured. This keeps multi-restaurant access
 possible while limiting account takeover and rapid balance movement across
 separate partner agreements.
+
+Currency conversion is an explicit, operator-mediated workflow rather than an
+implicit fallback. A Super Admin records the provider's exact source amount,
+target amount, integer rate numerator and denominator, fee, provider reference,
+reason, and expiry through `POST /api/admin/super/oxsteed-credit/currency-quotes`.
+The customer consumes that quote once through
+`POST /api/oxsteed-credit/conversions` with an idempotency key. The server
+posts same-currency source debit, optional source-currency fee, and target
+credit journal legs in one transaction, then marks the quote consumed. Quotes
+expire after 15 minutes by default and cannot exceed 24 hours; providers and
+operator approvals must still be selected and governed outside the code.
+
+Conversion volume is bounded per customer and source currency by
+`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_CONVERSION_CENTS` and
+`OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_CONVERSION_COUNT` (default: the customer
+balance cap and 20). No conversion is accepted when the quote is expired,
+replayed with different data, outside the configured currency allowlist, or
+inconsistent with its exact half-up rate calculation.
 
 The load and positive-adjustment endpoints both require a traceable funding
 reference. Clawbacks remain debits from the customer wallet and require an
@@ -336,9 +406,9 @@ Use the environment allowlist to narrow a launch market until each enabled
 currency's funding and settlement path is tested.
 Customer wallets, partner agreements, restaurant settlement currency, holds,
 transactions, refunds, and reconciliation runs remain currency-isolated. The
-application does not perform foreign-exchange conversion, combine balances from
-different currencies, or let an agreement settle against a different restaurant
-currency.
+conversion record is the only supported cross-currency bridge; it never puts
+two currencies in one journal transaction, combines balances implicitly, or
+lets an agreement settle against a different restaurant currency.
 
 Credit amounts are integer minor units. For example, JPY `1000` represents
 1,000 yen, USD `1000` represents 10.00 dollars, and KWD `1000` represents

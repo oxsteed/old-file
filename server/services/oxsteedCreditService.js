@@ -60,7 +60,7 @@ const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
-  'funding', 'reserve_release',
+  'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -585,12 +585,16 @@ async function ensureAccount(client, { accountType, customerId = null, partnerId
   const ownerJoin = accountType === 'customer_wallet'
     ? `JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE`
     : '';
+  const currencyPlaceholder = ['customer_wallet', 'partner_payable', 'partner_reserve'].includes(accountType) ? '$3' : '$2';
+  const selectValues = ['customer_wallet', 'partner_payable', 'partner_reserve'].includes(accountType)
+    ? [accountType, ownerValue, currency]
+    : [accountType, currency];
   const { rows } = await client.query(
     `SELECT a.* FROM oxsteed_credit_accounts a
       ${ownerJoin}
-      WHERE a.account_type = $1 AND ${scopedOwnershipFilter} AND a.currency_code = $3
+      WHERE a.account_type = $1 AND ${scopedOwnershipFilter} AND a.currency_code = ${currencyPlaceholder}
       FOR UPDATE`,
-    [accountType, ownerValue, currency]
+    selectValues
   );
   if (!rows[0]) {
     if (accountType === 'customer_wallet') {
@@ -1014,7 +1018,7 @@ async function postJournalTransaction(client, input) {
     const entryHash = computeEntryHash({
       transactionId: transaction.id,
       transactionType: input.transactionType,
-      accountId: update.account.id,
+      accountId: Number(update.account.id),
       entrySide: update.side,
       amountCents,
       balanceAfterCents: update.nextBalance,

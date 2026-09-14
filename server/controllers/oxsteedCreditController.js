@@ -68,6 +68,11 @@ const {
   recordPartnerFunding,
 } = require('../services/oxsteedCreditPartnerLedgerService');
 const {
+  createCurrencyQuote,
+  getCurrencyQuote,
+  convertCustomerCredit,
+} = require('../services/oxsteedCreditCurrencyConversionService');
+const {
   NOTIFICATION_WORKER_NAME,
   STALE_AFTER_MINUTES,
   DAILY_WORKER_STALE_AFTER_MINUTES,
@@ -155,6 +160,24 @@ async function getMyAccount(req, res, next) {
   try {
     const account = await getCustomerCreditAccount(req.user.id, normalizeString(req.query.currencyCode || req.query.currency_code, 8) || 'USD');
     res.json({ name: 'OxSteed Credit', account });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function convertMyCredit(req, res, next) {
+  try {
+    const result = await convertCustomerCredit({
+      customerId: req.user.id,
+      quoteId: req.body?.quoteId || req.body?.quote_id,
+      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+      metadata: req.body?.metadata,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
     next(error);
   }
@@ -1711,6 +1734,40 @@ async function recordAdminPartnerFunding(req, res, next) {
   }
 }
 
+async function createAdminCurrencyQuote(req, res, next) {
+  try {
+    const result = await createCurrencyQuote({
+      sourceCurrencyCode: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
+      targetCurrencyCode: req.body?.targetCurrencyCode || req.body?.target_currency_code,
+      sourceAmountMinorUnits: req.body?.sourceAmountMinorUnits || req.body?.source_amount_minor_units,
+      targetAmountMinorUnits: req.body?.targetAmountMinorUnits || req.body?.target_amount_minor_units,
+      feeAmountMinorUnits: req.body?.feeAmountMinorUnits ?? req.body?.fee_amount_minor_units ?? 0,
+      rateNumerator: req.body?.rateNumerator || req.body?.rate_numerator,
+      rateDenominator: req.body?.rateDenominator || req.body?.rate_denominator,
+      roundingMode: req.body?.roundingMode || req.body?.rounding_mode || 'half_up',
+      provider: req.body?.provider,
+      providerQuoteReference: req.body?.providerQuoteReference || req.body?.provider_quote_reference,
+      expiresAt: req.body?.expiresAt || req.body?.expires_at,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      metadata: req.body?.metadata,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getAdminCurrencyQuote(req, res, next) {
+  try {
+    res.json(await getCurrencyQuote({ quoteId: req.params.quoteId }));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminCreditReconciliationRuns(req, res, next) {
   try {
     const result = await listReconciliationRuns({
@@ -1780,6 +1837,7 @@ async function downloadAdminCreditReconciliationRuns(req, res, next) {
 module.exports = {
   formatCustomerCreditMutationResult,
   getMyAccount,
+  convertMyCredit,
   getMyCreditLimits,
   getMyAccounts,
   getMyCreditStatus,
@@ -1837,6 +1895,8 @@ module.exports = {
   reconcileAdminCredit,
   getAdminPartnerLedger,
   recordAdminPartnerFunding,
+  createAdminCurrencyQuote,
+  getAdminCurrencyQuote,
   listAdminCreditReconciliationRuns,
   downloadAdminCreditReconciliationRuns,
 };

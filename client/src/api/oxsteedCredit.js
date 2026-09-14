@@ -3,6 +3,14 @@ import api from './axios';
 export const getOxsteedCreditAccount = (params = {}) =>
   api.get('/oxsteed-credit/account', { params }).then((response) => response.data?.account || null);
 
+export const getOxsteedCreditConversionQuote = (quoteId) =>
+  api.get(`/oxsteed-credit/conversion-quotes/${quoteId}`).then((response) => response.data?.quote || null);
+
+export const convertOxsteedCredit = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/conversions', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
 export const getOxsteedCreditLimitSummary = (params = {}) =>
   api.get('/oxsteed-credit/limits', { params }).then((response) => response.data?.limits || null);
 

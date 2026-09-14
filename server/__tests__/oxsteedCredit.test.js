@@ -138,6 +138,8 @@ test('credit verification checks every declared integrity trigger', () => {
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_hold_immutable_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_partner_ledger_guard');
   expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_partner_funding_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_currency_quote_immutable_guard');
+  expect(REQUIRED_INTEGRITY_TRIGGERS).toContain('oxsteed_credit_currency_conversion_guard');
   expect(new Set(REQUIRED_INTEGRITY_TRIGGERS).size).toBe(REQUIRED_INTEGRITY_TRIGGERS.length);
 });
 
@@ -146,6 +148,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("'oxsteed_credit_notification_outbox'::regclass");
   expect(verifierSource).toContain("'oxsteed_credit_partner_ledgers'::regclass");
   expect(verifierSource).toContain("'oxsteed_credit_partner_funding_records'::regclass");
+  expect(verifierSource).toContain("'oxsteed_credit_currency_quotes'::regclass");
+  expect(verifierSource).toContain("'oxsteed_credit_currency_conversions'::regclass");
   expect(verifierSource).toContain("'food_restaurants'::regclass");
   expect(verifierSource).toContain("'SENTRY_DSN with SENTRY_ENABLED not false'");
   expect(verifierSource).toContain('getProductionConfigurationErrors');
@@ -256,6 +260,8 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("['510_oxsteed_credit_hmac_key_version.sql']");
   expect(verifierSource).toContain("['514_oxsteed_credit_partner_ledgers.sql']");
   expect(verifierSource).toContain('!checks.partnerLedgerMigrationApplied');
+  expect(verifierSource).toContain("['515_oxsteed_credit_currency_conversions.sql']");
+  expect(verifierSource).toContain('!checks.currencyConversionMigrationApplied');
   expect(verifierSource).toContain('checks.invalidPartnerLedgers > 0');
   expect(verifierSource).toContain('checks.invalidPartnerFundingRecords > 0');
   expect(verifierSource).toContain('!checks.ledgerHashKeyVersionMigrationApplied');

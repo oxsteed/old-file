@@ -29,6 +29,8 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_disputes',
   'oxsteed_credit_partner_ledgers',
   'oxsteed_credit_partner_funding_records',
+  'oxsteed_credit_currency_quotes',
+  'oxsteed_credit_currency_conversions',
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
   'oxsteed_credit_notification_outbox',
@@ -78,6 +80,8 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
   oxsteed_credit_partner_ledgers: ['partner_id', 'ledger_code', 'currency_code', 'payable_account_id', 'reserve_account_id', 'status'],
   oxsteed_credit_partner_funding_records: ['partner_ledger_id', 'partner_id', 'reserve_account_id', 'transaction_id', 'direction', 'amount_cents', 'currency_code', 'external_reference', 'idempotency_key', 'reason'],
+  oxsteed_credit_currency_quotes: ['source_currency_code', 'target_currency_code', 'source_amount_minor_units', 'target_amount_minor_units', 'fee_amount_minor_units', 'rate_numerator', 'rate_denominator', 'rounding_mode', 'provider', 'provider_quote_reference', 'status', 'expires_at', 'idempotency_key'],
+  oxsteed_credit_currency_conversions: ['customer_id', 'quote_id', 'source_currency_code', 'target_currency_code', 'source_amount_minor_units', 'target_amount_minor_units', 'fee_amount_minor_units', 'debit_transaction_id', 'fee_transaction_id', 'credit_transaction_id', 'idempotency_key', 'status', 'actor_user_id'],
   oxsteed_credit_entitlement_bulk_requests: ['request_hash', 'customer_id', 'agreement_ids', 'response_payload'],
   oxsteed_credit_entitlement_requests: ['request_hash', 'customer_id', 'agreement_id', 'response_payload'],
   oxsteed_credit_notification_outbox: ['transaction_id', 'hold_id', 'user_id', 'event_type', 'payload', 'status', 'attempts', 'next_attempt_at'],
@@ -132,6 +136,10 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_partner_funding_ledger',
   'idx_oxsteed_credit_partner_funding_partner',
   'uq_oxsteed_credit_partner_reserve_account',
+  'uq_oxsteed_credit_currency_quote_provider_ref',
+  'idx_oxsteed_credit_currency_quotes_open',
+  'idx_oxsteed_credit_currency_conversions_customer',
+  'idx_oxsteed_credit_currency_conversions_currencies',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
@@ -208,6 +216,8 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_hold_notification_outbox_guard',
   'oxsteed_credit_partner_ledger_guard',
   'oxsteed_credit_partner_funding_guard',
+  'oxsteed_credit_currency_quote_immutable_guard',
+  'oxsteed_credit_currency_conversion_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -723,6 +733,11 @@ async function main() {
       ['514_oxsteed_credit_partner_ledgers.sql']
     );
     checks.partnerLedgerMigrationApplied = partnerLedgerMigrationRows.rows.length === 1;
+    const currencyConversionMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['515_oxsteed_credit_currency_conversions.sql']
+    );
+    checks.currencyConversionMigrationApplied = currencyConversionMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -772,7 +787,15 @@ async function main() {
        UNION ALL
        SELECT 'hold', currency_code FROM oxsteed_credit_holds
        UNION ALL
-       SELECT 'settlement', currency_code FROM oxsteed_credit_settlements`,
+       SELECT 'settlement', currency_code FROM oxsteed_credit_settlements
+       UNION ALL
+       SELECT 'currency_quote_source', source_currency_code FROM oxsteed_credit_currency_quotes
+       UNION ALL
+       SELECT 'currency_quote_target', target_currency_code FROM oxsteed_credit_currency_quotes
+       UNION ALL
+       SELECT 'currency_conversion_source', source_currency_code FROM oxsteed_credit_currency_conversions
+       UNION ALL
+       SELECT 'currency_conversion_target', target_currency_code FROM oxsteed_credit_currency_conversions`,
     );
     const unsupportedCurrencyRecords = findUnsupportedCurrencyRecords(currencyRows);
     checks.unsupportedCurrencyRecords = unsupportedCurrencyRecords;
@@ -782,7 +805,7 @@ async function main() {
       `SELECT tgname
          FROM pg_trigger
         WHERE NOT tgisinternal
-          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'oxsteed_credit_notification_outbox'::regclass, 'oxsteed_credit_partner_ledgers'::regclass, 'oxsteed_credit_partner_funding_records'::regclass, 'food_restaurants'::regclass, 'users'::regclass)
+          AND tgrelid IN ('oxsteed_credit_transactions'::regclass, 'oxsteed_credit_transaction_entries'::regclass, 'oxsteed_credit_holds'::regclass, 'oxsteed_credit_accounts'::regclass, 'oxsteed_credit_settlements'::regclass, 'oxsteed_credit_audit_events'::regclass, 'oxsteed_credit_partners'::regclass, 'oxsteed_credit_partner_agreements'::regclass, 'oxsteed_credit_customer_entitlements'::regclass, 'oxsteed_credit_disputes'::regclass, 'oxsteed_credit_entitlement_bulk_requests'::regclass, 'oxsteed_credit_entitlement_requests'::regclass, 'oxsteed_credit_notification_outbox'::regclass, 'oxsteed_credit_partner_ledgers'::regclass, 'oxsteed_credit_partner_funding_records'::regclass, 'oxsteed_credit_currency_quotes'::regclass, 'oxsteed_credit_currency_conversions'::regclass, 'food_restaurants'::regclass, 'users'::regclass)
           AND tgname = ANY($1::text[])`,
       [REQUIRED_INTEGRITY_TRIGGERS]
     );
@@ -1391,6 +1414,14 @@ async function main() {
                AND (debit_account.account_type <> 'partner_reserve'
                  OR credit_account.account_type <> 'platform_treasury'
                  OR t.partner_id IS NULL OR t.agreement_id IS NOT NULL))
+           OR (t.transaction_type IN ('conversion_debit', 'conversion_fee')
+               AND (debit_account.account_type <> 'customer_wallet'
+                 OR credit_account.account_type NOT IN ('platform_treasury', 'platform_revenue')
+                 OR t.partner_id IS NOT NULL OR t.agreement_id IS NOT NULL))
+           OR (t.transaction_type = 'conversion_credit'
+               AND (debit_account.account_type <> 'platform_treasury'
+                 OR credit_account.account_type <> 'customer_wallet'
+                 OR t.partner_id IS NOT NULL OR t.agreement_id IS NOT NULL))
            OR t.transaction_type IN ('fee', 'expiration', 'chargeback')`,
     );
     checks.invalidTransactionTypes = Number(transactionTypeRows[0]?.invalid_count || 0);
@@ -1446,6 +1477,49 @@ async function main() {
              WHEN 'fund' THEN 'funding' ELSE 'reserve_release' END`,
     );
     checks.invalidPartnerFundingRecords = Number(partnerFundingIntegrityRows[0]?.invalid_count || 0);
+
+    const { rows: currencyConversionIntegrityRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_currency_conversions c
+         LEFT JOIN oxsteed_credit_currency_quotes q ON q.id = c.quote_id
+         LEFT JOIN oxsteed_credit_transactions debit_tx ON debit_tx.id = c.debit_transaction_id
+         LEFT JOIN oxsteed_credit_transactions fee_tx ON fee_tx.id = c.fee_transaction_id
+         LEFT JOIN oxsteed_credit_transactions credit_tx ON credit_tx.id = c.credit_transaction_id
+         LEFT JOIN oxsteed_credit_accounts debit_account ON debit_account.id = debit_tx.debit_account_id
+         LEFT JOIN oxsteed_credit_accounts credit_account ON credit_account.id = credit_tx.credit_account_id
+        WHERE q.id IS NULL
+           OR q.status <> 'consumed'
+           OR q.source_currency_code IS DISTINCT FROM c.source_currency_code
+           OR q.target_currency_code IS DISTINCT FROM c.target_currency_code
+           OR q.source_amount_minor_units IS DISTINCT FROM c.source_amount_minor_units
+           OR q.target_amount_minor_units IS DISTINCT FROM c.target_amount_minor_units
+           OR q.fee_amount_minor_units IS DISTINCT FROM c.fee_amount_minor_units
+           OR debit_tx.status <> 'posted'
+           OR debit_tx.transaction_type <> 'conversion_debit'
+           OR debit_tx.currency_code IS DISTINCT FROM c.source_currency_code
+           OR debit_tx.amount_cents IS DISTINCT FROM c.source_amount_minor_units
+           OR debit_account.account_type <> 'customer_wallet'
+           OR debit_account.customer_id IS DISTINCT FROM c.customer_id
+           OR (c.fee_transaction_id IS NULL AND c.fee_amount_minor_units <> 0)
+           OR (c.fee_transaction_id IS NOT NULL AND (
+             fee_tx.status <> 'posted'
+             OR fee_tx.transaction_type <> 'conversion_fee'
+             OR fee_tx.currency_code IS DISTINCT FROM c.source_currency_code
+             OR fee_tx.amount_cents IS DISTINCT FROM c.fee_amount_minor_units
+           ))
+           OR credit_tx.status <> 'posted'
+           OR credit_tx.transaction_type <> 'conversion_credit'
+           OR credit_tx.currency_code IS DISTINCT FROM c.target_currency_code
+           OR credit_tx.amount_cents IS DISTINCT FROM c.target_amount_minor_units
+           OR credit_account.account_type <> 'customer_wallet'
+           OR credit_account.customer_id IS DISTINCT FROM c.customer_id
+           OR c.source_currency_code = c.target_currency_code
+           OR debit_tx.reference_type IS DISTINCT FROM 'currency_conversion'
+           OR debit_tx.reference_id IS DISTINCT FROM c.id::TEXT
+           OR credit_tx.reference_type IS DISTINCT FROM 'currency_conversion'
+           OR credit_tx.reference_id IS DISTINCT FROM c.id::TEXT`,
+    );
+    checks.invalidCurrencyConversions = Number(currencyConversionIntegrityRows[0]?.invalid_count || 0);
 
     const { rows: disputeIntegrityRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1717,6 +1791,7 @@ async function main() {
       !checks.entitlementRequestResultsMigrationApplied,
       !checks.entitlementActivityMigrationApplied,
       !checks.partnerLedgerMigrationApplied,
+      !checks.currencyConversionMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -1764,6 +1839,7 @@ async function main() {
       checks.invalidTransactionPartnerAccounts > 0,
       checks.invalidPartnerLedgers > 0,
       checks.invalidPartnerFundingRecords > 0,
+      checks.invalidCurrencyConversions > 0,
       checks.invalidDisputes > 0,
       checks.invalidCreditDisputeActors > 0,
       checks.invalidCreditHoldActors > 0,
