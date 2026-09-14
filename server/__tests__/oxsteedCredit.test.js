@@ -362,6 +362,15 @@ test('customer Credit mutation responses omit internal hold and ledger fields', 
   expect(response.transaction).not.toHaveProperty('entries');
 });
 
+test('admin refund evidence migration creates its trigger after the reason column', () => {
+  const migration = require('fs').readFileSync(require.resolve('../migrations/468_oxsteed_credit_admin_refund_evidence.sql'), 'utf8');
+  const reasonColumn = migration.indexOf('ADD COLUMN IF NOT EXISTS reason');
+  const triggerDefinition = migration.indexOf('CREATE TRIGGER oxsteed_credit_admin_refund_evidence_guard');
+
+  expect(reasonColumn).toBeGreaterThanOrEqual(0);
+  expect(triggerDefinition).toBeGreaterThan(reasonColumn);
+});
+
 test('exposes only currencies with explicitly verified minor-unit support', () => {
   expect(service.SUPPORTED_CREDIT_CURRENCY_META.USD).toEqual({ code: 'USD', minorUnits: 2 });
   expect(Object.values(service.SUPPORTED_CREDIT_CURRENCY_META).every((currency) => currency.minorUnits === 2)).toBe(true);

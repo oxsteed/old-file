@@ -4,6 +4,13 @@
 -- Only the explicit admin actor is required to carry an operator identity and
 -- a reason, so direct SQL cannot create an untraceable administrative refund.
 
+-- The original Credit foundation predates the transaction reason column. Keep
+-- this migration independently runnable; migration 487 later adds the same
+-- column with IF NOT EXISTS for older databases that already passed here.
+ALTER TABLE oxsteed_credit_transactions
+  ADD COLUMN IF NOT EXISTS reason VARCHAR(500)
+    DEFAULT 'Legacy transaction: reason unavailable';
+
 CREATE OR REPLACE FUNCTION validate_oxsteed_credit_admin_refund_evidence()
 RETURNS trigger
 LANGUAGE plpgsql
