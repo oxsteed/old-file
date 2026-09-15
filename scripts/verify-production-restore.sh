@@ -52,16 +52,16 @@ migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_
 }
 
 credit_table_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_audit_events', 'oxsteed_credit_partner_ledgers', 'oxsteed_credit_partner_funding_records', 'oxsteed_credit_currency_quotes', 'oxsteed_credit_currency_conversions')")"
-[[ "$credit_table_count" == "10" ]] || {
-  echo "Restored database is missing required Credit tables (found $credit_table_count/10)" >&2
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_settlement_reversals', 'oxsteed_credit_audit_events', 'oxsteed_credit_partner_ledgers', 'oxsteed_credit_partner_funding_records', 'oxsteed_credit_currency_quotes', 'oxsteed_credit_currency_conversions')")"
+[[ "$credit_table_count" == "11" ]] || {
+  echo "Restored database is missing required Credit tables (found $credit_table_count/11)" >&2
   exit 1
 }
 
 credit_integrity_trigger_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
-  "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('oxsteed_credit_partner_ledger_guard', 'oxsteed_credit_partner_funding_guard', 'oxsteed_credit_currency_quote_immutable_guard', 'oxsteed_credit_currency_conversion_guard')")"
-[[ "$credit_integrity_trigger_count" == "4" ]] || {
-  echo "Restored database is missing required Credit partner/conversion integrity triggers (found $credit_integrity_trigger_count/4)" >&2
+  "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('oxsteed_credit_partner_ledger_guard', 'oxsteed_credit_partner_funding_guard', 'oxsteed_credit_currency_quote_immutable_guard', 'oxsteed_credit_currency_conversion_guard', 'oxsteed_credit_settlement_reversal_guard')")"
+[[ "$credit_integrity_trigger_count" == "5" ]] || {
+  echo "Restored database is missing required Credit integrity triggers (found $credit_integrity_trigger_count/5)" >&2
   exit 1
 }
 

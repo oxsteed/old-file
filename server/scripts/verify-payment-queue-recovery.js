@@ -19,6 +19,7 @@ const {
   addJob,
   deadLetterJob,
   getNextJob,
+  reclaimStaleJobs,
   listDeadLetterJobs,
   promoteDueRetries,
   requeueDeadLetterJob,
@@ -33,6 +34,8 @@ const delayedQueueKey = `${queueKey}:delayed`;
 const deadLetterQueueKey = `${queueKey}:dead-letter`;
 const keysToDelete = [
   queueKey,
+  `${queueKey}:processing`,
+  `${queueKey}:leases`,
   delayedQueueKey,
   deadLetterQueueKey,
   `job:${jobId}:enqueued`,
@@ -53,6 +56,14 @@ async function run() {
   const published = await getNextJob(queueKey);
   assert(first === jobId && duplicate === jobId, 'Idempotent enqueue returned an unexpected job ID');
   assert(published?.id === jobId, 'Atomic enqueue did not publish a retrievable payload');
+
+  const crashedJob = { id: `${jobId}:crashed`, attempts: 0, status: 'pending', data: { verification: 'crash-recovery' } };
+  const crashedPayload = JSON.stringify(crashedJob);
+  await redis.lpush(`${queueKey}:processing`, crashedPayload);
+  await redis.zadd(`${queueKey}:leases`, Date.now() - (20 * 60 * 1000), crashedPayload);
+  assert(await reclaimStaleJobs(queueKey) === 1, 'Expired worker lease was not reclaimed');
+  const reclaimed = await getNextJob(queueKey);
+  assert(reclaimed?.id === crashedJob.id, 'Reclaimed job was not returned to the live queue');
 
   const delayedJob = JSON.stringify({ id: `${jobId}:delayed`, attempts: 1, status: 'pending' });
   await redis.zadd(delayedQueueKey, Date.now() - 1, delayedJob);
@@ -81,6 +92,7 @@ async function run() {
     atomicEnqueue: true,
     duplicateSuppressed: true,
     delayedRetryPromoted: true,
+    staleLeaseReclaimed: true,
     deadLetterPreserved: true,
     deadLetterReplayed: true,
   }, null, 2)}\n`);

@@ -1780,6 +1780,14 @@ async function createAdminCurrencyQuote(req, res, next) {
   }
 }
 
+async function getMyCurrencyQuote(req, res, next) {
+  try {
+    res.json(await getCurrencyQuote({ quoteId: req.params.quoteId, audience: 'customer' }));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAdminCurrencyQuote(req, res, next) {
   try {
     res.json(await getCurrencyQuote({ quoteId: req.params.quoteId }));
@@ -1917,6 +1925,7 @@ module.exports = {
   getAdminPartnerLedger,
   recordAdminPartnerFunding,
   createAdminCurrencyQuote,
+  getMyCurrencyQuote,
   getAdminCurrencyQuote,
   listAdminCreditReconciliationRuns,
   downloadAdminCreditReconciliationRuns,

@@ -13,31 +13,44 @@
 
 ### Session progress - OxSteed Credit recovery evidence (2026-09-14)
 
-- Corrected `scripts/verify-production-restore.sh` to require the 10 Credit
-  tables and 4 partner/conversion integrity triggers that it enumerates.
-- Created a fresh production dump from the live migration-515 database and
-  passed the isolated restore drill; the temporary verification database was
-  removed after checking the schema.
-- The deployed application is healthy with zero restarts and public `/`,
-  `/direct`, and `/ready` checks returning HTTP 200. `verify:credit` remains
-  fail-closed because `SENTRY_DSN` is not configured; this must stay a release
-  gate until monitoring is supplied.
-- Verification: focused Credit suite 148 tests passed, client `build:ci`
-  passed, deployment wiring tests 6 passed, restore script syntax passed, and
-  `git diff --check` passed.
-- The live deployed artifact's non-activating Credit verifier also passed all
-  schema, trigger, balance, ownership, currency, settlement, conversion,
-  idempotency, and hash-chain checks with zero invalid records. The production
-  verifier remains correctly blocked until `SENTRY_DSN` is supplied.
+- Corrected `scripts/verify-production-restore.sh` to require the 11 Credit
+  tables, including settlement-reversal evidence, and 5 Credit integrity
+  triggers. The live Credit verifier now includes the reversal table in its
+  trigger allowlist, preventing a false missing-trigger result after migration
+  516.
+- Created a fresh production dump from the live migration-516 database and
+  passed the strengthened isolated restore drill with 11 Credit tables and 5
+  Credit integrity triggers; the temporary verification database was removed.
+- The deployed application image `0a0ec7853830d76fcbf7e4163a5354f01bc114ed`
+  is healthy, migration 516 is applied, and readiness reports release
+  `content-31a6dffe8f22ad24` with database, Redis, Credit ledger, realtime, and
+  worker checks healthy. Production `verify:credit` remains fail-closed because
+  `SENTRY_DSN` is not configured; this must stay a release gate until monitoring
+  is supplied.
+- Verification: focused Credit/recovery suites 122 tests passed, full backend
+  regression now passes 153 suites and 1,089 tests, client `build:ci` passed,
+  deployment wiring and restore script checks passed, the
+  current-source live verifier passed, and `git diff --check` passed.
+- The current-source non-activating Credit verifier passed against the live
+  database with all schema, trigger, balance, ownership, currency, settlement,
+  conversion, idempotency, and hash-chain checks clean; the deployed verifier
+  copy predates the allowlist correction and is pending the next source rollout.
+  The production verifier remains correctly blocked until `SENTRY_DSN` is
+  supplied.
+- Production backup scheduling now pins the Colima Docker context before any
+  health check, supplies launchd-safe Docker/Homebrew paths in both scripts and
+  plists, and uses an atomic single-run lock with stale-owner recovery. The
+  live non-destructive backup monitor passed against snapshot
+  `20260914T094542Z` after this hardening.
 - The isolated `verify:credit-concurrency` drill passed against a restored
-  migration-515 database using live PostgreSQL and Redis: two concurrent
+  migration-516 database using live PostgreSQL and Redis: two concurrent
   spends produced one commit and one rollback, and two retries with one
   idempotency key returned the same transaction with correct final totals. An
   insufficient-funds failure also left the account and purchase journal
-  unchanged.
-- The isolated restored-database performance benchmark passed with 10 account,
+  unchanged; the temporary database was removed after verification.
+- The isolated migration-516 performance benchmark passed with 10 account,
   transaction, and eligibility reads plus 8 parallel purchases across 8
-  wallets: p95 was 1.42s, 0.85s, 0.67s, and 5.03s respectively, with all
+  wallets: p95 was 0.854s, 0.629s, 1.129s, and 3.109s respectively, with all
   wallets ending at 9,990 cents and zero reservations. Purchases intentionally
   serialize on the shared partner-payable ledger row.
 - The default PostgreSQL application pool is now capped at 10 connections via
@@ -55,10 +68,13 @@
 - Currency-quote idempotent retries now bind the exact source/target amounts,
   fee, rate numerator/denominator, rounding mode, provider, and provider quote
   reference, preventing a retry from silently changing quote provenance.
+- Customer currency-quote reads now return only conversion terms and lifecycle
+  fields; provider references, operator reasons, and internal metadata remain
+  restricted to Super Admin reads.
 - Startup database failures now report a redacted target and actionable
   category (authentication, missing database, refused connection, or host
   resolution) without exposing passwords. Full backend regression now passes
-  151 suites and 1,078 tests; client `build:ci` passes.
+  152 suites and 1,086 tests; client `build:ci` passes.
 - Provider/payment queue jobs now move to a queue-specific Redis dead-letter
   list after the retry budget is exhausted, preserving the original payload,
   attempt count, timestamp, and sanitized error for controlled recovery instead
@@ -70,6 +86,27 @@
   reliability tests and the guarded `server/scripts/verify-payment-queue-recovery.js`
   real Colima Redis drill cover preservation and recovery without using
   production queue names.
+- Payment, webhook, and notification queue workers now claim jobs with a
+  visibility lease and processing list; stale leases are atomically reclaimed
+  after a worker crash, while success, retry, and dead-letter transitions
+  remove the lease atomically. The focused queue suite passes 9 tests, and the
+  guarded recovery drill passed against real Colima Redis with temporary keys
+  removed afterward.
+- A duplicate job whose completion marker already exists is now acknowledged
+  through the same atomic processing-lease cleanup as a normal success, so a
+  stale duplicate cannot be reclaimed repeatedly. `workerMain.js` is import-safe
+  for lifecycle regression tests; the focused worker/queue suites and the full
+  backend regression pass. Redis acknowledgment failures now propagate into
+  the existing retry/dead-letter path instead of being logged as success.
+  Claimed jobs for an unregistered queue are now preserved in that queue's
+  dead-letter list instead of being left in processing forever.
+- The generic payment worker notification path now delegates to the real
+  notification fan-out service instead of executing an invalid PostgreSQL
+  `UPDATE ... LIMIT` and falsely marking delivery complete. Delivery failures
+  remain retryable, and Stripe succeeded events tolerate payloads without
+  expanded charges; all Stripe payment-worker updates now fail and retry when
+  no local payment row matches instead of silently acknowledging the event.
+  `paymentWorker.test.js` covers the success, retry, and webhook contracts.
 - The restaurant Credit operator surface now localizes ledger labels, funding
   directions, and the `reversed` settlement status across en/es/fr/ar/ht, and
   exposes reversed settlements in its status filter.
@@ -77,11 +114,17 @@
   accessible live alerts with explicit retry controls; agreement lookup
   failures have their own retry action. The client production build and
   locale/type checks pass after this recovery-state improvement.
+- Super Admin Credit status changes, settlement references and reversals,
+  customer clawbacks, and transaction refunds now use an in-app focused action
+  dialog instead of native browser prompts. Required reasons and confirmation
+  text remain visible, cancellable, and keyboard-operable; the Credit catalog
+  now has 321 parity-checked keys across en/es/fr/ht/ar.
 - Production readiness now includes a release-metadata check; a deployment with
   no `SENTRY_RELEASE`, `COMMIT_SHA`, or `SOURCE_COMMIT` reports `not_ready`
-  instead of serving a healthy-but-unidentified artifact. The live endpoint
-  currently demonstrates this missing configuration and remains a deployment
-  gate until redeployed with release metadata.
+  instead of serving a healthy-but-unidentified artifact. The current live
+  endpoint reports generated release `content-31a6dffe8f22ad24`; the patched
+  verifier source remains pending rollout, and Sentry remains the activation
+  gate.
 
 ### Session progress - OxSteed Credit monitoring and restore hardening (2026-09-14)
 
@@ -92,8 +135,9 @@
   with `pdfkit`; the CSV exporter now uses the maintained
   `@json2csv/plainjs` runtime dependency and is covered by export regression
   tests.
-- The restore verifier now checks the 10 Credit tables and 4 partner/conversion
-  integrity triggers it enumerates, preventing false negatives during recovery.
+- The restore verifier now checks the 11 Credit tables and 5 Credit integrity
+  triggers it enumerates; a fresh dump from the migration-516 live database
+  passed that isolated restore check and its temporary database was removed.
 - Verification: full backend regression passed (149 suites, 1,058 tests),
   production dependency audit reported 0 high-severity vulnerabilities, the
   client CI build passed, Slack/validation/deployment tests passed (16 tests),

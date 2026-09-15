@@ -50,6 +50,57 @@ describe('payment queue reliability', () => {
     expect(redis.get).toHaveBeenCalledWith('job:webhook-evt-1:complete');
   });
 
+  test('reclaims jobs whose worker lease expired after a crash', async () => {
+    redis.eval.mockResolvedValueOnce(2);
+
+    await expect(paymentQueue.reclaimStaleJobs(paymentQueue.QUEUES.PAYMENT_CAPTURE)).resolves.toBe(2);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('LREM'"),
+      3,
+      'queue:payment-capture:leases',
+      'queue:payment-capture:processing',
+      paymentQueue.QUEUES.PAYMENT_CAPTURE,
+      expect.any(Number),
+      25,
+    );
+  });
+
+  test('does not duplicate a retry when stale-job reclamation already won', async () => {
+    const job = { id: 'capture-race', attempts: 0, data: { paymentId: 9 } };
+    Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });
+    redis.eval.mockResolvedValueOnce(0);
+
+    await expect(paymentQueue.retryJob(paymentQueue.QUEUES.PAYMENT_CAPTURE, job)).resolves.toBe(true);
+    expect(redis.zadd).not.toHaveBeenCalled();
+  });
+
+  test('atomically acknowledges and marks a completed claimed job', async () => {
+    const job = { id: 'capture-complete', attempts: 0, data: { paymentId: 10 } };
+    Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });
+    redis.eval.mockResolvedValueOnce(1);
+
+    await paymentQueue.completeJob(paymentQueue.QUEUES.PAYMENT_CAPTURE, job);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('SET'"),
+      3,
+      'queue:payment-capture:processing',
+      'queue:payment-capture:leases',
+      'job:capture-complete:complete',
+      JSON.stringify(job),
+      86400,
+    );
+    expect(redis.setex).not.toHaveBeenCalled();
+  });
+
+  test('propagates acknowledgment failures so the worker can retry the job', async () => {
+    const job = { id: 'capture-ack-failed', attempts: 0, data: { paymentId: 11 } };
+    Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });
+    const error = new Error('Redis unavailable');
+    redis.eval.mockRejectedValueOnce(error);
+
+    await expect(paymentQueue.completeJob(paymentQueue.QUEUES.PAYMENT_CAPTURE, job)).rejects.toThrow('Redis unavailable');
+  });
+
   test('preserves exhausted jobs in a dead-letter queue for operator recovery', async () => {
     const job = { id: 'webhook-evt-failed', attempts: 3, data: { eventType: 'payment_intent.succeeded' } };
     redis.eval.mockResolvedValueOnce(1);

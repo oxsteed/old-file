@@ -2,11 +2,17 @@
 set -Eeuo pipefail
 umask 077
 
+# launchd does not inherit the interactive shell PATH. Keep Docker and
+# Homebrew-backed utilities available when this runs unattended.
+export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 BACKUP_ROOT="${BACKUP_ROOT:-/Users/oxsteed/server-backups/production}"
 MAX_AGE_HOURS="${MAX_AGE_HOURS:-30}"
 MIN_FREE_GB="${MIN_FREE_GB:-5}"
 BACKUP_MIRROR_ROOT="${BACKUP_MIRROR_ROOT:-}"
 STATUS_FILE="$BACKUP_ROOT/backup-monitor.status"
+
+export DOCKER_CONTEXT="${DOCKER_CONTEXT:-colima}"
 
 write_status() {
   local state="$1" detail="$2" tmp_file
@@ -59,7 +65,6 @@ required_kb=$((MIN_FREE_GB * 1024 * 1024))
 [[ "$free_kb" =~ ^[0-9]+$ ]] || fail "could not read free disk space"
 (( free_kb >= required_kb )) || fail "free disk space is below ${MIN_FREE_GB}GB"
 
-export DOCKER_CONTEXT="${DOCKER_CONTEXT:-colima}"
 for container in postgres-twsam5aiyvm0w1l2jqxx9ih3 coolify-db coolify; do
   [[ "$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null)" == "healthy" ]] || fail "$container is not healthy"
 done

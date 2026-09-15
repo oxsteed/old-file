@@ -50,16 +50,29 @@ const processJob = async (queueKey, job) => {
   const processor = processors[queueKey];
   if (!processor) {
     logger.error('No processor for queue', { queueKey });
+    try {
+      await deadLetterJob(queueKey, job, new Error(`No processor configured for queue ${queueKey}`));
+    } catch (err) {
+      // Leave the claim recoverable if dead-letter preservation is unavailable.
+      logger.error('Failed to preserve unprocessable job in dead-letter queue', {
+        queueKey,
+        jobId: job?.id,
+        error: err.message,
+      });
+    }
     return;
   }
 
   try {
     if (await isJobCompleted(job.id)) {
       logger.info('Skipping already completed job', { queueKey, jobId: job.id });
+      // The duplicate was still claimed from the queue; acknowledge it so the
+      // stale payload cannot be reclaimed and retried forever.
+      await completeJob(queueKey, job);
       return;
     }
     const result = await processor(job);
-    await completeJob(queueKey, job.id);
+    await completeJob(queueKey, job);
     logger.info('Job processed successfully', { queueKey, jobId: job.id, result });
   } catch (err) {
     logger.error('Job processing failed', { queueKey, jobId: job.id, error: err.message });
@@ -157,11 +170,20 @@ const shutdown = async (signal) => {
   }
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+if (require.main === module) {
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Start worker
-runWorker().catch((err) => {
-  logger.error('Failed to start worker', err);
-  process.exit(1);
-});
+  // Start worker
+  runWorker().catch((err) => {
+    logger.error('Failed to start worker', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  processJob,
+  pollQueue,
+  runWorker,
+  shutdown,
+};

@@ -95,6 +95,8 @@ snapshot, writes restrictive permissions and SHA-256 checksums, and prunes
 local snapshots older than `RETENTION_DAYS`. `scripts/check-production-backup.sh`
 ignores incomplete directories, verifies the newest manifest/checksums, checks
 free space and container health, and records a durable local status file.
+The runner takes an atomic single-run lock so a scheduled and manual backup
+cannot overlap; an interrupted runner's stale lock is safely replaced.
 Configure `BACKUP_MIRROR_ROOT` for a mounted recovery volume separate from the
 MacBook. A local-only snapshot is not an acceptable production recovery posture.
 

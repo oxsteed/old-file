@@ -6,6 +6,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Process payment capture job
@@ -47,14 +48,21 @@ const processStripeWebhook = async (job) => {
   }
 };
 
+function requirePaymentUpdate(result, reference) {
+  if (Number(result?.rowCount || 0) !== 1) {
+    throw new Error(`No local payment matched Stripe webhook ${reference}`);
+  }
+}
+
 const handlePaymentIntentSucceeded = async (intent) => {
   await withTransaction(pool, async (client) => {
-    await client.query(
-      `UPDATE payments
+    const result = await client.query(
+       `UPDATE payments
        SET status = $1, stripe_charge_id = $2, updated_at = now()
        WHERE stripe_payment_intent_id = $3`,
-      ['succeeded', intent.charges.data[0]?.id, intent.id]
+      ['succeeded', intent.charges?.data?.[0]?.id || null, intent.id]
     );
+    requirePaymentUpdate(result, intent.id);
   });
   logger.info('Webhook: payment_intent.succeeded processed', { intentId: intent.id });
   return { handled: true };
@@ -62,12 +70,13 @@ const handlePaymentIntentSucceeded = async (intent) => {
 
 const handlePaymentIntentFailed = async (intent) => {
   await withTransaction(pool, async (client) => {
-    await client.query(
+    const result = await client.query(
       `UPDATE payments
        SET status = $1, error_message = $2, updated_at = now()
        WHERE stripe_payment_intent_id = $3`,
       ['failed', intent.last_payment_error?.message || 'Payment failed', intent.id]
     );
+    requirePaymentUpdate(result, intent.id);
   });
   logger.warn('Webhook: payment_intent.payment_failed processed', { intentId: intent.id });
   return { handled: true };
@@ -75,12 +84,13 @@ const handlePaymentIntentFailed = async (intent) => {
 
 const handleChargeRefunded = async (charge) => {
   await withTransaction(pool, async (client) => {
-    await client.query(
+    const result = await client.query(
       `UPDATE payments
        SET status = $1, refunded_amount = $2, updated_at = now()
        WHERE stripe_charge_id = $3`,
       ['refunded', charge.amount_refunded / 100, charge.id]
     );
+    requirePaymentUpdate(result, charge.id);
   });
   logger.info('Webhook: charge.refunded processed', { chargeId: charge.id });
   return { handled: true };
@@ -91,20 +101,33 @@ const handleChargeRefunded = async (charge) => {
  * @param {object} job - Job object with { userId, type, data }
  */
 const processNotification = async (job) => {
-  const { userId, type } = job.data;
+  const {
+    userId,
+    type,
+    title,
+    body,
+    data = {},
+    action_url: actionUrl = null,
+    pushToken = null,
+  } = job.data || {};
   logger.info('Processing notification', { userId, type });
 
   try {
-    await pool.query(
-      `UPDATE notifications
-       SET is_sent = true, sent_at = now()
-       WHERE user_id = $1 AND type = $2 AND is_sent = false
-       LIMIT 1`,
-      [userId, type]
-    );
+    const result = await sendNotification({
+      userId,
+      type,
+      title: title || type || 'OxSteed notification',
+      body: body || '',
+      data,
+      action_url: actionUrl,
+      pushToken,
+    });
+    if (!result?.success) {
+      throw new Error(result?.error || result?.reason || 'Notification delivery failed');
+    }
 
-    logger.info('Notification sent', { userId, type });
-    return { success: true, userId, type };
+    logger.info('Notification sent', { userId, type, notificationId: result.notificationId || null });
+    return { success: true, userId, type, notificationId: result.notificationId || null };
   } catch (error) {
     logger.error('Notification processing failed', {
       userId,

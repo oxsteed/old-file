@@ -15,6 +15,7 @@ import {
   Store,
   WalletCards,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
 import { DEFAULT_CREDIT_CURRENCIES, formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
 import OxsteedCreditEntitlements from './OxsteedCreditEntitlements';
@@ -184,6 +185,33 @@ function SettlementEvidence({ settlements }) {
   return <Section eyebrow="Payout evidence" title="Settlement payment trail" detail="Keep the approval actor, external payment reference, and paid timestamp visible together so each partner payout can be reconciled without opening another screen."><div className="mt-4 grid gap-3 md:grid-cols-2">{settlements.slice(0, 6).map((settlement) => <article key={settlement.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || `Partner ${settlement.partnerId}`}</h3><p className="mt-1 text-[11px] text-gray-600">{dateTime(settlement.periodStart)} to {dateTime(settlement.periodEnd)}</p></div><Badge status={settlement.status} /></div><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3"><div><dt className="text-gray-600">Net payable</dt><dd className="mt-1 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</dd></div><div><dt className="text-gray-600">Approved by</dt><dd className="mt-1 break-all text-sky-300">{settlement.approvedBy || 'Pending approval'}</dd></div><div><dt className="text-gray-600">Payment reference</dt><dd className="mt-1 break-all font-mono text-[11px] text-gray-300">{settlement.paymentReference || 'Not recorded'}</dd></div></dl>{settlement.paidAt && <p className="mt-3 border-t border-gray-800 pt-3 text-[11px] text-gray-500">Paid {dateTime(settlement.paidAt)}</p>}</article>)}</div>{settlements.length > 6 && <p className="mt-3 text-xs text-gray-600">Showing the six most recent settlement records. Use the settlement queue filters and CSV export for the full history.</p>}</Section>;
 }
 
+function AdminActionDialog({ dialog, onResolve }) {
+  const { t } = useTranslation('credit');
+  const inputRef = useRef(null);
+  const [value, setValue] = useState('');
+  useEffect(() => {
+    if (!dialog) return;
+    setValue(dialog.defaultValue || '');
+    if (dialog.kind !== 'confirm') inputRef.current?.focus();
+  }, [dialog]);
+  if (!dialog) return null;
+  const isConfirm = dialog.kind === 'confirm';
+  const submit = (event) => {
+    event.preventDefault();
+    if (isConfirm) return onResolve(true);
+    if (dialog.required !== false && !String(value || '').trim()) return;
+    onResolve(String(value || '').trim());
+  };
+  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="credit-action-dialog-title" aria-describedby="credit-action-dialog-description">
+    <form onSubmit={submit} className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
+      <h2 id="credit-action-dialog-title" className="text-lg font-semibold text-white">{dialog.title}</h2>
+      <p id="credit-action-dialog-description" className="mt-2 text-sm leading-6 text-gray-400">{dialog.description}</p>
+      {!isConfirm && <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-gray-500">{dialog.label}</span><input ref={inputRef} required={dialog.required !== false} value={value} onChange={(event) => setValue(event.target.value)} placeholder={dialog.placeholder || ''} maxLength={dialog.maxLength || 1000} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => onResolve(null)} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800">{t('cancel')}</button><button type="submit" className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-500">{isConfirm ? t('confirmAction') : t('submitAction')}</button></div>
+    </form>
+  </div>;
+}
+
 export default function OxsteedCreditAdmin() {
   const [overview, setOverview] = useState(null);
   const [customerAccounts, setCustomerAccounts] = useState([]);
@@ -262,6 +290,20 @@ export default function OxsteedCreditAdmin() {
   const loadRequestRef = useRef(0);
   const partnerLookupRequestRef = useRef(0);
   const settlementAgreementRequestRef = useRef(0);
+  const dialogResolverRef = useRef(null);
+  const [dialog, setDialog] = useState(null);
+
+  const requestDialog = useCallback((config) => new Promise((resolve) => {
+    dialogResolverRef.current = resolve;
+    setDialog({ ...config, value: config.defaultValue || '' });
+  }), []);
+
+  const resolveDialog = (value) => {
+    const resolve = dialogResolverRef.current;
+    dialogResolverRef.current = null;
+    setDialog(null);
+    resolve?.(value);
+  };
 
   const load = useCallback(async ({ quiet = false, customerAccountsParams, appendPartnerDirectory = false, partnerDirectoryOffset = 0, appendSettlements = false, settlementOffset = 0, appendTransactions = false, transactionOffset = 0, appendDisputes = false, disputeOffset = 0, appendAuditEvents = false, auditOffset = 0, appendReconciliationRuns = false, reconciliationOffset = 0 } = {}) => {
     const requestId = ++loadRequestRef.current;
@@ -486,7 +528,7 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionPartner = async (partner, status) => {
-    const reason = window.prompt(`Why are you moving ${partner.restaurantName || 'this partner'} to ${status}?`, 'Commercial approval or operational review');
+    const reason = await requestDialog({ kind: 'text', title: `Why are you moving ${partner.restaurantName || 'this partner'} to ${status}?`, description: 'Provide the audit reason for this partner status change.', label: 'Required audit reason', defaultValue: 'Commercial approval or operational review' });
     if (!reason?.trim()) {
       setError('A reason is required for partner status changes.');
       return;
@@ -502,7 +544,7 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionAgreement = async (agreement, status) => {
-    const reason = window.prompt(`Why are you moving agreement v${agreement.version} to ${status}?`, 'Agreement review or operational change');
+    const reason = await requestDialog({ kind: 'text', title: `Why are you moving agreement v${agreement.version} to ${status}?`, description: 'Provide the audit reason for this agreement status change.', label: 'Required audit reason', defaultValue: 'Agreement review or operational change' });
     if (!reason?.trim()) {
       setError('A reason is required for agreement status changes.');
       return;
@@ -539,14 +581,14 @@ export default function OxsteedCreditAdmin() {
   };
 
   const transitionSettlement = async (settlement, status) => {
-    const reason = window.prompt(`Why are you moving this settlement to ${status}?`, 'Settlement review completed');
+    const reason = await requestDialog({ kind: 'text', title: `Why are you moving this settlement to ${status}?`, description: 'Provide the audit reason for this settlement status change.', label: 'Required audit reason', defaultValue: 'Settlement review completed' });
     if (!reason?.trim()) {
       setError('A reason is required for settlement status changes.');
       return;
     }
     let paymentReference = settlement.paymentReference || '';
     if (status === 'paid' && !paymentReference && Number(settlement.netCents || 0) > 0) {
-      paymentReference = window.prompt('Enter the external payment reference before marking this settlement paid:', '') || '';
+      paymentReference = await requestDialog({ kind: 'text', title: 'External payment reference', description: 'A traceable bank, processor, or payout reference is required before marking a non-zero settlement paid.', label: 'Payment reference', placeholder: 'Bank transfer, payout, or processor reference' }) || '';
       if (!paymentReference.trim()) {
         setError('A payment reference is required before a non-zero settlement can be marked paid.');
         return;
@@ -563,12 +605,12 @@ export default function OxsteedCreditAdmin() {
   };
 
   const reverseSettlement = async (settlement) => {
-    const reason = window.prompt('Why must this paid settlement be reversed?', 'External payout returned or failed; restoring payable balance');
+    const reason = await requestDialog({ kind: 'text', title: 'Why must this paid settlement be reversed?', description: 'Reversal posts a compensating ledger entry and requires recovery evidence.', label: 'Required reversal reason', defaultValue: 'External payout returned or failed; restoring payable balance' });
     if (!reason?.trim()) {
       setError('A reason is required for settlement reversals.');
       return;
     }
-    const recoveryReference = window.prompt('Enter the bank, processor, or recovery reference for the reversal:', '') || '';
+    const recoveryReference = await requestDialog({ kind: 'text', title: 'Settlement recovery reference', description: 'Enter the external reference that supports this payout reversal.', label: 'Recovery reference', placeholder: 'Bank, processor, or recovery reference' }) || '';
     if (!recoveryReference.trim()) {
       setError('A recovery reference is required for settlement reversals.');
       return;
@@ -625,7 +667,8 @@ export default function OxsteedCreditAdmin() {
 
   const adjustCustomerCredit = async (event) => {
     event.preventDefault();
-    if (typeof window !== 'undefined' && !window.confirm(`Confirm clawback of ${customerForm.amount || 'this amount'} from customer ${customerForm.customerId || 'this wallet'}? This posts an immutable debit and cannot be edited.`)) return;
+    const confirmed = await requestDialog({ kind: 'confirm', title: 'Confirm customer Credit clawback', description: `This posts an immutable debit of ${customerForm.amount || 'this amount'} from ${customerForm.customerId || 'this wallet'} and cannot be edited.` });
+    if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
     try {
       await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-adjustment') } });
@@ -797,7 +840,8 @@ export default function OxsteedCreditAdmin() {
       setError('A reason is required before posting a Credit refund.');
       return;
     }
-    if (typeof window !== 'undefined' && !window.confirm(`Post a ${refundForm.amount} ${transactionDetail.currencyCode} refund for this purchase? This creates an immutable ledger movement.`)) return;
+    const confirmed = await requestDialog({ kind: 'confirm', title: 'Confirm Credit refund', description: `This posts a ${refundForm.amount} ${transactionDetail.currencyCode} immutable refund movement for this purchase.` });
+    if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, { amountCents, reason }, { headers: { 'Idempotency-Key': requestKey('credit-refund') } });
@@ -966,7 +1010,7 @@ export default function OxsteedCreditAdmin() {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit agreements.');
     } finally { setBusy(false); }
   };
-  return <><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => { setTransactionDetail(null); setRefundForm({ amount: '', reason: '' }); }} onRefund={refundAdminCredit} refundForm={refundForm} setRefundForm={setRefundForm} busy={busy} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
+  return <><AdminActionDialog dialog={dialog} onResolve={resolveDialog} /><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => { setTransactionDetail(null); setRefundForm({ amount: '', reason: '' }); }} onRefund={refundAdminCredit} refundForm={refundForm} setRefundForm={setRefundForm} busy={busy} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
     <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">Super Admin</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> Stored-value control</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">OxSteed Credit</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">Operate a restricted credit network: customers can spend only at restaurants with an active partner agreement, and every movement is journaled, bounded, and auditable.</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh</button></div></header>
     <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
     {rail?.prerequisites && <CreditRailPrerequisites prerequisites={rail.prerequisites} />}
@@ -1025,7 +1069,7 @@ export default function OxsteedCreditAdmin() {
           <button type="button" onClick={applyPartnerPickerSearch} disabled={loadingPartnerOptions || loading || busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{loadingPartnerOptions ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Find partners</button>
           {partnerPickerQuery && <button type="button" onClick={clearPartnerPickerSearch} disabled={loadingPartnerOptions || loading || busy} className="rounded-xl border border-gray-700 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">Clear lookup</button>}
         </div>
-        {partnerOptionsError && <p className="mt-3 text-xs font-semibold text-red-300">{partnerOptionsError}</p>}
+        {partnerOptionsError && <div role="alert" aria-live="polite" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-3 text-xs font-semibold text-red-300"><span>{partnerOptionsError}</span><button type="button" onClick={() => loadPartnerOptions(partnerPickerQuery)} disabled={loadingPartnerOptions || loading || busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-red-200 hover:bg-red-500/10 disabled:opacity-50">Retry lookup</button></div>}
         <p className="mt-3 text-[11px] text-gray-600">{partnerPickerQuery ? `Showing ${partnerOptions.length} matching partner${partnerOptions.length === 1 ? '' : 's'} in the agreement and settlement selectors.` : 'Use Find partners to search beyond the initial list. Searching never changes partner status or agreement data.'}</p>
       </div>
       <Section eyebrow="Partner enrollment" title="Add a restaurant partner" detail="Enrollment starts as Pending. Activate only after confirming commercial terms, settlement, and customer eligibility."><form onSubmit={registerPartner} className="mt-5 grid gap-3 sm:grid-cols-3"><label className="sm:col-span-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Restaurant ID</span><input required value={partnerForm.restaurantId} onChange={(event) => setPartnerForm({ ...partnerForm, restaurantId: event.target.value })} placeholder="e.g. 12" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Settlement currency</span><select required value={partnerForm.settlementCurrencyCode} onChange={(event) => setPartnerForm({ ...partnerForm, settlementCurrencyCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select currency</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Internal notes</span><textarea value={partnerForm.notes} onChange={(event) => setPartnerForm({ ...partnerForm, notes: event.target.value })} rows={2} placeholder="Settlement or partnership notes" className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Reason for enrollment *</span><input required maxLength={1000} value={partnerForm.reason} onChange={(event) => setPartnerForm({ ...partnerForm, reason: event.target.value })} placeholder="Why is this restaurant being enrolled?" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50"><Plus className="h-4 w-4" /> Enroll partner</button></form></Section>
@@ -1121,7 +1165,7 @@ export default function OxsteedCreditAdmin() {
 
     <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact." action={<button type="button" onClick={downloadAgreementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{agreement.allowedMenuItemIds.length} menu items restricted</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">All restaurant locations</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 
-    <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} busy={busy} />
+    <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} currencyMetadata={overview?.currencyMetadata} busy={busy} />
 
     <SettlementEvidence settlements={settlements} />
 

@@ -133,6 +133,24 @@ function formatCurrencyQuote(row) {
   };
 }
 
+function formatCustomerCurrencyQuote(row) {
+  return {
+    id: String(row.id),
+    sourceCurrencyCode: row.source_currency_code,
+    targetCurrencyCode: row.target_currency_code,
+    sourceAmountMinorUnits: Number(row.source_amount_minor_units),
+    targetAmountMinorUnits: Number(row.target_amount_minor_units),
+    feeAmountMinorUnits: Number(row.fee_amount_minor_units || 0),
+    rateNumerator: String(row.rate_numerator),
+    rateDenominator: String(row.rate_denominator),
+    roundingMode: row.rounding_mode,
+    status: row.status,
+    expiresAt: row.expires_at,
+    consumedAt: row.consumed_at || null,
+    createdAt: row.created_at,
+  };
+}
+
 function formatCurrencyConversion(row, transactions = {}) {
   return {
     id: String(row.id),
@@ -275,11 +293,15 @@ async function createCurrencyQuote({
   }, 'credit_create_currency_quote');
 }
 
-async function getCurrencyQuote({ quoteId }) {
+async function getCurrencyQuote({ quoteId, audience = 'admin' }) {
   const normalizedQuoteId = parsePositiveInt(quoteId, 'quoteId');
   const { rows } = await pool.query(`SELECT * FROM oxsteed_credit_currency_quotes WHERE id = $1`, [normalizedQuoteId]);
   if (!rows[0]) throw new AppError('Currency quote not found', 404, 'credit_conversion_quote_not_found');
-  return { quote: formatCurrencyQuote(rows[0]) };
+  return {
+    quote: audience === 'customer'
+      ? formatCustomerCurrencyQuote(rows[0])
+      : formatCurrencyQuote(rows[0]),
+  };
 }
 
 async function assertDailyConversionCapacity(client, { customerId, currencyCode, sourceAmount }) {
@@ -436,6 +458,7 @@ module.exports = {
   MAX_DAILY_CONVERSION_COUNT,
   calculateQuotedTargetAmount,
   formatCurrencyQuote,
+  formatCustomerCurrencyQuote,
   formatCurrencyConversion,
   assertDailyConversionCapacity,
   createCurrencyQuote,

@@ -5,6 +5,7 @@ const {
   calculateQuotedTargetAmount,
   assertDailyConversionCapacity,
   createCurrencyQuote,
+  getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
 
@@ -116,6 +117,44 @@ test('creates a quote only after the Credit rail is enabled', async () => {
 
   expect(result).toMatchObject({ replayed: false, quote: { id: '7', status: 'open', sourceCurrencyCode: 'USD', targetCurrencyCode: 'EUR' } });
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('oxsteed_credit_currency_quotes'))).toBe(true);
+});
+
+test('returns terms-only quote data to customer reads', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 8,
+    source_currency_code: 'USD',
+    target_currency_code: 'EUR',
+    source_amount_minor_units: 100,
+    target_amount_minor_units: 90,
+    fee_amount_minor_units: 2,
+    rate_numerator: '9',
+    rate_denominator: '10',
+    rounding_mode: 'half_up',
+    provider: 'treasury-provider',
+    provider_quote_reference: 'internal-q-8',
+    status: 'open',
+    expires_at: new Date(Date.now() + 600000).toISOString(),
+    consumed_at: null,
+    reason: 'Internal treasury pricing note',
+    metadata: { internal: true },
+    created_at: new Date().toISOString(),
+  }] });
+
+  const result = await getCurrencyQuote({ quoteId: 8, audience: 'customer' });
+
+  expect(result.quote).toMatchObject({
+    id: '8',
+    sourceCurrencyCode: 'USD',
+    targetCurrencyCode: 'EUR',
+    sourceAmountMinorUnits: 100,
+    targetAmountMinorUnits: 90,
+    feeAmountMinorUnits: 2,
+    status: 'open',
+  });
+  expect(result.quote).not.toHaveProperty('provider');
+  expect(result.quote).not.toHaveProperty('providerQuoteReference');
+  expect(result.quote).not.toHaveProperty('reason');
+  expect(result.quote).not.toHaveProperty('metadata');
 });
 
 test('rejects quote retries that change the exact rate even when the rounded target is unchanged', async () => {

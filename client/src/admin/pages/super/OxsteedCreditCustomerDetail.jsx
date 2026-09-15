@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock3, Download, RefreshCw, ShieldCheck, Store, WalletCards, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
 import { formatCreditMinorUnits } from '../../../lib/creditCurrency';
 
@@ -38,6 +39,7 @@ function transactionLabel(transaction) {
 }
 
 export default function OxsteedCreditCustomerDetail({ account, onClose, busy = false }) {
+  const { t } = useTranslation('credit');
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -58,7 +60,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
       anchor.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Unable to download this customer Credit statement.');
+      setError(err?.response?.data?.message || t('adminUnableDownloadCustomerStatement'));
     } finally {
       setDownloading(false);
     }
@@ -79,7 +81,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
         eligiblePartnerPagination: eligibleResponse?.data?.pagination || null,
       });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Unable to load this customer Credit profile.');
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || t('adminUnableLoadCustomerProfile'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +98,7 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
       adminApi.get(`/admin/super/oxsteed-credit/accounts/${account.customerId}/eligible-partners`, { params: { currencyCode: account.currencyCode, limit: 50, offset: 0 } }).catch(() => null),
     ])
       .then(([response, eligibleResponse]) => { if (mounted) setDetail({ ...(response.data || {}), eligiblePartners: eligibleResponse?.data?.partners || [], eligiblePartnerPagination: eligibleResponse?.data?.pagination || null }); })
-      .catch((err) => { if (mounted) setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Unable to load this customer Credit profile.'); })
+      .catch((err) => { if (mounted) setError(err?.response?.data?.message || err?.response?.data?.error?.message || t('adminUnableLoadCustomerProfile')); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [account?.customerId, account?.currencyCode]);
@@ -114,19 +116,19 @@ export default function OxsteedCreditCustomerDetail({ account, onClose, busy = f
   return <section className="rounded-2xl border border-sky-500/25 bg-[#0e1622] p-4 shadow-lg shadow-sky-950/10 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Customer 360</p>
-        <h2 className="mt-1 text-lg font-semibold text-white">Credit profile and spend access</h2>
-        <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-400">One read-only view of this customer wallet, all restaurant assignments, reserved funds, and ledger history. Assignment rows can cover multiple restaurants without combining their agreements or currencies.</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">{t('adminCustomer360')}</p>
+        <h2 className="mt-1 text-lg font-semibold text-white">{t('adminCreditProfileAccess')}</h2>
+        <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-400">{t('adminCustomerProfileDescription')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={downloadStatement} disabled={loading || downloading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {downloading ? 'Preparing...' : 'Download statement'}</button>
-        <button type="button" onClick={load} disabled={loading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> Refresh profile</button>
-        <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800"><X className="h-3.5 w-3.5" /> Close</button>
+        <button type="button" onClick={downloadStatement} disabled={loading || downloading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {downloading ? t('adminPreparingStatement') : t('adminDownloadStatement')}</button>
+        <button type="button" onClick={load} disabled={loading || busy || !account} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> {t('adminRefreshProfile')}</button>
+        <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950/60 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800"><X className="h-3.5 w-3.5" /> {t('adminClose')}</button>
       </div>
     </div>
 
     {error && <div className="mt-4 rounded-xl border border-red-500/30 bg-red-950/20 px-3 py-3 text-xs text-red-300">{error}</div>}
-    {loading && !detail && <div className="mt-5 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-10 text-center text-sm text-gray-500">Loading the customer Credit profile...</div>}
+    {loading && !detail && <div className="mt-5 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-10 text-center text-sm text-gray-500">{t('adminLoadingCustomerProfile')}</div>}
     {!loading && !error && detail && <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-xl border border-gray-800 bg-gray-950/45 p-3 sm:col-span-2"><div className="flex items-center gap-2"><WalletCards className="h-4 w-4 text-orange-400" /><strong className="text-sm text-white">{profile.name || 'Unnamed customer'}</strong></div><p className="mt-1 text-xs text-gray-500">{profile.email || 'No email on file'}</p><p className="mt-2 break-all font-mono text-[10px] text-gray-700">{profile.customerId}</p></div>

@@ -150,6 +150,7 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain("'oxsteed_credit_partner_funding_records'::regclass");
   expect(verifierSource).toContain("'oxsteed_credit_currency_quotes'::regclass");
   expect(verifierSource).toContain("'oxsteed_credit_currency_conversions'::regclass");
+  expect(verifierSource).toContain("'oxsteed_credit_settlement_reversals'::regclass");
   expect(verifierSource).toContain("'food_restaurants'::regclass");
   expect(verifierSource).toContain("'SENTRY_DSN with SENTRY_ENABLED not false'");
   expect(verifierSource).toContain('getProductionConfigurationErrors');

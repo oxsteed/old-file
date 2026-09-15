@@ -2,6 +2,10 @@
 set -Eeuo pipefail
 umask 077
 
+# launchd does not inherit the interactive shell PATH. Keep Docker and
+# Homebrew-backed utilities available when this runs unattended.
+export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 # Back up the live Coolify-managed data, not the retired SQLite backend.
 # Publish a snapshot only after every artifact has passed its integrity check.
 
@@ -13,8 +17,40 @@ CLOUDFLARE_TOKEN_FILE="${CLOUDFLARE_TOKEN_FILE:-/Users/oxsteed/Library/Applicati
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 BACKUP_MIRROR_ROOT="${BACKUP_MIRROR_ROOT:-}"
 
+export DOCKER_CONTEXT="${DOCKER_CONTEXT:-colima}"
+
 mkdir -p "$BACKUP_ROOT"
 chmod 700 "$(dirname "$BACKUP_ROOT")" "$BACKUP_ROOT"
+
+LOCK_DIR="$BACKUP_ROOT/.backup.lock"
+LOCK_OWNER="$LOCK_DIR/owner"
+acquire_backup_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf '%s\n' "$$" >"$LOCK_OWNER"
+    chmod 600 "$LOCK_OWNER"
+    return 0
+  fi
+
+  local owner_pid='' owner_command=''
+  if [[ -s "$LOCK_OWNER" ]]; then
+    read -r owner_pid <"$LOCK_OWNER" || true
+    if [[ "$owner_pid" =~ ^[0-9]+$ ]]; then
+      owner_command="$(ps -p "$owner_pid" -o command= 2>/dev/null || true)"
+      if [[ "$owner_command" == *backup-coolify-production.sh* ]]; then
+        echo "A production backup is already running (pid $owner_pid)." >&2
+        exit 75
+      fi
+    fi
+  fi
+
+  # A lock with no live owner is left only by an interrupted runner.
+  rm -rf -- "$LOCK_DIR"
+  mkdir "$LOCK_DIR"
+  printf '%s\n' "$$" >"$LOCK_OWNER"
+  chmod 600 "$LOCK_OWNER"
+}
+
+acquire_backup_lock
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 FINAL_DIR="$BACKUP_ROOT/$STAMP"
@@ -22,6 +58,7 @@ TMP_DIR="$(mktemp -d "$BACKUP_ROOT/.incomplete.XXXXXX")"
 
 cleanup() {
   rm -rf -- "$TMP_DIR"
+  rm -rf -- "$LOCK_DIR"
 }
 trap cleanup EXIT
 
@@ -41,8 +78,6 @@ done
   echo "Cloudflare tunnel token is missing: $CLOUDFLARE_TOKEN_FILE" >&2
   exit 1
 }
-
-export DOCKER_CONTEXT="${DOCKER_CONTEXT:-colima}"
 
 # Container environment supplies database names and users without exposing passwords.
 docker exec "$APP_DB_CONTAINER" sh -lc \
