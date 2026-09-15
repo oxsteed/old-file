@@ -431,6 +431,32 @@ test('bulk-upserts customer access across multiple restaurant agreements atomica
   expect(mockQuery.mock.calls[8][0]).toContain('response_payload');
 });
 
+test('rejects bulk entitlement limits when agreements use different settlement currencies', async () => {
+  const customerId = '11111111-1111-4111-8111-111111111111';
+  const agreementIds = [
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  ];
+  mockQuery.mockResolvedValueOnce({ rows: [
+    { id: agreementIds[0], partner_id: 41, restaurant_id: 9, settlement_currency_code: 'USD', status: 'active', partner_status: 'active', restaurant_status: 'active' },
+    { id: agreementIds[1], partner_id: 42, restaurant_id: 10, settlement_currency_code: 'EUR', status: 'active', partner_status: 'active', restaurant_status: 'active' },
+  ] });
+
+  await expect(bulkUpsertEntitlements({
+    agreementIds,
+    customerId,
+    maxTransactionCents: 2500,
+    reason: 'Restaurant benefit',
+    actorUserId: 'admin-1',
+    idempotencyKey: 'bulk-entitlement-mixed-currency-1',
+  })).rejects.toMatchObject({
+    code: 'credit_entitlement_currency_mismatch',
+    status: 409,
+    fields: { currencies: ['USD', 'EUR'] },
+  });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
 test('lists customer entitlements with restaurant context and bounded paging', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{
     id: 'entitlement-1',

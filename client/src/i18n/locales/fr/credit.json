@@ -262,6 +262,7 @@
   "adminBulkAccessSaved": "Accès client enregistré pour {{count}} accords de restaurant.",
   "adminBulkAccessFailed": "La mise à jour groupée a échoué. Aucun changement partiel n'a été enregistré.",
   "adminBulkAccessCurrencyMismatch": "Les accords sélectionnés utilisent des devises différentes. Effacez les limites ou sélectionnez des accords partageant une devise.",
+  "adminInvalidLimitAmount": "Saisissez un montant positif valide en {{currency}} ou laissez la limite vide.",
   "adminCustomerUuid": "UUID du client",
   "adminCustomerUuidPlaceholder": "Collez l'UUID ou choisissez parmi les portefeuilles chargés",
   "adminPartnerAgreement": "Accord partenaire",

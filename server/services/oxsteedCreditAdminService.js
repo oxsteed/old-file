@@ -2120,6 +2120,15 @@ async function bulkUpsertEntitlements({ agreementIds, customerId, status = 'acti
     if (normalizedStatus === 'active') {
       agreementRows.forEach(assertEntitlementAgreementCanBeActive);
     }
+    const agreementCurrencies = [...new Set(agreementRows.map((agreement) => assertSupportedCreditCurrency(agreement.settlement_currency_code)))];
+    if ((maxTransaction !== null || dailyLimit !== null) && agreementCurrencies.length > 1) {
+      throw new AppError(
+        'Bulk customer access limits require agreements with one settlement currency',
+        409,
+        'credit_entitlement_currency_mismatch',
+        { currencies: agreementCurrencies }
+      );
+    }
     const { rows: userRows } = await client.query(
       `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE`,
       [customerId]

@@ -262,6 +262,7 @@
   "adminBulkAccessSaved": "تم حفظ وصول العميل عبر {{count}} اتفاقيات مطاعم.",
   "adminBulkAccessFailed": "فشل تحديث الوصول الجماعي. لم تُحفظ تغييرات جزئية.",
   "adminBulkAccessCurrencyMismatch": "تستخدم الاتفاقيات المحددة عملات مختلفة. امسح الحدود أو حدد اتفاقيات تشترك في عملة واحدة.",
+  "adminInvalidLimitAmount": "أدخل مبلغًا موجبًا صالحًا بعملة {{currency}} أو اترك الحد فارغًا.",
   "adminCustomerUuid": "UUID العميل",
   "adminCustomerUuidPlaceholder": "ألصق UUID أو اختر من المحافظ المحملة",
   "adminPartnerAgreement": "اتفاقية الشريك",

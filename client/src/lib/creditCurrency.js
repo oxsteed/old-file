@@ -53,9 +53,25 @@ export function formatCreditMinorUnits(amountMinor, currency = 'USD', metadata =
 export function parseCreditMajorAmount(value, currency = 'USD', metadata = {}) {
   const normalized = String(value ?? '').trim().replace(/[$,\s]/g, '');
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) return null;
-  const amount = Number(normalized);
   const minorUnits = getCreditMinorUnits(currency, metadata);
-  const scale = 10 ** minorUnits;
-  const amountMinor = amount * scale;
-  return Number.isSafeInteger(amountMinor) && amountMinor > 0 ? amountMinor : null;
+  const [wholePart, fractionPart = ''] = normalized.split('.');
+  if (fractionPart.length > minorUnits) return null;
+
+  // Parse decimal text exactly instead of multiplying a binary float. This
+  // keeps values such as 0.29 USD and 1.005 KWD representable at the ledger
+  // boundary while still enforcing the safe integer range.
+  const scale = 10n ** BigInt(minorUnits);
+  const wholeMinor = BigInt(wholePart) * scale;
+  const fractionMinor = minorUnits === 0
+    ? 0n
+    : BigInt((fractionPart || '').padEnd(minorUnits, '0'));
+  const amountMinor = wholeMinor + fractionMinor;
+  const maxSafeMinor = BigInt(Number.MAX_SAFE_INTEGER);
+  return amountMinor > 0n && amountMinor <= maxSafeMinor ? Number(amountMinor) : null;
+}
+
+export function parseOptionalCreditMajorAmount(value, currency = 'USD', metadata = {}) {
+  if (String(value ?? '').trim() === '') return { value: null, valid: true };
+  const parsed = parseCreditMajorAmount(value, currency, metadata);
+  return { value: parsed, valid: parsed !== null };
 }

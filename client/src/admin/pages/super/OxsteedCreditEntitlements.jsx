@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
-import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
+import { formatCreditMinorUnits, parseOptionalCreditMajorAmount } from '../../../lib/creditCurrency';
 
 const ENTITLEMENT_STATUSES = ['active', 'suspended', 'revoked', 'expired'];
 const ENTITLEMENT_PAGE_SIZE = 250;
@@ -49,6 +49,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
   const [loadingAgreementOptions, setLoadingAgreementOptions] = useState(false);
   const [agreementOptionsError, setAgreementOptionsError] = useState('');
   const [bulkAgreementIds, setBulkAgreementIds] = useState([]);
+  const [bulkAgreementRecords, setBulkAgreementRecords] = useState([]);
   const agreementLookupRequestRef = useRef(0);
 
   const load = async () => {
@@ -143,14 +144,19 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
   const selectedAgreement = useMemo(() => selectableAgreements.find((agreement) => String(agreement.id) === String(form.agreementId)), [form.agreementId, selectableAgreements]);
   const selectedAgreementCurrency = selectedAgreement?.settlementCurrencyCode || selectedAgreement?.currencyCode || 'USD';
   const selectedBulkAgreements = useMemo(
-    () => selectableAgreements.filter((agreement) => bulkAgreementIds.includes(String(agreement.id))),
-    [bulkAgreementIds, selectableAgreements]
+    () => bulkAgreementIds.map((agreementId) => (
+      selectableAgreements.find((agreement) => String(agreement.id) === agreementId)
+      || bulkAgreementRecords.find((agreement) => String(agreement.id) === agreementId)
+    )).filter(Boolean),
+    [bulkAgreementIds, bulkAgreementRecords, selectableAgreements]
   );
   const bulkCurrency = useMemo(() => {
     const currencies = [...new Set(selectedBulkAgreements.map((agreement) => agreement.settlementCurrencyCode || agreement.currencyCode || 'USD'))];
     return currencies.length === 1 ? currencies[0] : null;
   }, [selectedBulkAgreements]);
-  const limitCurrency = selectedAgreement ? selectedAgreementCurrency : bulkCurrency || t('adminMultipleCurrencies');
+  const limitCurrency = bulkAgreementIds.length
+    ? bulkCurrency || t('adminMultipleCurrencies')
+    : selectedAgreementCurrency;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -158,18 +164,25 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     setError('');
     setNotice('');
     try {
+      const maxTransaction = parseOptionalCreditMajorAmount(form.maxTransaction, selectedAgreementCurrency, currencyMetadata);
+      const dailyLimit = parseOptionalCreditMajorAmount(form.dailyLimit, selectedAgreementCurrency, currencyMetadata);
+      if (!maxTransaction.valid || !dailyLimit.valid) {
+        setError(t('adminInvalidLimitAmount', { currency: selectedAgreementCurrency }));
+        return;
+      }
       const response = await adminApi.post(`/admin/super/oxsteed-credit/agreements/${form.agreementId}/entitlements`, {
         customerId: form.customerId.trim(),
         status: form.status,
         startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
         endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
-        maxTransactionCents: parseCreditMajorAmount(form.maxTransaction, selectedAgreementCurrency, currencyMetadata),
-        dailyLimitCents: parseCreditMajorAmount(form.dailyLimit, selectedAgreementCurrency, currencyMetadata),
+        maxTransactionCents: maxTransaction.value,
+        dailyLimitCents: dailyLimit.value,
         reason: form.reason.trim() || undefined,
       });
       setNotice(response.data?.replayed ? t('adminAccessAlreadyCurrent') : t('adminAccessSavedFor', { restaurant: selectedAgreement?.restaurantName || t('adminSelectedRestaurant') }));
       setForm((current) => ({ ...current, agreementId: '', maxTransaction: '', dailyLimit: '', reason: '' }));
       setBulkAgreementIds([]);
+      setBulkAgreementRecords([]);
       await load();
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || t('adminAccessUpdateFailed'));
@@ -191,6 +204,12 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
       setError(t('adminBulkAccessCurrencyMismatch'));
       return;
     }
+    const maxTransaction = parseOptionalCreditMajorAmount(form.maxTransaction, bulkCurrency || 'USD', currencyMetadata);
+    const dailyLimit = parseOptionalCreditMajorAmount(form.dailyLimit, bulkCurrency || 'USD', currencyMetadata);
+    if (!maxTransaction.valid || !dailyLimit.valid) {
+      setError(t('adminInvalidLimitAmount', { currency: bulkCurrency || 'USD' }));
+      return;
+    }
     setSaving(true);
     setError('');
     setNotice('');
@@ -201,13 +220,14 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         status: form.status,
         startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
         endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
-        maxTransactionCents: parseCreditMajorAmount(form.maxTransaction, bulkCurrency || 'USD', currencyMetadata),
-        dailyLimitCents: parseCreditMajorAmount(form.dailyLimit, bulkCurrency || 'USD', currencyMetadata),
+        maxTransactionCents: maxTransaction.value,
+        dailyLimitCents: dailyLimit.value,
         reason: form.reason.trim(),
       }, { headers: { 'Idempotency-Key': globalThis.crypto?.randomUUID?.() || `bulk-${Date.now()}-${Math.random().toString(36).slice(2)}` } });
       setNotice(response.data?.replayed ? t('adminBulkAccessAlreadyApplied') : t('adminBulkAccessSaved', { count: response.data?.count || bulkAgreementIds.length }));
       setForm((current) => ({ ...current, agreementId: '', maxTransaction: '', dailyLimit: '', reason: '' }));
       setBulkAgreementIds([]);
+      setBulkAgreementRecords([]);
       await load();
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error?.message || t('adminBulkAccessFailed'));
@@ -230,7 +250,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
 
     <form onSubmit={submit} className="mt-5 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminCustomerUuid')}</span><input required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} list="oxsteed-credit-customers" placeholder={t('adminCustomerUuidPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /><datalist id="oxsteed-credit-customers">{customerAccounts.map((account) => <option key={account.accountId} value={account.customerId}>{account.name || account.email || account.customerId}</option>)}</datalist></label>
-      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPartnerAgreement')}</span><div className="mb-2 flex flex-wrap gap-2"><input value={agreementSearch} onChange={(event) => setAgreementSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyAgreementLookup(); }} placeholder={t('adminAgreementSearchPlaceholder')} className="min-w-[180px] flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="button" onClick={applyAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingAgreementOptions ? t('searching') : t('adminFindAgreements')}</button>{agreementLookupQuery && <button type="button" onClick={clearAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('clearFilters')}</button>}</div><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} disabled={loadingAgreementOptions} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingAgreementOptions ? t('adminLoadingAgreements') : t('adminChooseAgreement')}</option>{selectableAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || t('partnerRestaurant')} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select>{agreementOptionsError && <div role="alert" aria-live="polite" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-red-300"><span>{agreementOptionsError}</span><button type="button" onClick={() => loadAgreementOptions(agreementLookupQuery)} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-red-400/30 px-2.5 py-1 font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">{t('adminRetryLookup')}</button></div>}<p className="mt-2 text-[11px] text-gray-600">{agreementLookupQuery ? t('adminMatchingAgreements', { count: agreementLookupTotal }) : t('adminAgreementSearchHelp')}</p><div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-semibold text-sky-200">{t('adminAuthorizeMultipleRestaurants')}</span><span className="text-[10px] text-gray-600">{t('adminSelectedCount', { count: bulkAgreementIds.length })}</span></div><div className="mt-2 grid max-h-36 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{selectableAgreements.map((agreement) => <label key={`bulk-${agreement.id}`} className="flex min-w-0 items-start gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-2 py-2 text-[11px] text-gray-300"><input type="checkbox" checked={bulkAgreementIds.includes(String(agreement.id))} onChange={(event) => setBulkAgreementIds((current) => event.target.checked ? [...new Set([...current, String(agreement.id)])] : current.filter((id) => id !== String(agreement.id)))} disabled={loadingAgreementOptions || loading || saving || busy} className="mt-0.5 accent-sky-500" /><span className="truncate">{agreement.restaurantName || t('partnerRestaurant')} <span className="text-gray-600">· v{agreement.version}</span></span></label>)}</div><button type="button" onClick={submitBulk} disabled={busy || saving || !bulkAgreementIds.length} className="mt-3 w-full rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/10 disabled:opacity-50">{t('adminAuthorizeSelected')}</button></div></label>
+      <label className="lg:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPartnerAgreement')}</span><div className="mb-2 flex flex-wrap gap-2"><input value={agreementSearch} onChange={(event) => setAgreementSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyAgreementLookup(); }} placeholder={t('adminAgreementSearchPlaceholder')} className="min-w-[180px] flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><button type="button" onClick={applyAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingAgreementOptions ? t('searching') : t('adminFindAgreements')}</button>{agreementLookupQuery && <button type="button" onClick={clearAgreementLookup} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50">{t('clearFilters')}</button>}</div><select required value={form.agreementId} onChange={(event) => setForm({ ...form, agreementId: event.target.value })} disabled={loadingAgreementOptions} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingAgreementOptions ? t('adminLoadingAgreements') : t('adminChooseAgreement')}</option>{selectableAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.restaurantName || t('partnerRestaurant')} · v{agreement.version} · {agreement.status} · {agreement.settlementCurrencyCode || 'USD'}</option>)}</select>{agreementOptionsError && <div role="alert" aria-live="polite" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-red-300"><span>{agreementOptionsError}</span><button type="button" onClick={() => loadAgreementOptions(agreementLookupQuery)} disabled={loadingAgreementOptions || loading || saving || busy} className="rounded-lg border border-red-400/30 px-2.5 py-1 font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">{t('adminRetryLookup')}</button></div>}<p className="mt-2 text-[11px] text-gray-600">{agreementLookupQuery ? t('adminMatchingAgreements', { count: agreementLookupTotal }) : t('adminAgreementSearchHelp')}</p><div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-950/10 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-semibold text-sky-200">{t('adminAuthorizeMultipleRestaurants')}</span><span className="text-[10px] text-gray-600">{t('adminSelectedCount', { count: bulkAgreementIds.length })}</span></div><div className="mt-2 grid max-h-36 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{selectableAgreements.map((agreement) => <label key={`bulk-${agreement.id}`} className="flex min-w-0 items-start gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-2 py-2 text-[11px] text-gray-300"><input type="checkbox" checked={bulkAgreementIds.includes(String(agreement.id))} onChange={(event) => { const agreementId = String(agreement.id); setBulkAgreementIds((current) => event.target.checked ? [...new Set([...current, agreementId])] : current.filter((id) => id !== agreementId)); setBulkAgreementRecords((current) => event.target.checked ? [...current.filter((item) => String(item.id) !== agreementId), agreement] : current.filter((item) => String(item.id) !== agreementId)); }} disabled={loadingAgreementOptions || loading || saving || busy} className="mt-0.5 accent-sky-500" /><span className="truncate">{agreement.restaurantName || t('partnerRestaurant')} <span className="text-gray-600">· v{agreement.version}</span></span></label>)}</div><button type="button" onClick={submitBulk} disabled={busy || saving || !bulkAgreementIds.length} className="mt-3 w-full rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/10 disabled:opacity-50">{t('adminAuthorizeSelected')}</button></div></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminAccessState')}</span><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">{ENTITLEMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Starts (optional)</span><input type="datetime-local" value={form.startsAt} onChange={(event) => setForm({ ...form, startsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>
       <label><span className="mb-1 block text-xs font-semibold text-gray-500">Ends (optional)</span><input type="datetime-local" value={form.endsAt} onChange={(event) => setForm({ ...form, endsAt: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label>

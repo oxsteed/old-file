@@ -7,11 +7,21 @@
 ### OxSteed Credit code completion scope (2026-09-14)
 
 - The user prioritizes completion of all production-readiness software for the central OxSteed credit authority and independently accounted restaurant credit operators. Use `docs/oxsteed-credit-code-completion-goal.md` for scope and acceptance criteria.
+- Execution handoff: follow `docs/oxsteed-credit-luna-execution-plan.md` for prioritized work packages, confirmed amount/entitlement defects, isolated verification, and requirement-level completion gates. The plan preserves the full goal; resume its next unfinished package rather than restarting a broad audit.
 - Human licensing, agreements, provider approvals, custody arrangements, and hardware work belong to the later launch handoff. Continue implementation and isolated verification without waiting for those activities; preserve runtime security and activation controls.
 - Re-audit current code against the required accounting architecture and maintain requirement-to-evidence coverage. Prior test counts and deployment blockers are historical evidence, not proof of current completeness.
 - This repository scope update does not edit or resume the Codex app's saved goal.
 
 ### Session progress - OxSteed Credit recovery evidence (2026-09-14)
+
+- Package A amount/entitlement repair: exact string-to-minor-unit parsing now
+  accepts `0.29 USD` and `1.005 KWD`, rejects precision/overflow errors, and
+  distinguishes blank optional limits from invalid nonblank limits. Entitlement
+  bulk selection retains agreement records across search changes, displays the
+  selected bulk currency, and the API rejects shared limits across locked
+  agreements with different currencies. Client currency tests pass 5/5 and the
+  focused admin service suite passes 41/41; authenticated browser payload/error
+  evidence remains open.
 
 - Corrected `scripts/verify-production-restore.sh` to require the 11 Credit
   tables, including settlement-reversal evidence, and 5 Credit integrity

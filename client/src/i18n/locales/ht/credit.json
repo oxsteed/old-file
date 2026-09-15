@@ -262,6 +262,7 @@
   "adminBulkAccessSaved": "Aksè kliyan an sove nan {{count}} akò restoran.",
   "adminBulkAccessFailed": "Mizajou aksè an gwoup echwe. Pa gen chanjman pasyèl ki sove.",
   "adminBulkAccessCurrencyMismatch": "Akò yo chwazi yo itilize diferan lajan. Efase limit yo oswa chwazi akò ki pataje menm lajan an.",
+  "adminInvalidLimitAmount": "Antre yon montan pozitif ki valab an {{currency}}, oswa kite limit la vid.",
   "adminCustomerUuid": "UUID kliyan",
   "adminCustomerUuidPlaceholder": "Kole UUID la oswa chwazi nan bous ki chaje yo",
   "adminPartnerAgreement": "Akò patnè",

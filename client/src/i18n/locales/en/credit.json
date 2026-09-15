@@ -262,6 +262,7 @@
   "adminBulkAccessSaved": "Customer access saved across {{count}} restaurant agreements.",
   "adminBulkAccessFailed": "Bulk customer access update failed. No partial changes were saved.",
   "adminBulkAccessCurrencyMismatch": "Selected agreements use different currencies. Clear the limits or select agreements sharing one currency.",
+  "adminInvalidLimitAmount": "Enter a valid positive amount in {{currency}}, or leave the limit blank.",
   "adminCustomerUuid": "Customer UUID",
   "adminCustomerUuidPlaceholder": "Paste UUID or choose from loaded wallets",
   "adminPartnerAgreement": "Partner agreement",

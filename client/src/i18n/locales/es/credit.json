@@ -262,6 +262,7 @@
   "adminBulkAccessSaved": "Acceso del cliente guardado en {{count}} acuerdos de restaurante.",
   "adminBulkAccessFailed": "No se pudo actualizar el acceso masivo. No se guardaron cambios parciales.",
   "adminBulkAccessCurrencyMismatch": "Los acuerdos seleccionados usan monedas diferentes. Borra los límites o selecciona acuerdos que compartan una moneda.",
+  "adminInvalidLimitAmount": "Introduce un importe positivo válido en {{currency}} o deja el límite en blanco.",
   "adminCustomerUuid": "UUID del cliente",
   "adminCustomerUuidPlaceholder": "Pega el UUID o elige entre las billeteras cargadas",
   "adminPartnerAgreement": "Acuerdo del socio",
