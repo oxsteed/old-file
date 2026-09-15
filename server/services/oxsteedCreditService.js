@@ -60,6 +60,7 @@ const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
+  'settlement_reversal',
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
 ]);
 
@@ -1458,6 +1459,20 @@ async function listEligiblePartners({ customerId, currencyCode = CREDIT_CURRENCY
 
 async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURRENCY) {
   const currency = assertSupportedCreditCurrency(currencyCode);
+  // Established wallets are read-only. Keep the active-customer guard on the
+  // fast path, and retain the transaction for the first-access creation race.
+  const { rows } = await pool.query(
+    `SELECT a.*
+       FROM oxsteed_credit_accounts a
+       JOIN users owner ON owner.id = a.customer_id
+        AND owner.role = 'customer'
+        AND owner.is_active = TRUE
+      WHERE a.account_type = 'customer_wallet'
+        AND a.customer_id = $1
+        AND a.currency_code = $2`,
+    [customerId, currency]
+  );
+  if (rows[0]) return formatAccount(rows[0]);
   return withTransaction(pool, async (client) => {
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
     return formatAccount(account);

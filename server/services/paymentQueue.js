@@ -30,6 +30,28 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 const JOB_MARKER_TTL_SECONDS = 86400;
 
+const PUSH_WITH_MARKER_SCRIPT = `local reserved = redis.call('SET', KEYS[1], '1', 'EX', ARGV[2], 'NX')
+if not reserved then return 0 end
+redis.call('LPUSH', KEYS[2], ARGV[1])
+return 1`;
+
+const PROMOTE_RETRY_SCRIPT = `local removed = redis.call('ZREM', KEYS[1], ARGV[1])
+if removed ~= 1 then return 0 end
+redis.call('LPUSH', KEYS[2], ARGV[1])
+return 1`;
+
+async function pushWithMarker(queueKey, markerKey, payload) {
+  const pushed = await redis.eval(
+    PUSH_WITH_MARKER_SCRIPT,
+    2,
+    markerKey,
+    queueKey,
+    payload,
+    JOB_MARKER_TTL_SECONDS,
+  );
+  return Number(pushed) === 1;
+}
+
 /**
  * Add a job to a queue (FIFO with retry support)
  * @param {string} queueKey - Queue name (QUEUES.*)
@@ -50,16 +72,10 @@ const addJob = async (queueKey, jobData, jobId) => {
     };
 
     // NX makes enqueue idempotent across API retries and multiple replicas.
-    const reserved = await redis.set(markerKey, '1', 'EX', JOB_MARKER_TTL_SECONDS, 'NX');
-    if (reserved !== 'OK') {
+    const pushed = await pushWithMarker(queueKey, markerKey, JSON.stringify(job));
+    if (!pushed) {
       logger.info('Duplicate job suppressed', { queueKey, jobId });
       return jobId;
-    }
-    try {
-      await redis.lpush(queueKey, JSON.stringify(job));
-    } catch (error) {
-      await redis.del(markerKey).catch(() => {});
-      throw error;
     }
     logger.info('Job queued', { queueKey, jobId });
     return jobId;
@@ -78,9 +94,14 @@ const promoteDueRetries = async (queueKey, limit = 25) => {
   const due = await redis.zrangebyscore(delayedQueueKey, 0, Date.now(), 'LIMIT', 0, limit);
   let promoted = 0;
   for (const jobStr of due || []) {
-    if (await redis.zrem(delayedQueueKey, jobStr) !== 1) continue;
-    await redis.lpush(queueKey, jobStr);
-    promoted += 1;
+    const moved = await redis.eval(
+      PROMOTE_RETRY_SCRIPT,
+      2,
+      delayedQueueKey,
+      queueKey,
+      jobStr,
+    );
+    if (Number(moved) === 1) promoted += 1;
   }
   return promoted;
 };
@@ -137,6 +158,99 @@ const retryJob = async (queueKey, job) => {
 };
 
 /**
+ * Preserve a job after its retry budget is exhausted so an operator can
+ * inspect or replay it after a provider or infrastructure outage.
+ */
+const deadLetterJob = async (queueKey, job, error = null) => {
+  if (!queueKey || !job?.id) throw new Error('Queue key and job ID are required');
+  const markerKey = `job:${job.id}:dead-letter`;
+  const deadLetterQueueKey = `${queueKey}:dead-letter`;
+  const payload = {
+    ...job,
+    status: 'dead-lettered',
+    deadLetteredAt: Date.now(),
+    lastError: String(error?.message || error || 'Job retry budget exhausted').slice(0, 2000),
+  };
+
+  const pushed = await pushWithMarker(
+    deadLetterQueueKey,
+    markerKey,
+    JSON.stringify(payload),
+  );
+  if (!pushed) return false;
+  logger.error('Job moved to dead-letter queue', {
+    queueKey,
+    deadLetterQueueKey,
+    jobId: job.id,
+    attempts: job.attempts,
+    error: payload.lastError,
+  });
+  return true;
+};
+
+const listDeadLetterJobs = async (queueKey, limit = 25) => {
+  if (!queueKey) throw new Error('Queue key is required');
+  const parsedLimit = Number.parseInt(String(limit), 10);
+  const safeLimit = Number.isSafeInteger(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 25;
+  const payloads = await redis.lrange(`${queueKey}:dead-letter`, 0, safeLimit - 1);
+  return (payloads || []).flatMap((payload) => {
+    try {
+      const job = JSON.parse(payload);
+      return job?.id ? [job] : [];
+    } catch {
+      return [];
+    }
+  });
+};
+
+/**
+ * Atomically move one dead-lettered job back to its live queue. Resetting the
+ * retry counter gives the recovered provider operation a fresh retry budget;
+ * the original dead-letter metadata remains attached for auditability.
+ */
+const requeueDeadLetterJob = async (queueKey, jobId) => {
+  if (!queueKey || !jobId) throw new Error('Queue key and job ID are required');
+  const deadLetterQueueKey = `${queueKey}:dead-letter`;
+  const payloads = await redis.lrange(deadLetterQueueKey, 0, -1);
+  const rawPayload = (payloads || []).find((payload) => {
+    try {
+      return JSON.parse(payload)?.id === jobId;
+    } catch {
+      return false;
+    }
+  });
+  if (!rawPayload) return null;
+
+  const job = JSON.parse(rawPayload);
+  const recoveredJob = {
+    ...job,
+    status: 'pending',
+    attempts: 0,
+    requeuedAt: Date.now(),
+    recoveredFromDeadLetter: {
+      deadLetteredAt: job.deadLetteredAt || null,
+      attempts: Number(job.attempts || 0),
+      lastError: job.lastError || null,
+    },
+  };
+  const moved = await redis.eval(
+    `local removed = redis.call('LREM', KEYS[1], 1, ARGV[1])
+     if removed ~= 1 then return 0 end
+     redis.call('LPUSH', KEYS[2], ARGV[2])
+     redis.call('DEL', KEYS[3], KEYS[4])
+     return 1`,
+    4,
+    deadLetterQueueKey,
+    queueKey,
+    `job:${job.id}:dead-letter`,
+    `job:${job.id}:complete`,
+    rawPayload,
+    JSON.stringify(recoveredJob),
+  );
+  return Number(moved) === 1 ? recoveredJob : null;
+};
+
+/**
  * Mark job as completed
  * @param {string} queueKey - Queue name
  * @param {string} jobId - Job ID
@@ -161,6 +275,9 @@ module.exports = {
   isJobCompleted,
   getNextJob,
   retryJob,
+  deadLetterJob,
+  listDeadLetterJobs,
+  requeueDeadLetterJob,
   completeJob,
 
   // Convenience methods for specific job types

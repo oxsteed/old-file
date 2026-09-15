@@ -6,6 +6,7 @@ function healthyPayload() {
     release: 'release-2026-09-14',
     checks: {
       productionConfiguration: { ok: true },
+      release: { ok: true },
       database: { ok: true },
       migrations: { ok: true, pendingCount: 0 },
       redis: { ok: true, configured: true },

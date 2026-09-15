@@ -100,6 +100,36 @@ describe('runtime readiness', () => {
     });
   });
 
+  test('reports not_ready when production release metadata is missing', async () => {
+    const previous = {
+      NODE_ENV: process.env.NODE_ENV,
+      SENTRY_RELEASE: process.env.SENTRY_RELEASE,
+      COMMIT_SHA: process.env.COMMIT_SHA,
+      SOURCE_COMMIT: process.env.SOURCE_COMMIT,
+    };
+    process.env.NODE_ENV = 'production';
+    delete process.env.SENTRY_RELEASE;
+    delete process.env.COMMIT_SHA;
+    delete process.env.SOURCE_COMMIT;
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: files.map((filename) => ({ filename })) }
+        : { rows: [{ '?column?': 1 }] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.release).toBeNull();
+    expect(result.checks.release).toEqual({ ok: false, error: 'release identifier is missing' });
+
+    Object.entries(previous).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
+
   test('reports not_ready when a migration is pending or workers are stopped', async () => {
     runtimeState.update({ acceptingTraffic: true, realtimeReady: true, workersReady: false });
     const files = expectedMigrationFiles();

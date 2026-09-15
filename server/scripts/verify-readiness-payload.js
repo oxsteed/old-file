@@ -4,6 +4,8 @@ function validateReadinessPayload(payload) {
   const failures = [];
   const checks = payload && typeof payload === 'object' ? payload.checks : null;
   const requireHealthy = (name) => {
+    // Keep the missing top-level release error actionable instead of duplicating it.
+    if (name === 'release' && (typeof payload?.release !== 'string' || payload.release.trim() === '')) return;
     if (checks?.[name]?.ok !== true) failures.push(`${name} readiness check is not healthy`);
   };
 
@@ -12,7 +14,7 @@ function validateReadinessPayload(payload) {
     failures.push('release identifier is missing');
   }
 
-  ['productionConfiguration', 'database', 'redis', 'creditLedger', 'creditRail', 'realtime', 'workers', 'traffic', 'shutdown']
+  ['release', 'productionConfiguration', 'database', 'redis', 'creditLedger', 'creditRail', 'realtime', 'workers', 'traffic', 'shutdown']
     .forEach(requireHealthy);
 
   if (checks?.redis?.configured !== true) failures.push('shared Redis is not configured');

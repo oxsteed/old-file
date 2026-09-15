@@ -9,7 +9,7 @@ const { assertSupportedCreditCurrency, computeEntryHash, ensureAccount, getCusto
 const PARTNER_STATUSES = new Set(['pending', 'active', 'suspended', 'terminated']);
 const AGREEMENT_STATUSES = new Set(['draft', 'pending_approval', 'active', 'suspended', 'expired', 'terminated']);
 const ENTITLEMENT_STATUSES = new Set(['active', 'suspended', 'revoked', 'expired']);
-const CREDIT_TRANSACTION_TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'fee', 'expiration', 'chargeback', 'funding', 'reserve_release']);
+const CREDIT_TRANSACTION_TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'settlement_reversal', 'fee', 'expiration', 'chargeback', 'funding', 'reserve_release']);
 const CREDIT_TRANSACTION_STATUSES = new Set(['pending', 'posted', 'reversed', 'voided']);
 const MAX_AGREEMENT_LIMIT_CENTS = Number.isSafeInteger(Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS || '', 10))
   ? Number.parseInt(process.env.OXSTEED_CREDIT_MAX_AGREEMENT_LIMIT_CENTS, 10)
@@ -1231,7 +1231,7 @@ async function listSettlements({ partnerId, status, currencyCode, limit = 100, o
   }
   if (status) {
     const normalizedStatus = normalizeString(status, 20);
-    if (!['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedStatus)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
+    if (!['pending', 'approved', 'paid', 'reversed', 'disputed', 'voided'].includes(normalizedStatus)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
     params.push(normalizedStatus);
     filters.push(`s.status = $${params.length}`);
   }
@@ -1523,6 +1523,159 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
     await insertAudit(client, { actionType: 'credit.settlement.transitioned', actorUserId, partnerId: settlement.partner_id, resourceType: 'credit_settlement', resourceId: settlement.id, reason: normalizedReason, correlationId, requestIp, beforeState: { status: settlement.status }, afterState: { status: normalizedTarget } });
     return { settlement: formatSettlement({ ...updatedRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }), replayed: false };
   }, 'credit_admin_transition_settlement');
+}
+
+function formatSettlementReversal(row) {
+  return {
+    id: row.id,
+    settlementId: row.settlement_id,
+    transactionId: row.transaction_id,
+    idempotencyKey: row.idempotency_key,
+    recoveryReference: row.recovery_reference,
+    reason: row.reason,
+    actorUserId: row.actor_user_id,
+    correlationId: row.correlation_id || null,
+    createdAt: row.created_at || null,
+  };
+}
+
+async function reverseSettlement({ settlementId, idempotencyKey, actorUserId, reason, recoveryReference, correlationId, requestIp, metadata = {} }) {
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
+  if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for settlement reversals', 400, 'credit_idempotency_key_required');
+  requireAdministrativeActor(actorUserId, 'An identified administrator is required to reverse a Credit settlement', 'credit_settlement_reversal_actor_required');
+  const normalizedReason = requireAuditReason(reason);
+  const normalizedRecoveryReference = normalizeString(recoveryReference, 160);
+  if (!normalizedRecoveryReference) throw new AppError('A recovery reference is required for settlement reversals', 400, 'credit_settlement_recovery_reference_required');
+  const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+
+  return withTransaction(pool, async (client) => {
+    const { rows: settlementRows } = await client.query(
+      `SELECT s.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
+              fr.display_name AS restaurant_name
+         FROM oxsteed_credit_settlements s
+         JOIN oxsteed_credit_partners p ON p.id = s.partner_id
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE s.id = $1
+        FOR UPDATE`,
+      [settlementId]
+    );
+    const settlement = settlementRows[0];
+    if (!settlement) throw new AppError('Credit settlement not found', 404, 'credit_settlement_not_found');
+
+    const { rows: existingByKeyRows } = await client.query(
+      `SELECT * FROM oxsteed_credit_settlement_reversals
+        WHERE idempotency_key = $1
+        FOR UPDATE`,
+      [normalizedIdempotencyKey]
+    );
+    let existing = existingByKeyRows[0];
+    if (!existing) {
+      const { rows: existingBySettlementRows } = await client.query(
+        `SELECT * FROM oxsteed_credit_settlement_reversals
+          WHERE settlement_id = $1
+          FOR UPDATE`,
+        [settlement.id]
+      );
+      existing = existingBySettlementRows[0];
+    }
+    if (existing) {
+      if (String(existing.idempotency_key) !== normalizedIdempotencyKey) {
+        throw new AppError('Credit settlement has already been reversed', 409, 'credit_settlement_already_reversed');
+      }
+      if (String(existing.settlement_id) !== String(settlement.id)
+        || existing.recovery_reference !== normalizedRecoveryReference
+        || existing.reason !== normalizedReason) {
+        throw new AppError('Settlement reversal idempotency key was already used for different evidence', 409, 'credit_settlement_reversal_idempotency_conflict');
+      }
+      return { settlement: formatSettlement(settlement), reversal: formatSettlementReversal(existing), replayed: true };
+    }
+    if (settlement.status !== 'paid') {
+      throw new AppError('Only a paid Credit settlement can be reversed', 409, 'credit_settlement_reversal_status_invalid');
+    }
+    if (Number(settlement.net_cents || 0) <= 0) {
+      throw new AppError('A zero-value Credit settlement does not have a payout to reverse', 409, 'credit_settlement_reversal_zero_amount');
+    }
+
+    const { rows: originalRows } = await client.query(
+      `SELECT *
+         FROM oxsteed_credit_transactions
+        WHERE idempotency_key = $1
+          AND transaction_type = 'settlement'
+          AND status = 'posted'
+          AND partner_id = $2
+          AND agreement_id = $3
+          AND amount_cents = $4
+          AND currency_code = $5
+        FOR SHARE`,
+      [`credit-settlement:${settlement.id}`, settlement.partner_id, settlement.agreement_id, settlement.net_cents, settlement.currency_code]
+    );
+    const originalPayment = originalRows[0];
+    if (!originalPayment) throw new AppError('Paid settlement journal evidence was not found', 409, 'credit_settlement_payment_not_found');
+
+    const partnerAccount = await ensureAccount(client, { accountType: 'partner_payable', partnerId: settlement.partner_id, currencyCode: settlement.currency_code });
+    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: settlement.currency_code });
+    const reversalMetadata = {
+      ...normalizedMetadata,
+      settlementId: String(settlement.id),
+      originalTransactionId: String(originalPayment.id),
+      recoveryReference: normalizedRecoveryReference,
+    };
+    const reversalPayment = await postJournalTransaction(client, {
+      transactionType: 'settlement_reversal',
+      debitAccountId: treasuryAccount.id,
+      creditAccountId: partnerAccount.id,
+      amountCents: Number(settlement.net_cents),
+      currencyCode: settlement.currency_code,
+      partnerId: settlement.partner_id,
+      agreementId: settlement.agreement_id,
+      idempotencyKey: normalizedIdempotencyKey,
+      actorType: 'admin',
+      actorUserId,
+      referenceType: 'credit_settlement',
+      referenceId: String(settlement.id),
+      reason: normalizedReason,
+      correlationId,
+      requestIp,
+      description: 'OxSteed Credit settlement reversal',
+      metadata: reversalMetadata,
+      bindIdempotencySemantics: true,
+    });
+    const { rows: reversalRows } = await client.query(
+      `INSERT INTO oxsteed_credit_settlement_reversals
+         (settlement_id, transaction_id, idempotency_key, recovery_reference, reason,
+          actor_user_id, correlation_id, request_ip, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+       RETURNING *`,
+      [settlement.id, reversalPayment.transaction.id, normalizedIdempotencyKey, normalizedRecoveryReference, normalizedReason, actorUserId, normalizeString(correlationId, 160), requestIp || null, JSON.stringify(normalizedMetadata)]
+    );
+    const { rows: reversedRows } = await client.query(
+      `UPDATE oxsteed_credit_settlements
+          SET status = 'reversed', updated_at = NOW()
+        WHERE id = $1 AND status = 'paid'
+        RETURNING *`,
+      [settlement.id]
+    );
+    if (!reversedRows[0]) throw new AppError('Settlement reversal could not be confirmed', 409, 'credit_settlement_reversal_retry_required');
+    await insertAudit(client, {
+      actionType: 'credit.settlement.reversed',
+      actorUserId,
+      partnerId: settlement.partner_id,
+      resourceType: 'credit_settlement',
+      resourceId: settlement.id,
+      reason: normalizedReason,
+      correlationId,
+      requestIp,
+      beforeState: { status: settlement.status, paymentReference: settlement.payment_reference },
+      afterState: { status: 'reversed', transactionId: reversalPayment.transaction.id, recoveryReference: normalizedRecoveryReference },
+      metadata: normalizedMetadata,
+    });
+    return {
+      settlement: formatSettlement({ ...reversedRows[0], restaurant_id: settlement.restaurant_id, restaurant_name: settlement.restaurant_name }),
+      reversal: formatSettlementReversal(reversalRows[0]),
+      transaction: reversalPayment.transaction,
+      replayed: false,
+    };
+  }, 'credit_admin_reverse_settlement');
 }
 
 async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, periodEnd, actorUserId, reason, correlationId, requestIp }) {
@@ -2185,6 +2338,7 @@ module.exports = {
   listReconciliationRuns,
   createSettlement,
   transitionSettlement,
+  reverseSettlement,
   reconcileCreditLedger,
   verifyCreditLedgerHashes,
   createAgreement,

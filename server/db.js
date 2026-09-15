@@ -3,12 +3,12 @@
 
 const { Pool } = require('pg');
 const { createPoolMonitor, createTrackingPoolWrapper } = require('./utils/poolMonitor');
+const { getDatabaseSslConfig } = require('./utils/databaseConfig');
 
 // Determine SSL config from DATABASE_URL.
 // Local Docker PostgreSQL (sslmode=disable) needs ssl: false.
 // Managed/remote databases need ssl: true (with proper CA cert).
 const dbUrl = process.env.DATABASE_URL || '';
-const needsSsl = !dbUrl.includes('sslmode=disable') && process.env.NODE_ENV === 'production';
 const configuredConnectionTimeout = Number.parseInt(process.env.DB_CONNECTION_TIMEOUT_MS, 10);
 const connectionTimeoutMillis = Number.isFinite(configuredConnectionTimeout)
   ? Math.max(1000, Math.min(configuredConnectionTimeout, 30000))
@@ -16,8 +16,8 @@ const connectionTimeoutMillis = Number.isFinite(configuredConnectionTimeout)
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: needsSsl ? { rejectUnauthorized: false } : false,
-  max: Math.min(parseInt(process.env.DB_POOL_MAX, 10) || 30, 100),
+  ssl: getDatabaseSslConfig(dbUrl, process.env.NODE_ENV),
+  max: Math.min(parseInt(process.env.DB_POOL_MAX, 10) || 10, 100),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis,
 });

@@ -32,8 +32,10 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 
 The Coolify OxSteed application has been repaired and is currently healthy.
 Its production environment now contains non-placeholder database, JWT, and
-Stripe values, and the deployed container has completed migration 515. Do not
-copy values from this document into Coolify. Keep all credentials in Coolify's
+Stripe values, and the deployed container has completed migration 515. The
+current source adds migration 516 for explicit settlement reversals; the next
+Coolify deploy must apply it before the Credit verifier can pass. Do not copy
+values from this document into Coolify. Keep all credentials in Coolify's
 secret store and redeploy only after the values have been checked.
 
 The live `verify:credit` release check remains intentionally fail-closed until
@@ -66,10 +68,52 @@ approved TLS settings. Do not point the app at `localhost`, the public domain,
 or the Coolify control-plane database. `DATABASE_URL` must be identical across
 application replicas and must be tested by the migration and readiness checks.
 
+If startup reports the `authentication` category, do not keep restarting the
+app. Compare the database service's current role/password with the credentials
+in `DATABASE_URL`; the migration runner prints only the redacted host, port,
+database, and user plus the recovery category. PostgreSQL container
+environment variables initialize credentials only when the data volume is
+created, so changing `POSTGRES_PASSWORD` in Coolify does not necessarily
+change an existing `oxsteed` role. After taking a verified backup, either
+update the app URL to the existing role password or have an operator rotate
+the role password inside PostgreSQL and update the app secret together. Never
+put the raw password in logs, source control, or chat, and URL-encode reserved
+characters in the password.
+
 The current startup log also reports placeholder Stripe values. Those must be
 replaced with the approved live Stripe secret and webhook signing secret before
 production traffic is accepted; do not bypass the fail-closed configuration
 validator to bring the app online.
+
+### Automated database backups
+
+The host-side backup runner is `scripts/backup-coolify-production.sh`. It uses
+the Colima Docker context and healthy application/Coolify containers, captures
+the OxSteed database, Coolify database, Coolify configuration/storage, and
+Cloudflare tunnel token, validates each artifact before publishing a timestamped
+snapshot, writes restrictive permissions and SHA-256 checksums, and prunes
+local snapshots older than `RETENTION_DAYS`. `scripts/check-production-backup.sh`
+ignores incomplete directories, verifies the newest manifest/checksums, checks
+free space and container health, and records a durable local status file.
+Configure `BACKUP_MIRROR_ROOT` for a mounted recovery volume separate from the
+MacBook. A local-only snapshot is not an acceptable production recovery posture.
+
+For the MacBook deployment, create the log directory and install the supplied
+launchd template after reviewing its paths:
+
+```sh
+mkdir -p /Users/oxsteed/Library/Logs/OxSteed
+cp scripts/com.oxsteed.production-backup.plist ~/Library/LaunchAgents/
+cp scripts/com.oxsteed.production-backup-monitor.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.oxsteed.production-backup.plist
+launchctl load -w ~/Library/LaunchAgents/com.oxsteed.production-backup-monitor.plist
+```
+
+The backup template runs every six hours and the monitor runs every 15 minutes.
+A successful run must be followed by the
+isolated restore check below; a local dump alone is not an acceptable
+production recovery posture. To exercise the runner manually, use
+`npm --prefix server run backup:production`.
 
 After saving the environment, redeploy the application and confirm:
 
@@ -81,7 +125,8 @@ npm run verify:credit
 
 The expected result is a healthy app container, readiness JSON with no pending
 migrations, and `verify:credit` reporting `ok: true`. The local database is
-already at migration `514`; the pre-migration dump is stored under
+currently at migration `515`; after the next deploy it must reach `516`. The
+pre-migration dump is stored under
 `/Users/oxsteed/server-backups/production/`.
 
 ## API Abuse Controls
@@ -104,7 +149,9 @@ Set `DB_CONNECTION_TIMEOUT_MS` between 1,000 and 30,000 milliseconds when the
 database host or VM needs a different pool wait budget. The default is 5,000 ms,
 which tolerates short host scheduling pauses without hiding a persistently
 exhausted pool; do not use this setting as a substitute for investigating pool
-utilization or database capacity.
+utilization or database capacity. `DB_POOL_MAX` bounds each application
+replica's PostgreSQL pool and defaults to 10 on the MacBook deployment; raise it
+only after measuring database capacity and application concurrency.
 
 Positive administrative issuance is also bounded inside the transaction:
 `OXSTEED_CREDIT_MAX_TRANSACTION_CENTS` caps one movement,
@@ -142,10 +189,14 @@ target amount, integer rate numerator and denominator, fee, provider reference,
 reason, and expiry through `POST /api/admin/super/oxsteed-credit/currency-quotes`.
 The customer consumes that quote once through
 `POST /api/oxsteed-credit/conversions` with an idempotency key. The server
-posts same-currency source debit, optional source-currency fee, and target
-credit journal legs in one transaction, then marks the quote consumed. Quotes
+serializes each customer/source-currency conversion scope, posts same-currency
+source debit, optional source-currency fee, and target credit journal legs in
+one transaction, then marks the quote consumed. Quotes
 expire after 15 minutes by default and cannot exceed 24 hours; providers and
-operator approvals must still be selected and governed outside the code.
+operator approvals must still be selected and governed outside the code. A
+reused quote idempotency key must repeat the exact amounts, fee, rate, rounding
+mode, provider, and provider reference; materially different retries are
+rejected rather than silently replayed.
 
 Conversion volume is bounded per customer and source currency by
 `OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_CONVERSION_CENTS` and
@@ -176,7 +227,11 @@ invariant or external provider is configured. Coolify's predefined
 `SOURCE_COMMIT` value is accepted as a fallback, but enable Configuration >
 Advanced > Include Source Commit in Build so the exact commit also reaches the
 Docker build and frontend release metadata. You may override it with
-`SENTRY_RELEASE` or `COMMIT_SHA`; these values must never contain a secret.
+`SENTRY_RELEASE` or `COMMIT_SHA`; these values must never contain a secret. If
+all three values are blank, the production image now generates a deterministic
+`content-<hash>` release from the application source and uses it for both the
+browser bundle and server readiness/Sentry initialization. An explicit commit
+identifier remains preferred for human-readable incident correlation.
 
 Run these commands from the server directory against the intended database:
 
@@ -213,6 +268,28 @@ callers receive one transaction. It also injects an insufficient-funds failure
 and verifies that the account balance, reservations, and purchase journal are
 unchanged. Drop the disposable database after the run; never point this command
 at the live production database.
+
+### Isolated workload benchmark
+
+Restore the same production-shaped dump into a disposable database whose name
+starts with `oxsteed_performance_`, set `CREDIT_PERFORMANCE_TEST_MODE=true`, and
+run:
+
+```sh
+npm --prefix server run verify:credit-performance
+```
+
+The bounded workload performs 10 concurrent account reads, 10 transaction-list
+reads, 10 eligibility reads, and 8 concurrent purchases across 8 customer
+wallets. The benchmark refreshes PostgreSQL planner statistics, requires Redis,
+and checks that every purchase succeeds with each wallet ending at the expected
+balance and no active reservation. Purchases share one partner-payable account,
+so the ledger row lock intentionally serializes settlement updates; this is
+reported as a separate write latency rather than removed from the test. The
+recorded restored-database p95 results were 1.42 seconds for account reads,
+0.85 seconds for transaction reads, 0.67 seconds for eligibility, and 5.03
+seconds for shared-partner purchases. Drop the disposable database after the
+run and repeat against the deployed artifact after changing pool or query code.
 
 ## Enabling a Partner
 
@@ -332,7 +409,7 @@ allow a POS operator to debit Credit from an email or phone lookup alone.
 - On the MacBook host, `com.oxsteed.production-backup-monitor` runs every 15 minutes and validates the newest snapshot age, required artifacts, checksums, backup-directory permissions, free disk space, Docker health, and the public readiness endpoint. Its latest state is recorded in `/Users/oxsteed/server-backups/production/backup-monitor.status`; this local monitor does not replace off-device backup storage or centralized alerting.
 - The backup script also supports an optional second copy. Set `BACKUP_MIRROR_ROOT` to a mounted recovery volume such as `/Volumes/OxSteedBackups` in both LaunchAgent environment blocks. The backup job copies each verified snapshot there and the monitor verifies the matching mirror checksum every 15 minutes. Leave it unset for the current local-only setup; do not point it at the local backup root.
 - A UTC reconciliation worker runs daily at 02:10 UTC under one durable distributed job lock for the complete configured currency batch. The owning worker renews its lease while the handler runs, so a slow database operation does not allow a second replica to interleave or duplicate the batch. It records a reconciliation run for the prior UTC day per currency and creates a critical durable incident if the account balances and journal differ or the check fails.
-- Generate non-overlapping settlement periods that end no later than the current time, and require a traceable payment reference before marking a settlement paid.
+- Generate non-overlapping settlement periods that end no later than the current time, and require a traceable payment reference before marking a settlement paid. If an external payout fails or is returned, use the Super Admin `Reverse payout` action with a documented recovery reference; it marks the settlement `reversed` and posts one compensating `platform_treasury -> partner_payable` journal transaction without editing the original payment.
 - Treat every customer dispute as a review record. Never edit or delete a journal entry to correct a customer balance; post a compensating refund or adjustment with a reason and idempotency key.
 
 ## Emergency Suspension
@@ -479,3 +556,26 @@ substitute for malware scanning in a high-risk stored-value deployment.
 ## Provider and Compliance Gaps
 
 The application cannot establish licensing, custody, banking status, KYC/AML obligations, consumer disclosures, tax treatment, or partner contract validity by itself. Those are external release requirements. Likewise, managed database backups, malware scanning, alert routing, MFA/passkeys, Sentry or equivalent observability, and browser/concurrency tests must be configured and evidenced in the deployment environment before calling the rail fully production-ready.
+
+Stripe webhook and payment queue failures are no longer silently discarded after
+the retry budget is exhausted. The worker preserves the original job payload and
+sanitized error in the queue-specific Redis dead-letter list, for example
+`queue:stripe-webhook:dead-letter`, with a one-day duplicate marker. Operators
+must inspect and reconcile those jobs through the approved runbook
+before clearing the incident; this queue is recovery evidence, not a substitute
+for Stripe signature verification or the durable webhook receipt table.
+Initial enqueue, dead-letter publication, and delayed-retry promotion use
+atomic Redis scripts so a process crash cannot separate the deduplication marker
+from its payload.
+For a release drill, run the guarded isolated verifier with
+`QUEUE_RECOVERY_TEST_MODE=true REDIS_URL=<isolated-redis-url> npm --prefix server run verify:queue-recovery`.
+It generates a disposable key namespace, tests enqueue, delayed promotion,
+dead-letter replay, and metadata retention, then removes the keys. Do not point
+this command at a production database, and do not substitute production queue
+names in the script.
+After confirming the provider is healthy and the job is safe to retry, an
+operator may atomically recover one job with
+`npm --prefix server run queue:replay-dead-letter -- stripe-webhook <job-id>`;
+the command resets only that job's retry budget and retains its original
+dead-letter metadata. Review the resulting provider receipt and ledger state
+before clearing the incident.

@@ -5,10 +5,16 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./utils/logger');
+const {
+  classifyDatabaseError,
+  describeDatabaseTarget,
+  getDatabaseSslConfig,
+} = require('./utils/databaseConfig');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: getDatabaseSslConfig(process.env.DATABASE_URL, process.env.NODE_ENV),
+  connectionTimeoutMillis: Math.max(1000, Math.min(Number.parseInt(process.env.DB_CONNECTION_TIMEOUT_MS, 10) || 5000, 30000)),
 });
 
 async function migrate() {
@@ -64,7 +70,10 @@ async function migrate() {
       // Rollback any open transaction on this client
       try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
       migClient.release();
-      throw new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
+      const migrationError = new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
+      // Preserve PostgreSQL's machine-readable code for startup diagnostics.
+      migrationError.code = err.code;
+      throw migrationError;
     }
   }
 
@@ -73,7 +82,16 @@ async function migrate() {
 }
 
 migrate().catch(async (err) => {
-  logger.error('Migration process failed: ' + err.message);
+  const databaseFailure = classifyDatabaseError(err);
+  const databaseTarget = describeDatabaseTarget(process.env.DATABASE_URL);
+  logger.error('Migration process failed', {
+    category: databaseFailure.category,
+    code: err.code || null,
+    databaseTarget,
+    error: String(err.message || 'Migration failed').slice(0, 500),
+    hint: databaseFailure.hint,
+  });
+  console.error(`Migration startup failed (${databaseFailure.category}) for ${databaseTarget.user}@${databaseTarget.host}:${databaseTarget.port}/${databaseTarget.database}. ${databaseFailure.hint}`);
   await pool.end().catch(() => {});
   process.exitCode = 1;
 });

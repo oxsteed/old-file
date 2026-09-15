@@ -233,5 +233,15 @@
   "partnerLabelApproved": "approved",
   "partnerLabelPaid": "paid",
   "partnerLabelDisputed": "disputed",
-  "partnerLabelVoided": "voided"
+  "partnerLabelVoided": "voided",
+  "partnerLabelReversed": "reversed",
+  "creditProductName": "OxSteed Credit",
+  "partnerLedgerTitle": "Restaurant Credit ledger",
+  "payableBalance": "Payable balance",
+  "reserveBalance": "Reserve balance",
+  "totalFunded": "Total funded",
+  "reserveFunded": "Reserve funded",
+  "reserveReleased": "Reserve released",
+  "fundDirection": "fund",
+  "releaseDirection": "release"
 }

@@ -63,3 +63,17 @@ test('does not apply production credential rules to tests', () => {
     OXSTEED_CREDIT_LEDGER_HMAC_SECRET: 'dev-credit-ledger-secret-32-chars-long!!',
   })).toEqual([]);
 });
+
+test('rejects malformed production database URLs before connection attempts', () => {
+  const errors = getProductionConfigurationErrors({
+    NODE_ENV: 'production',
+    JWT_SECRET: 'a'.repeat(64),
+    DATABASE_URL: 'mysql://user:password@db/oxsteed',
+    STRIPE_SECRET_KEY: 'sk_live_example',
+    STRIPE_WEBHOOK_SECRET: 'whsec_live_example',
+    ENCRYPTION_KEY: 'b'.repeat(64),
+    OXSTEED_CREDIT_LEDGER_HMAC_SECRET: 'c'.repeat(64),
+  });
+
+  expect(errors).toContain('DATABASE_URL is invalid: DATABASE_URL must use the postgres or postgresql scheme');
+});

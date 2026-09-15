@@ -313,6 +313,7 @@ router.get('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCre
 router.get('/super/oxsteed-credit/reconciliation.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditReconciliationRuns);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
+router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 
 // User-action audit log - super-admin or admins with view_audit_log grant

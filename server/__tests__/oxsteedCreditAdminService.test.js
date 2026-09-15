@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements, retryCreditNotification } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, reverseSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements, retryCreditNotification } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -1369,6 +1369,89 @@ test('does not let a paid settlement change its payment reference on replay', as
     paymentReference: 'bank-2',
   })).rejects.toMatchObject({ code: 'credit_settlement_payment_reference_conflict', status: 409 });
   expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('requires recovery evidence before reversing a paid settlement', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-paid',
+    partner_id: 41,
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'USD',
+    net_cents: '2500',
+    status: 'paid',
+  }] });
+
+  await expect(reverseSettlement({
+    settlementId: 'settlement-paid',
+    idempotencyKey: 'settlement-reversal-key',
+    actorUserId: 'admin-1',
+    reason: 'Bank payout returned for correction',
+  })).rejects.toMatchObject({ code: 'credit_settlement_recovery_reference_required', status: 400 });
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('reverses a paid settlement with a compensating journal transaction', async () => {
+  const settlement = {
+    id: 'settlement-paid',
+    partner_id: 41,
+    agreement_id: 'agreement-1',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'USD',
+    net_cents: '2500',
+    status: 'paid',
+    payment_reference: 'bank-1',
+  };
+  const partnerAccount = { id: 700, account_type: 'partner_payable', partner_id: 41, currency_code: 'USD', balance_cents: '5000', reserved_cents: '0', status: 'active', ledger_version: '2', last_entry_hash: 'partner-hash' };
+  const treasuryAccount = { id: 900, account_type: 'platform_treasury', currency_code: 'USD', balance_cents: '10000', reserved_cents: '0', status: 'active', ledger_version: '3', last_entry_hash: 'treasury-hash' };
+  const originalPayment = { id: 'settlement-payment-tx', transaction_type: 'settlement', status: 'posted', debit_account_id: 700, credit_account_id: 900, amount_cents: '2500', currency_code: 'USD', partner_id: 41, agreement_id: 'agreement-1', reference_type: 'credit_settlement', reference_id: 'settlement-paid' };
+  const reversalTransaction = { id: 'settlement-reversal-tx', transaction_type: 'settlement_reversal', status: 'posted', debit_account_id: 900, credit_account_id: 700, amount_cents: '2500', currency_code: 'USD', partner_id: 41, agreement_id: 'agreement-1', idempotency_key: 'settlement-reversal-key', reference_type: 'credit_settlement', reference_id: 'settlement-paid', description: 'OxSteed Credit settlement reversal', reason: 'Bank payout returned for correction', actor_type: 'admin', actor_user_id: 'admin-1', metadata: { settlementId: 'settlement-paid', originalTransactionId: 'settlement-payment-tx', recoveryReference: 'return-123' }, posted_at: '2026-09-14T12:00:00.000Z', created_at: '2026-09-14T12:00:00.000Z' };
+  let entryId = 1;
+  mockQuery.mockImplementation(async (sql, params = []) => {
+    if (sql.includes('FROM oxsteed_credit_settlements s') && sql.includes('WHERE s.id = $1')) return { rows: [settlement] };
+    if (sql.includes('FROM oxsteed_credit_settlement_reversals')) return { rows: [] };
+    if (sql.includes('FROM oxsteed_credit_transactions') && params[0] === 'settlement-reversal-key') return { rows: [] };
+    if (sql.includes('FROM oxsteed_credit_transactions') && params[0] === 'credit-settlement:settlement-paid') return { rows: [originalPayment] };
+    if (sql.includes('INSERT INTO oxsteed_credit_accounts')) return { rows: [] };
+    if (sql.includes('FROM oxsteed_credit_accounts a') && params[0] === 'partner_payable') return { rows: [partnerAccount] };
+    if (sql.includes('FROM oxsteed_credit_accounts a') && params[0] === 'platform_treasury') return { rows: [treasuryAccount] };
+    if (sql.includes('WHERE id = ANY')) return { rows: [partnerAccount, treasuryAccount] };
+    if (sql.includes('INSERT INTO oxsteed_credit_transactions')) return { rows: [reversalTransaction] };
+    if (sql.includes('UPDATE oxsteed_credit_accounts')) return { rows: [params[3] === 700 ? partnerAccount : treasuryAccount] };
+    if (sql.includes('INSERT INTO oxsteed_credit_transaction_entries')) return { rows: [{ id: entryId++, account_id: params[1], entry_side: params[2], amount_cents: params[3], balance_after_cents: params[4], sequence: params[5], previous_entry_hash: params[6], entry_hash: `entry-${entryId}`, created_at: '2026-09-14T12:00:00.000Z' }] };
+    if (sql.includes('INSERT INTO oxsteed_credit_settlement_reversals')) return { rows: [{ id: 'reversal-1', settlement_id: 'settlement-paid', transaction_id: 'settlement-reversal-tx', idempotency_key: 'settlement-reversal-key', recovery_reference: 'return-123', reason: 'Bank payout returned for correction', actor_user_id: 'admin-1', created_at: '2026-09-14T12:00:00.000Z' }] };
+    if (sql.includes('UPDATE oxsteed_credit_settlements')) return { rows: [{ ...settlement, status: 'reversed' }] };
+    if (sql.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+    return { rows: [] };
+  });
+
+  const result = await reverseSettlement({
+    settlementId: 'settlement-paid',
+    idempotencyKey: 'settlement-reversal-key',
+    actorUserId: 'admin-1',
+    reason: 'Bank payout returned for correction',
+    recoveryReference: 'return-123',
+  });
+
+  expect(result).toMatchObject({ replayed: false, settlement: { status: 'reversed' }, reversal: { settlementId: 'settlement-paid', transactionId: 'settlement-reversal-tx' } });
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes("transaction_type: 'settlement_reversal'"))).toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes("transaction_type, status"))).toBe(true);
+});
+
+test('rejects a second settlement reversal with a different idempotency key', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 'settlement-paid', partner_id: 41, restaurant_id: 9, restaurant_name: 'OxSteed Cafe', currency_code: 'USD', net_cents: '2500', status: 'reversed' }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'reversal-1', settlement_id: 'settlement-paid', idempotency_key: 'original-reversal-key', recovery_reference: 'return-123', reason: 'Original reversal' }] });
+
+  await expect(reverseSettlement({
+    settlementId: 'settlement-paid',
+    idempotencyKey: 'different-reversal-key',
+    actorUserId: 'admin-1',
+    reason: 'Second attempt',
+    recoveryReference: 'return-456',
+  })).rejects.toMatchObject({ code: 'credit_settlement_already_reversed', status: 409 });
 });
 
 test('requires an audit reason for a real settlement transition', async () => {

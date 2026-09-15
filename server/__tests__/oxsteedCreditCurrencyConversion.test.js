@@ -3,6 +3,7 @@
 const { mockQuery, resetMocks } = require('./setup');
 const {
   calculateQuotedTargetAmount,
+  assertDailyConversionCapacity,
   createCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
@@ -11,6 +12,23 @@ const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
 
 beforeEach(resetMocks);
+
+test('serializes per-customer daily conversion capacity before checking the cap', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{ conversion_count: 20, conversion_cents: '0' }] });
+
+  await expect(assertDailyConversionCapacity({ query: mockQuery }, {
+    customerId: CUSTOMER_ID,
+    currencyCode: 'USD',
+    sourceAmount: 100,
+  })).rejects.toMatchObject({ code: 'credit_daily_conversion_limit' });
+
+  expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
+  expect(mockQuery.mock.calls[0][1]).toEqual([
+    CUSTOMER_ID,
+    'USD',
+    `oxsteed-credit-conversion-limit:${CUSTOMER_ID}:USD`,
+  ]);
+});
 
 test('calculates exact quote targets with integer half-up rounding', () => {
   expect(calculateQuotedTargetAmount({
@@ -98,6 +116,43 @@ test('creates a quote only after the Credit rail is enabled', async () => {
 
   expect(result).toMatchObject({ replayed: false, quote: { id: '7', status: 'open', sourceCurrencyCode: 'USD', targetCurrencyCode: 'EUR' } });
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes('oxsteed_credit_currency_quotes'))).toBe(true);
+});
+
+test('rejects quote retries that change the exact rate even when the rounded target is unchanged', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{
+      id: 7,
+      source_currency_code: 'USD',
+      target_currency_code: 'EUR',
+      source_amount_minor_units: 100,
+      target_amount_minor_units: 90,
+      fee_amount_minor_units: 0,
+      rate_numerator: '9',
+      rate_denominator: '10',
+      rounding_mode: 'half_up',
+      provider: 'treasury-provider',
+      provider_quote_reference: 'q-4',
+      status: 'open',
+      expires_at: new Date(Date.now() + 600000).toISOString(),
+      reason: 'Test quote',
+      metadata: {},
+      created_at: new Date().toISOString(),
+    }] });
+
+  await expect(createCurrencyQuote({
+    sourceCurrencyCode: 'USD',
+    targetCurrencyCode: 'EUR',
+    sourceAmountMinorUnits: 100,
+    targetAmountMinorUnits: 90,
+    rateNumerator: '18',
+    rateDenominator: '20',
+    provider: 'treasury-provider',
+    providerQuoteReference: 'q-4',
+    idempotencyKey: 'quote-4',
+    actorUserId: ADMIN_ID,
+    reason: 'Test quote',
+  })).rejects.toMatchObject({ code: 'credit_conversion_quote_idempotency_conflict' });
 });
 
 test('replays a conversion by idempotency key without reposting journal legs', async () => {

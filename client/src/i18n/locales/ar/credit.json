@@ -233,5 +233,15 @@
   "partnerLabelApproved": "موافق عليه",
   "partnerLabelPaid": "مدفوع",
   "partnerLabelDisputed": "متنازع عليه",
-  "partnerLabelVoided": "ملغى"
+  "partnerLabelVoided": "ملغى",
+  "partnerLabelReversed": "معكوس",
+  "creditProductName": "OxSteed Credit",
+  "partnerLedgerTitle": "دفتر ائتمان المطعم",
+  "payableBalance": "الرصيد المستحق",
+  "reserveBalance": "رصيد الاحتياطي",
+  "totalFunded": "إجمالي التمويل",
+  "reserveFunded": "تمويل الاحتياطي",
+  "reserveReleased": "تحرير الاحتياطي",
+  "fundDirection": "تمويل",
+  "releaseDirection": "تحرير"
 }

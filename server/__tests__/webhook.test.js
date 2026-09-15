@@ -348,6 +348,42 @@ describe('charge.refunded', () => {
   });
 });
 
+describe('Stripe webhook failure recovery', () => {
+  test('records a failed delivery and allows the same event to retry successfully', async () => {
+    const event = {
+      id: 'evt_retry_after_failure',
+      type: 'account.updated',
+      data: { object: {
+        id: 'acct_retry',
+        charges_enabled: true,
+        payouts_enabled: true,
+        details_submitted: true,
+        requirements: { currently_due: [] },
+      } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // beginWebhookEvent
+      .mockRejectedValueOnce(new Error('database temporarily unavailable'))
+      .mockResolvedValueOnce({ rows: [] }); // markWebhookEventFailed
+
+    const failed = await sendEvent(buildApp(), event);
+    expect(failed.status).toBe(500);
+    expect(mockQuery.mock.calls.some(([sql]) => /status = 'failed'/.test(sql))).toBe(true);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // failed receipt is claimable
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] }) // business lookup
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE businesses
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE business_integrations
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const retried = await sendEvent(buildApp(), event);
+    expect(retried.status).toBe(200);
+    expect(retried.body).toMatchObject({ received: true });
+    expect(mockQuery.mock.calls.some(([sql]) => /status = 'processed'/.test(sql))).toBe(true);
+  });
+});
+
 // ── Unknown event type ────────────────────────────────────────────────────────
 describe('unknown event type', () => {
   test('returns 200 and ignores unknown event', async () => {

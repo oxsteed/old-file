@@ -104,7 +104,7 @@ jest.mock('../utils/transaction', () => {
     withSubscriptionTransaction: runWithClient,
   };
 });
-jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), completeJob: jest.fn() }));
+jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), deadLetterJob: jest.fn(), completeJob: jest.fn() }));
 jest.mock('stripe', () => {
   const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
@@ -124,8 +124,9 @@ jest.mock('stripe', () => {
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
     get: jest.fn(), set: jest.fn(), del: jest.fn(), on: jest.fn(),
-    lpush: jest.fn(), rpop: jest.fn(), zadd: jest.fn(), zrangebyscore: jest.fn(),
-    zrem: jest.fn(), setex: jest.fn(), ping: jest.fn(), quit: jest.fn(),
+    lpush: jest.fn(), lrange: jest.fn(), lrem: jest.fn(), eval: jest.fn(), rpop: jest.fn(),
+    zadd: jest.fn(), zrangebyscore: jest.fn(), zrem: jest.fn(), setex: jest.fn(),
+    ping: jest.fn(), quit: jest.fn(),
   }));
 });
 jest.mock('file-type', () => ({

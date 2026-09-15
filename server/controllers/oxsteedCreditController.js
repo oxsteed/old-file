@@ -53,6 +53,7 @@ const {
   listReconciliationRuns,
   createSettlement,
   transitionSettlement,
+  reverseSettlement,
   reconcileCreditLedger,
   createAgreement,
   transitionAgreement,
@@ -1677,6 +1678,25 @@ async function transitionAdminSettlement(req, res, next) {
   }
 }
 
+async function reverseAdminSettlement(req, res, next) {
+  try {
+    const settlementId = parseUuid(req.params.settlementId, 'settlementId');
+    const result = await reverseSettlement({
+      settlementId,
+      idempotencyKey: getIdempotencyKey(req),
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      recoveryReference: req.body?.recoveryReference || req.body?.recovery_reference,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+      metadata: req.body?.metadata,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function reconcileAdminCredit(req, res, next) {
   try {
     const result = await reconcileCreditLedger({
@@ -1892,6 +1912,7 @@ module.exports = {
   downloadAdminCreditAuditEvents,
   createAdminSettlement,
   transitionAdminSettlement,
+  reverseAdminSettlement,
   reconcileAdminCredit,
   getAdminPartnerLedger,
   recordAdminPartnerFunding,

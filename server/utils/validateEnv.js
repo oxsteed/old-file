@@ -3,6 +3,7 @@
 // so the container fails fast and loudly instead of silently misbehaving.
 
 const logger = require('./logger');
+const { parseDatabaseUrl } = require('./databaseConfig');
 
 const REQUIRED = [
   'JWT_SECRET',
@@ -78,6 +79,13 @@ function getProductionConfigurationErrors(env = process.env) {
       errors.push(`${key} contains a placeholder value`);
     }
   });
+  if (env.DATABASE_URL) {
+    try {
+      parseDatabaseUrl(env.DATABASE_URL);
+    } catch (error) {
+      errors.push(`DATABASE_URL is invalid: ${error.message}`);
+    }
+  }
   if (String(env.STRIPE_SECRET_KEY || '').toLowerCase().startsWith('sk_test_')) {
     errors.push('STRIPE_SECRET_KEY must use a live Stripe key in production');
   }

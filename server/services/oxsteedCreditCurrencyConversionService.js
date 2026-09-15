@@ -100,6 +100,17 @@ function normalizeMetadata(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+function stableJson(value) {
+  if (Array.isArray(value)) return value.map(stableJson);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = stableJson(value[key]);
+      return result;
+    }, {});
+  }
+  return value;
+}
+
 function formatCurrencyQuote(row) {
   return {
     id: String(row.id),
@@ -153,6 +164,38 @@ function assertQuoteReplayMatches(existing, requested) {
   }
 }
 
+function assertCurrencyQuoteReplayMatches(existing, requested) {
+  const mismatches = {};
+  const fields = [
+    ['source_currency_code', requested.sourceCurrencyCode],
+    ['target_currency_code', requested.targetCurrencyCode],
+    ['source_amount_minor_units', requested.sourceAmountMinorUnits],
+    ['target_amount_minor_units', requested.targetAmountMinorUnits],
+    ['fee_amount_minor_units', requested.feeAmountMinorUnits],
+    ['rate_numerator', requested.rateNumerator],
+    ['rate_denominator', requested.rateDenominator],
+    ['rounding_mode', requested.roundingMode],
+    ['provider', requested.provider],
+    ['provider_quote_reference', requested.providerQuoteReference],
+    ['reason', requested.reason],
+  ];
+  for (const [field, requestedValue] of fields) {
+    if (String(existing[field]) !== String(requestedValue)) {
+      mismatches[field] = { existing: existing[field], requested: requestedValue };
+    }
+  }
+  if (JSON.stringify(stableJson(existing.metadata || {})) !== JSON.stringify(stableJson(requested.metadata || {}))) {
+    mismatches.metadata = { existing: existing.metadata || {}, requested: requested.metadata || {} };
+  }
+  if (requested.expiresAt
+    && new Date(existing.expires_at).getTime() !== requested.expiresAt.getTime()) {
+    mismatches.expires_at = { existing: existing.expires_at, requested: requested.expiresAt.toISOString() };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Quote idempotency key was already used for different data', 409, 'credit_conversion_quote_idempotency_conflict', { mismatches });
+  }
+}
+
 async function createCurrencyQuote({
   sourceCurrencyCode,
   targetCurrencyCode,
@@ -200,9 +243,21 @@ async function createCurrencyQuote({
     );
     if (existingRows[0]) {
       const existing = existingRows[0];
-      for (const [field, value] of [['source_currency_code', sourceCurrency], ['target_currency_code', targetCurrency], ['source_amount_minor_units', sourceAmount], ['target_amount_minor_units', targetAmount], ['fee_amount_minor_units', feeAmount], ['provider', providerName], ['provider_quote_reference', providerReference]]) {
-        if (String(existing[field]) !== String(value)) throw new AppError('Quote idempotency key was already used for different data', 409, 'credit_conversion_quote_idempotency_conflict');
-      }
+      assertCurrencyQuoteReplayMatches(existing, {
+        sourceCurrencyCode: sourceCurrency,
+        targetCurrencyCode: targetCurrency,
+        sourceAmountMinorUnits: sourceAmount,
+        targetAmountMinorUnits: targetAmount,
+        feeAmountMinorUnits: feeAmount,
+        rateNumerator: numerator,
+        rateDenominator: denominator,
+        roundingMode,
+        provider: providerName,
+        providerQuoteReference: providerReference,
+        reason: normalizedReason,
+        metadata: normalizeMetadata(metadata),
+        expiresAt: expiresAt ? expiry : null,
+      });
       return { quote: formatCurrencyQuote(existing), replayed: true };
     }
     await assertCreditRailEnabled(client);
@@ -229,13 +284,17 @@ async function getCurrencyQuote({ quoteId }) {
 
 async function assertDailyConversionCapacity(client, { customerId, currencyCode, sourceAmount }) {
   const { rows } = await client.query(
-    `SELECT COUNT(*) AS conversion_count,
+    `WITH lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($3)) AS acquired
+     )
+     SELECT COUNT(*) AS conversion_count,
             COALESCE(SUM(source_amount_minor_units), 0) AS conversion_cents
        FROM oxsteed_credit_currency_conversions
+      CROSS JOIN lock
       WHERE customer_id = $1
         AND source_currency_code = $2
         AND created_at >= date_trunc('day', NOW())`,
-    [customerId, currencyCode]
+    [customerId, currencyCode, `oxsteed-credit-conversion-limit:${customerId}:${currencyCode}`]
   );
   const count = Number(rows[0]?.conversion_count || 0);
   const amount = Number(rows[0]?.conversion_cents || 0);
@@ -378,6 +437,7 @@ module.exports = {
   calculateQuotedTargetAmount,
   formatCurrencyQuote,
   formatCurrencyConversion,
+  assertDailyConversionCapacity,
   createCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCredit,

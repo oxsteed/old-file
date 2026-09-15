@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-08-02 (production runtime consolidation)
+**Last updated:** 2026-09-15 (production runtime consolidation)
 
 ## Instructions for Every Session
 
@@ -35,6 +35,53 @@
   idempotency key returned the same transaction with correct final totals. An
   insufficient-funds failure also left the account and purchase journal
   unchanged.
+- The isolated restored-database performance benchmark passed with 10 account,
+  transaction, and eligibility reads plus 8 parallel purchases across 8
+  wallets: p95 was 1.42s, 0.85s, 0.67s, and 5.03s respectively, with all
+  wallets ending at 9,990 cents and zero reservations. Purchases intentionally
+  serialize on the shared partner-payable ledger row.
+- The default PostgreSQL application pool is now capped at 10 connections via
+  `DB_POOL_MAX`; established reads retain the active-customer guard, while
+  first-access account creation retains transaction-safe race protection.
+- Currency-conversion daily capacity is serialized per customer and source
+  currency with a transaction-scoped PostgreSQL advisory lock, so concurrent
+  conversions cannot both pass the count/amount cap. Partner funding,
+  settlement, purchase, hold, and transfer paths retain their corresponding
+  partner, settlement, account, or customer locks.
+- Paid settlement payouts now have an explicit, idempotent reversal workflow:
+  migration 516 records recovery evidence and posts a compensating
+  `platform_treasury -> partner_payable` journal movement while preserving the
+  original settlement payment transaction.
+- Currency-quote idempotent retries now bind the exact source/target amounts,
+  fee, rate numerator/denominator, rounding mode, provider, and provider quote
+  reference, preventing a retry from silently changing quote provenance.
+- Startup database failures now report a redacted target and actionable
+  category (authentication, missing database, refused connection, or host
+  resolution) without exposing passwords. Full backend regression now passes
+  151 suites and 1,078 tests; client `build:ci` passes.
+- Provider/payment queue jobs now move to a queue-specific Redis dead-letter
+  list after the retry budget is exhausted, preserving the original payload,
+  attempt count, timestamp, and sanitized error for controlled recovery instead
+  of silently discarding outage work. The operator replay command atomically
+  moves one selected job back to its live queue with a fresh retry budget while
+  retaining the original failure metadata. Initial publication, dead-letter
+  publication, and delayed-retry promotion are also atomic Redis scripts, so a
+  worker crash cannot leave a deduplication marker without its payload. Queue
+  reliability tests and the guarded `server/scripts/verify-payment-queue-recovery.js`
+  real Colima Redis drill cover preservation and recovery without using
+  production queue names.
+- The restaurant Credit operator surface now localizes ledger labels, funding
+  directions, and the `reversed` settlement status across en/es/fr/ar/ht, and
+  exposes reversed settlements in its status filter.
+- Super Admin Credit entitlement and partner-ledger failures now render as
+  accessible live alerts with explicit retry controls; agreement lookup
+  failures have their own retry action. The client production build and
+  locale/type checks pass after this recovery-state improvement.
+- Production readiness now includes a release-metadata check; a deployment with
+  no `SENTRY_RELEASE`, `COMMIT_SHA`, or `SOURCE_COMMIT` reports `not_ready`
+  instead of serving a healthy-but-unidentified artifact. The live endpoint
+  currently demonstrates this missing configuration and remains a deployment
+  gate until redeployed with release metadata.
 
 ### Session progress - OxSteed Credit monitoring and restore hardening (2026-09-14)
 
@@ -2403,6 +2450,14 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 5. **Logger Cleanup** - Migrate remaining ~150 `console.*` calls to structured logger
 
 ---
+
+## Session progress — production backup safety controls (2026-09-14)
+
+- Added the complete Coolify snapshot runner `scripts/backup-coolify-production.sh`, a manifest/checksum monitor, and six-hour/15-minute launchd templates. The runner captures the application and Coolify databases, Coolify configuration/storage, and the Cloudflare tunnel token; it validates artifacts before publishing and prunes bounded local retention.
+- Credit backup monitoring now requires a recent successful off-host backup in production; local-only or legacy records remain unhealthy and raise a critical alert.
+- Fixed the active MacBook backup monitor so disposable or interrupted dated directories without `MANIFEST` cannot mask the newest complete snapshot. The monitor passed against snapshot `20260914T094542Z`.
+- Verified: full backend regression passes (149 suites, 1,061 tests); backup/deployment focused tests pass (10 tests); backup shell syntax, plist validation, and `git diff --check` pass.
+- Remaining backup evidence: configure the approved off-host recovery copy, install the versioned launchd templates, execute one successful scheduled backup, and repeat the isolated restore drill.
 
 ## Known Issues / Watch Out For
 

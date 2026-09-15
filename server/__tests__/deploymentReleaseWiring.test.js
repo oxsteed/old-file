@@ -11,7 +11,9 @@ describe('deployment release identity wiring', () => {
     expect(dockerfile).toContain('ARG SENTRY_RELEASE');
     expect(dockerfile).toContain('ARG COMMIT_SHA');
     expect(dockerfile).toContain('ARG SOURCE_COMMIT');
-    expect(dockerfile).toContain('RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}";');
+    expect(dockerfile).toContain('release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}";');
+    expect(dockerfile).toContain('release="content-$(find server client -type f');
+    expect(dockerfile).toContain('COPY --from=release-meta /release /app/server/.release');
     expect(dockerfile).toContain('VITE_SENTRY_RELEASE="$release"');
     expect(dockerfile).toContain('ENV COMMIT_SHA=${COMMIT_SHA}');
     expect(dockerfile).toContain('ENV SOURCE_COMMIT=${SOURCE_COMMIT}');
@@ -74,5 +76,31 @@ describe('deployment release identity wiring', () => {
     expect(restoreScript).toContain('credit_integrity_trigger_count');
     expect(runbook).toContain('npm --prefix server run verify:restore');
     expect(packageJson.scripts['verify:restore']).toBe('bash ../scripts/verify-production-restore.sh');
+  });
+
+  test('keeps automated backups fail-closed and scheduled outside the web process', () => {
+    const backupRunner = path.join(repositoryRoot, 'scripts/backup-coolify-production.sh');
+    const backupMonitor = path.join(repositoryRoot, 'scripts/check-production-backup.sh');
+    const backupPlist = path.join(repositoryRoot, 'scripts/com.oxsteed.production-backup.plist');
+    const backupMonitorPlist = path.join(repositoryRoot, 'scripts/com.oxsteed.production-backup-monitor.plist');
+    const runbook = fs.readFileSync(path.join(repositoryRoot, 'docs/oxsteed-credit-production-runbook.md'), 'utf8');
+    const packageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'server/package.json'), 'utf8'));
+    const backupScript = fs.readFileSync(backupRunner, 'utf8');
+    const monitorScript = fs.readFileSync(backupMonitor, 'utf8');
+    const plist = fs.readFileSync(backupPlist, 'utf8');
+    const monitorPlist = fs.readFileSync(backupMonitorPlist, 'utf8');
+
+    expect(fs.statSync(backupRunner).mode & 0o111).toBeTruthy();
+    expect(fs.statSync(backupMonitor).mode & 0o111).toBeTruthy();
+    expect(backupScript).toContain('coolify-config-and-storage.tgz');
+    expect(backupScript).toContain('pg_restore --list');
+    expect(backupScript).toContain('SHA256SUMS');
+    expect(monitorScript).toContain("-name 'MANIFEST'");
+    expect(monitorScript).toContain('backup-monitor.status');
+    expect(plist).toContain('com.oxsteed.production-backup');
+    expect(monitorPlist).toContain('com.oxsteed.production-backup-monitor');
+    expect(plist).toContain('<key>StartInterval</key>');
+    expect(runbook).toContain('npm --prefix server run backup:production');
+    expect(packageJson.scripts['backup:production']).toBe('bash ../scripts/backup-coolify-production.sh');
   });
 });

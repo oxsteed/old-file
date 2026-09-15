@@ -1,5 +1,21 @@
 # Multi-stage production build for OxSteed (Node.js + React SPA)
-# Stage 1: Build client (Vite)
+# Stage 1: Resolve one release identity for both browser and server artifacts.
+FROM node:22-alpine AS release-meta
+WORKDIR /source
+COPY . .
+ARG SENTRY_RELEASE
+ARG COMMIT_SHA
+ARG SOURCE_COMMIT
+RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}"; \
+    if [ -z "$release" ]; then \
+      release="content-$(find server client -type f \
+        ! -path '*/node_modules/*' ! -path '*/runtime/*' ! -path '*/dist/*' \
+        ! -name '.env' ! -name '.env.*' -print | sort | \
+        while IFS= read -r file; do sha256sum "$file"; done | sha256sum | cut -c1-16)"; \
+    fi; \
+    printf '%s\n' "$release" > /release
+
+# Stage 2: Build client (Vite)
 FROM node:22-alpine AS client-build
 WORKDIR /app/client
 COPY client/package*.json ./
@@ -15,10 +31,11 @@ ENV VITE_SENTRY_SEND_DEFAULT_PII=${VITE_SENTRY_SEND_DEFAULT_PII}
 ENV SENTRY_RELEASE=${SENTRY_RELEASE}
 ENV COMMIT_SHA=${COMMIT_SHA}
 ENV SOURCE_COMMIT=${SOURCE_COMMIT}
-RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}"; \
+COPY --from=release-meta /release /tmp/oxsteed-release
+RUN release="$(cat /tmp/oxsteed-release)"; \
     SENTRY_RELEASE="$release" VITE_SENTRY_RELEASE="$release" npm run build
 
-# Stage 2: Build and run server + client
+# Stage 3: Build and run server + client
 FROM node:22-alpine
 LABEL maintainer="OxSteed Team"
 ARG SENTRY_RELEASE
@@ -48,6 +65,8 @@ COPY --from=client-build /app/client/dist /app/client/dist
 # Keep the source locale catalogs available for server-rendered SEO metadata.
 COPY --from=client-build /app/client/src/locales /app/client/src/locales
 COPY --from=client-build /app/client/src/i18n/locales /app/client/src/i18n/locales
+# Keep a non-secret content release when Coolify does not inject commit metadata.
+COPY --from=release-meta /release /app/server/.release
 
 WORKDIR /app/server
 

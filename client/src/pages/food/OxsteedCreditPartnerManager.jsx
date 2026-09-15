@@ -29,6 +29,7 @@ function label(value, t) {
     paid: 'partnerLabelPaid',
     disputed: 'partnerLabelDisputed',
     voided: 'partnerLabelVoided',
+    reversed: 'partnerLabelReversed',
   }[normalized];
   return translated ? t(translated) : normalized.replaceAll('_', ' ');
 }
@@ -126,7 +127,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
       <div className="fd-ox-credit-partner-head">
         <div>
           <p className="fd-credit-manager-kicker">{t('partnerOperations')}</p>
-          <h2>OxSteed Credit</h2>
+          <h2>{t('creditProductName')}</h2>
           <p className="fd-card-meta">{t('partnerActivityDescription')}</p>
         </div>
         <div className="fd-ox-credit-partner-actions">
@@ -151,14 +152,14 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
           </div>
 
           {ledger && <div className="fd-ox-credit-panel fd-ox-credit-ledger-panel">
-            <div className="fd-ox-credit-panel-title"><div><h3>Restaurant Credit ledger</h3><span>{ledger.ledgerCode} · {ledger.status}</span></div><span className={statusClass(ledger.status)}>{label(ledger.status, t)}</span></div>
+            <div className="fd-ox-credit-panel-title"><div><h3>{t('partnerLedgerTitle')}</h3><span>{ledger.ledgerCode} · {label(ledger.status, t)}</span></div><span className={statusClass(ledger.status)}>{label(ledger.status, t)}</span></div>
             <div className="fd-ox-credit-summary">
-              <div><WalletCards size={17} /><strong>{formatFoodMoney(ledger.payableAccount?.balanceCents, ledger.currencyCode)}</strong><span>Payable balance</span></div>
-              <div><ShieldCheck size={17} /><strong>{formatFoodMoney(ledger.reserveAccount?.balanceCents, ledger.currencyCode)}</strong><span>Reserve balance</span></div>
-              <div><Store size={17} /><strong>{formatFoodMoney(ledger.totalFundedCents, ledger.currencyCode)}</strong><span>Total funded</span></div>
+              <div><WalletCards size={17} /><strong>{formatFoodMoney(ledger.payableAccount?.balanceCents, ledger.currencyCode)}</strong><span>{t('payableBalance')}</span></div>
+              <div><ShieldCheck size={17} /><strong>{formatFoodMoney(ledger.reserveAccount?.balanceCents, ledger.currencyCode)}</strong><span>{t('reserveBalance')}</span></div>
+              <div><Store size={17} /><strong>{formatFoodMoney(ledger.totalFundedCents, ledger.currencyCode)}</strong><span>{t('totalFunded')}</span></div>
             </div>
             {fundingRecords.length > 0 && <div className="fd-ox-credit-list">
-              {fundingRecords.map((record) => <div key={record.id} className="fd-ox-credit-row"><div><strong>{record.direction === 'fund' ? 'Reserve funded' : 'Reserve released'}</strong><span>{record.externalReference} · {record.reason}</span><small>{displayDate(record.createdAt, i18n.language, t('notAvailable'))}</small></div><div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(record.amountCents, record.currencyCode)}</strong><span className={statusClass(record.direction === 'fund' ? 'active' : 'approved')}>{record.direction}</span></div></div>)}
+              {fundingRecords.map((record) => <div key={record.id} className="fd-ox-credit-row"><div><strong>{record.direction === 'fund' ? t('reserveFunded') : t('reserveReleased')}</strong><span>{record.externalReference} · {record.reason}</span><small>{displayDate(record.createdAt, i18n.language, t('notAvailable'))}</small></div><div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(record.amountCents, record.currencyCode)}</strong><span className={statusClass(record.direction === 'fund' ? 'active' : 'approved')}>{record.direction === 'fund' ? t('fundDirection') : t('releaseDirection')}</span></div></div>)}
             </div>}
           </div>}
 
@@ -193,6 +194,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                     <option value="paid">{t('partnerLabelPaid')}</option>
                     <option value="disputed">{t('partnerLabelDisputed')}</option>
                     <option value="voided">{t('partnerLabelVoided')}</option>
+                    <option value="reversed">{t('partnerLabelReversed')}</option>
                   </select>
                 </label>
               </div>

@@ -11,6 +11,7 @@ const {
   QUEUES,
   getNextJob,
   retryJob,
+  deadLetterJob,
   completeJob,
   promoteDueRetries,
   isJobCompleted,
@@ -66,7 +67,15 @@ const processJob = async (queueKey, job) => {
     // Attempt retry
     const requeued = await retryJob(queueKey, job);
     if (!requeued) {
-      logger.error('Job discarded (max retries exceeded)', { queueKey, jobId: job.id });
+      try {
+        await deadLetterJob(queueKey, job, err);
+      } catch (deadLetterError) {
+        logger.error('Failed to preserve job in dead-letter queue', {
+          queueKey,
+          jobId: job.id,
+          error: deadLetterError.message,
+        });
+      }
     }
   }
 };

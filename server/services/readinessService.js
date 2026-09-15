@@ -6,6 +6,7 @@ const runtimeState = require('./runtimeState');
 const logger = require('../utils/logger');
 const { getCreditRailPrerequisites, getLedgerHashKeyConfiguration } = require('./oxsteedCreditService');
 const { getProductionConfigurationErrors } = require('../utils/validateEnv');
+const { getRelease } = require('../utils/release');
 
 const migrationsDirectory = path.join(__dirname, '../migrations');
 
@@ -52,13 +53,19 @@ async function migrationStatus(pool) {
 async function checkReadiness({ pool, redis, includeTrafficState = true }) {
   const runtime = runtimeState.snapshot();
   const productionConfigurationErrors = getProductionConfigurationErrors();
+  const release = getRelease();
+  const production = (process.env.NODE_ENV || 'production') === 'production';
   const result = {
     status: 'ready',
     timestamp: new Date().toISOString(),
     // Release identifiers are safe operational metadata; never expose secrets
     // or the full deployment environment through readiness.
-    release: process.env.SENTRY_RELEASE || process.env.COMMIT_SHA || process.env.SOURCE_COMMIT || null,
+    release,
     checks: {
+      release: {
+        ok: !production || Boolean(String(release || '').trim()),
+        ...(!production || Boolean(String(release || '').trim()) ? {} : { error: 'release identifier is missing' }),
+      },
       productionConfiguration: {
         ok: productionConfigurationErrors.length === 0,
         ...(productionConfigurationErrors.length > 0

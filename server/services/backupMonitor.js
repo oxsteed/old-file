@@ -25,6 +25,7 @@ class BackupMonitor {
       durationMs: duration,
       success,
       error,
+      offsite: null,
       rto: 3600, // Recovery Time Objective: 1 hour
       rpo: 3600, // Recovery Point Objective: 1 hour
     };
@@ -130,6 +131,10 @@ class BackupMonitor {
     const latestPersisted = persistedBackups[0];
     const lastBackupTime = latestPersisted?.created_at || this.lastBackupTime;
     const lastBackupSuccess = latestPersisted ? latestPersisted.success : this.lastBackupSuccess;
+    const lastBackupOffsite = latestPersisted
+      ? latestPersisted.details?.offsite === true
+      : this.backupHistory.slice(-1)[0]?.offsite;
+    const requiresOffsiteBackup = process.env.NODE_ENV === 'production';
     const hoursSinceBackup = lastBackupTime
       ? (now - new Date(lastBackupTime)) / (1000 * 60 * 60)
       : null;
@@ -142,23 +147,28 @@ class BackupMonitor {
         durationMs: row.details?.durationMs || 0,
         success: row.success,
         error: row.details?.error || null,
+        offsite: row.details?.offsite === true,
       }))
       : this.backupHistory.filter(e => e.filename).slice(-10);
 
     return {
       lastBackupTime: lastBackupTime ? new Date(lastBackupTime).toISOString() : undefined,
       lastBackupSuccess,
+      lastBackupOffsite,
       hoursSinceBackup: hoursSinceBackup?.toFixed(2),
-      backupHealthy: lastBackupSuccess === true && hoursSinceBackup < 25, // Should backup daily
+      backupHealthy: lastBackupSuccess === true
+        && hoursSinceBackup !== null
+        && hoursSinceBackup < 25
+        && (!requiresOffsiteBackup || lastBackupOffsite === true), // Should backup daily
       recentBackups,
-      alerts: this._checkAlerts(hoursSinceBackup),
+      alerts: this._checkAlerts(hoursSinceBackup, lastBackupSuccess, lastBackupOffsite),
     };
   }
 
   /**
    * Check for backup issues
    */
-  _checkAlerts(hoursSinceBackup) {
+  _checkAlerts(hoursSinceBackup, lastBackupSuccess = this.lastBackupSuccess, lastBackupOffsite = null) {
     const alerts = [];
 
     if (hoursSinceBackup === null) {
@@ -170,6 +180,17 @@ class BackupMonitor {
       alerts.push({
         severity: 'critical',
         message: `No backup in ${hoursSinceBackup.toFixed(1)} hours (should be daily)`,
+      });
+    }
+
+    if (
+      process.env.NODE_ENV === 'production'
+      && lastBackupSuccess === true
+      && lastBackupOffsite !== true
+    ) {
+      alerts.push({
+        severity: 'critical',
+        message: 'Latest backup is not confirmed in the configured off-host destination',
       });
     }
 
@@ -238,6 +259,7 @@ class BackupMonitor {
         success: row.success,
         durationMs: row.details?.durationMs || 0,
         sizeBytes: row.details?.sizeBytes || 0,
+        offsite: row.details?.offsite === true,
       }));
     } catch (err) {
       logger.warn('Persistent backup compliance unavailable; using process history', { error: err.message });

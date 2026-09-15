@@ -25,11 +25,18 @@ jest.mock('../services/smsNotificationService', () => ({
 jest.mock('../services/emailService', () => ({
   send: jest.fn().mockResolvedValue(true),
 }));
+jest.mock('../services/oxsteedCreditService', () => ({
+  purchaseWithCreditInTransaction: jest.fn(),
+  refundCreditForReferenceInTransaction: jest.fn(),
+  formatCreditAmount: jest.fn((amountCents) => Number(amountCents || 0) / 100),
+  getCustomerCreditEligibility: jest.fn(),
+}));
 
 const socketService = require('../services/socketService');
 const { sendNotification } = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
+const { purchaseWithCreditInTransaction } = require('../services/oxsteedCreditService');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/foodController');
 
@@ -139,9 +146,81 @@ beforeEach(() => {
   sendNotification.mockClear();
   smsNotificationService.sendDirectSMS.mockClear();
   emailService.send.mockClear();
+  purchaseWithCreditInTransaction.mockReset();
 });
 
 describe('food order loop E2E (F7)', () => {
+  test('authenticated OxSteed Credit order debits the central ledger in the order transaction', async () => {
+    const app = buildApp({ id: CUSTOMER_ID, email: 'customer@example.com' });
+    const createdOrder = orderRow({
+      customer_id: CUSTOMER_ID,
+      payment_status: 'paid',
+      metadata: { paymentMode: 'oxsteed_credit' },
+    });
+    purchaseWithCreditInTransaction.mockResolvedValue({
+      replayed: false,
+      transaction: {
+        id: 'credit-txn-100',
+        amountCents: 899,
+        currencyCode: 'USD',
+        status: 'posted',
+      },
+    });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [restaurantRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: MENU_ITEM_ID,
+          name: 'Classic Burger',
+          price_cents: 899,
+          currency_code: 'USD',
+          is_available: true,
+          category_name: 'Burgers',
+          modifier_groups: [],
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ next_queue: 7 }] })
+      .mockResolvedValueOnce({ rows: [createdOrder] })
+      .mockResolvedValueOnce({ rows: [{ id: 501 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 901 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await request(app)
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .set('Idempotency-Key', 'credit-order-100')
+      .send({
+        paymentMode: 'oxsteed_credit',
+        orderSource: 'mobile',
+        fulfillmentType: 'pickup',
+        items: [{ menuItemId: MENU_ITEM_ID, quantity: 1 }],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.payment).toMatchObject({
+      mode: 'oxsteed_credit',
+      status: 'paid',
+      amountCents: 899,
+      transactionId: 'credit-txn-100',
+    });
+    expect(response.body.order.metadata.oxsteedCreditTransactionId).toBe('credit-txn-100');
+    expect(purchaseWithCreditInTransaction).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        customerId: CUSTOMER_ID,
+        partnerId: 901,
+        amountCents: 899,
+        referenceType: 'food_order',
+        referenceId: String(ORDER_ID),
+        idempotencyKey: `food-order:${ORDER_ID}:oxsteed-credit`,
+      })
+    );
+  });
+
   test('kiosk → KDS feed → preparing → ready → display ping + guest SMS', async () => {
     const app = buildApp();
     const order = mockKioskCreateOrderQueries();

@@ -44,3 +44,27 @@ test('falls back to process history when the backup log is unavailable', async (
     recentBackups: [{ backupId: 'memory-backup' }],
   });
 });
+
+test('does not report a local-only production backup as healthy', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    backup_id: 'local-only',
+    success: true,
+    details: { filename: 'db.dump', offsite: false },
+    created_at: new Date().toISOString(),
+  }] });
+
+  await expect(backupMonitor.getStatus()).resolves.toMatchObject({
+    lastBackupSuccess: true,
+    lastBackupOffsite: false,
+    backupHealthy: false,
+    alerts: expect.arrayContaining([
+      expect.objectContaining({
+        message: 'Latest backup is not confirmed in the configured off-host destination',
+      }),
+    ]),
+  });
+
+  process.env.NODE_ENV = previousNodeEnv;
+});

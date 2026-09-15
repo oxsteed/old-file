@@ -31,6 +31,7 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_partner_funding_records',
   'oxsteed_credit_currency_quotes',
   'oxsteed_credit_currency_conversions',
+  'oxsteed_credit_settlement_reversals',
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
   'oxsteed_credit_notification_outbox',
@@ -77,6 +78,7 @@ const REQUIRED_COLUMNS = {
   ],
   oxsteed_credit_partner_agreements: ['creation_idempotency_key', 'creation_request_hash', 'requires_customer_entitlement'],
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
+  oxsteed_credit_settlement_reversals: ['settlement_id', 'transaction_id', 'idempotency_key', 'recovery_reference', 'reason', 'actor_user_id'],
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
   oxsteed_credit_partner_ledgers: ['partner_id', 'ledger_code', 'currency_code', 'payable_account_id', 'reserve_account_id', 'status'],
   oxsteed_credit_partner_funding_records: ['partner_ledger_id', 'partner_id', 'reserve_account_id', 'transaction_id', 'direction', 'amount_cents', 'currency_code', 'external_reference', 'idempotency_key', 'reason'],
@@ -140,6 +142,7 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_currency_quotes_open',
   'idx_oxsteed_credit_currency_conversions_customer',
   'idx_oxsteed_credit_currency_conversions_currencies',
+  'idx_oxsteed_credit_settlement_reversals_created',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
@@ -218,6 +221,7 @@ const REQUIRED_INTEGRITY_TRIGGERS = [
   'oxsteed_credit_partner_funding_guard',
   'oxsteed_credit_currency_quote_immutable_guard',
   'oxsteed_credit_currency_conversion_guard',
+  'oxsteed_credit_settlement_reversal_guard',
 ];
 
 function verifyEntryHashes(entries, accounts, hashFn = computeEntryHash) {
@@ -738,6 +742,11 @@ async function main() {
       ['515_oxsteed_credit_currency_conversions.sql']
     );
     checks.currencyConversionMigrationApplied = currencyConversionMigrationRows.rows.length === 1;
+    const settlementReversalMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['516_oxsteed_credit_settlement_reversal.sql']
+    );
+    checks.settlementReversalMigrationApplied = settlementReversalMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -1396,6 +1405,10 @@ async function main() {
                AND (debit_account.account_type <> 'partner_payable'
                  OR credit_account.account_type <> 'platform_treasury'
                  OR t.partner_id IS NULL OR t.agreement_id IS NULL))
+           OR (t.transaction_type = 'settlement_reversal'
+               AND (debit_account.account_type <> 'platform_treasury'
+                 OR credit_account.account_type <> 'partner_payable'
+                 OR t.partner_id IS NULL OR t.agreement_id IS NULL))
            OR (t.transaction_type = 'adjustment'
                AND (t.partner_id IS NOT NULL
                  OR t.agreement_id IS NOT NULL
@@ -1432,12 +1445,13 @@ async function main() {
          JOIN oxsteed_credit_accounts debit_account ON debit_account.id = t.debit_account_id
          JOIN oxsteed_credit_accounts credit_account ON credit_account.id = t.credit_account_id
          LEFT JOIN oxsteed_credit_partner_agreements agreement ON agreement.id = t.agreement_id
-        WHERE t.transaction_type IN ('purchase', 'refund', 'settlement')
+        WHERE t.transaction_type IN ('purchase', 'refund', 'settlement', 'settlement_reversal')
           AND (t.partner_id IS NULL
             OR t.agreement_id IS NULL
             OR agreement.partner_id IS DISTINCT FROM t.partner_id
             OR (t.transaction_type = 'purchase' AND credit_account.partner_id IS DISTINCT FROM t.partner_id)
-            OR (t.transaction_type IN ('refund', 'settlement') AND debit_account.partner_id IS DISTINCT FROM t.partner_id))`,
+            OR (t.transaction_type IN ('refund', 'settlement') AND debit_account.partner_id IS DISTINCT FROM t.partner_id)
+            OR (t.transaction_type = 'settlement_reversal' AND credit_account.partner_id IS DISTINCT FROM t.partner_id))`,
     );
     checks.invalidTransactionPartnerAccounts = Number(transactionPartnerRows[0]?.invalid_count || 0);
 
@@ -1605,7 +1619,7 @@ async function main() {
           AND (t.reference_type IS DISTINCT FROM 'credit_settlement'
             OR NULLIF(BTRIM(t.reference_id), '') IS NULL
             OR s.id IS NULL
-            OR s.status NOT IN ('approved', 'paid')
+            OR s.status NOT IN ('approved', 'paid', 'reversed')
             OR s.partner_id IS DISTINCT FROM t.partner_id
             OR s.agreement_id IS DISTINCT FROM t.agreement_id
             OR s.net_cents IS DISTINCT FROM t.amount_cents
@@ -1645,11 +1659,49 @@ async function main() {
                    AND t.reference_id = s.id::TEXT
                    AND t.metadata->>'paymentReference' = s.payment_reference
               ))
+           OR (s.status = 'reversed' AND s.net_cents > 0 AND NOT EXISTS (
+                SELECT 1
+                  FROM oxsteed_credit_settlement_reversals r
+                  JOIN oxsteed_credit_transactions t ON t.id = r.transaction_id
+                 WHERE r.settlement_id = s.id
+                   AND t.transaction_type = 'settlement_reversal'
+                   AND t.status = 'posted'
+                   AND t.amount_cents = s.net_cents
+                   AND t.currency_code = s.currency_code
+                   AND t.partner_id = s.partner_id
+                   AND t.agreement_id = s.agreement_id
+                   AND t.reference_type = 'credit_settlement'
+                   AND t.reference_id = s.id::TEXT
+              ))
            OR (s.creation_reason IS NULL) IS DISTINCT FROM (s.creation_request_hash IS NULL)
-           OR (s.creation_request_hash IS NOT NULL
+              OR (s.creation_request_hash IS NOT NULL
                AND s.creation_request_hash !~ '^[a-f0-9]{64}$')`,
     );
     checks.invalidSettlementStates = Number(settlementStateRows[0]?.invalid_count || 0);
+
+    const { rows: settlementReversalRows } = await pool.query(
+      `SELECT COUNT(*)::int AS invalid_count
+         FROM oxsteed_credit_settlement_reversals r
+         LEFT JOIN oxsteed_credit_settlements s ON s.id = r.settlement_id
+         LEFT JOIN oxsteed_credit_transactions t ON t.id = r.transaction_id
+         LEFT JOIN users u ON u.id = r.actor_user_id
+        WHERE s.id IS NULL
+           OR s.status <> 'reversed'
+           OR t.id IS NULL
+           OR t.transaction_type <> 'settlement_reversal'
+           OR t.status <> 'posted'
+           OR t.amount_cents <> s.net_cents
+           OR t.currency_code <> s.currency_code
+           OR t.partner_id IS DISTINCT FROM s.partner_id
+           OR t.agreement_id IS DISTINCT FROM s.agreement_id
+           OR t.reference_type IS DISTINCT FROM 'credit_settlement'
+           OR t.reference_id IS DISTINCT FROM s.id::TEXT
+           OR u.id IS NULL
+           OR u.role NOT IN ('admin', 'super_admin')
+           OR NULLIF(BTRIM(r.recovery_reference), '') IS NULL
+           OR NULLIF(BTRIM(r.reason), '') IS NULL`,
+    );
+    checks.invalidSettlementReversals = Number(settlementReversalRows[0]?.invalid_count || 0);
 
     const { rows: hashInvariantRows } = await pool.query(
       `SELECT COUNT(*)::int AS invalid_count
@@ -1792,6 +1844,7 @@ async function main() {
       !checks.entitlementActivityMigrationApplied,
       !checks.partnerLedgerMigrationApplied,
       !checks.currencyConversionMigrationApplied,
+      !checks.settlementReversalMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -1835,6 +1888,7 @@ async function main() {
       checks.invalidTransactionCurrencies > 0,
       checks.invalidSettlements > 0,
       checks.invalidSettlementStates > 0,
+      checks.invalidSettlementReversals > 0,
       checks.invalidTransactionTypes > 0,
       checks.invalidTransactionPartnerAccounts > 0,
       checks.invalidPartnerLedgers > 0,

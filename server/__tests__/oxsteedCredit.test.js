@@ -262,6 +262,9 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.partnerLedgerMigrationApplied');
   expect(verifierSource).toContain("['515_oxsteed_credit_currency_conversions.sql']");
   expect(verifierSource).toContain('!checks.currencyConversionMigrationApplied');
+  expect(verifierSource).toContain("['516_oxsteed_credit_settlement_reversal.sql']");
+  expect(verifierSource).toContain('!checks.settlementReversalMigrationApplied');
+  expect(verifierSource).toContain('checks.invalidSettlementReversals > 0');
   expect(verifierSource).toContain('checks.invalidPartnerLedgers > 0');
   expect(verifierSource).toContain('checks.invalidPartnerFundingRecords > 0');
   expect(verifierSource).toContain('!checks.ledgerHashKeyVersionMigrationApplied');
@@ -277,6 +280,7 @@ test('credit verification requires deferred reservation consistency guards', () 
     'oxsteed_credit_posted_entry_guard',
     'oxsteed_credit_settlement_payment_evidence_guard',
     'oxsteed_credit_transaction_settlement_evidence_guard',
+    'oxsteed_credit_settlement_reversal_guard',
     'oxsteed_credit_audit_hash_chain_guard',
   ]));
 });
@@ -500,10 +504,11 @@ afterAll(() => {
 test('creates a customer OxSteed Credit account with zero balance', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-    .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active', ledger_version: '0', updated_at: '2026-09-12T12:00:00.000Z' }] });
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    .mockResolvedValueOnce({ rows: [{ id: 7001, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'USD', balance_cents: '0', reserved_cents: '0', status: 'active', ledger_version: '0', updated_at: '2026-09-12T12:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
   const response = await request(createCustomerApp()).get('/account');
-
   expect(response.status).toBe(200);
   expect(response.body.name).toBe('OxSteed Credit');
   expect(response.body.account).toMatchObject({
@@ -542,19 +547,21 @@ test('does not create or expose an OxSteed Credit wallet for a non-customer role
   expect(response.status).toBe(404);
   expect(response.body.code).toBe('credit_customer_not_found');
   expect(mockQuery.mock.calls[0][0]).toContain("role = 'customer'");
-  expect(mockQuery.mock.calls[1][0]).toContain('JOIN users owner');
+  expect(mockQuery.mock.calls.some(([query]) => query.includes('JOIN users owner'))).toBe(true);
 });
 
 test('creates and reads a customer account in a supported non-USD currency', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-    .mockResolvedValueOnce({ rows: [{ id: 7002, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'EUR', balance_cents: '1250', reserved_cents: '0', status: 'active', ledger_version: '1', updated_at: '2026-09-12T12:00:00.000Z' }] });
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    .mockResolvedValueOnce({ rows: [{ id: 7002, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, partner_id: null, currency_code: 'EUR', balance_cents: '1250', reserved_cents: '0', status: 'active', ledger_version: '1', updated_at: '2026-09-12T12:00:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
   const response = await request(createCustomerApp()).get('/account?currencyCode=EUR');
 
   expect(response.status).toBe(200);
   expect(response.body.account).toMatchObject({ accountId: '7002', balanceCents: 1250, currencyCode: 'EUR' });
-  expect(mockQuery.mock.calls[1][1]).toEqual(['customer_wallet', CUSTOMER_ID, 'EUR']);
+  expect(mockQuery.mock.calls[2][1]).toEqual(['customer_wallet', CUSTOMER_ID, 'EUR']);
 });
 
 test('keeps admin credit overview balances separated by currency', async () => {

@@ -233,5 +233,15 @@
   "partnerLabelApproved": "apwouve",
   "partnerLabelPaid": "peye",
   "partnerLabelDisputed": "konteste",
-  "partnerLabelVoided": "anile"
+  "partnerLabelVoided": "anile",
+  "partnerLabelReversed": "ranvèse",
+  "creditProductName": "OxSteed Credit",
+  "partnerLedgerTitle": "Rejis kredi restoran an",
+  "payableBalance": "Balans pou peye",
+  "reserveBalance": "Balans rezèv",
+  "totalFunded": "Total finanse",
+  "reserveFunded": "Rezèv finanse",
+  "reserveReleased": "Rezèv libere",
+  "fundDirection": "finansman",
+  "releaseDirection": "liberasyon"
 }
