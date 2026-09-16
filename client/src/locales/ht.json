@@ -14468,6 +14468,8 @@
         "phone": "Telefòn",
         "companyName": "Non biznis oswa konpayi an",
         "contactMethod": "Mwayen kontak ou prefere a",
+        "selectedServices": "Sèvis pou demann sa a",
+        "searchServices": "Chèche sèvis nan katalòg la",
         "serviceType": "Kalite sèvis",
         "workLocation": "Ki kote travay la ye?",
         "serviceZipCode": "Kòd postal",
@@ -14481,6 +14483,7 @@
         "details": "Kisa nou ta dwe konnen?"
       },
       "hints": {
+        "selectedServices": "Chwazi sèvis katalòg ou vle mete yo. Ou ka ajoute plis pase youn.",
         "workLocation": "Vil, katye, oswa adrès konplè.",
         "serviceZipCode": "Yo itilize l pou fè matche ak quote ou a pita.",
         "accessNotes": "Kòd pòtay, pakin, bèt, mach eskalye, oswa nenpòt detay ki ka ede.",
@@ -14527,6 +14530,7 @@
       },
       "actions": {
         "sending": "Ap voye…",
+        "removeService": "Retire {{service}}",
         "submit": "Mande yon quote"
       },
       "messages": {
@@ -14535,6 +14539,7 @@
       },
       "errors": {
         "uploadPhoto": "Pa t ka telechaje foto a.",
+        "noServices": "Pa gen sèvis katalòg ki disponib ki koresponn ak rechèch sa a.",
         "requiredFields": "Tanpri ranpli chan obligatwa yo.",
         "submit": "Pa t ka voye demann ou an."
       }

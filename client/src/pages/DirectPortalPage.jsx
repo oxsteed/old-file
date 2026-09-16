@@ -13,6 +13,7 @@ import {
   confirmDirectProof,
   deleteDirectLocation,
   getDirectAccount,
+  getDirectCatalog,
   getDirectHistory,
   getDirectProfile,
   getDirectRequest,
@@ -409,20 +410,26 @@ function DirectLandingLegacyPage() {
 }
 
 export function DirectQuoteRequestPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const linkedServiceName = String(searchParams.get('service') || '').trim().slice(0, 120);
+  const linkedServiceNameCandidate = String(searchParams.get('service') || '').trim().slice(0, 120);
   const linkedServiceSlugCandidate = String(searchParams.get('serviceSlug') || '').trim().toLowerCase();
   const linkedServiceSlug = linkedServiceSlugCandidate.length <= 140 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(linkedServiceSlugCandidate)
     ? linkedServiceSlugCandidate
+    : '';
+  const linkedServiceIdCandidate = String(searchParams.get('serviceId') || '').trim().toLowerCase();
+  const linkedServiceId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(linkedServiceIdCandidate)
+    ? linkedServiceIdCandidate
     : '';
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [loading, setLoading] = useState(false);
   const [draftId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [catalogServiceSearch, setCatalogServiceSearch] = useState('');
+  const [selectedServiceIds, setSelectedServiceIds] = useState(() => (linkedServiceId ? [linkedServiceId] : []));
   const [form, setForm] = useState({
     ...EMPTY_FORM,
     first_name: user?.first_name || '',
@@ -430,14 +437,37 @@ export function DirectQuoteRequestPage() {
     email: user?.email || '',
     phone: user?.phone || '',
   });
+  const catalogServices = useMemo(() => (profile.catalog?.categories || [])
+    .flatMap((category) => (category.services || []).map((service) => ({
+      ...service,
+      categoryName: category.name,
+      categorySlug: service.categorySlug || category.slug,
+    })))
+    .filter((service) => service.requestable !== false), [profile.catalog]);
+  const selectedCatalogServices = useMemo(() => selectedServiceIds
+    .map((id) => catalogServices.find((service) => String(service.id).toLowerCase() === id))
+    .filter(Boolean), [catalogServices, selectedServiceIds]);
+  const visibleCatalogServices = useMemo(() => {
+    const query = catalogServiceSearch.trim().toLowerCase();
+    return catalogServices.filter((service) => !query || `${service.name} ${service.description} ${service.categoryName}`.toLowerCase().includes(query));
+  }, [catalogServices, catalogServiceSearch]);
+  const linkedServiceName = selectedCatalogServices[0]?.name || linkedServiceNameCandidate;
+  const primaryCatalogService = selectedCatalogServices[0];
 
   useEffect(() => {
     let active = true;
-    loadProfile().then((next) => {
-      if (active) setProfile(next);
+    loadProfile(i18n.resolvedLanguage).then(async (next) => {
+      if (!active) return;
+      setProfile(next);
+      try {
+        const catalogData = await getDirectCatalog(i18n.resolvedLanguage);
+        if (active && catalogData?.catalog) setProfile((current) => ({ ...current, catalog: catalogData.catalog }));
+      } catch {
+        // The profile preview remains usable if the full selector read is unavailable.
+      }
     });
     return () => { active = false; };
-  }, []);
+  }, [i18n.resolvedLanguage]);
 
   useEffect(() => {
     setForm((current) => ({
@@ -448,6 +478,18 @@ export function DirectQuoteRequestPage() {
       phone: user?.phone || current.phone,
     }));
   }, [user]);
+
+  useEffect(() => {
+    const linked = catalogServices.find((service) => (
+      (linkedServiceId && String(service.id).toLowerCase() === linkedServiceId)
+      || (linkedServiceSlug && service.slug === linkedServiceSlug)
+    ));
+    if (linked) {
+      setSelectedServiceIds((current) => current.includes(String(linked.id).toLowerCase())
+        ? current
+        : [...current, String(linked.id).toLowerCase()]);
+    }
+  }, [catalogServices, linkedServiceId, linkedServiceSlug]);
 
   const canSubmit = useMemo(() => (
     form.first_name.trim() &&
@@ -487,6 +529,13 @@ export function DirectQuoteRequestPage() {
     setAttachments((current) => current.filter((attachment) => attachment.key !== key));
   };
 
+  const toggleCatalogService = (serviceId) => {
+    const id = String(serviceId).toLowerCase();
+    setSelectedServiceIds((current) => current.includes(id)
+      ? current.filter((selectedId) => selectedId !== id)
+      : [...current, id].slice(0, 25));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSubmit) {
@@ -521,7 +570,16 @@ export function DirectQuoteRequestPage() {
           accessNotes: form.access_notes,
           photoAttachments: attachments,
           serviceName: linkedServiceName || undefined,
-          serviceSlug: linkedServiceSlug || undefined,
+          serviceId: primaryCatalogService?.id || linkedServiceId || undefined,
+          serviceSlug: primaryCatalogService?.slug || linkedServiceSlug || undefined,
+          serviceIds: selectedCatalogServices.map((service) => service.id),
+          catalogServiceIds: selectedCatalogServices.map((service) => service.id),
+          catalogServices: selectedCatalogServices.map((service) => ({
+            id: service.id,
+            slug: service.slug,
+            name: service.name,
+            categorySlug: service.categorySlug,
+          })),
         },
       };
 
@@ -582,6 +640,14 @@ export function DirectQuoteRequestPage() {
 
           <SectionCard title={t('directPortal.request.sections.workDetails', { defaultValue: 'Work details' })} eyebrow={t('directPortal.request.eyebrows.quoteRequest', { defaultValue: 'Quote request' })}>
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2 rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
+                <div className="text-sm font-semibold text-white">{t('directPortal.request.fields.selectedServices', { defaultValue: 'Services for this request' })}</div>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{t('directPortal.request.hints.selectedServices', { defaultValue: 'Choose the catalog services you want included. You can add more than one.' })}</p>
+                {selectedCatalogServices.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedCatalogServices.map((service) => <button key={service.id} type="button" onClick={() => toggleCatalogService(service.id)} className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-100" aria-label={t('directPortal.request.actions.removeService', { service: service.name, defaultValue: 'Remove {{service}}' })}>{service.name}<X size={13} /></button>)}</div>}
+                <Input value={catalogServiceSearch} onChange={(event) => setCatalogServiceSearch(event.target.value)} className="mt-3" aria-label={t('directPortal.request.fields.searchServices', { defaultValue: 'Search catalog services' })} placeholder={t('directCatalog.searchServices', { category: t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} />
+                <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">{visibleCatalogServices.slice(0, 50).map((service) => <label key={service.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"><input type="checkbox" checked={selectedServiceIds.includes(String(service.id).toLowerCase())} onChange={() => toggleCatalogService(service.id)} className="mt-0.5 accent-orange-500" /><span><span className="block font-semibold text-white">{service.name}</span><span className="block text-slate-500">{service.categoryName}</span></span></label>)}</div>
+                {!visibleCatalogServices.length && <p className="mt-3 text-xs text-slate-500">{t('directPortal.request.errors.noServices', { defaultValue: 'No requestable catalog services match that search.' })}</p>}
+              </div>
               <Field label={t('directPortal.request.fields.serviceType')} required>
                 <Select value={form.service_category} onChange={update('service_category')}>
                   <option>{t('directPortal.request.serviceCategories.homeServices')}</option>

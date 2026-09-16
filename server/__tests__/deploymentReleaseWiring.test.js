@@ -82,11 +82,16 @@ describe('deployment release identity wiring', () => {
     expect(catalogSource).toContain('setServices((current) => servicePage === 1 ? nextServices : [...current, ...nextServices])');
     expect(catalogSource).toContain('searchServicesAria');
     expect(catalogSource).toContain('searchCategoriesAria');
-    expect(catalogSource).toContain('direct/request-quote?service=${encodeURIComponent(service.name)}&serviceSlug=${encodeURIComponent(service.slug)}');
+    expect(catalogSource).toContain('direct/request-quote?service=${encodeURIComponent(service.name)}&serviceSlug=${encodeURIComponent(service.slug)}&serviceId=${encodeURIComponent(service.id)}');
     expect(catalogSource).toContain('toolCategory?.name || tool.categorySlug');
     const portalSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/DirectPortalPage.jsx'), 'utf8');
-    expect(portalSource).toContain('serviceSlug: linkedServiceSlug || undefined');
+    expect(portalSource).toContain('const catalogData = await getDirectCatalog(i18n.resolvedLanguage);');
+    expect(portalSource).toContain('serviceIds: selectedCatalogServices.map((service) => service.id)');
+    expect(portalSource).toContain('serviceSlug: primaryCatalogService?.slug || linkedServiceSlug || undefined');
     expect(portalSource).toContain('directCatalog.selectedService');
+    expect(portalSource).toContain('Choose the catalog services you want included. You can add more than one.');
+    const quoteController = fs.readFileSync(path.join(repositoryRoot, 'server/controllers/quoteRequestsController.js'), 'utf8');
+    expect(quoteController).toContain('INSERT INTO quote_request_services');
     expect(adminSource).toContain('label="Skill category"');
     expect(adminSource).toContain('update(\'categorySlug\', event.target.value)');
   });

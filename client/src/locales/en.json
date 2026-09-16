@@ -14472,6 +14472,8 @@
         "phone": "Phone",
         "companyName": "Business or company name",
         "contactMethod": "Preferred contact method",
+        "selectedServices": "Services for this request",
+        "searchServices": "Search catalog services",
         "serviceType": "Service type",
         "workLocation": "Where is the work?",
         "serviceZipCode": "ZIP code",
@@ -14485,6 +14487,7 @@
         "details": "What should we know?"
       },
       "hints": {
+        "selectedServices": "Choose the catalog services you want included. You can add more than one.",
         "workLocation": "City, neighborhood, or full address.",
         "serviceZipCode": "Used to match your quote later.",
         "accessNotes": "Gate code, parking, pets, stairs, or anything helpful.",
@@ -14531,6 +14534,7 @@
       },
       "actions": {
         "sending": "Sending...",
+        "removeService": "Remove {{service}}",
         "submit": "Request a quote"
       },
       "messages": {
@@ -14539,6 +14543,7 @@
       },
       "errors": {
         "uploadPhoto": "Could not upload photo.",
+        "noServices": "No requestable catalog services match that search.",
         "requiredFields": "Please fill in the required fields.",
         "submit": "Could not submit your request."
       }

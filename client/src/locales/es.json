@@ -14468,6 +14468,8 @@
         "phone": "Teléfono",
         "companyName": "Nombre del negocio o empresa",
         "contactMethod": "Método de contacto preferido",
+        "selectedServices": "Servicios para esta solicitud",
+        "searchServices": "Buscar servicios del catálogo",
         "serviceType": "Tipo de servicio",
         "workLocation": "¿Dónde es el trabajo?",
         "serviceZipCode": "Código postal",
@@ -14481,6 +14483,7 @@
         "details": "¿Qué debemos saber?"
       },
       "hints": {
+        "selectedServices": "Elija los servicios del catálogo que desea incluir. Puede añadir más de uno.",
         "workLocation": "Ciudad, vecindario o dirección completa.",
         "serviceZipCode": "Se usa para coincidir con su cotización más tarde.",
         "accessNotes": "Código de puerta, estacionamiento, mascotas, escaleras o cualquier detalle útil.",
@@ -14527,6 +14530,7 @@
       },
       "actions": {
         "sending": "Enviando...",
+        "removeService": "Quitar {{service}}",
         "submit": "Solicitar una cotización"
       },
       "messages": {
@@ -14535,6 +14539,7 @@
       },
       "errors": {
         "uploadPhoto": "No se pudo cargar la foto.",
+        "noServices": "Ningún servicio del catálogo disponible coincide con la búsqueda.",
         "requiredFields": "Complete los campos obligatorios.",
         "submit": "No se pudo enviar su solicitud."
       }

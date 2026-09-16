@@ -141,7 +141,7 @@ npm run verify:credit
 
 The expected result is a healthy app container, readiness JSON with no pending
 migrations, and `verify:credit` reporting `ok: true`. After the next deploy the
-database must reach the latest source migration (`527`), with no unexpected
+database must reach the latest source migration (`529`), with no unexpected
 applied migration records. The
 pre-migration dump is stored under
 `/Users/oxsteed/server-backups/production/`.
@@ -485,7 +485,7 @@ For a restore drill:
 1. Restore a backup into an isolated database with production network access disabled.
 2. Apply any migrations required by the restored snapshot.
 3. Run `npm run verify:credit` against the isolated database.
-4. Run `npm --prefix server run verify:restore -- /path/to/oxsteed-db.dump` from the repository against the isolated Postgres service. The current verifier also checks all six Direct catalog migrations, 1,000 expansion services with coverage, 40 categorized tools with coverage, five-locale metadata, quote/non-bookable safeguards, and the tool-category foreign key. A current migration-527 synthetic dump has passed the prior gate; repeat it against the first post-publication migration-528 production snapshot.
+4. Run `npm --prefix server run verify:restore -- /path/to/oxsteed-db.dump` from the repository against the isolated Postgres service. The current verifier checks all six Direct catalog migrations, migration `529`, the relational `quote_request_services` table, 1,000 expansion services with coverage, 40 categorized tools with coverage, five-locale metadata, quote/non-bookable safeguards, and the tool-category foreign key. Repeat the drill against the first post-publication snapshot containing migration `529`.
 5. Compare account balances, transaction counts, entry counts, and the latest reconciliation result with the source environment.
 6. Record the test duration, restore point, rows verified, and any difference in the backup monitor.
 

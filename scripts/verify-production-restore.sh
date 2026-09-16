@@ -65,6 +65,20 @@ direct_catalog_migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_U
   exit 1
 }
 
+quote_catalog_migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM _migrations WHERE filename = '529_quote_request_catalog_services.sql'")"
+[[ "$quote_catalog_migration_count" == "1" ]] || {
+  echo "Restored database is missing the relational quote catalog migration" >&2
+  exit 1
+}
+
+quote_catalog_table_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'quote_request_services'")"
+[[ "$quote_catalog_table_count" == "1" ]] || {
+  echo "Restored database is missing quote_request_services" >&2
+  exit 1
+}
+
 tool_category_fk_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
   "SELECT count(*) FROM pg_constraint WHERE conname = 'direct_catalog_tools_category_slug_fkey' AND conrelid = 'direct_catalog_tools'::regclass AND confrelid = 'direct_catalog_categories'::regclass")"
 [[ "$tool_category_fk_count" == "1" ]] || {
@@ -143,5 +157,5 @@ $$;
 ROLLBACK;
 SQL
 
-printf 'Production restore verification passed: migrations=%s direct_catalog_migrations=%s direct_services=%s direct_tools=%s tool_category_fk=%s credit_tables=%s credit_integrity_triggers=%s temporary_database=%s\n' \
-  "$migration_count" "$direct_catalog_migration_count" "$direct_service_count" "${direct_tool_quality%%|*}" "$tool_category_fk_count" "$credit_table_count" "$credit_integrity_trigger_count" "$TEMP_DB"
+printf 'Production restore verification passed: migrations=%s direct_catalog_migrations=%s quote_catalog_migration=%s quote_catalog_table=%s direct_services=%s direct_tools=%s tool_category_fk=%s credit_tables=%s credit_integrity_triggers=%s temporary_database=%s\n' \
+  "$migration_count" "$direct_catalog_migration_count" "$quote_catalog_migration_count" "$quote_catalog_table_count" "$direct_service_count" "${direct_tool_quality%%|*}" "$tool_category_fk_count" "$credit_table_count" "$credit_integrity_trigger_count" "$TEMP_DB"

@@ -67,4 +67,14 @@ describe('Direct catalog expansion artifacts', () => {
     expect(sql).toContain('exact location confirmed before quote');
     expect(sql).toContain('AND is_published = TRUE');
   });
+
+  test('stores multi-service quote selections with relational foreign keys', () => {
+    const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', '529_quote_request_catalog_services.sql'), 'utf8');
+
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS quote_request_services');
+    expect(sql).toContain('REFERENCES quote_requests(id) ON DELETE CASCADE');
+    expect(sql).toContain('REFERENCES direct_catalog_services(id) ON DELETE RESTRICT');
+    expect(sql).toContain('UNIQUE (quote_request_id, service_id)');
+    expect(sql).toContain('idx_quote_request_services_service');
+  });
 });

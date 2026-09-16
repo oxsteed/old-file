@@ -14468,6 +14468,8 @@
         "phone": "Téléphone",
         "companyName": "Nom de l’entreprise",
         "contactMethod": "Moyen de contact préféré",
+        "selectedServices": "Services pour cette demande",
+        "searchServices": "Rechercher des services du catalogue",
         "serviceType": "Type de service",
         "workLocation": "Où se trouve le travail ?",
         "serviceZipCode": "Code postal",
@@ -14481,6 +14483,7 @@
         "details": "Que devons-nous savoir ?"
       },
       "hints": {
+        "selectedServices": "Choisissez les services du catalogue à inclure. Vous pouvez en ajouter plusieurs.",
         "workLocation": "Ville, quartier ou adresse complète.",
         "serviceZipCode": "Utilisé pour retrouver votre devis plus tard.",
         "accessNotes": "Code portail, stationnement, animaux, escaliers, ou tout autre détail utile.",
@@ -14527,6 +14530,7 @@
       },
       "actions": {
         "sending": "Envoi…",
+        "removeService": "Retirer {{service}}",
         "submit": "Demander un devis"
       },
       "messages": {
@@ -14535,6 +14539,7 @@
       },
       "errors": {
         "uploadPhoto": "Impossible de téléverser la photo.",
+        "noServices": "Aucun service du catalogue disponible ne correspond à cette recherche.",
         "requiredFields": "Veuillez remplir les champs obligatoires.",
         "submit": "Impossible d’envoyer votre demande."
       }

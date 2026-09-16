@@ -47,6 +47,7 @@ function normalizeJsonObject(value) {
 }
 
 const CATALOG_SERVICE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const CATALOG_SERVICE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeCatalogServiceSlug(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -54,6 +55,22 @@ function normalizeCatalogServiceSlug(value) {
 
 function catalogServiceSlugError(message) {
   return Object.assign(new Error(message), { statusCode: 400 });
+}
+
+function normalizeCatalogServiceIds(value) {
+  if (value === undefined || value === null || value === '') return [];
+  const values = Array.isArray(value) ? value : [value];
+  if (values.length > 25) throw catalogServiceSlugError('Too many catalog services selected');
+  const ids = [];
+  for (const item of values) {
+    const id = typeof item === 'object' && item !== null ? item.id : item;
+    if (typeof id !== 'string' || !CATALOG_SERVICE_ID_PATTERN.test(id.trim())) {
+      throw catalogServiceSlugError('Selected catalog service is invalid');
+    }
+    const normalized = id.trim().toLowerCase();
+    if (!ids.includes(normalized)) ids.push(normalized);
+  }
+  return ids;
 }
 
 function normalizeInteger(value) {
@@ -74,6 +91,10 @@ function isValidEmail(value) {
 
 async function notifySupport(request) {
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@oxsteed.com';
+  const catalogServiceNames = (Array.isArray(request.metadata?.catalogServices) ? request.metadata.catalogServices : [])
+    .map((service) => cleanText(service?.name, 120))
+    .filter(Boolean);
+  const catalogServiceSummary = catalogServiceNames.length ? catalogServiceNames.join(', ') : '-';
   await sendEmail({
     to: supportEmail,
     subject: `New OxSteed quote request from ${request.first_name} ${request.last_name}`,
@@ -84,6 +105,7 @@ async function notifySupport(request) {
       <p><strong>Phone:</strong> ${request.phone || '-'}</p>
       <p><strong>Company:</strong> ${request.company_name || '-'}</p>
       <p><strong>Service:</strong> ${request.service_category}</p>
+      <p><strong>Catalog services:</strong> ${catalogServiceSummary}</p>
       <p><strong>Location:</strong> ${request.service_location}</p>
       <p><strong>Budget:</strong> ${request.budget_range || '-'}</p>
       <p><strong>Timeline:</strong> ${request.timeline || '-'}</p>
@@ -95,12 +117,17 @@ async function notifySupport(request) {
 }
 
 async function sendConfirmationEmail(request) {
+  const catalogServiceNames = (Array.isArray(request.metadata?.catalogServices) ? request.metadata.catalogServices : [])
+    .map((service) => cleanText(service?.name, 120))
+    .filter(Boolean);
+  const catalogServiceSummary = catalogServiceNames.length ? catalogServiceNames.join(', ') : null;
   await sendEmail({
     to: request.email,
     subject: 'We received your OxSteed quote request',
     html: `
       <h2>Thanks for reaching out to OxSteed</h2>
       <p>We received your quote request for <strong>${request.service_category}</strong>.</p>
+      ${catalogServiceSummary ? `<p><strong>Requested catalog services:</strong> ${catalogServiceSummary}</p>` : ''}
       <p>Our team will review it and follow up soon.</p>
       <p><strong>Location:</strong> ${request.service_location}</p>
       <p><strong>ZIP code:</strong> ${request.service_zip_code || '-'}</p>
@@ -125,6 +152,16 @@ exports.createQuoteRequest = async (req, res) => {
   const preferredContactMethod = cleanText(req.body.preferred_contact_method, 20).toLowerCase() || 'email';
   const details = cleanText(req.body.details, 5000);
   const inputMetadata = normalizeJsonObject(req.body.metadata);
+  const rawCatalogServiceIds = inputMetadata.serviceIds ?? inputMetadata.catalogServiceIds ?? inputMetadata.service_ids;
+  let catalogServiceIds;
+  try {
+    catalogServiceIds = normalizeCatalogServiceIds(rawCatalogServiceIds);
+    if (!catalogServiceIds.length && inputMetadata.serviceId !== undefined) {
+      catalogServiceIds = normalizeCatalogServiceIds(inputMetadata.serviceId);
+    }
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ error: error.message });
+  }
   const rawCatalogServiceSlug = inputMetadata.serviceSlug !== undefined
     ? inputMetadata.serviceSlug
     : inputMetadata.service_slug;
@@ -145,10 +182,8 @@ exports.createQuoteRequest = async (req, res) => {
     urgency: cleanText(req.body.urgency || req.body.request_urgency || '', 40) || undefined,
     photoAttachments: inputMetadata.photoAttachments || inputMetadata.photos || [],
   };
-  if (catalogServiceSlug) {
-    metadata.serviceSlug = catalogServiceSlug;
-    delete metadata.service_slug;
-  }
+  if (catalogServiceSlug) metadata.serviceSlug = catalogServiceSlug;
+  delete metadata.service_slug;
   const quoteAmountCents = normalizeInteger(req.body.quote_amount_cents ?? req.body.quoteAmountCents);
   const quoteCurrencyCode = cleanText(req.body.quote_currency_code || req.body.quoteCurrencyCode || 'USD', 3).toUpperCase() || 'USD';
   const preferredDate = cleanText(req.body.preferred_date || req.body.preferredDate, 40) || null;
@@ -199,9 +234,34 @@ exports.createQuoteRequest = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    if (catalogServiceSlug) {
+    let catalogServices = [];
+    if (catalogServiceIds.length) {
+      const catalogResult = await client.query(
+        `SELECT s.id, s.slug, s.name_i18n->>'en' AS service_name, c.slug AS category_slug
+           FROM direct_catalog_services s
+           JOIN direct_catalog_categories c ON c.id = s.category_id
+          WHERE s.id = ANY($1::uuid[])
+            AND s.is_active = TRUE
+            AND s.is_published = TRUE
+            AND s.lifecycle_status = 'live'
+            AND s.is_operationally_available = TRUE
+            AND c.is_active = TRUE
+            AND c.is_published = TRUE
+            AND c.lifecycle_status = 'live'`,
+        [catalogServiceIds]
+      );
+      if (catalogResult.rows.length !== catalogServiceIds.length) {
+        throw catalogServiceSlugError('Selected catalog service is not currently requestable');
+      }
+      const rowsById = new Map(catalogResult.rows.map((row) => [String(row.id).toLowerCase(), row]));
+      catalogServices = catalogServiceIds.map((id) => rowsById.get(id));
+      if (catalogServiceSlug && !catalogServices.some((service) => service.slug === catalogServiceSlug)) {
+        throw catalogServiceSlugError('Selected catalog service is invalid');
+      }
+    } else if (catalogServiceSlug) {
       const catalogResult = await client.query(
         `SELECT s.slug, s.name_i18n->>'en' AS service_name
+                , s.id, c.slug AS category_slug
            FROM direct_catalog_services s
            JOIN direct_catalog_categories c ON c.id = s.category_id
           WHERE s.slug = $1
@@ -219,7 +279,22 @@ exports.createQuoteRequest = async (req, res) => {
       if (!catalogService) {
         throw catalogServiceSlugError('Selected catalog service is not currently requestable');
       }
-      metadata.serviceName = cleanText(catalogService.service_name, 120) || metadata.serviceName;
+      catalogServices = [catalogService];
+    }
+    if (catalogServices.length) {
+      const canonicalServices = catalogServices.map((service) => ({
+        id: String(service.id),
+        slug: service.slug,
+        name: cleanText(service.service_name, 120),
+        categorySlug: service.category_slug,
+      }));
+      catalogServiceIds = canonicalServices.map((service) => service.id.toLowerCase());
+      metadata.serviceIds = catalogServiceIds;
+      metadata.catalogServiceIds = catalogServiceIds;
+      metadata.catalogServices = canonicalServices;
+      metadata.serviceId = canonicalServices[0].id;
+      metadata.serviceSlug = canonicalServices[0].slug;
+      metadata.serviceName = canonicalServices[0].name || metadata.serviceName;
     }
 
     const publicReference = generatePublicReference();
@@ -234,7 +309,7 @@ exports.createQuoteRequest = async (req, res) => {
         proof_link, proof_received_at, accepted_at, completed_at, closed_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
                'new', $15::jsonb, $16, $17, $18, $19, $20, $21, $22, $23,
-               $24, $25, $26, $27::jsonb, $28, $29, $30, $31, $32, $33, $34, $35)
+               $24, $25, $26, $27, $28, $29, $30::jsonb, $31, $32, $33, $34, $35)
        RETURNING *`,
       [
         req.user?.id || null,
@@ -276,6 +351,20 @@ exports.createQuoteRequest = async (req, res) => {
     );
 
     const request = result.rows[0];
+
+    if (catalogServices.length) {
+      await client.query(
+        `INSERT INTO quote_request_services (quote_request_id, service_id, service_name, category_slug)
+         SELECT $1, item.id::uuid, item.name, item.category_slug
+           FROM jsonb_to_recordset($2::jsonb) AS item(id text, name text, category_slug text)
+         ON CONFLICT (quote_request_id, service_id) DO NOTHING`,
+        [request.id, JSON.stringify(catalogServices.map((service) => ({
+          id: String(service.id),
+          name: cleanText(service.service_name, 120),
+          category_slug: service.category_slug,
+        })))]
+      );
+    }
 
     try {
       await notifySupport(request);

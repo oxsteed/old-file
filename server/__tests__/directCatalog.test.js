@@ -178,6 +178,20 @@ describe('Direct catalog', () => {
     expect(mockQuery.mock.calls[1][0]).toContain('ROW_NUMBER() OVER');
   });
 
+  test('scopes supporting tools to the selected relational category', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'cat-1', slug: 'electrical', name_i18n: { en: 'Electrical' }, icon_key: 'zap', sort_order: 1, lifecycle_status: 'live', is_active: true, is_published: true }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'tool-1', slug: 'circuit-tester', category_slug: 'electrical', name_i18n: { en: 'Circuit Tester' }, description_i18n: { en: 'Electrical tester.' }, availability_days: ['Monday'], lifecycle_status: 'live', is_active: true, is_published: true }], rowCount: 1 });
+
+    const catalog = await getCatalog({ categorySlug: 'electrical', serviceLimit: 24 });
+
+    expect(catalog.tools).toHaveLength(1);
+    expect(catalog.tools[0].categorySlug).toBe('electrical');
+    expect(mockQuery.mock.calls[2][0]).toContain('t.category_slug = $1');
+    expect(mockQuery.mock.calls[2][1]).toEqual(['electrical']);
+  });
+
   test('rejects unsafe catalog pagination values', () => {
     expect(() => parseCatalogQuery({ limit: '0' })).toThrow(/limit must be between/);
     expect(() => parseCatalogQuery({ limit: '101' })).toThrow(/limit must be between/);

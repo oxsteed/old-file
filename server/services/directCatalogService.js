@@ -251,9 +251,14 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
     ? ''
     : ` AND c.is_active = TRUE AND c.lifecycle_status = 'live'
         AND s.is_active = TRUE AND s.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`;
-  const toolVisibility = includeUnpublished
-    ? ''
-    : ` WHERE t.is_active = TRUE AND t.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`;
+  const toolWhere = includeUnpublished
+    ? ['1 = 1']
+    : [`t.is_active = TRUE AND t.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`];
+  const toolParams = [];
+  if (safeCategorySlug) {
+    toolParams.push(safeCategorySlug);
+    toolWhere.push(`t.category_slug = $${toolParams.length}`);
+  }
   // The locale is only needed by localized search expressions. Avoid binding
   // an unused value on the default full-catalog query.
   const serviceParams = safeSearch ? [safeLocale] : [];
@@ -291,7 +296,7 @@ async function getCatalog({ locale = 'en', includeUnpublished = false, categoryS
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
     db.query(`SELECT * FROM direct_catalog_categories c ${includeUnpublished ? '' : `WHERE c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})`} ORDER BY COALESCE(c.display_order, c.sort_order), c.created_at`),
     db.query(serviceQuery, serviceParams),
-    db.query(`SELECT * FROM direct_catalog_tools t${toolVisibility} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`),
+    db.query(`SELECT * FROM direct_catalog_tools t WHERE ${toolWhere.join(' AND ')} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`, toolParams),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
     ...adminCategory(row), name: localized(row.name_i18n, safeLocale), services: [], liveServiceCount: 0, availableServiceCount: 0,
