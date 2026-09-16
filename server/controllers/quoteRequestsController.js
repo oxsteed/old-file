@@ -46,6 +46,16 @@ function normalizeJsonObject(value) {
   return value;
 }
 
+const CATALOG_SERVICE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function normalizeCatalogServiceSlug(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function catalogServiceSlugError(message) {
+  return Object.assign(new Error(message), { statusCode: 400 });
+}
+
 function normalizeInteger(value) {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number.parseInt(String(value), 10);
@@ -114,16 +124,31 @@ exports.createQuoteRequest = async (req, res) => {
   const timeline = cleanText(req.body.timeline, 120);
   const preferredContactMethod = cleanText(req.body.preferred_contact_method, 20).toLowerCase() || 'email';
   const details = cleanText(req.body.details, 5000);
+  const inputMetadata = normalizeJsonObject(req.body.metadata);
+  const rawCatalogServiceSlug = inputMetadata.serviceSlug !== undefined
+    ? inputMetadata.serviceSlug
+    : inputMetadata.service_slug;
+  const catalogServiceSlug = normalizeCatalogServiceSlug(rawCatalogServiceSlug);
+  const hasCatalogServiceSlug = typeof rawCatalogServiceSlug === 'string'
+    ? rawCatalogServiceSlug.trim().length > 0
+    : rawCatalogServiceSlug !== undefined && rawCatalogServiceSlug !== null;
+  if (hasCatalogServiceSlug && (catalogServiceSlug.length > 140 || !CATALOG_SERVICE_SLUG_PATTERN.test(catalogServiceSlug))) {
+    return res.status(400).json({ error: 'Selected catalog service is invalid' });
+  }
   const metadata = {
-    ...normalizeJsonObject(req.body.metadata),
+    ...inputMetadata,
     flow: cleanText(req.body.flow || req.body.case_flow || req.body.portal || 'direct', 40) || 'direct',
     serviceType: cleanText(req.body.service_type || req.body.serviceType || req.body.job_type || '', 120) || undefined,
     preferredDate: cleanText(req.body.preferred_date || req.body.preferredDate || '', 40) || undefined,
     preferredTimeWindow: cleanText(req.body.preferred_time_window || req.body.preferredTimeWindow || '', 80) || undefined,
     travelCity: cleanText(req.body.travel_city || req.body.travelCity || '', 120) || undefined,
     urgency: cleanText(req.body.urgency || req.body.request_urgency || '', 40) || undefined,
-    photoAttachments: normalizeJsonObject(req.body.metadata).photoAttachments || normalizeJsonObject(req.body.metadata).photos || [],
+    photoAttachments: inputMetadata.photoAttachments || inputMetadata.photos || [],
   };
+  if (catalogServiceSlug) {
+    metadata.serviceSlug = catalogServiceSlug;
+    delete metadata.service_slug;
+  }
   const quoteAmountCents = normalizeInteger(req.body.quote_amount_cents ?? req.body.quoteAmountCents);
   const quoteCurrencyCode = cleanText(req.body.quote_currency_code || req.body.quoteCurrencyCode || 'USD', 3).toUpperCase() || 'USD';
   const preferredDate = cleanText(req.body.preferred_date || req.body.preferredDate, 40) || null;
@@ -173,6 +198,29 @@ exports.createQuoteRequest = async (req, res) => {
 
   try {
     await client.query('BEGIN');
+
+    if (catalogServiceSlug) {
+      const catalogResult = await client.query(
+        `SELECT s.slug, s.name_i18n->>'en' AS service_name
+           FROM direct_catalog_services s
+           JOIN direct_catalog_categories c ON c.id = s.category_id
+          WHERE s.slug = $1
+            AND s.is_active = TRUE
+            AND s.is_published = TRUE
+            AND s.lifecycle_status = 'live'
+            AND s.is_operationally_available = TRUE
+            AND c.is_active = TRUE
+            AND c.is_published = TRUE
+            AND c.lifecycle_status = 'live'
+          LIMIT 1`,
+        [catalogServiceSlug]
+      );
+      const catalogService = catalogResult.rows[0];
+      if (!catalogService) {
+        throw catalogServiceSlugError('Selected catalog service is not currently requestable');
+      }
+      metadata.serviceName = cleanText(catalogService.service_name, 120) || metadata.serviceName;
+    }
 
     const publicReference = generatePublicReference();
     const result = await client.query(
@@ -257,6 +305,9 @@ exports.createQuoteRequest = async (req, res) => {
     });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
     logger.error('Error submitting quote request', {
       error: err.message,
       userId: req.user?.id || null,

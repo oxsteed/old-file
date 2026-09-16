@@ -18,6 +18,7 @@ const {
 } = require('../services/directServiceAreas');
 const {
   getCatalog,
+  parseCatalogQuery,
   getAdminCatalog,
   saveEntity,
   removeEntity,
@@ -528,7 +529,7 @@ exports.getProfile = async (req, res) => {
   try {
     const profile = await loadProfileRow();
     const [catalog, serviceAreas] = await Promise.all([
-      getCatalog({ locale: req.query.lang || req.query.locale || 'en' }).catch((error) => {
+      getCatalog({ locale: req.query.lang || req.query.locale || 'en', serviceLimit: 24, serviceOffset: 0 }).catch((error) => {
         // Keep the public profile available during a rolling deploy before the catalog migration finishes.
         logger.warn('Direct catalog unavailable while loading profile', { error: error.message });
         return { locale: req.query.lang || req.query.locale || 'en', categories: [], tools: [] };
@@ -545,10 +546,15 @@ exports.getProfile = async (req, res) => {
 
 exports.getCatalog = async (req, res) => {
   try {
-    return res.json({ catalog: await getCatalog({ locale: req.query.lang || req.query.locale || 'en' }) });
+    return res.json({
+      catalog: await getCatalog({
+        locale: req.query.lang || req.query.locale || 'en',
+        ...parseCatalogQuery(req.query),
+      }),
+    });
   } catch (err) {
     logger.error('getCatalog error', { error: err.message });
-    return res.status(500).json({ error: 'Failed to load Direct catalog' });
+    return res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Failed to load Direct catalog' });
   }
 };
 

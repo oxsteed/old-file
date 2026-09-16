@@ -81,6 +81,7 @@ function publicService(row, locale) {
   return {
     id: String(row.id),
     slug: row.slug,
+    categorySlug: row.category_slug || null,
     name: localized(row.name_i18n, locale),
     description: localized(row.description_i18n, locale),
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
@@ -103,6 +104,7 @@ function publicTool(row, locale) {
   return {
     id: String(row.id),
     slug: row.slug,
+    categorySlug: row.category_slug || null,
     name: localized(row.name_i18n, locale),
     description: localized(row.description_i18n, locale),
     iconKey: row.icon_key || 'wrench',
@@ -137,7 +139,7 @@ function adminService(row) {
 
 function adminTool(row) {
   return {
-    id: String(row.id), slug: row.slug, nameI18n: row.name_i18n || {}, descriptionI18n: row.description_i18n || {},
+    id: String(row.id), slug: row.slug, categorySlug: row.category_slug || null, nameI18n: row.name_i18n || {}, descriptionI18n: row.description_i18n || {},
     iconKey: row.icon_key, availabilityDays: daysFromRow(row),
     sortOrder: Number(row.display_order ?? row.sort_order ?? 0), displayOrder: Number(row.display_order ?? row.sort_order ?? 0),
     isActive: !!row.is_active, isPublished: !!row.is_published, lifecycleStatus: legacyLifecycle(row),
@@ -145,8 +147,106 @@ function adminTool(row) {
   };
 }
 
-async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
+function catalogReviewIssues(row, entity, duplicateIds = new Set()) {
+  const issues = [];
+  const names = row?.name_i18n && typeof row.name_i18n === 'object' ? row.name_i18n : {};
+  for (const locale of LOCALES) {
+    if (!cleanText(names[locale], 1000)) issues.push(`missing_name_${locale}`);
+  }
+  if (entity !== 'category') {
+    const descriptions = row?.description_i18n && typeof row.description_i18n === 'object' ? row.description_i18n : {};
+    for (const locale of LOCALES) {
+      if (!cleanText(descriptions[locale], 1000)) issues.push(`missing_description_${locale}`);
+    }
+    if (!daysFromRow(row).length) issues.push('missing_availability');
+    if (!cleanText(row.service_area, 255)) issues.push('missing_service_area');
+    if (legacyLifecycle(row) === 'live' && row.is_operationally_available === false) issues.push('live_not_operational');
+    if (entity === 'tool' && !cleanText(row.category_slug, 100)) issues.push('missing_tool_category');
+  }
+  const lifecycleStatus = legacyLifecycle(row);
+  if (['coming_soon', 'live', 'paused'].includes(lifecycleStatus) && (row.is_active !== true || row.is_published !== true)) {
+    issues.push('visibility_mismatch');
+  }
+  if (duplicateIds.has(String(row.id))) issues.push('duplicate_english_name');
+  return issues;
+}
+
+function duplicateRecordIds(rows, entity) {
+  const groups = new Map();
+  for (const row of rows) {
+    const englishName = cleanText(row?.name_i18n?.en, 1000).toLowerCase();
+    if (!englishName) continue;
+    const scope = entity === 'service'
+      ? String(row.category_id || '')
+      : entity === 'tool'
+        ? String(row.category_slug || '')
+        : 'category';
+    const key = `${scope}:${englishName}`;
+    const group = groups.get(key) || [];
+    group.push(String(row.id));
+    groups.set(key, group);
+  }
+  return new Set([...groups.values()].filter((group) => group.length > 1).flat());
+}
+
+function reviewAdminRecords(rows, entity) {
+  const duplicateIds = duplicateRecordIds(rows, entity);
+  const serializer = entity === 'category' ? adminCategory : entity === 'service' ? adminService : adminTool;
+  return rows.map((row) => ({
+    ...serializer(row),
+    reviewIssues: catalogReviewIssues(row, entity, duplicateIds),
+  }));
+}
+
+function buildCatalogReviewSummary(recordsByEntity) {
+  const byEntity = {};
+  const issueCounts = {};
+  let total = 0;
+  let needsReview = 0;
+  for (const [entity, records] of Object.entries(recordsByEntity)) {
+    const flagged = records.filter((record) => record.reviewIssues.length);
+    byEntity[entity] = { total: records.length, needsReview: flagged.length, clean: records.length - flagged.length };
+    total += records.length;
+    needsReview += flagged.length;
+    for (const record of flagged) {
+      for (const issue of record.reviewIssues) issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+    }
+  }
+  return { total, needsReview, clean: total - needsReview, byEntity, issueCounts };
+}
+
+function parseCatalogInteger(value, field, { min = 0, max = 100 } = {}) {
+  if (value === undefined || value === null || value === '') return null;
+  if (!/^\d+$/.test(String(value))) {
+    throw Object.assign(new Error(`${field} must be a whole number`), { statusCode: 400 });
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw Object.assign(new Error(`${field} must be between ${min} and ${max}`), { statusCode: 400 });
+  }
+  return parsed;
+}
+
+function parseCatalogQuery(query = {}) {
+  const rawLimit = query.serviceLimit ?? query.limit;
+  const rawOffset = query.serviceOffset ?? query.offset;
+  const serviceLimit = parseCatalogInteger(rawLimit, 'limit', { min: 1, max: 100 });
+  const serviceOffset = parseCatalogInteger(rawOffset, 'offset', { min: 0, max: 100000 }) ?? 0;
+  if (serviceLimit === null && serviceOffset !== 0) {
+    throw Object.assign(new Error('offset requires limit'), { statusCode: 400 });
+  }
+  const rawCategory = query.categorySlug ?? query.category;
+  const categorySlug = rawCategory ? slugify(rawCategory) || null : null;
+  const serviceSearch = cleanText(query.serviceSearch ?? query.search ?? query.q, 100);
+  return { categorySlug, serviceSearch, serviceLimit, serviceOffset };
+}
+
+async function getCatalog({ locale = 'en', includeUnpublished = false, categorySlug = null, serviceSearch = '', serviceLimit = null, serviceOffset = 0 } = {}) {
   const safeLocale = LOCALES.includes(locale) ? locale : 'en';
+  const safeCategorySlug = categorySlug ? slugify(categorySlug) || null : null;
+  const safeSearch = cleanText(serviceSearch, 100);
+  const safeLimit = serviceLimit == null ? null : parseCatalogInteger(serviceLimit, 'limit', { min: 1, max: 100 });
+  const safeOffset = parseCatalogInteger(serviceOffset, 'offset', { min: 0, max: 100000 }) ?? 0;
   const visibility = includeUnpublished
     ? ''
     : ` AND c.is_active = TRUE AND c.lifecycle_status = 'live'
@@ -154,9 +254,43 @@ async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
   const toolVisibility = includeUnpublished
     ? ''
     : ` WHERE t.is_active = TRUE AND t.lifecycle_status = '${PUBLIC_SERVICE_STATUS}'`;
+  // The locale is only needed by localized search expressions. Avoid binding
+  // an unused value on the default full-catalog query.
+  const serviceParams = safeSearch ? [safeLocale] : [];
+  const serviceWhere = ['1 = 1'];
+  if (safeCategorySlug) {
+    serviceParams.push(safeCategorySlug);
+    serviceWhere.push(`c.slug = $${serviceParams.length}`);
+  }
+  if (safeSearch) {
+    serviceParams.push(`%${safeSearch}%`);
+    const searchParam = serviceParams.length;
+    serviceWhere.push(`(
+      COALESCE(s.name_i18n ->> $1, s.name_i18n ->> 'en', '') ILIKE $${searchParam}
+      OR COALESCE(s.description_i18n ->> $1, s.description_i18n ->> 'en', '') ILIKE $${searchParam}
+    )`);
+  }
+  const bounded = safeLimit !== null;
+  if (bounded) serviceParams.push(safeOffset, safeOffset + safeLimit);
+  const serviceQuery = `
+    SELECT catalog_rows.*
+    FROM (
+      SELECT s.*, c.slug AS category_slug,
+        COUNT(*) OVER (PARTITION BY s.category_id) AS category_service_count,
+        COUNT(*) FILTER (WHERE COALESCE(s.is_operationally_available, TRUE)) OVER (PARTITION BY s.category_id) AS category_available_service_count,
+        ROW_NUMBER() OVER (
+          PARTITION BY s.category_id
+          ORDER BY COALESCE(s.display_order, s.sort_order), s.created_at, s.id
+        ) - 1 AS service_rank
+      FROM direct_catalog_services s
+      JOIN direct_catalog_categories c ON c.id = s.category_id
+      WHERE ${serviceWhere.join(' AND ')}${visibility}
+    ) AS catalog_rows
+    ${bounded ? `WHERE service_rank >= $${serviceParams.length - 1} AND service_rank < $${serviceParams.length}` : ''}
+    ORDER BY category_id, COALESCE(display_order, sort_order), created_at, id`;
   const [{ rows: categories }, { rows: services }, { rows: tools }] = await Promise.all([
     db.query(`SELECT * FROM direct_catalog_categories c ${includeUnpublished ? '' : `WHERE c.is_active = TRUE AND c.lifecycle_status IN (${PUBLIC_CATEGORY_STATUSES.map((status) => `'${status}'`).join(', ')})`} ORDER BY COALESCE(c.display_order, c.sort_order), c.created_at`),
-    db.query(`SELECT s.*, c.slug AS category_slug FROM direct_catalog_services s JOIN direct_catalog_categories c ON c.id = s.category_id WHERE 1=1 ${visibility} ORDER BY COALESCE(c.display_order, c.sort_order), COALESCE(s.display_order, s.sort_order), s.created_at`),
+    db.query(serviceQuery, serviceParams),
     db.query(`SELECT * FROM direct_catalog_tools t${toolVisibility} ORDER BY COALESCE(t.display_order, t.sort_order), t.created_at`),
   ]);
   const categoryMap = new Map(categories.map((row) => [String(row.id), {
@@ -167,11 +301,12 @@ async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
     if (category) {
       const service = publicService(row, safeLocale);
       category.services.push(service);
-      category.liveServiceCount += 1;
-      if (service.requestable) category.availableServiceCount += 1;
+      category.liveServiceCount = Math.max(category.liveServiceCount, Number(row.category_service_count || 0), category.services.length);
+      category.availableServiceCount = Math.max(category.availableServiceCount, Number(row.category_available_service_count || 0));
+      if (!row.category_service_count && service.requestable) category.availableServiceCount += 1;
     }
   }
-  return {
+  const catalog = {
     locale: safeLocale,
     categories: [...categoryMap.values()].map((category) => ({
       id: category.id,
@@ -188,6 +323,15 @@ async function getCatalog({ locale = 'en', includeUnpublished = false } = {}) {
     })),
     tools: tools.map((row) => publicTool(row, safeLocale)),
   };
+  if (bounded || safeCategorySlug || safeSearch) {
+    catalog.servicePagination = {
+      categorySlug: safeCategorySlug,
+      search: safeSearch || null,
+      limit: safeLimit,
+      offset: safeOffset,
+    };
+  }
+  return catalog;
 }
 
 async function getAdminCatalog() {
@@ -196,7 +340,12 @@ async function getAdminCatalog() {
     db.query('SELECT * FROM direct_catalog_services ORDER BY COALESCE(display_order, sort_order), created_at'),
     db.query('SELECT * FROM direct_catalog_tools ORDER BY COALESCE(display_order, sort_order), created_at'),
   ]);
-  return { categories: categories.map(adminCategory), services: services.map(adminService), tools: tools.map(adminTool), locales: LOCALES, icons: [...ICONS] };
+  const records = {
+    categories: reviewAdminRecords(categories, 'category'),
+    services: reviewAdminRecords(services, 'service'),
+    tools: reviewAdminRecords(tools, 'tool'),
+  };
+  return { ...records, locales: LOCALES, icons: [...ICONS], review: { summary: buildCatalogReviewSummary(records) } };
 }
 
 function parsePrice(value) {
@@ -246,6 +395,7 @@ function parseEntity(entity, body) {
     isBookable: parseBoolean(data.isBookable, false),
     serviceArea: cleanText(data.serviceArea, 255) || null,
     pausedReason: cleanText(data.pausedReason, 500) || null,
+    categorySlug: entity === 'tool' ? slugify(data.categorySlug || '') || null : null,
     displayOrder: Number.isInteger(Number(data.displayOrder ?? data.sortOrder)) && Number(data.displayOrder ?? data.sortOrder) >= 0 ? Number(data.displayOrder ?? data.sortOrder) : 0,
     isFeatured: parseBoolean(data.isFeatured, false),
     reason: cleanText(data.reason, 500) || null,
@@ -272,12 +422,12 @@ async function saveEntity(entity, body, actorUserId, id = null) {
     ? ['slug', 'name_i18n', 'icon_key', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status']
     : entity === 'service'
       ? ['category_id', 'slug', 'name_i18n', 'description_i18n', 'price_cents', 'currency_code', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured']
-      : ['slug', 'name_i18n', 'description_i18n', 'icon_key', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured'];
+      : ['slug', 'category_slug', 'name_i18n', 'description_i18n', 'icon_key', 'availability_days', 'available_days', 'sort_order', 'display_order', 'is_active', 'is_published', 'lifecycle_status', 'is_operationally_available', 'is_bookable', 'service_area', 'paused_reason', 'is_featured'];
   const values = entity === 'category'
     ? [data.slug, data.nameI18n, data.iconKey, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus]
     : entity === 'service'
       ? [data.categoryId, data.slug, data.nameI18n, data.descriptionI18n, data.priceCents, data.currencyCode, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured]
-      : [data.slug, data.nameI18n, data.descriptionI18n, data.iconKey, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured];
+      : [data.slug, data.categorySlug, data.nameI18n, data.descriptionI18n, data.iconKey, data.availabilityDays, data.availabilityDays, data.sortOrder, data.displayOrder, data.isActive, data.isPublished, data.lifecycleStatus, data.isOperationallyAvailable, data.isBookable, data.serviceArea, data.pausedReason, data.isFeatured];
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -286,6 +436,10 @@ async function saveEntity(entity, body, actorUserId, id = null) {
     if (entity === 'service') {
       const category = await client.query('SELECT id FROM direct_catalog_categories WHERE id = $1 LIMIT 1', [data.categoryId]);
       if (!category.rows[0]) throw Object.assign(new Error('The selected service category does not exist'), { statusCode: 400 });
+    }
+    if (entity === 'tool' && data.categorySlug) {
+      const category = await client.query('SELECT slug FROM direct_catalog_categories WHERE slug = $1 LIMIT 1', [data.categorySlug]);
+      if (!category.rows[0]) throw Object.assign(new Error('The selected tool category does not exist'), { statusCode: 400 });
     }
     if (id) {
       const existing = await client.query(`SELECT is_published, is_active, lifecycle_status FROM ${table} WHERE id = $1`, [id]);
@@ -379,6 +533,8 @@ async function bulkTransition(entity, ids, targetStatus, actorUserId, reason = n
   }
   const normalizedIds = [...new Set((Array.isArray(ids) ? ids : []).map((id) => cleanText(String(id), 80)).filter(Boolean))].slice(0, 100);
   if (!normalizedIds.length) throw Object.assign(new Error('At least one catalog record is required'), { statusCode: 400 });
+  const cleanReason = cleanText(reason, 500);
+  if (!cleanReason) throw Object.assign(new Error('A reason is required for lifecycle transitions'), { statusCode: 400 });
   const toStatus = parseLifecycleStatus(targetStatus);
   const table = entity === 'category' ? 'direct_catalog_categories' : entity === 'service' ? 'direct_catalog_services' : 'direct_catalog_tools';
   const client = await db.connect();
@@ -418,7 +574,7 @@ async function bulkTransition(entity, ids, targetStatus, actorUserId, reason = n
         await client.query(
           `INSERT INTO catalog_status_history (item_type, item_id, from_status, to_status, changed_by, reason)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [entity, row.id, fromStatus, toStatus, actorUserId || null, cleanText(reason, 500) || null]
+          [entity, row.id, fromStatus, toStatus, actorUserId || null, cleanReason]
         );
       }
     }
@@ -438,10 +594,13 @@ module.exports = {
   LIFECYCLE_STATUSES,
   PUBLIC_CATEGORY_STATUSES,
   getCatalog,
+  parseCatalogQuery,
   getAdminCatalog,
   saveEntity,
   removeEntity,
   bulkTransition,
   parseEntity,
   audit,
+  catalogReviewIssues,
+  buildCatalogReviewSummary,
 };

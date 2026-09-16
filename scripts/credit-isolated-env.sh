@@ -184,6 +184,35 @@ performance() {
   suspend_isolated_rail
 }
 
+catalog_performance() {
+  require_docker
+  load_state
+  suspend_isolated_rail
+  wait_ready "$(base_url)"
+  if ! compose exec -T \
+    -e DIRECT_CATALOG_PUBLIC_API_URL=http://127.0.0.1:5000/api/direct/catalog \
+    -e DIRECT_CATALOG_PERFORMANCE_TEST_MODE=true \
+    -e DIRECT_CATALOG_PERFORMANCE_SAMPLES="${DIRECT_CATALOG_PERFORMANCE_SAMPLES:-20}" \
+    -e DIRECT_CATALOG_PERFORMANCE_CONCURRENCY="${DIRECT_CATALOG_PERFORMANCE_CONCURRENCY:-4}" \
+    app node /app/server/scripts/verify-direct-catalog-performance.js; then
+    suspend_isolated_rail || true
+    return 1
+  fi
+  suspend_isolated_rail
+}
+
+catalog() {
+  require_docker
+  load_state
+  suspend_isolated_rail
+  wait_ready "$(base_url)"
+  if ! compose exec -T -e DIRECT_CATALOG_VERIFY_LIVE=true app node /app/server/scripts/verify-direct-catalog-expansion.js; then
+    suspend_isolated_rail || true
+    return 1
+  fi
+  suspend_isolated_rail
+}
+
 failures() {
   require_docker
   load_state
@@ -238,11 +267,13 @@ case "${1:-}" in
   queue-recovery) queue_recovery ;;
   provider) provider ;;
   performance) performance ;;
+  catalog) catalog ;;
+  catalog-performance) catalog_performance ;;
   failures) failures ;;
   reset) reset ;;
   down|remove) down ;;
   *)
-    printf 'Usage: %s {start|seed|test|accounting|races|queue-recovery|provider|performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
+    printf 'Usage: %s {start|seed|test|accounting|races|queue-recovery|provider|performance|catalog|catalog-performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
     exit 2
     ;;
 esac

@@ -412,6 +412,12 @@ export function DirectQuoteRequestPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedServiceName = String(searchParams.get('service') || '').trim().slice(0, 120);
+  const linkedServiceSlugCandidate = String(searchParams.get('serviceSlug') || '').trim().toLowerCase();
+  const linkedServiceSlug = linkedServiceSlugCandidate.length <= 140 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(linkedServiceSlugCandidate)
+    ? linkedServiceSlugCandidate
+    : '';
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [loading, setLoading] = useState(false);
   const [draftId] = useState(() => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`));
@@ -514,6 +520,8 @@ export function DirectQuoteRequestPage() {
           urgency: form.urgency,
           accessNotes: form.access_notes,
           photoAttachments: attachments,
+          serviceName: linkedServiceName || undefined,
+          serviceSlug: linkedServiceSlug || undefined,
         },
       };
 
@@ -584,6 +592,7 @@ export function DirectQuoteRequestPage() {
                   <option>{t('directPortal.request.serviceCategories.other')}</option>
                 </Select>
               </Field>
+              {linkedServiceName && <p role="status" className="rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm text-orange-100 sm:col-span-2">{t('directCatalog.selectedService', { service: linkedServiceName, defaultValue: 'Selected catalog service: {{service}}' })}</p>}
               <Field label={t('directPortal.request.fields.workLocation')} required hint={t('directPortal.request.hints.workLocation')}>
                 <Input value={form.service_location} onChange={update('service_location')} placeholder={t('directPortal.request.placeholders.workLocation')} />
               </Field>

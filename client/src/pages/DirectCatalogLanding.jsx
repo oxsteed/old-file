@@ -4,10 +4,11 @@ import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Droplets, Gauge, Hammer
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
-import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
+import { DEFAULT_DIRECT_PROFILE, getDirectCatalog, loadDirectProfile } from '../api/direct';
 import '../styles/DirectCatalog.css';
 
 const ICONS = { wrench: Wrench, zap: Zap, droplets: Droplets, hammer: Hammer, paintbrush: Paintbrush, trees: Trees, ruler: Ruler, drill: Gauge, truck: Truck, 'shield-check': ShieldCheck };
+const SERVICE_PAGE_SIZE = 24;
 
 function priceLabel(cents, currency = 'USD', quoteRequired) {
   if (cents == null) return quoteRequired;
@@ -23,22 +24,64 @@ function CatalogScrollRegion({ children, className = '' }) {
 }
 
 export function DirectCatalogPanels({ profile }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [catalog, setCatalog] = useState(profile.catalog || { categories: [], tools: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
   const [serviceSearch, setServiceSearch] = useState('');
   const [toolSearch, setToolSearch] = useState('');
-  const catalog = profile.catalog || { categories: [], tools: [] };
+  const [servicePage, setServicePage] = useState(1);
+  const [services, setServices] = useState([]);
+  const [serviceTotal, setServiceTotal] = useState(null);
+  const [serviceLoading, setServiceLoading] = useState(false);
+  const [serviceLoadError, setServiceLoadError] = useState('');
   const categories = catalog.categories || [];
   const selected = categories.find((category) => category.id === selectedCategory) || categories[0];
-  const services = useMemo(() => (selected?.services || []).filter((service) => `${service.name} ${service.description}`.toLowerCase().includes(serviceSearch.trim().toLowerCase())), [selected, serviceSearch]);
+  const selectedSlug = selected?.slug || '';
   const tools = useMemo(() => (catalog.tools || []).filter((tool) => `${tool.name} ${tool.description}`.toLowerCase().includes(toolSearch.trim().toLowerCase())), [catalog.tools, toolSearch]);
   const visibleCategories = categories.filter((category) => category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()));
   const serviceQuery = serviceSearch.trim();
   const toolQuery = toolSearch.trim();
   const selectedIsComingSoon = selected?.lifecycleStatus === 'coming_soon' && !selected?.liveServiceCount;
   const selectedIsPaused = selected?.lifecycleStatus === 'paused';
+  useEffect(() => setCatalog(profile.catalog || { categories: [], tools: [] }), [profile.catalog]);
+  useEffect(() => {
+    setServicePage(1);
+    setServices([]);
+    setServiceTotal(null);
+    setServiceLoadError('');
+  }, [selectedSlug, serviceSearch]);
+  useEffect(() => {
+    if (!selectedSlug) return undefined;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setServiceLoading(true);
+      setServiceLoadError('');
+      try {
+        const data = await getDirectCatalog(i18n.resolvedLanguage, {
+          categorySlug: selectedSlug,
+          search: serviceQuery || undefined,
+          limit: SERVICE_PAGE_SIZE,
+          offset: (servicePage - 1) * SERVICE_PAGE_SIZE,
+        });
+        if (!active) return;
+        const nextCatalog = data.catalog || { categories: [], tools: [] };
+        const nextCategory = (nextCatalog.categories || []).find((category) => category.slug === selectedSlug);
+        const nextServices = nextCategory?.services || [];
+        setCatalog(nextCatalog);
+        setServices((current) => servicePage === 1 ? nextServices : [...current, ...nextServices]);
+        setServiceTotal(nextCategory?.liveServiceCount ?? nextServices.length + ((servicePage - 1) * SERVICE_PAGE_SIZE));
+      } catch (error) {
+        if (active) setServiceLoadError(error.response?.data?.error || 'Direct services are temporarily unavailable.');
+      } finally {
+        if (active) setServiceLoading(false);
+      }
+    }, 180);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [i18n.resolvedLanguage, selectedSlug, servicePage, serviceQuery]);
   function serviceEmptyState() {
+    if (serviceLoading && !services.length) return <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.loadingServices', { defaultValue: 'Loading services...' })}</p>;
+    if (serviceLoadError) return <p className="rounded-2xl border border-dashed border-red-400/20 bg-red-400/5 p-8 text-center text-sm text-red-100">{serviceLoadError}</p>;
     if (serviceQuery) return <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">{t('directCatalog.noServices', { defaultValue: 'No published services match this search.' })}</p>;
     if (selectedIsComingSoon) return <p className="rounded-2xl border border-dashed border-orange-400/20 bg-orange-400/5 p-8 text-center text-sm text-orange-100">{t('directCatalog.categoryComingSoon', { defaultValue: 'Services in this category are coming soon.' })}</p>;
     if (selectedIsPaused) return <p className="rounded-2xl border border-dashed border-amber-400/20 bg-amber-400/5 p-8 text-center text-sm text-amber-100">{t('directCatalog.categoryPaused', { defaultValue: 'This category is temporarily unavailable.' })}</p>;
@@ -60,10 +103,10 @@ export function DirectCatalogPanels({ profile }) {
       </CatalogCard>
 
       <CatalogCard className="min-w-0">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{selected?.name || t('directCatalog.directServices', { defaultValue: 'Direct services' })}</div><h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.availableServices', { defaultValue: 'Available services' })}</h2></div>{selected && !selectedIsComingSoon && !selectedIsPaused && <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: selected.availableServiceCount ?? services.length, defaultValue: '{{count}} listed' })}</span>}{selectedIsComingSoon && <span className="rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold text-orange-200">{t('directCatalog.comingSoon', { defaultValue: 'Coming soon' })}</span>}{selectedIsPaused && <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">{t('directCatalog.paused', { defaultValue: 'Temporarily unavailable' })}</span>}</div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{selected?.name || t('directCatalog.directServices', { defaultValue: 'Direct services' })}</div><h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.availableServices', { defaultValue: 'Available services' })}</h2></div>{selected && !selectedIsComingSoon && !selectedIsPaused && <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">{t('directCatalog.listed', { count: serviceTotal ?? selected.availableServiceCount ?? 0, defaultValue: '{{count}} listed' })}</span>}{selectedIsComingSoon && <span className="rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs font-semibold text-orange-200">{t('directCatalog.comingSoon', { defaultValue: 'Coming soon' })}</span>}{selectedIsPaused && <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">{t('directCatalog.paused', { defaultValue: 'Temporarily unavailable' })}</span>}</div>
         <label className="relative mt-4 block"><Search size={17} className="absolute left-3 top-3.5 text-slate-500" /><input aria-label={t('directCatalog.searchServicesAria', { defaultValue: 'Search services' })} value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder={t('directCatalog.searchServices', { category: selected?.name || t('directCatalog.directServices', { defaultValue: 'Direct' }), defaultValue: 'Search {{category}} services...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-orange-500" /></label>
         <CatalogScrollRegion className="mt-4">
-          <div className="space-y-3">{services.map((service) => <article key={service.id} className={`rounded-2xl border border-white/10 bg-slate-950/60 p-4 ${service.requestable ? '' : 'opacity-80'}`}><div className="flex items-start justify-between gap-4"><div><h3 className="font-semibold text-white">{service.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{service.description}</p></div><strong className="shrink-0 text-sm text-white">{priceLabel(service.priceCents, service.currencyCode, t('directCatalog.quoteRequired', { defaultValue: 'Quote required' }))}</strong></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} />{service.availabilityDays?.length ? service.availabilityDays.join(' · ') : t('directCatalog.scheduleByQuote', { defaultValue: 'Schedule by quote' })}</span>{service.requestable ? <Link to={`/direct/request-quote?service=${encodeURIComponent(service.name)}`} className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">{t('directCatalog.request', { defaultValue: 'Request' })} <ArrowRight size={14} /></Link> : <span className="text-xs font-semibold text-amber-200">{t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span>}</div></article>)}{!services.length && serviceEmptyState()}</div>
+          <div className="space-y-3">{services.map((service) => <article key={service.id} className={`rounded-2xl border border-white/10 bg-slate-950/60 p-4 ${service.requestable ? '' : 'opacity-80'}`}><div className="flex items-start justify-between gap-4"><div><h3 className="font-semibold text-white">{service.name}</h3><p className="mt-1 text-sm leading-5 text-slate-400">{service.description}</p></div><strong className="shrink-0 text-sm text-white">{priceLabel(service.priceCents, service.currencyCode, t('directCatalog.quoteRequired', { defaultValue: 'Quote required' }))}</strong></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} />{service.availabilityDays?.length ? service.availabilityDays.join(' · ') : t('directCatalog.scheduleByQuote', { defaultValue: 'Schedule by quote' })}</span>{service.requestable ? <Link to={`/direct/request-quote?service=${encodeURIComponent(service.name)}&serviceSlug=${encodeURIComponent(service.slug)}`} className="inline-flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">{t('directCatalog.request', { defaultValue: 'Request' })} <ArrowRight size={14} /></Link> : <span className="text-xs font-semibold text-amber-200">{t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span>}</div></article>)}{!services.length && serviceEmptyState()}{serviceTotal != null && services.length < serviceTotal && <button type="button" disabled={serviceLoading} onClick={() => setServicePage((page) => page + 1)} className="w-full rounded-xl border border-orange-500/30 px-4 py-3 text-sm font-semibold text-orange-200 hover:bg-orange-500/10 disabled:opacity-50">{t('directCatalog.showMoreServices', { count: `${services.length}/${serviceTotal}`, defaultValue: 'Show more services ({{count}})' })}</button>}</div>
         </CatalogScrollRegion>
         <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllServices', { defaultValue: 'View all services' })} <ArrowRight size={14} /></Link>
       </CatalogCard>
@@ -72,7 +115,7 @@ export function DirectCatalogPanels({ profile }) {
         <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{t('directCatalog.equipment', { defaultValue: 'Equipment' })}</div><h2 className="mt-1 text-2xl font-bold text-white">{t('directCatalog.toolsEquipment', { defaultValue: 'Tools & equipment' })}</h2></div><Truck className="text-orange-300" size={22} /></div>
         <label className="relative mt-4 block"><Search size={17} className="absolute left-3 top-3.5 text-slate-500" /><input aria-label={t('directCatalog.searchToolsAria', { defaultValue: 'Search tools' })} value={toolSearch} onChange={(event) => setToolSearch(event.target.value)} placeholder={t('directCatalog.searchTools', { defaultValue: 'Search tools...' })} className="w-full rounded-xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-orange-500" /></label>
         <CatalogScrollRegion className="mt-4">
-          <div className="space-y-3">{tools.map((tool) => { const Icon = ICONS[tool.iconKey] || Wrench; return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Icon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} /> {tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>; })}{!tools.length && <p className={`rounded-2xl border border-dashed p-8 text-center text-sm ${toolQuery ? 'border-white/10 text-slate-500' : 'border-orange-400/20 bg-orange-400/5 text-orange-100'}`}>{toolQuery ? t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' }) : t('directCatalog.toolsComingSoon', { defaultValue: 'Tools and equipment are coming soon.' })}</p>}</div>
+          <div className="space-y-3">{tools.map((tool) => { const Icon = ICONS[tool.iconKey] || Wrench; const toolCategory = categories.find((category) => category.slug === tool.categorySlug); return <article key={tool.id} className="flex gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-orange-300"><Icon size={19} /></div><div className="min-w-0"><h3 className="font-semibold text-white">{tool.name}</h3>{(toolCategory?.name || tool.categorySlug) && <span className="mt-1 inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-200">{toolCategory?.name || tool.categorySlug}</span>}<p className="mt-1 text-xs leading-5 text-slate-400">{tool.description}</p><span className={`mt-2 inline-flex items-center gap-1 text-xs ${tool.isOperationallyAvailable ? 'text-emerald-300' : 'text-amber-200'}`}><CheckCircle2 size={13} /> {tool.isOperationallyAvailable ? t('directCatalog.availableWhenScheduled', { defaultValue: 'Available when scheduled' }) : t('directCatalog.currentlyUnavailable', { defaultValue: 'Currently unavailable' })}</span></div></article>; })}{!tools.length && <p className={`rounded-2xl border border-dashed p-8 text-center text-sm ${toolQuery ? 'border-white/10 text-slate-500' : 'border-orange-400/20 bg-orange-400/5 text-orange-100'}`}>{toolQuery ? t('directCatalog.noTools', { defaultValue: 'No published tools match your search.' }) : t('directCatalog.toolsComingSoon', { defaultValue: 'Tools and equipment are coming soon.' })}</p>}</div>
         </CatalogScrollRegion>
         <Link to="/direct/services" className="direct-catalog-view-all mt-3">{t('directCatalog.viewAllTools', { defaultValue: 'View all tools' })} <ArrowRight size={14} /></Link>
       </CatalogCard>

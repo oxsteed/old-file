@@ -40,8 +40,10 @@ export async function loadDirectProfile(locale) {
   }
 }
 
-export async function getDirectCatalog(locale) {
-  const response = await api.get('/direct/catalog', { params: locale ? { lang: locale } : undefined });
+export async function getDirectCatalog(locale, params = {}) {
+  const query = { ...params };
+  if (locale) query.lang = locale;
+  const response = await api.get('/direct/catalog', { params: Object.keys(query).length ? query : undefined });
   return response.data;
 }
 

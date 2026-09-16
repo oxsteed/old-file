@@ -207,7 +207,7 @@ function verifyHomepageTranslationSurface() {
   const directCatalogKeys = [
     'skillCategories', 'searchCategories', 'searchCategoriesAria', 'noCategories',
     'directServices', 'availableServices', 'listed', 'searchServices', 'searchServicesAria',
-    'quoteRequired', 'scheduleByQuote', 'request', 'noServices', 'equipment',
+    'quoteRequired', 'scheduleByQuote', 'request', 'selectedService', 'noServices', 'equipment',
     'toolsEquipment', 'searchTools', 'searchToolsAria', 'availableWhenScheduled', 'noTools',
     'serviceCoverage', 'coverageCopy', 'coverageConfiguring', 'checkLocation', 'minimum',
     'heroFallback', 'heroCopyFallback', 'navigation',

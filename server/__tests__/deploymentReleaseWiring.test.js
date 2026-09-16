@@ -50,6 +50,47 @@ describe('deployment release identity wiring', () => {
     expect(viteConfig).toContain("'/api': {");
   });
 
+  test('gates Coolify deploys on the expanded public Direct catalog contract', () => {
+    const workflow = fs.readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toContain('PUBLIC_READY_URL: https://oxsteed.com/ready');
+    expect(workflow).toContain('DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog');
+    expect(workflow).toContain('node server/scripts/verify-direct-catalog-public-api.js');
+  });
+
+  test('runs the Direct catalog database verifier when CI has a database', () => {
+    const workflow = fs.readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toContain('DIRECT_CATALOG_VERIFY_LIVE=true npm run verify:direct-catalog');
+    expect(workflow).toContain('set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks');
+  });
+
+  test('runs bounded Direct catalog performance verification after publication', () => {
+    const workflow = fs.readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toContain('DIRECT_CATALOG_PERFORMANCE_LIVE=true');
+    expect(workflow).toContain('node server/scripts/verify-direct-catalog-performance.js');
+  });
+
+  test('keeps the expanded Direct catalog browser surface bounded and request-safe', () => {
+    const catalogSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/DirectCatalogLanding.jsx'), 'utf8');
+    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/DirectCatalog.jsx'), 'utf8');
+
+    expect(catalogSource).toContain('const SERVICE_PAGE_SIZE = 24;');
+    expect(catalogSource).toContain('getDirectCatalog(i18n.resolvedLanguage');
+    expect(catalogSource).toContain('offset: (servicePage - 1) * SERVICE_PAGE_SIZE');
+    expect(catalogSource).toContain('setServices((current) => servicePage === 1 ? nextServices : [...current, ...nextServices])');
+    expect(catalogSource).toContain('searchServicesAria');
+    expect(catalogSource).toContain('searchCategoriesAria');
+    expect(catalogSource).toContain('direct/request-quote?service=${encodeURIComponent(service.name)}&serviceSlug=${encodeURIComponent(service.slug)}');
+    expect(catalogSource).toContain('toolCategory?.name || tool.categorySlug');
+    const portalSource = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/DirectPortalPage.jsx'), 'utf8');
+    expect(portalSource).toContain('serviceSlug: linkedServiceSlug || undefined');
+    expect(portalSource).toContain('directCatalog.selectedService');
+    expect(adminSource).toContain('label="Skill category"');
+    expect(adminSource).toContain('update(\'categorySlug\', event.target.value)');
+  });
+
   test('keeps Credit admin request guards in the client CI contract', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'client/package.json'), 'utf8'));
     const customerDetail = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditCustomerDetail.jsx'), 'utf8');
@@ -419,6 +460,9 @@ describe('deployment release identity wiring', () => {
     expect(harness).toContain('CREDIT_PERFORMANCE_DURATION_MS');
     expect(harness).toContain('CREDIT_PERFORMANCE_PARTNERS');
     expect(harness).toContain('performance) performance');
+    expect(harness).toContain('DIRECT_CATALOG_VERIFY_LIVE=true');
+    expect(harness).toContain('catalog) catalog');
+    expect(harness).toContain('catalog-performance) catalog_performance');
     expect(harness).toContain('for ((attempt = 1; attempt <= 60; attempt += 1))');
     expect(harness).toContain('sleep 1');
     expect(harness).toContain('The isolated app port was not published within 60 seconds.');

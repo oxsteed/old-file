@@ -42,11 +42,14 @@ async function migrationStatus(pool) {
   const { rows } = await pool.query('SELECT filename FROM _migrations');
   const applied = new Set(rows.map((row) => row.filename));
   const pending = expected.filter((filename) => !applied.has(filename));
+  const unexpected = [...applied].filter((filename) => !expected.includes(filename)).sort();
   return {
-    ok: pending.length === 0,
+    ok: pending.length === 0 && unexpected.length === 0,
     expected: expected.length,
     applied: expected.length - pending.length,
     pendingCount: pending.length,
+    unexpectedCount: unexpected.length,
+    ...(unexpected.length > 0 ? { error: 'database contains migrations not present in this release' } : {}),
   };
 }
 

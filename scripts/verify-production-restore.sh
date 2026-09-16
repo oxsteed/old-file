@@ -58,6 +58,41 @@ credit_table_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TE
   exit 1
 }
 
+direct_catalog_migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM _migrations WHERE filename IN ('523_direct_catalog_expansion.sql', '524_direct_catalog_tools.sql', '525_direct_catalog_1000_services.sql', '526_direct_catalog_tools_expansion.sql', '527_direct_catalog_tool_category_fk.sql', '528_direct_catalog_service_coverage.sql')")"
+[[ "$direct_catalog_migration_count" == "6" ]] || {
+  echo "Restored database is missing Direct catalog migrations (found $direct_catalog_migration_count/6)" >&2
+  exit 1
+}
+
+tool_category_fk_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM pg_constraint WHERE conname = 'direct_catalog_tools_category_slug_fkey' AND conrelid = 'direct_catalog_tools'::regclass AND confrelid = 'direct_catalog_categories'::regclass")"
+[[ "$tool_category_fk_count" == "1" ]] || {
+  echo "Restored database is missing the Direct tool category foreign key" >&2
+  exit 1
+}
+
+direct_service_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) FROM direct_catalog_services WHERE slug LIKE 'direct-%'")"
+[[ "$direct_service_count" == "1000" ]] || {
+  echo "Restored database is missing the expanded Direct service inventory (found $direct_service_count/1000)" >&2
+  exit 1
+}
+
+direct_service_quality="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) || '|' || count(DISTINCT category_id) || '|' || count(*) FILTER (WHERE name_i18n ? 'en' AND name_i18n ? 'es' AND name_i18n ? 'fr' AND name_i18n ? 'ht' AND name_i18n ? 'ar' AND description_i18n ? 'en' AND description_i18n ? 'es' AND description_i18n ? 'fr' AND description_i18n ? 'ht' AND description_i18n ? 'ar' AND price_cents IS NULL AND currency_code = 'USD' AND is_active AND is_published AND lifecycle_status = 'live' AND is_operationally_available AND NOT is_bookable AND NULLIF(BTRIM(service_area), '') IS NOT NULL) FROM direct_catalog_services WHERE slug LIKE 'direct-%'")"
+[[ "$direct_service_quality" == "1000|5|1000" ]] || {
+  echo "Restored Direct services failed inventory, category, localization, or safety checks: $direct_service_quality" >&2
+  exit 1
+}
+
+direct_tool_quality="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  "SELECT count(*) || '|' || count(DISTINCT category_slug) || '|' || count(*) FILTER (WHERE name_i18n ? 'en' AND name_i18n ? 'es' AND name_i18n ? 'fr' AND name_i18n ? 'ht' AND name_i18n ? 'ar' AND description_i18n ? 'en' AND description_i18n ? 'es' AND description_i18n ? 'fr' AND description_i18n ? 'ht' AND description_i18n ? 'ar' AND is_active AND is_published AND lifecycle_status = 'live' AND is_operationally_available AND NOT is_bookable AND NULLIF(BTRIM(service_area), '') IS NOT NULL) FROM direct_catalog_tools")"
+[[ "$direct_tool_quality" == "40|5|40" ]] || {
+  echo "Restored Direct tools failed inventory, category, localization, or safety checks: $direct_tool_quality" >&2
+  exit 1
+}
+
 credit_integrity_trigger_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
   "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('oxsteed_credit_partner_ledger_guard', 'oxsteed_credit_partner_funding_guard', 'oxsteed_credit_currency_quote_immutable_guard', 'oxsteed_credit_currency_conversion_guard', 'oxsteed_credit_settlement_reversal_guard')")"
 [[ "$credit_integrity_trigger_count" == "5" ]] || {
@@ -108,5 +143,5 @@ $$;
 ROLLBACK;
 SQL
 
-printf 'Production restore verification passed: migrations=%s credit_tables=%s credit_integrity_triggers=%s temporary_database=%s\n' \
-  "$migration_count" "$credit_table_count" "$credit_integrity_trigger_count" "$TEMP_DB"
+printf 'Production restore verification passed: migrations=%s direct_catalog_migrations=%s direct_services=%s direct_tools=%s tool_category_fk=%s credit_tables=%s credit_integrity_triggers=%s temporary_database=%s\n' \
+  "$migration_count" "$direct_catalog_migration_count" "$direct_service_count" "${direct_tool_quality%%|*}" "$tool_category_fk_count" "$credit_table_count" "$credit_integrity_trigger_count" "$TEMP_DB"

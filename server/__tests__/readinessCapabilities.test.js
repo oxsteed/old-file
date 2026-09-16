@@ -146,6 +146,25 @@ describe('runtime readiness', () => {
     expect(result.checks.workers.ok).toBe(false);
   });
 
+  test('reports not_ready when the database contains a migration newer than this release', async () => {
+    const files = expectedMigrationFiles();
+    const pool = {
+      query: jest.fn(async (sql) => sql.includes('_migrations')
+        ? { rows: [...files, '999_future_release.sql'].map((filename) => ({ filename })) }
+        : { rows: [] }),
+    };
+
+    const result = await checkReadiness({ pool, redis: null });
+
+    expect(result.status).toBe('not_ready');
+    expect(result.checks.migrations).toMatchObject({
+      ok: false,
+      pendingCount: 0,
+      unexpectedCount: 1,
+      error: 'database contains migrations not present in this release',
+    });
+  });
+
   test('reports unsafe production configuration through readiness', async () => {
     const previous = {
       NODE_ENV: process.env.NODE_ENV,

@@ -42,8 +42,9 @@ jobs:
           if [ -n "${DATABASE_URL}" ]; then
             npm run verify:active-job-statuses
             npm run verify:credit
+            DIRECT_CATALOG_VERIFY_LIVE=true npm run verify:direct-catalog
           else
-            echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job and Credit schema checks)."
+            echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks)."
           fi
 
       - name: Install client dependencies
@@ -123,3 +124,10 @@ jobs:
 
           ready_payload="$(curl --silent --show-error --fail --max-time 15 "$PUBLIC_READY_URL")"
           printf '%s' "$ready_payload" | node server/scripts/verify-readiness-payload.js
+
+          DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog \
+            node server/scripts/verify-direct-catalog-public-api.js
+
+          DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog \
+          DIRECT_CATALOG_PERFORMANCE_LIVE=true \
+            node server/scripts/verify-direct-catalog-performance.js

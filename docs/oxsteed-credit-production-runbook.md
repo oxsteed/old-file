@@ -23,6 +23,7 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 - Production ledger verification does not fall back to `JWT_SECRET`; rotate and store the dedicated ledger secret independently from authentication secrets.
 - The database backup schedule is active, backups are stored outside the application host, and a restore test has been completed.
 - The latest migrations have been applied and `npm run verify:credit` exits with `ok: true`. This includes the partner reporting index needed for settlement and transaction feeds as the restaurant network grows. After financial activity begins, do not change a partner's restaurant/currency, an agreement's partner, or an account's customer/partner/type/currency identity; create a replacement record instead.
+- The Direct catalog release gate must also pass: migrations `523` through `528` are applied, `DIRECT_CATALOG_VERIFY_LIVE=true npm run verify:direct-catalog` confirms exactly 1,000 covered added services, 40 categorized covered tools, complete locale metadata, quote-based requestability, and the tool-category foreign key, and `npm run verify:direct-catalog-public` confirms bounded pagination, search, request links, coverage fields, and English/Spanish/French/Haitian Creole/Arabic API responses.
 - Customer wallets and customer-specific partner entitlements are restricted to users with the `customer` role at both the service and database layers. Wallet updates and ledger postings re-check current ownership, so a later role change cannot be used to move value through a non-customer identity. Helpers, restaurant owners, and administrative identities must not receive customer Credit access.
 - Credit checkout, refund, hold expiry, duplicate retry, account suspension, and partner settlement have passed in a non-production environment.
 - The `oxsteed_credit_enabled` feature flag remains disabled until the release owner explicitly approves activation.
@@ -32,11 +33,19 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 
 The Coolify OxSteed application has been repaired and is currently healthy.
 Its production environment now contains non-placeholder database, JWT, and
-Stripe values, and the deployed container has completed migration 516. The
-current source contains forward migrations 517 through 522; the next Coolify
-deploy must apply them before the latest source artifact can be verified. Do not copy
-values from this document into Coolify. Keep all credentials in Coolify's
-secret store and redeploy only after the values have been checked.
+Stripe values, and the currently deployed container reports migration 516. The
+current source contains forward migrations 517 through 527, including the Direct
+catalog expansion. The next approved Coolify deploy must apply them before the
+latest source artifact can be verified. Do not copy values from this document into
+Coolify. Keep all credentials in Coolify's secret store and redeploy only after
+the values have been checked.
+
+The live database may already contain catalog rows from migrations 523 through
+526 while the running image still reports 516 and serializes the older API shape.
+Treat that state as a release mismatch, not as proof that the source package is
+deployed. The source readiness check fails closed when applied migration records
+are newer than the running release. Do not activate Credit or perform destructive
+catalog edits until the intended image is published and the checks below agree.
 
 The live `verify:credit` release check remains intentionally fail-closed until
 server error monitoring is configured with `SENTRY_DSN`; do not bypass that
@@ -131,11 +140,38 @@ npm run verify:credit
 ```
 
 The expected result is a healthy app container, readiness JSON with no pending
-migrations, and `verify:credit` reporting `ok: true`. The live database is
-currently at migration `516`; after the next deploy it must reach the latest
-source migration (`522`). The
+migrations, and `verify:credit` reporting `ok: true`. After the next deploy the
+database must reach the latest source migration (`527`), with no unexpected
+applied migration records. The
 pre-migration dump is stored under
 `/Users/oxsteed/server-backups/production/`.
+
+### Direct Catalog Release Gate
+
+Run the catalog verifiers from the server directory against the intended database
+after migrations and before publication is considered complete:
+
+```sh
+DIRECT_CATALOG_VERIFY_LIVE=true npm run verify:direct-catalog
+npm run verify:direct-catalog-public
+DIRECT_CATALOG_PUBLIC_API_URL=https://oxsteed.com/api/direct/catalog \
+DIRECT_CATALOG_PERFORMANCE_LIVE=true \
+npm run verify:direct-catalog-performance
+```
+
+The public gate must observe `servicePagination` for bounded requests,
+category totals that are independent of page size, locale-aware names and
+descriptions in `en`, `es`, `fr`, `ht`, and `ar`, safe quote-request links,
+categorized tools, and unique slugs. It must not pass against the old full
+payload serializer. Re-run the read-only browser check at
+`/direct/services?lang=ar` and confirm RTL rendering, category selection,
+service search, pagination, tool-category labels, and request-link navigation.
+The performance command measures 20 bounded requests across all five categories
+and multiple offsets at concurrency 4 by default. The live command above
+explicitly authorizes the public target; keep the default loopback target for
+isolated runs and never set the live flag there.
+Record the deployed release identifier, migration count, verifier output, and
+any unavailable live provider checks in `docs/direct-catalog-expansion-progress.md`.
 
 ## API Abuse Controls
 
@@ -449,8 +485,9 @@ For a restore drill:
 1. Restore a backup into an isolated database with production network access disabled.
 2. Apply any migrations required by the restored snapshot.
 3. Run `npm run verify:credit` against the isolated database.
-4. Compare account balances, transaction counts, entry counts, and the latest reconciliation result with the source environment.
-5. Record the test duration, restore point, rows verified, and any difference in the backup monitor.
+4. Run `npm --prefix server run verify:restore -- /path/to/oxsteed-db.dump` from the repository against the isolated Postgres service. The current verifier also checks all six Direct catalog migrations, 1,000 expansion services with coverage, 40 categorized tools with coverage, five-locale metadata, quote/non-bookable safeguards, and the tool-category foreign key. A current migration-527 synthetic dump has passed the prior gate; repeat it against the first post-publication migration-528 production snapshot.
+5. Compare account balances, transaction counts, entry counts, and the latest reconciliation result with the source environment.
+6. Record the test duration, restore point, rows verified, and any difference in the backup monitor.
 
 On the MacBook deployment host, the safe database-only drill can be run from
 the production repository against an existing custom-format snapshot without
