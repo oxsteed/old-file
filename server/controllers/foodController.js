@@ -532,6 +532,32 @@ function attachRestaurantHours(row) {
   };
 }
 
+const RESTAURANT_SORTS = new Set(['recommended', 'rating', 'fastest', 'distance']);
+
+function normalizeRestaurantSort(value) {
+  const sort = String(value || '').trim().toLowerCase();
+  return RESTAURANT_SORTS.has(sort) ? sort : 'recommended';
+}
+
+function restaurantListResponse(rows, limit, offset) {
+  const total = Number(rows[0]?.total_count);
+  const safeTotal = Number.isSafeInteger(total) && total >= 0 ? total : rows.length;
+  const restaurants = rows.map(({ total_count: _totalCount, ...row }) => attachRestaurantHours(row));
+  const nextOffset = offset + restaurants.length;
+  return {
+    restaurants,
+    limit,
+    offset,
+    pagination: {
+      limit,
+      offset,
+      total: safeTotal,
+      hasMore: nextOffset < safeTotal,
+      nextOffset: nextOffset < safeTotal ? nextOffset : null,
+    },
+  };
+}
+
 function normalizeDeliveryAddress(value) {
   if (!value || typeof value !== 'object') return null;
   const line1 = normalizeString(value.line1 || value.line_1 || value.street, 255);
@@ -1420,6 +1446,7 @@ exports.listRestaurants = async (req, res, next) => {
   try {
     const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
     const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
+    const sort = normalizeRestaurantSort(req.query.sort);
     const params = [];
     const filters = [
       `fr.status = 'active'`,
@@ -1451,6 +1478,11 @@ exports.listRestaurants = async (req, res, next) => {
     const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
     let distanceSelect = 'NULL::double precision AS distance_km';
     let orderBy = 'fr.is_featured DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.rating_count DESC, fr.order_count DESC, fr.display_name ASC';
+    if (sort === 'rating') {
+      orderBy = 'fr.avg_rating DESC, fr.rating_count DESC, fr.is_featured DESC, fr.display_name ASC';
+    } else if (sort === 'fastest') {
+      orderBy = 'COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 999999) ASC, fr.is_featured DESC, fr.display_name ASC';
+    }
     if (hasGeo) {
       params.push(lat);
       const latIndex = params.length;
@@ -1462,7 +1494,9 @@ exports.listRestaurants = async (req, res, next) => {
         sin(radians($${latIndex})) * sin(radians(fr.latitude))
       )))) AS distance_km`;
       filters.push('fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL');
-      orderBy = 'distance_km ASC, fr.is_featured DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.display_name ASC';
+      orderBy = sort === 'distance'
+        ? 'distance_km ASC, fr.is_featured DESC, fr.display_name ASC'
+        : orderBy;
     }
 
     const { rows } = await pool.query(
@@ -1484,6 +1518,7 @@ exports.listRestaurants = async (req, res, next) => {
               COALESCE(fr.avg_rating, 0)::float AS avg_rating,
               COALESCE(fr.rating_count, 0)::int AS review_count,
               COALESCE(fr.rating_count, 0)::int AS total_reviews,
+              COUNT(*) OVER()::int AS total_count,
               ${distanceSelect}
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
@@ -1498,12 +1533,13 @@ exports.listRestaurants = async (req, res, next) => {
       params
     );
 
-    res.json({ restaurants: rows.map(attachRestaurantHours), limit, offset });
+    res.json(restaurantListResponse(rows, limit, offset));
   } catch (err) {
     if (!isMissingRelationError(err)) return next(err);
     try {
       const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
       const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
+      const sort = normalizeRestaurantSort(req.query.sort);
       const params = [];
       const filters = [`fr.status = 'active'`];
       const q = normalizeString(req.query.q || req.query.search, 120);
@@ -1527,7 +1563,9 @@ exports.listRestaurants = async (req, res, next) => {
       const lng = Number(req.query.lng);
       const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
       let distanceSelect = 'NULL::double precision AS distance_km';
-      let orderBy = 'fr.display_name ASC';
+      let orderBy = sort === 'fastest'
+        ? 'COALESCE(fr.prep_time_min, 999999) ASC, fr.display_name ASC'
+        : 'fr.display_name ASC';
       if (hasGeo) {
         params.push(lat);
         const latIndex = params.length;
@@ -1538,7 +1576,9 @@ exports.listRestaurants = async (req, res, next) => {
           sin(radians($${latIndex})) * sin(radians(fr.latitude))
         )))) AS distance_km`;
         filters.push('fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL');
-        orderBy = 'distance_km ASC, fr.display_name ASC';
+        orderBy = sort === 'distance'
+          ? 'distance_km ASC, fr.display_name ASC'
+          : orderBy;
       }
       const { rows } = await pool.query(
         `SELECT fr.id, fr.business_id, fr.display_name, fr.slug, fr.description,
@@ -1552,6 +1592,7 @@ exports.listRestaurants = async (req, res, next) => {
                 'mid'::text AS price_level,
                 0::float AS avg_rating, 0::int AS review_count,
                 0::int AS total_reviews,
+                COUNT(*) OVER()::int AS total_count,
                 ${distanceSelect}
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
@@ -1565,7 +1606,7 @@ exports.listRestaurants = async (req, res, next) => {
           LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
         params
       );
-      return res.json({ restaurants: rows.map(attachRestaurantHours), limit, offset });
+      return res.json(restaurantListResponse(rows, limit, offset));
     } catch (retryErr) {
       return next(retryErr);
     }

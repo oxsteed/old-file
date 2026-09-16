@@ -1466,6 +1466,76 @@ html:not(.dark) .fd-skeleton-label {
 /* ── Content wrapper ── */
 .fd-home-content { padding-top: 0.5rem; }
 
+/* ── Discovery controls ── */
+.fd-discovery-toolbar {
+  max-width: 1100px;
+  margin: 0 auto 1.15rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--card-bg, #fff) 92%, #f97316 8%);
+}
+.fd-discovery-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--app-text, #111827);
+  font-size: 0.88rem;
+}
+.fd-discovery-live-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
+}
+.fd-discovery-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-text, #6b7280);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.fd-discovery-sort select {
+  min-height: 40px;
+  padding: 0.45rem 2rem 0.45rem 0.7rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card-bg, #fff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.fd-discovery-sort select:focus-visible,
+.fd-home-cat-btn:focus-visible,
+.fd-discovery-pagination button:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, 0.35);
+  outline-offset: 2px;
+}
+.fd-discovery-pagination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 1.4rem 0 0.25rem;
+}
+.fd-discovery-load-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+.fd-discovery-end {
+  color: var(--muted-text, #6b7280);
+  font-size: 0.82rem;
+}
+html.dark .fd-discovery-load-error { color: #fca5a5; }
+
 /* ── Footer CTA ── */
 .fd-home-footer-cta {
   margin-top: 1rem;
@@ -1482,6 +1552,9 @@ html:not(.dark) .fd-skeleton-label {
   .fd-home-search-btn,
   .fd-home-near-btn { width: 100%; justify-content: center; }
   .fd-home-categories { scroll-padding-inline: 1rem; }
+  .fd-discovery-toolbar { align-items: stretch; }
+  .fd-discovery-sort { justify-content: space-between; }
+  .fd-discovery-sort select { flex: 1; }
 }
 
 /* ── Merchant hero ──────────────────────────────────────────────────────────── */

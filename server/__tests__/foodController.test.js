@@ -255,11 +255,57 @@ describe('food controller', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.restaurants).toHaveLength(1);
+    expect(res.body.restaurants[0]).not.toHaveProperty('total_count');
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM food_restaurants fr/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/address_country/);
     expect(mockQuery.mock.calls[0][1]).toContain('US');
+  });
+
+  test('returns bounded discovery pagination and applies an allowlisted sort', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 7, display_name: 'Ox Burger', total_count: 29 }],
+    });
+
+    const res = await request(buildApp())
+      .get('/api/food/restaurants?cuisine=Burgers&sort=rating&limit=12&offset=12');
+
+    expect(res.status).toBe(200);
+    expect(res.body.restaurants).toHaveLength(1);
+    expect(res.body.pagination).toEqual({
+      limit: 12,
+      offset: 12,
+      total: 29,
+      hasMore: true,
+      nextOffset: 13,
+    });
+    expect(mockQuery.mock.calls[0][0]).toMatch(/COUNT\(\*\) OVER\(\)/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/ORDER BY fr\.avg_rating DESC/);
+    expect(mockQuery.mock.calls[0][1]).toContain('Burgers');
+  });
+
+  test('keeps the legacy discovery fallback contract and requested sort', async () => {
+    mockQuery
+      .mockRejectedValueOnce({ code: '42703' })
+      .mockResolvedValueOnce({
+        rows: [{ id: 8, display_name: 'Legacy Cafe', total_count: 2 }],
+      });
+
+    const res = await request(buildApp())
+      .get('/api/food/restaurants?sort=rating&lat=39.9242&lng=-83.8088&limit=1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toEqual({
+      limit: 1,
+      offset: 0,
+      total: 2,
+      hasMore: true,
+      nextOffset: 1,
+    });
+    expect(res.body.restaurants[0]).not.toHaveProperty('total_count');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/ORDER BY fr\.display_name ASC/);
+    expect(mockQuery.mock.calls[1][0]).not.toMatch(/ORDER BY distance_km ASC/);
   });
 
   test('returns available markets grouped by city and country', async () => {

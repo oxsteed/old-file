@@ -13411,7 +13411,17 @@
       "noResultsForFilter": "لا توجد مطاعم تطابق عامل التصفية هذا.",
       "clearFilter": "مسح عامل التصفية",
       "addYourRestaurant": "أضف مطعمك",
-      "kmAway": "على بُعد {{km}} كم"
+      "kmAway": "على بُعد {{km}} كم",
+      "discoveryControls": "عناصر اكتشاف المطاعم",
+      "showingCount": "عرض {{shown}} من أصل {{total}} مطعمًا",
+      "sortBy": "ترتيب حسب",
+      "sortRecommended": "موصى به",
+      "sortRating": "الأعلى تقييمًا",
+      "sortFastest": "الأسرع تحضيرًا",
+      "sortDistance": "الأقرب",
+      "loadMore": "تحميل المزيد من المطاعم",
+      "loadingMore": "جارٍ تحميل المزيد...",
+      "allLoaded": "وصلت إلى النهاية"
     },
     "restaurant": {
       "notFound": "لم نعثر على هذا المطعم.",

@@ -13408,7 +13408,17 @@
       "suggestRestaurant": "Sugerir un restaurante",
       "launchingSoon": "Llegando pronto a tu ciudad",
       "noResultsForFilter": "No hay restaurantes para ese filtro.",
-      "clearFilter": "Quitar filtro"
+      "clearFilter": "Quitar filtro",
+      "discoveryControls": "Controles de descubrimiento de restaurantes",
+      "showingCount": "Mostrando {{shown}} de {{total}} restaurantes",
+      "sortBy": "Ordenar por",
+      "sortRecommended": "Recomendados",
+      "sortRating": "Mejor valorados",
+      "sortFastest": "Preparación más rápida",
+      "sortDistance": "Más cercanos",
+      "loadMore": "Cargar más restaurantes",
+      "loadingMore": "Cargando más...",
+      "allLoaded": "Has llegado al final"
     },
     "restaurant": {
       "notFound": "No encontramos ese restaurante.",

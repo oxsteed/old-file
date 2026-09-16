@@ -13408,7 +13408,17 @@
       "suggestRestaurant": "Sijere yon restoran",
       "launchingSoon": "Ap vini byento nan vil ou",
       "noResultsForFilter": "Pa gen restoran ki koresponn ak filtè sa a.",
-      "clearFilter": "Efase filtè"
+      "clearFilter": "Efase filtè",
+      "discoveryControls": "Kontwòl pou dekouvri restoran",
+      "showingCount": "Ap montre {{shown}} sou {{total}} restoran",
+      "sortBy": "Triye pa",
+      "sortRecommended": "Rekòmande",
+      "sortRating": "Pi bon evalyasyon",
+      "sortFastest": "Preparasyon pi rapid",
+      "sortDistance": "Pi pre",
+      "loadMore": "Chaje plis restoran",
+      "loadingMore": "Ap chaje plis...",
+      "allLoaded": "Ou rive nan fen an"
     },
     "restaurant": {
       "notFound": "Nou pa t jwenn restoran sa a.",

@@ -4,11 +4,16 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { listFoodRestaurants, listMyFoodOrders } from '../../api/food';
+import { listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import {
+  DISCOVERY_PAGE_SIZE,
+  buildRestaurantDiscoveryParams,
+  mergeUniqueRestaurants,
+} from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
 
 const DEFAULT_CENTER = [25.0, -40.0];
@@ -119,30 +124,66 @@ export default function FoodHomePage() {
   const [activeCuisine, setActiveCuisine] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [sort, setSort] = useState('recommended');
+  const [pagination, setPagination] = useState({
+    limit: DISCOVERY_PAGE_SIZE,
+    offset: 0,
+    total: 0,
+    hasMore: false,
+    nextOffset: null,
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
 
   const featuredRef = useRef([]);
   const isFirstLoad = useRef(true);
+  const requestSequence = useRef(0);
 
-  const load = useCallback(async (params) => {
-    setLoading(true);
-    setError(false);
+  const load = useCallback(async (params = {}, options = {}) => {
+    const reset = options.reset !== false;
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
+    if (reset) {
+      setLoading(true);
+      setError(false);
+      setLoadMoreError(false);
+    } else {
+      setLoadingMore(true);
+      setLoadMoreError(false);
+    }
     try {
-      const rows = await listFoodRestaurants(params);
-      setRestaurants(rows);
-      if (isFirstLoad.current && rows.length > 0) {
+      const page = await listFoodRestaurantsPage({ limit: DISCOVERY_PAGE_SIZE, ...params });
+      if (sequence !== requestSequence.current) return;
+      const rows = Array.isArray(page.restaurants) ? page.restaurants : [];
+      setRestaurants((current) => {
+        if (reset) return rows;
+        return mergeUniqueRestaurants(current, rows);
+      });
+      setPagination(page.pagination || {
+        limit: DISCOVERY_PAGE_SIZE,
+        offset: Number(params.offset || 0),
+        total: rows.length,
+        hasMore: false,
+        nextOffset: null,
+      });
+      if (reset && isFirstLoad.current && !params.q && !params.cuisine && !params.lat && !params.lng && rows.length > 0) {
         featuredRef.current = [...rows]
           .sort((a, b) => Number(b.avg_rating || 0) - Number(a.avg_rating || 0))
           .slice(0, 8);
         isFirstLoad.current = false;
       }
     } catch {
-      setError(true);
+      if (sequence !== requestSequence.current) return;
+      if (reset) setError(true);
+      else setLoadMoreError(true);
     } finally {
-      setLoading(false);
+      if (sequence !== requestSequence.current) return;
+      if (reset) setLoading(false);
+      else setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { load({}); }, [load]);
+  useEffect(() => { load({ sort: 'recommended' }, { reset: true }); }, [load]);
 
   useEffect(() => {
     if (!user) return;
@@ -164,10 +205,33 @@ export default function FoodHomePage() {
 
   const search = (e) => {
     e?.preventDefault?.();
-    const params = {};
-    if (query.trim()) params.q = query.trim();
-    if (geo) { params.lat = geo.lat; params.lng = geo.lng; }
-    load(params);
+    const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort });
+    load(params, { reset: true });
+  };
+
+  const selectCuisine = (cuisine) => {
+    const nextCuisine = activeCuisine === cuisine ? null : cuisine;
+    setActiveCuisine(nextCuisine);
+    const params = buildRestaurantDiscoveryParams({ query, cuisine: nextCuisine, geo, sort });
+    load(params, { reset: true });
+  };
+
+  const loadMore = () => {
+    if (loadingMore || !pagination.hasMore) return;
+    const params = buildRestaurantDiscoveryParams({
+      query,
+      cuisine: activeCuisine,
+      geo,
+      sort,
+      offset: pagination.nextOffset ?? pagination.offset + DISCOVERY_PAGE_SIZE,
+    });
+    load(params, { reset: false });
+  };
+
+  const selectSort = (nextSort) => {
+    setSort(nextSort);
+    const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort: nextSort });
+    load(params, { reset: true });
   };
 
   const useMyLocation = () => {
@@ -178,9 +242,8 @@ export default function FoodHomePage() {
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setGeo(next);
         setLocating(false);
-        const params = { lat: next.lat, lng: next.lng };
-        if (query.trim()) params.q = query.trim();
-        load(params);
+        const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo: next, sort });
+        load(params, { reset: true });
       },
       () => setLocating(false),
       { timeout: 10000 }
@@ -202,9 +265,8 @@ export default function FoodHomePage() {
   }, [restaurants]);
 
   const displayedRestaurants = useMemo(() => {
-    if (!activeCuisine) return restaurants;
-    return restaurants.filter((r) => (r.cuisine_tags || []).includes(activeCuisine));
-  }, [restaurants, activeCuisine]);
+    return restaurants;
+  }, [restaurants]);
 
   const nearbyRestaurants = useMemo(() => {
     if (!geo) return [];
@@ -229,9 +291,10 @@ export default function FoodHomePage() {
   const featured = featuredRef.current;
   const isSearching = !!query.trim();
   const hasReorder = reorderRestaurants.length > 0;
-  const hasFeatured = !isSearching && featured.length > 0;
+  const hasFeatured = !isSearching && !activeCuisine && featured.length > 0;
   const hasNearby = !isSearching && nearbyRestaurants.length > 0;
   const hasData = restaurants.length > 0;
+  const hasDiscoveryFilter = isSearching || !!activeCuisine;
 
   // Cuisine strip is driven by live restaurant data only — no hardcoded
   // market assumptions. When the current market has no restaurants (or only
@@ -293,7 +356,8 @@ export default function FoodHomePage() {
                 key={key}
                 type="button"
                 className={`fd-home-cat-btn${isActive ? ' fd-home-cat-btn--active' : ''}`}
-                onClick={() => setActiveCuisine(isActive ? null : key)}
+                aria-pressed={isActive}
+                onClick={() => selectCuisine(key)}
               >
                 <span className="fd-home-cat-icon">{icon}</span>
                 <span className="fd-home-cat-label">{key}</span>
@@ -309,6 +373,7 @@ export default function FoodHomePage() {
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
           onClick={() => setShowMap((v) => !v)}
+          aria-expanded={showMap}
         >
           {showMap ? `🗺️ ${t('food.home.hideMap')}` : `🗺️ ${t('food.home.showMap')}`}
         </button>
@@ -364,7 +429,7 @@ export default function FoodHomePage() {
             {t('food.common.retry')}
           </button>
         </div>
-      ) : !hasData ? (
+      ) : !hasData && !hasDiscoveryFilter ? (
         /* Rich empty state */
         <div className="fd-home-empty">
           <div className="fd-home-empty-art">
@@ -391,6 +456,22 @@ export default function FoodHomePage() {
         </div>
       ) : (
         <div className="fd-home-content">
+          <div className="fd-discovery-toolbar" aria-label={t('food.home.discoveryControls')}>
+            <div className="fd-discovery-summary" aria-live="polite">
+              <span className="fd-discovery-live-dot" aria-hidden="true" />
+              <strong>{t('food.home.showingCount', { shown: restaurants.length, total: pagination.total })}</strong>
+            </div>
+            <label className="fd-discovery-sort">
+              <span>{t('food.home.sortBy')}</span>
+              <select value={sort} onChange={(e) => selectSort(e.target.value)}>
+                <option value="recommended">{t('food.home.sortRecommended')}</option>
+                <option value="rating">{t('food.home.sortRating')}</option>
+                <option value="fastest">{t('food.home.sortFastest')}</option>
+                {geo && <option value="distance">{t('food.home.sortDistance')}</option>}
+              </select>
+            </label>
+          </div>
+
           {/* Order again */}
           {hasReorder && (
             <div className="fd-section">
@@ -452,10 +533,29 @@ export default function FoodHomePage() {
                 <button
                   type="button"
                   className="fd-btn fd-btn-secondary fd-btn-sm"
-                  onClick={() => { setActiveCuisine(null); setQuery(''); load({}); }}
+                  onClick={() => {
+                    setActiveCuisine(null);
+                    setQuery('');
+                    setSort('recommended');
+                    load({ sort: 'recommended' }, { reset: true });
+                  }}
                 >
                   {t('food.home.clearFilter')}
                 </button>
+              </div>
+            )}
+            {displayedRestaurants.length > 0 && (
+              <div className="fd-discovery-pagination">
+                {loadMoreError && (
+                  <p className="fd-discovery-load-error" role="alert">{t('food.common.loadError')}</p>
+                )}
+                {pagination.hasMore ? (
+                  <button type="button" className="fd-btn fd-btn-secondary" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? t('food.home.loadingMore') : t('food.home.loadMore')}
+                  </button>
+                ) : (
+                  <span className="fd-discovery-end" aria-live="polite">{t('food.home.allLoaded')}</span>
+                )}
               </div>
             )}
           </div>

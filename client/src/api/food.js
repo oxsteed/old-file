@@ -14,8 +14,21 @@ export const uploadFoodAsset = (file, purpose = 'food-general') => {
 };
 
 // ── Discovery (public) ───────────────────────────────────────────────────────
+export const listFoodRestaurantsPage = (params = {}) =>
+  api.get('/food/restaurants', { params }).then((r) => ({
+    restaurants: r.data?.restaurants || [],
+    pagination: r.data?.pagination || {
+      limit: Number(params.limit || 30),
+      offset: Number(params.offset || 0),
+      total: Array.isArray(r.data?.restaurants) ? r.data.restaurants.length : 0,
+      hasMore: false,
+      nextOffset: null,
+    },
+  }));
+
+// Preserve the original array-only helper for older food surfaces.
 export const listFoodRestaurants = (params = {}) =>
-  api.get('/food/restaurants', { params }).then((r) => r.data?.restaurants || []);
+  listFoodRestaurantsPage(params).then((page) => page.restaurants);
 
 export const getFoodRestaurant = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}`).then((r) => r.data);
