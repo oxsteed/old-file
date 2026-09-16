@@ -22,6 +22,18 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Client smoke tests
+        working-directory: client
+        run: node --test scripts/*.test.mjs
+
+      - name: Client localization, type, and production build checks
+        working-directory: client
+        run: npm run build:ci
+
       - name: Install server dependencies
         working-directory: server
         run: npm ci
@@ -46,18 +58,6 @@ jobs:
           else
             echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks)."
           fi
-
-      - name: Install client dependencies
-        working-directory: client
-        run: npm ci
-
-      - name: Client smoke tests
-        working-directory: client
-        run: node --test scripts/*.test.mjs
-
-      - name: Client localization, type, and production build checks
-        working-directory: client
-        run: npm run build:ci
 
   deploy:
     name: Deploy to Coolify

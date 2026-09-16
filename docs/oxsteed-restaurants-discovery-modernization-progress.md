@@ -59,10 +59,21 @@ The first discovery package is implemented in the source worktree:
   controller tests passed `57/57`.
 - No production container, restaurant data, wallet, ordering state, or Credit
   activation setting was modified.
+- Commit `b51fe89a` was pushed to `old-files-claude` through authenticated
+  GitHub Desktop. GitHub Actions run `35082673547` then failed before deploy:
+  the clean checkout did not contain ignored `client/dist/index.html`, so the
+  server prerender suite reported `7` failures even though the focused suite
+  and the complete local server suite passed. The deployment job was correctly
+  skipped by that failure.
+- The CI workflow was repaired to build the client before server tests, which
+  supplies the prerender shell in clean checkouts without changing production
+  runtime behavior. The deployment-wiring regression passed `32/32`, the
+  workflow YAML parsed successfully, and `git diff --check` passed.
 
 ## Remaining Gates
 
-1. Review the captured responsive surfaces for any final visual or contrast
-   polish against the existing Restaurants design language.
-2. Publish only after that final review, then repeat read-only live API/browser
-   checks and record the deployed release identity.
+1. Publish the CI-order repair and confirm the new Actions verification job
+   passes, allowing the existing Coolify deploy gate to run.
+2. Repeat read-only live API/browser checks after deployment and record the
+   deployed release identity; production currently remains on the prior
+   `content-ca49f8250bc2b53d` release.
