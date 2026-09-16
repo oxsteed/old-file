@@ -69,11 +69,16 @@ The first discovery package is implemented in the source worktree:
   supplies the prerender shell in clean checkouts without changing production
   runtime behavior. The deployment-wiring regression passed `32/32`, the
   workflow YAML parsed successfully, and `git diff --check` passed.
+- Actions run `35084300845` confirmed the repair: Server and Client
+  Verification passed in `1m 34s`. The deploy step then received Coolify HTTP
+  `405` because the workflow still used `GET`; Coolify reported that the
+  endpoint has changed to `POST`. The workflow now uses `POST` with the same
+  bearer-token secret, without exposing or changing credentials.
 
 ## Remaining Gates
 
-1. Publish the CI-order repair and confirm the new Actions verification job
-   passes, allowing the existing Coolify deploy gate to run.
+1. Publish the webhook-method repair and confirm the existing Coolify deploy
+   gate completes its production health checks.
 2. Repeat read-only live API/browser checks after deployment and record the
    deployed release identity; production currently remains on the prior
    `content-ca49f8250bc2b53d` release.

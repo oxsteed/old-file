@@ -90,7 +90,7 @@ jobs:
 
       - name: Trigger Coolify deploy
         run: |
-          curl --fail-with-body --silent --show-error -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
+          curl --fail-with-body --silent --show-error -X POST "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
       - name: Verify production recovered after deploy
