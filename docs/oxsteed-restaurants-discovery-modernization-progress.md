@@ -57,8 +57,11 @@ The first discovery package is implemented in the source worktree:
   with bounded responses and a `410.15 ms` p95 (`702.78 ms` maximum) on the
   emulated local stack. Existing restaurant ordering, hours, visibility, and
   controller tests passed `57/57`.
-- No production container, restaurant data, wallet, ordering state, or Credit
-  activation setting was modified.
+- No production restaurant data, wallet, ordering state, or Credit activation
+  setting was modified during publication. The existing production container
+  was replaced only through the verified Coolify deployment for the branch
+  head; the stale predecessor queue was allowed to finish before the
+  modernization release was promoted.
 - Commit `b51fe89a` was pushed to `old-files-claude` through authenticated
   GitHub Desktop. GitHub Actions run `35082673547` then failed before deploy:
   the clean checkout did not contain ignored `client/dist/index.html`, so the
@@ -75,10 +78,30 @@ The first discovery package is implemented in the source worktree:
   endpoint has changed to `POST`. The workflow now uses `POST` with the same
   bearer-token secret, without exposing or changing credentials.
 
+## Live Publication
+
+- Coolify completed the queued predecessor and then promoted `b51fe89a` and
+  the current branch head `dc3a8c04` without cancelling an active build. The
+  final application container is healthy and no deployment remains queued or
+  in progress.
+- `https://oxsteed.com/ready` returned HTTP `200` with release
+  `content-935664c28efad1a7`, database and Redis checks healthy, migrations
+  `529/529`, and the Credit rail disabled.
+- `GET https://oxsteed.com/api/food/restaurants?limit=2&offset=0&sort=rating`
+  returned the expected `{ restaurants, limit, offset, pagination }` shape;
+  the live database currently has zero participating restaurants, so the
+  response correctly reports `total: 0` and `hasMore: false` rather than
+  inventing catalog data.
+- A fresh browser session hydrated `https://oxsteed.com/restaurants` in
+  English and exposed the accessible navigation, search, location, map
+  disclosure, and truthful empty-state actions. The isolated seeded browser
+  run remains the evidence for populated category, sort, search, and
+  load-more interactions because production has no restaurant rows to show.
+
 ## Remaining Gates
 
-1. Publish the webhook-method repair and confirm the existing Coolify deploy
-   gate completes its production health checks.
-2. Repeat read-only live API/browser checks after deployment and record the
-   deployed release identity; production currently remains on the prior
-   `content-ca49f8250bc2b53d` release.
+1. No acceptance-blocking software gate remains for this modernization
+   package. When participating restaurants are present in production, repeat
+   the read-only browser check against the populated catalog to observe the
+   same already-verified category, search, sort, and pagination behavior with
+   real data.
