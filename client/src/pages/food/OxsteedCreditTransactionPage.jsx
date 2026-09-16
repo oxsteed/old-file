@@ -19,16 +19,13 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import { getOxsteedCreditTransaction } from '../../api/oxsteedCredit';
 import { formatCreditMinorUnits } from '../../lib/creditCurrency';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
 import './OxsteedCreditPage.css';
 
 const money = formatCreditMinorUnits;
 
 function dateTime(value, t) {
-  if (!value) return t('noDate');
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? t('noDate')
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return formatCreditDateTime(value, t('noDate'), t.lng);
 }
 
 function errorMessage(error, t) {

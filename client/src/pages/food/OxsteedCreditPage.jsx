@@ -39,22 +39,13 @@ import {
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
 import { formatCreditMinorUnits, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
+import { safeCreditErrorMessage } from '../../lib/creditErrors';
 
 const money = formatCreditMinorUnits;
 
 function dateTime(value, t) {
-  if (!value) return t('noDate');
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? t('noDate')
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
-
-function errorMessage(error, t) {
-  return error?.response?.data?.error?.message
-    || error?.response?.data?.message
-    || error?.message
-    || t('errorLoad');
+  return formatCreditDateTime(value, t('noDate'), t.lng);
 }
 
 function partnerLimit(partner, t) {
@@ -167,6 +158,7 @@ export default function OxsteedCreditPage() {
   const [disputes, setDisputes] = useState([]);
   const [disputePagination, setDisputePagination] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingMorePartners, setLoadingMorePartners] = useState(false);
@@ -200,6 +192,7 @@ export default function OxsteedCreditPage() {
     const isCurrentRequest = () => requestId === loadRequestRef.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
+    if (isCurrentRequest()) setLoadError(null);
     try {
       const existingAccounts = await listOxsteedCreditAccounts();
       const preferredCurrency = currencyCode || existingAccounts[0]?.currencyCode || 'USD';
@@ -241,7 +234,11 @@ export default function OxsteedCreditPage() {
         setTransactions(Array.isArray(transactionResult?.transactions) ? transactionResult.transactions : []);
       }
     } catch (error) {
-      if (isCurrentRequest()) toast.error(errorMessage(error, t));
+      if (isCurrentRequest()) {
+        const message = safeCreditErrorMessage(error, t('errorLoad'));
+        setLoadError(message);
+        toast.error(message);
+      }
     } finally {
       if (isCurrentRequest()) {
         setLoading(false);
@@ -279,7 +276,7 @@ export default function OxsteedCreditPage() {
       setPartners((current) => append ? [...current, ...nextPartners] : nextPartners);
       setPartnerPagination(page?.pagination || null);
     } catch (error) {
-      if (requestId === partnerPageRequestRef.current) toast.error(errorMessage(error, t));
+      if (requestId === partnerPageRequestRef.current) toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       if (requestId === partnerPageRequestRef.current) {
         if (append) setLoadingMorePartners(false);
@@ -317,7 +314,7 @@ export default function OxsteedCreditPage() {
       setHolds((current) => [...current, ...nextHolds]);
       setHoldPagination(page?.pagination || null);
     } catch (error) {
-      if (requestId === holdPageRequestRef.current) toast.error(errorMessage(error, t));
+      if (requestId === holdPageRequestRef.current) toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       if (requestId === holdPageRequestRef.current) setLoadingMoreHolds(false);
     }
@@ -338,7 +335,7 @@ export default function OxsteedCreditPage() {
       URL.revokeObjectURL(url);
       toast.success(t('statementDownloaded'));
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setDownloading(false);
     }
@@ -359,7 +356,7 @@ export default function OxsteedCreditPage() {
       setTransactions((current) => [...current, ...nextTransactions]);
       setStatement((current) => current ? { ...nextStatement, transactions: [...(current.transactions || []), ...nextTransactions] } : nextStatement);
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setLoadingMore(false);
     }
@@ -377,7 +374,7 @@ export default function OxsteedCreditPage() {
       setDisputes((current) => [...current, ...nextDisputes]);
       setDisputePagination(page?.pagination || null);
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setLoadingMoreDisputes(false);
     }
@@ -407,7 +404,7 @@ export default function OxsteedCreditPage() {
       await load({ quiet: true, currencyCode: selectedCurrency });
       toast.success(t('authorizationCreated'));
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setHoldSubmitting(false);
     }
@@ -435,7 +432,7 @@ export default function OxsteedCreditPage() {
       toast.success(t('authorizationReleased'));
       await load({ quiet: true, currencyCode: selectedCurrency });
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setReleasingHoldId(null);
     }
@@ -464,7 +461,7 @@ export default function OxsteedCreditPage() {
       await load({ quiet: true, currencyCode: selectedCurrency });
       toast.success(t('conversionCompleted'));
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setConversionSubmitting(false);
     }
@@ -488,7 +485,7 @@ export default function OxsteedCreditPage() {
       setDisputeDescription('');
       disputeRequestKeyRef.current = '';
     } catch (error) {
-      toast.error(errorMessage(error, t));
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setDisputeSubmitting(false);
     }
@@ -550,7 +547,9 @@ export default function OxsteedCreditPage() {
 
           {railStatus && !railStatus.enabled && <section className="ox-credit-rail-note" role="status"><AlertCircle size={19} /><div><strong>{t('pausedTitle')}</strong><span>{t('pausedBody')}</span></div></section>}
 
-          {loading ? <div className="ox-credit-loading">{t('loadingAccount')}</div> : (
+          {loadError && !loading && <section className="ox-credit-error-panel" role="alert"><AlertCircle size={24} /><strong>{t('errorLoad')}</strong><span>{loadError}</span><button type="button" className="ox-credit-refresh" onClick={() => load({ currencyCode: selectedCurrency })}>{t('retry')}</button></section>}
+
+          {loading ? <div className="ox-credit-loading" role="status" aria-live="polite">{t('loadingAccount')}</div> : loadError && !account ? null : (
             <>
               <section className="ox-credit-balance-card">
                 <div className="ox-credit-balance-top"><span className="ox-credit-wallet-icon"><WalletCards size={23} /></span><div><span>{t('balance')}</span><strong>{money(balanceCents, currency)}</strong></div><span className={`ox-credit-status ${accountStatus === 'active' ? 'active' : ''}`}>{creditStatusLabel(accountStatus, t)}</span></div>

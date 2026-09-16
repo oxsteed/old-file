@@ -5,13 +5,16 @@
   <key>Label</key>
   <string>com.oxsteed.production-backup-monitor</string>
   <key>ProgramArguments</key>
-  <array><string>/Users/oxsteed/Documents/GitHub/6/scripts/check-production-backup.sh</string></array>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/oxsteed/Library/Application Support/OxSteed/production-backup/check-production-backup.sh</string>
+  </array>
   <key>StartInterval</key><integer>900</integer>
   <key>RunAtLoad</key><true/>
   <key>ProcessType</key><string>Background</string>
   <key>LowPriorityIO</key><true/>
   <key>Nice</key><integer>10</integer>
-  <key>WorkingDirectory</key><string>/Users/oxsteed/Documents/GitHub/6</string>
+  <key>WorkingDirectory</key><string>/Users/oxsteed/Library/Application Support/OxSteed/production-backup</string>
   <key>EnvironmentVariables</key><dict>
     <key>DOCKER_CONTEXT</key><string>colima</string>
     <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>

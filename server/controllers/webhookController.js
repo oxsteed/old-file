@@ -162,12 +162,30 @@ async function syncConnectAccountState(account) {
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
+  const object = event.data?.object || {};
+  const eventType = String(event.type || 'unknown');
+  const objectType = eventType.split('.', 1)[0] || 'unknown';
+  const objectId = (() => {
+    if (['charge', 'refund'].includes(objectType) && typeof object.payment_intent === 'string') {
+      return object.payment_intent;
+    }
+    if (objectType === 'checkout' && typeof object.payment_intent === 'string') {
+      return object.payment_intent;
+    }
+    return object.id ? String(object.id) : null;
+  })();
+  const eventCreated = Number.isSafeInteger(Number(event.created)) ? Number(event.created) : null;
+
   const { rows } = await db.query(
-    `INSERT INTO webhook_event_receipts (provider, event_id, event_type, status)
-     VALUES ($1, $2, $3, 'processing')
+    `INSERT INTO webhook_event_receipts
+       (provider, event_id, event_type, object_type, object_id, event_created, status)
+     VALUES ($1, $2, $3, $4, $5, $6, 'processing')
      ON CONFLICT (provider, event_id) DO UPDATE SET
        attempts = webhook_event_receipts.attempts + 1,
        event_type = EXCLUDED.event_type,
+       object_type = EXCLUDED.object_type,
+       object_id = EXCLUDED.object_id,
+       event_created = EXCLUDED.event_created,
        status = 'processing',
        last_seen_at = NOW(),
        last_error = NULL
@@ -177,10 +195,42 @@ async function beginWebhookEvent(provider, event) {
           AND webhook_event_receipts.last_seen_at < NOW() - INTERVAL '15 minutes'
         )
      RETURNING id`,
-    [provider, event.id, event.type]
+    [provider, event.id, eventType, objectType, objectId, eventCreated]
   );
 
-  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id };
+  const receiptId = rows[0]?.id;
+  if (!receiptId || !objectId || eventCreated === null) {
+    return { shouldProcess: rows.length > 0, receiptId };
+  }
+
+  const { rows: watermarkRows } = await db.query(
+    `INSERT INTO webhook_event_watermarks
+       (provider, object_type, object_id, event_created, event_id)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (provider, object_type, object_id) DO UPDATE
+       SET event_created = EXCLUDED.event_created,
+           event_id = EXCLUDED.event_id,
+           updated_at = NOW()
+     WHERE webhook_event_watermarks.event_id = EXCLUDED.event_id
+        OR webhook_event_watermarks.event_created < EXCLUDED.event_created
+        OR (
+          webhook_event_watermarks.event_created = EXCLUDED.event_created
+          AND webhook_event_watermarks.event_id < EXCLUDED.event_id
+        )
+     RETURNING event_id`,
+    [provider, objectType, objectId, eventCreated, event.id]
+  );
+  if (watermarkRows.length > 0) {
+    return { shouldProcess: true, receiptId };
+  }
+
+  await db.query(
+    `UPDATE webhook_event_receipts
+        SET status = 'processed', processed_at = NOW(), last_seen_at = NOW(), last_error = NULL
+      WHERE id = $1`,
+    [receiptId]
+  );
+  return { shouldProcess: false, stale: true, receiptId };
 }
 
 async function markWebhookEventProcessed(receiptId) {
@@ -225,7 +275,7 @@ exports.stripeWebhook = async (req, res, next) => {
     receiptId = receipt.receiptId;
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
-      return res.json({ received: true, duplicate: true });
+      return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
     }
 
     switch (event.type) {

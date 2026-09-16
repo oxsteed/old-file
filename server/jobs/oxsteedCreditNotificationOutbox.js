@@ -125,14 +125,21 @@ async function finishCreditNotification(id, attempts, result) {
   const retryMinutes = Math.min(60, 2 ** Math.max(0, attempts - 1));
   await db.query(
     `UPDATE oxsteed_credit_notification_outbox
-     SET status = $1,
-         sent_at = CASE WHEN $1 = 'sent' THEN NOW() ELSE sent_at END,
+     SET status = $1::varchar(20),
+         sent_at = CASE WHEN $5::boolean THEN NOW() ELSE sent_at END,
          locked_at = NULL,
          last_error = $2,
-         next_attempt_at = CASE WHEN $1 = 'pending' THEN NOW() + ($3::integer * INTERVAL '1 minute') ELSE next_attempt_at END,
+         next_attempt_at = CASE WHEN $6::boolean THEN NOW() + ($3::integer * INTERVAL '1 minute') ELSE next_attempt_at END,
          updated_at = NOW()
      WHERE id = $4`,
-    [status, succeeded ? null : String(result?.error || 'Credit notification delivery failed').slice(0, 2000), retryMinutes, id]
+    [
+      status,
+      succeeded ? null : String(result?.error || 'Credit notification delivery failed').slice(0, 2000),
+      retryMinutes,
+      id,
+      succeeded,
+      status === 'pending',
+    ]
   );
   return status;
 }

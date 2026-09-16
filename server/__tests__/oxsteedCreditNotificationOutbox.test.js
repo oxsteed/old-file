@@ -99,6 +99,8 @@ test('delivers claimed Credit events and marks them sent', async () => {
     action_url: '/oxsteed-credit',
   }));
   expect(db.query.mock.calls[1][0]).toContain("SET status = $1");
+  expect(db.query.mock.calls[1][0]).toContain('status = $1::varchar(20)');
+  expect(db.query.mock.calls[1][0]).toContain('$5::boolean');
   expect(db.query.mock.calls[1][1][0]).toBe('sent');
 });
 

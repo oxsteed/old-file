@@ -32,9 +32,9 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 
 The Coolify OxSteed application has been repaired and is currently healthy.
 Its production environment now contains non-placeholder database, JWT, and
-Stripe values, and the deployed container has completed migration 515. The
-current source adds migration 516 for explicit settlement reversals; the next
-Coolify deploy must apply it before the Credit verifier can pass. Do not copy
+Stripe values, and the deployed container has completed migration 516. The
+current source contains forward migrations 517 through 522; the next Coolify
+deploy must apply them before the latest source artifact can be verified. Do not copy
 values from this document into Coolify. Keep all credentials in Coolify's
 secret store and redeploy only after the values have been checked.
 
@@ -100,16 +100,21 @@ cannot overlap; an interrupted runner's stale lock is safely replaced.
 Configure `BACKUP_MIRROR_ROOT` for a mounted recovery volume separate from the
 MacBook. A local-only snapshot is not an acceptable production recovery posture.
 
-For the MacBook deployment, create the log directory and install the supplied
-launchd template after reviewing its paths:
+For the MacBook deployment, install the supplied LaunchAgents through the
+repository installer. macOS may deny launchd access to a checkout under
+`Documents`, so the installer stages the reviewed runner and monitor under
+`~/Library/Application Support/OxSteed/production-backup` before bootstrapping
+the labels:
 
 ```sh
-mkdir -p /Users/oxsteed/Library/Logs/OxSteed
-cp scripts/com.oxsteed.production-backup.plist ~/Library/LaunchAgents/
-cp scripts/com.oxsteed.production-backup-monitor.plist ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.oxsteed.production-backup.plist
-launchctl load -w ~/Library/LaunchAgents/com.oxsteed.production-backup-monitor.plist
+npm --prefix server run install:backup-scheduler
+launchctl print gui/$(id -u)/com.oxsteed.production-backup
+launchctl print gui/$(id -u)/com.oxsteed.production-backup-monitor
 ```
+
+Re-run the installer after changing either backup script or its LaunchAgent
+template. It replaces the existing labels in place and does not alter the
+database, Docker volumes, or backup snapshots.
 
 The backup template runs every six hours and the monitor runs every 15 minutes.
 A successful run must be followed by the
@@ -126,8 +131,9 @@ npm run verify:credit
 ```
 
 The expected result is a healthy app container, readiness JSON with no pending
-migrations, and `verify:credit` reporting `ok: true`. The local database is
-currently at migration `515`; after the next deploy it must reach `516`. The
+migrations, and `verify:credit` reporting `ok: true`. The live database is
+currently at migration `516`; after the next deploy it must reach the latest
+source migration (`522`). The
 pre-migration dump is stored under
 `/Users/oxsteed/server-backups/production/`.
 
@@ -287,11 +293,20 @@ wallets. The benchmark refreshes PostgreSQL planner statistics, requires Redis,
 and checks that every purchase succeeds with each wallet ending at the expected
 balance and no active reservation. Purchases share one partner-payable account,
 so the ledger row lock intentionally serializes settlement updates; this is
-reported as a separate write latency rather than removed from the test. The
-recorded restored-database p95 results were 1.42 seconds for account reads,
-0.85 seconds for transaction reads, 0.67 seconds for eligibility, and 5.03
-seconds for shared-partner purchases. Drop the disposable database after the
-run and repeat against the deployed artifact after changing pool or query code.
+reported as a separate write latency rather than removed from the test. Set
+`CREDIT_PERFORMANCE_READ_SAMPLES`, `CREDIT_PERFORMANCE_PURCHASES`, and
+`CREDIT_PERFORMANCE_CONCURRENCY` to expand the workload within their guarded
+limits. Set `CREDIT_PERFORMANCE_DURATION_MS` to a bounded value such as `5000`
+to repeat each read workload for that duration; `0` keeps the one-batch default.
+Set `CREDIT_PERFORMANCE_PARTNERS` from `1` through `4` to distribute purchases
+across isolated restaurant partners and verify each partner-payable ledger;
+the default `1` preserves the shared-payable contention check. The partner
+count cannot exceed the purchase count.
+Each summary reports requests, rounds, elapsed time, p95, and error rate. The
+output also includes Node process RSS/heap/CPU deltas and, when available inside
+the container, cgroup memory-current/peak and CPU deltas. Drop the disposable
+database after the run and repeat against the deployed artifact after changing
+pool or query code.
 
 ## Enabling a Partner
 

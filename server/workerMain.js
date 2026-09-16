@@ -15,6 +15,8 @@ const {
   completeJob,
   promoteDueRetries,
   isJobCompleted,
+  renewJobLease,
+  getVisibilityTimeoutMs,
   closeQueue,
 } = require('./services/paymentQueue');
 const {
@@ -40,6 +42,31 @@ const concurrency = {
 
 // Track active jobs per queue
 const activeJobs = new Map(Object.values(QUEUES).map(q => [q, 0]));
+let pollInterval = null;
+let translationInterval = null;
+let stopping = false;
+let shutdownPromise = null;
+
+const jobLeaseRenewalIntervalMs = () => {
+  const visibilityTimeout = typeof getVisibilityTimeoutMs === 'function'
+    ? getVisibilityTimeoutMs()
+    : 15 * 60 * 1000;
+  return Math.max(1000, Math.min(Math.floor(Number(visibilityTimeout) / 3), 60 * 1000));
+};
+
+const startJobLeaseRenewal = (queueKey, job) => {
+  if (!job?.__queuePayload || typeof renewJobLease !== 'function') return null;
+  const timer = setInterval(() => {
+    renewJobLease(queueKey, job)
+      .catch((error) => logger.warn('Payment queue lease renewal failed', {
+        queueKey,
+        jobId: job.id,
+        error: error.message,
+      }));
+  }, jobLeaseRenewalIntervalMs());
+  timer.unref?.();
+  return timer;
+};
 
 /**
  * Process a single job
@@ -63,6 +90,7 @@ const processJob = async (queueKey, job) => {
     return;
   }
 
+  let leaseTimer = null;
   try {
     if (await isJobCompleted(job.id)) {
       logger.info('Skipping already completed job', { queueKey, jobId: job.id });
@@ -71,6 +99,7 @@ const processJob = async (queueKey, job) => {
       await completeJob(queueKey, job);
       return;
     }
+    leaseTimer = startJobLeaseRenewal(queueKey, job);
     const result = await processor(job);
     await completeJob(queueKey, job);
     logger.info('Job processed successfully', { queueKey, jobId: job.id, result });
@@ -90,6 +119,8 @@ const processJob = async (queueKey, job) => {
         });
       }
     }
+  } finally {
+    if (leaseTimer) clearInterval(leaseTimer);
   }
 };
 
@@ -98,6 +129,7 @@ const processJob = async (queueKey, job) => {
  * @param {string} queueKey - Queue name
  */
 const pollQueue = async (queueKey) => {
+  if (stopping) return;
   const maxConcurrency = concurrency[queueKey] || 1;
 
   if (activeJobs.get(queueKey) >= maxConcurrency) {
@@ -127,16 +159,20 @@ const pollQueue = async (queueKey) => {
  * Polls all queues in round-robin fashion
  */
 const runWorker = async () => {
+  if (pollInterval || translationInterval) return;
+  stopping = false;
   const queueList = Object.values(QUEUES);
   let queueIndex = 0;
 
-  setInterval(() => {
+  pollInterval = setInterval(() => {
+    if (stopping) return;
     const queueKey = queueList[queueIndex];
     pollQueue(queueKey);
     queueIndex = (queueIndex + 1) % queueList.length;
   }, 500); // Poll every 500ms (adjustable)
 
-  setInterval(() => {
+  translationInterval = setInterval(() => {
+    if (stopping) return;
     pollTranslationJobs().catch((err) => {
       logger.error('Translation worker loop failed', { error: err.message });
     });
@@ -147,6 +183,18 @@ const runWorker = async () => {
 
 // Graceful shutdown handler
 const shutdown = async (signal) => {
+  if (shutdownPromise) return shutdownPromise;
+  stopping = true;
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  if (translationInterval) {
+    clearInterval(translationInterval);
+    translationInterval = null;
+  }
+
+  shutdownPromise = (async () => {
   logger.info(`Received ${signal}, shutting down worker gracefully...`);
   try {
     // Wait for active jobs to complete (with timeout)
@@ -168,6 +216,8 @@ const shutdown = async (signal) => {
     logger.error('Error during shutdown', err);
     process.exit(1);
   }
+  })();
+  return shutdownPromise;
 };
 
 if (require.main === module) {

@@ -905,6 +905,9 @@ async function updateAdminCreditRail(req, res, next) {
   try {
     const result = await setCreditRailStatus({
       enabled: parseBoolean(req.body?.enabled, 'enabled'),
+      expectedEnabled: req.body?.expectedEnabled === undefined && req.body?.expected_enabled === undefined
+        ? undefined
+        : parseBoolean(req.body?.expectedEnabled ?? req.body?.expected_enabled, 'expectedEnabled'),
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -1272,6 +1275,7 @@ async function transitionAdminPartner(req, res, next) {
     const result = await transitionPartner({
       partnerId: req.params.partnerId,
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
       reason: req.body?.reason,
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -1319,6 +1323,7 @@ async function transitionAdminAgreement(req, res, next) {
     const result = await transitionAgreement({
       agreementId,
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
       reason: req.body?.reason,
       actorUserId: req.user.id,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
@@ -1666,6 +1671,7 @@ async function transitionAdminSettlement(req, res, next) {
     const result = await transitionSettlement({
       settlementId,
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
+      expectedStatus: req.body?.expectedStatus ?? req.body?.expected_status,
       actorUserId: req.user.id,
       reason: req.body?.reason,
       paymentReference: req.body?.paymentReference || req.body?.payment_reference,

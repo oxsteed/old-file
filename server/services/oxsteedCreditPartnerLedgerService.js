@@ -263,6 +263,7 @@ async function recordPartnerFunding({ partnerId, currencyCode = null, amountCent
       transactionType,
       debitAccountId: normalizedDirection === 'fund' ? treasury.id : ledger.reserve_account_id,
       creditAccountId: normalizedDirection === 'fund' ? ledger.reserve_account_id : treasury.id,
+      amountCents: amount,
       currencyCode: ledger.currency_code,
       partnerId: normalizedPartnerId,
       // Keep the internal transaction key within the schema limit even when a

@@ -995,8 +995,8 @@ html:not(.dark) .hover\:bg-blue-800:hover  { background-color: #bfdbfe !importan
 
 /* Focus indicator - WCAG 2.4.7 */
 *:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: 3px solid var(--color-primary) !important;
+  outline-offset: 3px !important;
 }
 *:focus:not(:focus-visible) { outline: none; }
 

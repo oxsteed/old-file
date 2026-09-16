@@ -20,6 +20,7 @@ const {
   deadLetterJob,
   getNextJob,
   reclaimStaleJobs,
+  renewJobLease,
   listDeadLetterJobs,
   promoteDueRetries,
   requeueDeadLetterJob,
@@ -65,6 +66,18 @@ async function run() {
   const reclaimed = await getNextJob(queueKey);
   assert(reclaimed?.id === crashedJob.id, 'Reclaimed job was not returned to the live queue');
 
+  const slowJob = { id: `${jobId}:slow`, attempts: 0, status: 'pending', data: { verification: 'lease-renewal' } };
+  const slowPayload = JSON.stringify(slowJob);
+  Object.defineProperty(slowJob, '__queuePayload', { value: slowPayload, enumerable: false });
+  await redis.lpush(`${queueKey}:processing`, slowPayload);
+  await redis.zadd(`${queueKey}:leases`, Date.now() + 1000, slowPayload);
+  assert(await renewJobLease(queueKey, slowJob), 'Active worker lease was not renewed');
+  const renewedUntil = Number(await redis.zscore(`${queueKey}:leases`, slowPayload));
+  assert(renewedUntil > Date.now(), 'Renewed worker lease did not move beyond the current time');
+  await redis.lrem(`${queueKey}:processing`, 1, slowPayload);
+  await redis.zrem(`${queueKey}:leases`, slowPayload);
+  assert(!(await renewJobLease(queueKey, slowJob)), 'A reclaimed job lease was incorrectly recreated');
+
   const delayedJob = JSON.stringify({ id: `${jobId}:delayed`, attempts: 1, status: 'pending' });
   await redis.zadd(delayedQueueKey, Date.now() - 1, delayedJob);
   assert(await promoteDueRetries(queueKey) === 1, 'Atomic delayed retry promotion did not move the payload');
@@ -93,6 +106,8 @@ async function run() {
     duplicateSuppressed: true,
     delayedRetryPromoted: true,
     staleLeaseReclaimed: true,
+    activeLeaseRenewed: true,
+    reclaimedLeaseNotRevived: true,
     deadLetterPreserved: true,
     deadLetterReplayed: true,
   }, null, 2)}\n`);

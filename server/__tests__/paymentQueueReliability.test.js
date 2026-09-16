@@ -65,6 +65,22 @@ describe('payment queue reliability', () => {
     );
   });
 
+  test('renews a lease only while the exact claimed payload is still processing', async () => {
+    const job = { id: 'slow-provider-job', attempts: 0 };
+    Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });
+    redis.eval.mockResolvedValueOnce(1);
+
+    await expect(paymentQueue.renewJobLease(paymentQueue.QUEUES.PAYMENT_CAPTURE, job)).resolves.toBe(true);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('LPOS'"),
+      2,
+      'queue:payment-capture:processing',
+      'queue:payment-capture:leases',
+      job.__queuePayload,
+      expect.any(Number),
+    );
+  });
+
   test('does not duplicate a retry when stale-job reclamation already won', async () => {
     const job = { id: 'capture-race', attempts: 0, data: { paymentId: 9 } };
     Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });

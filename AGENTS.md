@@ -135,6 +135,22 @@
   endpoint reports generated release `content-31a6dffe8f22ad24`; the patched
   verifier source remains pending rollout, and Sentry remains the activation
   gate.
+- Package C isolated accounting and concurrency evidence (2026-09-15): forward
+  migrations 517-520 are applied by the normal migration runner in the guarded
+  Colima harness; the accounting drill verified central and restaurant reserve
+  separation, replay safety, and cross-restaurant denial. The complete real
+  race drill verified one terminal outcome for capture/release, expiry/capture,
+  refund/refund, issuance and conversion caps, settlement overlap, and
+  two-restaurant permission contention, plus identical-key replay and
+  conflicting-key rejection, with zero final reserved balance. Production
+  activation remains disabled.
+- Package D/E evidence (2026-09-15): Super Admin Credit mutation retries now
+  reuse payload-scoped idempotency keys, with client typecheck/build and focused
+  key tests passing; the guarded isolated Redis queue verifier passed enqueue
+  deduplication, stale-lease recovery, delayed retry, dead-letter preservation,
+  and replay, and the worker/queue suite passed 3 suites and 15/15 tests.
+  Authenticated responsive browser evidence and local monitoring-capture runs
+  remain before the corresponding acceptance rows can be closed.
 
 ### Session progress - OxSteed Credit monitoring and restore hardening (2026-09-14)
 

@@ -147,3 +147,13 @@ test('exports a deterministic UTC schedule', () => {
     end: new Date('2026-03-01T00:00:00.000Z'),
   });
 });
+
+test.each([
+  ['spring-forward boundary', '2026-03-08T07:30:00.000Z', '2026-03-07T00:00:00.000Z', '2026-03-08T00:00:00.000Z'],
+  ['fall-back boundary', '2026-11-01T06:30:00.000Z', '2026-10-31T00:00:00.000Z', '2026-11-01T00:00:00.000Z'],
+])('%s stays on complete UTC day boundaries', (_label, now, start, end) => {
+  expect(previousUtcDay(now)).toEqual({
+    start: new Date(start),
+    end: new Date(end),
+  });
+});

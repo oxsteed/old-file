@@ -66,6 +66,65 @@ describe('Stripe webhook replay protection', () => {
     expect(res.body).toMatchObject({ received: true, duplicate: true });
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
+
+  test('ignores an older event for the same provider object', async () => {
+    const latest = {
+      id: 'evt_latest',
+      created: 200,
+      type: 'payment_intent.unknown',
+      data: { object: { id: 'pi_ordered' } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 10 }] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ event_id: latest.id }] }) // watermark advances
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const latestResponse = await sendEvent(buildApp(), latest);
+    expect(latestResponse.status).toBe(200);
+
+    const older = {
+      id: 'evt_older',
+      created: 100,
+      type: 'payment_intent.unknown',
+      data: { object: { id: 'pi_ordered' } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 11 }] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [] }) // watermark rejects stale event
+      .mockResolvedValueOnce({ rows: [] }); // stale receipt is finalized
+
+    const olderResponse = await sendEvent(buildApp(), older);
+    expect(olderResponse.status).toBe(200);
+    expect(olderResponse.body).toMatchObject({ received: true, duplicate: true, stale: true });
+  });
+
+  test('allows the same failed event to retry after it advances the watermark', async () => {
+    const event = {
+      id: 'evt_retry_ordered',
+      created: 300,
+      type: 'payment_intent.succeeded',
+      data: { object: { id: 'pi_retry_ordered', metadata: { job_id: '10' } } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ event_id: event.id }] }) // watermark advances
+      .mockRejectedValueOnce(new Error('database temporarily unavailable')) // payment update
+      .mockResolvedValueOnce({ rows: [] }); // mark failed
+
+    const failedResponse = await sendEvent(buildApp(), event);
+    expect(failedResponse.status).toBe(500);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 12 }] }) // failed receipt is claimable
+      .mockResolvedValueOnce({ rows: [{ event_id: event.id }] }) // same watermark is retryable
+      .mockResolvedValueOnce({ rows: [] }) // payment update
+      .mockResolvedValueOnce({ rows: [] }) // job update
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const retryResponse = await sendEvent(buildApp(), event);
+    expect(retryResponse.status).toBe(200);
+    expect(retryResponse.body).toMatchObject({ received: true });
+  });
 });
 
 // ── checkout.session.completed ────────────────────────────────────────────────

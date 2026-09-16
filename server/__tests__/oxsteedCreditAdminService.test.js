@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, reverseSettlement, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements, retryCreditNotification } = require('../services/oxsteedCreditAdminService');
+const { createSettlement, reconcileCreditLedger, verifyCreditLedgerHashes, listReconciliationRuns, transitionSettlement, reverseSettlement, transitionPartner, transitionAgreement, listAdminCustomerCreditAccounts, getAdminCustomerCreditAccount, listAdminCreditTransactions, listSettlements, getAdminCreditTransaction, listEntitlements, upsertEntitlement, bulkUpsertEntitlements, expireCreditEntitlements, expireCreditAgreements, createAgreement, listPartners, listAgreements, retryCreditNotification } = require('../services/oxsteedCreditAdminService');
 
 beforeEach(resetMocks);
 
@@ -863,6 +863,44 @@ test('requires an administrator identity for a real agreement transition', async
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 
+test('rejects stale partner and agreement transitions before writes', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 41,
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    restaurant_status: 'active',
+    status: 'active',
+    settlement_currency_code: 'USD',
+  }] });
+
+  await expect(transitionPartner({
+    partnerId: 41,
+    targetStatus: 'suspended',
+    expectedStatus: 'pending',
+    actorUserId: 'admin-1',
+    reason: 'Operational review',
+  })).rejects.toMatchObject({ code: 'credit_partner_state_conflict', status: 409, fields: { currentStatus: 'active', expectedStatus: 'pending' } });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+
+  resetMocks();
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'agreement-1',
+    partner_id: 41,
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    status: 'active',
+  }] });
+  await expect(transitionAgreement({
+    agreementId: 'agreement-1',
+    targetStatus: 'suspended',
+    expectedStatus: 'pending_approval',
+    actorUserId: 'admin-1',
+    reason: 'Agreement review',
+  })).rejects.toMatchObject({ code: 'credit_agreement_state_conflict', status: 409, fields: { currentStatus: 'active', expectedStatus: 'pending_approval' } });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
 test('marks ended customer entitlements expired and records the transition', async () => {
   const customerId = '11111111-1111-4111-8111-111111111111';
   const endedAt = new Date('2026-09-12T00:00:00.000Z');
@@ -1350,6 +1388,30 @@ test('requires a payment reference before paying a non-zero settlement', async (
     actorUserId: 'admin-1',
     reason: 'Payment review completed',
   })).rejects.toMatchObject({ code: 'credit_settlement_payment_reference_required' });
+  expect(mockQuery).toHaveBeenCalledTimes(1);
+});
+
+test('rejects a stale settlement transition before any payment or audit write', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [{
+    id: 'settlement-stale',
+    partner_id: 41,
+    partner_status: 'active',
+    restaurant_id: 9,
+    restaurant_name: 'OxSteed Cafe',
+    currency_code: 'USD',
+    net_cents: '2500',
+    status: 'approved',
+    payment_reference: 'bank-1',
+  }] });
+
+  await expect(transitionSettlement({
+    settlementId: 'settlement-stale',
+    targetStatus: 'paid',
+    expectedStatus: 'pending',
+    actorUserId: 'admin-1',
+    reason: 'Payment review completed',
+    paymentReference: 'bank-1',
+  })).rejects.toMatchObject({ code: 'credit_settlement_state_conflict', status: 409, fields: { currentStatus: 'approved', expectedStatus: 'pending' } });
   expect(mockQuery).toHaveBeenCalledTimes(1);
 });
 

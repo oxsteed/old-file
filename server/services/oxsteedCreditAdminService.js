@@ -1058,10 +1058,13 @@ const PARTNER_TRANSITIONS = {
   terminated: new Set(),
 };
 
-async function transitionPartner({ partnerId, targetStatus, reason, actorUserId, correlationId, requestIp }) {
+async function transitionPartner({ partnerId, targetStatus, expectedStatus, reason, actorUserId, correlationId, requestIp }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const normalizedTarget = normalizeString(targetStatus, 24);
   if (!PARTNER_STATUSES.has(normalizedTarget)) throw new AppError('Invalid partner status', 400, 'invalid_partner_status');
+  if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 24))) throw new AppError('Invalid expected partner status', 400, 'invalid_expected_partner_status');
+  const normalizedExpected = expectedStatus === undefined || expectedStatus === null ? null : normalizeString(expectedStatus, 24);
+  if (normalizedExpected && !PARTNER_STATUSES.has(normalizedExpected)) throw new AppError('Invalid expected partner status', 400, 'invalid_expected_partner_status');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT p.*, fr.display_name AS restaurant_name, fr.status AS restaurant_status
@@ -1073,6 +1076,7 @@ async function transitionPartner({ partnerId, targetStatus, reason, actorUserId,
     );
     const partner = rows[0];
     if (!partner) throw new AppError('Credit partner not found', 404, 'credit_partner_not_found');
+    if (normalizedExpected && partner.status !== normalizedExpected) throw new AppError('Credit partner changed since it was loaded; refresh before retrying', 409, 'credit_partner_state_conflict', { currentStatus: partner.status, expectedStatus: normalizedExpected });
     if (partner.status === normalizedTarget) return { partner: formatPartner(partner), replayed: true };
     if (!PARTNER_TRANSITIONS[partner.status]?.has(normalizedTarget)) {
       throw new AppError(`Cannot move partner from '${partner.status}' to '${normalizedTarget}'`, 409, 'credit_partner_transition_invalid');
@@ -1410,9 +1414,12 @@ const SETTLEMENT_TRANSITIONS = {
   voided: new Set(),
 };
 
-async function transitionSettlement({ settlementId, targetStatus, actorUserId, reason, paymentReference, correlationId, requestIp }) {
+async function transitionSettlement({ settlementId, targetStatus, expectedStatus, actorUserId, reason, paymentReference, correlationId, requestIp }) {
   const normalizedTarget = normalizeString(targetStatus, 20);
   if (!['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedTarget)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
+  if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 20))) throw new AppError('Invalid expected settlement status', 400, 'invalid_credit_settlement_expected_status');
+  const normalizedExpected = expectedStatus === undefined || expectedStatus === null ? null : normalizeString(expectedStatus, 20);
+  if (normalizedExpected && !['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedExpected)) throw new AppError('Invalid expected settlement status', 400, 'invalid_credit_settlement_expected_status');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT s.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
@@ -1426,6 +1433,12 @@ async function transitionSettlement({ settlementId, targetStatus, actorUserId, r
     );
     const settlement = rows[0];
     if (!settlement) throw new AppError('Credit settlement not found', 404, 'credit_settlement_not_found');
+    if (normalizedExpected && settlement.status !== normalizedExpected) {
+      throw new AppError('Credit settlement changed since it was loaded; refresh before retrying', 409, 'credit_settlement_state_conflict', {
+        currentStatus: settlement.status,
+        expectedStatus: normalizedExpected,
+      });
+    }
     const requestedPaymentReference = normalizeString(paymentReference, 160);
     if (settlement.status === normalizedTarget) {
       if (normalizedTarget === 'paid'
@@ -1827,9 +1840,12 @@ const ALLOWED_TRANSITIONS = {
   terminated: new Set(),
 };
 
-async function transitionAgreement({ agreementId, targetStatus, reason, actorUserId, correlationId, requestIp }) {
+async function transitionAgreement({ agreementId, targetStatus, expectedStatus, reason, actorUserId, correlationId, requestIp }) {
   const normalizedTarget = normalizeString(targetStatus, 24);
   if (!AGREEMENT_STATUSES.has(normalizedTarget)) throw new AppError('Invalid agreement status', 400, 'invalid_agreement_status');
+  if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 24))) throw new AppError('Invalid expected agreement status', 400, 'invalid_expected_agreement_status');
+  const normalizedExpected = expectedStatus === undefined || expectedStatus === null ? null : normalizeString(expectedStatus, 24);
+  if (normalizedExpected && !AGREEMENT_STATUSES.has(normalizedExpected)) throw new AppError('Invalid expected agreement status', 400, 'invalid_expected_agreement_status');
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT a.*, p.status AS partner_status, p.restaurant_id, fr.display_name AS restaurant_name
@@ -1842,6 +1858,7 @@ async function transitionAgreement({ agreementId, targetStatus, reason, actorUse
     );
     const agreement = rows[0];
     if (!agreement) throw new AppError('Credit agreement not found', 404, 'credit_agreement_not_found');
+    if (normalizedExpected && agreement.status !== normalizedExpected) throw new AppError('Credit agreement changed since it was loaded; refresh before retrying', 409, 'credit_agreement_state_conflict', { currentStatus: agreement.status, expectedStatus: normalizedExpected });
     if (agreement.status === normalizedTarget) return { agreement: formatAgreement(agreement), replayed: true };
     if (!ALLOWED_TRANSITIONS[agreement.status]?.has(normalizedTarget)) {
       throw new AppError(`Cannot move agreement from '${agreement.status}' to '${normalizedTarget}'`, 409, 'credit_agreement_transition_invalid');

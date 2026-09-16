@@ -45,7 +45,9 @@ export default defineConfig(({ mode }) => {
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        // Isolated Credit browser runs publish the API on a disposable port;
+        // production builds do not use this dev-server proxy.
+        target: process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:5000',
         changeOrigin: true,
       },
     },

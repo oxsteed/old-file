@@ -1,5 +1,6 @@
 import api from './axios';
 import { createAdminChallengeHandler } from './adminChallenge.mjs';
+import { isTransientRefreshFailure } from './authRefreshPolicy';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -133,7 +134,11 @@ api.interceptors.response.use(
 
       return api(originalRequest);
     } catch (refreshError) {
-      clearStoredSession();
+      // Keep the refresh token for transient outages so a visible retry can
+      // recover the current page once the API/database is healthy again.
+      if (!isTransientRefreshFailure(refreshError)) {
+        clearStoredSession();
+      }
       // Don't hard-redirect - let ProtectedRoute handle navigation
       return Promise.reject(refreshError);
     } finally {

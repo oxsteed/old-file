@@ -32,6 +32,8 @@ const REQUIRED_TABLES = [
   'oxsteed_credit_currency_quotes',
   'oxsteed_credit_currency_conversions',
   'oxsteed_credit_settlement_reversals',
+  'webhook_event_receipts',
+  'webhook_event_watermarks',
   'oxsteed_credit_entitlement_bulk_requests',
   'oxsteed_credit_entitlement_requests',
   'oxsteed_credit_notification_outbox',
@@ -80,6 +82,21 @@ const REQUIRED_COLUMNS = {
   oxsteed_credit_settlements: ['created_by', 'creation_reason', 'creation_request_hash'],
   oxsteed_credit_settlement_reversals: ['settlement_id', 'transaction_id', 'idempotency_key', 'recovery_reference', 'reason', 'actor_user_id'],
   oxsteed_credit_disputes: ['idempotency_key', 'actor_evidence_legacy'],
+  webhook_event_receipts: [
+    'provider',
+    'event_id',
+    'event_type',
+    'object_type',
+    'object_id',
+    'event_created',
+    'status',
+    'attempts',
+    'first_seen_at',
+    'last_seen_at',
+    'processed_at',
+    'last_error',
+  ],
+  webhook_event_watermarks: ['provider', 'object_type', 'object_id', 'event_created', 'event_id', 'updated_at'],
   oxsteed_credit_partner_ledgers: ['partner_id', 'ledger_code', 'currency_code', 'payable_account_id', 'reserve_account_id', 'status'],
   oxsteed_credit_partner_funding_records: ['partner_ledger_id', 'partner_id', 'reserve_account_id', 'transaction_id', 'direction', 'amount_cents', 'currency_code', 'external_reference', 'idempotency_key', 'reason'],
   oxsteed_credit_currency_quotes: ['source_currency_code', 'target_currency_code', 'source_amount_minor_units', 'target_amount_minor_units', 'fee_amount_minor_units', 'rate_numerator', 'rate_denominator', 'rounding_mode', 'provider', 'provider_quote_reference', 'status', 'expires_at', 'idempotency_key'],
@@ -143,6 +160,8 @@ const REQUIRED_INDEXES = [
   'idx_oxsteed_credit_currency_conversions_customer',
   'idx_oxsteed_credit_currency_conversions_currencies',
   'idx_oxsteed_credit_settlement_reversals_created',
+  'idx_webhook_event_receipts_status',
+  'idx_webhook_event_receipts_object_order',
 ];
 
 const REQUIRED_INTEGRITY_TRIGGERS = [
@@ -747,6 +766,36 @@ async function main() {
       ['516_oxsteed_credit_settlement_reversal.sql']
     );
     checks.settlementReversalMigrationApplied = settlementReversalMigrationRows.rows.length === 1;
+    const partnerReserveConstraintsMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['517_oxsteed_credit_partner_reserve_constraints.sql']
+    );
+    checks.partnerReserveConstraintsMigrationApplied = partnerReserveConstraintsMigrationRows.rows.length === 1;
+    const partnerFundingTriggerMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['518_oxsteed_credit_partner_funding_trigger_qualification.sql']
+    );
+    checks.partnerFundingTriggerMigrationApplied = partnerFundingTriggerMigrationRows.rows.length === 1;
+    const holdNotificationTriggerMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['519_oxsteed_credit_hold_notification_trigger_qualification.sql']
+    );
+    checks.holdNotificationTriggerMigrationApplied = holdNotificationTriggerMigrationRows.rows.length === 1;
+    const settlementEvidenceTriggerMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['520_oxsteed_credit_settlement_evidence_trigger_branching.sql']
+    );
+    checks.settlementEvidenceTriggerMigrationApplied = settlementEvidenceTriggerMigrationRows.rows.length === 1;
+    const twoFactorAuditIpHashMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['521_two_factor_audit_ip_hash_length.sql']
+    );
+    checks.twoFactorAuditIpHashMigrationApplied = twoFactorAuditIpHashMigrationRows.rows.length === 1;
+    const webhookOrderingMigrationRows = await pool.query(
+      `SELECT 1 FROM _migrations WHERE filename = $1 LIMIT 1`,
+      ['522_webhook_event_ordering.sql']
+    );
+    checks.webhookEventOrderingMigrationApplied = webhookOrderingMigrationRows.rows.length === 1;
 
     const { rows: emergencyRows } = await pool.query(
       `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled' LIMIT 1`
@@ -1845,6 +1894,12 @@ async function main() {
       !checks.partnerLedgerMigrationApplied,
       !checks.currencyConversionMigrationApplied,
       !checks.settlementReversalMigrationApplied,
+      !checks.partnerReserveConstraintsMigrationApplied,
+      !checks.partnerFundingTriggerMigrationApplied,
+      !checks.holdNotificationTriggerMigrationApplied,
+      !checks.settlementEvidenceTriggerMigrationApplied,
+      !checks.twoFactorAuditIpHashMigrationApplied,
+      !checks.webhookEventOrderingMigrationApplied,
       !checks.emergencyFlagSeeded,
       checks.missingTables.length > 0,
       checks.missingColumns.length > 0,
@@ -1922,4 +1977,11 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { REQUIRED_INDEXES, REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes };
+module.exports = {
+  REQUIRED_TABLES,
+  REQUIRED_COLUMNS,
+  REQUIRED_INDEXES,
+  REQUIRED_INTEGRITY_TRIGGERS,
+  findUnsupportedCurrencyRecords,
+  verifyEntryHashes,
+};

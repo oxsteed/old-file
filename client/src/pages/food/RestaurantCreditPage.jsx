@@ -36,32 +36,39 @@ import {
   uploadFoodAsset,
 } from '../../api/food';
 import './RestaurantCreditPage.css';
+import { parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
+import { safeCreditErrorMessage } from '../../lib/creditErrors';
+import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 
 const TABS = ['activity', 'requests'];
 
-function errorMessage(error, fallback) {
-  return error?.response?.data?.error?.message
-    || error?.response?.data?.message
-    || error?.message
-    || fallback;
+function parseAmountCents(value, currency) {
+  return parseCreditMajorAmount(value, currency) || 0;
 }
 
-function parseAmountCents(value) {
-  const normalized = String(value || '').replace(/[^0-9.,-]/g, '').replace(',', '.');
-  const amount = Number(normalized);
-  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : 0;
+function localizeStatus(t, value) {
+  const keyByStatus = {
+    active: 'activeStatus',
+    open: 'openStatus',
+    suspended: 'suspendedStatus',
+    closed: 'closedStatus',
+    under_review: 'underReviewStatus',
+    resolved: 'resolvedStatus',
+    rejected: 'rejectedStatus',
+    pending: 'partnerLabelPending',
+    approved: 'partnerLabelApproved',
+    paid: 'partnerLabelPaid',
+    disputed: 'partnerLabelDisputed',
+    voided: 'partnerLabelVoided',
+    reversed: 'partnerLabelReversed',
+  };
+  const normalized = String(value || '').trim().toLowerCase();
+  return keyByStatus[normalized] ? t(keyByStatus[normalized]) : (value || t('statusUnknown'));
 }
 
-function requestKey(prefix) {
-  if (globalThis.crypto?.randomUUID) return `${prefix}:${globalThis.crypto.randomUUID()}`;
-  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-}
-
-function formatDate(value) {
-  if (!value) return 'Not available';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not available';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+function formatDate(value, language, fallback = 'Not available') {
+  return formatCreditDateTime(value, fallback, language);
 }
 
 function walletAvailableCents(wallet) {
@@ -71,6 +78,7 @@ function walletAvailableCents(wallet) {
 }
 
 function WalletQr({ value }) {
+  const { t } = useTranslation('credit');
   const container = useRef(null);
 
   useEffect(() => {
@@ -91,17 +99,18 @@ function WalletQr({ value }) {
     };
   }, [value]);
 
-  return <div ref={container} className="credit-qr" aria-label="Restaurant credit payment QR code" />;
+  return <div ref={container} className="credit-qr" aria-label={t('restaurantWallet.paymentQrAria')} />;
 }
 
 function Modal({ title, subtitle, onClose, children }) {
+  const { t } = useTranslation('credit');
   return (
     <div className="credit-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="credit-modal" role="dialog" aria-modal="true" aria-label={title}>
-        <button type="button" className="credit-modal-close" onClick={onClose} aria-label="Close">
+        <button type="button" className="credit-modal-close" onClick={onClose} aria-label={t('restaurantWallet.close')}>
           <X size={20} />
         </button>
-        <p className="credit-eyebrow">Restaurant credit</p>
+        <p className="credit-eyebrow">{t('restaurantWallet.restaurantCredit')}</p>
         <h2>{title}</h2>
         {subtitle && <p className="credit-modal-subtitle">{subtitle}</p>}
         {children}
@@ -121,7 +130,7 @@ function EmptyState({ title, detail }) {
 }
 
 export default function RestaurantCreditPage() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('credit');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedRestaurantId = searchParams.get('restaurantId');
   const [wallets, setWallets] = useState([]);
@@ -167,12 +176,12 @@ export default function RestaurantCreditPage() {
       setHolds(holdResult);
       setRestaurant(restaurantResult?.restaurant || restaurantResult || null);
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to load restaurant credit.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.loadFailed')));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
@@ -189,11 +198,11 @@ export default function RestaurantCreditPage() {
       .catch((error) => {
         if (active) {
           setLoading(false);
-          toast.error(errorMessage(error, 'Unable to load your restaurant wallets.'));
+          toast.error(safeCreditErrorMessage(error, t('restaurantWallet.walletsLoadFailed')));
         }
       });
     return () => { active = false; };
-  }, [loadWallets, requestedRestaurantId, setSearchParams]);
+  }, [loadWallets, requestedRestaurantId, setSearchParams, t]);
 
   useEffect(() => {
     if (selectedRestaurantId) loadSelectedWallet(selectedRestaurantId);
@@ -220,40 +229,40 @@ export default function RestaurantCreditPage() {
   const releaseHold = async (hold) => {
     try {
       await releaseFoodWalletHold(selectedRestaurantId, hold.id);
-      toast.success('Reservation released.');
+      toast.success(t('restaurantWallet.reservationReleased'));
       await refresh();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to release the reservation.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.releaseFailed')));
     }
   };
 
   const cancelRequest = async (request) => {
     try {
       await cancelFoodWalletCreditRequest(selectedRestaurantId, request.id);
-      toast.success('Credit request cancelled.');
+      toast.success(t('restaurantWallet.requestCancelled'));
       await refresh();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to cancel the request.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.cancelRequestFailed')));
     }
   };
 
   return (
     <div className="credit-page-shell">
-      <PageMeta title={t('restaurantCredit.title', { defaultValue: 'Restaurant Credit' })} description="Manage restaurant-scoped credit, payments, transfers, and requests." />
+      <PageMeta title={t('restaurantWallet.title')} description={t('restaurantWallet.description')} />
       <Navbar />
       <main className="credit-page">
         <header className="credit-hero">
           <div>
-            <Link to="/restaurants" className="credit-back"><ArrowLeft size={16} /> Restaurants</Link>
-            <p className="credit-eyebrow">Restaurant-scoped wallet</p>
-            <h1>Restaurant Credit</h1>
-            <p>Each balance belongs to one restaurant. It cannot be spent or transferred at another restaurant.</p>
+            <Link to="/restaurants" className="credit-back"><ArrowLeft size={16} /> {t('restaurantWallet.back')}</Link>
+            <p className="credit-eyebrow">{t('restaurantWallet.eyebrow')}</p>
+            <h1>{t('restaurantWallet.title')}</h1>
+            <p>{t('restaurantWallet.scopeDescription')}</p>
           </div>
           <div className="credit-hero-actions">
-            <Link to="/oxsteed-credit" className="credit-icon-button">OxSteed Credit</Link>
+            <Link to="/oxsteed-credit" className="credit-icon-button">{t('creditProductName')}</Link>
             {wallets.length > 0 && (
               <label>
-                <span>Restaurant</span>
+                <span>{t('restaurantWallet.restaurant')}</span>
                 <select value={selectedRestaurantId || ''} onChange={selectRestaurant}>
                   {wallets.map((entry) => (
                     <option key={entry.restaurantId} value={entry.restaurantId}>{entry.restaurantName}</option>
@@ -265,15 +274,15 @@ export default function RestaurantCreditPage() {
               </label>
             )}
             <button type="button" className="credit-icon-button" onClick={refresh} disabled={refreshing || !selectedRestaurantId}>
-              <RefreshCw size={18} className={refreshing ? 'credit-spin' : ''} /> Refresh
+              <RefreshCw size={18} className={refreshing ? 'credit-spin' : ''} /> {t('restaurantWallet.refresh')}
             </button>
           </div>
         </header>
 
         {loading ? (
-          <div className="credit-loading"><RefreshCw className="credit-spin" /> Loading restaurant credit…</div>
+          <div className="credit-loading"><RefreshCw className="credit-spin" /> {t('restaurantWallet.loading')}</div>
         ) : !selectedRestaurantId ? (
-          <EmptyState title="No restaurant selected" detail="Open a restaurant and choose Manage restaurant credit to request your first balance." />
+          <EmptyState title={t('restaurantWallet.noSelected')} detail={t('restaurantWallet.noSelectedDetail')} />
         ) : (
           <>
             <section className="credit-balance-card">
@@ -282,40 +291,40 @@ export default function RestaurantCreditPage() {
                 <div>
                   <span>{displayName}</span>
                   <strong>{wallet ? formatFoodMoney(availableCents, currency) : formatFoodMoney(0, currency)}</strong>
-                  <small>Available to spend</small>
+                  <small>{t('restaurantWallet.available')}</small>
                 </div>
-                <span className={`credit-status credit-status-${wallet?.status || 'new'}`}>{wallet?.status || 'No wallet yet'}</span>
+                <span className={`credit-status credit-status-${wallet?.status || 'new'}`}>{wallet?.status ? localizeStatus(t, wallet.status) : t('restaurantWallet.noWallet')}</span>
               </div>
               {reservedCents > 0 && (
                 <div className="credit-balance-reserved">
-                  <Clock3 size={16} /> {formatFoodMoney(reservedCents, currency)} is temporarily reserved for an active payment.
+                  <Clock3 size={16} /> {t('restaurantWallet.reservedMessage', { amount: formatFoodMoney(reservedCents, currency) })}
                 </div>
               )}
-              <div className="credit-scope-note"><ShieldCheck size={17} /> Credit and transfers remain inside {displayName}.</div>
+              <div className="credit-scope-note"><ShieldCheck size={17} /> {t('restaurantWallet.scope', { restaurant: displayName })}</div>
             </section>
 
-            <section className="credit-actions" aria-label="Restaurant credit actions">
+            <section className="credit-actions" aria-label={t('restaurantWallet.actions')}>
               <button type="button" onClick={() => setModal('pay')} disabled={!wallet || availableCents <= 0}>
-                <QrCode size={22} /><span><strong>Use credit</strong><small>Create a one-time payment QR</small></span>
+                <QrCode size={22} /><span><strong>{t('restaurantWallet.useCredit')}</strong><small>{t('restaurantWallet.useCreditDetail')}</small></span>
               </button>
               <button type="button" onClick={() => setModal('request')}>
-                <Plus size={22} /><span><strong>Add credit</strong><small>Send payment proof for approval</small></span>
+                <Plus size={22} /><span><strong>{t('restaurantWallet.addCredit')}</strong><small>{t('restaurantWallet.addCreditDetail')}</small></span>
               </button>
             </section>
 
             <details className="credit-more-actions">
-              <summary>More credit options</summary>
+              <summary>{t('restaurantWallet.moreOptions')}</summary>
               <button type="button" onClick={() => setModal('transfer')} disabled={!wallet || availableCents <= 0}>
-                <Send size={18} /> Send credit to another OxSteed user
+                <Send size={18} /> {t('restaurantWallet.sendCredit')}
               </button>
-              <span>Transfers stay inside {displayName}.</span>
+              <span>{t('restaurantWallet.transfersStay', { restaurant: displayName })}</span>
             </details>
 
             <section className="credit-history-panel">
               <div className="credit-tabs" role="tablist">
                 {TABS.map((tab) => (
                   <button key={tab} type="button" className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
-                    {tab === 'activity' ? 'Activity' : 'Add credit requests'}
+                    {tab === 'activity' ? t('restaurantWallet.activity') : t('restaurantWallet.requests')}
                     {tab === 'activity' && activeHolds.length > 0 && <span>{activeHolds.length}</span>}
                   </button>
                 ))}
@@ -328,8 +337,8 @@ export default function RestaurantCreditPage() {
                       {activeHolds.map((hold) => (
                         <div key={hold.id}>
                           <Clock3 size={17} />
-                          <span><strong>{formatFoodMoney(hold.amountCents, hold.currencyCode || currency)} reserved</strong><small>Expires {formatDate(hold.expiresAt)}</small></span>
-                          <button type="button" onClick={() => releaseHold(hold)}>Release</button>
+                          <span><strong>{formatFoodMoney(hold.amountCents, hold.currencyCode || currency)} {t('restaurantWallet.reserved')}</strong><small>{t('restaurantWallet.expires', { date: formatDate(hold.expiresAt, t.lng, t('statusUnknown')) })}</small></span>
+                          <button type="button" onClick={() => releaseHold(hold)}>{t('restaurantWallet.release')}</button>
                         </div>
                       ))}
                     </div>
@@ -337,18 +346,18 @@ export default function RestaurantCreditPage() {
                   {transactions.length ? <div className="credit-list">{transactions.map((entry) => (
                     <article key={entry.id}>
                       <div className={`credit-entry-icon ${entry.entryType === 'debit' ? 'debit' : 'credit'}`}>{entry.entryType === 'debit' ? '−' : '+'}</div>
-                      <div><strong>{entry.description || (entry.entryType === 'debit' ? 'Restaurant purchase' : 'Restaurant credit')}</strong><span>{formatDate(entry.postedAt || entry.createdAt)}</span></div>
-                      <div className="credit-entry-amount"><strong>{entry.entryType === 'debit' ? '−' : '+'}{formatFoodMoney(entry.amountCents, entry.currencyCode || currency)}</strong><span>Balance {formatFoodMoney(entry.balanceAfterCents, entry.currencyCode || currency)}</span></div>
+                      <div><strong>{entry.description || (entry.entryType === 'debit' ? t('restaurantWallet.restaurantPurchase') : t('restaurantWallet.restaurantCredit'))}</strong><span>{formatDate(entry.postedAt || entry.createdAt, t.lng, t('statusUnknown'))}</span></div>
+                      <div className="credit-entry-amount"><strong>{entry.entryType === 'debit' ? '-' : '+'}{formatFoodMoney(entry.amountCents, entry.currencyCode || currency)}</strong><span>{t('restaurantWallet.balance', { amount: formatFoodMoney(entry.balanceAfterCents, entry.currencyCode || currency) })}</span></div>
                     </article>
-                  ))}</div> : <EmptyState title="No activity yet" detail="Approved credit, purchases, transfers, and refunds will appear here." />}
+                  ))}</div> : <EmptyState title={t('restaurantWallet.noActivity')} detail={t('restaurantWallet.noActivityDetail')} />}
                   {transfers.length > 0 && (
                     <details className="credit-transfer-history">
-                      <summary>Transfer history ({transfers.length})</summary>
+                      <summary>{t('restaurantWallet.transferHistory', { count: transfers.length })}</summary>
                       <div className="credit-list">{transfers.map((transfer) => (
                         <article key={transfer.id}>
                           <div className="credit-entry-icon transfer"><Send size={16} /></div>
-                          <div><strong>{transfer.direction === 'received' ? 'Credit received' : 'Credit sent'}</strong><span>{transfer.counterpartyEmail || 'OxSteed customer'} · {formatDate(transfer.createdAt)}</span>{transfer.memo && <small>{transfer.memo}</small>}</div>
-                          <div className="credit-entry-amount"><strong>{transfer.direction === 'received' ? '+' : '−'}{formatFoodMoney(transfer.amountCents, transfer.currencyCode || currency)}</strong><span>{transfer.status}</span></div>
+                          <div><strong>{transfer.direction === 'received' ? t('restaurantWallet.received') : t('restaurantWallet.sent')}</strong><span>{transfer.counterpartyEmail || t('restaurantWallet.customer')} · {formatDate(transfer.createdAt, t.lng, t('statusUnknown'))}</span>{transfer.memo && <small>{transfer.memo}</small>}</div>
+                          <div className="credit-entry-amount"><strong>{transfer.direction === 'received' ? '+' : '−'}{formatFoodMoney(transfer.amountCents, transfer.currencyCode || currency)}</strong><span>{localizeStatus(t, transfer.status)}</span></div>
                         </article>
                       ))}</div>
                     </details>
@@ -360,10 +369,10 @@ export default function RestaurantCreditPage() {
                 requests.length ? <div className="credit-list">{requests.map((request) => (
                   <article key={request.id}>
                     <div className={`credit-entry-icon request-${request.status}`}>{request.status === 'approved' ? <CheckCircle2 size={17} /> : <Clock3 size={17} />}</div>
-                    <div><strong>Add credit · {request.status}</strong><span>{request.referenceId || 'Receipt attached'} · {formatDate(request.createdAt)}</span>{request.note && <small>{request.note}</small>}</div>
-                    <div className="credit-entry-amount"><strong>{formatFoodMoney(request.amountCents, request.currencyCode || currency)}</strong>{request.status === 'pending' && <button type="button" onClick={() => cancelRequest(request)}>Cancel</button>}</div>
+                    <div><strong>{t('restaurantWallet.addRequest', { status: localizeStatus(t, request.status) })}</strong><span>{request.referenceId || t('restaurantWallet.receiptAttached')} · {formatDate(request.createdAt, t.lng, t('statusUnknown'))}</span>{request.note && <small>{request.note}</small>}</div>
+                    <div className="credit-entry-amount"><strong>{formatFoodMoney(request.amountCents, request.currencyCode || currency)}</strong>{request.status === 'pending' && <button type="button" onClick={() => cancelRequest(request)}>{t('restaurantWallet.cancel')}</button>}</div>
                   </article>
-                ))}</div> : <EmptyState title="No add credit requests" detail="Send a receipt or confirmation number for restaurant approval." />
+                ))}</div> : <EmptyState title={t('restaurantWallet.requests')} detail={t('restaurantWallet.noSelectedDetail')} />
               )}
             </section>
           </>
@@ -379,6 +388,7 @@ export default function RestaurantCreditPage() {
 }
 
 function PaymentModal({ wallet, onClose, onChanged }) {
+  const { t } = useTranslation('credit');
   const [amount, setAmount] = useState('');
   const [session, setSession] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -387,16 +397,16 @@ function PaymentModal({ wallet, onClose, onChanged }) {
 
   const createSession = async (event) => {
     event.preventDefault();
-    const amountCents = parseAmountCents(amount);
-    if (!amountCents) return toast.error('Enter a valid payment amount.');
-    if (amountCents > walletAvailableCents(wallet)) return toast.error('Amount exceeds the available balance.');
+    const amountCents = parseAmountCents(amount, currency);
+    if (!amountCents) return toast.error(t('restaurantWallet.validPaymentAmount'));
+    if (amountCents > walletAvailableCents(wallet)) return toast.error(t('restaurantWallet.amountExceeds'));
     setSubmitting(true);
     try {
       const result = await createFoodWalletPaymentSession(restaurantId, { amountCents, ttlSeconds: 180, app: 'oxsteed_web' });
       setSession(result);
       await onChanged();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to create the payment QR.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.createQrFailed')));
     } finally {
       setSubmitting(false);
     }
@@ -409,23 +419,23 @@ function PaymentModal({ wallet, onClose, onChanged }) {
       await onChanged();
       onClose();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to cancel the payment QR.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.cancelQrFailed')));
     }
   };
 
   return (
-    <Modal title="Pay with restaurant credit" subtitle={session ? 'Show this one-time QR to the restaurant. The reserved amount cannot be spent twice.' : `Available: ${formatFoodMoney(walletAvailableCents(wallet), currency)}`} onClose={cancelSession}>
+    <Modal title={t('restaurantWallet.payTitle')} subtitle={session ? t('restaurantWallet.paySubtitle') : t('restaurantWallet.availableAmount', { amount: formatFoodMoney(walletAvailableCents(wallet), currency) })} onClose={cancelSession}>
       {!session ? (
         <form className="credit-form" onSubmit={createSession}>
-          <label><span>Amount</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
-          <button type="submit" className="credit-primary" disabled={submitting}>{submitting ? 'Creating secure QR…' : 'Create payment QR'}</button>
+          <label><span>{t('restaurantWallet.amount')}</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
+          <button type="submit" className="credit-primary" disabled={submitting}>{submitting ? t('restaurantWallet.creatingQr') : t('restaurantWallet.createQr')}</button>
         </form>
       ) : (
         <div className="credit-qr-result">
           <WalletQr value={session.qrPayload || session.token} />
           <strong>{formatFoodMoney(session.session?.amountCents, session.session?.currencyCode || currency)}</strong>
-          <span>Expires {formatDate(session.session?.expiresAt)}</span>
-          <button type="button" className="credit-secondary" onClick={cancelSession}>Cancel and release credit</button>
+          <span>{t('restaurantWallet.expires', { date: formatDate(session.session?.expiresAt, t.lng, t('statusUnknown')) })}</span>
+          <button type="button" className="credit-secondary" onClick={cancelSession}>{t('restaurantWallet.cancelRelease')}</button>
         </div>
       )}
     </Modal>
@@ -433,48 +443,60 @@ function PaymentModal({ wallet, onClose, onChanged }) {
 }
 
 function TransferModal({ wallet, onClose, onChanged }) {
+  const { t } = useTranslation('credit');
   const [email, setEmail] = useState('');
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const currency = wallet?.currencyCode || 'USD';
 
   const submit = async (event) => {
     event.preventDefault();
-    const amountCents = parseAmountCents(amount);
-    if (!email.trim() || !amountCents) return toast.error('Enter the recipient email and a valid amount.');
-    if (amountCents > walletAvailableCents(wallet)) return toast.error('Amount exceeds the available balance.');
+    const amountCents = parseAmountCents(amount, currency);
+    if (!email.trim() || !amountCents) return toast.error(t('restaurantWallet.recipientAndAmount'));
+    if (amountCents > walletAvailableCents(wallet)) return toast.error(t('restaurantWallet.amountExceeds'));
     setSubmitting(true);
+    const payload = {
+      recipientEmail: email.trim(),
+      amountCents,
+      memo: memo.trim() || undefined,
+    };
+    const keyPayload = { restaurantId: wallet.restaurantId, ...payload };
     try {
       await transferFoodWalletCredit(wallet.restaurantId, {
-        recipientEmail: email.trim(),
-        amountCents,
-        memo: memo.trim() || undefined,
-        idempotencyKey: requestKey('web-wallet-transfer'),
+        ...payload,
+        idempotencyKey: idempotencyKeysRef.current.get('restaurant-wallet-transfer', keyPayload),
       });
-      toast.success('Restaurant credit sent.');
-      await onChanged();
+      idempotencyKeysRef.current.clear('restaurant-wallet-transfer', keyPayload);
+      toast.success(t('restaurantWallet.sentNotice'));
+      try {
+        await onChanged();
+      } catch {
+        toast.error(t('restaurantWallet.refreshFailed'));
+      }
       onClose();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to send restaurant credit.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.sendFailed')));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal title="Send restaurant credit" subtitle={`The recipient can only spend this credit at ${wallet.restaurantName}.`} onClose={onClose}>
+    <Modal title={t('restaurantWallet.sendTitle')} subtitle={t('restaurantWallet.sendSubtitle', { restaurant: wallet.restaurantName })} onClose={onClose}>
       <form className="credit-form" onSubmit={submit}>
-        <label><span>Recipient’s OxSteed email</span><input type="email" autoFocus required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="customer@example.com" /></label>
-        <label><span>Amount</span><div className="credit-money-input"><span>{currency}</span><input inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
-        <label><span>Memo (optional)</span><textarea value={memo} onChange={(event) => setMemo(event.target.value)} maxLength={255} placeholder="What is this transfer for?" /></label>
-        <button type="submit" className="credit-primary" disabled={submitting}>{submitting ? 'Sending…' : 'Send credit'}</button>
+        <label><span>{t('restaurantWallet.recipientEmail')}</span><input type="email" autoFocus required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="customer@example.com" /></label>
+        <label><span>{t('restaurantWallet.amount')}</span><div className="credit-money-input"><span>{currency}</span><input inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
+        <label><span>{t('restaurantWallet.memo')}</span><textarea value={memo} onChange={(event) => setMemo(event.target.value)} maxLength={255} placeholder={t('restaurantWallet.memoPlaceholder')} /></label>
+        <button type="submit" className="credit-primary" disabled={submitting}>{submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendButton')}</button>
       </form>
     </Modal>
   );
 }
 
 function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, onChanged }) {
+  const { t } = useTranslation('credit');
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
@@ -482,6 +504,7 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
   const [proofMethod, setProofMethod] = useState('upload');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
 
   const uploadProof = async (event) => {
     const file = event.target.files?.[0];
@@ -490,9 +513,9 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
     try {
       const uploaded = await uploadFoodAsset(file, 'food-wallet-credit-proof');
       setProof({ url: uploaded?.url, name: file.name });
-      toast.success('Proof uploaded.');
+      toast.success(t('restaurantWallet.uploaded'));
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to upload proof.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.uploadFailed')));
     } finally {
       setUploading(false);
     }
@@ -500,54 +523,63 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
 
   const submit = async (event) => {
     event.preventDefault();
-    const amountCents = parseAmountCents(amount);
-    if (!amountCents) return toast.error('Enter a valid credit amount.');
-    if (!reference.trim() && !proof?.url) return toast.error('Upload a receipt or enter a confirmation number.');
+    const amountCents = parseAmountCents(amount, currency);
+    if (!amountCents) return toast.error(t('restaurantWallet.validCreditAmount'));
+    if (!reference.trim() && !proof?.url) return toast.error(t('restaurantWallet.proofRequired'));
     setSubmitting(true);
+    const payload = {
+      amountCents,
+      paymentReference: reference.trim() || undefined,
+      proofAttachmentUrl: proof?.url || undefined,
+      note: note.trim() || undefined,
+      fundingMethod: 'direct_payment',
+    };
+    const keyPayload = { restaurantId, ...payload };
     try {
       await requestFoodWalletCredit(restaurantId, {
-        amountCents,
-        paymentReference: reference.trim() || undefined,
-        proofAttachmentUrl: proof?.url || undefined,
-        note: note.trim() || undefined,
-        fundingMethod: 'direct_payment',
-        idempotencyKey: requestKey('web-wallet-credit-request'),
+        ...payload,
+        idempotencyKey: idempotencyKeysRef.current.get('restaurant-wallet-credit-request', keyPayload),
       });
-      toast.success('Credit request sent to the restaurant.');
-      await onChanged();
+      idempotencyKeysRef.current.clear('restaurant-wallet-credit-request', keyPayload);
+      toast.success(t('restaurantWallet.requestSent'));
+      try {
+        await onChanged();
+      } catch {
+        toast.error(t('restaurantWallet.refreshFailed'));
+      }
       onClose();
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to submit the credit request.'));
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.submitFailed')));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal title="Add restaurant credit" subtitle={`Send proof of your payment. ${restaurantName} will add the credit after verifying it.`} onClose={onClose}>
+    <Modal title={t('restaurantWallet.requestTitle')} subtitle={t('restaurantWallet.requestSubtitle', { restaurant: restaurantName })} onClose={onClose}>
       <form className="credit-form" onSubmit={submit}>
-        <label><span>Amount you paid</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
-        <div className="credit-proof-choice" role="group" aria-label="Payment proof method">
-          <button type="button" className={proofMethod === 'upload' ? 'active' : ''} onClick={() => { setProofMethod('upload'); setReference(''); }}>Upload receipt</button>
-          <button type="button" className={proofMethod === 'reference' ? 'active' : ''} onClick={() => { setProofMethod('reference'); setProof(null); }}>Enter confirmation</button>
+        <label><span>{t('restaurantWallet.amountPaid')}</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
+        <div className="credit-proof-choice" role="group" aria-label={t('restaurantWallet.proofMethod')}>
+          <button type="button" className={proofMethod === 'upload' ? 'active' : ''} onClick={() => { setProofMethod('upload'); setReference(''); }}>{t('restaurantWallet.uploadReceipt')}</button>
+          <button type="button" className={proofMethod === 'reference' ? 'active' : ''} onClick={() => { setProofMethod('reference'); setProof(null); }}>{t('restaurantWallet.enterConfirmation')}</button>
         </div>
         {proofMethod === 'upload' ? (
           proof?.name ? (
             <div className="credit-proof-attached">
               <span><CheckCircle2 size={17} /><strong>{proof.name}</strong></span>
-              <button type="button" onClick={() => setProof(null)}>Remove</button>
+              <button type="button" onClick={() => setProof(null)}>{t('restaurantWallet.remove')}</button>
             </div>
           ) : (
-            <label className="credit-proof-upload"><span>{uploading ? 'Uploading receipt…' : 'Choose screenshot, receipt, or PDF'}</span><input type="file" accept="image/*,application/pdf" onChange={uploadProof} disabled={uploading} /></label>
+            <label className="credit-proof-upload"><span>{uploading ? t('restaurantWallet.uploading') : t('restaurantWallet.chooseProof')}</span><input type="file" accept="image/*,application/pdf" onChange={uploadProof} disabled={uploading} /></label>
           )
         ) : (
-          <label><span>Confirmation number or sender name</span><input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} placeholder="Example: ABC123 or Emile J." /></label>
+          <label><span>{t('restaurantWallet.confirmation')}</span><input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} placeholder={t('restaurantWallet.confirmationPlaceholder')} /></label>
         )}
         <details className="credit-form-details">
-          <summary>Add a note (optional)</summary>
-          <label><span>Note for the restaurant</span><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} placeholder="Anything that helps verify the payment" /></label>
+          <summary>{t('restaurantWallet.noteOptional')}</summary>
+          <label><span>{t('restaurantWallet.noteLabel')}</span><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} placeholder={t('restaurantWallet.notePlaceholder')} /></label>
         </details>
-        <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? 'Uploading receipt…' : submitting ? 'Sending…' : 'Send for approval'}</button>
+        <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? t('restaurantWallet.uploading') : submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendApproval')}</button>
       </form>
     </Modal>
   );

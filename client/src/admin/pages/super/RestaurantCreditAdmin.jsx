@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import { formatCreditDateTime } from '../../../lib/creditDateTime';
 
 const PAGE_SIZE = 25;
 
@@ -35,13 +36,7 @@ function money(cents, currency = 'USD') {
 }
 
 function dateTime(value) {
-  if (!value) return 'No activity yet';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown time';
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return formatCreditDateTime(value, value ? 'Unknown time' : 'No activity yet');
 }
 
 function shortId(value) {

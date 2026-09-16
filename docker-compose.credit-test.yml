@@ -1,0 +1,89 @@
+# Disposable, loopback-only environment for OxSteed Credit verification.
+# The harness supplies unique project-scoped volume names and credentials.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_USER: oxsteed
+      POSTGRES_PASSWORD: ${CREDIT_TEST_DB_PASSWORD}
+      POSTGRES_DB: oxsteed_db
+    volumes:
+      - credit_test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U oxsteed -d oxsteed_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - credit_test
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - credit_test_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - credit_test
+
+  app:
+    restart: on-failure
+    command:
+      - sh
+      - -c
+      - >-
+        node -e 'const net = require("net"); const attempt = () => { const socket = net.createConnection({ host: "postgres", port: 5432 }); socket.once("connect", () => { socket.end(); process.exit(0); }); socket.once("error", () => setTimeout(attempt, 1000)); }; attempt();' && npm start
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_URL: http://127.0.0.1
+      CLIENT_URL: http://127.0.0.1
+      CORS_ORIGINS: http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002
+      CREDIT_TEST_PROJECT: ${CREDIT_TEST_PROJECT}
+      CREDIT_TEST_SERVE_STATIC: "true"
+      DATABASE_URL: postgresql://oxsteed:${CREDIT_TEST_DB_PASSWORD}@postgres:5432/oxsteed_db?sslmode=disable
+      DB_CONNECTION_TIMEOUT_MS: 5000
+      DB_POOL_MAX: 5
+      ENCRYPTION_KEY: ${CREDIT_TEST_ENCRYPTION_KEY}
+      JWT_SECRET: ${CREDIT_TEST_JWT_SECRET}
+      LOG_LEVEL: warn
+      NODE_ENV: test
+      OXSTEED_CREDIT_LEDGER_HMAC_KEY_VERSION: v1
+      OXSTEED_CREDIT_LEDGER_HMAC_SECRET: ${CREDIT_TEST_LEDGER_SECRET}
+      OXSTEED_CREDIT_LEDGER_HMAC_KEYS_JSON: '{"v1":"${CREDIT_TEST_LEDGER_SECRET}"}'
+      OXSTEED_CREDIT_SUPPORTED_CURRENCIES: USD,EUR,JPY,KWD
+      OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS: "true"
+      REDIS_URL: redis://redis:6379/0
+      SENTRY_ENABLED: "false"
+      STRIPE_SECRET_KEY: sk_test_isolated
+      STRIPE_WEBHOOK_SECRET: whsec_test_isolated
+      PORT: 5000
+    ports:
+      - "127.0.0.1::5000"
+    networks:
+      - credit_test
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/ready"]
+      interval: 10s
+      timeout: 10s
+      start_period: 90s
+      retries: 20
+
+volumes:
+  credit_test_postgres_data:
+    name: ${CREDIT_TEST_POSTGRES_VOLUME}
+  credit_test_redis_data:
+    name: ${CREDIT_TEST_REDIS_VOLUME}
+
+networks:
+  credit_test:

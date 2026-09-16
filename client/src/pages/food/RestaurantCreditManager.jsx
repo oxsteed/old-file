@@ -7,6 +7,7 @@ import {
   listMerchantFoodWalletCreditRequests,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -17,9 +18,7 @@ function requestProof(request) {
 }
 
 function displayDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Recently';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return formatCreditDateTime(value, 'Recently');
 }
 
 export default function RestaurantCreditManager({ restaurant }) {

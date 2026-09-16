@@ -191,6 +191,8 @@ const isProduction = (process.env.NODE_ENV || 'production') === 'production';
 const allowedOrigins = isProduction
   ? rawAllowedOrigins.filter((origin) => !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin))
   : rawAllowedOrigins;
+const isTestLoopbackOrigin = (origin) =>
+  !isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin || '');
 
 if (isProduction && rawAllowedOrigins.length !== allowedOrigins.length) {
   logger.warn('CORS: stripped localhost origins in production', { rawAllowedOrigins, allowedOrigins });
@@ -232,7 +234,7 @@ app.use('/api/', metricsMiddleware);
 app.use(securityHeaders);
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.includes(origin) || isTestLoopbackOrigin(origin)) return cb(null, true);
     cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,
@@ -606,7 +608,7 @@ app.use('/robots.txt', robotsRoutes);
 app.use('/sitemap.xml', sitemapRoutes);
 
 // ── PRODUCTION STATIC SERVING ────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATIC === 'true') {
   // Prerender SEO shell for /, /helpers, /helpers/:id before express.static
   // (express.static would serve bare index.html for / without structured data)
   app.use(prerenderHelperProfile);

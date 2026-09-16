@@ -17,10 +17,14 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../lib/adminApi';
-import { DEFAULT_CREDIT_CURRENCIES, formatCreditMinorUnits, parseCreditMajorAmount } from '../../../lib/creditCurrency';
+import { DEFAULT_CREDIT_CURRENCIES, formatCreditMinorUnits, parseCreditMajorAmount, parseOptionalCreditMajorAmount } from '../../../lib/creditCurrency';
 import OxsteedCreditEntitlements from './OxsteedCreditEntitlements';
 import OxsteedCreditCustomerDetail from './OxsteedCreditCustomerDetail';
 import OxsteedCreditPartnerLedger from './OxsteedCreditPartnerLedger';
+import { createStableIdempotencyKeyStore } from './creditIdempotency';
+import { formatCreditDateTime } from '../../../lib/creditDateTime';
+import { localizeCreditStatus } from '../../../lib/creditStatus';
+import { safeCreditErrorMessage } from '../../../lib/creditErrors';
 
 const DEFAULT_CURRENCY_OPTIONS = DEFAULT_CREDIT_CURRENCIES;
 const CUSTOMER_ACCOUNT_PAGE_SIZE = 50;
@@ -37,10 +41,66 @@ const CREDIT_WORKER_NAMES = [
 const money = formatCreditMinorUnits;
 const dollarsToCents = parseCreditMajorAmount;
 
+const CREDIT_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function useCreditDialogFocusTrap(dialogRef, open, onEscape) {
+  const restoreFocusRef = useRef(null);
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    const getFocusable = () => [...dialog.querySelectorAll(CREDIT_FOCUSABLE_SELECTOR)]
+      .filter((element) => element.getClientRects().length > 0);
+    const focusable = getFocusable();
+    (focusable[0] || dialog).focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onEscapeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const currentFocusable = getFocusable();
+      if (!currentFocusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener('keydown', onKeyDown);
+    return () => {
+      dialog.removeEventListener('keydown', onKeyDown);
+      restoreFocusRef.current?.focus?.();
+      restoreFocusRef.current = null;
+    };
+  }, [dialogRef, open]);
+}
+
 function dateTime(value) {
-  if (!value) return 'No activity';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Unknown date' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  const language = typeof document !== 'undefined' && document.documentElement?.lang;
+  return formatCreditDateTime(value, value ? 'Unknown date' : 'No activity', language);
 }
 
 function statusClass(status) {
@@ -51,21 +111,23 @@ function statusClass(status) {
   if (status === 'running') return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
   if (status === 'difference' || status === 'failed') return 'border-red-500/30 bg-red-500/10 text-red-300';
   if (status === 'suspended') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
-  if (status === 'terminated' || status === 'expired') return 'border-red-500/30 bg-red-500/10 text-red-300';
+  if (status === 'terminated' || status === 'expired' || status === 'revoked') return 'border-red-500/30 bg-red-500/10 text-red-300';
   return 'border-gray-700 bg-gray-900 text-gray-400';
 }
 
 function Badge({ status }) {
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusClass(status)}`}>{String(status || 'unknown').replace(/_/g, ' ')}</span>;
+  const { t } = useTranslation('credit');
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${statusClass(status)}`}>{localizeCreditStatus(status, t)}</span>;
 }
 
 function IntegritySummary({ integrity }) {
+  const { t } = useTranslation('credit');
   if (!integrity || typeof integrity !== 'object') return null;
   const failures = Object.entries(integrity).filter(([, value]) => Number(value) > 0);
   if (failures.length) {
-    return <p className="mt-2 inline-flex items-center gap-1.5 font-semibold text-red-300"><AlertTriangle className="h-3.5 w-3.5" /> Hash integrity failed: {failures.map(([key, value]) => `${key.replace(/([A-Z])/g, ' $1').toLowerCase()} ${value}`).join(', ')}</p>;
+    return <p className="mt-2 inline-flex items-center gap-1.5 font-semibold text-red-300"><AlertTriangle className="h-3.5 w-3.5" /> {t('adminHashIntegrityFailed', { details: failures.map(([key, value]) => `${key.replace(/([A-Z])/g, ' $1').toLowerCase()} ${value}`).join(', ') })}</p>;
   }
-  return <p className="mt-2 inline-flex items-center gap-1.5 font-semibold text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" /> Hash integrity verified</p>;
+  return <p className="mt-2 inline-flex items-center gap-1.5 font-semibold text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" /> {t('adminHashIntegrityVerified')}</p>;
 }
 
 function Metric({ icon: Icon, label, value, detail, tone = 'text-white' }) {
@@ -113,82 +175,320 @@ function transactionPartyLabel(transaction) {
   return 'System movement';
 }
 
-function requestKey(prefix) {
-  if (globalThis.crypto?.randomUUID) return `${prefix}:${globalThis.crypto.randomUUID()}`;
-  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-}
+const ADMIN_SECTION_TRANSLATIONS = {
+  'Agreement lifecycle': {
+    eyebrow: 'adminAgreementLifecycle',
+    title: 'adminActivePendingTerms',
+    detail: 'adminAgreementLifecycleDescription',
+  },
+  'Settlement & controls': {
+    eyebrow: 'adminSettlementAndControls',
+    title: 'adminPartnerPayablesReconciliation',
+    detail: 'adminSettlementControlsDescription',
+  },
+  'Reconciliation history': {
+    eyebrow: 'adminReconciliationHistory',
+    title: 'adminLedgerCheckHistory',
+    detail: 'adminReconciliationHistoryDescription',
+  },
+  Disputes: {
+    eyebrow: 'adminCreditDisputes',
+    title: 'adminCreditDisputeQueue',
+    detail: 'adminDisputeQueueDescription',
+  },
+  'Audit history': {
+    eyebrow: 'adminAuditHistory',
+    title: 'adminCreditControlTrail',
+    detail: 'adminAuditHistoryDescription',
+  },
+  'Payout recovery': {
+    eyebrow: 'adminPayoutRecovery',
+    title: 'adminReversePaidSettlement',
+    detail: 'adminPayoutRecoveryDescription',
+  },
+  'Partner enrollment': {
+    eyebrow: 'adminPartnerEnrollment',
+    title: 'adminAddRestaurantPartner',
+    detail: 'adminPartnerEnrollmentDescription',
+  },
+  'Partner network': {
+    eyebrow: 'adminPartnerNetwork',
+    title: 'adminRestaurantsAndAgreements',
+    detail: 'adminPartnerNetworkDescription',
+  },
+  'Audit history controls': {
+    eyebrow: 'adminAuditHistoryControls',
+    title: 'adminSearchControlTrail',
+    detail: 'adminSearchControlTrailDetail',
+  },
+  'Coverage watch': {
+    eyebrow: 'adminCoverageWatch',
+    title: 'adminPartnerAgreementHealth',
+    detail: 'adminPartnerAgreementHealthDetail',
+  },
+  'Delivery watch': {
+    eyebrow: 'adminDeliveryWatch',
+    title: 'adminCreditCustomerNotifications',
+    detail: 'adminCreditCustomerNotificationsDetail',
+  },
+  'Ledger activity': {
+    eyebrow: 'adminLedgerActivity',
+    title: 'adminCreditTransactionHistory',
+    detail: 'adminCreditTransactionHistoryDetail',
+  },
+  'Risk guardrails': {
+    eyebrow: 'adminRiskGuardrails',
+    title: 'adminFundingSpendingTransferLimits',
+    detail: 'adminFundingSpendingTransferLimitsDetail',
+  },
+};
 
 function Section({ eyebrow, title, detail, children, action }) {
-  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{eyebrow}</p><h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>{detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{detail}</p>}</div>{action}</div>{children}</section>;
+  const { t } = useTranslation('credit');
+  const translation = ADMIN_SECTION_TRANSLATIONS[eyebrow];
+  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{translation ? t(translation.eyebrow, { defaultValue: eyebrow }) : eyebrow}</p><h2 className="mt-1 text-lg font-semibold text-white">{translation ? t(translation.title, { defaultValue: title }) : title}</h2>{detail && <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{translation ? t(translation.detail, { defaultValue: detail }) : detail}</p>}</div>{action}</div>{children}</section>;
 }
 
-function workerDisplayName(jobName) {
-  return String(jobName || 'Credit worker').replace(/^oxsteed-credit-/, '').replace(/-/g, ' ');
+function SettlementControls({
+  selectablePartners,
+  settlementForm,
+  setSettlementForm,
+  loadSettlementAgreements,
+  loadingSettlementAgreements,
+  settlementAgreements,
+  settlementAgreementOptionsError,
+  busy,
+  createSettlement,
+  reconciliationReason,
+  setReconciliationReason,
+  runReconciliation,
+  reconciliation,
+  settlements,
+  transitionSettlement,
+}) {
+  const { t } = useTranslation('credit');
+  return <Section eyebrow="Settlement & controls" title="Partner payables and reconciliation" detail="Create a period snapshot, approve it only after review, and mark it paid only with a traceable external payment reference. The reconciliation compares every account balance to its immutable journal entries; its integrity scope is always the all-time ledger for the selected currency.">
+    <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      <form onSubmit={createSettlement} className="grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2">
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminSettlementPartner')}</span>
+          <select required value={settlementForm.partnerId} onChange={(event) => { const nextPartner = selectablePartners.find((partner) => String(partner.partnerId) === event.target.value); setSettlementForm({ ...settlementForm, partnerId: event.target.value, agreementId: '', currencyCode: nextPartner?.settlementCurrencyCode || 'USD' }); loadSettlementAgreements(event.target.value); }} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
+            <option value="">{t('adminSelectPartner')}</option>
+            {selectablePartners.filter((partner) => partner.status === 'active').map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || t('adminRestaurantFallback', { id: partner.restaurantId })} · {partner.settlementCurrencyCode || 'USD'}</option>)}
+          </select>
+        </label>
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminSettlementAgreement')}</span>
+          <select required value={settlementForm.agreementId} onChange={(event) => setSettlementForm({ ...settlementForm, agreementId: event.target.value })} disabled={loadingSettlementAgreements || !settlementForm.partnerId} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400">
+            <option value="">{loadingSettlementAgreements ? t('adminLoadingAgreements') : t('adminSelectAgreement')}</option>
+            {settlementAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>v{agreement.version} · {localizeCreditStatus(agreement.status, t)}</option>)}
+          </select>
+          {settlementAgreementOptionsError && <p className="mt-2 text-xs font-semibold text-red-300">{settlementAgreementOptionsError}</p>}
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminCurrency')}</span>
+          <input value={settlementForm.currencyCode} readOnly className="w-full rounded-xl border border-gray-700 bg-gray-950/70 px-3 py-3 text-sm font-semibold text-sky-300 outline-none" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPeriodStarts')}</span>
+          <input required type="datetime-local" value={settlementForm.periodStart} onChange={(event) => setSettlementForm({ ...settlementForm, periodStart: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPeriodEnds')}</span>
+          <input required type="datetime-local" value={settlementForm.periodEnd} onChange={(event) => setSettlementForm({ ...settlementForm, periodEnd: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPaymentReferenceOptional')}</span>
+          <input value={settlementForm.paymentReference} onChange={(event) => setSettlementForm({ ...settlementForm, paymentReference: event.target.value })} placeholder={t('adminPaymentReferencePlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReasonForSnapshot')}</span>
+          <input required maxLength={1000} value={settlementForm.reason} onChange={(event) => setSettlementForm({ ...settlementForm, reason: event.target.value })} placeholder={t('adminReasonForSnapshotPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+        </label>
+        <div className="flex flex-wrap items-end gap-3 sm:col-span-2">
+          <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> {t('adminCreateSnapshot')}</button>
+          <label className="min-w-[220px] flex-1">
+            <span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminReasonForReconciliation')}</span>
+            <input maxLength={1000} value={reconciliationReason} onChange={(event) => setReconciliationReason(event.target.value)} placeholder={t('adminReasonForReconciliationPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-orange-400" />
+          </label>
+          <button type="button" disabled={busy} onClick={runReconciliation} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 px-4 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><ShieldCheck className="h-4 w-4" /> {t('adminReconcileLedger')}</button>
+        </div>
+        {reconciliation && <div className={`rounded-xl border px-3 py-3 text-xs sm:col-span-2 ${reconciliation.status === 'balanced' ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300' : 'border-red-500/30 bg-red-950/20 text-red-300'}`}>
+          {t('adminLastRun')}: <strong>{localizeCreditStatus(reconciliation.status, t)}</strong> · {t('adminDifference')}: {money(reconciliation.differenceCents, reconciliation.currencyCode || settlementForm.currencyCode)} · {reconciliation.entryCount} {t('adminJournalEntries')} · {t('adminIntegrityScope')}: {reconciliation.scope === 'all_time_ledger' ? t('adminAllTimeLedger') : t('adminUnknown')}
+          <IntegritySummary integrity={reconciliation.integrity} />
+        </div>}
+      </form>
+      <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <table className="min-w-[920px] w-full text-left text-xs">
+          <thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminNetPayable')}</th><th className="px-3 py-3 font-medium">{t('adminSettlementStatusProvenance')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead>
+          <tbody className="divide-y divide-gray-800">
+            {!settlements.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminNoSettlementSnapshots')}</td></tr> : settlements.map((settlement) => <tr key={settlement.id}>
+              <td className="px-3 py-3 text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}<p className="mt-1 text-gray-600">{t('adminGrossAmount')} {money(settlement.grossCents, settlement.currencyCode)} · {t('adminRefunds')} {money(settlement.refundCents, settlement.currencyCode)}</p></td>
+              <td className="px-3 py-3 text-gray-400">{dateTime(settlement.periodStart)}<br />{t('adminTo')} {dateTime(settlement.periodEnd)}</td>
+              <td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td>
+              <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
+              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{['pending', 'approved'].includes(settlement.status) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </Section>;
 }
 
-function workerResultSummary(result) {
+function ReconciliationHistory({
+  reconciliationRuns,
+  reconciliationStatus,
+  setReconciliationStatus,
+  reconciliationCurrency,
+  setReconciliationCurrency,
+  currencyOptions,
+  reconciliationPagination,
+  loadingMoreReconciliationRuns,
+  loading,
+  busy,
+  downloadReconciliationHistory,
+  load,
+}) {
+  const { t } = useTranslation('credit');
+  return <Section eyebrow="Reconciliation history" title="Ledger check history" detail="Every check is preserved as a separate operational record. Use the difference and entry counts to decide whether a settlement is safe to approve; no reconciliation action changes balances." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadReconciliationHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminStatus')}</span><select aria-label={t('adminReconciliationStatusFilter')} value={reconciliationStatus} onChange={(event) => setReconciliationStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllStatuses')}</option><option value="balanced">{t('statusBalanced')}</option><option value="difference">{t('statusDifference')}</option><option value="failed">{t('statusFailed')}</option></select></label><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminCurrency')}</span><select aria-label={t('adminReconciliationCurrencyFilter')} value={reconciliationCurrency} onChange={(event) => setReconciliationCurrency(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">{t('adminAllCurrencies')}</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>{reconciliationPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendReconciliationRuns: true, reconciliationOffset: reconciliationPagination.nextOffset || 0 })} disabled={loadingMoreReconciliationRuns || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreReconciliationRuns ? t('adminLoading') : t('adminLoadOlder')}</button>}</div>}>
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRun')}</th><th className="px-3 py-3 font-medium">{t('adminRequestedPeriod')}</th><th className="px-3 py-3 font-medium">{t('adminResult')}</th><th className="px-3 py-3 font-medium">{t('adminBalances')}</th><th className="px-3 py-3 font-medium">{t('adminScope')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!reconciliationRuns.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminNoReconciliationRuns')}</td></tr> : reconciliationRuns.map((run) => <tr key={run.id}><td className="px-3 py-3 text-gray-400">{dateTime(run.startedAt)}<p className="mt-1 font-mono text-[10px] text-gray-700">{run.id}</p></td><td className="px-3 py-3 text-gray-400">{dateTime(run.periodStart)}<br />{t('adminTo')} {dateTime(run.periodEnd)}</td><td className="px-3 py-3"><Badge status={run.status} /><p className="mt-1 text-gray-600">{run.currencyCode} · {run.accountCount} {t('adminAccounts')} · {run.entryCount} {t('adminEntries')}</p><IntegritySummary integrity={run.metadata?.hashIntegrity} /></td><td className="px-3 py-3 text-gray-400">{t('adminAccounts')} {money(run.accountBalanceCents, run.currencyCode)}<br />{t('adminJournal')} {money(run.journalBalanceCents, run.currencyCode)}<br /><strong className={run.differenceCents === 0 ? 'text-emerald-300' : 'text-red-300'}>{t('adminDifference')} {money(run.differenceCents, run.currencyCode)}</strong></td><td className="px-3 py-3 text-gray-500">{run.metadata?.scope === 'all_time_ledger' ? t('adminAllTimeLedger') : t('adminRecordedScopeUnavailable')}</td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
+function CreditDisputeQueue({
+  disputes,
+  disputeStatus,
+  setDisputeStatus,
+  disputePagination,
+  loadingMoreDisputes,
+  loading,
+  busy,
+  downloadDisputeHistory,
+  load,
+  disputeResolutionDrafts,
+  setDisputeResolutionDrafts,
+  inspectDisputeCustomer,
+  resolveDispute,
+}) {
+  const { t } = useTranslation('credit');
+  return <Section eyebrow="Disputes" title="Credit dispute queue" detail="Disputes preserve the original journal transaction. Filter by lifecycle state and load older cases from the server; resolve with a documented outcome and use a separate compensating refund or adjustment rather than editing history." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadDisputeHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>{t('adminStatus')}</span><select aria-label={t('adminDisputeStatusFilter')} value={disputeStatus} onChange={(event) => setDisputeStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllStatuses')}</option><option value="open">{t('openStatus')}</option><option value="in_review">{t('underReviewStatus')}</option><option value="resolved">{t('resolvedStatus')}</option><option value="rejected">{t('rejectedStatus')}</option></select></label>{disputePagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendDisputes: true, disputeOffset: disputePagination.nextOffset || 0 })} disabled={loadingMoreDisputes || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreDisputes ? t('adminLoading') : t('adminLoadOlder')}</button>}</div>}>
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomerRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminTransaction')}</th><th className="px-3 py-3 font-medium">{t('adminReason')}</th><th className="px-3 py-3 font-medium">{t('adminDescription')}</th><th className="px-3 py-3 font-medium">{t('adminOpened')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!disputes.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('adminNoDisputesForStatus')}</td></tr> : disputes.map((dispute) => <tr key={dispute.id}><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{dispute.customerId}</span><p className="mt-1 text-gray-600">{dispute.restaurantName || t('adminCredit')}</p><button type="button" disabled={busy} onClick={() => inspectDisputeCustomer(dispute)} className="mt-2 rounded-lg border border-sky-500/30 px-2.5 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('adminOpenCustomer360')}</button></td><td className="px-3 py-3 text-gray-400">{dispute.amountCents !== null && dispute.amountCents !== undefined ? <strong className="block text-emerald-300">{money(dispute.amountCents, dispute.currencyCode || 'USD')}</strong> : <strong className="block text-gray-600">{t('adminAmountUnavailable')}</strong>}<span className="mt-1 block font-mono text-[10px] text-gray-600">{String(dispute.transactionType || 'transaction').replace(/_/g, ' ')} · {dispute.transactionId}</span>{dispute.referenceId && <span className="mt-1 block break-all font-mono text-[10px] text-gray-700">{t('adminReference')} {dispute.referenceId}</span>}</td><td className="px-3 py-3"><Badge status={dispute.status} /><p className="mt-1 text-gray-500">{dispute.reasonCode}</p></td><td className="max-w-[280px] px-3 py-3 text-gray-400">{dispute.description}<textarea aria-label={t('adminResolution')} value={disputeResolutionDrafts[dispute.id] || ''} onChange={(event) => setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))} maxLength={4000} rows={2} placeholder={t('adminResolutionNotePlaceholder')} className="mt-3 w-full min-w-[220px] resize-y rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-2 text-xs text-white outline-none focus:border-orange-400" /></td><td className="px-3 py-3 text-gray-500">{dateTime(dispute.openedAt)}{dispute.postedAt && <p className="mt-1 text-gray-600">{t('adminPosted')} {dateTime(dispute.postedAt)}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminReview')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminResolve')}</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div></td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
+function CreditAuditHistory({ auditEvents, loading, busy, downloadAuditHistory }) {
+  const { t } = useTranslation('credit');
+  return <Section eyebrow="Audit history" title="OxSteed Credit control trail" detail="Every rail, partner, agreement, entitlement, account, dispute, and ledger action is append-only. Use this view to reconstruct why a customer or restaurant state changed." action={<button type="button" onClick={downloadAuditHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button>}>
+    <div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminWhen')}</th><th className="px-3 py-3 font-medium">{t('adminAction')}</th><th className="px-3 py-3 font-medium">{t('adminResource')}</th><th className="px-3 py-3 font-medium">{t('adminActorCustomer')}</th><th className="px-3 py-3 font-medium">{t('adminReason')}</th><th className="px-3 py-3 font-medium">{t('adminIntegrity')}</th><th className="px-3 py-3 font-medium">{t('adminChanges')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!auditEvents.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">{t('adminNoCreditAuditEvents')}</td></tr> : auditEvents.map((event) => <tr key={event.id}><td className="px-3 py-3 text-gray-500">{dateTime(event.createdAt)}</td><td className="px-3 py-3"><span className="font-mono text-[11px] text-orange-300">{event.actionType}</span></td><td className="px-3 py-3 text-gray-400">{event.resourceType}<p className="mt-1 font-mono text-[10px] text-gray-600">{event.resourceId}</p></td><td className="px-3 py-3 text-gray-400">{event.actorUserId || t('adminSystem')}{event.customerId && <p className="mt-1 font-mono text-[10px] text-gray-600">{t('adminCustomer')} {event.customerId}</p>}{event.correlationId && <p className="mt-1 break-all font-mono text-[10px] text-gray-600">{t('adminRequest')} {event.correlationId}</p>}</td><td className="max-w-[280px] px-3 py-3 text-gray-400">{event.reason || t('adminNoReasonRecorded')}</td><td className="px-3 py-3 text-gray-500">{event.eventHash ? <details><summary className="cursor-pointer text-emerald-300">{t('adminChainEvidence')}</summary><p className="mt-2 break-all font-mono text-[10px] text-gray-600">{t('adminEventHash')} {event.eventHash}</p><p className="mt-1 break-all font-mono text-[10px] text-gray-700">{t('adminPreviousEvent')} {event.previousEventHash || t('adminGenesis')}</p></details> : <span className="text-gray-700">{t('adminLegacyEvent')}</span>}</td><td className="px-3 py-3 text-gray-500"><details><summary className="cursor-pointer text-sky-300">{t('adminViewState')}</summary><pre className="mt-2 max-w-[360px] whitespace-pre-wrap break-words text-[10px] leading-4 text-gray-500">{JSON.stringify({ before: event.beforeState, after: event.afterState }, null, 2)}</pre></details></td></tr>)}</tbody></table></div>
+  </Section>;
+}
+
+function CreditPayoutRecovery({ settlements, busy, reverseSettlement }) {
+  const { t } = useTranslation('credit');
+  return <Section eyebrow="Payout recovery" title="Reverse a paid settlement" detail="Use this only when the external payout failed or was returned. The operation requires recovery evidence and creates a compensating ledger entry; it never edits the original payment transaction."><div className="grid gap-3 md:grid-cols-2">{settlements.filter((settlement) => settlement.status === 'paid' && Number(settlement.netCents || 0) > 0).slice(0, 6).map((settlement) => <article key={`reversal-${settlement.id}`} className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}</h3><p className="mt-1 text-xs text-gray-500">{money(settlement.netCents, settlement.currencyCode)} · {settlement.paymentReference || t('adminNoPaymentReference')}</p></div><button type="button" disabled={busy} onClick={() => reverseSettlement(settlement)} className="rounded-lg border border-amber-500/40 px-2.5 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminReversePayout')}</button></div></article>)}</div></Section>;
+}
+
+const WORKER_TRANSLATION_KEYS = {
+  'oxsteed-credit-notification-outbox': 'adminWorkerNotificationOutbox',
+  'oxsteed-credit-hold-expiry': 'adminWorkerHoldExpiry',
+  'oxsteed-credit-entitlement-expiry': 'adminWorkerEntitlementExpiry',
+  'oxsteed-credit-reconciliation': 'adminWorkerReconciliation',
+  'oxsteed-credit-integrity': 'adminWorkerIntegrity',
+  'restaurant-credit-wallet-watchdog': 'adminWorkerRestaurantWalletWatchdog',
+};
+
+function workerDisplayName(jobName, t) {
+  const key = WORKER_TRANSLATION_KEYS[jobName];
+  return key ? t(key) : String(jobName || t('adminCreditWorker')).replace(/^oxsteed-credit-/, '').replace(/-/g, ' ');
+}
+
+const WORKER_RESULT_TRANSLATION_KEYS = {
+  sent: 'adminWorkerResultSent',
+  failed: 'adminWorkerResultFailed',
+  purged: 'adminWorkerResultPurged',
+  claimed: 'adminWorkerResultClaimed',
+  retried: 'adminWorkerResultRetried',
+  count: 'adminWorkerResultCount',
+  reclaimed: 'adminWorkerResultReclaimed',
+  processed: 'adminWorkerResultProcessed',
+  skipped: 'adminWorkerResultSkipped',
+};
+
+function workerResultSummary(result, t) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return '';
   return Object.entries(result)
-    .map(([key, value]) => `${key.replace(/([A-Z])/g, ' $1').toLowerCase()}: ${String(value)}`)
+    .map(([key, value]) => {
+      const fallback = key.replace(/([A-Z])/g, ' $1').toLowerCase();
+      return `${WORKER_RESULT_TRANSLATION_KEYS[key] ? t(WORKER_RESULT_TRANSLATION_KEYS[key]) : fallback}: ${String(value)}`;
+    })
     .join(' · ');
 }
 
 function CreditWorkerHealth({ heartbeats }) {
+  const { t } = useTranslation('credit');
   const rows = CREDIT_WORKER_NAMES.map((jobName) => ({ jobName, heartbeat: heartbeats?.[jobName] || {} }));
   const isFailed = (heartbeat) => Boolean(heartbeat.lastError) || heartbeat.stale === true || Number(heartbeat.consecutiveFailures || 0) > 0;
   const hasFailure = rows.some(({ heartbeat }) => isFailed(heartbeat));
   const hasAwaiting = rows.some(({ heartbeat }) => !heartbeat.lastRunAt);
   const needsAttention = hasFailure || hasAwaiting;
-  const panelStatus = hasFailure ? 'Needs attention' : hasAwaiting ? 'Awaiting checkpoints' : 'No active failures';
+  const panelStatus = hasFailure ? t('adminWorkerNeedsAttention') : hasAwaiting ? t('adminWorkerAwaitingCheckpoints') : t('adminWorkerNoActiveFailures');
   return <section className={`rounded-2xl border p-4 sm:p-5 ${hasFailure ? 'border-red-500/30 bg-red-950/15' : hasAwaiting ? 'border-amber-500/30 bg-amber-950/10' : 'border-gray-800 bg-[#111318]'}`}>
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Worker health</p><h2 className="mt-1 text-lg font-semibold text-white">Credit maintenance workers</h2><p className="mt-1 text-xs leading-5 text-gray-500">Durable checkpoints cover delivery, reservations, lifecycle expiry, reconciliation, integrity verification, and restaurant wallet operations. A missing or failed checkpoint is operational evidence, not a ledger mutation.</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${hasFailure ? 'border-red-500/30 bg-red-500/10 text-red-300' : hasAwaiting ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{needsAttention ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{panelStatus}</span></div>
-    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rows.map(({ jobName, heartbeat }) => { const failed = isFailed(heartbeat); const awaiting = !heartbeat.lastRunAt; const resultSummary = workerResultSummary(heartbeat.lastResult); return <div key={jobName} className={`rounded-xl border p-3 ${failed ? 'border-red-500/25 bg-red-950/20' : awaiting ? 'border-amber-500/20 bg-amber-950/10' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-start justify-between gap-3"><p className="capitalize text-sm font-semibold text-white">{workerDisplayName(jobName)}</p><span className={`inline-flex shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${failed ? 'border-red-500/30 bg-red-500/10 text-red-300' : awaiting ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{failed ? 'Failed' : awaiting ? 'Awaiting run' : 'Healthy'}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3"><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">Last run</p><p className="mt-1 text-gray-300">{dateTime(heartbeat.lastRunAt)}</p></div><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">Last success</p><p className="mt-1 text-gray-300">{dateTime(heartbeat.lastSuccessAt)}</p></div><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">Failures / runs</p><p className={`mt-1 font-semibold ${failed ? 'text-red-300' : 'text-gray-300'}`}>{Number(heartbeat.consecutiveFailures || 0)} / {Number(heartbeat.runCount || 0)}</p></div></div>{resultSummary && <p className="mt-3 break-words text-[11px] text-gray-500">Last result: {resultSummary}</p>}{heartbeat.lastError && <p className="mt-3 break-words rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-2 text-xs text-red-300">{heartbeat.lastError}</p>}</div>; })}</div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">{t('adminWorkerHealth')}</p><h2 className="mt-1 text-lg font-semibold text-white">{t('adminCreditMaintenanceWorkers')}</h2><p className="mt-1 text-xs leading-5 text-gray-500">{t('adminWorkerHealthDescription')}</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${hasFailure ? 'border-red-500/30 bg-red-500/10 text-red-300' : hasAwaiting ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{needsAttention ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{panelStatus}</span></div>
+    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{rows.map(({ jobName, heartbeat }) => { const failed = isFailed(heartbeat); const awaiting = !heartbeat.lastRunAt; const resultSummary = workerResultSummary(heartbeat.lastResult, t); return <div key={jobName} className={`rounded-xl border p-3 ${failed ? 'border-red-500/25 bg-red-950/20' : awaiting ? 'border-amber-500/20 bg-amber-950/10' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-white">{workerDisplayName(jobName, t)}</p><span className={`inline-flex shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${failed ? 'border-red-500/30 bg-red-500/10 text-red-300' : awaiting ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>{failed ? t('adminWorkerFailed') : awaiting ? t('adminWorkerAwaitingRun') : t('adminWorkerHealthy')}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3"><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">{t('adminWorkerLastRun')}</p><p className="mt-1 text-gray-300">{dateTime(heartbeat.lastRunAt)}</p></div><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">{t('adminWorkerLastSuccess')}</p><p className="mt-1 text-gray-300">{dateTime(heartbeat.lastSuccessAt)}</p></div><div><p className="text-[10px] uppercase tracking-[0.12em] text-gray-600">{t('adminWorkerFailuresRuns')}</p><p className={`mt-1 font-semibold ${failed ? 'text-red-300' : 'text-gray-300'}`}>{Number(heartbeat.consecutiveFailures || 0)} / {Number(heartbeat.runCount || 0)}</p></div></div>{resultSummary && <p className="mt-3 break-words text-[11px] text-gray-500">{t('adminWorkerLastResult')}: {resultSummary}</p>}{heartbeat.lastError && <p className="mt-3 break-words rounded-lg border border-red-500/20 bg-red-950/20 px-3 py-2 text-xs text-red-300">{heartbeat.lastError}</p>}</div>; })}</div>
   </section>;
 }
 
 function CreditRailPrerequisites({ prerequisites }) {
+  const { t } = useTranslation('credit');
   const checks = [
-    ['Shared Redis', prerequisites.sharedRedisConfigured, 'Required for safe multi-instance locks and worker coordination.'],
-    ['Dedicated ledger key', prerequisites.dedicatedLedgerSecretConfigured, 'Keeps ledger integrity separate from authentication secrets.'],
-    ['Ledger key configuration', prerequisites.ledgerKeyConfigurationValid, 'Current and previous key versions are configured for verification.'],
-    ['Server error monitoring', prerequisites.serverErrorMonitoringConfigured, 'Required to detect production failures and trigger incident response.'],
+    [t('adminSharedRedis'), prerequisites.sharedRedisConfigured, t('adminSharedRedisDetail')],
+    [t('adminDedicatedLedgerKey'), prerequisites.dedicatedLedgerSecretConfigured, t('adminDedicatedLedgerKeyDetail')],
+    [t('adminLedgerKeyConfiguration'), prerequisites.ledgerKeyConfigurationValid, t('adminLedgerKeyConfigurationDetail')],
+    [t('adminServerErrorMonitoring'), prerequisites.serverErrorMonitoringConfigured, t('adminServerErrorMonitoringDetail')],
   ];
   const ready = prerequisites.readyForProductionActivation === true;
   return <section className={`rounded-2xl border p-4 sm:p-5 ${ready ? 'border-emerald-500/25 bg-emerald-950/10' : 'border-amber-500/25 bg-amber-950/10'}`}>
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Activation readiness</p><h2 className="mt-1 text-lg font-semibold text-white">Production prerequisites</h2><p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">These checks are safe signals only. Keep the Credit rail suspended until infrastructure, custody, compliance, and the production runbook have also been approved.</p></div>
-      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${ready ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>{ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}{ready ? 'Infrastructure ready' : 'Not ready'}</span>
+      <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">{t('adminActivationReadiness')}</p><h2 className="mt-1 text-lg font-semibold text-white">{t('adminProductionPrerequisites')}</h2><p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">{t('adminProductionPrerequisitesDescription')}</p></div>
+      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${ready ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>{ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}{ready ? t('adminInfrastructureReady') : t('adminNotReady')}</span>
     </div>
-    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{checks.map(([label, passed, detail]) => <div key={label} className={`rounded-xl border p-3 ${passed ? 'border-emerald-500/20 bg-emerald-950/10' : 'border-red-500/20 bg-red-950/10'}`}><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{label}</strong>{passed ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <AlertTriangle className="h-4 w-4 text-red-300" />}</div><p className="mt-2 text-[11px] leading-5 text-gray-500">{detail}</p><p className={`mt-2 text-[10px] font-bold uppercase tracking-[0.14em] ${passed ? 'text-emerald-300' : 'text-red-300'}`}>{passed ? 'Pass' : 'Action required'}</p></div>)}</div>
+    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{checks.map(([label, passed, detail]) => <div key={label} className={`rounded-xl border p-3 ${passed ? 'border-emerald-500/20 bg-emerald-950/10' : 'border-red-500/20 bg-red-950/10'}`}><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{label}</strong>{passed ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <AlertTriangle className="h-4 w-4 text-red-300" />}</div><p className="mt-2 text-[11px] leading-5 text-gray-500">{detail}</p><p className={`mt-2 text-[10px] font-bold uppercase tracking-[0.14em] ${passed ? 'text-emerald-300' : 'text-red-300'}`}>{passed ? t('adminPass') : t('adminActionRequired')}</p></div>)}</div>
   </section>;
 }
 
 function AdminCreditTransactionDetail({ transaction, onClose, onRefund, refundForm, setRefundForm, busy }) {
+  const { t } = useTranslation('credit');
+  const dialogRef = useRef(null);
+  useCreditDialogFocusTrap(dialogRef, Boolean(transaction), onClose);
   if (!transaction) return null;
-  const accountLabel = (account) => account?.customerEmail || account?.customerId || account?.partnerId || account?.accountType || 'Unknown account';
+  const accountLabel = (account) => account?.customerEmail || account?.customerId || account?.partnerId || account?.accountType || t('adminUnknownAccount');
   const isPostedPurchase = transaction.transactionType === 'purchase' && transaction.status === 'posted';
   const canRefund = isPostedPurchase && Number(transaction.remainingRefundableCents || 0) > 0;
-  return <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" aria-label="Credit transaction detail">
+  return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" aria-label={t('adminTransactionDetail')}>
     <section className="my-2 w-full max-w-5xl rounded-2xl border border-gray-700 bg-[#111318] p-4 shadow-2xl sm:my-8 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-800 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Transaction detail</p><h2 className="mt-1 text-xl font-semibold text-white">{creditTransactionLabel(transaction)}</h2><p className="mt-1 break-all font-mono text-[11px] text-gray-600">{transaction.id}</p></div><button type="button" onClick={onClose} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800">Close</button></div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-4"><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Amount</span><strong className="mt-1 block text-lg text-emerald-300">{money(transaction.amountCents, transaction.currencyCode)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Status</span><div className="mt-2"><Badge status={transaction.status} /></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Posted</span><strong className="mt-1 block text-sm text-gray-300">{dateTime(transaction.postedAt || transaction.createdAt)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Restaurant</span><strong className="mt-1 block break-words text-sm text-gray-300">{transaction.restaurantName || 'Platform movement'}</strong></div></div>
-    <div className="mt-4 grid gap-4 lg:grid-cols-2"><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Journal accounts</p><div className="mt-3 space-y-3 text-xs"><div><span className="text-gray-600">Debit</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.debitAccount)} <span className="text-gray-600">· {transaction.debitAccount?.accountType || 'account'}</span></p></div><div><span className="text-gray-600">Credit</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.creditAccount)} <span className="text-gray-600">· {transaction.creditAccount?.accountType || 'account'}</span></p></div><div><span className="text-gray-600">Reference</span><p className="mt-1 break-all text-gray-300">{transaction.referenceType || 'None'}{transaction.referenceId ? ` · ${transaction.referenceId}` : ''}</p></div><div><span className="text-gray-600">Idempotency key</span><p className="mt-1 break-all font-mono text-[10px] text-gray-500">{transaction.idempotencyKey || 'Not recorded'}</p></div></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Immutable entries</p><div className="mt-3 space-y-2">{!transaction.entries?.length ? <p className="text-xs text-gray-600">No journal entries returned.</p> : transaction.entries.map((entry) => <div key={entry.id} className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold uppercase tracking-[0.12em] text-sky-300">{entry.side}</span><strong className="text-emerald-300">{money(entry.amountCents, transaction.currencyCode)}</strong></div><p className="mt-1 break-all text-gray-600">{entry.accountType || 'account'} · balance after {money(entry.balanceAfterCents, transaction.currencyCode)} · sequence {entry.sequence}</p><p className="mt-1 break-all font-mono text-[10px] text-gray-700">hash {entry.entryHash || 'not recorded'} · key version {entry.hashKeyVersion || 'v1'}</p></div>)}</div></div></div>
-      <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Related audit events</p><div className="mt-3 space-y-2">{!transaction.auditEvents?.length ? <p className="text-xs text-gray-600">No transaction-specific audit events returned.</p> : transaction.auditEvents.map((event) => <div key={event.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 px-3 py-2 text-xs"><div><strong className="font-mono text-orange-300">{event.actionType}</strong><p className="mt-1 text-gray-500">{event.reason || 'No reason recorded'}</p></div><span className="text-gray-600">{dateTime(event.createdAt)}</span></div>)}</div></div>
-      {isPostedPurchase && !canRefund && <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4 text-xs text-gray-500">No refundable balance remains for this purchase. Posted refunds: {money(transaction.refundedCents, transaction.currencyCode)}.</div>}
-      {canRefund && <form onSubmit={onRefund} className="mt-4 rounded-xl border border-amber-500/25 bg-amber-950/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">Operator action</p><h3 className="mt-1 text-sm font-semibold text-white">Refund this purchase</h3><p className="mt-1 text-xs leading-5 text-gray-500">Post a partial or full immutable refund. The server rejects refunds above the remaining refundable purchase amount.</p></div><span className="text-xs font-semibold text-amber-200">Remaining {money(transaction.remainingRefundableCents, transaction.currencyCode)}</span></div><div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto]"><label><span className="mb-1 block text-xs font-semibold text-gray-500">Refund amount ({transaction.currencyCode})</span><input required inputMode="decimal" autoComplete="off" value={refundForm.amount} onChange={(event) => setRefundForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" aria-label="Refund amount" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Required reason</span><input required maxLength={500} value={refundForm.reason} onChange={(event) => setRefundForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Customer cancellation, duplicate charge, or dispute outcome" aria-label="Refund reason" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={busy} className="self-end rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{busy ? 'Posting...' : 'Post refund'}</button></div></form>}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-800 pb-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('adminTransactionDetail')}</p><h2 className="mt-1 text-xl font-semibold text-white">{creditTransactionLabel(transaction)}</h2><p className="mt-1 break-all font-mono text-[11px] text-gray-600">{transaction.id}</p></div><button type="button" onClick={onClose} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-800">{t('adminClose')}</button></div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-4"><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminAmount', { currency: transaction.currencyCode })}</span><strong className="mt-1 block text-lg text-emerald-300">{money(transaction.amountCents, transaction.currencyCode)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminStatus')}</span><div className="mt-2"><Badge status={transaction.status} /></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminPosted')}</span><strong className="mt-1 block text-sm text-gray-300">{dateTime(transaction.postedAt || transaction.createdAt)}</strong></div><div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3"><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{t('adminRestaurant')}</span><strong className="mt-1 block break-words text-sm text-gray-300">{transaction.restaurantName || t('adminPlatformMovement')}</strong></div></div>
+    <div className="mt-4 grid gap-4 lg:grid-cols-2"><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminJournalAccounts')}</p><div className="mt-3 space-y-3 text-xs"><div><span className="text-gray-600">{t('adminDebit')}</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.debitAccount)} <span className="text-gray-600">· {transaction.debitAccount?.accountType || t('adminAccount')}</span></p></div><div><span className="text-gray-600">{t('adminCredit')}</span><p className="mt-1 break-all text-gray-300">{accountLabel(transaction.creditAccount)} <span className="text-gray-600">· {transaction.creditAccount?.accountType || t('adminAccount')}</span></p></div><div><span className="text-gray-600">{t('adminReference')}</span><p className="mt-1 break-all text-gray-300">{transaction.referenceType || t('adminNone')}{transaction.referenceId ? ` · ${transaction.referenceId}` : ''}</p></div><div><span className="text-gray-600">{t('adminIdempotencyKey')}</span><p className="mt-1 break-all font-mono text-[10px] text-gray-500">{transaction.idempotencyKey || t('adminNotRecorded')}</p></div></div></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminImmutableEntries')}</p><div className="mt-3 space-y-2">{!transaction.entries?.length ? <p className="text-xs text-gray-600">{t('adminNoJournalEntries')}</p> : transaction.entries.map((entry) => <div key={entry.id} className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold uppercase tracking-[0.12em] text-sky-300">{entry.side}</span><strong className="text-emerald-300">{money(entry.amountCents, transaction.currencyCode)}</strong></div><p className="mt-1 break-all text-gray-600">{entry.accountType || t('adminAccount')} · {t('adminBalanceAfter')} {money(entry.balanceAfterCents, transaction.currencyCode)} · {t('adminSequence')} {entry.sequence}</p><p className="mt-1 break-all font-mono text-[10px] text-gray-700">{t('adminHash')} {entry.entryHash || t('adminNotRecorded')} · {t('adminKeyVersion')} {entry.hashKeyVersion || 'v1'}</p></div>)}</div></div></div>
+      <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminRelatedAuditEvents')}</p><div className="mt-3 space-y-2">{!transaction.auditEvents?.length ? <p className="text-xs text-gray-600">{t('adminNoTransactionAuditEvents')}</p> : transaction.auditEvents.map((event) => <div key={event.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 px-3 py-2 text-xs"><div><strong className="font-mono text-orange-300">{event.actionType}</strong><p className="mt-1 text-gray-500">{event.reason || t('adminNoReasonRecorded')}</p></div><span className="text-gray-600">{dateTime(event.createdAt)}</span></div>)}</div></div>
+      {isPostedPurchase && !canRefund && <div className="mt-4 rounded-xl border border-gray-800 bg-gray-950/40 p-4 text-xs text-gray-500">{t('adminNoRefundableBalance')} {money(transaction.refundedCents, transaction.currencyCode)}.</div>}
+      {canRefund && <form onSubmit={onRefund} className="mt-4 rounded-xl border border-amber-500/25 bg-amber-950/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">{t('adminOperatorAction')}</p><h3 className="mt-1 text-sm font-semibold text-white">{t('adminRefundPurchase')}</h3><p className="mt-1 text-xs leading-5 text-gray-500">{t('adminRefundDescription')}</p></div><span className="text-xs font-semibold text-amber-200">{t('adminRemaining')} {money(transaction.remainingRefundableCents, transaction.currencyCode)}</span></div><div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto] "><label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRefundAmount', { currency: transaction.currencyCode })}</span><input required inputMode="decimal" autoComplete="off" value={refundForm.amount} onChange={(event) => setRefundForm((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" aria-label={t('adminRefundAmount', { currency: transaction.currencyCode })} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredReason')}</span><input required maxLength={500} value={refundForm.reason} onChange={(event) => setRefundForm((current) => ({ ...current, reason: event.target.value }))} placeholder={t('adminRefundReasonPlaceholder')} aria-label={t('adminRequiredReason')} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={busy} className="self-end rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">{busy ? t('adminPosting') : t('adminPostRefund')}</button></div></form>}
     </section>
   </div>;
 }
 
 function SettlementEvidence({ settlements }) {
+  const { t } = useTranslation('credit');
   if (!settlements?.length) return null;
-  return <Section eyebrow="Payout evidence" title="Settlement payment trail" detail="Keep the approval actor, external payment reference, and paid timestamp visible together so each partner payout can be reconciled without opening another screen."><div className="mt-4 grid gap-3 md:grid-cols-2">{settlements.slice(0, 6).map((settlement) => <article key={settlement.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || `Partner ${settlement.partnerId}`}</h3><p className="mt-1 text-[11px] text-gray-600">{dateTime(settlement.periodStart)} to {dateTime(settlement.periodEnd)}</p></div><Badge status={settlement.status} /></div><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3"><div><dt className="text-gray-600">Net payable</dt><dd className="mt-1 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</dd></div><div><dt className="text-gray-600">Approved by</dt><dd className="mt-1 break-all text-sky-300">{settlement.approvedBy || 'Pending approval'}</dd></div><div><dt className="text-gray-600">Payment reference</dt><dd className="mt-1 break-all font-mono text-[11px] text-gray-300">{settlement.paymentReference || 'Not recorded'}</dd></div></dl>{settlement.paidAt && <p className="mt-3 border-t border-gray-800 pt-3 text-[11px] text-gray-500">Paid {dateTime(settlement.paidAt)}</p>}</article>)}</div>{settlements.length > 6 && <p className="mt-3 text-xs text-gray-600">Showing the six most recent settlement records. Use the settlement queue filters and CSV export for the full history.</p>}</Section>;
+  return <Section eyebrow={t('adminPayoutEvidence')} title={t('adminSettlementPaymentTrail')} detail={t('adminSettlementEvidenceDescription')}><div className="mt-4 grid gap-3 md:grid-cols-2">{settlements.slice(0, 6).map((settlement) => <article key={settlement.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || t('adminPartnerFallback', { id: settlement.partnerId })}</h3><p className="mt-1 text-[11px] text-gray-600">{dateTime(settlement.periodStart)} {t('adminTo')} {dateTime(settlement.periodEnd)}</p></div><Badge status={settlement.status} /></div><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3"><div><dt className="text-gray-600">{t('adminNetPayable')}</dt><dd className="mt-1 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</dd></div><div><dt className="text-gray-600">{t('adminApprovedBy')}</dt><dd className="mt-1 break-all text-sky-300">{settlement.approvedBy || t('adminPendingApproval')}</dd></div><div><dt className="text-gray-600">{t('adminPaymentReference')}</dt><dd className="mt-1 break-all font-mono text-[11px] text-gray-300">{settlement.paymentReference || t('adminNotRecorded')}</dd></div></dl>{settlement.paidAt && <p className="mt-3 border-t border-gray-800 pt-3 text-[11px] text-gray-500">{t('adminPaid')} {dateTime(settlement.paidAt)}</p>}</article>)}</div>{settlements.length > 6 && <p className="mt-3 text-xs text-gray-600">{t('adminRecentSettlementSummary')}</p>}</Section>;
 }
 
 function AdminActionDialog({ dialog, onResolve }) {
   const { t } = useTranslation('credit');
+  const dialogRef = useRef(null);
   const inputRef = useRef(null);
   const [value, setValue] = useState('');
+  useCreditDialogFocusTrap(dialogRef, Boolean(dialog), () => onResolve(null));
   useEffect(() => {
     if (!dialog) return;
     setValue(dialog.defaultValue || '');
@@ -202,7 +502,7 @@ function AdminActionDialog({ dialog, onResolve }) {
     if (dialog.required !== false && !String(value || '').trim()) return;
     onResolve(String(value || '').trim());
   };
-  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="credit-action-dialog-title" aria-describedby="credit-action-dialog-description">
+  return <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="credit-action-dialog-title" aria-describedby="credit-action-dialog-description">
     <form onSubmit={submit} className="w-full max-w-lg rounded-2xl border border-gray-700 bg-[#111318] p-5 shadow-2xl sm:p-6">
       <h2 id="credit-action-dialog-title" className="text-lg font-semibold text-white">{dialog.title}</h2>
       <p id="credit-action-dialog-description" className="mt-2 text-sm leading-6 text-gray-400">{dialog.description}</p>
@@ -213,6 +513,7 @@ function AdminActionDialog({ dialog, onResolve }) {
 }
 
 export default function OxsteedCreditAdmin() {
+  const { t } = useTranslation('credit');
   const [overview, setOverview] = useState(null);
   const [customerAccounts, setCustomerAccounts] = useState([]);
   const [partners, setPartners] = useState([]);
@@ -290,6 +591,7 @@ export default function OxsteedCreditAdmin() {
   const loadRequestRef = useRef(0);
   const partnerLookupRequestRef = useRef(0);
   const settlementAgreementRequestRef = useRef(0);
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const dialogResolverRef = useRef(null);
   const [dialog, setDialog] = useState(null);
 
@@ -394,7 +696,7 @@ export default function OxsteedCreditAdmin() {
       setRail(railResponse.data?.rail || null);
     } catch (err) {
       if (requestId === loadRequestRef.current) {
-        setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to load OxSteed Credit administration.');
+        setError(safeCreditErrorMessage(err, 'Unable to load OxSteed Credit administration.'));
       }
     } finally {
       if (requestId === loadRequestRef.current) {
@@ -426,7 +728,7 @@ export default function OxsteedCreditAdmin() {
       setPartnerPickerTotal(Number(response.data?.pagination?.total ?? loadedOptions.length));
     } catch (err) {
       if (requestId === partnerLookupRequestRef.current) {
-        setPartnerOptionsError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Partner lookup failed.');
+        setPartnerOptionsError(safeCreditErrorMessage(err, 'Partner lookup failed.'));
       }
     } finally {
       if (requestId === partnerLookupRequestRef.current) setLoadingPartnerOptions(false);
@@ -467,7 +769,7 @@ export default function OxsteedCreditAdmin() {
       setSettlementAgreementLookupPartnerId(normalizedPartnerId);
     } catch (err) {
       if (requestId === settlementAgreementRequestRef.current) {
-        setSettlementAgreementOptionsError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Agreement lookup failed.');
+        setSettlementAgreementOptionsError(safeCreditErrorMessage(err, 'Agreement lookup failed.'));
       }
     } finally {
       if (requestId === settlementAgreementRequestRef.current) setLoadingSettlementAgreements(false);
@@ -492,38 +794,48 @@ export default function OxsteedCreditAdmin() {
     setBusy(true); setNotice(''); setError('');
     try {
       await adminApi.post('/admin/super/oxsteed-credit/partners', { restaurantId: partnerForm.restaurantId, settlementCurrencyCode: partnerForm.settlementCurrencyCode, notes: partnerForm.notes || undefined, reason: partnerForm.reason });
-      setNotice('Partner enrollment created in Pending status. Activate it after confirming the agreement.');
+      setNotice(t('adminPartnerEnrollmentCreated'));
       setPartnerForm({ restaurantId: '', settlementCurrencyCode: 'USD', notes: '', reason: '' });
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Partner enrollment failed.');
+      setError(safeCreditErrorMessage(err, t('adminPartnerEnrollmentFailed')));
     } finally { setBusy(false); }
   };
 
   const createAgreement = async (event) => {
     event.preventDefault();
     if (!agreementForm.partnerId) return setError('Choose a credit partner before creating an agreement.');
+    const agreementCurrency = selectedPartner?.settlementCurrencyCode || 'USD';
+    const maxTransaction = parseOptionalCreditMajorAmount(agreementForm.maxTransaction, agreementCurrency, overview?.currencyMetadata);
+    const dailyLimit = parseOptionalCreditMajorAmount(agreementForm.dailyLimit, agreementCurrency, overview?.currencyMetadata);
+    const lifetimeLimit = parseOptionalCreditMajorAmount(agreementForm.lifetimeLimit, agreementCurrency, overview?.currencyMetadata);
+    if (!maxTransaction.valid || !dailyLimit.valid || !lifetimeLimit.valid) {
+      return setError(t('adminInvalidLimitAmount', { currency: agreementCurrency }));
+    }
     setBusy(true); setNotice(''); setError('');
+    const payload = {
+      startsAt: new Date(agreementForm.startsAt).toISOString(),
+      endsAt: agreementForm.endsAt ? new Date(agreementForm.endsAt).toISOString() : undefined,
+      customerTerms: agreementForm.customerTerms || undefined,
+      allowedOrderTypes: splitList(agreementForm.allowedOrderTypes),
+      allowedCategories: splitList(agreementForm.allowedCategories),
+      allowedMenuItemIds: splitList(agreementForm.allowedMenuItemIds),
+      geography: buildGeography(agreementForm),
+      maxTransactionCents: maxTransaction.value,
+      dailyCustomerLimitCents: dailyLimit.value,
+      lifetimeCustomerLimitCents: lifetimeLimit.value,
+      requiresCustomerEntitlement: agreementForm.requiresCustomerEntitlement,
+      reason: agreementForm.reason,
+    };
+    const keyPayload = { partnerId: agreementForm.partnerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/partners/${agreementForm.partnerId}/agreements`, {
-        startsAt: new Date(agreementForm.startsAt).toISOString(),
-        endsAt: agreementForm.endsAt ? new Date(agreementForm.endsAt).toISOString() : undefined,
-        customerTerms: agreementForm.customerTerms || undefined,
-        allowedOrderTypes: splitList(agreementForm.allowedOrderTypes),
-        allowedCategories: splitList(agreementForm.allowedCategories),
-        allowedMenuItemIds: splitList(agreementForm.allowedMenuItemIds),
-        geography: buildGeography(agreementForm),
-        maxTransactionCents: dollarsToCents(agreementForm.maxTransaction, selectedPartner?.settlementCurrencyCode),
-        dailyCustomerLimitCents: dollarsToCents(agreementForm.dailyLimit, selectedPartner?.settlementCurrencyCode),
-        lifetimeCustomerLimitCents: dollarsToCents(agreementForm.lifetimeLimit, selectedPartner?.settlementCurrencyCode),
-        requiresCustomerEntitlement: agreementForm.requiresCustomerEntitlement,
-        reason: agreementForm.reason,
-      }, { headers: { 'Idempotency-Key': requestKey('credit-agreement') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/partners/${agreementForm.partnerId}/agreements`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-agreement', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-agreement', keyPayload);
       setNotice(`Agreement created for ${selectedPartner?.restaurantName || 'the selected partner'} in Draft status.`);
       setAgreementForm((current) => ({ ...current, customerTerms: '', allowedCategories: '', allowedMenuItemIds: '', coverageCities: '', coverageStates: '', coveragePostalCodes: '', coverageCountries: '', maxTransaction: '', dailyLimit: '', lifetimeLimit: '', reason: '' }));
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Agreement creation failed.');
+      setError(safeCreditErrorMessage(err, 'Agreement creation failed.'));
     } finally { setBusy(false); }
   };
 
@@ -535,11 +847,11 @@ export default function OxsteedCreditAdmin() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, reason: reason.trim() });
+      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, expectedStatus: partner.status, reason: reason.trim() });
       setNotice(`${partner.restaurantName || 'Partner'} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Partner status change failed.');
+      setError(safeCreditErrorMessage(err, 'Partner status change failed.'));
     } finally { setBusy(false); }
   };
 
@@ -551,11 +863,11 @@ export default function OxsteedCreditAdmin() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, reason: reason.trim() });
+      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, expectedStatus: agreement.status, reason: reason.trim() });
       setNotice(`Agreement v${agreement.version} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Agreement status change failed.');
+      setError(safeCreditErrorMessage(err, 'Agreement status change failed.'));
     } finally { setBusy(false); }
   };
 
@@ -563,20 +875,22 @@ export default function OxsteedCreditAdmin() {
     event.preventDefault();
     if (!settlementForm.partnerId || !settlementForm.agreementId) return setError('Choose a partner and agreement before creating a settlement.');
     setBusy(true); setNotice(''); setError('');
+    const payload = {
+      partnerId: settlementForm.partnerId,
+      agreementId: settlementForm.agreementId,
+      periodStart: new Date(settlementForm.periodStart).toISOString(),
+      periodEnd: new Date(settlementForm.periodEnd).toISOString(),
+      paymentReference: settlementForm.paymentReference || undefined,
+      reason: settlementForm.reason,
+    };
     try {
-      await adminApi.post('/admin/super/oxsteed-credit/settlements', {
-        partnerId: settlementForm.partnerId,
-        agreementId: settlementForm.agreementId,
-        periodStart: new Date(settlementForm.periodStart).toISOString(),
-        periodEnd: new Date(settlementForm.periodEnd).toISOString(),
-        paymentReference: settlementForm.paymentReference || undefined,
-        reason: settlementForm.reason,
-      }, { headers: { 'Idempotency-Key': requestKey('credit-settlement') } });
+      await adminApi.post('/admin/super/oxsteed-credit/settlements', payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-settlement', payload) } });
+      idempotencyKeysRef.current.clear('credit-settlement', payload);
       setNotice('Settlement snapshot created in Pending status. Review the totals before approving payment.');
       setSettlementForm((current) => ({ ...current, paymentReference: '', reason: '' }));
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Settlement creation failed.');
+      setError(safeCreditErrorMessage(err, 'Settlement creation failed.'));
     } finally { setBusy(false); }
   };
 
@@ -596,11 +910,11 @@ export default function OxsteedCreditAdmin() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
+      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
       setNotice(`Settlement for ${settlement.restaurantName || 'partner'} moved to ${status}.`);
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Settlement status change failed.');
+      setError(safeCreditErrorMessage(err, 'Settlement status change failed.'));
     } finally { setBusy(false); }
   };
 
@@ -616,12 +930,15 @@ export default function OxsteedCreditAdmin() {
       return;
     }
     setBusy(true); setNotice(''); setError('');
+    const payload = { reason: reason.trim(), recoveryReference: recoveryReference.trim() };
+    const keyPayload = { settlementId: settlement.id, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/reversal`, { reason: reason.trim(), recoveryReference: recoveryReference.trim() }, { headers: { 'Idempotency-Key': requestKey('credit-settlement-reversal') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/reversal`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-settlement-reversal', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-settlement-reversal', keyPayload);
       setNotice(`Settlement for ${settlement.restaurantName || 'partner'} was reversed and the payable balance restored.`);
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Settlement reversal failed.');
+      setError(safeCreditErrorMessage(err, 'Settlement reversal failed.'));
     } finally { setBusy(false); }
   };
 
@@ -648,20 +965,23 @@ export default function OxsteedCreditAdmin() {
           ? 'Reconciliation stopped because ledger hash integrity failed. Do not approve a payout until the ledger is investigated.'
           : 'Reconciliation found a difference. Review the run before any payout.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Reconciliation failed.');
+      setError(safeCreditErrorMessage(err, 'Reconciliation failed.'));
     } finally { setBusy(false); }
   };
 
   const loadCustomerCredit = async (event) => {
     event.preventDefault();
     setBusy(true); setNotice(''); setError('');
+    const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason };
+    const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, fundingReference: customerForm.fundingReference, reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-load') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/loads`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-load', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-load', keyPayload);
       setNotice('Customer credit grant posted to the immutable ledger.');
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Customer credit grant failed.');
+      setError(safeCreditErrorMessage(err, 'Customer credit grant failed.'));
     } finally { setBusy(false); }
   };
 
@@ -670,41 +990,48 @@ export default function OxsteedCreditAdmin() {
     const confirmed = await requestDialog({ kind: 'confirm', title: 'Confirm customer Credit clawback', description: `This posts an immutable debit of ${customerForm.amount || 'this amount'} from ${customerForm.customerId || 'this wallet'} and cannot be edited.` });
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
+    const payload = { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason };
+    const keyPayload = { customerId: customerForm.customerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, { amountCents: dollarsToCents(customerForm.amount, customerForm.currencyCode), currencyCode: customerForm.currencyCode, direction: 'debit', reason: customerForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-adjustment') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/customers/${customerForm.customerId}/adjustments`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-adjustment', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-adjustment', keyPayload);
       setNotice('Customer credit clawback posted to the immutable ledger.');
       setCustomerForm({ customerId: '', amount: '', currencyCode: 'USD', fundingReference: '', reason: '' });
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Customer credit adjustment failed.');
+      setError(safeCreditErrorMessage(err, 'Customer credit adjustment failed.'));
     } finally { setBusy(false); }
   };
 
   const updateAccountStatus = async (event) => {
     event.preventDefault();
     setBusy(true); setNotice(''); setError('');
+    const payload = { currencyCode: accountStatusForm.currencyCode, status: accountStatusForm.status, reason: accountStatusForm.reason };
+    const keyPayload = { customerId: accountStatusForm.customerId, ...payload };
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/customers/${accountStatusForm.customerId}/status`, { currencyCode: accountStatusForm.currencyCode, status: accountStatusForm.status, reason: accountStatusForm.reason }, { headers: { 'Idempotency-Key': requestKey('credit-status') } });
+      await adminApi.post(`/admin/super/oxsteed-credit/customers/${accountStatusForm.customerId}/status`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-status', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-status', keyPayload);
       setNotice(`Customer credit account moved to ${accountStatusForm.status}.`);
       setAccountStatusForm({ customerId: '', currencyCode: 'USD', status: 'suspended', reason: '' });
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Customer account status change failed.');
+      setError(safeCreditErrorMessage(err, 'Customer account status change failed.'));
     } finally { setBusy(false); }
   };
 
   const updateRail = async (event) => {
     event.preventDefault();
     if (!rail || !railReason.trim()) return setError('Enter an audit reason before changing the credit rail status.');
+    const expectedEnabled = rail.enabled === true;
     setBusy(true); setNotice(''); setError('');
     try {
-      const response = await adminApi.post('/admin/super/oxsteed-credit/rail', { enabled: !rail.enabled, reason: railReason.trim() });
+      const response = await adminApi.post('/admin/super/oxsteed-credit/rail', { enabled: !expectedEnabled, expectedEnabled, reason: railReason.trim() });
       setRail(response.data?.rail || rail);
       setRailReason('');
       setNotice(response.data?.rail?.enabled ? 'OxSteed Credit is enabled for approved activity.' : 'OxSteed Credit is suspended. Existing ledger history remains available for recovery and review.');
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Credit rail status change failed.');
+      setError(safeCreditErrorMessage(err, 'Credit rail status change failed.'));
     } finally { setBusy(false); }
   };
 
@@ -721,7 +1048,7 @@ export default function OxsteedCreditAdmin() {
       setNotice('Credit notification requeued. The durable worker will retry delivery without changing the ledger.');
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Credit notification retry failed.');
+      setError(safeCreditErrorMessage(err, 'Credit notification retry failed.'));
     } finally { setRetryingNotificationId(''); }
   };
 
@@ -738,7 +1065,7 @@ export default function OxsteedCreditAdmin() {
       setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: '' }));
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || 'Dispute update failed.');
+      setError(safeCreditErrorMessage(err, 'Dispute update failed.'));
     } finally { setBusy(false); }
   };
 
@@ -808,7 +1135,7 @@ export default function OxsteedCreditAdmin() {
       if (!account) throw new Error('Customer Credit wallet was not found.');
       inspectCustomerAccount(account);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to open the customer Credit profile.');
+      setError(safeCreditErrorMessage(err, 'Unable to open the customer Credit profile.'));
     } finally { setBusy(false); }
   };
   const inspectTransaction = async (transaction) => {
@@ -819,7 +1146,7 @@ export default function OxsteedCreditAdmin() {
       const response = await adminApi.get(`/admin/super/oxsteed-credit/transactions/${transaction.id}`);
       setTransactionDetail(response.data?.transaction || null);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to open the Credit transaction detail.');
+      setError(safeCreditErrorMessage(err, 'Unable to open the Credit transaction detail.'));
     } finally {
       setLoadingTransactionId('');
     }
@@ -843,14 +1170,17 @@ export default function OxsteedCreditAdmin() {
     const confirmed = await requestDialog({ kind: 'confirm', title: 'Confirm Credit refund', description: `This posts a ${refundForm.amount} ${transactionDetail.currencyCode} immutable refund movement for this purchase.` });
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
+    const payload = { amountCents, reason };
+    const keyPayload = { transactionId: transactionDetail.id, ...payload };
     try {
-      const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, { amountCents, reason }, { headers: { 'Idempotency-Key': requestKey('credit-refund') } });
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/transactions/${transactionDetail.id}/refund`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-refund', keyPayload) } });
+      idempotencyKeysRef.current.clear('credit-refund', keyPayload);
       setRefundForm({ amount: '', reason: '' });
       setNotice(response.data?.replayed ? 'The Credit refund request was already recorded; no duplicate movement was posted.' : 'Credit refund posted to the immutable ledger.');
       await inspectTransaction(transactionDetail);
       await load({ quiet: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Credit refund failed.');
+      setError(safeCreditErrorMessage(err, 'Credit refund failed.'));
     } finally { setBusy(false); }
   };
   const downloadTransactionHistory = async () => {
@@ -871,7 +1201,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit transaction CSV downloaded with the active filters.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit transactions.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit transactions.'));
     } finally { setBusy(false); }
   };
   const downloadSettlementHistory = async () => {
@@ -891,7 +1221,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Settlement CSV downloaded with the active filters.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit settlements.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit settlements.'));
     } finally { setBusy(false); }
   };
   const downloadCustomerAccounts = async () => {
@@ -912,7 +1242,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Customer wallet CSV downloaded with the active filters.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export customer wallets.');
+      setError(safeCreditErrorMessage(err, 'Unable to export customer wallets.'));
     } finally { setBusy(false); }
   };
   const downloadAuditHistory = async () => {
@@ -934,7 +1264,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit audit CSV downloaded with the active filters.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit audit history.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit audit history.'));
     } finally { setBusy(false); }
   };
   const downloadDisputeHistory = async () => {
@@ -953,7 +1283,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit dispute CSV downloaded with the active status filter.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit disputes.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit disputes.'));
     } finally { setBusy(false); }
   };
   const downloadReconciliationHistory = async () => {
@@ -973,7 +1303,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit reconciliation CSV downloaded with the active filters.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit reconciliation history.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit reconciliation history.'));
     } finally { setBusy(false); }
   };
   const downloadPartnerDirectory = async () => {
@@ -990,7 +1320,7 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit partner directory CSV downloaded.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit partners.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit partners.'));
     } finally { setBusy(false); }
   };
   const downloadAgreementHistory = async () => {
@@ -1007,30 +1337,30 @@ export default function OxsteedCreditAdmin() {
       window.URL.revokeObjectURL(url);
       setNotice('Credit agreement history CSV downloaded.');
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || 'Unable to export Credit agreements.');
+      setError(safeCreditErrorMessage(err, 'Unable to export Credit agreements.'));
     } finally { setBusy(false); }
   };
   return <><AdminActionDialog dialog={dialog} onResolve={resolveDialog} /><AdminCreditTransactionDetail transaction={transactionDetail} onClose={() => { setTransactionDetail(null); setRefundForm({ amount: '', reason: '' }); }} onRefund={refundAdminCredit} refundForm={refundForm} setRefundForm={setRefundForm} busy={busy} /><main className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
-    <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">Super Admin</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> Stored-value control</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">OxSteed Credit</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">Operate a restricted credit network: customers can spend only at restaurants with an active partner agreement, and every movement is journaled, bounded, and auditable.</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh</button></div></header>
-    <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Emergency control</p><h2 className="mt-1 text-lg font-semibold text-white">OxSteed Credit rail</h2><p className="mt-1 text-xs leading-5 text-gray-400">This gate controls new loads, holds, purchases, and transfers. Suspending it does not edit or delete ledger history, and every change is recorded in the Credit audit trail.</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Required audit reason</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? 'Why are you suspending the rail?' : 'Why are you enabling the rail?'} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? 'Suspend rail' : 'Enable rail'}</button></form></section>
+    <header className="rounded-3xl border border-gray-800 bg-gradient-to-br from-[#17131d] via-[#111318] to-[#101923] p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-5"><div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-300">{t('adminSuperAdmin')}</span><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-300"><ShieldCheck className="h-3.5 w-3.5" /> {t('adminStoredValueControl')}</span></div><h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{t('adminPageTitle')}</h1><p className="mt-3 text-sm leading-6 text-gray-400 sm:text-base">{t('adminPageDescription')}</p></div><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> {t('adminRefresh')}</button></div></header>
+    <section className="rounded-2xl border border-amber-500/25 bg-amber-950/15 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-3xl"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">{t('adminEmergencyControl')}</p><h2 className="mt-1 text-lg font-semibold text-white">{t('adminCreditRail')}</h2><p className="mt-1 text-xs leading-5 text-gray-400">{t('adminCreditRailDescription')}</p></div><Badge status={rail ? (rail.enabled ? 'enabled' : 'suspended') : 'unknown'} /></div><form onSubmit={updateRail} className="mt-4 flex flex-col gap-3 border-t border-amber-500/15 pt-4 sm:flex-row sm:items-end"><label className="min-w-0 flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequiredAuditReason')}</span><input value={railReason} onChange={(event) => setRailReason(event.target.value)} maxLength={1000} placeholder={rail?.enabled ? t('adminSuspendRailPlaceholder') : t('adminEnableRailPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-amber-300" /></label><button type="submit" disabled={!rail || busy || !railReason.trim()} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 ${rail?.enabled ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}><Power className="h-4 w-4" />{rail?.enabled ? t('adminSuspendRail') : t('adminEnableRail')}</button></form></section>
     {rail?.prerequisites && <CreditRailPrerequisites prerequisites={rail.prerequisites} />}
-    {error && <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</span><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">Retry dashboard</button></div>}
+    {error && <div role="alert" aria-live="assertive" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</span><button type="button" onClick={() => load({ quiet: true })} disabled={loading || busy} className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50">{t('adminRetryDashboard')}</button></div>}
     {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" />{notice}</div>}
     <CreditWorkerHealth heartbeats={workerHeartbeats} />
     <Section eyebrow="Audit history controls" title="Search the Credit control trail" detail="Filter the append-only control history before reviewing state changes. Results are bounded and can be loaded in older pages without downloading the entire ledger."
       action={auditPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendAuditEvents: true, auditOffset: auditPagination.nextOffset || 0 })} disabled={loadingMoreAuditEvents || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreAuditEvents ? 'Loading...' : 'Load older audit events'}</button>}
     >
       <div className="mt-4 grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3 sm:grid-cols-2 xl:grid-cols-4">
-        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Action type</span><input aria-label="Credit audit action filter" value={auditActionType} onChange={(event) => setAuditActionType(event.target.value)} placeholder="credit.rail.suspended" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
-        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Resource type</span><input aria-label="Credit audit resource filter" value={auditResourceType} onChange={(event) => setAuditResourceType(event.target.value)} placeholder="credit_transaction" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
-        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select aria-label="Credit audit partner filter" value={auditPartnerId} onChange={(event) => setAuditPartnerId(event.target.value)} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">All partners</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Partner ${partner.partnerId}`}</option>)}</select></label>
-        <label><span className="mb-1 block text-xs font-semibold text-gray-500">Request correlation</span><input aria-label="Credit audit correlation filter" value={auditCorrelationId} onChange={(event) => setAuditCorrelationId(event.target.value)} placeholder="request-id-from-logs" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminAction')}</span><input aria-label={t('adminAction')} value={auditActionType} onChange={(event) => setAuditActionType(event.target.value)} placeholder="credit.rail.suspended" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminResource')}</span><input aria-label={t('adminResource')} value={auditResourceType} onChange={(event) => setAuditResourceType(event.target.value)} placeholder="credit_transaction" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminPartner')}</span><select aria-label={t('adminPartner')} value={auditPartnerId} onChange={(event) => setAuditPartnerId(event.target.value)} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">{t('adminAllPartners')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || t('adminPartnerFallback', { id: partner.partnerId })}</option>)}</select></label>
+        <label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRequestCorrelation')}</span><input aria-label={t('adminRequestCorrelation')} value={auditCorrelationId} onChange={(event) => setAuditCorrelationId(event.target.value)} placeholder="request-id-from-logs" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-200 outline-none focus:border-orange-400" /></label>
       </div>
       <p className="mt-2 text-[11px] text-gray-600">Showing {auditEvents.length} loaded event{auditEvents.length === 1 ? '' : 's'}{auditPagination.hasMore ? ' · older events available' : ''}.</p>
     </Section>
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric icon={WalletCards} label={`Customer balance (${summary.currencyCode || 'USD'})`} value={money(summary.customerBalanceCents, summary.currencyCode)} detail={`${summary.customerAccounts || 0} customer accounts`} /><Metric icon={CreditCard} label={`Available (${summary.currencyCode || 'USD'})`} value={money(summary.customerAvailableCents, summary.currencyCode)} detail={`${money(summary.customerReservedCents, summary.currencyCode)} reserved`} tone="text-emerald-300" /><Metric icon={Store} label={`Partner payable (${summary.currencyCode || 'USD'})`} value={money(summary.partnerPayableCents, summary.currencyCode)} detail={`${summary.partnerAccounts || 0} partner accounts`} tone="text-sky-300" /><Metric icon={FileCheck2} label="Partner network" value={partnerCounts.total} detail={`${partnerCounts.active} active partners`} /><Metric icon={AlertTriangle} label="Inactive accounts" value={summary.inactiveAccounts || 0} detail="Needs review before spending" tone="text-amber-300" /></section>
-    <Section eyebrow="Coverage watch" title="Partner agreement health" detail="These counts are calculated across the full partner network, not just the first page. Resolve coverage gaps before customers are told they can spend Credit at a restaurant."><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className={`rounded-xl border p-4 ${coverageAlerts.activePartnersWithoutAgreement ? 'border-red-500/30 bg-red-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Active partners without agreement</p><strong className={`mt-2 block text-2xl ${coverageAlerts.activePartnersWithoutAgreement ? 'text-red-300' : 'text-emerald-300'}`}>{coverageAlerts.activePartnersWithoutAgreement}</strong><p className="mt-1 text-xs text-gray-600">Not eligible for customer spending until coverage is active.</p></div><div className={`rounded-xl border p-4 ${coverageAlerts.expiringAgreements ? 'border-amber-500/30 bg-amber-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Agreements expiring in 30 days</p><strong className={`mt-2 block text-2xl ${coverageAlerts.expiringAgreements ? 'text-amber-300' : 'text-emerald-300'}`}>{coverageAlerts.expiringAgreements}</strong><p className="mt-1 text-xs text-gray-600">Review renewals before active coverage ends.</p></div><div className={`rounded-xl border p-4 ${coverageAlerts.pendingPartners ? 'border-sky-500/30 bg-sky-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Partners pending activation</p><strong className={`mt-2 block text-2xl ${coverageAlerts.pendingPartners ? 'text-sky-300' : 'text-emerald-300'}`}>{coverageAlerts.pendingPartners}</strong><p className="mt-1 text-xs text-gray-600">Confirm commercial terms before activation.</p></div></div></Section>
-    <Section eyebrow="Delivery watch" title="Credit customer notifications" detail="Ledger changes commit independently from notification delivery. Use this view to catch delivery backlog or terminal failures without changing customer balances."><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className={`rounded-xl border p-4 ${notificationHealth.backlogStale ? 'border-red-500/40 bg-red-950/20' : notificationHealth.pending || notificationHealth.sending ? 'border-sky-500/30 bg-sky-950/20' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Queued / sending</p><BellRing className={`h-4 w-4 ${notificationHealth.backlogStale ? 'text-red-300' : 'text-sky-300'}`} /></div><strong className={`mt-2 block text-2xl ${notificationHealth.backlogStale ? 'text-red-300' : 'text-sky-300'}`}>{notificationHealth.pending + notificationHealth.sending}</strong><p className={`mt-1 text-xs ${notificationHealth.backlogStale ? 'text-red-200' : 'text-gray-600'}`}>{notificationHealth.backlogStale ? `Delivery backlog exceeds ${notificationHealth.backlogStaleAfterMinutes || 15}-minute threshold` : `${notificationHealth.pending} queued · ${notificationHealth.sending} in flight`}{notificationHealth.oldestPendingAt ? ` · oldest ${dateTime(notificationHealth.oldestPendingAt)}` : ''}</p></div><div className={`rounded-xl border p-4 ${notificationHealth.failed ? 'border-red-500/30 bg-red-950/20' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Terminal failures</p><AlertTriangle className={`h-4 w-4 ${notificationHealth.failed ? 'text-red-300' : 'text-emerald-300'}`} /></div><strong className={`mt-2 block text-2xl ${notificationHealth.failed ? 'text-red-300' : 'text-emerald-300'}`}>{notificationHealth.failed}</strong><p className="mt-1 text-xs text-gray-600">{notificationHealth.oldestFailedAt ? `oldest ${dateTime(notificationHealth.oldestFailedAt)}` : 'No terminal delivery failures'}</p></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Delivery contract</p><strong className="mt-2 block text-lg text-white">Durable outbox</strong><p className="mt-1 text-xs text-gray-600">Retries are bounded and duplicate events are prevented.</p></div></div>{notificationHealth.failedNotifications?.length > 0 && <div className="mt-4 rounded-xl border border-red-500/20 bg-red-950/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-red-200">Failed deliveries need attention</h3><p className="mt-1 text-xs leading-5 text-gray-500">Retrying only requeues the notification. It does not reverse, duplicate, or edit any Credit transaction.</p></div><label className="min-w-[240px] flex-1"><span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">Retry reason</span><input value={notificationRetryReason} onChange={(event) => setNotificationRetryReason(event.target.value)} maxLength={1000} placeholder="Provider restored, retrying delivery" className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-xs text-white outline-none focus:border-orange-400" /></label></div><div className="mt-4 space-y-2">{notificationHealth.failedNotifications.map((notification) => <article key={notification.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-white">{String(notification.eventType || 'notification').replace(/_/g, ' ')}</strong><span className="font-mono text-[10px] text-gray-600">{notification.id}</span></div><p className="mt-1 text-[11px] text-gray-500">{notification.attempts} attempts · recipient {notification.userId || 'unknown'} · {dateTime(notification.updatedAt || notification.createdAt)}</p>{notification.lastError && <p className="mt-1 break-words text-[11px] text-red-300">{notification.lastError}</p>}</div><button type="button" onClick={() => retryNotification(notification)} disabled={busy || retryingNotificationId === notification.id || !notificationRetryReason.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${retryingNotificationId === notification.id ? 'animate-spin' : ''}`} />{retryingNotificationId === notification.id ? 'Requeuing...' : 'Retry delivery'}</button></article>)}</div></div>}</Section>
+    <Section eyebrow="Coverage watch" title="Partner agreement health" detail="These counts are calculated across the full partner network, not just the first page. Resolve coverage gaps before customers are told they can spend Credit at a restaurant."><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className={`rounded-xl border p-4 ${coverageAlerts.activePartnersWithoutAgreement ? 'border-red-500/30 bg-red-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminActivePartnersWithoutAgreement')}</p><strong className={`mt-2 block text-2xl ${coverageAlerts.activePartnersWithoutAgreement ? 'text-red-300' : 'text-emerald-300'}`}>{coverageAlerts.activePartnersWithoutAgreement}</strong><p className="mt-1 text-xs text-gray-600">{t('adminNotEligibleForSpending')}</p></div><div className={`rounded-xl border p-4 ${coverageAlerts.expiringAgreements ? 'border-amber-500/30 bg-amber-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminAgreementsExpiring30Days')}</p><strong className={`mt-2 block text-2xl ${coverageAlerts.expiringAgreements ? 'text-amber-300' : 'text-emerald-300'}`}>{coverageAlerts.expiringAgreements}</strong><p className="mt-1 text-xs text-gray-600">{t('adminReviewRenewals')}</p></div><div className={`rounded-xl border p-4 ${coverageAlerts.pendingPartners ? 'border-sky-500/30 bg-sky-950/20' : 'border-gray-800 bg-gray-950/40'}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminPartnersPendingActivation')}</p><strong className={`mt-2 block text-2xl ${coverageAlerts.pendingPartners ? 'text-sky-300' : 'text-emerald-300'}`}>{coverageAlerts.pendingPartners}</strong><p className="mt-1 text-xs text-gray-600">{t('adminConfirmCommercialTerms')}</p></div></div></Section>
+    <Section eyebrow="Delivery watch" title="Credit customer notifications" detail="Ledger changes commit independently from notification delivery. Use this view to catch delivery backlog or terminal failures without changing customer balances."><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className={`rounded-xl border p-4 ${notificationHealth.backlogStale ? 'border-red-500/40 bg-red-950/20' : notificationHealth.pending || notificationHealth.sending ? 'border-sky-500/30 bg-sky-950/20' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminQueuedSending')}</p><BellRing className={`h-4 w-4 ${notificationHealth.backlogStale ? 'text-red-300' : 'text-sky-300'}`} /></div><strong className={`mt-2 block text-2xl ${notificationHealth.backlogStale ? 'text-red-300' : 'text-sky-300'}`}>{notificationHealth.pending + notificationHealth.sending}</strong><p className={`mt-1 text-xs ${notificationHealth.backlogStale ? 'text-red-200' : 'text-gray-600'}`}>{notificationHealth.backlogStale ? t('adminDeliveryBacklogThreshold', { minutes: notificationHealth.backlogStaleAfterMinutes || 15 }) : t('adminQueuedInFlight', { queued: notificationHealth.pending, inFlight: notificationHealth.sending })}{notificationHealth.oldestPendingAt ? ` · ${t('adminOldest')} ${dateTime(notificationHealth.oldestPendingAt)}` : ''}</p></div><div className={`rounded-xl border p-4 ${notificationHealth.failed ? 'border-red-500/30 bg-red-950/20' : 'border-gray-800 bg-gray-950/40'}`}><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminTerminalFailures')}</p><AlertTriangle className={`h-4 w-4 ${notificationHealth.failed ? 'text-red-300' : 'text-emerald-300'}`} /></div><strong className={`mt-2 block text-2xl ${notificationHealth.failed ? 'text-red-300' : 'text-emerald-300'}`}>{notificationHealth.failed}</strong><p className="mt-1 text-xs text-gray-600">{notificationHealth.oldestFailedAt ? `${t('adminOldest')} ${dateTime(notificationHealth.oldestFailedAt)}` : t('adminNoTerminalDeliveryFailures')}</p></div><div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminDeliveryContract')}</p><strong className="mt-2 block text-lg text-white">{t('adminDurableOutbox')}</strong><p className="mt-1 text-xs text-gray-600">{t('adminDeliveryContractDescription')}</p></div></div>{notificationHealth.failedNotifications?.length > 0 && <div className="mt-4 rounded-xl border border-red-500/20 bg-red-950/10 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-red-200">{t('adminFailedDeliveriesAttention')}</h3><p className="mt-1 text-xs leading-5 text-gray-500">{t('adminRetryOnlyRequeues')}</p></div><label className="min-w-[240px] flex-1"><span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">{t('adminRetryReason')}</span><input value={notificationRetryReason} onChange={(event) => setNotificationRetryReason(event.target.value)} maxLength={1000} placeholder={t('adminRetryReasonPlaceholder')} className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-xs text-white outline-none focus:border-orange-400" /></label></div><div className="mt-4 space-y-2">{notificationHealth.failedNotifications.map((notification) => <article key={notification.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-white">{String(notification.eventType || 'notification').replace(/_/g, ' ')}</strong><span className="font-mono text-[10px] text-gray-600">{notification.id}</span></div><p className="mt-1 text-[11px] text-gray-500">{notification.attempts} attempts · recipient {notification.userId || 'unknown'} · {dateTime(notification.updatedAt || notification.createdAt)}</p>{notification.lastError && <p className="mt-1 break-words text-[11px] text-red-300">{notification.lastError}</p>}</div><button type="button" onClick={() => retryNotification(notification)} disabled={busy || retryingNotificationId === notification.id || !notificationRetryReason.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${retryingNotificationId === notification.id ? 'animate-spin' : ''}`} />{retryingNotificationId === notification.id ? t('adminRequeuing') : t('adminRetryDelivery')}</button></article>)}</div></div>}</Section>
     {summaryByCurrency.length > 1 && <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Currency controls</p><h2 className="mt-1 text-lg font-semibold text-white">Balances by currency</h2></div><span className="text-xs text-gray-500">No automatic foreign-exchange conversion</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{summaryByCurrency.map((currencySummary) => <div key={currencySummary.currencyCode} className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-white">{currencySummary.currencyCode}</strong><span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">{currencySummary.customerAccounts || 0} wallets</span></div><p className="mt-2 text-lg font-semibold text-emerald-300">{money(currencySummary.customerAvailableCents, currencySummary.currencyCode)}</p><p className="mt-1 text-xs text-gray-500">Customer available · {money(currencySummary.partnerPayableCents, currencySummary.currencyCode)} partner payable</p></div>)}</div></section>}
     <Section eyebrow="Ledger activity" title="Credit transaction history" detail="Review the full platform movement stream with server-side filters. Amounts are immutable journal movements; open a customer wallet or audit trail for the surrounding context." action={<button type="button" onClick={downloadTransactionHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>}>
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
@@ -1072,7 +1402,7 @@ export default function OxsteedCreditAdmin() {
         {partnerOptionsError && <div role="alert" aria-live="polite" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-3 text-xs font-semibold text-red-300"><span>{partnerOptionsError}</span><button type="button" onClick={() => loadPartnerOptions(partnerPickerQuery)} disabled={loadingPartnerOptions || loading || busy} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-red-200 hover:bg-red-500/10 disabled:opacity-50">Retry lookup</button></div>}
         <p className="mt-3 text-[11px] text-gray-600">{partnerPickerQuery ? `Showing ${partnerOptions.length} matching partner${partnerOptions.length === 1 ? '' : 's'} in the agreement and settlement selectors.` : 'Use Find partners to search beyond the initial list. Searching never changes partner status or agreement data.'}</p>
       </div>
-      <Section eyebrow="Partner enrollment" title="Add a restaurant partner" detail="Enrollment starts as Pending. Activate only after confirming commercial terms, settlement, and customer eligibility."><form onSubmit={registerPartner} className="mt-5 grid gap-3 sm:grid-cols-3"><label className="sm:col-span-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Restaurant ID</span><input required value={partnerForm.restaurantId} onChange={(event) => setPartnerForm({ ...partnerForm, restaurantId: event.target.value })} placeholder="e.g. 12" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Settlement currency</span><select required value={partnerForm.settlementCurrencyCode} onChange={(event) => setPartnerForm({ ...partnerForm, settlementCurrencyCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select currency</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Internal notes</span><textarea value={partnerForm.notes} onChange={(event) => setPartnerForm({ ...partnerForm, notes: event.target.value })} rows={2} placeholder="Settlement or partnership notes" className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">Reason for enrollment *</span><input required maxLength={1000} value={partnerForm.reason} onChange={(event) => setPartnerForm({ ...partnerForm, reason: event.target.value })} placeholder="Why is this restaurant being enrolled?" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50"><Plus className="h-4 w-4" /> Enroll partner</button></form></Section>
+    <Section eyebrow="Partner enrollment" title="Add a restaurant partner" detail="Enrollment starts as Pending. Activate only after confirming commercial terms, settlement, and customer eligibility."><form onSubmit={registerPartner} className="mt-5 grid gap-3 sm:grid-cols-3"><label className="sm:col-span-1"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminRestaurantId')}</span><input required value={partnerForm.restaurantId} onChange={(event) => setPartnerForm({ ...partnerForm, restaurantId: event.target.value })} placeholder={t('adminRestaurantIdPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminSettlementCurrency')}</span><select required value={partnerForm.settlementCurrencyCode} onChange={(event) => setPartnerForm({ ...partnerForm, settlementCurrencyCode: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{t('adminSelectCurrency')}</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminInternalNotes')}</span><textarea value={partnerForm.notes} onChange={(event) => setPartnerForm({ ...partnerForm, notes: event.target.value })} rows={2} placeholder={t('adminSettlementPartnershipNotes')} className="w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-3"><span className="mb-1 block text-xs font-semibold text-gray-500">{t('adminEnrollmentReason')}</span><input required maxLength={1000} value={partnerForm.reason} onChange={(event) => setPartnerForm({ ...partnerForm, reason: event.target.value })} placeholder={t('adminEnrollmentReasonPlaceholder')} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-400 disabled:opacity-50"><Plus className="h-4 w-4" /> {t('adminEnrollPartner')}</button></form></Section>
     <Section eyebrow="Agreement builder" title="Create a spending agreement" detail="Draft the restaurant's rules first. It must be approved and activated before customer checkout can use it.">
       <form onSubmit={createAgreement} className="mt-5 grid gap-3 sm:grid-cols-2">
         <label className="sm:col-span-2">
@@ -1161,9 +1491,9 @@ export default function OxsteedCreditAdmin() {
 
     <OxsteedCreditPartnerLedger partners={selectablePartners} currencyOptions={currencyOptions} busy={busy} onError={setError} onNotice={setNotice} />
 
-    <Section eyebrow="Partner network" title="Restaurants and agreements" detail="A partner must be Active and have an Active agreement before it appears in customer eligibility results." action={<div className="flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="credit-partner-directory-search">Search partners</label><input id="credit-partner-directory-search" value={partnerDirectorySearch} onChange={(event) => setPartnerDirectorySearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyPartnerDirectoryFilters(); }} placeholder="Search partners..." className="w-40 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><select aria-label="Partner status filter" value={partnerDirectoryStatus} onChange={(event) => setPartnerDirectoryStatus(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">All statuses</option><option value="pending">Pending</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="terminated">Terminated</option></select><button type="button" onClick={applyPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">Apply</button><button type="button" onClick={clearPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">Clear</button><button type="button" onClick={downloadPartnerDirectory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button></div>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{loading && !overview ? <div className="flex items-center justify-center py-14 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : <table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Currency</th><th className="px-3 py-3 font-medium">Partner</th><th className="px-3 py-3 font-medium">Agreements</th><th className="px-3 py-3 font-medium">Updated</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{!partnerDirectory.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{partnerDirectoryQuery.search || partnerDirectoryQuery.status ? 'No partners match these filters.' : 'No Credit partners enrolled yet.'}</td></tr> : partnerDirectory.map((partner) => <tr key={partner.partnerId}><td className="px-3 py-3"><strong className="text-white">{partner.restaurantName || `Restaurant ${partner.restaurantId}`}</strong><p className="mt-1 text-gray-600">Restaurant ID {partner.restaurantId}</p></td><td className="px-3 py-3 font-semibold text-sky-300">{partner.settlementCurrencyCode || 'USD'}</td><td className="px-3 py-3"><Badge status={partner.status} /></td><td className="px-3 py-3 text-gray-400">{partner.activeAgreementCount} active / {partner.agreementCount} total</td><td className="px-3 py-3 text-gray-500">{dateTime(partner.updatedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{partner.status === 'pending' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Activate</button>}{partner.status === 'active' && <button disabled={busy} onClick={() => transitionPartner(partner, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{partner.status === 'suspended' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div>{partnerDirectoryPagination.hasMore && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 px-3 py-3 text-xs text-gray-500"><span>Showing {partnerDirectory.length} of {partnerDirectoryPagination.total} partners</span><button type="button" onClick={() => load({ quiet: true, appendPartnerDirectory: true, partnerDirectoryOffset: partnerDirectoryPagination.nextOffset || 0 })} disabled={loadingMorePartnerDirectory || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMorePartnerDirectory ? 'Loading...' : 'Load more partners'}</button></div>}{!partnerDirectoryPagination.hasMore && partnerDirectory.length > 0 && <p className="mt-3 text-xs text-gray-600">Showing all {partnerDirectoryPagination.total} matching partners.</p>}</Section>
+    <Section eyebrow="Partner network" title="Restaurants and agreements" detail="A partner must be Active and have an Active agreement before it appears in customer eligibility results." action={<div className="flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="credit-partner-directory-search">{t('adminSearchPartners')}</label><input id="credit-partner-directory-search" value={partnerDirectorySearch} onChange={(event) => setPartnerDirectorySearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyPartnerDirectoryFilters(); }} placeholder={t('adminSearchPartnersPlaceholder')} className="w-40 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white outline-none placeholder:text-gray-600 focus:border-orange-400" /><select aria-label={t('adminPartnerStatusFilter')} value={partnerDirectoryStatus} onChange={(event) => setPartnerDirectoryStatus(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">{t('adminAllStatuses')}</option><option value="pending">{t('statusPending')}</option><option value="active">{t('statusActive')}</option><option value="suspended">{t('statusSuspended')}</option><option value="terminated">{t('statusTerminated')}</option></select><button type="button" onClick={applyPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('adminApply')}</button><button type="button" onClick={clearPartnerDirectoryFilters} disabled={loading || busy} className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-800 disabled:opacity-50">{t('adminClear')}</button><button type="button" onClick={downloadPartnerDirectory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button></div>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{loading && !overview ? <div className="flex items-center justify-center py-14 text-gray-500"><Loader2 className="h-6 w-6 animate-spin text-orange-400" /></div> : <table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminCurrency')}</th><th className="px-3 py-3 font-medium">{t('adminPartner')}</th><th className="px-3 py-3 font-medium">{t('adminAgreements')}</th><th className="px-3 py-3 font-medium">{t('adminUpdated')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{!partnerDirectory.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{partnerDirectoryQuery.search || partnerDirectoryQuery.status ? t('adminNoPartnerFilterMatches') : t('adminNoPartnersEnrolled')}</td></tr> : partnerDirectory.map((partner) => <tr key={partner.partnerId}><td className="px-3 py-3"><strong className="text-white">{partner.restaurantName || t('adminRestaurantFallback', { id: partner.restaurantId })}</strong><p className="mt-1 text-gray-600">{t('adminRestaurantIdValue', { id: partner.restaurantId })}</p></td><td className="px-3 py-3 font-semibold text-sky-300">{partner.settlementCurrencyCode || 'USD'}</td><td className="px-3 py-3"><Badge status={partner.status} /></td><td className="px-3 py-3 text-gray-400">{t('adminActiveOfTotal', { active: partner.activeAgreementCount, total: partner.agreementCount })}</td><td className="px-3 py-3 text-gray-500">{dateTime(partner.updatedAt)}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{partner.status === 'pending' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminActivate')}</button>}{partner.status === 'active' && <button disabled={busy} onClick={() => transitionPartner(partner, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminSuspend')}</button>}{partner.status === 'suspended' && <button disabled={busy} onClick={() => transitionPartner(partner, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminReactivate')}</button>}</div></td></tr>)}</tbody></table>}</div>{partnerDirectoryPagination.hasMore && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 px-3 py-3 text-xs text-gray-500"><span>{t('adminShowingPartners', { shown: partnerDirectory.length, total: partnerDirectoryPagination.total })}</span><button type="button" onClick={() => load({ quiet: true, appendPartnerDirectory: true, partnerDirectoryOffset: partnerDirectoryPagination.nextOffset || 0 })} disabled={loadingMorePartnerDirectory || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMorePartnerDirectory ? t('adminLoading') : t('adminLoadMorePartners')}</button></div>}{!partnerDirectoryPagination.hasMore && partnerDirectory.length > 0 && <p className="mt-3 text-xs text-gray-600">{t('adminShowingAllPartners', { total: partnerDirectoryPagination.total })}</p>}</Section>
 
-    <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact." action={<button type="button" onClick={downloadAgreementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">No agreements created yet.</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Lifecycle</th><th className="px-3 py-3 font-medium">Coverage</th><th className="px-3 py-3 font-medium">Limits</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || 'Partner restaurant'}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` to ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">v{agreement.version}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">Assigned customers only</p> : <p className="font-semibold text-emerald-300">Partner-wide</p>}{(agreement.allowedOrderTypes || []).join(', ') || 'No order types set'}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{agreement.allowedMenuItemIds.length} menu items restricted</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">All restaurant locations</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : 'No per-transaction cap'}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">Daily {money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode)}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Submit</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Approve & activate</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Suspend</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Reactivate</button>}</div></td></tr>)}</tbody></table>}</div></Section>
+    <Section eyebrow="Agreement lifecycle" title="Active and pending terms" detail="Use lifecycle transitions instead of deleting agreements so the historical record remains intact." action={<button type="button" onClick={downloadAgreementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800">{!agreements.length ? <div className="py-14 text-center text-sm text-gray-500">{t('adminNoAgreementsCreated')}</div> : <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminRestaurant')}</th><th className="px-3 py-3 font-medium">{t('adminVersion')}</th><th className="px-3 py-3 font-medium">{t('adminLifecycle')}</th><th className="px-3 py-3 font-medium">{t('adminCoverage')}</th><th className="px-3 py-3 font-medium">{t('adminLimits')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-800">{agreements.map((agreement) => <tr key={agreement.id}><td className="px-3 py-3 text-white">{agreement.restaurantName || t('adminPartnerRestaurant')}<p className="mt-1 text-gray-600">{dateTime(agreement.startsAt)}{agreement.endsAt ? ` ${t('adminTo')} ${dateTime(agreement.endsAt)}` : ''}</p></td><td className="px-3 py-3 text-gray-400">{t('adminAgreementVersion', { version: agreement.version })}</td><td className="px-3 py-3"><Badge status={agreement.status} /></td><td className="max-w-[240px] px-3 py-3 text-gray-400">{agreement.requiresCustomerEntitlement ? <p className="font-semibold text-amber-300">{t('adminAssignedCustomersOnly')}</p> : <p className="font-semibold text-emerald-300">{t('adminPartnerWide')}</p>}{(agreement.allowedOrderTypes || []).join(', ') || t('adminNoOrderTypesSet')}{agreement.allowedCategories?.length ? <p className="mt-1 text-gray-600">{agreement.allowedCategories.join(', ')}</p> : null}{agreement.allowedMenuItemIds?.length ? <p className="mt-1 text-gray-600">{t('adminMenuItemsRestricted', { count: agreement.allowedMenuItemIds.length })}</p> : null}{geographyLabel(agreement.geography) ? <p className="mt-1 break-words text-sky-300">{geographyLabel(agreement.geography)}</p> : <p className="mt-1 text-gray-600">{t('adminAllRestaurantLocations')}</p>}</td><td className="px-3 py-3 text-gray-400"><span className="font-semibold text-sky-300">{agreement.settlementCurrencyCode || 'USD'}</span><br />{agreement.maxTransactionCents ? money(agreement.maxTransactionCents, agreement.settlementCurrencyCode) : t('adminNoPerTransactionCap')}{agreement.dailyCustomerLimitCents ? <p className="mt-1 text-gray-600">{t('adminDailyAmount', { amount: money(agreement.dailyCustomerLimitCents, agreement.settlementCurrencyCode) })}</p> : null}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{agreement.status === 'draft' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'pending_approval')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminSubmitAgreement')}</button>}{agreement.status === 'pending_approval' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminApproveActivate')}</button>}{agreement.status === 'active' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'suspended')} className="rounded-lg border border-amber-500/30 px-2.5 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('adminSuspend')}</button>}{agreement.status === 'suspended' && <button disabled={busy} onClick={() => transitionAgreement(agreement, 'active')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminReactivate')}</button>}</div></td></tr>)}</tbody></table>}</div></Section>
 
     <OxsteedCreditEntitlements agreements={agreements} customerAccounts={customerAccounts} currencyMetadata={overview?.currencyMetadata} busy={busy} />
 
@@ -1171,43 +1501,95 @@ export default function OxsteedCreditAdmin() {
 
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">Settlement queue</p>
-        <p className="mt-1 text-xs text-gray-500">Filter settlement history without loading every record at once.</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('adminSettlementQueue')}</p>
+      <p className="mt-1 text-xs text-gray-500">{t('adminSettlementQueueDescription')}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-          <span>Partner</span>
-          <select aria-label="Settlement partner filter" value={settlementPartnerId} onChange={(event) => setSettlementPartnerId(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
-            <option value="">All partners</option>
+          <span>{t('adminPartner')}</span>
+          <select aria-label={t('adminSettlementPartnerFilter')} value={settlementPartnerId} onChange={(event) => setSettlementPartnerId(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
+            <option value="">{t('adminAllPartners')}</option>
             {partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Partner ${partner.partnerId}`}</option>)}
           </select>
         </label>
         <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-          <span>Status</span>
-          <select aria-label="Settlement status filter" value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="paid">Paid</option>
-            <option value="reversed">Reversed</option>
-            <option value="disputed">Disputed</option>
-            <option value="voided">Voided</option>
+          <span>{t('adminStatus')}</span>
+          <select aria-label={t('adminSettlementStatusFilter')} value={settlementStatus} onChange={(event) => setSettlementStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400">
+            <option value="">{t('adminAllStatuses')}</option>
+            <option value="pending">{t('statusPending')}</option>
+            <option value="approved">{t('statusApproved')}</option>
+            <option value="paid">{t('statusPaid')}</option>
+            <option value="reversed">{t('statusReversed')}</option>
+            <option value="disputed">{t('statusDisputed')}</option>
+            <option value="voided">{t('statusVoided')}</option>
           </select>
         </label>
-        <button type="button" onClick={downloadSettlementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>
-        {settlementPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMoreSettlements || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreSettlements ? 'Loading...' : 'Load older'}</button>}
+        <button type="button" onClick={downloadSettlementHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> {t('adminDownloadCsv')}</button>
+        {settlementPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendSettlements: true, settlementOffset: settlementPagination.nextOffset || 0 })} disabled={loadingMoreSettlements || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreSettlements ? t('adminLoading') : t('adminLoadOlder')}</button>}
       </div>
     </div>
 
-    <Section eyebrow="Settlement & controls" title="Partner payables and reconciliation" detail="Create a period snapshot, approve it only after review, and mark it paid only with a traceable external payment reference. The reconciliation compares every account balance to its immutable journal entries; its integrity scope is always the all-time ledger for the selected currency."><div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"><form onSubmit={createSettlement} className="grid gap-3 rounded-xl border border-gray-800 bg-gray-950/40 p-4 sm:grid-cols-2"><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Partner</span><select required value={settlementForm.partnerId} onChange={(event) => { const nextPartner = selectablePartners.find((partner) => String(partner.partnerId) === event.target.value); setSettlementForm({ ...settlementForm, partnerId: event.target.value, agreementId: '', currencyCode: nextPartner?.settlementCurrencyCode || 'USD' }); loadSettlementAgreements(event.target.value); }} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">Select partner</option>{selectablePartners.filter((partner) => partner.status === 'active').map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName || `Restaurant ${partner.restaurantId}`} · {partner.settlementCurrencyCode || 'USD'}</option>)}</select></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Agreement</span><select required value={settlementForm.agreementId} onChange={(event) => setSettlementForm({ ...settlementForm, agreementId: event.target.value })} disabled={loadingSettlementAgreements || !settlementForm.partnerId} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"><option value="">{loadingSettlementAgreements ? 'Loading agreements...' : 'Select agreement'}</option>{settlementAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>v{agreement.version} · {agreement.status}</option>)}</select>{settlementAgreementOptionsError && <p className="mt-2 text-xs font-semibold text-red-300">{settlementAgreementOptionsError}</p>}</label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Currency</span><input value={settlementForm.currencyCode} readOnly className="w-full rounded-xl border border-gray-700 bg-gray-950/70 px-3 py-3 text-sm font-semibold text-sky-300 outline-none" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Period starts</span><input required type="datetime-local" value={settlementForm.periodStart} onChange={(event) => setSettlementForm({ ...settlementForm, periodStart: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label><span className="mb-1 block text-xs font-semibold text-gray-500">Period ends</span><input required type="datetime-local" value={settlementForm.periodEnd} onChange={(event) => setSettlementForm({ ...settlementForm, periodEnd: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Payment reference (optional until paid)</span><input value={settlementForm.paymentReference} onChange={(event) => setSettlementForm({ ...settlementForm, paymentReference: event.target.value })} placeholder="Bank transfer, payout, or processor reference" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-gray-500">Reason for snapshot *</span><input required maxLength={1000} value={settlementForm.reason} onChange={(event) => setSettlementForm({ ...settlementForm, reason: event.target.value })} placeholder="Why is this settlement snapshot being created?" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><div className="flex flex-wrap items-end gap-3 sm:col-span-2"><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"><Plus className="h-4 w-4" /> Create snapshot</button><label className="min-w-[220px] flex-1"><span className="mb-1 block text-xs font-semibold text-gray-500">Reason for reconciliation *</span><input required={false} maxLength={1000} value={reconciliationReason} onChange={(event) => setReconciliationReason(event.target.value)} placeholder="Why is this ledger check being run?" className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" /></label><button type="button" disabled={busy} onClick={runReconciliation} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 px-4 py-3 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><ShieldCheck className="h-4 w-4" /> Reconcile ledger</button></div>{reconciliation && <div className={`rounded-xl border px-3 py-3 text-xs sm:col-span-2 ${reconciliation.status === 'balanced' ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300' : 'border-red-500/30 bg-red-950/20 text-red-300'}`}>Last run: <strong>{reconciliation.status}</strong> · Difference {money(reconciliation.differenceCents, reconciliation.currencyCode || settlementForm.currencyCode)} · {reconciliation.entryCount} journal entries · Integrity scope: {reconciliation.scope === 'all_time_ledger' ? 'all-time ledger' : 'unknown'}<IntegritySummary integrity={reconciliation.integrity} /></div>}</form><div className="overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[920px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Restaurant</th><th className="px-3 py-3 font-medium">Period</th><th className="px-3 py-3 font-medium">Net payable</th><th className="px-3 py-3 font-medium">Status / provenance</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{!settlements.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">No settlement snapshots yet.</td></tr> : settlements.map((settlement) => <tr key={settlement.id}><td className="px-3 py-3 text-white">{settlement.restaurantName || `Partner ${settlement.partnerId}`}<p className="mt-1 text-gray-600">Gross {money(settlement.grossCents, settlement.currencyCode)} · refunds {money(settlement.refundCents, settlement.currencyCode)}</p></td><td className="px-3 py-3 text-gray-400">{dateTime(settlement.periodStart)}<br />to {dateTime(settlement.periodEnd)}</td><td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td><td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">Created by {settlement.createdBy || 'system'}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">Approved by {settlement.approvedBy}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Approve</button>}{settlement.status === 'approved' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Mark paid</button>}{['pending', 'approved'].includes(settlement.status) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">Void</button>}</div></td></tr>)}</tbody></table></div></div></Section>
+    <SettlementControls
+      selectablePartners={selectablePartners}
+      settlementForm={settlementForm}
+      setSettlementForm={setSettlementForm}
+      loadSettlementAgreements={loadSettlementAgreements}
+      loadingSettlementAgreements={loadingSettlementAgreements}
+      settlementAgreements={settlementAgreementOptions}
+      settlementAgreementOptionsError={settlementAgreementOptionsError}
+      busy={busy}
+      createSettlement={createSettlement}
+      reconciliationReason={reconciliationReason}
+      setReconciliationReason={setReconciliationReason}
+      runReconciliation={runReconciliation}
+      reconciliation={reconciliation}
+      settlements={settlements}
+      transitionSettlement={transitionSettlement}
+    />
 
-    <Section eyebrow="Reconciliation history" title="Ledger check history" detail="Every check is preserved as a separate operational record. Use the difference and entry counts to decide whether a settlement is safe to approve; no reconciliation action changes balances." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadReconciliationHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>Status</span><select aria-label="Reconciliation status filter" value={reconciliationStatus} onChange={(event) => setReconciliationStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">All statuses</option><option value="balanced">Balanced</option><option value="difference">Difference</option><option value="failed">Failed</option></select></label><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>Currency</span><select aria-label="Reconciliation currency filter" value={reconciliationCurrency} onChange={(event) => setReconciliationCurrency(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="all">All</option>{currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>{reconciliationPagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendReconciliationRuns: true, reconciliationOffset: reconciliationPagination.nextOffset || 0 })} disabled={loadingMoreReconciliationRuns || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreReconciliationRuns ? 'Loading...' : 'Load older'}</button>}</div>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[980px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Run</th><th className="px-3 py-3 font-medium">Requested period</th><th className="px-3 py-3 font-medium">Result</th><th className="px-3 py-3 font-medium">Balances</th><th className="px-3 py-3 font-medium">Scope</th></tr></thead><tbody className="divide-y divide-gray-800">{!reconciliationRuns.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">No reconciliation runs match these filters.</td></tr> : reconciliationRuns.map((run) => <tr key={run.id}><td className="px-3 py-3 text-gray-400">{dateTime(run.startedAt)}<p className="mt-1 font-mono text-[10px] text-gray-700">{run.id}</p></td><td className="px-3 py-3 text-gray-400">{dateTime(run.periodStart)}<br />to {dateTime(run.periodEnd)}</td><td className="px-3 py-3"><Badge status={run.status} /><p className="mt-1 text-gray-600">{run.currencyCode} · {run.accountCount} accounts · {run.entryCount} entries</p><IntegritySummary integrity={run.metadata?.hashIntegrity} /></td><td className="px-3 py-3 text-gray-400">Accounts {money(run.accountBalanceCents, run.currencyCode)}<br />Journal {money(run.journalBalanceCents, run.currencyCode)}<br /><strong className={run.differenceCents === 0 ? 'text-emerald-300' : 'text-red-300'}>Difference {money(run.differenceCents, run.currencyCode)}</strong></td><td className="px-3 py-3 text-gray-500">{run.metadata?.scope === 'all_time_ledger' ? 'All-time ledger' : 'Recorded scope unavailable'}</td></tr>)}</tbody></table></div></Section>
+    <ReconciliationHistory
+      reconciliationRuns={reconciliationRuns}
+      reconciliationStatus={reconciliationStatus}
+      setReconciliationStatus={setReconciliationStatus}
+      reconciliationCurrency={reconciliationCurrency}
+      setReconciliationCurrency={setReconciliationCurrency}
+      currencyOptions={currencyOptions}
+      reconciliationPagination={reconciliationPagination}
+      loadingMoreReconciliationRuns={loadingMoreReconciliationRuns}
+      loading={loading}
+      busy={busy}
+      downloadReconciliationHistory={downloadReconciliationHistory}
+      load={load}
+    />
 
-    <Section eyebrow="Disputes" title="Credit dispute queue" detail="Disputes preserve the original journal transaction. Filter by lifecycle state and load older cases from the server; resolve with a documented outcome and use a separate compensating refund or adjustment rather than editing history." action={<div className="flex flex-wrap items-center gap-2"><button type="button" onClick={downloadDisputeHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button><label className="flex items-center gap-2 text-xs font-semibold text-gray-500"><span>Status</span><select value={disputeStatus} onChange={(event) => setDisputeStatus(event.target.value)} disabled={loading || busy} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 outline-none focus:border-orange-400"><option value="">All statuses</option><option value="open">Open</option><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="rejected">Rejected</option></select></label>{disputePagination.hasMore && <button type="button" onClick={() => load({ quiet: true, appendDisputes: true, disputeOffset: disputePagination.nextOffset || 0 })} disabled={loadingMoreDisputes || loading || busy} className="rounded-lg border border-sky-500/30 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{loadingMoreDisputes ? "Loading..." : "Load older"}</button>}</div>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">Customer / restaurant</th><th className="px-3 py-3 font-medium">Transaction</th><th className="px-3 py-3 font-medium">Reason</th><th className="px-3 py-3 font-medium">Description</th><th className="px-3 py-3 font-medium">Opened</th><th className="px-3 py-3 font-medium">Controls</th></tr></thead><tbody className="divide-y divide-gray-800">{!disputes.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">No disputes match this status.</td></tr> : disputes.map((dispute) => <tr key={dispute.id}><td className="px-3 py-3 text-white"><span className="font-mono text-[11px]">{dispute.customerId}</span><p className="mt-1 text-gray-600">{dispute.restaurantName || 'OxSteed Credit'}</p><button type="button" disabled={busy} onClick={() => inspectDisputeCustomer(dispute)} className="mt-2 rounded-lg border border-sky-500/30 px-2.5 py-2 font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">Open Customer 360</button></td><td className="px-3 py-3 text-gray-400">{dispute.amountCents !== null && dispute.amountCents !== undefined ? <strong className="block text-emerald-300">{money(dispute.amountCents, dispute.currencyCode || 'USD')}</strong> : <strong className="block text-gray-600">Amount unavailable</strong>}<span className="mt-1 block font-mono text-[10px] text-gray-600">{String(dispute.transactionType || 'transaction').replace(/_/g, ' ')} · {dispute.transactionId}</span>{dispute.referenceId && <span className="mt-1 block break-all font-mono text-[10px] text-gray-700">Ref {dispute.referenceId}</span>}</td><td className="px-3 py-3"><Badge status={dispute.status} /><p className="mt-1 text-gray-500">{dispute.reasonCode}</p></td><td className="max-w-[280px] px-3 py-3 text-gray-400">{dispute.description}<textarea aria-label={`Resolution note for dispute ${dispute.id}`} value={disputeResolutionDrafts[dispute.id] || ''} onChange={(event) => setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))} maxLength={4000} rows={2} placeholder="Required to resolve or reject" className="mt-3 w-full min-w-[220px] resize-y rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-2 text-xs text-white outline-none focus:border-orange-400" /></td><td className="px-3 py-3 text-gray-500">{dateTime(dispute.openedAt)}{dispute.postedAt && <p className="mt-1 text-gray-600">Posted {dateTime(dispute.postedAt)}</p>}</td><td className="px-3 py-3"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => resolveDispute(dispute, 'in_review')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">Review</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'resolved')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Resolve</button><button disabled={busy || !String(disputeResolutionDrafts[dispute.id] || '').trim()} onClick={() => resolveDispute(dispute, 'rejected')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">Reject</button></div></td></tr>)}</tbody></table></div></Section>
+    <CreditDisputeQueue
+      disputes={disputes}
+      disputeStatus={disputeStatus}
+      setDisputeStatus={setDisputeStatus}
+      disputePagination={disputePagination}
+      loadingMoreDisputes={loadingMoreDisputes}
+      loading={loading}
+      busy={busy}
+      downloadDisputeHistory={downloadDisputeHistory}
+      load={load}
+      disputeResolutionDrafts={disputeResolutionDrafts}
+      setDisputeResolutionDrafts={setDisputeResolutionDrafts}
+      inspectDisputeCustomer={inspectDisputeCustomer}
+      resolveDispute={resolveDispute}
+    />
 
-    <Section eyebrow="Audit history" title="OxSteed Credit control trail" detail="Every rail, partner, agreement, entitlement, account, dispute, and ledger action is append-only. Use this view to reconstruct why a customer or restaurant state changed." action={<button type="button" onClick={downloadAuditHistory} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"><Download className="h-3.5 w-3.5" /> Download CSV</button>}><div className="mt-5 overflow-x-auto rounded-xl border border-gray-800"><table className="min-w-[1120px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">When</th><th className="px-3 py-3 font-medium">Action</th><th className="px-3 py-3 font-medium">Resource</th><th className="px-3 py-3 font-medium">Actor / customer</th><th className="px-3 py-3 font-medium">Reason</th><th className="px-3 py-3 font-medium">Integrity</th><th className="px-3 py-3 font-medium">Changes</th></tr></thead><tbody className="divide-y divide-gray-800">{!auditEvents.length ? <tr><td colSpan="7" className="px-3 py-10 text-center text-gray-500">No OxSteed Credit audit events yet.</td></tr> : auditEvents.map((event) => <tr key={event.id}><td className="px-3 py-3 text-gray-500">{dateTime(event.createdAt)}</td><td className="px-3 py-3"><span className="font-mono text-[11px] text-orange-300">{event.actionType}</span></td><td className="px-3 py-3 text-gray-400">{event.resourceType}<p className="mt-1 font-mono text-[10px] text-gray-600">{event.resourceId}</p></td><td className="px-3 py-3 text-gray-400">{event.actorUserId || 'System'}{event.customerId && <p className="mt-1 font-mono text-[10px] text-gray-600">Customer {event.customerId}</p>}{event.correlationId && <p className="mt-1 break-all font-mono text-[10px] text-gray-600">Request {event.correlationId}</p>}</td><td className="max-w-[280px] px-3 py-3 text-gray-400">{event.reason || 'No reason recorded'}</td><td className="px-3 py-3 text-gray-500">{event.eventHash ? <details><summary className="cursor-pointer text-emerald-300">Chain evidence</summary><p className="mt-2 break-all font-mono text-[10px] text-gray-600">Event {event.eventHash}</p><p className="mt-1 break-all font-mono text-[10px] text-gray-700">Previous {event.previousEventHash || 'Genesis'}</p></details> : <span className="text-gray-700">Legacy event</span>}</td><td className="px-3 py-3 text-gray-500"><details><summary className="cursor-pointer text-sky-300">View state</summary><pre className="mt-2 max-w-[360px] whitespace-pre-wrap break-words text-[10px] leading-4 text-gray-500">{JSON.stringify({ before: event.beforeState, after: event.afterState }, null, 2)}</pre></details></td></tr>)}</tbody></table></div></Section>
+    <CreditAuditHistory
+      auditEvents={auditEvents}
+      loading={loading}
+      busy={busy}
+      downloadAuditHistory={downloadAuditHistory}
+    />
 
-    <Section eyebrow="Payout recovery" title="Reverse a paid settlement" detail="Use this only when the external payout failed or was returned. The operation requires recovery evidence and creates a compensating ledger entry; it never edits the original payment transaction."><div className="grid gap-3 md:grid-cols-2">{settlements.filter((settlement) => settlement.status === 'paid' && Number(settlement.netCents || 0) > 0).slice(0, 6).map((settlement) => <article key={`reversal-${settlement.id}`} className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-white">{settlement.restaurantName || `Partner ${settlement.partnerId}`}</h3><p className="mt-1 text-xs text-gray-500">{money(settlement.netCents, settlement.currencyCode)} · {settlement.paymentReference || 'No payment reference'}</p></div><button type="button" disabled={busy} onClick={() => reverseSettlement(settlement)} className="rounded-lg border border-amber-500/40 px-2.5 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">Reverse payout</button></div></article>)}</div></Section>
+    <CreditPayoutRecovery
+      settlements={settlements}
+      busy={busy}
+      reverseSettlement={reverseSettlement}
+    />
 
     <div className="rounded-2xl border border-amber-500/20 bg-amber-950/15 p-4 text-xs leading-5 text-amber-200"><strong>Operational boundary:</strong> OxSteed Credit is implemented as restricted stored value. Do not market it as a bank, deposit account, cash equivalent, or money-transmission product without a separate legal/compliance review, custody plan, partner contracts, and any required licensing.</div>
   </main></>;

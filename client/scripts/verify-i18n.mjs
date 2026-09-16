@@ -312,6 +312,9 @@ function verifyCreditTranslationSurface() {
     'src/pages/food/OxsteedCreditPage.jsx',
     'src/pages/food/OxsteedCreditTransactionPage.jsx',
     'src/pages/food/OxsteedCreditPartnerManager.jsx',
+    'src/pages/food/RestaurantCreditPage.jsx',
+    'src/admin/pages/super/OxsteedCreditEntitlements.jsx',
+    'src/admin/pages/super/OxsteedCreditAdmin.jsx',
   ];
   const failures = [];
 
@@ -329,7 +332,7 @@ function verifyCreditTranslationSurface() {
   }
 
   if (failures.length) throw new Error(`Credit translation surface failed:\n${failures.join('\n')}`);
-  console.log(`ok Credit customer and receipt pages use the credit namespace (${creditKeys.size} keys)`);
+  console.log(`ok Credit customer, receipt, and admin pages use the credit namespace (${creditKeys.size} keys)`);
 }
 
 compareKeySets('legacy translation', (language) => `src/locales/${language}.json`);

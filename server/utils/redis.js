@@ -22,16 +22,14 @@ if (process.env.REDIS_URL) {
       enableOfflineQueue: true,
       lazyConnect: true,
       retryStrategy(times) {
-        if (times > 3) return null; // stop retrying
-        return Math.min(times * 200, 2000);
+        // Redis is a required shared dependency for production Credit. Keep
+        // retrying with a bounded delay so a restart recovers the singleton.
+        return Math.min(Math.max(times * 200, 200), 5000);
       },
     });
     client.connect()
       .then(() => logger.info('Redis: connected'))
-      .catch(err => {
-        logger.warn('Redis: connect failed - Redis features disabled', { message: err.message });
-        client = null;
-      });
+      .catch(err => logger.warn('Redis: connect pending after failure', { message: err.message }));
     client.on('error', err => logger.warn('Redis: error', { message: err.message }));
   } catch (err) {
     logger.warn('Redis: initialization failed - Redis features disabled', { message: err.message });

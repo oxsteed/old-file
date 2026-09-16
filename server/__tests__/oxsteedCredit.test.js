@@ -6,7 +6,15 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
-const { REQUIRED_INDEXES, REQUIRED_INTEGRITY_TRIGGERS, findUnsupportedCurrencyRecords, verifyEntryHashes } = require('../scripts/verify-oxsteed-credit');
+const {
+  REQUIRED_TABLES,
+  REQUIRED_COLUMNS,
+  REQUIRED_INDEXES,
+  REQUIRED_INTEGRITY_TRIGGERS,
+  findUnsupportedCurrencyRecords,
+  verifyEntryHashes,
+} = require('../scripts/verify-oxsteed-credit');
+const { countTransitionSuccesses } = require('../scripts/credit-isolated-races');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -265,6 +273,14 @@ test('credit verification treats customer activity protection as required', () =
   expect(verifierSource).toContain('!checks.currencyConversionMigrationApplied');
   expect(verifierSource).toContain("['516_oxsteed_credit_settlement_reversal.sql']");
   expect(verifierSource).toContain('!checks.settlementReversalMigrationApplied');
+  expect(verifierSource).toContain("['517_oxsteed_credit_partner_reserve_constraints.sql']");
+  expect(verifierSource).toContain('!checks.partnerReserveConstraintsMigrationApplied');
+  expect(verifierSource).toContain("['518_oxsteed_credit_partner_funding_trigger_qualification.sql']");
+  expect(verifierSource).toContain('!checks.partnerFundingTriggerMigrationApplied');
+  expect(verifierSource).toContain("['519_oxsteed_credit_hold_notification_trigger_qualification.sql']");
+  expect(verifierSource).toContain('!checks.holdNotificationTriggerMigrationApplied');
+  expect(verifierSource).toContain("['520_oxsteed_credit_settlement_evidence_trigger_branching.sql']");
+  expect(verifierSource).toContain('!checks.settlementEvidenceTriggerMigrationApplied');
   expect(verifierSource).toContain('checks.invalidSettlementReversals > 0');
   expect(verifierSource).toContain('checks.invalidPartnerLedgers > 0');
   expect(verifierSource).toContain('checks.invalidPartnerFundingRecords > 0');
@@ -291,6 +307,35 @@ test('partner ledger migration qualifies funding trigger account references', ()
   expect(migrationSource).toContain("NEW.credit_account_id IS DISTINCT FROM ledger_reserve_id");
   expect(migrationSource).toContain("NEW.debit_account_id IS DISTINCT FROM ledger_reserve_id");
   expect(migrationSource).toContain("transaction_type IS DISTINCT FROM (CASE NEW.direction");
+});
+
+test('partner reserve migration removes legacy inline account checks', () => {
+  const migrationSource = require('fs').readFileSync(require.resolve('../migrations/517_oxsteed_credit_partner_reserve_constraints.sql'), 'utf8');
+  expect(migrationSource).toContain('DROP CONSTRAINT IF EXISTS oxsteed_credit_accounts_check;');
+  expect(migrationSource).toContain('DROP CONSTRAINT IF EXISTS oxsteed_credit_accounts_check1;');
+  expect(migrationSource).toContain("account_type IN ('partner_payable', 'partner_reserve', 'platform_treasury', 'platform_revenue')");
+  expect(migrationSource).toContain("account_type IN ('partner_payable', 'partner_reserve') AND customer_id IS NULL AND partner_id IS NOT NULL");
+});
+
+test('partner funding trigger qualifies transaction columns', () => {
+  const migrationSource = require('fs').readFileSync(require.resolve('../migrations/518_oxsteed_credit_partner_funding_trigger_qualification.sql'), 'utf8');
+  expect(migrationSource).toContain('SELECT t.transaction_type, t.partner_id, t.currency_code');
+  expect(migrationSource).toContain('funding_transaction_type IS DISTINCT FROM');
+});
+
+test('hold notification trigger does not shadow the outbox event column', () => {
+  const migrationSource = require('fs').readFileSync(require.resolve('../migrations/519_oxsteed_credit_hold_notification_trigger_qualification.sql'), 'utf8');
+  expect(migrationSource).toContain('notification_event_type TEXT;');
+  expect(migrationSource).toContain('notification_event_type,');
+  expect(migrationSource).toContain("'eventType', notification_event_type");
+});
+
+test('2FA audit storage accommodates privacy-preserving IP hashes', () => {
+  const migrationSource = require('fs').readFileSync(require.resolve('../migrations/521_two_factor_audit_ip_hash_length.sql'), 'utf8');
+  expect(migrationSource).toContain('ALTER COLUMN ip_address TYPE VARCHAR(128)');
+  const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit.js'), 'utf8');
+  expect(verifierSource).toContain("['521_two_factor_audit_ip_hash_length.sql']");
+  expect(verifierSource).toContain('!checks.twoFactorAuditIpHashMigrationApplied');
 });
 
 test('requires a note for every administrative Credit dispute status change', async () => {
@@ -337,6 +382,52 @@ test('credit verification requires posted customer history indexes', () => {
     'idx_oxsteed_credit_audit_resource_created',
     'idx_oxsteed_credit_audit_correlation',
   ]));
+});
+
+test('credit verification requires webhook ordering schema and migration', () => {
+  const verifierSource = require('fs').readFileSync(require.resolve('../scripts/verify-oxsteed-credit'), 'utf8');
+
+  expect(REQUIRED_TABLES).toEqual(expect.arrayContaining([
+    'webhook_event_receipts',
+    'webhook_event_watermarks',
+  ]));
+  expect(REQUIRED_COLUMNS.webhook_event_receipts).toEqual(expect.arrayContaining([
+    'provider',
+    'event_id',
+    'object_type',
+    'object_id',
+    'event_created',
+    'status',
+    'last_seen_at',
+  ]));
+  expect(REQUIRED_COLUMNS.webhook_event_watermarks).toEqual(expect.arrayContaining([
+    'provider',
+    'object_type',
+    'object_id',
+    'event_created',
+    'event_id',
+  ]));
+  expect(REQUIRED_INDEXES).toEqual(expect.arrayContaining([
+    'idx_webhook_event_receipts_status',
+    'idx_webhook_event_receipts_object_order',
+  ]));
+  expect(verifierSource).toContain("['522_webhook_event_ordering.sql']");
+  expect(verifierSource).toContain('checks.webhookEventOrderingMigrationApplied');
+  expect(verifierSource).toContain('!checks.webhookEventOrderingMigrationApplied');
+});
+
+test('isolated race verification does not count empty expiry batches as transitions', () => {
+  expect(countTransitionSuccesses({ status: 'fulfilled', value: { count: 0, expired: [] } })).toBe(0);
+  expect(countTransitionSuccesses({ status: 'fulfilled', value: { count: 1, expired: [{}] } })).toBe(1);
+  expect(countTransitionSuccesses({ status: 'fulfilled', value: { expired: true } })).toBe(1);
+  expect(countTransitionSuccesses({ status: 'rejected', reason: new Error('expected race loser') })).toBe(0);
+});
+
+test('isolated race verification enables its rail before fresh-fixture bootstrap', () => {
+  const source = require('fs').readFileSync(require.resolve('../scripts/credit-isolated-races'), 'utf8');
+  expect(source.indexOf("await setCreditRailStatus({ enabled: true")).toBeGreaterThan(-1);
+  expect(source.indexOf("await setCreditRailStatus({ enabled: true")).toBeLessThan(source.indexOf('if (bootstrapCents > 0)'));
+  expect(source).toContain('TARGET_BOOTSTRAP_AVAILABLE_CENTS = 2500');
 });
 
 test('credit verification requires velocity query indexes', () => {
@@ -3132,6 +3223,22 @@ test('changes the rail status with an audit reason and serialized control lock',
   expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
   expect(mockQuery.mock.calls[2][0]).toContain('UPDATE feature_flags');
   expect(mockQuery.mock.calls[3][1][0]).toBe('credit.rail.enabled');
+});
+
+test('rejects a stale rail mutation before changing the emergency flag', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' }] });
+
+  const response = await request(createAdminApp())
+    .post('/rail')
+    .send({ enabled: true, expectedEnabled: false, reason: 'Stale operator tab test' });
+
+  expect(response.status).toBe(409);
+  expect(response.body.code).toBe('credit_rail_state_conflict');
+  expect(response.body.error).toContain('changed before this request was applied');
+  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE feature_flags'))).toBe(false);
 });
 
 test('lists bounded OxSteed Credit audit events with state snapshots', async () => {

@@ -5,6 +5,9 @@ umask 077
 # launchd does not inherit the interactive shell PATH. Keep Docker and
 # Homebrew-backed utilities available when this runs unattended.
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+DOCKER_BIN="${DOCKER_BIN:-docker}"
+DITTO_BIN="${DITTO_BIN:-ditto}"
+PG_RESTORE_BIN="${PG_RESTORE_BIN:-pg_restore}"
 
 # Back up the live Coolify-managed data, not the retired SQLite backend.
 # Publish a snapshot only after every artifact has passed its integrity check.
@@ -64,7 +67,7 @@ trap cleanup EXIT
 
 health() {
   local container="$1"
-  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null)" == "healthy" ]]
+  [[ "$("$DOCKER_BIN" inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null)" == "healthy" ]]
 }
 
 for container in "$APP_DB_CONTAINER" "$COOLIFY_DB_CONTAINER" "$COOLIFY_CONTAINER"; do
@@ -80,17 +83,17 @@ done
 }
 
 # Container environment supplies database names and users without exposing passwords.
-docker exec "$APP_DB_CONTAINER" sh -lc \
+"$DOCKER_BIN" exec "$APP_DB_CONTAINER" sh -lc \
   'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' \
   >"$TMP_DIR/oxsteed-db.dump"
-docker exec "$COOLIFY_DB_CONTAINER" sh -lc \
+"$DOCKER_BIN" exec "$COOLIFY_DB_CONTAINER" sh -lc \
   'pg_dumpall -U "$POSTGRES_USER" --clean --if-exists --no-role-passwords' \
   | gzip -9 >"$TMP_DIR/coolify-db.sql.gz"
-docker exec "$COOLIFY_CONTAINER" tar -czf - -C /var/www/html .env storage/app \
+"$DOCKER_BIN" exec "$COOLIFY_CONTAINER" tar -czf - -C /var/www/html .env storage/app \
   >"$TMP_DIR/coolify-config-and-storage.tgz"
 install -m 600 "$CLOUDFLARE_TOKEN_FILE" "$TMP_DIR/cloudflared-tunnel.token"
 
-docker exec -i "$APP_DB_CONTAINER" pg_restore --list <"$TMP_DIR/oxsteed-db.dump" >/dev/null
+"$DOCKER_BIN" exec -i "$APP_DB_CONTAINER" "$PG_RESTORE_BIN" --list <"$TMP_DIR/oxsteed-db.dump" >/dev/null
 gzip -t "$TMP_DIR/coolify-db.sql.gz"
 tar -tzf "$TMP_DIR/coolify-config-and-storage.tgz" >/dev/null
 
@@ -129,7 +132,7 @@ if [[ -n "$BACKUP_MIRROR_ROOT" ]]; then
   }
   mkdir -p "$MIRROR_DIR"
   chmod 700 "$MIRROR_DIR"
-  ditto "$FINAL_DIR/" "$MIRROR_DIR/"
+  "$DITTO_BIN" "$FINAL_DIR/" "$MIRROR_DIR/"
   chmod 600 "$MIRROR_DIR"/*
   (cd "$MIRROR_DIR" && shasum -a 256 -c SHA256SUMS >/dev/null)
   find "$BACKUP_MIRROR_ROOT" -mindepth 1 -maxdepth 1 -type d -name '20*' \

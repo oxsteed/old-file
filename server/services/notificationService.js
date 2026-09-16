@@ -30,11 +30,9 @@ exports.sendNotification = async ({
     // Get user prefs
     const { rows: prefRows } = await db.query(`
       SELECT np.*, u.email, u.first_name, u.is_banned,
-             u.preferred_language,
-             hp.push_token AS helper_push_token
+             u.preferred_language
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
-      LEFT JOIN helper_profiles hp ON hp.user_id = u.id
       WHERE u.id = $1
     `, [userId]);
     if (!prefRows.length) return { success: false, reason: 'user_not_found' };
@@ -43,7 +41,10 @@ exports.sendNotification = async ({
     const userEmail = prefs.email;
     const firstName = prefs.first_name;
     const isBanned  = !!prefs.is_banned;
-    const token     = pushToken || prefs.helper_push_token;
+    // Native tokens are delivered by mobilePushService from mobile_push_tokens.
+    // Keep pushToken for legacy Expo callers, but do not read token data from
+    // helper_profiles, whose schema no longer owns device registrations.
+    const token     = pushToken;
     const language  = prefs.preferred_language || 'en';
     const notificationText = tNotif(type, language);
     const emailTranslations = tNotifEmail(type, language);
@@ -225,7 +226,9 @@ async function sendPushNotification(token, title, body, data, notifId) {
         logger.error('Push notification error', { token: redactPushToken(token), error: ticket.message });
         if (ticket.details?.error === 'DeviceNotRegistered') {
           await db.query(
-            `UPDATE helper_profiles SET push_token = NULL WHERE push_token = $1`,
+            `UPDATE mobile_push_tokens
+                SET enabled = FALSE, disabled_at = NOW(), updated_at = NOW()
+              WHERE token = $1`,
             [token]
           );
         }

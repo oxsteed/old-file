@@ -12,6 +12,8 @@ const queueMocks = {
   completeJob: jest.fn(),
   promoteDueRetries: jest.fn(),
   isJobCompleted: jest.fn(),
+  renewJobLease: jest.fn(),
+  getVisibilityTimeoutMs: jest.fn(() => 30000),
   closeQueue: jest.fn(),
 };
 
@@ -32,7 +34,7 @@ jest.doMock('../utils/logger', () => ({
   debug: jest.fn(),
 }));
 
-const { processJob } = require('../workerMain');
+const { processJob, runWorker, shutdown } = require('../workerMain');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -61,4 +63,45 @@ test('dead-letters a claimed job when its queue has no processor', async () => {
   );
   expect(queueMocks.completeJob).not.toHaveBeenCalled();
   expect(queueMocks.retryJob).not.toHaveBeenCalled();
+});
+
+test('renews a slow claimed job before its lease expires and clears renewal after completion', async () => {
+  jest.useFakeTimers();
+  let finish;
+  processorMocks.processStripeWebhook.mockImplementation(() => new Promise((resolve) => {
+    finish = resolve;
+  }));
+  queueMocks.isJobCompleted.mockResolvedValue(false);
+  queueMocks.renewJobLease.mockResolvedValue(true);
+  const job = { id: 'slow-webhook', attempts: 0 };
+  Object.defineProperty(job, '__queuePayload', { value: JSON.stringify(job), enumerable: false });
+
+  const processing = processJob(queueMocks.QUEUES.STRIPE_WEBHOOK, job);
+  await Promise.resolve();
+  jest.advanceTimersByTime(10000);
+  await Promise.resolve();
+
+  expect(queueMocks.renewJobLease).toHaveBeenCalledWith(queueMocks.QUEUES.STRIPE_WEBHOOK, job);
+  finish({ handled: true });
+  await processing;
+  expect(jest.getTimerCount()).toBe(0);
+  jest.useRealTimers();
+});
+
+test('shutdown clears polling intervals and prevents new work from being claimed', async () => {
+  jest.useFakeTimers();
+  jest.spyOn(process, 'exit').mockImplementation(() => {});
+  queueMocks.getNextJob.mockResolvedValue(null);
+
+  await runWorker();
+  expect(jest.getTimerCount()).toBe(2);
+
+  await shutdown('SIGTERM');
+  jest.advanceTimersByTime(3000);
+
+  expect(jest.getTimerCount()).toBe(0);
+  expect(queueMocks.getNextJob).not.toHaveBeenCalled();
+  expect(queueMocks.closeQueue).toHaveBeenCalledTimes(1);
+
+  jest.useRealTimers();
 });

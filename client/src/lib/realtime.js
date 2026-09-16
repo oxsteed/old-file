@@ -1,11 +1,14 @@
 export function resolveRealtimeBaseUrl() {
-  const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '');
+  const apiUrl = import.meta.env?.VITE_API_URL?.replace(/\/api\/?$/, '');
   if (apiUrl) return apiUrl;
 
   if (typeof window !== 'undefined') {
     const { hostname, origin } = window.location;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:5000';
+      // A production-style static build serves API and Socket.IO from the same
+      // origin. Development can still point at a separate API through
+      // VITE_API_URL or VITE_DEV_API_PROXY_TARGET.
+      return origin;
     }
     return origin;
   }

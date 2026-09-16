@@ -81,6 +81,11 @@ for _, payload in ipairs(candidates) do
 end
 return reclaimed`;
 
+const RENEW_JOB_LEASE_SCRIPT = `local present = redis.call('LPOS', KEYS[1], ARGV[1])
+if present == false then return -1 end
+redis.call('ZADD', KEYS[2], ARGV[2], ARGV[1])
+return 1`;
+
 const RETRY_FROM_PROCESSING_SCRIPT = `local removed = redis.call('LREM', KEYS[1], 1, ARGV[1])
 if removed ~= 1 then return 0 end
 redis.call('ZREM', KEYS[2], ARGV[1])
@@ -132,6 +137,28 @@ const reclaimStaleJobs = async (queueKey, limit = 25) => {
     logger.warn('Reclaimed stale payment queue jobs', { queueKey, reclaimed: Number(reclaimed) });
   }
   return Number(reclaimed) || 0;
+};
+
+/**
+ * Extend an active worker lease only while the exact claimed payload remains
+ * in the processing list. This prevents a stale worker from recreating a lease
+ * after another worker has already reclaimed the job.
+ */
+const renewJobLease = async (queueKey, job) => {
+  if (!queueKey || !job?.__queuePayload) return false;
+  const renewed = await redis.eval(
+    RENEW_JOB_LEASE_SCRIPT,
+    2,
+    processingQueueKey(queueKey),
+    leaseKey(queueKey),
+    job.__queuePayload,
+    Date.now() + visibilityTimeoutMs(),
+  );
+  if (Number(renewed) !== 1) {
+    logger.warn('Payment queue job lease was no longer owned', { queueKey, jobId: job.id });
+    return false;
+  }
+  return true;
 };
 
 /**
@@ -425,6 +452,8 @@ module.exports = {
   retryJob,
   deadLetterJob,
   reclaimStaleJobs,
+  renewJobLease,
+  getVisibilityTimeoutMs: visibilityTimeoutMs,
   listDeadLetterJobs,
   requeueDeadLetterJob,
   completeJob,
