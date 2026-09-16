@@ -637,6 +637,23 @@ timezone/DST, long-string, and deeper operator failure-path browser evidence;
 then validate the patched release artifact and live monitoring/provider
 handoffs without enabling Credit.
 
+Responsive tablet defect correction checkpoint (2026-09-16): exact CUA browser
+verification found the authenticated Restaurant Credit hero action row
+overflowing at `768x1024` (`scrollWidth 815` vs `clientWidth 762`) while
+`390x844` and `1440x900` were clean. `client/src/pages/food/RestaurantCreditPage.css`
+now stacks that hero at `max-width: 900px`. The rebuilt Docker artifact
+`oxsteed-credit-test-20260916t00491789519782z-84412` passed exact authenticated
+checks at `390x844`, `768x1024`, and `1440x900` with no horizontal overflow and
+no warning/error console logs; `client npm run build:ci` passed. The same
+artifact's guarded Stripe test-mode HTTP verifier passed valid delivery,
+duplicate and stale suppression, invalid-signature rejection, receipt
+persistence, and watermark advancement; the disposable project and volumes
+were removed. Browser keyboard and localized/RTL checks remain source-dependent;
+exact 200% zoom remains unavailable in the current browser capability. Exact
+next action: continue timezone/DST, long-string, 200%-zoom, and deeper operator
+failure-path evidence, then validate live provider/monitoring/backup handoffs
+without enabling Credit.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

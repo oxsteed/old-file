@@ -115,7 +115,7 @@
 .credit-spin { animation: credit-spin .9s linear infinite; }
 @keyframes credit-spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .credit-page { width: min(100% - 22px, 1120px); padding-top: 28px; }
   .credit-hero { align-items: stretch; flex-direction: column; }
   .credit-hero-actions { align-items: stretch; }
