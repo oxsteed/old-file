@@ -126,8 +126,9 @@ function assertCardMutable(card) {
 // Issuance
 // ---------------------------------------------------------------------------
 
-async function issueVirtualCard({ customerId, currencyCode = CREDIT_CURRENCY, nickname, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {} }) {
-  requireCardOwner(actorUserId, customerId);
+async function issueVirtualCard({ customerId, currencyCode = CREDIT_CURRENCY, nickname, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {}, isAdmin = false, issuanceReason }) {
+  if (isAdmin) requireAdministrativeActor(actorUserId);
+  else requireCardOwner(actorUserId, customerId);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required to issue a card', 400, 'credit_idempotency_key_required');
   const currency = assertSupportedCreditCurrency(currencyCode);
@@ -160,22 +161,32 @@ async function issueVirtualCard({ customerId, currencyCode = CREDIT_CURRENCY, ni
           activated_at, metadata)
        VALUES ($1, $2, 'virtual', 'active', 'not_applicable', $3, $4, $5, $6, $7, NOW(), $8::jsonb)
        RETURNING *`,
-      [customerId, account.id, credentialHash, last4Of(rawCredential), normalizeString(nickname, 80), normalizedIdempotencyKey, actorUserId || null, JSON.stringify(normalizeMetadata(metadata))]
+      [customerId, account.id, credentialHash, last4Of(rawCredential), normalizeString(nickname, 80), normalizedIdempotencyKey, actorUserId || null, JSON.stringify({ ...normalizeMetadata(metadata), ...(isAdmin ? { issuedByAdmin: true } : {}) })]
     );
 
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
-       VALUES ('credit.card.issued', $1, $2, 'credit_card', $3, $4, $5, $6::jsonb)`,
-      [actorUserId || null, customerId, String(rows[0].id), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ cardType: 'virtual', status: 'active' })]
+         (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.card.issued', $1, $2, 'credit_card', $3, $4, $5, $6, $7::jsonb)`,
+      [actorUserId || null, customerId, String(rows[0].id), isAdmin ? normalizeString(issuanceReason, 500) : null, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ cardType: 'virtual', status: 'active', issuedByAdmin: isAdmin })]
     );
 
     return { card: formatCard(rows[0], { includeIssuedCredential: rawCredential }), replayed: false };
   }, 'credit_card_issue_virtual');
 }
 
-async function requestPhysicalCard({ customerId, currencyCode = CREDIT_CURRENCY, nickname, shippingAddress, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {} }) {
-  requireCardOwner(actorUserId, customerId);
+// Admin counterpart to issueVirtualCard: an operator (support, fraud recovery,
+// a proactive card program, etc.) issues a virtual card directly to a
+// customer who has not requested one themselves. Reuses the exact same
+// issuance path so limits, currency checks, and idempotency semantics never
+// diverge between the two entry points.
+function adminIssueVirtualCard({ customerId, currencyCode, nickname, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {}, reason }) {
+  return issueVirtualCard({ customerId, currencyCode, nickname, idempotencyKey, actorUserId, correlationId, requestIp, metadata, isAdmin: true, issuanceReason: reason });
+}
+
+async function requestPhysicalCard({ customerId, currencyCode = CREDIT_CURRENCY, nickname, shippingAddress, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {}, isAdmin = false, issuanceReason }) {
+  if (isAdmin) requireAdministrativeActor(actorUserId);
+  else requireCardOwner(actorUserId, customerId);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required to request a card', 400, 'credit_idempotency_key_required');
   const currency = assertSupportedCreditCurrency(currencyCode);
@@ -207,18 +218,25 @@ async function requestPhysicalCard({ customerId, currencyCode = CREDIT_CURRENCY,
           nickname, shipping_address, idempotency_key, issued_by, metadata)
        VALUES ($1, $2, 'physical', 'pending', 'pending', $3, $4::jsonb, $5, $6, $7::jsonb)
        RETURNING *`,
-      [customerId, account.id, normalizeString(nickname, 80), JSON.stringify(shippingAddress), normalizedIdempotencyKey, actorUserId || null, JSON.stringify(normalizeMetadata(metadata))]
+      [customerId, account.id, normalizeString(nickname, 80), JSON.stringify(shippingAddress), normalizedIdempotencyKey, actorUserId || null, JSON.stringify({ ...normalizeMetadata(metadata), ...(isAdmin ? { issuedByAdmin: true } : {}) })]
     );
 
     await client.query(
       `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
-       VALUES ('credit.card.requested', $1, $2, 'credit_card', $3, $4, $5, $6::jsonb)`,
-      [actorUserId || null, customerId, String(rows[0].id), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ cardType: 'physical', status: 'pending' })]
+         (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.card.requested', $1, $2, 'credit_card', $3, $4, $5, $6, $7::jsonb)`,
+      [actorUserId || null, customerId, String(rows[0].id), isAdmin ? normalizeString(issuanceReason, 500) : null, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ cardType: 'physical', status: 'pending', issuedByAdmin: isAdmin })]
     );
 
     return { card: formatCard(rows[0]), replayed: false };
   }, 'credit_card_request_physical');
+}
+
+// Admin counterpart to requestPhysicalCard: an operator originates a physical
+// card on a customer's behalf (e.g. a support-driven replacement, or a
+// proactive card program) instead of waiting for the customer to apply.
+function adminIssuePhysicalCard({ customerId, currencyCode, nickname, shippingAddress, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {}, reason }) {
+  return requestPhysicalCard({ customerId, currencyCode, nickname, shippingAddress, idempotencyKey, actorUserId, correlationId, requestIp, metadata, isAdmin: true, issuanceReason: reason });
 }
 
 // Admin/fulfillment-pipeline transition for a physical card: pending -> printed
@@ -680,6 +698,8 @@ module.exports = {
   formatCard,
   issueVirtualCard,
   requestPhysicalCard,
+  adminIssueVirtualCard,
+  adminIssuePhysicalCard,
   markCardFulfillment,
   activatePhysicalCard,
   freezeCard,

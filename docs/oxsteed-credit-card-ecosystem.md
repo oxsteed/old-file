@@ -22,6 +22,15 @@ Mastercard), no BIN, no ATM-network membership. It supports:
 - **Physical cards** -- request -> admin fulfillment lifecycle
   (`pending -> printed -> shipped -> delivered`) -> customer activation with a
   one-time printed activation code.
+- **Both directions of issuance**: a customer can self-serve
+  (`issueVirtualCard` / `requestPhysicalCard`, exposed at
+  `POST /api/oxsteed-credit/cards/{virtual,physical}`), and separately a Super
+  Admin can originate a card directly for a customer who never applied
+  (`adminIssueVirtualCard` / `adminIssuePhysicalCard`, exposed at
+  `POST /api/admin/super/oxsteed-credit/cards/issue-{virtual,physical}` behind
+  `requireSuperAdmin`) -- e.g. a support-driven replacement or a proactive
+  card program. Both paths share the exact same issuance logic, limits, and
+  idempotency semantics; only the actor check and audit `reason` field differ.
 - **Redemption at a partner restaurant** -- a card credential is just another
   way to identify the customer for the existing, fully-verified
   `purchaseWithCreditInTransaction` purchase pipeline. No new spend logic.

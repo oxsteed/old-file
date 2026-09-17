@@ -151,6 +151,43 @@ async function setMyCardPin(req, res, next) {
 // (mounted under requireSuperAdmin in routes/admin.js)
 // ---------------------------------------------------------------------------
 
+async function adminIssueVirtualCard(req, res, next) {
+  try {
+    const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    const result = await cardService.adminIssueVirtualCard({
+      customerId,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      nickname: req.body?.nickname,
+      idempotencyKey: getIdempotencyKey(req),
+      reason: req.body?.reason,
+      ...getRequestContext(req),
+      metadata: { source: 'api', issuedByAdmin: true },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function adminIssuePhysicalCard(req, res, next) {
+  try {
+    const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    const result = await cardService.adminIssuePhysicalCard({
+      customerId,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code,
+      nickname: req.body?.nickname,
+      shippingAddress: req.body?.shippingAddress || req.body?.shipping_address,
+      idempotencyKey: getIdempotencyKey(req),
+      reason: req.body?.reason,
+      ...getRequestContext(req),
+      metadata: { source: 'api', issuedByAdmin: true },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listAdminCards(req, res, next) {
   try {
     const cards = await cardService.adminListCards({
@@ -280,6 +317,8 @@ module.exports = {
   unfreezeMyCard,
   reportMyCardLost,
   setMyCardPin,
+  adminIssueVirtualCard,
+  adminIssuePhysicalCard,
   listAdminCards,
   updateAdminCardFulfillment,
   revokeAdminCard,

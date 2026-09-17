@@ -185,6 +185,52 @@ describe('issueVirtualCard', () => {
 // PIN lockout behavior on the shared card service (unit-level, direct call)
 // ---------------------------------------------------------------------------
 
+describe('admin card issuance', () => {
+  it('rejects admin issuance with no identified actor at all', async () => {
+    await expect(cardService.adminIssueVirtualCard({
+      customerId: CUSTOMER_ID,
+      currencyCode: 'USD',
+      idempotencyKey: 'admin-issue-1',
+      actorUserId: null, // no administrator identified
+    })).rejects.toMatchObject({ code: 'credit_card_admin_actor_required' });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('keeps the admin issuance HTTP routes behind requireSuperAdmin, not the customer-facing pipeline', () => {
+    const adminRoutesSource = require('fs').readFileSync(require.resolve('../routes/admin'), 'utf8');
+    expect(adminRoutesSource).toMatch(/router\.post\('\/super\/oxsteed-credit\/cards\/issue-virtual',\s*requireSuperAdmin/);
+    expect(adminRoutesSource).toMatch(/router\.post\('\/super\/oxsteed-credit\/cards\/issue-physical',\s*requireSuperAdmin/);
+    // The customer-facing router must never expose the admin-issuance handlers.
+    const customerRoutesSource = require('fs').readFileSync(require.resolve('../routes/oxsteedCredit'), 'utf8');
+    expect(customerRoutesSource).not.toContain('adminIssueVirtualCard');
+    expect(customerRoutesSource).not.toContain('adminIssuePhysicalCard');
+  });
+
+  it('lets an administrator issue a virtual card directly to a customer who never applied', async () => {
+    const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // idempotency lookup: no existing card
+      .mockResolvedValueOnce({ rows: [] }) // lockCreditRail advisory lock
+      .mockResolvedValueOnce({ rows: [{ is_enabled: true }] }) // isCreditRailEnabled
+      .mockResolvedValueOnce({ rows: [] }) // ensureAccount insert ON CONFLICT DO NOTHING
+      .mockResolvedValueOnce({ rows: [{ id: 501, account_type: 'customer_wallet', customer_id: CUSTOMER_ID, currency_code: 'USD', status: 'active', balance_cents: 0, reserved_cents: 0 }] }) // ensureAccount select
+      .mockResolvedValueOnce({ rows: [{ id: CARD_ID, customer_id: CUSTOMER_ID, account_id: 501, card_type: 'virtual', status: 'active', fulfillment_status: 'not_applicable', credential_hash: 'y'.repeat(64), credential_last4: 'CD34' }] }) // card insert
+      .mockResolvedValueOnce({ rows: [] }); // audit event insert
+
+    const result = await cardService.adminIssueVirtualCard({
+      customerId: CUSTOMER_ID,
+      currencyCode: 'USD',
+      idempotencyKey: 'admin-issue-2',
+      actorUserId: ADMIN_ID,
+      reason: 'Support-driven replacement per ticket #4821',
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(result.card.status).toBe('active');
+    expect(typeof result.card.credential).toBe('string');
+  });
+});
+
 describe('cashOutWithCard PIN handling', () => {
   it('rejects cash-out when the card has no PIN configured', async () => {
     mockQuery
