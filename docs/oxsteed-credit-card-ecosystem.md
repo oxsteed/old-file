@@ -108,9 +108,29 @@ main-console workflow text. Verified with the full `npm run build:ci`
 (all focused tests, `verify:i18n`, TypeScript, and the production bundle) --
 zero failures, no changes to the credit locale JSON files.
 
-Still open: a customer-facing "My Cards" screen (self-service issuance,
-freeze/unfreeze, PIN, report-lost) does not exist yet -- only the backend
-contract from the earlier pass.
+## Customer "My Cards" page (2026-09-17, second follow-up)
+
+`client/src/pages/food/OxsteedCreditCardsPage.jsx` (new), routed at
+`https://oxsteed.com/oxsteed-credit/cards` and linked from the main
+"OxSteed Credit" page's header ("My Cards" button). Lets a signed-in customer:
+
+- Issue a virtual card (active immediately) or request a physical card with a
+  shipping address, and see the one-time credential/activation code exactly
+  once.
+- Activate a physical card by entering its printed activation code.
+- Freeze/unfreeze a card, set or change its PIN (required before kiosk
+  cash-out), and report a card lost or stolen -- which immediately shows the
+  auto-issued replacement virtual card's one-time credential, if one was
+  issued.
+
+Also English-only for the same reason as the admin page (not yet in
+`verifyCreditTranslationSurface`'s file list). Verified with the full
+`npm run build:ci` -- zero failures, new `OxsteedCreditCardsPage` chunk built
+cleanly, no credit locale JSON files touched.
+
+With this, both the admin-issuance and customer-self-service UI slices exist;
+remaining UI work is a kiosk hardware application (redeem/cash-out screen)
+and the eventual five-locale translation pass for both new pages.
 
 ## What is explicitly NOT done here
 

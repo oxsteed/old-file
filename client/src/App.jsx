@@ -84,6 +84,7 @@ const RestaurantCrewPage = lazy(() => import('./pages/food/RestaurantCrewPage'))
 const RestaurantRunnerPage = lazy(() => import('./pages/food/RestaurantRunnerPage'));
 const RestaurantCreditPage = lazy(() => import('./pages/food/RestaurantCreditPage'));
 const OxsteedCreditPage = lazy(() => import('./pages/food/OxsteedCreditPage'));
+const OxsteedCreditCardsPage = lazy(() => import('./pages/food/OxsteedCreditCardsPage'));
 const OxsteedCreditTransactionPage = lazy(() => import('./pages/food/OxsteedCreditTransactionPage'));
 // OxSteed Logistics branch
 const LogisticsHomePage = lazy(() => import('./pages/logistics/LogisticsHomePage'));
@@ -455,6 +456,7 @@ export default function App() {
                     <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/transactions/:transactionId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditTransactionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/oxsteed-credit/cards" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditCardsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />

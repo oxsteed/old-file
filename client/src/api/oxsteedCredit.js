@@ -75,3 +75,35 @@ export const listOxsteedCreditDisputes = (params = {}) =>
 export const getOxsteedCreditDisputePage = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })
     .then((response) => response.data || { disputes: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
+
+// -- OxSteed Credit cards --------------------------------------------------
+// A card is only a credential onto the customer's existing wallet above; it
+// never represents a second balance.
+
+export const listOxsteedCreditCards = () =>
+  api.get('/oxsteed-credit/cards').then((response) => response.data?.cards || []);
+
+export const issueOxsteedCreditVirtualCard = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/cards/virtual', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
+export const requestOxsteedCreditPhysicalCard = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/cards/physical', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
+export const activateOxsteedCreditCard = (cardId, payload) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/activate`, payload).then((response) => response.data);
+
+export const freezeOxsteedCreditCard = (cardId, payload = {}) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/freeze`, payload).then((response) => response.data);
+
+export const unfreezeOxsteedCreditCard = (cardId, payload = {}) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/unfreeze`, payload).then((response) => response.data);
+
+export const reportOxsteedCreditCardLost = (cardId, payload = {}) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/report-lost`, payload).then((response) => response.data);
+
+export const setOxsteedCreditCardPin = (cardId, payload) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/pin`, payload).then((response) => response.data);

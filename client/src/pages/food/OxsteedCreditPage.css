@@ -18,7 +18,7 @@
 .ox-credit-eyebrow { margin: 0 0 8px; color: #d66e0c; font-size: 11px; font-weight: 850; letter-spacing: .18em; text-transform: uppercase; }
 .ox-credit-hero h1 { margin: 0 0 10px; color: #10253f; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(42px, 7vw, 72px); font-weight: 500; letter-spacing: -.055em; }
 .ox-credit-hero p:not(.ox-credit-eyebrow) { max-width: 690px; margin: 0; color: #61717e; font-size: 16px; line-height: 1.65; }
-.ox-credit-refresh { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; height: 44px; padding: 0 15px; border: 1px solid rgba(16,37,63,.14); border-radius: 13px; color: #10253f; background: rgba(255,255,255,.82); font-weight: 800; cursor: pointer; }
+.ox-credit-refresh { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; height: 44px; padding: 0 15px; border: 1px solid rgba(16,37,63,.14); border-radius: 13px; color: #10253f; background: rgba(255,255,255,.82); font-weight: 800; text-decoration: none; cursor: pointer; }
 .ox-credit-refresh:disabled { opacity: .55; cursor: wait; }
 .ox-credit-spin { animation: ox-credit-spin 1s linear infinite; }
 @keyframes ox-credit-spin { to { transform: rotate(360deg); } }

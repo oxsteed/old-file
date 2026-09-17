@@ -1,0 +1,43 @@
+.ox-card-secret code { display: block; margin: 4px 0; word-break: break-all; }
+
+.ox-card-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 23px 20px; }
+.ox-card-form-wide { grid-column: 1 / -1; }
+.ox-card-form label { display: grid; gap: 6px; color: #71808c; font-size: 11px; font-weight: 800; }
+.ox-card-form input, .ox-card-form select { width: 100%; box-sizing: border-box; min-height: 42px; padding: 0 12px; border: 1px solid rgba(16,37,63,.13); border-radius: 10px; color: #10253f; background: #fbfaf8; font: inherit; font-size: 13px; outline: none; }
+.ox-card-form input:focus, .ox-card-form select:focus { border-color: rgba(182,90,12,.55); box-shadow: 0 0 0 3px rgba(214,110,12,.1); }
+.ox-card-form button { grid-column: 1 / -1; justify-self: start; min-height: 44px; padding: 0 20px; border: 0; border-radius: 11px; color: #fff; background: #d66e0c; font-size: 13px; font-weight: 850; cursor: pointer; }
+.ox-card-form button:hover { background: #b65a0c; }
+.ox-card-form button:disabled { opacity: .55; cursor: wait; }
+
+.ox-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 0 23px 23px; }
+.ox-card-tile { display: grid; gap: 12px; padding: 18px; border: 1px solid rgba(16,37,63,.1); border-radius: 18px; background: #fbfaf8; }
+.ox-card-tile-frozen { border-color: rgba(182,90,12,.3); background: #fff9f0; }
+.ox-card-tile-lost, .ox-card-tile-stolen, .ox-card-tile-revoked, .ox-card-tile-expired { opacity: .75; }
+.ox-card-tile-top { display: flex; align-items: flex-start; gap: 10px; }
+.ox-card-type-icon { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px; color: #15727a; background: #e7f6f3; }
+.ox-card-tile-top > div { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.ox-card-tile-top strong { overflow: hidden; color: #10253f; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.ox-card-tile-top > div span { color: #80909c; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.ox-card-status { flex: 0 0 auto; padding: 4px 9px; border-radius: 999px; color: #a6530c; background: #fff0dd; font-size: 10px; font-weight: 850; text-transform: capitalize; }
+.ox-card-status-active { color: #14754d; background: #e2f7ec; }
+.ox-card-status-frozen { color: #9a551c; background: #ffedd3; }
+.ox-card-status-lost, .ox-card-status-stolen, .ox-card-status-revoked, .ox-card-status-expired { color: #b44b25; background: #fff0e8; }
+
+.ox-card-tile-meta { display: flex; flex-wrap: wrap; gap: 8px; color: #7d8b94; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
+
+.ox-card-activate, .ox-card-pin-form { display: flex; gap: 8px; }
+.ox-card-activate input, .ox-card-pin-form input { flex: 1; min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid rgba(16,37,63,.13); border-radius: 9px; color: #10253f; background: #fff; font: inherit; font-size: 12px; outline: none; }
+.ox-card-activate button, .ox-card-pin-form button { flex: 0 0 auto; min-height: 38px; padding: 0 12px; border: 0; border-radius: 9px; color: #fff; background: #d66e0c; font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-card-activate button:disabled, .ox-card-pin-form button:disabled { opacity: .55; cursor: wait; }
+
+.ox-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ox-card-actions button { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 11px; border: 1px solid rgba(16,37,63,.15); border-radius: 9px; color: #526473; background: #fff; font-size: 11px; font-weight: 800; cursor: pointer; }
+.ox-card-actions button:hover { border-color: rgba(182,90,12,.42); color: #b65a0c; }
+.ox-card-actions button:disabled { opacity: .55; cursor: wait; }
+.ox-card-actions .ox-card-danger { color: #b44b25; border-color: rgba(180,75,37,.25); }
+.ox-card-actions .ox-card-danger:hover { border-color: rgba(180,75,37,.5); color: #922c14; }
+
+@media (max-width: 520px) {
+  .ox-card-form { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
+  .ox-card-grid { padding-left: 16px; padding-right: 16px; grid-template-columns: 1fr; }
+}
