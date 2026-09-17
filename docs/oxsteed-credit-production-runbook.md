@@ -597,9 +597,20 @@ should differ from `NODE_ENV`. Optional `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_
 and `SENTRY_PROFILES_SAMPLE_RATE` values may identify the release and control
 sampling without exposing secrets. Configure the browser bundle with
 `VITE_SENTRY_DSN` so the root, admin, and shared frontend logger report to the
-same approved project. The server rail gate checks only that the server DSN is
-present; provider delivery, alert routing, retention, and on-call ownership
+approved frontend project. The server rail gate checks only that the server DSN
+is present; provider delivery, alert routing, retention, and on-call ownership
 must still be verified outside the application.
+
+Production wiring verified 2026-09-16: Coolify has protected backend and
+browser DSNs, Sentry is enabled, default PII transmission remains disabled,
+and the deployed `/ready` and non-activating Credit verifier checks pass. The
+Sentry organization has an Error Monitor for both `oxsteed-backend` and
+`oxsteed-frontend`; account-level Issue Alert Notifications are `On` with
+`Email` delivery. The backend monitor currently shows one older SQL aggregation
+issue. The signed-in Sentry account is now the catch-all owner for new issues in
+both projects. A controlled event-and-email receipt check remains before Credit
+activation. Do not generate synthetic production errors merely to close this
+item, and do not activate Credit until the handoff is complete.
 
 If Credit workflows accept customer or partner uploads, configure `CLAMAV_HOST`
 and keep `FILE_SCAN_REQUIRE_MALWARE=true`; verify the ClamAV health endpoint
@@ -609,7 +620,7 @@ substitute for malware scanning in a high-risk stored-value deployment.
 
 ## Provider and Compliance Gaps
 
-The application cannot establish licensing, custody, banking status, KYC/AML obligations, consumer disclosures, tax treatment, or partner contract validity by itself. Those are external release requirements. Likewise, managed database backups, malware scanning, alert routing, MFA/passkeys, Sentry or equivalent observability, and browser/concurrency tests must be configured and evidenced in the deployment environment before calling the rail fully production-ready.
+The application cannot establish licensing, custody, banking status, KYC/AML obligations, consumer disclosures, tax treatment, or partner contract validity by itself. Those are external release requirements. Likewise, managed database backups, malware scanning, alert routing, MFA/passkeys, and browser/concurrency tests must be configured and evidenced in the deployment environment before calling the rail fully production-ready. Sentry wiring, account-level email alert delivery, and the current human on-call ownership are configured; live event receipt remains a launch handoff check.
 
 Stripe webhook and payment queue failures are no longer silently discarded after
 the retry budget is exhausted. The worker preserves the original job payload and

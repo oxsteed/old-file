@@ -148,6 +148,7 @@ describe('support routes', () => {
     const listCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversations sc/.test(sql));
     expect(listCall[0]).toContain('EXISTS');
     expect(listCall[0]).toContain('ILIKE');
+    expect(listCall[0]).toMatch(/GROUP BY sc\.id, cu\.id, au\.id, sa\.id/);
     expect(listCall[0]).toContain('LIMIT $2 OFFSET $3');
     expect(listCall[1]).toEqual(['%refund%', 25, 50]);
     expect(res.body.pagination).toEqual({ limit: 25, offset: 50, returned: 1, hasMore: false });
