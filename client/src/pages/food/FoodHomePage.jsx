@@ -9,12 +9,16 @@ import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import ThemeToggle from '../../components/ThemeToggle';
+import LanguageSelector from '../../components/LanguageSelector';
+import { ArrowDown, ArrowRight, ArrowUpRight, Search, MapPin, Map, Store, Utensils, SlidersHorizontal, X } from 'lucide-react';
 import {
   DISCOVERY_PAGE_SIZE,
   buildRestaurantDiscoveryParams,
   mergeUniqueRestaurants,
 } from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
+import '../../styles/RestaurantDiscovery.css';
 
 const DEFAULT_CENTER = [25.0, -40.0];
 const DEFAULT_ZOOM = 2;
@@ -96,9 +100,9 @@ function RestaurantCard({ r, t }) {
               <span className="fd-card-rating-count"> ({Number(r.review_count)})</span>
             </span>
           )}
-          <span className={`fd-tag ${r.is_open === false ? 'fd-tag-closed' : 'fd-tag-open'}`}>
+          {typeof r.is_open === 'boolean' && <span className={`fd-tag ${r.is_open === false ? 'fd-tag-closed' : 'fd-tag-open'}`}>
             {r.is_open === false ? t('food.home.closed') : t('food.home.open')}
-          </span>
+          </span>}
         </div>
         {cityLine && <span className="fd-card-meta">{cityLine}</span>}
         {r.distance_km != null && (
@@ -116,6 +120,8 @@ export default function FoodHomePage() {
   const { user } = useAuth();
 
   const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [locationError, setLocationError] = useState(false);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [geo, setGeo] = useState(null);
@@ -145,6 +151,7 @@ export default function FoodHomePage() {
     requestSequence.current = sequence;
     if (reset) {
       setLoading(true);
+      setLoadingMore(false);
       setError(false);
       setLoadMoreError(false);
     } else {
@@ -205,6 +212,7 @@ export default function FoodHomePage() {
 
   const search = (e) => {
     e?.preventDefault?.();
+    setSubmittedQuery(query.trim());
     const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort });
     load(params, { reset: true });
   };
@@ -212,14 +220,14 @@ export default function FoodHomePage() {
   const selectCuisine = (cuisine) => {
     const nextCuisine = activeCuisine === cuisine ? null : cuisine;
     setActiveCuisine(nextCuisine);
-    const params = buildRestaurantDiscoveryParams({ query, cuisine: nextCuisine, geo, sort });
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: nextCuisine, geo, sort });
     load(params, { reset: true });
   };
 
   const loadMore = () => {
     if (loadingMore || !pagination.hasMore) return;
     const params = buildRestaurantDiscoveryParams({
-      query,
+      query: submittedQuery,
       cuisine: activeCuisine,
       geo,
       sort,
@@ -230,22 +238,23 @@ export default function FoodHomePage() {
 
   const selectSort = (nextSort) => {
     setSort(nextSort);
-    const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo, sort: nextSort });
+    const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo, sort: nextSort });
     load(params, { reset: true });
   };
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) return;
+    setLocationError(false);
+    if (!navigator.geolocation) { setLocationError(true); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setGeo(next);
         setLocating(false);
-        const params = buildRestaurantDiscoveryParams({ query, cuisine: activeCuisine, geo: next, sort });
+        const params = buildRestaurantDiscoveryParams({ query: submittedQuery, cuisine: activeCuisine, geo: next, sort });
         load(params, { reset: true });
       },
-      () => setLocating(false),
+      () => { setLocating(false); setLocationError(true); },
       { timeout: 10000 }
     );
   };
@@ -289,12 +298,22 @@ export default function FoodHomePage() {
   }, [recentOrders, restaurants, user, t]);
 
   const featured = featuredRef.current;
-  const isSearching = !!query.trim();
+  const isSearching = !!submittedQuery;
   const hasReorder = reorderRestaurants.length > 0;
   const hasFeatured = !isSearching && !activeCuisine && featured.length > 0;
   const hasNearby = !isSearching && nearbyRestaurants.length > 0;
   const hasData = restaurants.length > 0;
-  const hasDiscoveryFilter = isSearching || !!activeCuisine;
+  const hasDiscoveryFilter = isSearching || !!activeCuisine || !!geo;
+
+  const clearFilters = () => {
+    setQuery('');
+    setSubmittedQuery('');
+    setActiveCuisine(null);
+    setGeo(null);
+    setLocationError(false);
+    setSort('recommended');
+    load({ sort: 'recommended' }, { reset: true });
+  };
 
   // Cuisine strip is driven by live restaurant data only — no hardcoded
   // market assumptions. When the current market has no restaurants (or only
@@ -302,27 +321,36 @@ export default function FoodHomePage() {
   const cuisineStrip = cuisinesFromData.map((tag) => ({ key: tag, icon: iconForCuisine(tag) }));
 
   return (
-    <PageShell>
+    <PageShell hideNav>
     <PageMeta
       title={t('food.home.title')}
       description={t('food.home.subtitle')}
       url="https://oxsteed.com/restaurants"
     />
-    <div className="fd-home-page">
+    <div className="fd-home-page rd-page">
+      <nav className="rd-nav" aria-label={t('food.home.redesign.navigation')}>
+        <Link to="/restaurants" className="rd-brand" aria-current="page"><FoodBrand size={36} /></Link>
+        <div className="rd-nav-links">
+          <Link to="/" className="rd-network">{t('food.home.redesign.network')}<ArrowUpRight size={15} aria-hidden="true" /></Link>
+          <Link to={user ? '/dashboard' : '/login'}>{t(user ? 'food.home.redesign.account' : 'food.home.redesign.signIn')}</Link>
+          <LanguageSelector />
+          <ThemeToggle />
+        </div>
+      </nav>
 
       {/* ── Hero banner ── */}
       <div className="fd-home-hero">
         <div className="fd-home-hero-inner">
-          <div className="fd-home-hero-brand">
-            <FoodBrand size={52} />
-          </div>
-          <h1 className="fd-home-hero-title">{t('food.home.title')}</h1>
-          <p className="fd-home-hero-sub">{t('food.home.subtitle')}</p>
+          <div className="rd-hero-copy">
+          <span className="rd-eyebrow"><Utensils size={16} aria-hidden="true" />{t('food.home.redesign.eyebrow')}</span>
+          <h1 className="fd-home-hero-title">{t('food.home.redesign.headline')} <em>{t('food.home.redesign.headlineAccent')}</em></h1>
+          <p className="fd-home-hero-sub">{t('food.home.redesign.subtitle')}</p>
+          <p className="rd-platform-note"><Store size={18} aria-hidden="true" />{t('food.home.redesign.independent')}</p>
 
           {/* Search bar lives inside the hero */}
           <form className="fd-home-searchbar" onSubmit={search}>
             <div className="fd-home-search-input-wrap">
-              <span className="fd-home-search-icon" aria-hidden="true">🔍</span>
+              <Search className="fd-home-search-icon" size={20} aria-hidden="true" />
               <input
                 type="search"
                 value={query}
@@ -332,19 +360,40 @@ export default function FoodHomePage() {
               />
             </div>
             <button type="submit" className="fd-btn fd-home-search-btn">
-              {t('food.home.searchBtn')}
+              {t('food.home.searchBtn')}<ArrowRight size={18} aria-hidden="true" />
             </button>
+          </form>
+          <div className="rd-location-row">
             <button
               type="button"
               className="fd-btn fd-btn-secondary fd-home-near-btn"
               onClick={useMyLocation}
               disabled={locating}
             >
-              {locating ? t('food.home.locating') : `📍 ${t('food.home.nearMe')}`}
+              <MapPin size={16} aria-hidden="true" />{locating ? t('food.home.locating') : t('food.home.nearMe')}
             </button>
-          </form>
+            <span role="status">{t(geo ? 'food.home.redesign.locationOn' : 'food.home.redesign.locationHint')}</span>
+          </div>
+          {locationError && <p className="rd-location-error" role="alert">{t('food.home.redesign.locationError')}</p>}
+          </div>
+          <div className="rd-table-art" aria-hidden="true">
+            <div className="rd-table-orbit" />
+            <div className="rd-napkin" />
+            <div className="rd-plate"><div className="rd-plate-well"><i /><i /><i /><i /><i /><b /><b /><b /></div></div>
+            <Utensils className="rd-cutlery" strokeWidth={1} />
+          </div>
         </div>
       </div>
+
+      <div className="rd-browse-heading">
+        <div><span className="rd-eyebrow">{t('food.home.redesign.explore')}</span><h2>{t('food.home.redesign.browseTitle')}</h2></div>
+        <a href="#restaurant-owners" className="rd-owner-shortcut"><Store size={17} aria-hidden="true" />{t('food.home.redesign.forOwners')}<ArrowDown size={15} aria-hidden="true" /></a>
+      </div>
+      {hasDiscoveryFilter && <div className="rd-active-filters" aria-live="polite">
+        <SlidersHorizontal size={16} aria-hidden="true" />
+        {submittedQuery && <span>{submittedQuery}</span>}{activeCuisine && <span>{activeCuisine}</span>}{geo && <span>{t('food.home.nearMe')}</span>}
+        <button type="button" onClick={clearFilters}>{t('food.home.clearFilter')}<X size={14} aria-hidden="true" /></button>
+      </div>}
 
       {/* ── Cuisine category strip — built from live restaurant data ── */}
       {cuisineStrip.length > 1 && (
@@ -368,19 +417,20 @@ export default function FoodHomePage() {
       )}
 
       {/* ── Map toggle ── */}
-      <div className="fd-map-toggle-row">
+      {hasData && <div className="fd-map-toggle-row">
         <button
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
           onClick={() => setShowMap((v) => !v)}
           aria-expanded={showMap}
+          aria-controls="restaurant-discovery-map"
         >
-          {showMap ? `🗺️ ${t('food.home.hideMap')}` : `🗺️ ${t('food.home.showMap')}`}
+          <Map size={16} aria-hidden="true" />{t(showMap ? 'food.home.hideMap' : 'food.home.showMap')}
         </button>
-      </div>
+      </div>}
 
-      {showMap && (
-        <div className="fd-map-wrap">
+      {showMap && hasData && (
+        <div className="fd-map-wrap" id="restaurant-discovery-map">
           <MapContainer
             key={`${mapCenter[0].toFixed(2)}|${mapCenter[1].toFixed(2)}`}
             center={mapCenter}
@@ -423,7 +473,7 @@ export default function FoodHomePage() {
         </div>
       ) : error ? (
         <div className="fd-home-empty">
-          <div className="fd-home-empty-icon">⚠️</div>
+          <p role="alert">{t('food.home.redesign.errorHint')}</p>
           <h2>{t('food.common.loadError')}</h2>
           <button type="button" className="fd-btn" onClick={search}>
             {t('food.common.retry')}
@@ -431,17 +481,13 @@ export default function FoodHomePage() {
         </div>
       ) : !hasData && !hasDiscoveryFilter ? (
         /* Rich empty state */
-        <div className="fd-home-empty">
-          <div className="fd-home-empty-art">
-            <div className="fd-home-empty-plate">🍽️</div>
-            <div className="fd-home-empty-ring" />
-          </div>
-          <h2 className="fd-home-empty-title">{t('food.home.empty')}</h2>
-          <p className="fd-home-empty-sub">{t('food.home.emptySub')}</p>
+        <div className="fd-home-empty rd-empty">
+          <div className="rd-empty-symbol"><Store size={32} strokeWidth={1.3} aria-hidden="true" /></div>
+          <div className="rd-empty-copy">
+          <span className="rd-eyebrow">{t('food.home.redesign.availability')}</span>
+          <h2 className="fd-home-empty-title">{t('food.home.redesign.emptyTitle')}</h2>
+          <p className="fd-home-empty-sub">{t('food.home.redesign.emptyBody')}</p>
           <div className="fd-home-empty-actions">
-            <Link to="/restaurants/merchant" className="fd-btn">
-              {t('food.home.addYourRestaurant')}
-            </Link>
             <a
               href="mailto:restaurants@oxsteed.com"
               className="fd-btn fd-btn-secondary"
@@ -449,9 +495,6 @@ export default function FoodHomePage() {
               {t('food.home.suggestRestaurant')}
             </a>
           </div>
-          <div className="fd-home-empty-soon">
-            <span className="fd-home-empty-soon-dot" />
-            {t('food.home.launchingSoon')}
           </div>
         </div>
       ) : (
@@ -533,12 +576,7 @@ export default function FoodHomePage() {
                 <button
                   type="button"
                   className="fd-btn fd-btn-secondary fd-btn-sm"
-                  onClick={() => {
-                    setActiveCuisine(null);
-                    setQuery('');
-                    setSort('recommended');
-                    load({ sort: 'recommended' }, { reset: true });
-                  }}
+                  onClick={clearFilters}
                 >
                   {t('food.home.clearFilter')}
                 </button>
@@ -560,13 +598,19 @@ export default function FoodHomePage() {
             )}
           </div>
 
-          <div className="fd-home-footer-cta">
-            <Link to="/restaurants/merchant" className="fd-btn fd-btn-secondary">
-              {t('food.home.addYourRestaurant')}
-            </Link>
-          </div>
         </div>
       )}
+      <section className="rd-how" aria-labelledby="restaurant-how-title">
+        <h2 id="restaurant-how-title">{t('food.home.redesign.howTitle')}</h2>
+        <div className="rd-how-grid">{['discover', 'choose', 'order'].map((step, index) => <div className="rd-step" key={step}>
+          <span className="rd-step-number" aria-hidden="true">0{index + 1}</span><div><h3>{t(`food.home.redesign.${step}Title`)}</h3><p>{t(`food.home.redesign.${step}Body`)}</p></div>
+        </div>)}</div>
+      </section>
+      <section className="rd-owner-panel" id="restaurant-owners" aria-labelledby="restaurant-owner-title">
+        <Store size={30} strokeWidth={1.3} aria-hidden="true" />
+        <div><span className="rd-eyebrow">{t('food.home.redesign.forOwners')}</span><h2 id="restaurant-owner-title">{t('food.home.redesign.ownerTitle')}</h2><p>{t('food.home.redesign.ownerBody')}</p></div>
+        <Link to="/restaurants/merchant" className="fd-btn">{t('food.home.redesign.ownerAction')}<ArrowUpRight size={18} aria-hidden="true" /></Link>
+      </section>
     </div>
     </PageShell>
   );
