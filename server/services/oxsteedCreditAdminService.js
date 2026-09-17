@@ -1701,13 +1701,13 @@ async function reconcileCreditLedger({ currencyCode = 'USD', periodStart, period
     const reconciliationScope = 'all_time_ledger';
     const { rows: resultRows } = await client.query(
       `WITH derived AS (
-         SELECT account_id,
-                COALESCE(SUM(CASE WHEN entry_side = 'credit' THEN amount_cents ELSE -amount_cents END), 0) AS journal_cents,
+         SELECT e.account_id,
+                COALESCE(SUM(CASE WHEN e.entry_side = 'credit' THEN e.amount_cents ELSE -e.amount_cents END), 0) AS journal_cents,
                 COUNT(*)::int AS entries
-           FROM oxsteed_credit_transaction_entries
-           JOIN oxsteed_credit_transactions t ON t.id = oxsteed_credit_transaction_entries.transaction_id
+           FROM oxsteed_credit_transaction_entries e
+           JOIN oxsteed_credit_transactions t ON t.id = e.transaction_id
           WHERE t.status = 'posted' AND t.currency_code = $1
-          GROUP BY account_id
+          GROUP BY e.account_id
        ), checks AS (
          SELECT a.id,
                 a.balance_cents,
