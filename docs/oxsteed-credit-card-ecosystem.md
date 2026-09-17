@@ -84,6 +84,34 @@ build there -- migration 530 only widens the existing `app_key` and
   every card tied to it, mirroring migration 485's existing restaurant-status
   propagation pattern.
 
+## Admin UI (2026-09-17, follow-up)
+
+`client/src/admin/pages/super/OxsteedCreditCards.jsx` (new) is now embedded
+directly in the existing Super Admin Credit console --
+`https://oxsteed.com/admin/super/oxsteed-credit` -- right after the
+entitlements section. It lets an admin:
+
+- Issue a virtual card, or start a physical card, directly for a customer UUID
+  (calls the `issue-virtual` / `issue-physical` endpoints above).
+- See the one-time credential (virtual) or activation code (physical, once
+  marked "printed") in a clearly-labeled banner, exactly once, matching the
+  service-layer guarantee that these are never retrievable again.
+- Browse/filter all cards by status, type, and customer, advance a physical
+  card's fulfillment status, and revoke any card with a required reason.
+
+This surface intentionally ships in English only for now -- it is not yet
+added to `verifyCreditTranslationSurface`'s file list in
+`client/scripts/verify-i18n.mjs`, so it does not block `verify:i18n`, but it
+also doesn't yet match the five-locale parity the rest of the Credit admin
+console has. Localize it in the same pass as the rest of the still-unlocalized
+main-console workflow text. Verified with the full `npm run build:ci`
+(all focused tests, `verify:i18n`, TypeScript, and the production bundle) --
+zero failures, no changes to the credit locale JSON files.
+
+Still open: a customer-facing "My Cards" screen (self-service issuance,
+freeze/unfreeze, PIN, report-lost) does not exist yet -- only the backend
+contract from the earlier pass.
+
 ## What is explicitly NOT done here
 
 - **No migration has been run against any database.** Run migration 530
