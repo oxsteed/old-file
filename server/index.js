@@ -149,6 +149,7 @@ const storageRoutes = require('./routes/storage');
 const moderationRoutes = require('./routes/moderation');
 const foodRoutes = require('./routes/food');
 const oxsteedCreditRoutes = require('./routes/oxsteedCredit');
+const oxsteedCreditKioskRoutes = require('./routes/oxsteedCreditKiosk');
 const mainAppRoutes = require('./routes/mainApp');
 const directRoutes = require('./routes/direct');
 const { sendDirectServiceAreaPage } = require('./routes/directServiceAreaPage');
@@ -579,6 +580,9 @@ app.use('/api/main-app', mainAppRoutes);
 app.use('/api/direct', directRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/oxsteed-credit', oxsteedCreditRoutes);
+// Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
+// scoped to a restaurant + paired device the same way POS/Kitchen/Display are.
+app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditKioskRoutes);
 app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);
 app.use('/api/restaurants', restaurantRoutes);

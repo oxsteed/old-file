@@ -49,6 +49,14 @@ const MAX_DAILY_CUSTOMER_TRANSFER_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_
 const MAX_DAILY_CUSTOMER_TRANSFER_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_TRANSFER_COUNT', 20);
 const MAX_DAILY_CUSTOMER_SPEND_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_CENTS', MAX_CUSTOMER_BALANCE_CENTS);
 const MAX_DAILY_CUSTOMER_SPEND_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_SPEND_COUNT', 50);
+// Cash-out is treated as a materially higher-risk movement than in-network
+// spend (physical cash cannot be clawed back the way a partner refund can),
+// so it gets its own, deliberately tighter, single-transaction and daily caps.
+const MAX_CARD_CASH_OUT_TRANSACTION_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_CASH_OUT_TRANSACTION_CENTS', 20000);
+const MAX_DAILY_CUSTOMER_CASH_OUT_CENTS = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_CASH_OUT_CENTS', 20000);
+const MAX_DAILY_CUSTOMER_CASH_OUT_COUNT = positiveEnv('OXSTEED_CREDIT_MAX_DAILY_CUSTOMER_CASH_OUT_COUNT', 3);
+const MAX_CARD_PIN_ATTEMPTS = positiveEnv('OXSTEED_CREDIT_MAX_CARD_PIN_ATTEMPTS', 5);
+const CARD_PIN_LOCKOUT_MINUTES = positiveEnv('OXSTEED_CREDIT_CARD_PIN_LOCKOUT_MINUTES', 15);
 const DEFAULT_HOLD_TTL_MINUTES = positiveEnv('OXSTEED_CREDIT_HOLD_TTL_MINUTES', 30);
 const MAX_HOLD_TTL_MINUTES = Math.max(DEFAULT_HOLD_TTL_MINUTES, positiveEnv('OXSTEED_CREDIT_MAX_HOLD_TTL_MINUTES', 1440));
 const DEFAULT_STATEMENT_DAYS = 90;
@@ -62,6 +70,7 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
   'settlement_reversal',
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
+  'cash_out',
 ]);
 
 function positiveEnv(name, fallback) {
@@ -943,6 +952,19 @@ async function postJournalTransaction(client, input) {
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
       throw new AppError('Credit adjustment account direction is invalid', 400, 'credit_adjustment_direction_invalid');
+    }
+  }
+  if (input.transactionType === 'cash_out') {
+    // A cash-out is the mirror of a 'load': value leaves the customer wallet
+    // and returns to platform_treasury, representing the physical cash a
+    // kiosk has just dispensed against that balance.
+    const validDirection = debitAccount.account_type === 'customer_wallet' && creditAccount.account_type === 'platform_treasury';
+    if (
+      !validDirection
+      || (input.partnerId !== null && input.partnerId !== undefined)
+      || (input.agreementId !== null && input.agreementId !== undefined)
+    ) {
+      throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
     }
   }
   if (normalizeCurrency(debitAccount.currency_code) !== requested.currency_code || normalizeCurrency(creditAccount.currency_code) !== requested.currency_code) {
@@ -2825,6 +2847,11 @@ module.exports = {
   MAX_DAILY_CUSTOMER_SPEND_COUNT,
   MAX_STATEMENT_EXPORT_ROWS,
   CUSTOMER_TRANSFERS_ENABLED,
+  MAX_CARD_CASH_OUT_TRANSACTION_CENTS,
+  MAX_DAILY_CUSTOMER_CASH_OUT_CENTS,
+  MAX_DAILY_CUSTOMER_CASH_OUT_COUNT,
+  MAX_CARD_PIN_ATTEMPTS,
+  CARD_PIN_LOCKOUT_MINUTES,
   isCreditRailEnabled,
   assertCreditRailEnabled,
   getCreditRailStatus,
@@ -2835,6 +2862,13 @@ module.exports = {
   getLedgerHashKeyConfiguration,
   computeEntryHash,
   ensureAccount,
+  findCustomerAccount,
+  getExistingTransaction,
+  loadAccountEntries,
+  normalizeMetadata,
+  normalizeString,
+  normalizeCurrency,
+  parseAmountCents,
   findSpendAgreement,
   formatAccount,
   formatHold,

@@ -1,8 +1,45 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-09-15 (production runtime consolidation)
+**Last updated:** 2026-09-17 (Credit card ecosystem, source-only)
 
 ## Instructions for Every Session
+
+### Session progress - OxSteed Credit card ecosystem added (2026-09-17)
+
+- Added a card credential layer on top of the existing OxSteed Credit ledger:
+  virtual/physical card issuance, physical fulfillment lifecycle + activation,
+  freeze/unfreeze/lost-or-stolen reissue/admin revoke, PIN management,
+  card-based redemption at a partner restaurant (delegates entirely to the
+  existing `purchaseWithCreditInTransaction`), and a new closed-loop kiosk
+  cash-out flow (`cash_out` transaction type, mirror of `load`). Full design
+  rationale, file list, and explicit non-goals in
+  `docs/oxsteed-credit-card-ecosystem.md` -- read that before continuing this
+  work.
+- New migration `530_oxsteed_credit_cards.sql` has **not been run against any
+  database** (no Postgres/Docker/Colima available in this environment). Apply
+  it against an isolated fixture and run the existing `verify:credit` /
+  `verify:credit-concurrency` style checks before trusting it.
+- Kiosk hardware reuses the existing `restaurant_app_devices` pairing/token
+  model (`app_key='credit_kiosk'`) instead of a new device table; no new
+  pairing endpoint was needed, only widening two existing CHECK constraints
+  and additively exporting `requireDeviceCredential`/`assertDeviceApp` from
+  `restaurantAppFlowController.js`.
+- Verification this pass: `node -c` on every new/edited server file; full
+  backend regression `npm test` passed `161/162` suites and `1176/1183` tests
+  (the one pre-existing failure, `prerenderMarketing.test.js`, is unrelated --
+  it needs a built client bundle that isn't present in this environment, and
+  fails identically before this change). New focused suite
+  `__tests__/oxsteedCreditCard.test.js` (12 tests) covers credential/PIN
+  hashing, response redaction, controller validation, and a mocked-DB
+  issuance + replay + PIN-lockout path. No live database, browser, or hardware
+  evidence exists yet -- this is source-only, same disclosure standard as the
+  rest of this file.
+- Explicitly not built: client/admin UI, physical cash-dispenser hardware
+  integration, any regulatory/licensing review (per existing convention, that
+  belongs to the separate launch handoff).
+- Exact next action: apply migration 530 in an isolated fixture, run the
+  credit verifier + concurrency/race scripts against it, then build the
+  customer "My Cards" UI slice.
 
 ### OxSteed Credit code completion scope (2026-09-14)
 

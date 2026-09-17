@@ -4,6 +4,7 @@ const router = require('express').Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/oxsteedCreditController');
+const cardController = require('../controllers/oxsteedCreditCardController');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -31,5 +32,17 @@ router.post('/holds/:holdId/release', creditMutationLimiter, controller.releaseM
 router.post('/transfers', creditMutationLimiter, controller.transferMyCredit);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, controller.openMyDispute);
+
+// OxSteed Credit card ecosystem: issuance, activation, lifecycle, and PIN
+// management. Redemption/cash-out happen from device-authenticated kiosk
+// routes (see routes/oxsteedCreditKiosk.js), not here.
+router.get('/cards', cardController.listMyCards);
+router.post('/cards/virtual', creditMutationLimiter, cardController.issueMyVirtualCard);
+router.post('/cards/physical', creditMutationLimiter, cardController.requestMyPhysicalCard);
+router.post('/cards/:cardId/activate', creditMutationLimiter, cardController.activateMyCard);
+router.post('/cards/:cardId/freeze', creditMutationLimiter, cardController.freezeMyCard);
+router.post('/cards/:cardId/unfreeze', creditMutationLimiter, cardController.unfreezeMyCard);
+router.post('/cards/:cardId/report-lost', creditMutationLimiter, cardController.reportMyCardLost);
+router.post('/cards/:cardId/pin', creditMutationLimiter, cardController.setMyCardPin);
 
 module.exports = router;

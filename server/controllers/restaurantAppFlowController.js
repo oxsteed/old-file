@@ -37,7 +37,7 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const { resolveOrderItemModifiers } = require('./foodController');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
-const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant']);
+const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
 const DEVICE_SYNC_STATUSES = new Set(['healthy', 'degraded', 'error']);
 const ORDER_SOURCES = new Set(['counter', 'kiosk', 'tablet']);
@@ -2548,6 +2548,13 @@ function assertDeviceApp(device, appKey) {
     throw new AppError(`${appKey} device credential is required`, 403, `${appKey}_device_required`);
   }
 }
+
+// Exported additively so other device-authenticated surfaces (e.g. OxSteed
+// Credit kiosks) can reuse the same restaurant_app_devices pairing/token
+// model instead of inventing a parallel device-auth mechanism.
+exports.requireDeviceCredential = requireDeviceCredential;
+exports.deviceTokenFromRequest = deviceTokenFromRequest;
+exports.assertDeviceApp = assertDeviceApp;
 
 function queueGuestLabel(row) {
   if (row.table_label) return row.table_label;
