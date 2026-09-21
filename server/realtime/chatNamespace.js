@@ -11,6 +11,35 @@ function createChatAuthenticator({ pool, jwtSecret }) {
   }
 
   return async (socket, next) => {
+    const guestToken = socket.handshake.auth?.guestToken;
+    const guestSessionId = socket.handshake.auth?.guestSessionId;
+    if (guestToken && guestSessionId) {
+      try {
+        const crypto = require('crypto');
+        const tokenHash = crypto.createHash('sha256').update(String(guestToken)).digest('hex');
+        const { rows } = await pool.query(
+          `SELECT id, helper_id, business_id, guest_name, guest_email
+             FROM guest_profile_chat_inbound
+            WHERE id = $1
+              AND guest_access_token_hash = $2
+              AND guest_token_expires_at > NOW()
+              AND guest_verified_at IS NOT NULL`,
+          [guestSessionId, tokenHash]
+        );
+        if (!rows.length) return next(new Error('Invalid guest profile token'));
+        socket.isGuest = true;
+        socket.guestSessionId = rows[0].id;
+        socket.guestHelperId = rows[0].helper_id;
+        socket.guestBusinessId = rows[0].business_id;
+        socket.guestName = rows[0].guest_name;
+        socket.guestEmail = rows[0].guest_email;
+        // Guests are not tracked as provider presence.
+        return next();
+      } catch (err) {
+        return next(new Error('Guest profile authentication failed'));
+      }
+    }
+
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) return next(new Error('Authentication required'));
 
@@ -33,6 +62,19 @@ function createChatAuthenticator({ pool, jwtSecret }) {
 
 function bindChatNamespace(namespace, { pool, socketService, logger }) {
   namespace.on('connection', (socket) => {
+    if (socket.isGuest) {
+      socket.join(`guest_session_${socket.guestSessionId}`);
+      logger.debug('Guest socket connected to /chat', {
+        guestSessionId: socket.guestSessionId,
+        helperId: socket.guestHelperId,
+        socketId: socket.id,
+      });
+      socket.on('disconnect', () => {
+        logger.debug('Guest socket disconnected', { socketId: socket.id });
+      });
+      return;
+    }
+
     const userId = socket.userId;
     socket.join(`user_${userId}`);
 

@@ -5,6 +5,7 @@ const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const pool          = require('../db');
 const socketService = require('../services/socketService');
+const guestProfileVerify = require('../services/guestProfileChatVerification');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
@@ -641,7 +642,37 @@ exports.profileChatMessage = async (req, res, next) => {
     }
 
     // ── Live mode: authenticated customer + (owner OR rep) online + destination=helper ──
-    if (destination === 'helper' && (helperOnline || anyRepOnline) && userId) {
+    
+    // Verified guest session (OTP) — optional live path when provider is online
+    let verifiedGuestSession = req.guestSession || null;
+    if (!verifiedGuestSession && !userId) {
+      try {
+        const { token, sessionId } = guestProfileVerify.extractGuestAuth(req);
+        if (token && sessionId) {
+          const session = await guestProfileVerify.loadVerifiedGuestSession(token, sessionId);
+          if (session && guestProfileVerify.tokenMatchesProfile(session, {
+            helperId: resolvedHelperId,
+            businessId: resolvedBusinessId,
+          })) {
+            verifiedGuestSession = session;
+          }
+        }
+      } catch (guestAuthErr) {
+        logger.warn('guest profile token resolve failed', { err: guestAuthErr.message });
+      }
+    }
+
+    const providerOnline = helperOnline || anyRepOnline;
+    const mayEnterLive = guestProfileVerify.canEnterLiveMode({
+      destination,
+      providerOnline,
+      userId,
+      verifiedGuest: verifiedGuestSession,
+    });
+
+    // ── Live mode: authenticated customer OR verified guest + provider online + destination=helper ──
+    if (mayEnterLive && userId) {
+
       // Get or create conversation - scope by business_id when present
       const existingConv = await pool.query(
         resolvedBusinessId
@@ -762,7 +793,60 @@ exports.profileChatMessage = async (req, res, next) => {
       });
     }
 
-    // ── AI mode: helper offline, unauthenticated, or destination=oxsteed ──
+    // ── Live mode (verified guest): persist on guest_profile_chat_* + notify provider ──
+    if (mayEnterLive && verifiedGuestSession) {
+      const lastMsg = msgHistory[msgHistory.length - 1];
+      const content = String(lastMsg.content || '').trim().slice(0, 2000);
+      if (!content) throw new AppError('Empty message', 400, 'validation_failed', { content: 'Message cannot be empty' });
+
+      await pool.query(
+        `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
+         VALUES ($1, 'guest', $2, $3)`,
+        [verifiedGuestSession.id, verifiedGuestSession.guest_name, content]
+      );
+      await pool.query(
+        `UPDATE guest_profile_chat_inbound
+         SET message = COALESCE(message, $2),
+             last_guest_message_at = NOW(),
+             last_activity_at = NOW(),
+             guest_messages_count = COALESCE(guest_messages_count, 0) + 1
+         WHERE id = $1`,
+        [verifiedGuestSession.id, content]
+      ).catch(() => pool.query(
+        `UPDATE guest_profile_chat_inbound
+         SET message = COALESCE(message, $2)
+         WHERE id = $1`,
+        [verifiedGuestSession.id, content]
+      ));
+
+      const socketPayload = {
+        conversationId: null,
+        guestInquiry: true,
+        guestSessionId: verifiedGuestSession.id,
+        message: {
+          content,
+          sender_type: 'guest',
+          sender_name: verifiedGuestSession.guest_name,
+        },
+        senderName: verifiedGuestSession.guest_name,
+        senderAvatar: null,
+        guestName: verifiedGuestSession.guest_name,
+        guestEmail: verifiedGuestSession.guest_email,
+      };
+      const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
+      notifyTargets.forEach((targetId) => {
+        socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
+      });
+
+      return res.json({
+        type: 'live',
+        guestSessionId: verifiedGuestSession.id,
+        helperOnline: true,
+        mode: 'guest_live',
+      });
+    }
+
+    // ── AI mode: helper offline, unverified guest, or destination=oxsteed ──
 
     // Resolve or generate a threadId for this AI session
     const threadId = threadMemory.isValidThreadId(incomingThreadId)
@@ -866,6 +950,8 @@ exports.profileChatMessage = async (req, res, next) => {
       authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
       appointmentCreated,
       bookingError,
+      mode: (!helperOnline && destination === 'helper') ? 'offline_ai' : 'ai',
+      guestVerified: Boolean(typeof verifiedGuestSession !== 'undefined' && verifiedGuestSession),
     });
   } catch (err) {
     next(err);
@@ -1350,6 +1436,76 @@ exports.getProfileContext = async (req, res, next) => {
 
     throw new AppError('Invalid profile type', 400, 'validation_failed', { type: 'Must be helper or business' });
   } catch (err) {
+    next(err);
+  }
+};
+
+
+/**
+ * POST /api/chat/sessions/guest/verify/start
+ * Public — create/resume pending guest profile session and email OTP.
+ */
+exports.startGuestProfileChatVerification = async (req, res, next) => {
+  try {
+    const { helperId, businessId, guestName, guestEmail } = req.body || {};
+    const result = await guestProfileVerify.startGuestVerification({
+      helperId,
+      businessId,
+      guestName,
+      guestEmail,
+    });
+    return res.status(201).json({ success: true, ...result });
+  } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code || 'error' });
+    }
+    next(err);
+  }
+};
+
+/**
+ * POST /api/chat/sessions/guest/verify
+ * Public — consume OTP and issue profile-bound guest token.
+ */
+exports.verifyGuestProfileChatCode = async (req, res, next) => {
+  try {
+    const { sessionId, guestEmail, code } = req.body || {};
+    const result = await guestProfileVerify.verifyGuestCode({ sessionId, guestEmail, code });
+
+    // Include provider online hint for client routing UI
+    let providerOnline = false;
+    try {
+      providerOnline = socketService.isOnline(result.helperId);
+      if (!providerOnline && result.businessId) {
+        const reps = await pool.query(
+          `SELECT member_id FROM business_members WHERE business_id = $1 AND status = 'active'`,
+          [result.businessId]
+        );
+        providerOnline = reps.rows.some((r) => socketService.isOnline(r.member_id));
+      }
+    } catch { /* ignore */ }
+
+    return res.json({ success: true, ...result, providerOnline });
+  } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code || 'error' });
+    }
+    next(err);
+  }
+};
+
+/**
+ * POST /api/chat/sessions/guest/verify/resend
+ */
+exports.resendGuestProfileChatCode = async (req, res, next) => {
+  try {
+    const { sessionId, guestEmail } = req.body || {};
+    const result = await guestProfileVerify.resendGuestCode({ sessionId, guestEmail });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code || 'error' });
+    }
     next(err);
   }
 };

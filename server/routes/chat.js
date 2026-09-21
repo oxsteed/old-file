@@ -4,11 +4,14 @@ const {
   profileChatMessage,
   guestProfileChatSession,
   claimGuestProfileChatSessions,
+  startGuestProfileChatVerification,
+  verifyGuestProfileChatCode,
+  resendGuestProfileChatCode,
   financialAdvisor,
   transcribeAudio,
   getProfileContext,
 } = require('../controllers/chatController');
-const { chatLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
+const { chatLimiter, profileChatLimiter, authLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -19,9 +22,33 @@ const logger = require('../utils/logger');
 // which the profileChatMessage handler treats as "AI mode".
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
+const {
+  extractGuestAuth,
+  loadVerifiedGuestSession,
+  tokenMatchesProfile,
+} = require('../services/guestProfileChatVerification');
+
 const optionalAuth = async (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return next();
+  const header = req.headers.authorization || '';
+  if (header.startsWith('Guest ')) {
+    try {
+      const { token, sessionId } = extractGuestAuth(req);
+      const session = await loadVerifiedGuestSession(token, sessionId);
+      if (session) {
+        const helperId = req.body?.helperId || req.body?.helper_id;
+        const businessId = req.body?.businessId ?? req.body?.business_id ?? null;
+        // When body omits ids (rare), still attach session; handler re-checks binding.
+        if (!helperId || tokenMatchesProfile(session, { helperId, businessId })) {
+          req.guestSession = session;
+          req.guestToken = token;
+        }
+      }
+    } catch {
+      // Invalid guest token - continue without guest session
+    }
+    return next();
+  }
+  if (!header.startsWith('Bearer ')) return next();
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
@@ -49,6 +76,12 @@ router.post('/financial-advisor', chatLimiter, authenticate, financialAdvisor);
 // Auth optional - authenticated users get live routing when helper is online;
 // unauthenticated users get AI-only mode.
 router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, profileChatMessage);
+
+
+// Guest email verification for profile messenger (OTP → bound guest token)
+router.post('/sessions/guest/verify/start', authLimiter, profileChatLimiter, startGuestProfileChatVerification);
+router.post('/sessions/guest/verify', authLimiter, profileChatLimiter, verifyGuestProfileChatCode);
+router.post('/sessions/guest/verify/resend', authLimiter, profileChatLimiter, resendGuestProfileChatCode);
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);
