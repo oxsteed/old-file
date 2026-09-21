@@ -3543,31 +3543,120 @@
     "jobs": "Travay",
     "noCategoryMatches": "Pa gen kategori ki mache ak \"{{search}}\"",
     "capture": {
-      "accessDenied": "Aksè kamera oswa mikwofòn refize. Bay pèmisyon nan paramèt navigatè a epi eseye ankò.", "deviceNotFound": "Nou pa jwenn kamera oswa mikwofòn sou aparèy sa a.", "startError": "Nou pa t kapab kòmanse anrejistreman an: {{error}}", "takePhoto": "📷 Pran yon foto an dirèk", "recordVideo": "🎥 Anrejistre yon videyo", "recordAudio": "🎙 Anrejistre odyo", "close": "Fèmen", "starting": "Ap kòmanse…", "processing": "Ap trete…", "snapPhoto": "📷 Pran foto", "startRecording": "⏺ Kòmanse anrejistre", "stop": "⏹ Kanpe", "microphoneReady": "Mikwofòn pare"
+      "accessDenied": "Aksè kamera oswa mikwofòn refize. Bay pèmisyon nan paramèt navigatè a epi eseye ankò.",
+      "deviceNotFound": "Nou pa jwenn kamera oswa mikwofòn sou aparèy sa a.",
+      "startError": "Nou pa t kapab kòmanse anrejistreman an: {{error}}",
+      "takePhoto": "📷 Pran yon foto an dirèk",
+      "recordVideo": "🎥 Anrejistre yon videyo",
+      "recordAudio": "🎙 Anrejistre odyo",
+      "close": "Fèmen",
+      "starting": "Ap kòmanse…",
+      "processing": "Ap trete…",
+      "snapPhoto": "📷 Pran foto",
+      "startRecording": "⏺ Kòmanse anrejistre",
+      "stop": "⏹ Kanpe",
+      "microphoneReady": "Mikwofòn pare"
     },
     "stepIntro": {
-      "details": { "eyebrow": "Defini travay la", "title": "Di OxSteed sa ki bezwen fèt.", "body": "Yon tit klè, yon kote presi, ak bon medya ede bon moun yo rekonèt travay la pi vit." },
-      "requirements": { "eyebrow": "Mete kondisyon yo", "title": "Defini kiyès ki kalifye pou fè òf.", "body": "Sèvi ak kondisyon pou filtre moun, ekip, zouti, ak siy konfyans travay sa a bezwen." },
-      "budget": { "eyebrow": "Bidjè ak tan", "title": "Fè delè a reyalis.", "body": "Mete kalite bidjè, ijans, preferans orè, ak nòt prive pou resevwa pi bon òf." },
-      "review": { "eyebrow": "Dènye revizyon", "title": "Tcheke anons la anvan li ale an dirèk.", "body": "Sa a se dènye verifikasyon anvan moun ki kalifye yo kòmanse voye òf." }
+      "details": {
+        "eyebrow": "Defini travay la",
+        "title": "Di OxSteed sa ki bezwen fèt.",
+        "body": "Yon tit klè, yon kote presi, ak bon medya ede bon moun yo rekonèt travay la pi vit."
+      },
+      "requirements": {
+        "eyebrow": "Mete kondisyon yo",
+        "title": "Defini kiyès ki kalifye pou fè òf.",
+        "body": "Sèvi ak kondisyon pou filtre moun, ekip, zouti, ak siy konfyans travay sa a bezwen."
+      },
+      "budget": {
+        "eyebrow": "Bidjè ak tan",
+        "title": "Fè delè a reyalis.",
+        "body": "Mete kalite bidjè, ijans, preferans orè, ak nòt prive pou resevwa pi bon òf."
+      },
+      "review": {
+        "eyebrow": "Dènye revizyon",
+        "title": "Tcheke anons la anvan li ale an dirèk.",
+        "body": "Sa a se dènye verifikasyon anvan moun ki kalifye yo kòmanse voye òf."
+      }
     },
     "metaDescription": "Dekri travay ou bezwen an epi resevwa òf nan men moun lokal ou ka fè konfyans. Li gratis pou poste.",
-    "hero": { "kicker": "Anons travay kliyan", "subtitle": "Dekri sa ki bezwen fèt, defini kiyès ki ka fè òf, epi fè yon travay ki pa klè tounen yon demann moun ka evalye fasil.", "free": "Gratis pou poste", "requirements": "Mete pwòp kondisyon ou", "bids": "Envite òf konpetitif", "betterBidsTitle": "Sa ki fè òf yo pi bon", "tipScope": "Detay presi pi bon pase yon deskripsyon jeneral.", "tipMedia": "Foto oswa videyo diminye kesyon ale-vini.", "tipRequirements": "Kondisyon yo evite pèdi tan ak moun ki pa adapte." },
-    "directHelperNotice": "Demann dirèk pou {{name}}. Y ap resevwa yon notifikasyon lè ou poste travay la.", "thisHelper": "moun sa a", "viewProfile": "Gade pwofil",
+    "hero": {
+      "kicker": "Anons travay kliyan",
+      "subtitle": "Dekri sa ki bezwen fèt, defini kiyès ki ka fè òf, epi fè yon travay ki pa klè tounen yon demann moun ka evalye fasil.",
+      "free": "Gratis pou poste",
+      "requirements": "Mete pwòp kondisyon ou",
+      "bids": "Envite òf konpetitif",
+      "betterBidsTitle": "Sa ki fè òf yo pi bon",
+      "tipScope": "Detay presi pi bon pase yon deskripsyon jeneral.",
+      "tipMedia": "Foto oswa videyo diminye kesyon ale-vini.",
+      "tipRequirements": "Kondisyon yo evite pèdi tan ak moun ki pa adapte."
+    },
+    "directHelperNotice": "Demann dirèk pou {{name}}. Y ap resevwa yon notifikasyon lè ou poste travay la.",
+    "thisHelper": "moun sa a",
+    "viewProfile": "Gade pwofil",
     "maintenanceMode": "Mòd demann antretyen aktive. Ajoute foto, nòt aksè, ijans, ak lè reparasyon ou prefere pou responsab la ka aksepte, pwograme, oswa bay travay la.",
-    "currentStep": "Etap aktyèl", "helperFilters": "Filtè moun", "mediaAdded": "Medya ajoute", "optional": "Opsyonèl",
-    "mediaTabs": { "photos": "Foto", "video": "Videyo", "audio": "Odyo" }, "clickToUpload": "Klike pou telechaje {{type}}", "orDragDrop": "oswa trennen epi depoze",
-    "mediaLimits": { "photos": "JPG, PNG, WEBP · jiska 5 foto · 10 MB chak", "video": "MP4, MOV · jiska 1 videyo · 100 MB", "audio": "MP3, WAV · jiska 1 fichye · 20 MB" },
-    "previewNumber": "Apèsi {{number}}", "remove": "Retire",
-    "credentialNotice": "Lè yon moun bay lisans oswa asirans, OxSteed ap eseye verifye yo. Moun nan konfime tout lòt kondisyon yo anvan li fè òf.", "dismiss": "Fèmen",
-    "licenseTypes": { "select": "Chwazi kalite lisans…", "ohElectrician": "Elektrisyen Ohio (OCILB)", "ohPlumber": "Plonbye Ohio", "ohHvac": "Kontraktè HVAC Ohio", "generalContractor": "Kontraktè jeneral", "other": "Lòt / Presize nan deskripsyon" },
-    "skillLevels": { "beginner": "Debitan - travay senp", "intermediate": "Entèmedyè - 2 ane oswa plis", "advanced": "Avanse - 5 ane oswa plis", "expert": "Ekspè / Mèt" },
-    "crewOptions": { "solo": "Pou kont li (1 moun)", "two": "2 moun", "three": "3 moun", "fourPlus": "4 moun oswa plis" },
-    "removeSkill": "Retire {{name}}", "strictRequirementsWarning": "Kondisyon strik ka limite kantite moun ki ka fè òf. Ou ka ajiste yo apre ou poste.", "openBidHelp": "Moun yo ap voye pwòp pri yo. Ou ap wè tout òf yo epi chwazi sa ki mache ak bidjè ou.",
-    "stepReviewPostLabel": "Etap 4 sou 4 - Revize epi poste", "reviewHelp": "Tcheke tout bagay kòrèk anvan ou poste.", "edit": "Modifye", "readOnlySkill": "{{name}}, sèlman pou li", "mediaNumber": "Medya {{number}}", "nextStep": "Pwochen etap", "postAndInvite": "Poste travay epi envite òf", "jobPostingSummary": "Rezime anons travay la", "jobSummary": "Rezime travay la", "requirementsToConfirm": "Moun yo dwe konfime {{count}} kondisyon anvan yo ka fè òf sou travay sa a.",
-    "beforePost": "Anvan ou poste", "easierToPrice": "Fè travay la pi fasil pou bay pri.",
-    "beforePostTips": { "details": "Bay detay egzak sou pwoblèm nan, pa sèlman kategori a.", "dates": "Ajoute dat ou prefere si aksè a depann de orè ou.", "tools": "Ekri zouti, pèmi, oswa materyèl espesyal moun yo dwe prevwa." },
-    "whatHappensNext": "Sa k ap pase apre", "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
+    "currentStep": "Etap aktyèl",
+    "helperFilters": "Filtè moun",
+    "mediaAdded": "Medya ajoute",
+    "optional": "Opsyonèl",
+    "mediaTabs": {
+      "photos": "Foto",
+      "video": "Videyo",
+      "audio": "Odyo"
+    },
+    "clickToUpload": "Klike pou telechaje {{type}}",
+    "orDragDrop": "oswa trennen epi depoze",
+    "mediaLimits": {
+      "photos": "JPG, PNG, WEBP · jiska 5 foto · 10 MB chak",
+      "video": "MP4, MOV · jiska 1 videyo · 100 MB",
+      "audio": "MP3, WAV · jiska 1 fichye · 20 MB"
+    },
+    "previewNumber": "Apèsi {{number}}",
+    "remove": "Retire",
+    "credentialNotice": "Lè yon moun bay lisans oswa asirans, OxSteed ap eseye verifye yo. Moun nan konfime tout lòt kondisyon yo anvan li fè òf.",
+    "dismiss": "Fèmen",
+    "licenseTypes": {
+      "select": "Chwazi kalite lisans…",
+      "ohElectrician": "Elektrisyen Ohio (OCILB)",
+      "ohPlumber": "Plonbye Ohio",
+      "ohHvac": "Kontraktè HVAC Ohio",
+      "generalContractor": "Kontraktè jeneral",
+      "other": "Lòt / Presize nan deskripsyon"
+    },
+    "skillLevels": {
+      "beginner": "Debitan - travay senp",
+      "intermediate": "Entèmedyè - 2 ane oswa plis",
+      "advanced": "Avanse - 5 ane oswa plis",
+      "expert": "Ekspè / Mèt"
+    },
+    "crewOptions": {
+      "solo": "Pou kont li (1 moun)",
+      "two": "2 moun",
+      "three": "3 moun",
+      "fourPlus": "4 moun oswa plis"
+    },
+    "removeSkill": "Retire {{name}}",
+    "strictRequirementsWarning": "Kondisyon strik ka limite kantite moun ki ka fè òf. Ou ka ajiste yo apre ou poste.",
+    "openBidHelp": "Moun yo ap voye pwòp pri yo. Ou ap wè tout òf yo epi chwazi sa ki mache ak bidjè ou.",
+    "stepReviewPostLabel": "Etap 4 sou 4 - Revize epi poste",
+    "reviewHelp": "Tcheke tout bagay kòrèk anvan ou poste.",
+    "edit": "Modifye",
+    "readOnlySkill": "{{name}}, sèlman pou li",
+    "mediaNumber": "Medya {{number}}",
+    "nextStep": "Pwochen etap",
+    "postAndInvite": "Poste travay epi envite òf",
+    "jobPostingSummary": "Rezime anons travay la",
+    "jobSummary": "Rezime travay la",
+    "requirementsToConfirm": "Moun yo dwe konfime {{count}} kondisyon anvan yo ka fè òf sou travay sa a.",
+    "beforePost": "Anvan ou poste",
+    "easierToPrice": "Fè travay la pi fasil pou bay pri.",
+    "beforePostTips": {
+      "details": "Bay detay egzak sou pwoblèm nan, pa sèlman kategori a.",
+      "dates": "Ajoute dat ou prefere si aksè a depann de orè ou.",
+      "tools": "Ekri zouti, pèmi, oswa materyèl espesyal moun yo dwe prevwa."
+    },
+    "whatHappensNext": "Sa k ap pase apre",
+    "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
     "bidNow": "Fè Òf sou Travay sa",
@@ -4254,7 +4343,14 @@
     "jobCount": "{{count}} travay jwenn"
   },
   "support": {
-    "liveWait": {"title":"N ap tann yon ajan sipò","body":"N ap chèche yon ajan ki disponib. Ou ka ajoute detay anba a pandan w ap tann, oswa rele nou oubyen voye yon mesaj tèks.","unavailable":"Pa gen ajan ki disponib kounye a","fallback":"Nou anrejistre demann ou an. Kite yon mesaj anba a pou swivi, oswa rele oubyen voye yon mesaj tèks nan +1 (937) 408-5169.","connected":"Yon ajan sipò rantre nan konvèsasyon an","closed":"Konvèsasyon sa a fèmen"},
+    "liveWait": {
+      "title": "N ap tann yon ajan sipò",
+      "body": "N ap chèche yon ajan ki disponib. Ou ka ajoute detay anba a pandan w ap tann, oswa rele nou oubyen voye yon mesaj tèks.",
+      "unavailable": "Pa gen ajan ki disponib kounye a",
+      "fallback": "Nou anrejistre demann ou an. Kite yon mesaj anba a pou swivi, oswa rele oubyen voye yon mesaj tèks nan +1 (937) 408-5169.",
+      "connected": "Yon ajan sipò rantre nan konvèsasyon an",
+      "closed": "Konvèsasyon sa a fèmen"
+    },
     "helpTitle": "Kijan nou ka ede ou?",
     "helpSubtitle": "Poze yon kesyon oswa kòmanse yon konvèsasyon ak asistan IA nou an.",
     "placeholder": "Poze yon kesyon…",
@@ -6022,8 +6118,8 @@
       "sectionFaqs": "FAQ",
       "sectionPolicies": "Règleman"
     },
-  "chat": {
-    "expandChat": "Elaji chat la",
+    "chat": {
+      "expandChat": "Elaji chat la",
       "aiAssistant": "Asistan IA",
       "onlineNow": "Anliy kounye a",
       "availableToday": "Disponib jodi a",
@@ -9363,13 +9459,23 @@
     "success": "Demann rezèvasyon an voye!",
     "loading": "Ap chaje sèvis la…",
     "notFound": "Nou pa jwenn sèvis la.",
-    "sections": { "details": "Detay sèvis la", "selectDate": "Chwazi yon dat", "selectTime": "Chwazi yon lè" },
+    "sections": {
+      "details": "Detay sèvis la",
+      "selectDate": "Chwazi yon dat",
+      "selectTime": "Chwazi yon lè"
+    },
     "durationLabel": "Dire",
     "durationValue_one": "{{count}} minit",
     "durationValue_other": "{{count}} minit",
     "basePriceLabel": "Pri debaz",
     "noAvailableSlots": "Pa gen lè disponib nan dat sa a.",
-    "summary": { "title": "Rezime rezèvasyon an", "dateLabel": "Dat", "timeLabel": "Lè", "basePriceLabel": "Pri debaz", "totalPriceLabel": "Total" },
+    "summary": {
+      "title": "Rezime rezèvasyon an",
+      "dateLabel": "Dat",
+      "timeLabel": "Lè",
+      "basePriceLabel": "Pri debaz",
+      "totalPriceLabel": "Total"
+    },
     "form": {
       "title": "Enfòmasyon ou",
       "nameLabel": "Non",
@@ -9382,7 +9488,10 @@
       "notesPlaceholder": "Pataje nenpòt detay biznis la dwe konnen…",
       "termsText": "Mwen aksepte kondisyon rezèvasyon ak règleman anilasyon yo."
     },
-    "buttons": { "booking": "Ap voye demann lan…", "bookNow": "Rezève · {{price}}" }
+    "buttons": {
+      "booking": "Ap voye demann lan…",
+      "bookNow": "Rezève · {{price}}"
+    }
   },
   "booking": {
     "pageTitle": "Rezève yon èd",
@@ -13607,18 +13716,182 @@
       "soldOut": "Fini",
       "menuSections": "Seksyon meni",
       "jumpTo": "Ale nan",
-      "paymentApp": "Aplikasyon peman / QR", "paymentReferenceHint": "Mete nimewo kòmand ou oswa non ou nan nòt peman an.", "receiptUploaded": "Resi telechaje", "proofUploadError": "Nou pa t kapab telechaje prèv peman an.", "proofRequiredError": "Telechaje prèv peman oswa ajoute yon nimewo konfimasyon.", "loadingMenu": "Ap chaje meni an…", "notFoundTitle": "Nou pa jwenn restoran an", "browseRestaurants": "Gade restoran yo", "takeout": "Pou pote ale", "new": "Nouvo", "openNow": "Louvri kounye a", "minuteRange": "{{start}}–{{end}} min", "freePickup": "Ranmase gratis", "freeDelivery": "Livrezon gratis", "deliveryPrice": "Livrezon {{price}}", "minimumOrder": "Kòmand minimòm {{price}}", "noMinimum": "Pa gen minimòm",
-      "days": { "monday": "Len", "tuesday": "Mad", "wednesday": "Mèk", "thursday": "Jed", "friday": "Van", "saturday": "Sam", "sunday": "Dim" },
-      "tags": { "vegetarian": "Vejetaryen", "vegan": "Vegan", "gf": "San gluten", "gluten-free": "San gluten", "spicy": "Pike", "veg": "Vejetaryen", "halal": "Halal", "keto": "Keto", "dairy_free": "San pwodui letye" },
-      "filters": { "all": "Tout", "vegetarian": "Vejetaryen", "vegan": "Vegan", "gf": "San gluten", "spicy": "Pike" },
-      "filteredBy": "Filtre - {{filter}}", "popularItems": "Atik popilè", "guest": "Kliyan", "specialOffer": "Òf espesyal", "percentOff": "{{percent}}% rabè", "deal": "Pwomosyon", "endsOn": "Fini {{date}}", "moreItems": " + {{count}} lòt", "itemAdded": "{{item}} ajoute", "item": "Atik", "reorderError": "Nou pa ka ajoute kòmand sa a ankò kounye a.", "linkCopied": "Lyen kopye!",
-      "tabs": { "menu": "Meni", "info": "Enfòmasyon", "reviews": "Evalyasyon", "deals": "Pwomosyon" },
-      "timeSlots": { "asap": "Pi vit posib", "in15": "Nan 15 minit", "adds15": "Ajoute 15 min nan tan an", "in30": "Nan 30 minit", "scheduled": "Pwograme davans", "later": "Pwograme pou pita", "chooseTime": "Chwazi yon lè presi" },
-      "estimated": "Anviwon {{time}}", "payAtRestaurant": "Peye nan restoran an", "payOnDelivery": "Peye lè yo livre", "cardOrCash": "Kat oswa lajan kach, peye restoran an", "restaurantCredit": "Kredi restoran", "creditAvailable": "{{amount}} disponib", "insufficientCredit": "Balans pa sifi - {{amount}} disponib", "payWithApp": "Peye ak aplikasyon restoran an", "sendTo": "Voye bay {{handle}}", "usePaymentInstructions": "Swiv enstriksyon peman restoran an epi telechaje prèv", "pickupDetails": "Detay pou ranmase", "deliveryDetails": "Detay livrezon", "deliveryFee": "Frè livrezon", "free": "Gratis",
-      "orderNumber": "Kòmand ou #{{number}}", "readyForPickupShort": "Pare pou ranmase!", "dismissOrderStatus": "Fèmen estati kòmand lan", "share": "Pataje", "orderItems": "Kòmand · {{count}} atik", "startOrder": "Kòmanse kòmand", "hours": "Orè", "location": "Adrès", "contact": "Kontak", "searchMenu": "Chèche nan {{restaurant}}…", "reorder": "Kòmande ankò", "noMenuItems": "Pa gen atik nan meni an poko", "searchResults": "{{count}} rezilta pou “{{query}}”", "noResults": "Pa gen rezilta pou “{{query}}”", "noItemsHere": "Pa gen atik isit la poko", "tryDifferentSearch": "Eseye yon lòt mo rechèch", "tryDifferentCategory": "Eseye yon lòt kategori", "hoursUnavailable": "Orè pa disponib", "noContact": "Pa gen enfòmasyon kontak poko", "reviewCount": "{{count}} evalyasyon", "noReviews": "Pa gen evalyasyon poko", "firstReview": "Se pou ou premye bay evalyasyon apre kòmand ou.", "noDeals": "Pa gen pwomosyon aktif kounye a", "checkDealsLater": "Tounen pita pou pwomosyon yo.", "viewCart": "Gade panye a",
-      "payment": "Peman", "emptyCart": "Panye ou vid", "emptyCartHelp": "Ajoute atik nan meni an pou kòmanse", "browseMenu": "Gade meni an", "subtotal": "Sou-total", "checkoutTotal": "Peye · {{total}}", "signInRequired": "Ou dwe konekte", "signInCheckoutTitle": "Konekte pou kontinye ak peman an", "signInCheckoutBody": "Tout moun ka gade meni an, men dènye etap kòmand lan konekte ak yon kont OxSteed pou ou ka swiv, mete ajou, epi jwenn kòmand ou ankò.", "streetAddress": "Adrès lari", "streetPlaceholder": "Lari ak nimewo…", "aptSuite": "Apatman / Inite", "optional": "opsyonèl", "aptPlaceholder": "Apatman 4B…", "pickupTime": "Lè pou ranmase", "deliveryTime": "Lè livrezon", "signInToCheckout": "Konekte pou peye", "continueToPayment": "Kontinye nan peman →", "signInOrderTitle": "Konekte pou pase kòmand sa a", "signInOrderBody": "Ou ka gade meni san kont, men kòmand lan konekte ak kont OxSteed ou pou estati ak istwa li rete nan pwofil ou.", "signInContinue": "Konekte pou kontinye", "backToCart": "Tounen nan panye a",
-      "paymentMethod": "Metòd peman", "creditSummary": "{{available}} disponib{{reserved}}", "creditReserved": " · {{amount}} rezève", "addCredit": "Ajoute kredi oswa gade balans ou", "manageCredit": "Jere kredi →", "payDirectly": "Peye restoran an dirèkteman", "sendPaymentTo": "Voye peman bay", "paymentAccountCopied": "Kont peman kopye", "paymentAccountCopyError": "Nou pa t kapab kopye kont peman an.", "copy": "Kopye", "paymentQrAlt": "Kòd QR peman restoran an", "confirmPaymentQuestion": "Kijan ou vle konfime peman an?", "uploadReceipt": "Telechaje resi", "enterConfirmation": "Antre konfimasyon", "receiptAttached": "Resi tache", "viewReceipt": "Gade resi", "uploadingReceipt": "Ap telechaje resi…", "chooseReceipt": "Chwazi ekran, resi, oswa PDF", "confirmationPlaceholder": "Nimewo konfimasyon oswa non moun ki voye a", "addNote": "Ajoute yon nòt (opsyonèl)", "paymentNotePlaceholder": "Nenpòt enfòmasyon ki ede restoran an jwenn peman an", "proofRequiredHelp": "Ajoute yon resi oswa nimewo konfimasyon anvan ou pase kòmand lan.", "proofOptionalHelp": "Prèv la opsyonèl. Restoran an ap konfime peman an anvan li fini kòmand lan.",
-      "promoCode": "Kòd pwomosyon", "promoPlaceholder": "pa egzanp ETE10", "orderSummary": "Rezime kòmand", "creditChargeNote": "💠 Y ap retire kredi restoran ou lè ou pase kòmand lan.", "directPaymentNote": "📲 Voye prèv peman ak kòmand lan pou restoran an ka idantifye li byen vit.", "counterPaymentNote": "🏪 Ou peye restoran an nan kontwa a lè kòmand lan pare. Yo pa chaje okenn kat sou entènèt.", "deliveryPaymentNote": "🏪 Ou peye restoran an lè yo livre kòmand lan. Yo pa chaje okenn kat sou entènèt.", "placingOrder": "Ap voye kòmand lan…", "placeOrderTotal": "Pase kòmand · {{total}}", "confirmedNumber": "Nimewo kòmand ou se #{{number}}.", "readyShortly": "L ap pare byento.", "confirmedPreparing": "Kòmand ou konfime epi y ap prepare li.", "readyNotification": "N ap fè w konnen lè li pare.", "liveStatus": "Estati an dirèk: {{status}}", "estimatedTime": "Tan estime", "backToMenu": "Tounen nan meni an", "required": "Obligatwa", "specialInstructions": "Enstriksyon espesyal", "specialInstructionsPlaceholder": "Pa egzanp, san zonyon, sòs sou kote, sèvyèt anplis…", "allergyPlaceholder": "Alèji, ranplasman…", "addQuantity": "Ajoute {{count}} · {{total}}"
+      "paymentApp": "Aplikasyon peman / QR",
+      "paymentReferenceHint": "Mete nimewo kòmand ou oswa non ou nan nòt peman an.",
+      "receiptUploaded": "Resi telechaje",
+      "proofUploadError": "Nou pa t kapab telechaje prèv peman an.",
+      "proofRequiredError": "Telechaje prèv peman oswa ajoute yon nimewo konfimasyon.",
+      "loadingMenu": "Ap chaje meni an…",
+      "notFoundTitle": "Nou pa jwenn restoran an",
+      "browseRestaurants": "Gade restoran yo",
+      "takeout": "Pou pote ale",
+      "new": "Nouvo",
+      "openNow": "Louvri kounye a",
+      "minuteRange": "{{start}}–{{end}} min",
+      "freePickup": "Ranmase gratis",
+      "freeDelivery": "Livrezon gratis",
+      "deliveryPrice": "Livrezon {{price}}",
+      "minimumOrder": "Kòmand minimòm {{price}}",
+      "noMinimum": "Pa gen minimòm",
+      "days": {
+        "monday": "Len",
+        "tuesday": "Mad",
+        "wednesday": "Mèk",
+        "thursday": "Jed",
+        "friday": "Van",
+        "saturday": "Sam",
+        "sunday": "Dim"
+      },
+      "tags": {
+        "vegetarian": "Vejetaryen",
+        "vegan": "Vegan",
+        "gf": "San gluten",
+        "gluten-free": "San gluten",
+        "spicy": "Pike",
+        "veg": "Vejetaryen",
+        "halal": "Halal",
+        "keto": "Keto",
+        "dairy_free": "San pwodui letye"
+      },
+      "filters": {
+        "all": "Tout",
+        "vegetarian": "Vejetaryen",
+        "vegan": "Vegan",
+        "gf": "San gluten",
+        "spicy": "Pike"
+      },
+      "filteredBy": "Filtre - {{filter}}",
+      "popularItems": "Atik popilè",
+      "guest": "Kliyan",
+      "specialOffer": "Òf espesyal",
+      "percentOff": "{{percent}}% rabè",
+      "deal": "Pwomosyon",
+      "endsOn": "Fini {{date}}",
+      "moreItems": " + {{count}} lòt",
+      "itemAdded": "{{item}} ajoute",
+      "item": "Atik",
+      "reorderError": "Nou pa ka ajoute kòmand sa a ankò kounye a.",
+      "linkCopied": "Lyen kopye!",
+      "tabs": {
+        "menu": "Meni",
+        "info": "Enfòmasyon",
+        "reviews": "Evalyasyon",
+        "deals": "Pwomosyon"
+      },
+      "timeSlots": {
+        "asap": "Pi vit posib",
+        "in15": "Nan 15 minit",
+        "adds15": "Ajoute 15 min nan tan an",
+        "in30": "Nan 30 minit",
+        "scheduled": "Pwograme davans",
+        "later": "Pwograme pou pita",
+        "chooseTime": "Chwazi yon lè presi"
+      },
+      "estimated": "Anviwon {{time}}",
+      "payAtRestaurant": "Peye nan restoran an",
+      "payOnDelivery": "Peye lè yo livre",
+      "cardOrCash": "Kat oswa lajan kach, peye restoran an",
+      "restaurantCredit": "Kredi restoran",
+      "creditAvailable": "{{amount}} disponib",
+      "insufficientCredit": "Balans pa sifi - {{amount}} disponib",
+      "payWithApp": "Peye ak aplikasyon restoran an",
+      "sendTo": "Voye bay {{handle}}",
+      "usePaymentInstructions": "Swiv enstriksyon peman restoran an epi telechaje prèv",
+      "pickupDetails": "Detay pou ranmase",
+      "deliveryDetails": "Detay livrezon",
+      "deliveryFee": "Frè livrezon",
+      "free": "Gratis",
+      "orderNumber": "Kòmand ou #{{number}}",
+      "readyForPickupShort": "Pare pou ranmase!",
+      "dismissOrderStatus": "Fèmen estati kòmand lan",
+      "share": "Pataje",
+      "orderItems": "Kòmand · {{count}} atik",
+      "startOrder": "Kòmanse kòmand",
+      "hours": "Orè",
+      "location": "Adrès",
+      "contact": "Kontak",
+      "searchMenu": "Chèche nan {{restaurant}}…",
+      "reorder": "Kòmande ankò",
+      "noMenuItems": "Pa gen atik nan meni an poko",
+      "searchResults": "{{count}} rezilta pou “{{query}}”",
+      "noResults": "Pa gen rezilta pou “{{query}}”",
+      "noItemsHere": "Pa gen atik isit la poko",
+      "tryDifferentSearch": "Eseye yon lòt mo rechèch",
+      "tryDifferentCategory": "Eseye yon lòt kategori",
+      "hoursUnavailable": "Orè pa disponib",
+      "noContact": "Pa gen enfòmasyon kontak poko",
+      "reviewCount": "{{count}} evalyasyon",
+      "noReviews": "Pa gen evalyasyon poko",
+      "firstReview": "Se pou ou premye bay evalyasyon apre kòmand ou.",
+      "noDeals": "Pa gen pwomosyon aktif kounye a",
+      "checkDealsLater": "Tounen pita pou pwomosyon yo.",
+      "viewCart": "Gade panye a",
+      "payment": "Peman",
+      "emptyCart": "Panye ou vid",
+      "emptyCartHelp": "Ajoute atik nan meni an pou kòmanse",
+      "browseMenu": "Gade meni an",
+      "subtotal": "Sou-total",
+      "checkoutTotal": "Peye · {{total}}",
+      "signInRequired": "Ou dwe konekte",
+      "signInCheckoutTitle": "Konekte pou kontinye ak peman an",
+      "signInCheckoutBody": "Tout moun ka gade meni an, men dènye etap kòmand lan konekte ak yon kont OxSteed pou ou ka swiv, mete ajou, epi jwenn kòmand ou ankò.",
+      "streetAddress": "Adrès lari",
+      "streetPlaceholder": "Lari ak nimewo…",
+      "aptSuite": "Apatman / Inite",
+      "optional": "opsyonèl",
+      "aptPlaceholder": "Apatman 4B…",
+      "pickupTime": "Lè pou ranmase",
+      "deliveryTime": "Lè livrezon",
+      "signInToCheckout": "Konekte pou peye",
+      "continueToPayment": "Kontinye nan peman →",
+      "signInOrderTitle": "Konekte pou pase kòmand sa a",
+      "signInOrderBody": "Ou ka gade meni san kont, men kòmand lan konekte ak kont OxSteed ou pou estati ak istwa li rete nan pwofil ou.",
+      "signInContinue": "Konekte pou kontinye",
+      "backToCart": "Tounen nan panye a",
+      "paymentMethod": "Metòd peman",
+      "creditSummary": "{{available}} disponib{{reserved}}",
+      "creditReserved": " · {{amount}} rezève",
+      "addCredit": "Ajoute kredi oswa gade balans ou",
+      "manageCredit": "Jere kredi →",
+      "payDirectly": "Peye restoran an dirèkteman",
+      "sendPaymentTo": "Voye peman bay",
+      "paymentAccountCopied": "Kont peman kopye",
+      "paymentAccountCopyError": "Nou pa t kapab kopye kont peman an.",
+      "copy": "Kopye",
+      "paymentQrAlt": "Kòd QR peman restoran an",
+      "confirmPaymentQuestion": "Kijan ou vle konfime peman an?",
+      "uploadReceipt": "Telechaje resi",
+      "enterConfirmation": "Antre konfimasyon",
+      "receiptAttached": "Resi tache",
+      "viewReceipt": "Gade resi",
+      "uploadingReceipt": "Ap telechaje resi…",
+      "chooseReceipt": "Chwazi ekran, resi, oswa PDF",
+      "confirmationPlaceholder": "Nimewo konfimasyon oswa non moun ki voye a",
+      "addNote": "Ajoute yon nòt (opsyonèl)",
+      "paymentNotePlaceholder": "Nenpòt enfòmasyon ki ede restoran an jwenn peman an",
+      "proofRequiredHelp": "Ajoute yon resi oswa nimewo konfimasyon anvan ou pase kòmand lan.",
+      "proofOptionalHelp": "Prèv la opsyonèl. Restoran an ap konfime peman an anvan li fini kòmand lan.",
+      "promoCode": "Kòd pwomosyon",
+      "promoPlaceholder": "pa egzanp ETE10",
+      "orderSummary": "Rezime kòmand",
+      "creditChargeNote": "💠 Y ap retire kredi restoran ou lè ou pase kòmand lan.",
+      "directPaymentNote": "📲 Voye prèv peman ak kòmand lan pou restoran an ka idantifye li byen vit.",
+      "counterPaymentNote": "🏪 Ou peye restoran an nan kontwa a lè kòmand lan pare. Yo pa chaje okenn kat sou entènèt.",
+      "deliveryPaymentNote": "🏪 Ou peye restoran an lè yo livre kòmand lan. Yo pa chaje okenn kat sou entènèt.",
+      "placingOrder": "Ap voye kòmand lan…",
+      "placeOrderTotal": "Pase kòmand · {{total}}",
+      "confirmedNumber": "Nimewo kòmand ou se #{{number}}.",
+      "readyShortly": "L ap pare byento.",
+      "confirmedPreparing": "Kòmand ou konfime epi y ap prepare li.",
+      "readyNotification": "N ap fè w konnen lè li pare.",
+      "liveStatus": "Estati an dirèk: {{status}}",
+      "estimatedTime": "Tan estime",
+      "backToMenu": "Tounen nan meni an",
+      "required": "Obligatwa",
+      "specialInstructions": "Enstriksyon espesyal",
+      "specialInstructionsPlaceholder": "Pa egzanp, san zonyon, sòs sou kote, sèvyèt anplis…",
+      "allergyPlaceholder": "Alèji, ranplasman…",
+      "addQuantity": "Ajoute {{count}} · {{total}}"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",
@@ -14610,14 +14883,38 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "Sant èd OxSteed Restaurants | Kòmand ak sipò", "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants." },
-      "manager": { "title": "Sant èd OxSteed Manager | Operasyon restoran", "description": "Aprann kijan pwopriyetè ak manadjè restoran yo itilize OxSteed Manager pou kòmand, meni, ekip, rapò ak sipò." },
-      "pos": { "title": "Sant èd OxSteed POS | Kòmand ak peman", "description": "Aprann kijan pou itilize OxSteed POS pou kòmand kontwa, peman, kòmand an atant, rabè, orè ak kès." },
-      "kitchen": { "title": "Sant èd OxSteed Kitchen | Tikè ak preparasyon", "description": "Aprann kijan OxSteed Kitchen jere ke tikè, preparasyon, pase expo, disponiblite atik ak istwa sèvis." },
-      "display": { "title": "Sant èd OxSteed Display | Eta kòmand kliyan", "description": "Aprann kijan OxSteed Display sipòte eta kòmand, workflow kyòs ak mizajou pou kliyan nan restoran." },
-      "inventory": { "title": "Sant èd OxSteed Inventory | Stock ak disponiblite", "description": "Aprann kijan OxSteed Inventory sipòte swivi stock, disponiblite, konte ak operasyon restoran." },
-      "crew": { "title": "Sant èd OxSteed Crew | Workflow ekip restoran", "description": "Aprann kijan OxSteed Crew ede anplwaye restoran ak travay, lis verifikasyon ak kowòdinasyon chak jou." },
-      "runner": { "title": "Sant èd OxSteed Runner | Remiz ak livrezon", "description": "Aprann kijan OxSteed Runner sipòte ranmase kòmand, remiz, kowòdinasyon livrezon ak mizajou sèvis." }
+      "restaurant": {
+        "title": "Sant èd OxSteed Restaurants | Kòmand ak sipò",
+        "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants."
+      },
+      "manager": {
+        "title": "Sant èd OxSteed Manager | Operasyon restoran",
+        "description": "Aprann kijan pwopriyetè ak manadjè restoran yo itilize OxSteed Manager pou kòmand, meni, ekip, rapò ak sipò."
+      },
+      "pos": {
+        "title": "Sant èd OxSteed POS | Kòmand ak peman",
+        "description": "Aprann kijan pou itilize OxSteed POS pou kòmand kontwa, peman, kòmand an atant, rabè, orè ak kès."
+      },
+      "kitchen": {
+        "title": "Sant èd OxSteed Kitchen | Tikè ak preparasyon",
+        "description": "Aprann kijan OxSteed Kitchen jere ke tikè, preparasyon, pase expo, disponiblite atik ak istwa sèvis."
+      },
+      "display": {
+        "title": "Sant èd OxSteed Display | Eta kòmand kliyan",
+        "description": "Aprann kijan OxSteed Display sipòte eta kòmand, workflow kyòs ak mizajou pou kliyan nan restoran."
+      },
+      "inventory": {
+        "title": "Sant èd OxSteed Inventory | Stock ak disponiblite",
+        "description": "Aprann kijan OxSteed Inventory sipòte swivi stock, disponiblite, konte ak operasyon restoran."
+      },
+      "crew": {
+        "title": "Sant èd OxSteed Crew | Workflow ekip restoran",
+        "description": "Aprann kijan OxSteed Crew ede anplwaye restoran ak travay, lis verifikasyon ak kowòdinasyon chak jou."
+      },
+      "runner": {
+        "title": "Sant èd OxSteed Runner | Remiz ak livrezon",
+        "description": "Aprann kijan OxSteed Runner sipòte ranmase kòmand, remiz, kowòdinasyon livrezon ak mizajou sèvis."
+      }
     },
     "direct": {
       "services": {
@@ -14836,10 +15133,27 @@
       "no": "Non"
     },
     "status": {
-      "requested": "Demann fèt", "reviewing": "An revizyon", "quoted": "Quote pare", "contacted": "Kontakte", "accepted": "Aksepte", "scheduled": "Pwograme", "enRoute": "Sou wout", "started": "Kòmanse", "waitingCustomer": "Ap tann kliyan an", "completed": "Fini", "closed": "Fèmen", "cancelled": "Anile"
+      "requested": "Demann fèt",
+      "reviewing": "An revizyon",
+      "quoted": "Quote pare",
+      "contacted": "Kontakte",
+      "accepted": "Aksepte",
+      "scheduled": "Pwograme",
+      "enRoute": "Sou wout",
+      "started": "Kòmanse",
+      "waitingCustomer": "Ap tann kliyan an",
+      "completed": "Fini",
+      "closed": "Fèmen",
+      "cancelled": "Anile"
     },
     "paymentStatus": {
-      "unpaid": "Poko peye", "pending": "An atant", "submitted": "Soumèt", "partiallyPaid": "Peye an pati", "paid": "Peye", "disputed": "An diskisyon", "refunded": "Ranbouse"
+      "unpaid": "Poko peye",
+      "pending": "An atant",
+      "submitted": "Soumèt",
+      "partiallyPaid": "Peye an pati",
+      "paid": "Peye",
+      "disputed": "An diskisyon",
+      "refunded": "Ranbouse"
     },
     "history": {
       "title": "Istwa sèvis",
@@ -14848,7 +15162,9 @@
       "loadingBody": "N ap pran dosye Direct ou yo kounye a.",
       "emptyTitle": "Pa gen istwa Direct poko",
       "emptyBody": "Lè ou mande yon quote oswa pwograme yon travay, dosye a ap parèt isit la.",
-      "errors": { "load": "Nou pa t kapab chaje istwa a." }
+      "errors": {
+        "load": "Nou pa t kapab chaje istwa a."
+      }
     },
     "support": {
       "title": "Sipò ak mesaj",
@@ -14870,7 +15186,10 @@
       "send": "Voye",
       "openEscalation": "Louvri sipò an dirèk",
       "attachedConversation": "Konvèsasyon ou an kole ak demann sa a.",
-      "errors": { "load": "Nou pa t kapab chaje sipò a.", "send": "Nou pa t kapab voye mesaj la." }
+      "errors": {
+        "load": "Nou pa t kapab chaje sipò a.",
+        "send": "Nou pa t kapab voye mesaj la."
+      }
     },
     "account": {
       "title": "Pwofil kliyan ak adrès",
@@ -14884,25 +15203,75 @@
       "addLocation": "Ajoute yon adrès",
       "profileEyebrow": "Pwofil",
       "fields": {
-        "label": "Etikèt", "countryCode": "Kòd peyi", "address": "Adrès", "addressLine2": "Dezyèm liy adrès", "city": "Vil", "region": "Rejyon / eta", "postalCode": "Kòd postal", "defaultLocation": "Adrès pa defo", "notes": "Nòt"
+        "label": "Etikèt",
+        "countryCode": "Kòd peyi",
+        "address": "Adrès",
+        "addressLine2": "Dezyèm liy adrès",
+        "city": "Vil",
+        "region": "Rejyon / eta",
+        "postalCode": "Kòd postal",
+        "defaultLocation": "Adrès pa defo",
+        "notes": "Nòt"
       },
-      "placeholders": { "label": "Kay, boutik, biwo...", "notes": "Kòd pòtay, pakin, enstriksyon sèvis..." },
-      "actions": { "edit": "Modifye", "delete": "Efase", "save": "Sove adrès", "cancelEdit": "Anile modifikasyon" },
-      "messages": { "saved": "Adrès la sove.", "deleted": "Adrès la efase." },
-      "errors": { "load": "Nou pa t kapab chaje done kont lan.", "required": "Etikèt, adrès, ak vil obligatwa.", "save": "Nou pa t kapab sove adrès la." }
+      "placeholders": {
+        "label": "Kay, boutik, biwo...",
+        "notes": "Kòd pòtay, pakin, enstriksyon sèvis..."
+      },
+      "actions": {
+        "edit": "Modifye",
+        "delete": "Efase",
+        "save": "Sove adrès",
+        "cancelEdit": "Anile modifikasyon"
+      },
+      "messages": {
+        "saved": "Adrès la sove.",
+        "deleted": "Adrès la efase."
+      },
+      "errors": {
+        "load": "Nou pa t kapab chaje done kont lan.",
+        "required": "Etikèt, adrès, ak vil obligatwa.",
+        "save": "Nou pa t kapab sove adrès la."
+      }
     },
     "case": {
       "headers": {
-        "quote": { "title": "Revize quote la", "subtitle": "Revize estimasyon an epi deside si ou vle aksepte li." },
-        "book": { "title": "Pwograme vizit ou", "subtitle": "Chwazi yon lè epi konfime adrès sèvis la." },
-        "job": { "title": "Estati travay la", "subtitle": "Swiv demann lan depi quote la jouk travay la fini." },
-        "proof": { "title": "Prèv peman", "subtitle": "Telechaje yon resi oswa referans pou peman an rete kole ak dosye a." },
-        "receipt": { "title": "Konfimasyon resi", "subtitle": "Konfime prèv la resevwa epi li kole ak istwa a." },
-        "history": { "subtitle": "Gade chak demann Direct, quote, travay, ak resi." },
-        "support": { "title": "Sipò Direct", "subtitle": "Voye mesaj bay ekip OxSteed la sou travay sa a." },
-        "account": { "subtitle": "Kenbe adrès sèvis ak nòt yo pare pou pwochen vizit la." },
-        "change": { "title": "Anile oswa repwograme", "subtitle": "Chanje plan an san ou pa rekòmanse tout pwosesis la." },
-        "default": { "subtitle": "Revize epi jere dosye sa a." }
+        "quote": {
+          "title": "Revize quote la",
+          "subtitle": "Revize estimasyon an epi deside si ou vle aksepte li."
+        },
+        "book": {
+          "title": "Pwograme vizit ou",
+          "subtitle": "Chwazi yon lè epi konfime adrès sèvis la."
+        },
+        "job": {
+          "title": "Estati travay la",
+          "subtitle": "Swiv demann lan depi quote la jouk travay la fini."
+        },
+        "proof": {
+          "title": "Prèv peman",
+          "subtitle": "Telechaje yon resi oswa referans pou peman an rete kole ak dosye a."
+        },
+        "receipt": {
+          "title": "Konfimasyon resi",
+          "subtitle": "Konfime prèv la resevwa epi li kole ak istwa a."
+        },
+        "history": {
+          "subtitle": "Gade chak demann Direct, quote, travay, ak resi."
+        },
+        "support": {
+          "title": "Sipò Direct",
+          "subtitle": "Voye mesaj bay ekip OxSteed la sou travay sa a."
+        },
+        "account": {
+          "subtitle": "Kenbe adrès sèvis ak nòt yo pare pou pwochen vizit la."
+        },
+        "change": {
+          "title": "Anile oswa repwograme",
+          "subtitle": "Chanje plan an san ou pa rekòmanse tout pwosesis la."
+        },
+        "default": {
+          "subtitle": "Revize epi jere dosye sa a."
+        }
       },
       "loadingBody": "N ap pran dosye Direct la kounye a.",
       "emptyTitle": "Nou pa jwenn dosye a",
@@ -14920,19 +15289,71 @@
       "currentStatusSuffix": "N ap kenbe dosye a nan istwa pandan li ap avanse nan pwosesis la.",
       "accountHelp": "Jere adrès sèvis ou sove yo nan paj kont lan.",
       "fields": {
-        "scheduledStart": "Kòmansman pwograme", "scheduledEnd": "Fen pwograme", "onSiteContact": "Kontak sou plas", "contactPhone": "Telefòn kontak", "accessNotes": "Nòt aksè", "paymentMethod": "Metòd peman", "receiptNumber": "Referans / nimewo resi", "proofLink": "Lyen prèv", "uploadReceipt": "Telechaje resi", "note": "Nòt", "paymentStatus": "Estati peman", "proofReceived": "Prèv resevwa", "changeReason": "Rezon chanjman an", "newDate": "Nouvo dat", "newWindow": "Nouvo lè"
+        "scheduledStart": "Kòmansman pwograme",
+        "scheduledEnd": "Fen pwograme",
+        "onSiteContact": "Kontak sou plas",
+        "contactPhone": "Telefòn kontak",
+        "accessNotes": "Nòt aksè",
+        "paymentMethod": "Metòd peman",
+        "receiptNumber": "Referans / nimewo resi",
+        "proofLink": "Lyen prèv",
+        "uploadReceipt": "Telechaje resi",
+        "note": "Nòt",
+        "paymentStatus": "Estati peman",
+        "proofReceived": "Prèv resevwa",
+        "changeReason": "Rezon chanjman an",
+        "newDate": "Nouvo dat",
+        "newWindow": "Nouvo lè"
       },
-      "placeholders": { "timeWindow": "Maten, aprèmidi, elatriye.", "proofLink": "Resi pataje, ekran foto, oswa lyen dosye", "changeReason": "Di nou sa ki bezwen chanje..." },
-      "paymentMethods": { "cash": "Lajan kach", "bankTransfer": "Transfè labank" },
+      "placeholders": {
+        "timeWindow": "Maten, aprèmidi, elatriye.",
+        "proofLink": "Resi pataje, ekran foto, oswa lyen dosye",
+        "changeReason": "Di nou sa ki bezwen chanje..."
+      },
+      "paymentMethods": {
+        "cash": "Lajan kach",
+        "bankTransfer": "Transfè labank"
+      },
       "actions": {
-        "acceptQuote": "Aksepte quote la", "decline": "Refize", "requestChanges": "Mande chanjman", "saveSchedule": "Sove orè a", "submitProof": "Soumèt prèv", "confirmReceipt": "Konfime resi", "reschedule": "Repwograme", "cancelRequest": "Anile demann", "openProofUpload": "Louvri telechajman prèv", "cancel": "Anile", "askForChanges": "Mande chanjman", "requestChange": "Mande yon chanjman", "uploadProof": "Telechaje prèv", "openLocations": "Louvri adrès yo"
+        "acceptQuote": "Aksepte quote la",
+        "decline": "Refize",
+        "requestChanges": "Mande chanjman",
+        "saveSchedule": "Sove orè a",
+        "submitProof": "Soumèt prèv",
+        "confirmReceipt": "Konfime resi",
+        "reschedule": "Repwograme",
+        "cancelRequest": "Anile demann",
+        "openProofUpload": "Louvri telechajman prèv",
+        "cancel": "Anile",
+        "askForChanges": "Mande chanjman",
+        "requestChange": "Mande yon chanjman",
+        "uploadProof": "Telechaje prèv",
+        "openLocations": "Louvri adrès yo"
       },
       "messages": {
-        "scheduleSaved": "Orè a sove.", "cancelled": "Demann lan anile.", "updated": "Demann lan mete ajou.", "quoteAccepted": "Quote la aksepte.", "declined": "Demann lan refize.", "messageSent": "Mesaj la voye.", "proofUploaded": "Prèv la telechaje.", "proofSaved": "Prèv peman an sove.", "receiptConfirmed": "Resi a konfime."
+        "scheduleSaved": "Orè a sove.",
+        "cancelled": "Demann lan anile.",
+        "updated": "Demann lan mete ajou.",
+        "quoteAccepted": "Quote la aksepte.",
+        "declined": "Demann lan refize.",
+        "messageSent": "Mesaj la voye.",
+        "proofUploaded": "Prèv la telechaje.",
+        "proofSaved": "Prèv peman an sove.",
+        "receiptConfirmed": "Resi a konfime."
       },
-      "prompts": { "declineReason": "Poukisa ou refize quote sa a?" },
+      "prompts": {
+        "declineReason": "Poukisa ou refize quote sa a?"
+      },
       "errors": {
-        "loadRequest": "Nou pa t kapab chaje demann lan", "load": "Nou pa t kapab chaje dosye Direct la.", "saveSchedule": "Nou pa t kapab sove orè a.", "update": "Nou pa t kapab mete demann lan ajou.", "acceptQuote": "Nou pa t kapab aksepte quote la.", "declineQuote": "Nou pa t kapab refize quote la.", "uploadProof": "Nou pa t kapab telechaje prèv la.", "saveProof": "Nou pa t kapab sove prèv la.", "confirmReceipt": "Nou pa t kapab konfime resi a."
+        "loadRequest": "Nou pa t kapab chaje demann lan",
+        "load": "Nou pa t kapab chaje dosye Direct la.",
+        "saveSchedule": "Nou pa t kapab sove orè a.",
+        "update": "Nou pa t kapab mete demann lan ajou.",
+        "acceptQuote": "Nou pa t kapab aksepte quote la.",
+        "declineQuote": "Nou pa t kapab refize quote la.",
+        "uploadProof": "Nou pa t kapab telechaje prèv la.",
+        "saveProof": "Nou pa t kapab sove prèv la.",
+        "confirmReceipt": "Nou pa t kapab konfime resi a."
       }
     }
   },
@@ -14950,9 +15371,9 @@
     "scheduleByQuote": "Orè selon devis la",
     "request": "Mande",
     "selectedService": "Sèvis katalòg chwazi a: {{service}}",
-  "loadingServices": "Ap chaje sèvis yo...",
-  "noServices": "Pa gen sèvis ki pibliye ki koresponn ak rechèch sa a.",
-  "showMoreServices": "Montre plis sèvis ({{count}})",
+    "loadingServices": "Ap chaje sèvis yo...",
+    "noServices": "Pa gen sèvis ki pibliye ki koresponn ak rechèch sa a.",
+    "showMoreServices": "Montre plis sèvis ({{count}})",
     "equipment": "Ekipman",
     "toolsEquipment": "Zouti ak ekipman",
     "searchTools": "Chèche zouti...",
@@ -14979,9 +15400,7 @@
     "currentlyUnavailable": "Pa disponib kounye a",
     "categoryComingSoon": "Sèvis ki nan kategori sa a ap disponib talè konsa.",
     "categoryPaused": "Kategori sa a pa disponib pou yon ti tan."
-  }
-,
-
+  },
   "careers": {
     "metaTitle": "Karyè nan OxSteed",
     "metaDesc": "Aplike nan OxSteed ak nan biznis k ap anboche sou OxSteed. Wòl aleka, ibrid, ak sou plas toupatou nan mond lan.",
@@ -15130,5 +15549,35 @@
       "offer": "Voye ofri",
       "hire": "Anboche"
     }
+  },
+  "profileStudio": {
+    "kicker": "Estidyo pwofil",
+    "sections": "Seksyon pwofil",
+    "complete": "Seksyon konplè",
+    "incomplete": "Seksyon pa konplè",
+    "unsaved": "Chanjman pa anrejistre",
+    "savedHint": "Tout chanjman yo anrejistre",
+    "saveShortcut": "Peze ⌘S / Ctrl+S pou anrejistre",
+    "discard": "Anile",
+    "previewLabel": "Aperçu an dirèk",
+    "previewEmptyName": "Ajoute yon non",
+    "previewEmptyTagline": "Ajoute yon eslogan",
+    "previewEmptyPlace": "Ajoute yon kote",
+    "viewPublic": "Gade pwofil piblik",
+    "availableNow": "Disponib kounye a",
+    "notAvailableNow": "Pa make kòm disponib",
+    "sectionReadiness": "Preparasyon",
+    "sectionCover": "Kouvèti",
+    "hintIdentity": "Non, kategori, eslogan, ak sou ou ki parèt sou paj piblik ou.",
+    "hintContact": "Kijan kliyan yo ka kontakte ou.",
+    "hintLocation": "Kote ou travay epi ki distans ou vwayaje.",
+    "hintReadiness": "Lis verifikasyon pou pibliye ak konfyans kliyan. Sote ale pou korije sa ki manke.",
+    "hintBasics": "Tit, bio, pri, ak zòn sèvis kliyan yo wè an premye.",
+    "hintServices": "Ajoute, modifye, oswa retire sèvis ou ofri. Chanjman yo anrejistre pou chak eleman.",
+    "hintFaqs": "Kesyon ak repons souvan sou pwofil piblik ou.",
+    "hintPolicies": "Anilasyon, peman, ak lòt règ kliyan yo dwe konnen.",
+    "jumpToSection": "Ale nan {{section}}",
+    "ratesMeta": "{{rates}}/èdtan",
+    "radiusMeta": "Reyon {{miles}} mi"
   }
 }

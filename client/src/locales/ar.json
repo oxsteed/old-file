@@ -3458,31 +3458,120 @@
     "jobs": "الأعمال",
     "noCategoryMatches": "لا توجد فئات تطابق \"{{search}}\"",
     "capture": {
-      "accessDenied": "تم رفض الوصول إلى الكاميرا أو الميكروفون. اسمح به من إعدادات المتصفح وحاول مجددًا.", "deviceNotFound": "لم يتم العثور على كاميرا أو ميكروفون على هذا الجهاز.", "startError": "تعذر بدء الالتقاط: {{error}}", "takePhoto": "📷 التقاط صورة مباشرة", "recordVideo": "🎥 تسجيل فيديو", "recordAudio": "🎙 تسجيل صوت", "close": "إغلاق", "starting": "جارٍ البدء…", "processing": "جارٍ المعالجة…", "snapPhoto": "📷 التقاط الصورة", "startRecording": "⏺ بدء التسجيل", "stop": "⏹ إيقاف", "microphoneReady": "الميكروفون جاهز"
+      "accessDenied": "تم رفض الوصول إلى الكاميرا أو الميكروفون. اسمح به من إعدادات المتصفح وحاول مجددًا.",
+      "deviceNotFound": "لم يتم العثور على كاميرا أو ميكروفون على هذا الجهاز.",
+      "startError": "تعذر بدء الالتقاط: {{error}}",
+      "takePhoto": "📷 التقاط صورة مباشرة",
+      "recordVideo": "🎥 تسجيل فيديو",
+      "recordAudio": "🎙 تسجيل صوت",
+      "close": "إغلاق",
+      "starting": "جارٍ البدء…",
+      "processing": "جارٍ المعالجة…",
+      "snapPhoto": "📷 التقاط الصورة",
+      "startRecording": "⏺ بدء التسجيل",
+      "stop": "⏹ إيقاف",
+      "microphoneReady": "الميكروفون جاهز"
     },
     "stepIntro": {
-      "details": { "eyebrow": "حدد نطاق العمل", "title": "أخبر OxSteed بما يجب إنجازه.", "body": "يساعد العنوان الواضح والموقع الدقيق والوسائط المفيدة الأشخاص المناسبين على تحديد ملاءمتهم بسرعة." },
-      "requirements": { "eyebrow": "حدد المعايير", "title": "حدد من هو مؤهل لتقديم عرض.", "body": "استخدم المتطلبات لتصفية الأشخاص والفرق والأدوات ومؤشرات الثقة التي يحتاجها العمل." },
-      "budget": { "eyebrow": "الميزانية والتوقيت", "title": "اجعل الجدول الزمني واقعيًا.", "body": "حدد نوع الميزانية والاستعجال وتفضيلات الجدولة والملاحظات الخاصة لتحصل على عروض أفضل." },
-      "review": { "eyebrow": "المراجعة النهائية", "title": "راجع الإعلان قبل نشره.", "body": "هذه هي المراجعة الأخيرة قبل بدء وصول عروض من الأشخاص المطابقين للطلب." }
+      "details": {
+        "eyebrow": "حدد نطاق العمل",
+        "title": "أخبر OxSteed بما يجب إنجازه.",
+        "body": "يساعد العنوان الواضح والموقع الدقيق والوسائط المفيدة الأشخاص المناسبين على تحديد ملاءمتهم بسرعة."
+      },
+      "requirements": {
+        "eyebrow": "حدد المعايير",
+        "title": "حدد من هو مؤهل لتقديم عرض.",
+        "body": "استخدم المتطلبات لتصفية الأشخاص والفرق والأدوات ومؤشرات الثقة التي يحتاجها العمل."
+      },
+      "budget": {
+        "eyebrow": "الميزانية والتوقيت",
+        "title": "اجعل الجدول الزمني واقعيًا.",
+        "body": "حدد نوع الميزانية والاستعجال وتفضيلات الجدولة والملاحظات الخاصة لتحصل على عروض أفضل."
+      },
+      "review": {
+        "eyebrow": "المراجعة النهائية",
+        "title": "راجع الإعلان قبل نشره.",
+        "body": "هذه هي المراجعة الأخيرة قبل بدء وصول عروض من الأشخاص المطابقين للطلب."
+      }
     },
     "metaDescription": "صف العمل الذي تحتاجه واحصل على عروض تنافسية من أشخاص محليين موثوقين. النشر مجاني.",
-    "hero": { "kicker": "إعلان عمل للعميل", "subtitle": "صف ما يجب إنجازه وحدد من يمكنه تقديم عرض وحوّل المهمة غير الواضحة إلى طلب واضح يسهل تسعيره.", "free": "النشر مجاني", "requirements": "حدد متطلباتك", "bids": "ادعُ إلى عروض تنافسية", "betterBidsTitle": "كيف تحصل على عروض أفضل", "tipScope": "النطاق المحدد أفضل من الوصف العام.", "tipMedia": "تقلل الصور أو الفيديو من الأسئلة المتكررة.", "tipRequirements": "تمنع المتطلبات إضاعة الوقت مع أشخاص غير مناسبين." },
-    "directHelperNotice": "طلب مباشر إلى {{name}}. سيصل إليه إشعار عند نشر العمل.", "thisHelper": "هذا الشخص", "viewProfile": "عرض الملف الشخصي",
+    "hero": {
+      "kicker": "إعلان عمل للعميل",
+      "subtitle": "صف ما يجب إنجازه وحدد من يمكنه تقديم عرض وحوّل المهمة غير الواضحة إلى طلب واضح يسهل تسعيره.",
+      "free": "النشر مجاني",
+      "requirements": "حدد متطلباتك",
+      "bids": "ادعُ إلى عروض تنافسية",
+      "betterBidsTitle": "كيف تحصل على عروض أفضل",
+      "tipScope": "النطاق المحدد أفضل من الوصف العام.",
+      "tipMedia": "تقلل الصور أو الفيديو من الأسئلة المتكررة.",
+      "tipRequirements": "تمنع المتطلبات إضاعة الوقت مع أشخاص غير مناسبين."
+    },
+    "directHelperNotice": "طلب مباشر إلى {{name}}. سيصل إليه إشعار عند نشر العمل.",
+    "thisHelper": "هذا الشخص",
+    "viewProfile": "عرض الملف الشخصي",
     "maintenanceMode": "وضع طلب الصيانة مفعّل. أضف الصور وملاحظات الدخول ودرجة الاستعجال وأوقات الإصلاح المفضلة ليتمكن مدير العقار من قبول العمل أو جدولته أو تعيينه.",
-    "currentStep": "الخطوة الحالية", "helperFilters": "مرشحات الأشخاص", "mediaAdded": "الوسائط المضافة", "optional": "اختياري",
-    "mediaTabs": { "photos": "صور", "video": "فيديو", "audio": "صوت" }, "clickToUpload": "انقر لرفع {{type}}", "orDragDrop": "أو اسحب وأفلت",
-    "mediaLimits": { "photos": "JPG، PNG، WEBP · حتى 5 صور · 10 ميجابايت لكل صورة", "video": "MP4، MOV · فيديو واحد · 100 ميجابايت", "audio": "MP3، WAV · ملف واحد · 20 ميجابايت" },
-    "previewNumber": "معاينة {{number}}", "remove": "إزالة",
-    "credentialNotice": "عندما يقدم الشخص بيانات ترخيص أو تأمين، ستحاول OxSteed التحقق منها. يؤكد الشخص جميع المتطلبات الأخرى بنفسه قبل تقديم العرض.", "dismiss": "تجاهل",
-    "licenseTypes": { "select": "حدد نوع الترخيص…", "ohElectrician": "كهربائي أوهايو (OCILB)", "ohPlumber": "سباك أوهايو", "ohHvac": "مقاول تكييف أوهايو", "generalContractor": "مقاول عام", "other": "أخرى / حدد في الوصف" },
-    "skillLevels": { "beginner": "مبتدئ - مهام أساسية", "intermediate": "متوسط - سنتان فأكثر", "advanced": "متقدم - 5 سنوات فأكثر", "expert": "خبير / مستوى معلم" },
-    "crewOptions": { "solo": "فرد واحد", "two": "شخصان", "three": "3 أشخاص", "fourPlus": "4 أشخاص أو أكثر" },
-    "removeSkill": "إزالة {{name}}", "strictRequirementsWarning": "قد تحد المتطلبات الصارمة من عدد الأشخاص الذين يمكنهم تقديم عروض. يمكنك تعديلها بعد النشر.", "openBidHelp": "سيقدم الأشخاص أسعارهم الخاصة. سترى جميع العروض وتختار ما يناسب ميزانيتك.",
-    "stepReviewPostLabel": "الخطوة 4 من 4 - المراجعة والنشر", "reviewHelp": "تحقق من صحة كل شيء قبل النشر.", "edit": "تعديل", "readOnlySkill": "{{name}}، للقراءة فقط", "mediaNumber": "الوسائط {{number}}", "nextStep": "الخطوة التالية", "postAndInvite": "نشر العمل ودعوة العروض", "jobPostingSummary": "ملخص إعلان العمل", "jobSummary": "ملخص العمل", "requirementsToConfirm": "يجب على الأشخاص تأكيد {{count}} من المتطلبات قبل تقديم عرض على هذا العمل.",
-    "beforePost": "قبل النشر", "easierToPrice": "اجعل تسعير العمل أسهل.",
-    "beforePostTips": { "details": "أدرج تفاصيل المشكلة بدقة، وليس الفئة فقط.", "dates": "أضف التواريخ المفضلة إذا كان الدخول يعتمد على جدولك.", "tools": "اذكر الأدوات أو التصاريح أو المواد الخاصة المتوقعة." },
-    "whatHappensNext": "ماذا يحدث بعد ذلك", "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
+    "currentStep": "الخطوة الحالية",
+    "helperFilters": "مرشحات الأشخاص",
+    "mediaAdded": "الوسائط المضافة",
+    "optional": "اختياري",
+    "mediaTabs": {
+      "photos": "صور",
+      "video": "فيديو",
+      "audio": "صوت"
+    },
+    "clickToUpload": "انقر لرفع {{type}}",
+    "orDragDrop": "أو اسحب وأفلت",
+    "mediaLimits": {
+      "photos": "JPG، PNG، WEBP · حتى 5 صور · 10 ميجابايت لكل صورة",
+      "video": "MP4، MOV · فيديو واحد · 100 ميجابايت",
+      "audio": "MP3، WAV · ملف واحد · 20 ميجابايت"
+    },
+    "previewNumber": "معاينة {{number}}",
+    "remove": "إزالة",
+    "credentialNotice": "عندما يقدم الشخص بيانات ترخيص أو تأمين، ستحاول OxSteed التحقق منها. يؤكد الشخص جميع المتطلبات الأخرى بنفسه قبل تقديم العرض.",
+    "dismiss": "تجاهل",
+    "licenseTypes": {
+      "select": "حدد نوع الترخيص…",
+      "ohElectrician": "كهربائي أوهايو (OCILB)",
+      "ohPlumber": "سباك أوهايو",
+      "ohHvac": "مقاول تكييف أوهايو",
+      "generalContractor": "مقاول عام",
+      "other": "أخرى / حدد في الوصف"
+    },
+    "skillLevels": {
+      "beginner": "مبتدئ - مهام أساسية",
+      "intermediate": "متوسط - سنتان فأكثر",
+      "advanced": "متقدم - 5 سنوات فأكثر",
+      "expert": "خبير / مستوى معلم"
+    },
+    "crewOptions": {
+      "solo": "فرد واحد",
+      "two": "شخصان",
+      "three": "3 أشخاص",
+      "fourPlus": "4 أشخاص أو أكثر"
+    },
+    "removeSkill": "إزالة {{name}}",
+    "strictRequirementsWarning": "قد تحد المتطلبات الصارمة من عدد الأشخاص الذين يمكنهم تقديم عروض. يمكنك تعديلها بعد النشر.",
+    "openBidHelp": "سيقدم الأشخاص أسعارهم الخاصة. سترى جميع العروض وتختار ما يناسب ميزانيتك.",
+    "stepReviewPostLabel": "الخطوة 4 من 4 - المراجعة والنشر",
+    "reviewHelp": "تحقق من صحة كل شيء قبل النشر.",
+    "edit": "تعديل",
+    "readOnlySkill": "{{name}}، للقراءة فقط",
+    "mediaNumber": "الوسائط {{number}}",
+    "nextStep": "الخطوة التالية",
+    "postAndInvite": "نشر العمل ودعوة العروض",
+    "jobPostingSummary": "ملخص إعلان العمل",
+    "jobSummary": "ملخص العمل",
+    "requirementsToConfirm": "يجب على الأشخاص تأكيد {{count}} من المتطلبات قبل تقديم عرض على هذا العمل.",
+    "beforePost": "قبل النشر",
+    "easierToPrice": "اجعل تسعير العمل أسهل.",
+    "beforePostTips": {
+      "details": "أدرج تفاصيل المشكلة بدقة، وليس الفئة فقط.",
+      "dates": "أضف التواريخ المفضلة إذا كان الدخول يعتمد على جدولك.",
+      "tools": "اذكر الأدوات أو التصاريح أو المواد الخاصة المتوقعة."
+    },
+    "whatHappensNext": "ماذا يحدث بعد ذلك",
+    "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
   },
   "jobDetail": {
     "bidNow": "قدّم عرضًا على هذه المهمة",
@@ -4169,7 +4258,14 @@
     "jobCount": "تم العثور على {{count}} وظيفة"
   },
   "support": {
-    "liveWait": {"title":"في انتظار موظف الدعم","body":"نبحث عن موظف متاح. يمكنك إضافة التفاصيل أدناه أثناء الانتظار أو الاتصال بنا أو إرسال رسالة نصية.","unavailable":"لا يوجد موظف متاح الآن","fallback":"تم حفظ طلبك. اترك رسالة أدناه للمتابعة أو اتصل أو أرسل رسالة نصية إلى ‎+1 (937) 408-5169.","connected":"انضم موظف الدعم إلى المحادثة","closed":"هذه المحادثة مغلقة"},
+    "liveWait": {
+      "title": "في انتظار موظف الدعم",
+      "body": "نبحث عن موظف متاح. يمكنك إضافة التفاصيل أدناه أثناء الانتظار أو الاتصال بنا أو إرسال رسالة نصية.",
+      "unavailable": "لا يوجد موظف متاح الآن",
+      "fallback": "تم حفظ طلبك. اترك رسالة أدناه للمتابعة أو اتصل أو أرسل رسالة نصية إلى ‎+1 (937) 408-5169.",
+      "connected": "انضم موظف الدعم إلى المحادثة",
+      "closed": "هذه المحادثة مغلقة"
+    },
     "helpTitle": "كيف يمكننا المساعدة؟",
     "helpSubtitle": "اطرح سؤالاً أو ابدأ محادثة مع مساعد الذكاء الاصطناعي لدينا.",
     "placeholder": "اطرح سؤالاً…",
@@ -6022,8 +6118,8 @@
       "sectionFaqs": "الأسئلة الشائعة",
       "sectionPolicies": "السياسات"
     },
-  "chat": {
-    "expandChat": "توسيع الدردشة",
+    "chat": {
+      "expandChat": "توسيع الدردشة",
       "aiAssistant": "مساعد الذكاء الاصطناعي",
       "onlineNow": "متصل الآن",
       "availableToday": "متوفر اليوم",
@@ -8732,13 +8828,23 @@
     "success": "تم إرسال طلب الحجز!",
     "loading": "جارٍ تحميل الخدمة…",
     "notFound": "لم يتم العثور على الخدمة.",
-    "sections": { "details": "تفاصيل الخدمة", "selectDate": "اختر تاريخًا", "selectTime": "اختر وقتًا" },
+    "sections": {
+      "details": "تفاصيل الخدمة",
+      "selectDate": "اختر تاريخًا",
+      "selectTime": "اختر وقتًا"
+    },
     "durationLabel": "المدة",
     "durationValue_one": "دقيقة واحدة",
     "durationValue_other": "{{count}} دقيقة",
     "basePriceLabel": "السعر الأساسي",
     "noAvailableSlots": "لا توجد أوقات متاحة في هذا التاريخ.",
-    "summary": { "title": "ملخص الحجز", "dateLabel": "التاريخ", "timeLabel": "الوقت", "basePriceLabel": "السعر الأساسي", "totalPriceLabel": "الإجمالي" },
+    "summary": {
+      "title": "ملخص الحجز",
+      "dateLabel": "التاريخ",
+      "timeLabel": "الوقت",
+      "basePriceLabel": "السعر الأساسي",
+      "totalPriceLabel": "الإجمالي"
+    },
     "form": {
       "title": "معلوماتك",
       "nameLabel": "الاسم",
@@ -8751,7 +8857,10 @@
       "notesPlaceholder": "شارك أي تفاصيل ينبغي للنشاط التجاري معرفتها…",
       "termsText": "أوافق على شروط الحجز وسياسة الإلغاء."
     },
-    "buttons": { "booking": "جارٍ إرسال الطلب…", "bookNow": "احجز الآن · {{price}}" }
+    "buttons": {
+      "booking": "جارٍ إرسال الطلب…",
+      "bookNow": "احجز الآن · {{price}}"
+    }
   },
   "booking": {
     "pageTitle": "حجز مساعد",
@@ -13610,18 +13719,182 @@
       "soldOut": "نفد",
       "menuSections": "أقسام القائمة",
       "jumpTo": "الانتقال إلى",
-      "paymentApp": "تطبيق الدفع / رمز QR", "paymentReferenceHint": "أضف رقم طلبك أو اسمك في ملاحظة الدفع.", "receiptUploaded": "تم رفع الإيصال", "proofUploadError": "تعذر رفع إثبات الدفع.", "proofRequiredError": "يرجى رفع إثبات الدفع أو إضافة رقم تأكيد.", "loadingMenu": "جارٍ تحميل القائمة…", "notFoundTitle": "لم يتم العثور على المطعم", "browseRestaurants": "تصفح المطاعم", "takeout": "طلب خارجي", "new": "جديد", "openNow": "مفتوح الآن", "minuteRange": "{{start}}–{{end}} دقيقة", "freePickup": "استلام مجاني", "freeDelivery": "توصيل مجاني", "deliveryPrice": "التوصيل {{price}}", "minimumOrder": "الحد الأدنى للطلب {{price}}", "noMinimum": "لا يوجد حد أدنى",
-      "days": { "monday": "الاثنين", "tuesday": "الثلاثاء", "wednesday": "الأربعاء", "thursday": "الخميس", "friday": "الجمعة", "saturday": "السبت", "sunday": "الأحد" },
-      "tags": { "vegetarian": "نباتي", "vegan": "نباتي صرف", "gf": "خالٍ من الغلوتين", "gluten-free": "خالٍ من الغلوتين", "spicy": "حار", "veg": "نباتي", "halal": "حلال", "keto": "كيتو", "dairy_free": "خالٍ من الألبان" },
-      "filters": { "all": "الكل", "vegetarian": "نباتي", "vegan": "نباتي صرف", "gf": "خالٍ من الغلوتين", "spicy": "حار" },
-      "filteredBy": "تصفية - {{filter}}", "popularItems": "الأصناف الشائعة", "guest": "ضيف", "specialOffer": "عرض خاص", "percentOff": "خصم {{percent}}%", "deal": "عرض", "endsOn": "ينتهي في {{date}}", "moreItems": " + {{count}} إضافية", "itemAdded": "تمت إضافة {{item}}", "item": "صنف", "reorderError": "لا يمكن إضافة هذا الطلب مرة أخرى الآن.", "linkCopied": "تم نسخ الرابط!",
-      "tabs": { "menu": "القائمة", "info": "المعلومات", "reviews": "التقييمات", "deals": "العروض" },
-      "timeSlots": { "asap": "في أقرب وقت", "in15": "خلال 15 دقيقة", "adds15": "يضيف 15 دقيقة إلى الوقت المتوقع", "in30": "خلال 30 دقيقة", "scheduled": "مجدول مسبقًا", "later": "جدولة لوقت لاحق", "chooseTime": "اختر وقتًا محددًا" },
-      "estimated": "متوقع {{time}}", "payAtRestaurant": "الدفع في المطعم", "payOnDelivery": "الدفع عند التوصيل", "cardOrCash": "بطاقة أو نقدًا، ويُدفع للمطعم", "restaurantCredit": "رصيد المطعم", "creditAvailable": "{{amount}} متاح", "insufficientCredit": "الرصيد غير كافٍ - المتاح {{amount}}", "payWithApp": "الدفع بتطبيق المطعم", "sendTo": "الإرسال إلى {{handle}}", "usePaymentInstructions": "اتبع تعليمات دفع المطعم وارفع الإثبات", "pickupDetails": "تفاصيل الاستلام", "deliveryDetails": "تفاصيل التوصيل", "deliveryFee": "رسوم التوصيل", "free": "مجاني",
-      "orderNumber": "طلبك رقم {{number}}", "readyForPickupShort": "جاهز للاستلام!", "dismissOrderStatus": "إغلاق حالة الطلب", "share": "مشاركة", "orderItems": "الطلب · {{count}} صنف", "startOrder": "بدء الطلب", "hours": "ساعات العمل", "location": "الموقع", "contact": "التواصل", "searchMenu": "البحث في {{restaurant}}…", "reorder": "إعادة الطلب", "noMenuItems": "لا توجد أصناف في القائمة بعد", "searchResults": "{{count}} نتيجة لـ «{{query}}»", "noResults": "لا توجد نتائج لـ «{{query}}»", "noItemsHere": "لا توجد أصناف هنا بعد", "tryDifferentSearch": "جرّب عبارة بحث أخرى", "tryDifferentCategory": "جرّب فئة أخرى", "hoursUnavailable": "ساعات العمل غير متاحة", "noContact": "لا توجد معلومات تواصل بعد", "reviewCount": "{{count}} تقييم", "noReviews": "لا توجد تقييمات بعد", "firstReview": "كن أول من يقيّم بعد طلبك.", "noDeals": "لا توجد عروض نشطة الآن", "checkDealsLater": "عد لاحقًا للاطلاع على العروض.", "viewCart": "عرض السلة",
-      "payment": "الدفع", "emptyCart": "سلتك فارغة", "emptyCartHelp": "أضف أصنافًا من القائمة للبدء", "browseMenu": "تصفح القائمة", "subtotal": "المجموع الفرعي", "checkoutTotal": "إتمام الطلب · {{total}}", "signInRequired": "تسجيل الدخول مطلوب", "signInCheckoutTitle": "سجّل الدخول لمتابعة إتمام الطلب", "signInCheckoutBody": "يمكن للجميع التصفح، لكن إتمام الطلب مرتبط بحساب OxSteed حتى تتمكن من تتبع طلبك وتحديثه واستعادته لاحقًا.", "streetAddress": "عنوان الشارع", "streetPlaceholder": "الشارع والرقم…", "aptSuite": "الشقة / الوحدة", "optional": "اختياري", "aptPlaceholder": "شقة 4B…", "pickupTime": "وقت الاستلام", "deliveryTime": "وقت التوصيل", "signInToCheckout": "تسجيل الدخول لإتمام الطلب", "continueToPayment": "المتابعة إلى الدفع ←", "signInOrderTitle": "سجّل الدخول لإرسال هذا الطلب", "signInOrderBody": "يمكنك تصفح القوائم دون حساب، لكن إتمام الطلب مرتبط بحساب OxSteed لتبقى حالة الطلب وسجلاته مرتبطة بملفك.", "signInContinue": "تسجيل الدخول للمتابعة", "backToCart": "العودة إلى السلة",
-      "paymentMethod": "طريقة الدفع", "creditSummary": "{{available}} متاح{{reserved}}", "creditReserved": " · {{amount}} محجوز", "addCredit": "أضف رصيدًا أو اعرض رصيدك", "manageCredit": "إدارة الرصيد ←", "payDirectly": "الدفع مباشرة للمطعم", "sendPaymentTo": "إرسال الدفع إلى", "paymentAccountCopied": "تم نسخ حساب الدفع", "paymentAccountCopyError": "تعذر نسخ حساب الدفع.", "copy": "نسخ", "paymentQrAlt": "رمز QR لدفع المطعم", "confirmPaymentQuestion": "كيف تريد تأكيد الدفع؟", "uploadReceipt": "رفع إيصال", "enterConfirmation": "إدخال التأكيد", "receiptAttached": "الإيصال مرفق", "viewReceipt": "عرض الإيصال", "uploadingReceipt": "جارٍ رفع الإيصال…", "chooseReceipt": "اختر لقطة شاشة أو إيصالًا أو PDF", "confirmationPlaceholder": "رقم التأكيد أو اسم المرسل", "addNote": "إضافة ملاحظة (اختياري)", "paymentNotePlaceholder": "أي معلومات تساعد المطعم في مطابقة الدفع", "proofRequiredHelp": "أضف إيصالًا أو رقم تأكيد قبل إرسال الطلب.", "proofOptionalHelp": "الإثبات اختياري. سيؤكد المطعم الدفع قبل إكمال الطلب.",
-      "promoCode": "رمز ترويجي", "promoPlaceholder": "مثال SUMMER10", "orderSummary": "ملخص الطلب", "creditChargeNote": "💠 يُخصم رصيد المطعم عند إرسال الطلب.", "directPaymentNote": "📲 أرسل إثبات الدفع مع الطلب ليتمكن المطعم من مطابقته بسرعة.", "counterPaymentNote": "🏪 يتم الدفع للمطعم عند المنضدة عندما يجهز الطلب. لن تُخصم أي بطاقة عبر الإنترنت.", "deliveryPaymentNote": "🏪 يتم الدفع للمطعم عند التوصيل. لن تُخصم أي بطاقة عبر الإنترنت.", "placingOrder": "جارٍ إرسال الطلب…", "placeOrderTotal": "إرسال الطلب · {{total}}", "confirmedNumber": "رقم طلبك هو {{number}}.", "readyShortly": "سيكون جاهزًا قريبًا.", "confirmedPreparing": "تم تأكيد طلبك ويجري تحضيره.", "readyNotification": "سنبلغك عندما يصبح جاهزًا.", "liveStatus": "الحالة المباشرة: {{status}}", "estimatedTime": "الوقت المتوقع", "backToMenu": "العودة إلى القائمة", "required": "مطلوب", "specialInstructions": "تعليمات خاصة", "specialInstructionsPlaceholder": "مثال: دون بصل، الصلصة جانبًا، مناديل إضافية…", "allergyPlaceholder": "الحساسية، البدائل…", "addQuantity": "إضافة {{count}} · {{total}}"
+      "paymentApp": "تطبيق الدفع / رمز QR",
+      "paymentReferenceHint": "أضف رقم طلبك أو اسمك في ملاحظة الدفع.",
+      "receiptUploaded": "تم رفع الإيصال",
+      "proofUploadError": "تعذر رفع إثبات الدفع.",
+      "proofRequiredError": "يرجى رفع إثبات الدفع أو إضافة رقم تأكيد.",
+      "loadingMenu": "جارٍ تحميل القائمة…",
+      "notFoundTitle": "لم يتم العثور على المطعم",
+      "browseRestaurants": "تصفح المطاعم",
+      "takeout": "طلب خارجي",
+      "new": "جديد",
+      "openNow": "مفتوح الآن",
+      "minuteRange": "{{start}}–{{end}} دقيقة",
+      "freePickup": "استلام مجاني",
+      "freeDelivery": "توصيل مجاني",
+      "deliveryPrice": "التوصيل {{price}}",
+      "minimumOrder": "الحد الأدنى للطلب {{price}}",
+      "noMinimum": "لا يوجد حد أدنى",
+      "days": {
+        "monday": "الاثنين",
+        "tuesday": "الثلاثاء",
+        "wednesday": "الأربعاء",
+        "thursday": "الخميس",
+        "friday": "الجمعة",
+        "saturday": "السبت",
+        "sunday": "الأحد"
+      },
+      "tags": {
+        "vegetarian": "نباتي",
+        "vegan": "نباتي صرف",
+        "gf": "خالٍ من الغلوتين",
+        "gluten-free": "خالٍ من الغلوتين",
+        "spicy": "حار",
+        "veg": "نباتي",
+        "halal": "حلال",
+        "keto": "كيتو",
+        "dairy_free": "خالٍ من الألبان"
+      },
+      "filters": {
+        "all": "الكل",
+        "vegetarian": "نباتي",
+        "vegan": "نباتي صرف",
+        "gf": "خالٍ من الغلوتين",
+        "spicy": "حار"
+      },
+      "filteredBy": "تصفية - {{filter}}",
+      "popularItems": "الأصناف الشائعة",
+      "guest": "ضيف",
+      "specialOffer": "عرض خاص",
+      "percentOff": "خصم {{percent}}%",
+      "deal": "عرض",
+      "endsOn": "ينتهي في {{date}}",
+      "moreItems": " + {{count}} إضافية",
+      "itemAdded": "تمت إضافة {{item}}",
+      "item": "صنف",
+      "reorderError": "لا يمكن إضافة هذا الطلب مرة أخرى الآن.",
+      "linkCopied": "تم نسخ الرابط!",
+      "tabs": {
+        "menu": "القائمة",
+        "info": "المعلومات",
+        "reviews": "التقييمات",
+        "deals": "العروض"
+      },
+      "timeSlots": {
+        "asap": "في أقرب وقت",
+        "in15": "خلال 15 دقيقة",
+        "adds15": "يضيف 15 دقيقة إلى الوقت المتوقع",
+        "in30": "خلال 30 دقيقة",
+        "scheduled": "مجدول مسبقًا",
+        "later": "جدولة لوقت لاحق",
+        "chooseTime": "اختر وقتًا محددًا"
+      },
+      "estimated": "متوقع {{time}}",
+      "payAtRestaurant": "الدفع في المطعم",
+      "payOnDelivery": "الدفع عند التوصيل",
+      "cardOrCash": "بطاقة أو نقدًا، ويُدفع للمطعم",
+      "restaurantCredit": "رصيد المطعم",
+      "creditAvailable": "{{amount}} متاح",
+      "insufficientCredit": "الرصيد غير كافٍ - المتاح {{amount}}",
+      "payWithApp": "الدفع بتطبيق المطعم",
+      "sendTo": "الإرسال إلى {{handle}}",
+      "usePaymentInstructions": "اتبع تعليمات دفع المطعم وارفع الإثبات",
+      "pickupDetails": "تفاصيل الاستلام",
+      "deliveryDetails": "تفاصيل التوصيل",
+      "deliveryFee": "رسوم التوصيل",
+      "free": "مجاني",
+      "orderNumber": "طلبك رقم {{number}}",
+      "readyForPickupShort": "جاهز للاستلام!",
+      "dismissOrderStatus": "إغلاق حالة الطلب",
+      "share": "مشاركة",
+      "orderItems": "الطلب · {{count}} صنف",
+      "startOrder": "بدء الطلب",
+      "hours": "ساعات العمل",
+      "location": "الموقع",
+      "contact": "التواصل",
+      "searchMenu": "البحث في {{restaurant}}…",
+      "reorder": "إعادة الطلب",
+      "noMenuItems": "لا توجد أصناف في القائمة بعد",
+      "searchResults": "{{count}} نتيجة لـ «{{query}}»",
+      "noResults": "لا توجد نتائج لـ «{{query}}»",
+      "noItemsHere": "لا توجد أصناف هنا بعد",
+      "tryDifferentSearch": "جرّب عبارة بحث أخرى",
+      "tryDifferentCategory": "جرّب فئة أخرى",
+      "hoursUnavailable": "ساعات العمل غير متاحة",
+      "noContact": "لا توجد معلومات تواصل بعد",
+      "reviewCount": "{{count}} تقييم",
+      "noReviews": "لا توجد تقييمات بعد",
+      "firstReview": "كن أول من يقيّم بعد طلبك.",
+      "noDeals": "لا توجد عروض نشطة الآن",
+      "checkDealsLater": "عد لاحقًا للاطلاع على العروض.",
+      "viewCart": "عرض السلة",
+      "payment": "الدفع",
+      "emptyCart": "سلتك فارغة",
+      "emptyCartHelp": "أضف أصنافًا من القائمة للبدء",
+      "browseMenu": "تصفح القائمة",
+      "subtotal": "المجموع الفرعي",
+      "checkoutTotal": "إتمام الطلب · {{total}}",
+      "signInRequired": "تسجيل الدخول مطلوب",
+      "signInCheckoutTitle": "سجّل الدخول لمتابعة إتمام الطلب",
+      "signInCheckoutBody": "يمكن للجميع التصفح، لكن إتمام الطلب مرتبط بحساب OxSteed حتى تتمكن من تتبع طلبك وتحديثه واستعادته لاحقًا.",
+      "streetAddress": "عنوان الشارع",
+      "streetPlaceholder": "الشارع والرقم…",
+      "aptSuite": "الشقة / الوحدة",
+      "optional": "اختياري",
+      "aptPlaceholder": "شقة 4B…",
+      "pickupTime": "وقت الاستلام",
+      "deliveryTime": "وقت التوصيل",
+      "signInToCheckout": "تسجيل الدخول لإتمام الطلب",
+      "continueToPayment": "المتابعة إلى الدفع ←",
+      "signInOrderTitle": "سجّل الدخول لإرسال هذا الطلب",
+      "signInOrderBody": "يمكنك تصفح القوائم دون حساب، لكن إتمام الطلب مرتبط بحساب OxSteed لتبقى حالة الطلب وسجلاته مرتبطة بملفك.",
+      "signInContinue": "تسجيل الدخول للمتابعة",
+      "backToCart": "العودة إلى السلة",
+      "paymentMethod": "طريقة الدفع",
+      "creditSummary": "{{available}} متاح{{reserved}}",
+      "creditReserved": " · {{amount}} محجوز",
+      "addCredit": "أضف رصيدًا أو اعرض رصيدك",
+      "manageCredit": "إدارة الرصيد ←",
+      "payDirectly": "الدفع مباشرة للمطعم",
+      "sendPaymentTo": "إرسال الدفع إلى",
+      "paymentAccountCopied": "تم نسخ حساب الدفع",
+      "paymentAccountCopyError": "تعذر نسخ حساب الدفع.",
+      "copy": "نسخ",
+      "paymentQrAlt": "رمز QR لدفع المطعم",
+      "confirmPaymentQuestion": "كيف تريد تأكيد الدفع؟",
+      "uploadReceipt": "رفع إيصال",
+      "enterConfirmation": "إدخال التأكيد",
+      "receiptAttached": "الإيصال مرفق",
+      "viewReceipt": "عرض الإيصال",
+      "uploadingReceipt": "جارٍ رفع الإيصال…",
+      "chooseReceipt": "اختر لقطة شاشة أو إيصالًا أو PDF",
+      "confirmationPlaceholder": "رقم التأكيد أو اسم المرسل",
+      "addNote": "إضافة ملاحظة (اختياري)",
+      "paymentNotePlaceholder": "أي معلومات تساعد المطعم في مطابقة الدفع",
+      "proofRequiredHelp": "أضف إيصالًا أو رقم تأكيد قبل إرسال الطلب.",
+      "proofOptionalHelp": "الإثبات اختياري. سيؤكد المطعم الدفع قبل إكمال الطلب.",
+      "promoCode": "رمز ترويجي",
+      "promoPlaceholder": "مثال SUMMER10",
+      "orderSummary": "ملخص الطلب",
+      "creditChargeNote": "💠 يُخصم رصيد المطعم عند إرسال الطلب.",
+      "directPaymentNote": "📲 أرسل إثبات الدفع مع الطلب ليتمكن المطعم من مطابقته بسرعة.",
+      "counterPaymentNote": "🏪 يتم الدفع للمطعم عند المنضدة عندما يجهز الطلب. لن تُخصم أي بطاقة عبر الإنترنت.",
+      "deliveryPaymentNote": "🏪 يتم الدفع للمطعم عند التوصيل. لن تُخصم أي بطاقة عبر الإنترنت.",
+      "placingOrder": "جارٍ إرسال الطلب…",
+      "placeOrderTotal": "إرسال الطلب · {{total}}",
+      "confirmedNumber": "رقم طلبك هو {{number}}.",
+      "readyShortly": "سيكون جاهزًا قريبًا.",
+      "confirmedPreparing": "تم تأكيد طلبك ويجري تحضيره.",
+      "readyNotification": "سنبلغك عندما يصبح جاهزًا.",
+      "liveStatus": "الحالة المباشرة: {{status}}",
+      "estimatedTime": "الوقت المتوقع",
+      "backToMenu": "العودة إلى القائمة",
+      "required": "مطلوب",
+      "specialInstructions": "تعليمات خاصة",
+      "specialInstructionsPlaceholder": "مثال: دون بصل، الصلصة جانبًا، مناديل إضافية…",
+      "allergyPlaceholder": "الحساسية، البدائل…",
+      "addQuantity": "إضافة {{count}} · {{total}}"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",
@@ -14613,14 +14886,38 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "OxSteed Restaurants Help Center | الطلبات والدعم", "description": "تعرّف على كيفية استعراض المطاعم وإدارة القوائم وإجراء الطلبات وتتبع الطعام والحصول على الدعم عبر OxSteed Restaurants." },
-      "manager": { "title": "مركز مساعدة OxSteed Manager | عمليات المطاعم", "description": "تعرّف على كيفية استخدام مالكي المطاعم ومديريها لـ OxSteed Manager لإدارة الطلبات والقوائم والفرق والتقارير والدعم." },
-      "pos": { "title": "مركز مساعدة OxSteed POS | الطلبات والمدفوعات", "description": "تعرّف على استخدام OxSteed POS لطلبات العداد والمدفوعات والطلبات المعلقة والخصومات والورديات والصندوق." },
-      "kitchen": { "title": "مركز مساعدة OxSteed Kitchen | التذاكر والتحضير", "description": "تعرّف على كيفية إدارة OxSteed Kitchen لقوائم التذاكر والتحضير وتسليم expo وتوفر العناصر وسجل الخدمة." },
-      "display": { "title": "مركز مساعدة OxSteed Display | حالة طلب الضيف", "description": "تعرّف على كيفية دعم OxSteed Display لحالة الطلبات ومسارات الأكشاك وتحديثات المطاعم الموجهة للعملاء." },
-      "inventory": { "title": "مركز مساعدة OxSteed Inventory | المخزون والتوفر", "description": "تعرّف على كيفية دعم OxSteed Inventory لتتبع المخزون وتحديثات التوفر والجرد وعمليات المطاعم." },
-      "crew": { "title": "مركز مساعدة OxSteed Crew | سير عمل فريق المطعم", "description": "تعرّف على كيفية مساعدة OxSteed Crew لموظفي المطاعم في المهام وقوائم التحقق والتنسيق اليومي." },
-      "runner": { "title": "مركز مساعدة OxSteed Runner | التسليم والتسليم المباشر", "description": "تعرّف على كيفية دعم OxSteed Runner لاستلام الطلبات وتسليمها وتنسيق التوصيل وتحديثات الخدمة." }
+      "restaurant": {
+        "title": "OxSteed Restaurants Help Center | الطلبات والدعم",
+        "description": "تعرّف على كيفية استعراض المطاعم وإدارة القوائم وإجراء الطلبات وتتبع الطعام والحصول على الدعم عبر OxSteed Restaurants."
+      },
+      "manager": {
+        "title": "مركز مساعدة OxSteed Manager | عمليات المطاعم",
+        "description": "تعرّف على كيفية استخدام مالكي المطاعم ومديريها لـ OxSteed Manager لإدارة الطلبات والقوائم والفرق والتقارير والدعم."
+      },
+      "pos": {
+        "title": "مركز مساعدة OxSteed POS | الطلبات والمدفوعات",
+        "description": "تعرّف على استخدام OxSteed POS لطلبات العداد والمدفوعات والطلبات المعلقة والخصومات والورديات والصندوق."
+      },
+      "kitchen": {
+        "title": "مركز مساعدة OxSteed Kitchen | التذاكر والتحضير",
+        "description": "تعرّف على كيفية إدارة OxSteed Kitchen لقوائم التذاكر والتحضير وتسليم expo وتوفر العناصر وسجل الخدمة."
+      },
+      "display": {
+        "title": "مركز مساعدة OxSteed Display | حالة طلب الضيف",
+        "description": "تعرّف على كيفية دعم OxSteed Display لحالة الطلبات ومسارات الأكشاك وتحديثات المطاعم الموجهة للعملاء."
+      },
+      "inventory": {
+        "title": "مركز مساعدة OxSteed Inventory | المخزون والتوفر",
+        "description": "تعرّف على كيفية دعم OxSteed Inventory لتتبع المخزون وتحديثات التوفر والجرد وعمليات المطاعم."
+      },
+      "crew": {
+        "title": "مركز مساعدة OxSteed Crew | سير عمل فريق المطعم",
+        "description": "تعرّف على كيفية مساعدة OxSteed Crew لموظفي المطاعم في المهام وقوائم التحقق والتنسيق اليومي."
+      },
+      "runner": {
+        "title": "مركز مساعدة OxSteed Runner | التسليم والتسليم المباشر",
+        "description": "تعرّف على كيفية دعم OxSteed Runner لاستلام الطلبات وتسليمها وتنسيق التوصيل وتحديثات الخدمة."
+      }
     },
     "direct": {
       "services": {
@@ -14839,10 +15136,27 @@
       "no": "لا"
     },
     "status": {
-      "requested": "تم الطلب", "reviewing": "قيد المراجعة", "quoted": "تم التسعير", "contacted": "تم التواصل", "accepted": "مقبول", "scheduled": "مجدول", "enRoute": "في الطريق", "started": "بدأ", "waitingCustomer": "بانتظار العميل", "completed": "مكتمل", "closed": "مغلق", "cancelled": "ملغى"
+      "requested": "تم الطلب",
+      "reviewing": "قيد المراجعة",
+      "quoted": "تم التسعير",
+      "contacted": "تم التواصل",
+      "accepted": "مقبول",
+      "scheduled": "مجدول",
+      "enRoute": "في الطريق",
+      "started": "بدأ",
+      "waitingCustomer": "بانتظار العميل",
+      "completed": "مكتمل",
+      "closed": "مغلق",
+      "cancelled": "ملغى"
     },
     "paymentStatus": {
-      "unpaid": "غير مدفوع", "pending": "قيد الانتظار", "submitted": "تم الإرسال", "partiallyPaid": "مدفوع جزئيًا", "paid": "مدفوع", "disputed": "متنازع عليه", "refunded": "مسترد"
+      "unpaid": "غير مدفوع",
+      "pending": "قيد الانتظار",
+      "submitted": "تم الإرسال",
+      "partiallyPaid": "مدفوع جزئيًا",
+      "paid": "مدفوع",
+      "disputed": "متنازع عليه",
+      "refunded": "مسترد"
     },
     "history": {
       "title": "سجل الخدمات",
@@ -14851,7 +15165,9 @@
       "loadingBody": "نجلب سجلات Direct الخاصة بك الآن.",
       "emptyTitle": "لا يوجد سجل Direct بعد",
       "emptyBody": "عندما تطلب عرض سعر أو تجدول عملًا، سيظهر السجل هنا.",
-      "errors": { "load": "تعذر تحميل السجل." }
+      "errors": {
+        "load": "تعذر تحميل السجل."
+      }
     },
     "support": {
       "title": "الدعم والرسائل",
@@ -14873,7 +15189,10 @@
       "send": "إرسال",
       "openEscalation": "فتح الدعم المباشر",
       "attachedConversation": "محادثتك مرتبطة بهذا الطلب.",
-      "errors": { "load": "تعذر تحميل الدعم.", "send": "تعذر إرسال الرسالة." }
+      "errors": {
+        "load": "تعذر تحميل الدعم.",
+        "send": "تعذر إرسال الرسالة."
+      }
     },
     "account": {
       "title": "ملف العميل والمواقع",
@@ -14887,25 +15206,75 @@
       "addLocation": "إضافة موقع",
       "profileEyebrow": "الملف الشخصي",
       "fields": {
-        "label": "التسمية", "countryCode": "رمز الدولة", "address": "العنوان", "addressLine2": "سطر العنوان الثاني", "city": "المدينة", "region": "المنطقة / الولاية", "postalCode": "الرمز البريدي", "defaultLocation": "الموقع الافتراضي", "notes": "ملاحظات"
+        "label": "التسمية",
+        "countryCode": "رمز الدولة",
+        "address": "العنوان",
+        "addressLine2": "سطر العنوان الثاني",
+        "city": "المدينة",
+        "region": "المنطقة / الولاية",
+        "postalCode": "الرمز البريدي",
+        "defaultLocation": "الموقع الافتراضي",
+        "notes": "ملاحظات"
       },
-      "placeholders": { "label": "المنزل، المتجر، المكتب...", "notes": "رمز البوابة، مواقف السيارات، تعليمات الخدمة..." },
-      "actions": { "edit": "تعديل", "delete": "حذف", "save": "حفظ الموقع", "cancelEdit": "إلغاء التعديل" },
-      "messages": { "saved": "تم حفظ الموقع.", "deleted": "تم حذف الموقع." },
-      "errors": { "load": "تعذر تحميل بيانات الحساب.", "required": "التسمية والعنوان والمدينة مطلوبة.", "save": "تعذر حفظ الموقع." }
+      "placeholders": {
+        "label": "المنزل، المتجر، المكتب...",
+        "notes": "رمز البوابة، مواقف السيارات، تعليمات الخدمة..."
+      },
+      "actions": {
+        "edit": "تعديل",
+        "delete": "حذف",
+        "save": "حفظ الموقع",
+        "cancelEdit": "إلغاء التعديل"
+      },
+      "messages": {
+        "saved": "تم حفظ الموقع.",
+        "deleted": "تم حذف الموقع."
+      },
+      "errors": {
+        "load": "تعذر تحميل بيانات الحساب.",
+        "required": "التسمية والعنوان والمدينة مطلوبة.",
+        "save": "تعذر حفظ الموقع."
+      }
     },
     "case": {
       "headers": {
-        "quote": { "title": "مراجعة عرض السعر", "subtitle": "راجع التقدير وقرر ما إذا كنت تريد قبوله." },
-        "book": { "title": "جدولة زيارتك", "subtitle": "اختر فترة زمنية وأكد عنوان الخدمة." },
-        "job": { "title": "حالة العمل", "subtitle": "تابع الطلب من عرض السعر حتى الاكتمال." },
-        "proof": { "title": "إثبات الدفع", "subtitle": "ارفع إيصالًا أو مرجعًا ليبقى الدفع مرتبطًا بالسجل." },
-        "receipt": { "title": "تأكيد الإيصال", "subtitle": "أكد استلام الإثبات وربطه بالسجل." },
-        "history": { "subtitle": "اطلع على كل طلب وعرض سعر وعمل وإيصال في Direct." },
-        "support": { "title": "دعم Direct", "subtitle": "راسل فريق OxSteed بخصوص هذا العمل." },
-        "account": { "subtitle": "احتفظ بعناوين الخدمة والملاحظات جاهزة للزيارة التالية." },
-        "change": { "title": "الإلغاء أو إعادة الجدولة", "subtitle": "عدّل الخطة دون إعادة بدء العملية بالكامل." },
-        "default": { "subtitle": "راجع هذه الحالة وأدرها." }
+        "quote": {
+          "title": "مراجعة عرض السعر",
+          "subtitle": "راجع التقدير وقرر ما إذا كنت تريد قبوله."
+        },
+        "book": {
+          "title": "جدولة زيارتك",
+          "subtitle": "اختر فترة زمنية وأكد عنوان الخدمة."
+        },
+        "job": {
+          "title": "حالة العمل",
+          "subtitle": "تابع الطلب من عرض السعر حتى الاكتمال."
+        },
+        "proof": {
+          "title": "إثبات الدفع",
+          "subtitle": "ارفع إيصالًا أو مرجعًا ليبقى الدفع مرتبطًا بالسجل."
+        },
+        "receipt": {
+          "title": "تأكيد الإيصال",
+          "subtitle": "أكد استلام الإثبات وربطه بالسجل."
+        },
+        "history": {
+          "subtitle": "اطلع على كل طلب وعرض سعر وعمل وإيصال في Direct."
+        },
+        "support": {
+          "title": "دعم Direct",
+          "subtitle": "راسل فريق OxSteed بخصوص هذا العمل."
+        },
+        "account": {
+          "subtitle": "احتفظ بعناوين الخدمة والملاحظات جاهزة للزيارة التالية."
+        },
+        "change": {
+          "title": "الإلغاء أو إعادة الجدولة",
+          "subtitle": "عدّل الخطة دون إعادة بدء العملية بالكامل."
+        },
+        "default": {
+          "subtitle": "راجع هذه الحالة وأدرها."
+        }
       },
       "loadingBody": "جارٍ جلب سجل Direct الآن.",
       "emptyTitle": "لم يتم العثور على سجل",
@@ -14923,19 +15292,71 @@
       "currentStatusSuffix": "سنحتفظ بالسجل في التاريخ أثناء انتقاله عبر سير العمل.",
       "accountHelp": "أدر مواقع الخدمة المحفوظة من صفحة الحساب.",
       "fields": {
-        "scheduledStart": "البداية المجدولة", "scheduledEnd": "النهاية المجدولة", "onSiteContact": "جهة الاتصال في الموقع", "contactPhone": "هاتف جهة الاتصال", "accessNotes": "ملاحظات الدخول", "paymentMethod": "طريقة الدفع", "receiptNumber": "المرجع / رقم الإيصال", "proofLink": "رابط الإثبات", "uploadReceipt": "رفع الإيصال", "note": "ملاحظة", "paymentStatus": "حالة الدفع", "proofReceived": "تم استلام الإثبات", "changeReason": "سبب التغيير", "newDate": "التاريخ الجديد", "newWindow": "الفترة الجديدة"
+        "scheduledStart": "البداية المجدولة",
+        "scheduledEnd": "النهاية المجدولة",
+        "onSiteContact": "جهة الاتصال في الموقع",
+        "contactPhone": "هاتف جهة الاتصال",
+        "accessNotes": "ملاحظات الدخول",
+        "paymentMethod": "طريقة الدفع",
+        "receiptNumber": "المرجع / رقم الإيصال",
+        "proofLink": "رابط الإثبات",
+        "uploadReceipt": "رفع الإيصال",
+        "note": "ملاحظة",
+        "paymentStatus": "حالة الدفع",
+        "proofReceived": "تم استلام الإثبات",
+        "changeReason": "سبب التغيير",
+        "newDate": "التاريخ الجديد",
+        "newWindow": "الفترة الجديدة"
       },
-      "placeholders": { "timeWindow": "صباحًا، بعد الظهر، إلخ.", "proofLink": "إيصال مشترك أو لقطة شاشة أو رابط ملف", "changeReason": "أخبرنا بما يجب تغييره..." },
-      "paymentMethods": { "cash": "نقدًا", "bankTransfer": "تحويل مصرفي" },
+      "placeholders": {
+        "timeWindow": "صباحًا، بعد الظهر، إلخ.",
+        "proofLink": "إيصال مشترك أو لقطة شاشة أو رابط ملف",
+        "changeReason": "أخبرنا بما يجب تغييره..."
+      },
+      "paymentMethods": {
+        "cash": "نقدًا",
+        "bankTransfer": "تحويل مصرفي"
+      },
       "actions": {
-        "acceptQuote": "قبول عرض السعر", "decline": "رفض", "requestChanges": "طلب تعديلات", "saveSchedule": "حفظ الجدول", "submitProof": "إرسال الإثبات", "confirmReceipt": "تأكيد الإيصال", "reschedule": "إعادة الجدولة", "cancelRequest": "إلغاء الطلب", "openProofUpload": "فتح رفع الإثبات", "cancel": "إلغاء", "askForChanges": "طلب تعديلات", "requestChange": "طلب تغيير", "uploadProof": "رفع الإثبات", "openLocations": "فتح المواقع"
+        "acceptQuote": "قبول عرض السعر",
+        "decline": "رفض",
+        "requestChanges": "طلب تعديلات",
+        "saveSchedule": "حفظ الجدول",
+        "submitProof": "إرسال الإثبات",
+        "confirmReceipt": "تأكيد الإيصال",
+        "reschedule": "إعادة الجدولة",
+        "cancelRequest": "إلغاء الطلب",
+        "openProofUpload": "فتح رفع الإثبات",
+        "cancel": "إلغاء",
+        "askForChanges": "طلب تعديلات",
+        "requestChange": "طلب تغيير",
+        "uploadProof": "رفع الإثبات",
+        "openLocations": "فتح المواقع"
       },
       "messages": {
-        "scheduleSaved": "تم حفظ الجدول.", "cancelled": "تم إلغاء الطلب.", "updated": "تم تحديث الطلب.", "quoteAccepted": "تم قبول عرض السعر.", "declined": "تم رفض الطلب.", "messageSent": "تم إرسال الرسالة.", "proofUploaded": "تم رفع مرفق الإثبات.", "proofSaved": "تم حفظ إثبات الدفع.", "receiptConfirmed": "تم تأكيد الإيصال."
+        "scheduleSaved": "تم حفظ الجدول.",
+        "cancelled": "تم إلغاء الطلب.",
+        "updated": "تم تحديث الطلب.",
+        "quoteAccepted": "تم قبول عرض السعر.",
+        "declined": "تم رفض الطلب.",
+        "messageSent": "تم إرسال الرسالة.",
+        "proofUploaded": "تم رفع مرفق الإثبات.",
+        "proofSaved": "تم حفظ إثبات الدفع.",
+        "receiptConfirmed": "تم تأكيد الإيصال."
       },
-      "prompts": { "declineReason": "لماذا ترفض عرض السعر هذا؟" },
+      "prompts": {
+        "declineReason": "لماذا ترفض عرض السعر هذا؟"
+      },
       "errors": {
-        "loadRequest": "تعذر تحميل الطلب", "load": "تعذر تحميل سجل Direct.", "saveSchedule": "تعذر حفظ الجدول.", "update": "تعذر تحديث الطلب.", "acceptQuote": "تعذر قبول عرض السعر.", "declineQuote": "تعذر رفض عرض السعر.", "uploadProof": "تعذر رفع الإثبات.", "saveProof": "تعذر حفظ الإثبات.", "confirmReceipt": "تعذر تأكيد الإيصال."
+        "loadRequest": "تعذر تحميل الطلب",
+        "load": "تعذر تحميل سجل Direct.",
+        "saveSchedule": "تعذر حفظ الجدول.",
+        "update": "تعذر تحديث الطلب.",
+        "acceptQuote": "تعذر قبول عرض السعر.",
+        "declineQuote": "تعذر رفض عرض السعر.",
+        "uploadProof": "تعذر رفع الإثبات.",
+        "saveProof": "تعذر حفظ الإثبات.",
+        "confirmReceipt": "تعذر تأكيد الإيصال."
       }
     }
   },
@@ -14953,9 +15374,9 @@
     "scheduleByQuote": "يُحدد الموعد حسب عرض السعر",
     "request": "طلب",
     "selectedService": "خدمة الكتالوج المحددة: {{service}}",
-  "loadingServices": "جارٍ تحميل الخدمات...",
-  "noServices": "لا توجد خدمات منشورة تطابق هذا البحث.",
-  "showMoreServices": "عرض المزيد من الخدمات ({{count}})",
+    "loadingServices": "جارٍ تحميل الخدمات...",
+    "noServices": "لا توجد خدمات منشورة تطابق هذا البحث.",
+    "showMoreServices": "عرض المزيد من الخدمات ({{count}})",
     "equipment": "المعدات",
     "toolsEquipment": "الأدوات والمعدات",
     "searchTools": "البحث في الأدوات...",
@@ -14982,9 +15403,7 @@
     "currentlyUnavailable": "غير متاحة حاليًا",
     "categoryComingSoon": "ستتوفر الخدمات في هذه الفئة قريبًا.",
     "categoryPaused": "هذه الفئة غير متاحة مؤقتًا."
-  }
-,
-
+  },
   "careers": {
     "metaTitle": "الوظائف في OxSteed",
     "metaDesc": "قدّم إلى OxSteed وإلى الشركات التي توظّف عبر OxSteed. وظائف عن بُعد وهجينة وحضورية في جميع أنحاء العالم.",
@@ -15133,5 +15552,35 @@
       "offer": "إرسال عرض",
       "hire": "توظيف"
     }
+  },
+  "profileStudio": {
+    "kicker": "استوديو الملف الشخصي",
+    "sections": "أقسام الملف الشخصي",
+    "complete": "القسم مكتمل",
+    "incomplete": "القسم غير مكتمل",
+    "unsaved": "تغييرات غير محفوظة",
+    "savedHint": "تم حفظ كل التغييرات",
+    "saveShortcut": "اضغط ⌘S / Ctrl+S للحفظ",
+    "discard": "تجاهل",
+    "previewLabel": "معاينة مباشرة",
+    "previewEmptyName": "أضف اسمًا",
+    "previewEmptyTagline": "أضف شعارًا قصيرًا",
+    "previewEmptyPlace": "أضف موقعًا",
+    "viewPublic": "عرض الملف العام",
+    "availableNow": "متاح الآن",
+    "notAvailableNow": "غير مُعلَّم كمتاح",
+    "sectionReadiness": "الجاهزية",
+    "sectionCover": "الغلاف",
+    "hintIdentity": "الاسم والفئة والشعار والنبذة الظاهرة في صفحتك العامة.",
+    "hintContact": "كيف يتواصل العملاء معك.",
+    "hintLocation": "أين تعمل وإلى أي مدى تنتقل.",
+    "hintReadiness": "قائمة تحقق للنشر وثقة العملاء. انتقل لإصلاح النواقص.",
+    "hintBasics": "العنوان والسيرة والأسعار ومنطقة الخدمة التي يراها العملاء أولًا.",
+    "hintServices": "أضف أو عدّل أو احذف الخدمات التي تقدمها. تُحفظ التغييرات لكل عنصر.",
+    "hintFaqs": "أسئلة وأجوبة شائعة في ملفك العام.",
+    "hintPolicies": "سياسات الإلغاء والدفع وغيرها مما يجب أن يعرفه العملاء.",
+    "jumpToSection": "الانتقال إلى {{section}}",
+    "ratesMeta": "{{rates}}/ساعة",
+    "radiusMeta": "نصف قطر {{miles}} ميل"
   }
 }
