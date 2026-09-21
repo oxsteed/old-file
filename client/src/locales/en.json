@@ -3473,26 +3473,10 @@
       "microphoneReady": "Microphone ready"
     },
     "stepIntro": {
-      "details": {
-        "eyebrow": "Scope the work",
-        "title": "Tell OxSteed what needs to get done.",
-        "body": "A stronger title, clearer location, and useful media help the right helpers self-select faster."
-      },
-      "requirements": {
-        "eyebrow": "Set the bar",
-        "title": "Define who is qualified to bid.",
-        "body": "Use requirements to filter for the helper, team, tools, and trust signals this job really needs."
-      },
-      "budget": {
-        "eyebrow": "Budget and timing",
-        "title": "Make the timeline feel real.",
-        "body": "Set a budget style, urgency, schedule preferences, and private notes so bids arrive with better context."
-      },
-      "review": {
-        "eyebrow": "Final review",
-        "title": "Check the post before it goes live.",
-        "body": "This is the last pass before your job starts attracting bids from helpers who match the request."
-      }
+      "details": { "eyebrow": "Scope the work", "title": "Tell OxSteed what needs to get done.", "body": "A stronger title, clearer location, and useful media help the right helpers self-select faster." },
+      "requirements": { "eyebrow": "Set the bar", "title": "Define who is qualified to bid.", "body": "Use requirements to filter for the helper, team, tools, and trust signals this job really needs." },
+      "budget": { "eyebrow": "Budget and timing", "title": "Make the timeline feel real.", "body": "Set a budget style, urgency, schedule preferences, and private notes so bids arrive with better context." },
+      "review": { "eyebrow": "Final review", "title": "Check the post before it goes live.", "body": "This is the last pass before your job starts attracting bids from helpers who match the request." }
     },
     "metaDescription": "Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post.",
     "hero": {
@@ -3514,11 +3498,7 @@
     "helperFilters": "Helper filters",
     "mediaAdded": "Media added",
     "optional": "Optional",
-    "mediaTabs": {
-      "photos": "Photos",
-      "video": "Video",
-      "audio": "Audio"
-    },
+    "mediaTabs": { "photos": "Photos", "video": "Video", "audio": "Audio" },
     "clickToUpload": "Click to upload {{type}}",
     "orDragDrop": "or drag and drop",
     "mediaLimits": {
@@ -3531,25 +3511,12 @@
     "credentialNotice": "When a helper provides license or insurance credentials, OxSteed will attempt to verify them. All other requirements are self-confirmed by the helper before bidding.",
     "dismiss": "Dismiss",
     "licenseTypes": {
-      "select": "Specify license type…",
-      "ohElectrician": "OH Electrician (OCILB)",
-      "ohPlumber": "OH Plumber",
-      "ohHvac": "OH HVAC Contractor",
-      "generalContractor": "General Contractor",
-      "other": "Other / Specify in description"
+      "select": "Specify license type…", "ohElectrician": "OH Electrician (OCILB)", "ohPlumber": "OH Plumber", "ohHvac": "OH HVAC Contractor", "generalContractor": "General Contractor", "other": "Other / Specify in description"
     },
     "skillLevels": {
-      "beginner": "Beginner - basic tasks",
-      "intermediate": "Intermediate - 2+ years",
-      "advanced": "Advanced - 5+ years",
-      "expert": "Expert / Master level"
+      "beginner": "Beginner - basic tasks", "intermediate": "Intermediate - 2+ years", "advanced": "Advanced - 5+ years", "expert": "Expert / Master level"
     },
-    "crewOptions": {
-      "solo": "Solo (1 person)",
-      "two": "2 people",
-      "three": "3 people",
-      "fourPlus": "4+ people"
-    },
+    "crewOptions": { "solo": "Solo (1 person)", "two": "2 people", "three": "3 people", "fourPlus": "4+ people" },
     "removeSkill": "Remove {{name}}",
     "strictRequirementsWarning": "Strict requirements may limit the number of helpers who can bid. You can still adjust them after posting.",
     "openBidHelp": "Helpers will submit their own price. You will see all bids and choose the one that fits your budget.",
@@ -3629,107 +3596,12 @@
     "helperAssigned": "Helper Assigned",
     "helperAvailability": "Helper Availability",
     "reviewCount": "{{count}} review",
-    "urgencyMonth": "This Month",
-    "oneTime": "One-Time",
-    "recurring": "Recurring",
-    "standard": "Standard",
-    "escrowProtected": "Escrow Protected",
-    "licensed": "Licensed",
-    "insured": "Insured",
-    "skilled": "Skilled",
-    "backgroundCheck": "Background Check",
-    "ownTools": "Own Tools",
-    "crewRequired": "Crew Required",
-    "acceptingBids": "Accepting Bids",
-    "helperChosen": "Helper Chosen",
-    "inProgress": "In Progress",
-    "completed": "Completed",
-    "closed": "Closed",
-    "cancelled": "Cancelled",
-    "bidFailed": "Failed to submit bid.",
-    "jobStarted": "Job started successfully",
-    "jobCompleted": "Job completed successfully",
-    "jobCancelled": "Job cancelled successfully",
-    "sessionExpired": "Your session has expired. Please log in again.",
-    "sessionRedirect": "Your session has expired. Redirecting to login…",
-    "disputeOpen": "Cannot complete the job while a payment dispute is open. Resolve the dispute first.",
-    "operationFailed": "Operation failed. Please try again.",
-    "notFound": "Job not found",
-    "notFoundHelp": "This job may have expired or been removed.",
-    "browseJobs": "Browse Jobs",
-    "details": "Job Details",
-    "metaDescription": "View job details and submit a bid on OxSteed.",
-    "backToJobs": "Back to Jobs",
-    "bidCount_one": "{{count}} bid",
-    "bidCount_other": "{{count}} bids",
-    "requirements": "Requirements",
-    "requirementsHelp": "The client requires helpers to confirm these qualifications before bidding.",
-    "coverage": "{{amount}} coverage",
-    "skillLevelValue": "{{level}} level",
-    "minimumCrew": "Minimum {{count}} people",
-    "requiredSkills": "Required Skills",
-    "findMatchingHelpers": "Find Matching Helpers →",
-    "photosMedia": "Photos & Media ({{count}})",
-    "viewImage": "View image {{number}}",
-    "jobMedia": "Job media {{number}}",
-    "completeProfileTitle": "Complete your profile to bid",
-    "completeProfileHelp": "Finish setting up your helper profile to start submitting bids.",
-    "completeProfile": "Complete Profile",
-    "bidSubmittedHelp": "Your bid has been submitted. The client will reach out if they choose you.",
-    "chosenTitle": "You've been chosen for this job!",
-    "chosenHelp": "The client selected your bid. Mark the job as started when you are on-site and ready to begin.",
-    "starting": "Starting…",
-    "startJob": "▶ Start Job",
-    "helperCancelHelp": "You can cancel this job if something comes up. A cancellation fee may apply.",
-    "submitYourBid": "Submit Your Bid",
-    "yourPrice": "Your Price ($)",
-    "estimatedHours": "Estimated Hours",
-    "estimatedHoursPlaceholder": "e.g. 4",
-    "bidMessageLabel": "Why you're the right person for this job",
-    "bidMessagePlaceholder": "Describe your relevant experience, availability, and approach…",
-    "bidsCount": "Bids ({{count}})",
-    "noBidsHelp": "No bids yet. Qualified helpers will start bidding soon.",
-    "jobsDone": "{{count}} jobs done",
-    "hoursEstimated": "{{hours}}h est.",
-    "bidStatus": {
-      "pending": "Pending",
-      "accepted": "Accepted",
-      "rejected": "Rejected",
-      "withdrawn": "Withdrawn"
-    },
-    "openBudgetHelp": "The client is open to all bids. Submit a competitive offer.",
-    "hourlyBudgetHelp": "Rate per hour of work on-site.",
-    "scheduled": "Scheduled",
-    "at": "at",
-    "jobType": "Job Type",
-    "expires": "Expires",
-    "today": "Today",
-    "daysLeft_one": "{{count}} day left",
-    "daysLeft_other": "{{count}} days left",
-    "postedBy": "Posted by",
-    "oxsteedClient": "OxSteed Client",
-    "assignedHelper": "Assigned Helper",
-    "acceptedHelper": "Accepted Helper",
-    "reportHelper": "Report Helper",
-    "actions": "Actions",
-    "directPaymentHelp": "Use direct payment for launch. Save the confirmation number, receipt link, or screenshot here so the job has a clear paper trail.",
-    "processing": "Processing…",
-    "recordDirectPayment": "🧾 Record Direct Payment",
-    "openMessages": "Open Messages",
-    "jobCompletedLabel": "Job completed ✓",
-    "yourHelper": "your helper",
-    "reviewSection": "Review",
-    "yourCustomer": "your customer",
-    "cancelTitle": "Cancel this job?",
-    "cancelHelp": "This will remove your job listing. Helpers who bid will be notified.",
-    "cancelPlaceholder": "Reason for cancellation (optional)",
-    "keepJob": "Keep Job",
-    "cancelling": "Cancelling…",
-    "theHelper": "the helper",
-    "recordDirectPaymentTitle": "Record direct payment",
-    "recordDirectPaymentSubtitle": "Capture the payment method, confirmation number, and any proof link so both sides can verify the exchange later.",
-    "jobPaymentFor": "Job payment · {{title}}",
-    "jobPayment": "Job payment"
+    "urgencyMonth": "This Month", "oneTime": "One-Time", "recurring": "Recurring", "standard": "Standard", "escrowProtected": "Escrow Protected", "licensed": "Licensed", "insured": "Insured", "skilled": "Skilled", "backgroundCheck": "Background Check", "ownTools": "Own Tools", "crewRequired": "Crew Required", "acceptingBids": "Accepting Bids", "helperChosen": "Helper Chosen", "inProgress": "In Progress", "completed": "Completed", "closed": "Closed", "cancelled": "Cancelled",
+    "bidFailed": "Failed to submit bid.", "jobStarted": "Job started successfully", "jobCompleted": "Job completed successfully", "jobCancelled": "Job cancelled successfully", "sessionExpired": "Your session has expired. Please log in again.", "sessionRedirect": "Your session has expired. Redirecting to login…", "disputeOpen": "Cannot complete the job while a payment dispute is open. Resolve the dispute first.", "operationFailed": "Operation failed. Please try again.",
+    "notFound": "Job not found", "notFoundHelp": "This job may have expired or been removed.", "browseJobs": "Browse Jobs", "details": "Job Details", "metaDescription": "View job details and submit a bid on OxSteed.", "backToJobs": "Back to Jobs", "bidCount_one": "{{count}} bid", "bidCount_other": "{{count}} bids", "requirements": "Requirements", "requirementsHelp": "The client requires helpers to confirm these qualifications before bidding.", "coverage": "{{amount}} coverage", "skillLevelValue": "{{level}} level", "minimumCrew": "Minimum {{count}} people", "requiredSkills": "Required Skills", "findMatchingHelpers": "Find Matching Helpers →", "photosMedia": "Photos & Media ({{count}})", "viewImage": "View image {{number}}", "jobMedia": "Job media {{number}}",
+    "completeProfileTitle": "Complete your profile to bid", "completeProfileHelp": "Finish setting up your helper profile to start submitting bids.", "completeProfile": "Complete Profile", "bidSubmittedHelp": "Your bid has been submitted. The client will reach out if they choose you.", "chosenTitle": "You've been chosen for this job!", "chosenHelp": "The client selected your bid. Mark the job as started when you are on-site and ready to begin.", "starting": "Starting…", "startJob": "▶ Start Job", "helperCancelHelp": "You can cancel this job if something comes up. A cancellation fee may apply.", "submitYourBid": "Submit Your Bid", "yourPrice": "Your Price ($)", "estimatedHours": "Estimated Hours", "estimatedHoursPlaceholder": "e.g. 4", "bidMessageLabel": "Why you're the right person for this job", "bidMessagePlaceholder": "Describe your relevant experience, availability, and approach…", "bidsCount": "Bids ({{count}})", "noBidsHelp": "No bids yet. Qualified helpers will start bidding soon.", "jobsDone": "{{count}} jobs done", "hoursEstimated": "{{hours}}h est.",
+    "bidStatus": { "pending": "Pending", "accepted": "Accepted", "rejected": "Rejected", "withdrawn": "Withdrawn" },
+    "openBudgetHelp": "The client is open to all bids. Submit a competitive offer.", "hourlyBudgetHelp": "Rate per hour of work on-site.", "scheduled": "Scheduled", "at": "at", "jobType": "Job Type", "expires": "Expires", "today": "Today", "daysLeft_one": "{{count}} day left", "daysLeft_other": "{{count}} days left", "postedBy": "Posted by", "oxsteedClient": "OxSteed Client", "assignedHelper": "Assigned Helper", "acceptedHelper": "Accepted Helper", "reportHelper": "Report Helper", "actions": "Actions", "directPaymentHelp": "Use direct payment for launch. Save the confirmation number, receipt link, or screenshot here so the job has a clear paper trail.", "processing": "Processing…", "recordDirectPayment": "🧾 Record Direct Payment", "openMessages": "Open Messages", "jobCompletedLabel": "Job completed ✓", "yourHelper": "your helper", "reviewSection": "Review", "yourCustomer": "your customer", "cancelTitle": "Cancel this job?", "cancelHelp": "This will remove your job listing. Helpers who bid will be notified.", "cancelPlaceholder": "Reason for cancellation (optional)", "keepJob": "Keep Job", "cancelling": "Cancelling…", "theHelper": "the helper", "recordDirectPaymentTitle": "Record direct payment", "recordDirectPaymentSubtitle": "Capture the payment method, confirmation number, and any proof link so both sides can verify the exchange later.", "jobPaymentFor": "Job payment · {{title}}", "jobPayment": "Job payment"
   },
   "myJobs": {
     "subtitle": "Jobs you have posted",
@@ -4258,14 +4130,7 @@
     "jobCount": "{{count}} job found"
   },
   "support": {
-    "liveWait": {
-      "title": "Waiting for a support agent",
-      "body": "We are checking for an available agent. You can add details below while you wait, or call or text us directly.",
-      "unavailable": "No agent is available right now",
-      "fallback": "Your request has been saved. Leave a message below for follow-up, or call or text +1 (937) 408-5169 directly.",
-      "connected": "A support agent has joined",
-      "closed": "This conversation is closed"
-    },
+    "liveWait": {"title":"Waiting for a support agent","body":"We are checking for an available agent. You can add details below while you wait, or call or text us directly.","unavailable":"No agent is available right now","fallback":"Your request has been saved. Leave a message below for follow-up, or call or text +1 (937) 408-5169 directly.","connected":"A support agent has joined","closed":"This conversation is closed"},
     "helpTitle": "How can we help?",
     "helpSubtitle": "Ask a question or start a conversation with our AI assistant.",
     "placeholder": "Ask a question…",
@@ -6118,8 +5983,8 @@
       "sectionFaqs": "FAQs",
       "sectionPolicies": "Policies"
     },
-    "chat": {
-      "expandChat": "Expand chat",
+  "chat": {
+    "expandChat": "Expand chat",
       "aiAssistant": "AI Assistant",
       "onlineNow": "Online now",
       "availableToday": "Available today",
@@ -8796,23 +8661,13 @@
     "success": "Booking request sent!",
     "loading": "Loading service…",
     "notFound": "Service not found.",
-    "sections": {
-      "details": "Service details",
-      "selectDate": "Select a date",
-      "selectTime": "Select a time"
-    },
+    "sections": { "details": "Service details", "selectDate": "Select a date", "selectTime": "Select a time" },
     "durationLabel": "Duration",
     "durationValue_one": "{{count}} minute",
     "durationValue_other": "{{count}} minutes",
     "basePriceLabel": "Base price",
     "noAvailableSlots": "No available times on this date.",
-    "summary": {
-      "title": "Booking summary",
-      "dateLabel": "Date",
-      "timeLabel": "Time",
-      "basePriceLabel": "Base price",
-      "totalPriceLabel": "Total"
-    },
+    "summary": { "title": "Booking summary", "dateLabel": "Date", "timeLabel": "Time", "basePriceLabel": "Base price", "totalPriceLabel": "Total" },
     "form": {
       "title": "Your information",
       "nameLabel": "Name",
@@ -8825,10 +8680,7 @@
       "notesPlaceholder": "Share any details the business should know…",
       "termsText": "I agree to the booking terms and cancellation policy."
     },
-    "buttons": {
-      "booking": "Sending request…",
-      "bookNow": "Book now · {{price}}"
-    }
+    "buttons": { "booking": "Sending request…", "bookNow": "Book now · {{price}}" }
   },
   "booking": {
     "pageTitle": "Book a Helper",
@@ -13649,33 +13501,9 @@
       "deliveryPrice": "{{price}} delivery",
       "minimumOrder": "{{price}} minimum order",
       "noMinimum": "No minimum",
-      "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
-      },
-      "tags": {
-        "vegetarian": "Vegetarian",
-        "vegan": "Vegan",
-        "gf": "GF",
-        "gluten-free": "GF",
-        "spicy": "Spicy",
-        "veg": "Vegetarian",
-        "halal": "Halal",
-        "keto": "Keto",
-        "dairy_free": "Dairy-free"
-      },
-      "filters": {
-        "all": "All",
-        "vegetarian": "Vegetarian",
-        "vegan": "Vegan",
-        "gf": "GF",
-        "spicy": "Spicy"
-      },
+      "days": { "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat", "sunday": "Sun" },
+      "tags": { "vegetarian": "Vegetarian", "vegan": "Vegan", "gf": "GF", "gluten-free": "GF", "spicy": "Spicy", "veg": "Vegetarian", "halal": "Halal", "keto": "Keto", "dairy_free": "Dairy-free" },
+      "filters": { "all": "All", "vegetarian": "Vegetarian", "vegan": "Vegan", "gf": "GF", "spicy": "Spicy" },
       "filteredBy": "Filtered - {{filter}}",
       "popularItems": "Popular items",
       "guest": "Guest",
@@ -13688,21 +13516,8 @@
       "item": "Item",
       "reorderError": "This order cannot be added again right now.",
       "linkCopied": "Link copied!",
-      "tabs": {
-        "menu": "Menu",
-        "info": "Info",
-        "reviews": "Reviews",
-        "deals": "Deals"
-      },
-      "timeSlots": {
-        "asap": "ASAP",
-        "in15": "In 15 minutes",
-        "adds15": "Adds 15 min to estimate",
-        "in30": "In 30 minutes",
-        "scheduled": "Scheduled ahead",
-        "later": "Schedule for later",
-        "chooseTime": "Choose a specific time"
-      },
+      "tabs": { "menu": "Menu", "info": "Info", "reviews": "Reviews", "deals": "Deals" },
+      "timeSlots": { "asap": "ASAP", "in15": "In 15 minutes", "adds15": "Adds 15 min to estimate", "in30": "In 30 minutes", "scheduled": "Scheduled ahead", "later": "Schedule for later", "chooseTime": "Choose a specific time" },
       "estimated": "Est. {{time}}",
       "payAtRestaurant": "Pay at the restaurant",
       "payOnDelivery": "Pay on delivery",
@@ -14799,38 +14614,14 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": {
-        "title": "OxSteed Restaurants Help Center | Ordering and Support",
-        "description": "Learn how to browse restaurants, manage menus, place orders, track food, and get support through OxSteed Restaurants."
-      },
-      "manager": {
-        "title": "OxSteed Manager Help Center | Restaurant Operations",
-        "description": "Learn how restaurant owners and managers use OxSteed Manager for orders, menus, team access, reports, and support."
-      },
-      "pos": {
-        "title": "OxSteed POS Help Center | Orders and Payments",
-        "description": "Learn how to use OxSteed POS for counter orders, payments, held orders, discounts, shifts, and cash workflows."
-      },
-      "kitchen": {
-        "title": "OxSteed Kitchen Help Center | Ticket and Prep Workflows",
-        "description": "Learn how OxSteed Kitchen handles ticket queues, station prep, expo handoff, item availability, and service history."
-      },
-      "display": {
-        "title": "OxSteed Display Help Center | Guest Order Status",
-        "description": "Learn how OxSteed Display supports guest order status, kiosk flows, and customer-facing restaurant updates."
-      },
-      "inventory": {
-        "title": "OxSteed Inventory Help Center | Stock and Availability",
-        "description": "Learn how OxSteed Inventory supports stock tracking, availability updates, counts, and restaurant operations."
-      },
-      "crew": {
-        "title": "OxSteed Crew Help Center | Restaurant Team Workflows",
-        "description": "Learn how OxSteed Crew supports restaurant staff, assignments, checklists, and daily service coordination."
-      },
-      "runner": {
-        "title": "OxSteed Runner Help Center | Handoff and Delivery",
-        "description": "Learn how OxSteed Runner supports order pickup, handoff, delivery coordination, and service status updates."
-      }
+      "restaurant": { "title": "OxSteed Restaurants Help Center | Ordering and Support", "description": "Learn how to browse restaurants, manage menus, place orders, track food, and get support through OxSteed Restaurants." },
+      "manager": { "title": "OxSteed Manager Help Center | Restaurant Operations", "description": "Learn how restaurant owners and managers use OxSteed Manager for orders, menus, team access, reports, and support." },
+      "pos": { "title": "OxSteed POS Help Center | Orders and Payments", "description": "Learn how to use OxSteed POS for counter orders, payments, held orders, discounts, shifts, and cash workflows." },
+      "kitchen": { "title": "OxSteed Kitchen Help Center | Ticket and Prep Workflows", "description": "Learn how OxSteed Kitchen handles ticket queues, station prep, expo handoff, item availability, and service history." },
+      "display": { "title": "OxSteed Display Help Center | Guest Order Status", "description": "Learn how OxSteed Display supports guest order status, kiosk flows, and customer-facing restaurant updates." },
+      "inventory": { "title": "OxSteed Inventory Help Center | Stock and Availability", "description": "Learn how OxSteed Inventory supports stock tracking, availability updates, counts, and restaurant operations." },
+      "crew": { "title": "OxSteed Crew Help Center | Restaurant Team Workflows", "description": "Learn how OxSteed Crew supports restaurant staff, assignments, checklists, and daily service coordination." },
+      "runner": { "title": "OxSteed Runner Help Center | Handoff and Delivery", "description": "Learn how OxSteed Runner supports order pickup, handoff, delivery coordination, and service status updates." }
     },
     "direct": {
       "services": {
@@ -15151,43 +14942,16 @@
     },
     "case": {
       "headers": {
-        "quote": {
-          "title": "Quote review",
-          "subtitle": "Review the estimate and decide whether to accept it."
-        },
-        "book": {
-          "title": "Schedule your visit",
-          "subtitle": "Pick a time window and confirm the service address."
-        },
-        "job": {
-          "title": "Job status",
-          "subtitle": "Track the request from quote to completion."
-        },
-        "proof": {
-          "title": "Payment proof",
-          "subtitle": "Upload a receipt or reference so the payment stays attached."
-        },
-        "receipt": {
-          "title": "Receipt confirmation",
-          "subtitle": "Confirm that the proof has been received and tied to history."
-        },
-        "history": {
-          "subtitle": "See every Direct request, quote, job, and receipt."
-        },
-        "support": {
-          "title": "Direct support",
-          "subtitle": "Message the OxSteed team about this work."
-        },
-        "account": {
-          "subtitle": "Keep service addresses and notes ready for the next visit."
-        },
-        "change": {
-          "title": "Cancel or reschedule",
-          "subtitle": "Adjust the plan without restarting the entire flow."
-        },
-        "default": {
-          "subtitle": "Review and manage this case."
-        }
+        "quote": { "title": "Quote review", "subtitle": "Review the estimate and decide whether to accept it." },
+        "book": { "title": "Schedule your visit", "subtitle": "Pick a time window and confirm the service address." },
+        "job": { "title": "Job status", "subtitle": "Track the request from quote to completion." },
+        "proof": { "title": "Payment proof", "subtitle": "Upload a receipt or reference so the payment stays attached." },
+        "receipt": { "title": "Receipt confirmation", "subtitle": "Confirm that the proof has been received and tied to history." },
+        "history": { "subtitle": "See every Direct request, quote, job, and receipt." },
+        "support": { "title": "Direct support", "subtitle": "Message the OxSteed team about this work." },
+        "account": { "subtitle": "Keep service addresses and notes ready for the next visit." },
+        "change": { "title": "Cancel or reschedule", "subtitle": "Adjust the plan without restarting the entire flow." },
+        "default": { "subtitle": "Review and manage this case." }
       },
       "loadingBody": "Fetching the Direct record now.",
       "emptyTitle": "No record found",
@@ -15287,9 +15051,9 @@
     "scheduleByQuote": "Schedule by quote",
     "request": "Request",
     "selectedService": "Selected catalog service: {{service}}",
-    "loadingServices": "Loading services...",
-    "noServices": "No published services match this search.",
-    "showMoreServices": "Show more services ({{count}})",
+  "loadingServices": "Loading services...",
+  "noServices": "No published services match this search.",
+  "showMoreServices": "Show more services ({{count}})",
     "equipment": "Equipment",
     "toolsEquipment": "Tools & equipment",
     "searchTools": "Search tools...",
@@ -15316,7 +15080,9 @@
     "currentlyUnavailable": "Currently unavailable",
     "categoryComingSoon": "Services in this category are coming soon.",
     "categoryPaused": "This category is temporarily unavailable."
-  },
+  }
+,
+
   "careers": {
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Apply to OxSteed and to businesses hiring on OxSteed. Remote, hybrid, and onsite roles worldwide.",
