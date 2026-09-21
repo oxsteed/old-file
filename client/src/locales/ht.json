@@ -6244,7 +6244,18 @@
       "guestLiveWaiting": "{{name}} sou liy — mesaj ou te livré an dirèk.",
       "guestOfflineAi": "{{name}} pa sou liy kounye a. Ou ap pale ak asistan IA li — ou ka kite yon mesaj.",
       "guestOfflineBanner": "Pa sou liy — asistan IA",
-      "guestLiveBanner": "Chat an dirèk"
+      "guestLiveBanner": "Chat an dirèk",
+      "availabilityTitle": "Orè ki disponib",
+      "availabilityToggle": "Gade disponiblite",
+      "availabilityHintHelper": "Chwazi yon orè ki louvri pou voye li kòm yon demann sèvis nan chat sa a.",
+      "availabilityHintBusiness": "Chwazi yon orè biznis ki louvri pou voye li kòm yon demann sèvis nan chat sa a.",
+      "availabilityLoading": "Ap chaje orè yo…",
+      "availabilityLoadError": "Pa t kapab chaje disponiblite. Eseye ankò nan yon ti moman.",
+      "availabilityEmpty": "Founisè sa a poko pibliye orè ki louvri.",
+      "availabilityNoSlots": "Pa gen orè ki louvri nan de semèn kap vini yo.",
+      "availabilityNoSlotsDay": "Pa gen orè ki louvri jou sa a.",
+      "availabilityDates": "Dat ki disponib",
+      "slotRequestMessage": "Mwen ta renmen mande: {{when}}\n{{marker}}"
     }
   },
   "disputes": {

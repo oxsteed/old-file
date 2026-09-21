@@ -6244,7 +6244,18 @@
       "guestLiveWaiting": "{{name}} متصل — تم تسليم رسالتك مباشرة.",
       "guestOfflineAi": "{{name}} غير متصل الآن. أنت تتحدث مع مساعده الذكي — يمكنك ترك رسالة في أي وقت.",
       "guestOfflineBanner": "غير متصل — مساعد ذكي",
-      "guestLiveBanner": "دردشة مباشرة"
+      "guestLiveBanner": "دردشة مباشرة",
+      "availabilityTitle": "الأوقات المتاحة",
+      "availabilityToggle": "عرض التوفر",
+      "availabilityHintHelper": "اختر فترة متاحة لإرسالها كطلب خدمة في هذه المحادثة.",
+      "availabilityHintBusiness": "اختر فترة متاحة للعمل لإرسالها كطلب خدمة في هذه المحادثة.",
+      "availabilityLoading": "جارٍ تحميل الأوقات…",
+      "availabilityLoadError": "تعذّر تحميل التوفر. حاول مرة أخرى بعد لحظات.",
+      "availabilityEmpty": "لم ينشر هذا المزود أوقاتًا مفتوحة بعد.",
+      "availabilityNoSlots": "لا توجد فترات متاحة خلال الأسبوعين القادمين.",
+      "availabilityNoSlotsDay": "لا توجد أوقات متاحة في هذا اليوم.",
+      "availabilityDates": "التواريخ المتاحة",
+      "slotRequestMessage": "أود طلب: {{when}}\n{{marker}}"
     }
   },
   "disputes": {

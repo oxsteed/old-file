@@ -6244,7 +6244,18 @@
       "guestLiveWaiting": "{{name}} est en ligne — votre message a été livré en direct.",
       "guestOfflineAi": "{{name}} est hors ligne. Vous discutez avec son assistant IA — laissez un message à tout moment.",
       "guestOfflineBanner": "Hors ligne — assistant IA",
-      "guestLiveBanner": "Chat en direct"
+      "guestLiveBanner": "Chat en direct",
+      "availabilityTitle": "Horaires disponibles",
+      "availabilityToggle": "Voir les disponibilités",
+      "availabilityHintHelper": "Choisissez un créneau libre pour l’envoyer comme demande de service dans ce chat.",
+      "availabilityHintBusiness": "Choisissez un créneau libre de l’entreprise pour l’envoyer comme demande de service dans ce chat.",
+      "availabilityLoading": "Chargement des horaires…",
+      "availabilityLoadError": "Impossible de charger les disponibilités. Réessayez dans un instant.",
+      "availabilityEmpty": "Ce prestataire n’a pas encore publié d’horaires ouverts.",
+      "availabilityNoSlots": "Aucun créneau libre dans les deux prochaines semaines.",
+      "availabilityNoSlotsDay": "Aucun horaire libre ce jour-là.",
+      "availabilityDates": "Dates disponibles",
+      "slotRequestMessage": "Je voudrais demander : {{when}}\n{{marker}}"
     }
   },
   "disputes": {

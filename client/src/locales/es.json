@@ -6244,7 +6244,18 @@
       "guestLiveWaiting": "{{name}} está en línea — tu mensaje se entregó en vivo.",
       "guestOfflineAi": "{{name}} está desconectado. Estás hablando con su asistente de IA — puedes dejar un mensaje.",
       "guestOfflineBanner": "Desconectado — asistente de IA",
-      "guestLiveBanner": "Chat en vivo"
+      "guestLiveBanner": "Chat en vivo",
+      "availabilityTitle": "Horarios disponibles",
+      "availabilityToggle": "Ver disponibilidad",
+      "availabilityHintHelper": "Elige un horario libre para enviarlo como solicitud de servicio en este chat.",
+      "availabilityHintBusiness": "Elige un horario libre del negocio para enviarlo como solicitud de servicio en este chat.",
+      "availabilityLoading": "Cargando horarios…",
+      "availabilityLoadError": "No se pudo cargar la disponibilidad. Inténtalo de nuevo en un momento.",
+      "availabilityEmpty": "Este proveedor aún no ha publicado horarios abiertos.",
+      "availabilityNoSlots": "No hay horarios libres en las próximas dos semanas.",
+      "availabilityNoSlotsDay": "No hay horarios libres este día.",
+      "availabilityDates": "Fechas disponibles",
+      "slotRequestMessage": "Me gustaría solicitar: {{when}}\n{{marker}}"
     }
   },
   "disputes": {

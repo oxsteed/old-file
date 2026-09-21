@@ -224,3 +224,128 @@ export function getMessengerPhaseWithVerification({
   if (otpPending || guestContactSaved) return 'guest_otp';
   return 'guest_gate';
 }
+
+/**
+ * Whether a verified profile guest should open Socket.IO /chat.
+ * Keeps JWT useSocket() path untouched (guests never share that singleton).
+ */
+export function shouldConnectGuestProfileChatSocket({
+  enabled = true,
+  isGuest = false,
+  guestToken = '',
+  guestSessionId = '',
+  expiresAt = null,
+  now = Date.now(),
+} = {}) {
+  if (!enabled || !isGuest) return false;
+  if (!String(guestToken || '').trim() || !String(guestSessionId || '').trim()) {
+    return false;
+  }
+  if (expiresAt != null && Number(expiresAt) > 0 && now > Number(expiresAt)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Map guest_chat:message / profile_chat:new_message payloads into a timeline message.
+ * Skips guest-authored echoes (guest UI already appended those from HTTP send).
+ * @returns {null | { id: string, itemType: 'message', authorType: string, content: string, timestamp: string, sender_name?: string }}
+ */
+export function normalizeGuestLiveSocketMessage(payload, eventName = '') {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const event = String(eventName || '');
+  const isGuestChatEvent =
+    event === 'guest_chat:message' ||
+    payload.messageId != null ||
+    payload.senderType != null;
+
+  if (isGuestChatEvent && event !== 'profile_chat:new_message') {
+    const senderType = String(payload.senderType || payload.sender_type || '').toLowerCase();
+    if (senderType === 'guest') return null;
+    const content = String(payload.message || payload.content || '').trim();
+    if (!content) return null;
+    const authorType =
+      senderType === 'system' || senderType === 'system_ai' || senderType === 'ai'
+        ? 'helper_ai'
+        : 'helper_human';
+    return {
+      id: String(payload.messageId || payload.id || `guest-live-${Date.now()}`),
+      itemType: 'message',
+      authorType,
+      content,
+      timestamp: String(payload.createdAt || payload.created_at || new Date().toISOString()),
+      sender_name: payload.senderName || payload.sender_name || undefined,
+    };
+  }
+
+  // profile_chat:new_message (and overlapping shapes)
+  const msg = payload.message && typeof payload.message === 'object' ? payload.message : null;
+  const senderType = String(
+    msg?.sender_type || msg?.senderType || payload.sender_type || payload.senderType || '',
+  ).toLowerCase();
+  if (senderType === 'guest') return null;
+
+  const content = String(
+    msg?.content || msg?.message || payload.content || payload.message || '',
+  ).trim();
+  if (!content) return null;
+
+  // Guest-inquiry broadcasts to helpers often lack helper sender_type; ignore those
+  // unless this is clearly a provider/system reply for this guest session.
+  if (payload.guestInquiry && !senderType && !msg?.id && !payload.messageId) {
+    return null;
+  }
+
+  const authorType =
+    senderType === 'system' || senderType === 'system_ai' || senderType === 'ai'
+      ? 'helper_ai'
+      : 'helper_human';
+
+  return {
+    id: String(
+      msg?.id ||
+        payload.messageId ||
+        payload.id ||
+        `guest-live-${Date.now()}`,
+    ),
+    itemType: 'message',
+    authorType,
+    content,
+    timestamp: String(
+      msg?.created_at ||
+        msg?.createdAt ||
+        payload.createdAt ||
+        payload.created_at ||
+        new Date().toISOString(),
+    ),
+    sender_name:
+      msg?.sender_name ||
+      msg?.senderName ||
+      payload.senderName ||
+      payload.sender_name ||
+      undefined,
+  };
+}
+
+/**
+ * True when an incoming live message should append (same id or identical recent body).
+ */
+export function shouldAppendGuestLiveMessage(timeline, incoming) {
+  if (!incoming?.id || !incoming?.content) return false;
+  const items = Array.isArray(timeline) ? timeline : [];
+  if (items.some((item) => item?.itemType === 'message' && String(item.id) === String(incoming.id))) {
+    return false;
+  }
+  const incomingTs = Date.parse(incoming.timestamp || '') || 0;
+  const duplicate = items.some((item) => {
+    if (item?.itemType !== 'message') return false;
+    if (String(item.content || '') !== String(incoming.content)) return false;
+    if (item.authorType === 'user') return false;
+    const itemTs = Date.parse(item.timestamp || '') || 0;
+    if (!incomingTs || !itemTs) return true;
+    return Math.abs(incomingTs - itemTs) < 15_000;
+  });
+  return !duplicate;
+}

@@ -521,3 +521,119 @@
 .chat-panel--dock textarea {
   border-radius: 0.9rem;
 }
+
+
+/* In-messenger availability picker */
+.messenger-availability {
+  margin: 0 0.75rem 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(55 65 81 / 0.9);
+  background: rgb(17 24 39 / 0.92);
+  flex-shrink: 0;
+}
+.messenger-availability__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.messenger-availability__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgb(251 146 60);
+}
+.messenger-availability__title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgb(243 244 246);
+}
+.messenger-availability__close {
+  border: 0;
+  background: transparent;
+  color: rgb(156 163 175);
+  padding: 0.25rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.messenger-availability__close:hover { color: white; background: rgb(55 65 81); }
+.messenger-availability__hint {
+  margin: 0.4rem 0 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: rgb(156 163 175);
+}
+.messenger-availability__status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: rgb(156 163 175);
+  margin: 0.25rem 0;
+}
+.messenger-availability__status--error { color: rgb(248 113 113); }
+.messenger-availability__dates {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.messenger-availability__date {
+  flex: 0 0 auto;
+  border: 1px solid rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(229 231 235);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.messenger-availability__date.is-active,
+.messenger-availability__date[aria-selected="true"] {
+  border-color: rgb(249 115 22);
+  background: rgb(154 52 18 / 0.35);
+  color: rgb(254 215 170);
+}
+.messenger-availability__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+.messenger-availability__slot {
+  border: 1px solid rgb(75 85 99);
+  background: rgb(17 24 39);
+  color: rgb(243 244 246);
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.messenger-availability__slot:hover {
+  border-color: rgb(249 115 22);
+  color: rgb(254 215 170);
+}
+.messenger-availability-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0.75rem 0.35rem;
+  border: 1px solid rgb(75 85 99);
+  background: rgb(31 41 55 / 0.85);
+  color: rgb(229 231 235);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+.messenger-availability-toggle.is-open,
+.messenger-availability-toggle:hover {
+  border-color: rgb(249 115 22);
+  color: rgb(254 215 170);
+}

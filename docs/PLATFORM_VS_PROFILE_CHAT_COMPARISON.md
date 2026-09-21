@@ -142,11 +142,11 @@ Business profiles still use destination key `'helper'` (talk to business owner/r
 | System | Namespace | Client | Auth | Key events |
 |---|---|---|---|---|
 | Platform | `/support` | Direct `io(realtimeNamespaceUrl('support'))` | JWT or guestToken | `customer:join`, `ticket:join`, `message:new`, `ticket:assigned`, typing, status |
-| Profile / DMs | `/chat` | `useSocket()` singleton | JWT (`auth.token`); **no socket if logged out** | `message:new`, `message:edited`, `message:deleted`, `messages:read`; server also emits `profile_chat:new_message` to helpers |
+| Profile / DMs | `/chat` | `useSocket()` JWT singleton; verified guests use `useGuestProfileChatSocket` | JWT (`auth.token`) **or** `{ guestToken, guestSessionId }` | `message:new` / edits / read (auth); guests: `guest_chat:message` + `profile_chat:new_message` on `guest_session_*` |
 
-Bootstrap: `server/bootstrap/realtime.js` — namespaces `['/chat','/support','/restaurant-display']`. Support handshake documented to allow polling for guests; chat client prefers websocket-only.
+Bootstrap: `server/bootstrap/realtime.js` — namespaces `['/chat','/support','/restaurant-display']`. Support handshake documented to allow polling for guests; chat JWT client prefers websocket-only; profile guests allow polling like support.
 
-Guests on profile chat have **no** `/chat` socket (useSocket skips when `!user`); they rely on HTTP AI responses only.
+Verified profile guests open `/chat` after OTP (`useGuestProfileChatSocket`); unverified guests still rely on HTTP AI responses only. Dock also exposes an in-chat availability picker (helper slots / first business service) that sends a `[booking_slot:…]` request message.
 
 ---
 
@@ -217,7 +217,7 @@ Guest insert allows `business_id` NULL (`378_public_support_guest_chat.sql`).
 5. **Guest profile messages** primarily AI/Redis; dedicated inbound table + `/chat/sessions/guest` underused by ChatPanel send → helpers may not see guest chat history in inbox unless booking/email paths fire.
 6. **Second guest stack** `/api/guest-chat` unused by messenger → kept registered with legacy comments (mobile/tests uncertain); do not expand.
 7. **HandoffBanner / handoff timeline** implemented but not emitted → false sense of live takeover.
-8. **Auth asymmetry for realtime:** profile guests have no `/chat` socket; platform guests do have `/support` socket after verify.
+8. **Helper reply UX for OTP guest live sessions:** verified guests connect `/chat`, but helper inbox `GuestInquiryPanel` is still email-oriented; in-app helper→guest live replies depend on `guest_chat:message` / `profile_chat:new_message` producers (e.g. legacy `/api/guest-chat` helper send).
 9. **Business_id null** guest support conversations vs routing that often assumes a business id — queue/agent matching for guests depends on platform-employer paths (`supportWaitService` platform agents); verify carefully in ops.
 10. **Simpler public profile routes** (`/helpers/public/...`) lack messenger while `/helpers/:id` has it — inconsistent entry.
 11. **Capability gate:** if `aiSupport` capability off, floating button only navigates to escalation (no AI widget).

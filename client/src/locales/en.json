@@ -6244,7 +6244,18 @@
       "guestLiveWaiting": "{{name}} is online — your message was delivered live.",
       "guestOfflineAi": "{{name}} is offline right now. You're chatting with their AI assistant — leave a message anytime.",
       "guestOfflineBanner": "Offline — AI assistant",
-      "guestLiveBanner": "Live chat"
+      "guestLiveBanner": "Live chat",
+      "availabilityTitle": "Available times",
+      "availabilityToggle": "Check availability",
+      "availabilityHintHelper": "Pick an open slot to send as a service request in this chat.",
+      "availabilityHintBusiness": "Pick an open business slot to send as a service request in this chat.",
+      "availabilityLoading": "Loading open times…",
+      "availabilityLoadError": "Couldn’t load availability. Try again in a moment.",
+      "availabilityEmpty": "This provider hasn’t published open times yet.",
+      "availabilityNoSlots": "No open slots in the next two weeks.",
+      "availabilityNoSlotsDay": "No open times on this day.",
+      "availabilityDates": "Available dates",
+      "slotRequestMessage": "I'd like to request: {{when}}\n{{marker}}"
     }
   },
   "disputes": {

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Search, Maximize2 } from 'lucide-react';
+import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Search, Maximize2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -14,10 +14,18 @@ import ChatDestinationDropdown from './ChatDestinationDropdown';
 import StatusBadge from './StatusBadge';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
+import MessengerAvailabilityPicker from './MessengerAvailabilityPicker.jsx';
+import { buildSlotRequestMessage } from './messengerAvailability.js';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../hooks/useSocket';
-import { readGuestContact, readGuestVerifiedSession } from './messengerDockState.js';
+import { useGuestProfileChatSocket } from '../../../hooks/useGuestProfileChatSocket.js';
+import {
+  readGuestContact,
+  readGuestVerifiedSession,
+  clearGuestVerifiedSession,
+  shouldAppendGuestLiveMessage,
+} from './messengerDockState.js';
 import { buildSupportEscalationHandoff } from './supportEscalationHandoff.js';
 
 interface ChatPanelProps {
@@ -42,6 +50,8 @@ interface ChatPanelProps {
   messageInputRef?: React.RefObject<HTMLTextAreaElement>;
   roomy?: boolean;
   onExpand?: () => void;
+  /** When false (dock closed), disconnect the guest /chat socket. Defaults true for sidebar. */
+  dockOpen?: boolean;
 }
 
 // ── Offline / Message-mode empty state ───────────────────────────────────────
@@ -147,6 +157,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   messageInputRef,
   roomy = false,
   onExpand,
+  dockOpen = true,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -185,6 +196,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [editingText,      setEditingText]      = useState('');
   const [searchOpen,       setSearchOpen]       = useState(false);
   const guestClaimKeyRef = useRef<string | null>(null);
+  const [showAvailability, setShowAvailability] = useState(false);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -403,6 +415,31 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       socket.off('messages:read', handleMessagesRead);
     };
   }, [socket, conversationId]);
+
+  // ── Guest live /chat socket (OTP-verified; separate from JWT useSocket) ───
+  const verifiedGuestSession = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+  const handleGuestLiveMessage = useCallback((incoming: ChatMessage) => {
+    setSession((prev) => {
+      if (!shouldAppendGuestLiveMessage(prev.timeline, incoming)) return prev;
+      return {
+        ...prev,
+        typing: null,
+        timeline: [...prev.timeline, incoming],
+      };
+    });
+  }, []);
+  const handleGuestSocketExpired = useCallback(() => {
+    clearGuestVerifiedSession(helperId, businessId);
+  }, [helperId, businessId]);
+  useGuestProfileChatSocket({
+    enabled: Boolean(dockOpen),
+    isGuest,
+    guestToken: verifiedGuestSession?.guestToken || '',
+    guestSessionId: verifiedGuestSession?.sessionId || '',
+    expiresAt: verifiedGuestSession?.expiresAt ?? null,
+    onMessage: handleGuestLiveMessage,
+    onExpired: handleGuestSocketExpired,
+  });
 
   const currentStatus =
     session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
@@ -1060,6 +1097,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* ── Availability (helper/business live chat) ───────── */}
+      {session.destination === 'helper' ? (
+        <>
+          <button
+            type="button"
+            className={`messenger-availability-toggle${showAvailability ? ' is-open' : ''}`}
+            onClick={() => setShowAvailability((v) => !v)}
+            aria-expanded={showAvailability}
+          >
+            <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
+            {t('helperProfile.messenger.availabilityToggle')}
+          </button>
+          <MessengerAvailabilityPicker
+            helperId={helperId}
+            businessId={businessId}
+            open={showAvailability}
+            onClose={() => setShowAvailability(false)}
+            onSelectSlot={(slot) => {
+              const textMsg = buildSlotRequestMessage({
+                date: slot.date,
+                start: slot.start,
+                end: slot.end,
+                providerName: helperName,
+                locale: localStorage.getItem('oxs:language') || 'en',
+                t,
+              });
+              if (!textMsg) return;
+              setShowAvailability(false);
+              handleSend(textMsg);
+            }}
+          />
+        </>
+      ) : null}
 
       {/* ── Composer ────────────────────────────────────────── */}
       <MessageComposer

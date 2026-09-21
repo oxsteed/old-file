@@ -141,6 +141,7 @@ export default function PublicProfileMessenger({
             allowLiveChat={allowLiveChat}
             variant="dock"
             onClose={onClose}
+            dockOpen={open}
             className="chat-panel--dock h-full overflow-hidden flex flex-col"
             destination={destination}
             onDestinationChange={onDestinationChange}

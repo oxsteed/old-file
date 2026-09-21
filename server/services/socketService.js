@@ -94,6 +94,19 @@ function broadcastGuestSessionUpdate(sessionId, sessionData) {
 function broadcastGuestChatMessage(sessionId, messageData) {
   if (!io) return;
   io.to(`guest_session_${sessionId}`).emit('guest_chat:message', messageData);
+  // Parity event for verified profile guests listening on /chat (ChatPanel).
+  io.to(`guest_session_${sessionId}`).emit('profile_chat:new_message', {
+    guestSessionId: sessionId,
+    guestInquiry: true,
+    message: {
+      id: messageData?.messageId,
+      content: messageData?.message,
+      sender_type: messageData?.senderType,
+      sender_name: messageData?.senderName,
+      created_at: messageData?.createdAt,
+    },
+    senderName: messageData?.senderName,
+  });
   io.to('guest_chat_admin').emit('guest_chat:message', { sessionId, ...messageData });
 }
 

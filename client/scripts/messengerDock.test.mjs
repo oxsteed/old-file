@@ -15,11 +15,25 @@ import {
   writeGuestVerifiedSession,
   readGuestVerifiedSession,
   clearGuestVerifiedSession,
+  shouldConnectGuestProfileChatSocket,
+  normalizeGuestLiveSocketMessage,
+  shouldAppendGuestLiveMessage,
 } from '../src/components/helperProfile/chat/messengerDockState.js';
 import {
   buildSupportEscalationHandoff,
   readSupportEscalationHandoff,
 } from '../src/components/helperProfile/chat/supportEscalationHandoff.js';
+import {
+  buildAvailabilityRange,
+  buildBookingSlotMarker,
+  buildSlotRequestMessage,
+  listAvailabilityDates,
+  normalizeBusinessAvailabilityPayload,
+  normalizeHelperAvailabilityPayload,
+  parseBookingSlotMarker,
+  slotsForDate,
+  toLocalDateKey,
+} from '../src/components/helperProfile/chat/messengerAvailability.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
   assert.equal(shouldShowGuestGate({ isAuthenticated: true }), false);
@@ -215,4 +229,179 @@ test('guest verified session binds token to helper/business key', () => {
   assert.equal(readGuestVerifiedSession('h2', 9, storage), null);
   clearGuestVerifiedSession('h1', 9, storage);
   assert.equal(readGuestVerifiedSession('h1', 9, storage), null);
+});
+
+
+test('shouldConnectGuestProfileChatSocket requires verified guest credentials', () => {
+  assert.equal(
+    shouldConnectGuestProfileChatSocket({
+      enabled: true,
+      isGuest: true,
+      guestToken: 'tok',
+      guestSessionId: 'sid',
+    }),
+    true,
+  );
+  assert.equal(
+    shouldConnectGuestProfileChatSocket({
+      enabled: false,
+      isGuest: true,
+      guestToken: 'tok',
+      guestSessionId: 'sid',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldConnectGuestProfileChatSocket({
+      enabled: true,
+      isGuest: false,
+      guestToken: 'tok',
+      guestSessionId: 'sid',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldConnectGuestProfileChatSocket({
+      enabled: true,
+      isGuest: true,
+      guestToken: '',
+      guestSessionId: 'sid',
+    }),
+    false,
+  );
+  assert.equal(
+    shouldConnectGuestProfileChatSocket({
+      enabled: true,
+      isGuest: true,
+      guestToken: 'tok',
+      guestSessionId: 'sid',
+      expiresAt: Date.now() - 1000,
+      now: Date.now(),
+    }),
+    false,
+  );
+});
+
+test('normalizeGuestLiveSocketMessage maps helper guest_chat and profile_chat events', () => {
+  const fromGuestChat = normalizeGuestLiveSocketMessage(
+    {
+      messageId: 'm1',
+      senderType: 'helper',
+      senderName: 'Pat',
+      message: 'Hello back',
+      createdAt: '2026-09-21T12:00:00.000Z',
+    },
+    'guest_chat:message',
+  );
+  assert.equal(fromGuestChat.id, 'm1');
+  assert.equal(fromGuestChat.authorType, 'helper_human');
+  assert.equal(fromGuestChat.content, 'Hello back');
+
+  assert.equal(
+    normalizeGuestLiveSocketMessage(
+      { messageId: 'm2', senderType: 'guest', message: 'mine' },
+      'guest_chat:message',
+    ),
+    null,
+  );
+
+  const fromProfile = normalizeGuestLiveSocketMessage(
+    {
+      guestSessionId: 's1',
+      message: {
+        id: 'm3',
+        content: 'Live reply',
+        sender_type: 'helper',
+        sender_name: 'Pat',
+        created_at: '2026-09-21T12:01:00.000Z',
+      },
+    },
+    'profile_chat:new_message',
+  );
+  assert.equal(fromProfile.id, 'm3');
+  assert.equal(fromProfile.content, 'Live reply');
+  assert.equal(fromProfile.authorType, 'helper_human');
+
+  assert.equal(
+    normalizeGuestLiveSocketMessage(
+      { guestInquiry: true, guestSessionId: 's1', message: { content: 'from guest', sender_type: 'guest' } },
+      'profile_chat:new_message',
+    ),
+    null,
+  );
+});
+
+test('shouldAppendGuestLiveMessage dedupes by id and recent content', () => {
+  const incoming = {
+    id: 'm1',
+    itemType: 'message',
+    authorType: 'helper_human',
+    content: 'Hi',
+    timestamp: '2026-09-21T12:00:00.000Z',
+  };
+  assert.equal(shouldAppendGuestLiveMessage([], incoming), true);
+  assert.equal(shouldAppendGuestLiveMessage([incoming], incoming), false);
+  assert.equal(
+    shouldAppendGuestLiveMessage(
+      [{ ...incoming, id: 'other', timestamp: '2026-09-21T12:00:05.000Z' }],
+      incoming,
+    ),
+    false,
+  );
+});
+
+
+test('buildAvailabilityRange returns local YYYY-MM-DD from/to', () => {
+  const now = new Date(2026, 8, 21, 15, 0, 0); // Sep 21 2026 local
+  const range = buildAvailabilityRange(14, now);
+  assert.equal(range.from, '2026-09-21');
+  assert.equal(range.to, '2026-10-05');
+  assert.equal(toLocalDateKey(now), '2026-09-21');
+});
+
+test('normalizeHelperAvailabilityPayload maps slot rows', () => {
+  const { slots, hasTemplate } = normalizeHelperAvailabilityPayload({
+    hasTemplate: true,
+    slots: [
+      { date: '2026-09-22', start: '09:00', end: '10:00', startIso: '2026-09-22T09:00:00', endIso: '2026-09-22T10:00:00' },
+      { date: 'bad', start: '', end: '' },
+    ],
+  });
+  assert.equal(hasTemplate, true);
+  assert.equal(slots.length, 1);
+  assert.equal(slots[0].start, '09:00');
+  assert.deepEqual(listAvailabilityDates(slots), ['2026-09-22']);
+  assert.equal(slotsForDate(slots, '2026-09-22').length, 1);
+});
+
+test('normalizeBusinessAvailabilityPayload maps ISO start/end', () => {
+  const { slots } = normalizeBusinessAvailabilityPayload({
+    service_id: 12,
+    slots: [
+      { start: '2026-09-22T14:00:00.000Z', end: '2026-09-22T15:00:00.000Z', staff_id: 's1' },
+    ],
+  });
+  assert.equal(slots.length, 1);
+  assert.equal(slots[0].source, 'business');
+  assert.ok(slots[0].date);
+  assert.ok(slots[0].start);
+});
+
+test('booking slot marker round-trip and request message', () => {
+  const marker = buildBookingSlotMarker({ date: '2026-09-22', start: '09:00', end: '10:00' });
+  assert.equal(marker, '[booking_slot:2026-09-22|09:00|10:00]');
+  assert.deepEqual(parseBookingSlotMarker(`Please book\n${marker}`), {
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+  });
+  const msg = buildSlotRequestMessage({
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    providerName: 'Ada',
+    locale: 'en',
+  });
+  assert.match(msg, /\[booking_slot:2026-09-22\|09:00\|10:00\]/);
+  assert.match(msg, /Ada|request/i);
 });
