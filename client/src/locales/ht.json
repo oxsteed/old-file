@@ -6004,7 +6004,10 @@
       "cannotSaveSelf": "Ou pa ka anrejistre pwòp pwofil ou.",
       "removedSavedHelper": "Yo retire {{name}} nan èdè ou te anrejistre yo.",
       "addedSavedHelper": "Yo ajoute {{name}} nan èdè ou te anrejistre yo.",
-      "saveHelperFailed": "Nou pa t kapab mete èdè ou te anrejistre yo ajou."
+      "saveHelperFailed": "Nou pa t kapab mete èdè ou te anrejistre yo ajou.",
+      "saveHelper": "Sove",
+      "savedHelper": "Sove deja",
+      "noReviewsYet": "Pa gen evalyasyon ankò"
     },
     "share": {
       "copyLink": "Kopi lyen",

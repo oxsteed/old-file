@@ -6004,7 +6004,10 @@
       "cannotSaveSelf": "لا يمكنك حفظ ملفك الشخصي.",
       "removedSavedHelper": "تمت إزالة {{name}} من المساعدين المحفوظين.",
       "addedSavedHelper": "تمت إضافة {{name}} إلى المساعدين المحفوظين.",
-      "saveHelperFailed": "تعذر تحديث المساعدين المحفوظين."
+      "saveHelperFailed": "تعذر تحديث المساعدين المحفوظين.",
+      "saveHelper": "حفظ",
+      "savedHelper": "تم الحفظ",
+      "noReviewsYet": "لا توجد تعليقات حتى الآن"
     },
     "share": {
       "copyLink": "نسخ الوصلة",

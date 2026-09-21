@@ -72,7 +72,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
 
   const ratingLabel = helper.reviewCount > 0
     ? `${helper.rating.toFixed(1)} · ${t('helperProfile.header.reviewsCount', { count: helper.reviewCount })}`
-    : t('helperProfile.noReviewsYet', { defaultValue: 'No reviews yet' });
+    : t('helperProfile.header.noReviewsYet');
 
   const metaExtra = [
     t('helperProfile.header.jobsDone', { count: helper.jobsCompleted }),
@@ -125,14 +125,14 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const btnPrimary =
     `${btnBase} px-5 bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-lg shadow-brand-500/20`;
 
-  const ctaButtons = (stretch: boolean) => (
-    <>
-      <div className={stretch ? 'flex gap-3 w-full' : 'contents'}>
+  const actions = (
+    <div className="pph-actions">
+      <div className="pph-actions__pair">
         <button
           type="button"
           onClick={onOpenChat}
           aria-label={t('helperProfile.header.openChatAria')}
-          className={`${btnSecondary}${stretch ? ' flex-1' : ''}`}
+          className={btnSecondary}
         >
           <MessageCircle className="w-4 h-4" />
           {t('helperProfile.header.message')}
@@ -140,7 +140,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         <button
           type="button"
           onClick={onBookNow}
-          className={`${btnPrimary}${stretch ? ' flex-1' : ''}`}
+          className={btnPrimary}
         >
           {t('helperProfile.header.bookNow')}
         </button>
@@ -149,7 +149,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         <button
           type="button"
           onClick={onPostJobPublic}
-          className={`${btnSecondary}${stretch ? ' w-full' : ''}`}
+          className={btnSecondary}
         >
           {t('helperProfile.header.postJobPublic')}
         </button>
@@ -159,7 +159,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           type="button"
           onClick={onToggleSaved}
           disabled={savingHelper}
-          className={`${btnBase} border${stretch ? ' w-full' : ''} ${
+          className={`${btnBase} border ${
             isSaved
               ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
               : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -168,18 +168,11 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         >
           <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
           {isSaved
-            ? t('helperProfile.header.savedHelper', { defaultValue: 'Saved' })
-            : t('helperProfile.header.saveHelper', { defaultValue: 'Save' })}
+            ? t('helperProfile.header.savedHelper')
+            : t('helperProfile.header.saveHelper')}
         </button>
       )}
-    </>
-  );
-
-  const actions = (
-    <>
-      <div className="pph-actions pph-actions--desktop">{ctaButtons(false)}</div>
-      <div className="pph-actions pph-actions--mobile">{ctaButtons(true)}</div>
-    </>
+    </div>
   );
 
   return (

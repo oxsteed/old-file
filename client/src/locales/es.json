@@ -6004,7 +6004,10 @@
       "cannotSaveSelf": "No puedes guardar tu propio perfil.",
       "removedSavedHelper": "Se eliminó a {{name}} de tus ayudantes guardados.",
       "addedSavedHelper": "Se agregó a {{name}} a tus ayudantes guardados.",
-      "saveHelperFailed": "No se pudieron actualizar los ayudantes guardados."
+      "saveHelperFailed": "No se pudieron actualizar los ayudantes guardados.",
+      "saveHelper": "Guardar",
+      "savedHelper": "Guardado",
+      "noReviewsYet": "Sin reseñas aún"
     },
     "share": {
       "copyLink": "Copiar enlace",

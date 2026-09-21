@@ -5,7 +5,9 @@ import '../../styles/PublicProfileSummaryCard.css';
  * Pure presentational public-profile summary.
  * Shared by public helper/business pages, Profile Studio preview,
  * and full guarded profile pages (via PublicProfileHero).
- * No routing or data loading — pass `footer` / `coverOverlay` for page chrome.
+ * No routing or data loading — pass slots for page chrome:
+ * `coverOverlay`, `actions` (identity-band CTAs beside/under title),
+ * `belowTitle`, `footer`.
  *
  * @param {'helper'|'business'} variant
  * @param {'studio'|'public'} surface — studio = dark preview chrome; public = CSS-var theme
@@ -30,6 +32,8 @@ export default function PublicProfileSummaryCard({
   notAvailableNowLabel = '',
   ariaLabel = '',
   coverOverlay = null,
+  actions = null,
+  belowTitle = null,
   footer = null,
   className = '',
 }) {
@@ -46,10 +50,16 @@ export default function PublicProfileSummaryCard({
         <div className={`ppsc-avatar${variant === 'helper' ? ' round' : ''}`}>
           {avatar ? <img src={avatar} alt="" /> : initial}
         </div>
-        <h3 className={`ppsc-name${name ? '' : ' ppsc-muted'}`}>
-          {name || emptyName}
-        </h3>
-        {typeLabel ? <span className="ppsc-type">{typeLabel}</span> : null}
+        <div className="ppsc-title-row">
+          <div className="ppsc-title-block">
+            <h3 className={`ppsc-name${name ? '' : ' ppsc-muted'}`}>
+              {name || emptyName}
+            </h3>
+            {typeLabel ? <span className="ppsc-type">{typeLabel}</span> : null}
+            {belowTitle ? <div className="ppsc-below-title">{belowTitle}</div> : null}
+          </div>
+          {actions ? <div className="ppsc-actions">{actions}</div> : null}
+        </div>
         <p className={`ppsc-tagline${tagline ? '' : ' ppsc-muted'}`}>
           {tagline || emptyTagline}
         </p>

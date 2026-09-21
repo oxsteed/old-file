@@ -6004,7 +6004,10 @@
       "cannotSaveSelf": "Vous ne pouvez pas enregistrer votre propre profil.",
       "removedSavedHelper": "{{name}} a été retiré de vos prestataires enregistrés.",
       "addedSavedHelper": "{{name}} a été ajouté à vos prestataires enregistrés.",
-      "saveHelperFailed": "Impossible de mettre à jour les prestataires enregistrés."
+      "saveHelperFailed": "Impossible de mettre à jour les prestataires enregistrés.",
+      "saveHelper": "Enregistrer",
+      "savedHelper": "Enregistré",
+      "noReviewsYet": "Aucun avis encore"
     },
     "share": {
       "copyLink": "Copier le lien",

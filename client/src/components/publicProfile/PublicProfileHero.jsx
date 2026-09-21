@@ -4,8 +4,8 @@ import '../../styles/PublicProfileHero.css';
 /**
  * Full-page public profile identity band.
  * Composes PublicProfileSummaryCard (shared with Studio + /public pages)
- * plus slots for page-only chrome: cover accessory (QR), actions (CTA),
- * and children (badges, stats, share).
+ * plus slots for page-only chrome: cover accessory (QR), actions (CTA near
+ * the title band), belowTitle, and children (badges, stats, share).
  */
 export default function PublicProfileHero({
   summary = {},
@@ -18,6 +18,8 @@ export default function PublicProfileHero({
   ariaLabel = '',
   coverOverlay = null,
   actions = null,
+  belowTitle = null,
+  footer = null,
   children = null,
   className = '',
 }) {
@@ -35,7 +37,9 @@ export default function PublicProfileHero({
         notAvailableNowLabel={notAvailableNowLabel}
         ariaLabel={ariaLabel}
         coverOverlay={coverOverlay}
-        footer={actions}
+        actions={actions}
+        belowTitle={belowTitle}
+        footer={footer}
         className="ppsc--page"
       />
       {children ? <div className="pph-extra">{children}</div> : null}

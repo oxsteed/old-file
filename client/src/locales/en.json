@@ -5869,7 +5869,10 @@
       "cannotSaveSelf": "You cannot save your own profile.",
       "removedSavedHelper": "{{name}} removed from saved helpers.",
       "addedSavedHelper": "{{name}} added to saved helpers.",
-      "saveHelperFailed": "Could not update saved helpers."
+      "saveHelperFailed": "Could not update saved helpers.",
+      "saveHelper": "Save",
+      "savedHelper": "Saved",
+      "noReviewsYet": "No reviews yet"
     },
     "share": {
       "copyLink": "Copy link",

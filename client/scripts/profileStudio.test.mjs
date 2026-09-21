@@ -272,11 +272,147 @@ test('full-page header summary maps BusinessHeader helper props', () => {
 test('PublicProfileSummaryCard required class roots stay documented', () => {
   // Pure contract — mirrors JSX roots so Studio / public / hero stay aligned
   // without requiring jsdom/RTL in this package.
-  const roots = ['ppsc', 'ppsc-cover', 'ppsc-body', 'ppsc-avatar', 'ppsc-name', 'ppsc-tagline', 'ppsc-meta', 'ppsc-footer', 'ppsc-cover-overlay'];
+  const roots = [
+    'ppsc',
+    'ppsc-cover',
+    'ppsc-body',
+    'ppsc-avatar',
+    'ppsc-title-row',
+    'ppsc-title-block',
+    'ppsc-name',
+    'ppsc-below-title',
+    'ppsc-actions',
+    'ppsc-tagline',
+    'ppsc-meta',
+    'ppsc-footer',
+    'ppsc-cover-overlay',
+  ];
   for (const cls of roots) {
     assert.match(cls, /^ppsc/);
   }
   assert.ok(PUBLIC_PROFILE_SUMMARY_MODEL_KEYS.includes('ratingLabel'));
   assert.ok(PUBLIC_PROFILE_SUMMARY_MODEL_KEYS.includes('availableNow'));
+});
+
+test('hero/summary HTML contract includes identity action slot classes', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const summaryJsx = await readFile(new URL('../src/components/publicProfile/PublicProfileSummaryCard.jsx', import.meta.url), 'utf8');
+  const heroJsx = await readFile(new URL('../src/components/publicProfile/PublicProfileHero.jsx', import.meta.url), 'utf8');
+  const heroCss = await readFile(new URL('../src/styles/PublicProfileHero.css', import.meta.url), 'utf8');
+  const summaryCss = await readFile(new URL('../src/styles/PublicProfileSummaryCard.css', import.meta.url), 'utf8');
+
+  for (const token of ['ppsc-title-row', 'ppsc-actions', 'ppsc-below-title', 'coverOverlay', 'actions', 'belowTitle', 'footer']) {
+    assert.ok(summaryJsx.includes(token), `summary missing ${token}`);
+  }
+  // Hero wires actions into the identity slot (not only a distant footer)
+  assert.match(heroJsx, /actions=\{actions\}/);
+  assert.doesNotMatch(heroJsx, /footer=\{actions\}/);
+  assert.ok(heroJsx.includes('belowTitle={belowTitle}'));
+  assert.ok(summaryCss.includes('.ppsc-title-row'));
+  assert.ok(summaryCss.includes('.ppsc-actions'));
+  assert.ok(heroCss.includes('.pph-actions'));
+  assert.ok(heroCss.includes('.pph-actions__pair'));
+  assert.ok(heroCss.includes('.ppsc--page .ppsc-title-row'));
+});
+
+test('full-profile header view-model maps BusinessHeader-like inputs end-to-end', () => {
+  // Mirrors BusinessHeader.tsx summary assembly (localized strings pre-built by caller)
+  const ratingLabel = '4.8 · 22 reviews';
+  const metaExtra = ['18 jobs done', 'Responds in 2 hours', 'Member since 2022'].join(' · ');
+  const model = buildFullProfileHeaderSummaryModel({
+    variant: 'helper',
+    coverImage: 'https://cdn/cover.jpg',
+    avatar: 'https://cdn/avatar.jpg',
+    businessName: 'Bright Plumbing',
+    ownerName: 'Sam Bright',
+    tagline: 'Pipes done right',
+    city: 'Miami',
+    state: 'FL',
+    placeFallback: 'Your area',
+    ratingLabel,
+    metaExtra,
+  });
+
+  assert.equal(model.variant, 'helper');
+  assert.equal(model.cover, 'https://cdn/cover.jpg');
+  assert.equal(model.avatar, 'https://cdn/avatar.jpg');
+  assert.equal(model.name, 'Bright Plumbing');
+  assert.equal(model.tagline, 'Pipes done right');
+  assert.equal(model.ratingLabel, ratingLabel);
+  assert.equal(model.meta, `Miami, FL · ${metaExtra}`);
+  assert.equal(model.availableNow, null);
+  assert.equal(model.typeLabel, '');
+  assert.equal(model.contact, '');
+  assert.equal(model.about, '');
+
+  // Empty city/state falls back; business name preferred over owner
+  const sparse = buildFullProfileHeaderSummaryModel({
+    variant: 'business',
+    businessName: 'Acme Co',
+    ownerName: 'Ignored Owner',
+    city: '',
+    state: '',
+    placeFallback: 'Service area',
+    metaExtra: '',
+  });
+  assert.equal(sparse.variant, 'business');
+  assert.equal(sparse.name, 'Acme Co');
+  assert.equal(sparse.meta, 'Service area');
+
+  // Owner-only identity when business name missing
+  const ownerOnly = buildFullProfileHeaderSummaryModel({
+    ownerName: 'Jordan Lee',
+    businessName: '',
+  });
+  assert.equal(ownerOnly.name, 'Jordan Lee');
+});
+
+test('BusinessHeader save/review locale keys exist with en/es/fr/ht/ar parity (no defaultValue)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const locales = ['en', 'es', 'fr', 'ht', 'ar'];
+  const required = [
+    'helperProfile.header.saveHelper',
+    'helperProfile.header.savedHelper',
+    'helperProfile.header.noReviewsYet',
+  ];
+
+  const headerTsx = await readFile(join(root, 'src/components/helperProfile/BusinessHeader.tsx'), 'utf8');
+  assert.equal(headerTsx.includes('defaultValue'), false, 'BusinessHeader must not use defaultValue crutches');
+  assert.ok(headerTsx.includes("t('helperProfile.header.saveHelper')"));
+  assert.ok(headerTsx.includes("t('helperProfile.header.savedHelper')"));
+  assert.ok(headerTsx.includes("t('helperProfile.header.noReviewsYet')"));
+  assert.ok(headerTsx.includes('pph-actions'));
+  assert.ok(headerTsx.includes('pph-actions__pair'));
+  // Single actions cluster in identity slot — not duplicated desktop/mobile footers
+  assert.equal((headerTsx.match(/pph-actions--desktop/g) || []).length, 0);
+  assert.equal((headerTsx.match(/pph-actions--mobile/g) || []).length, 0);
+
+  function getPath(obj, path) {
+    return path.split('.').reduce((cur, key) => (cur && typeof cur === 'object' ? cur[key] : undefined), obj);
+  }
+
+  const byLang = {};
+  for (const lang of locales) {
+    const json = JSON.parse(await readFile(join(root, `src/locales/${lang}.json`), 'utf8'));
+    byLang[lang] = json;
+    for (const key of required) {
+      const value = getPath(json, key);
+      assert.equal(typeof value, 'string', `${lang} missing ${key}`);
+      assert.ok(value.trim().length > 0, `${lang} empty ${key}`);
+    }
+  }
+
+  // Key-set parity for the new header leaves
+  const enHeader = Object.keys(byLang.en.helperProfile.header).sort();
+  for (const lang of locales.slice(1)) {
+    assert.deepEqual(
+      Object.keys(byLang[lang].helperProfile.header).sort(),
+      enHeader,
+      `${lang} helperProfile.header key parity drift`,
+    );
+  }
 });
 
