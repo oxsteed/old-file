@@ -7,6 +7,15 @@ import { ProgressBar, Btn, Input, Textarea, Select } from './dashboardUI';
 import CoverImageUpload from './profile/CoverImageUpload';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
+import {
+  HELPER_STICKY_SECTIONS,
+  applySectionCompleteness,
+  buildHelperSectionCompleteness,
+  formatHelperPlace,
+  formatHelperPreviewMeta,
+  formatHelperRateBits,
+  shouldPromptLeaveStickySection,
+} from '../utils/profileStudio';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
@@ -104,6 +113,29 @@ export default function EditProfileTab() {
   }, [t]);
 
   const coreDirty = serializeCore(core) !== coreBaselineRef.current;
+
+  // Leave-guard: warn on tab close / refresh when Basics/Hours core is dirty
+  useEffect(() => {
+    if (!coreDirty) return undefined;
+    const onBefore = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBefore);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, [coreDirty]);
+
+  const handleSectionChange = (next) => {
+    if (shouldPromptLeaveStickySection(section, next, coreDirty)) {
+      const ok = window.confirm(
+        t('profileStudio.unsavedLeave', {
+          defaultValue: 'You have unsaved changes. Leave this section anyway?',
+        }),
+      );
+      if (!ok) return;
+    }
+    setSection(next);
+  };
 
   // ── Core save ───────────────────────────────────────────────────────────────
   const saveCore = async (e) => {
@@ -326,16 +358,25 @@ export default function EditProfileTab() {
   ];
   const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100);
 
-  const SECTIONS = useMemo(() => ([
-    { id: 'cover',      label: t('profileStudio.sectionCover'), complete: !!coverImageUrl },
-    { id: 'basics',     label: t('helperDashboard.sectionBasicInfo'), complete: !!(core.profile_headline && core.bio_long && core.hourly_rate_min) },
-    { id: 'hours',      label: t('helperDashboard.sectionAvailability'), complete: checks[7] },
-    { id: 'services',   label: t('helperDashboard.sectionServices'), complete: checks[3] },
-    { id: 'faqs',       label: t('helperDashboard.sectionFaqs'), complete: checks[4] },
-    { id: 'policies',   label: t('helperDashboard.sectionPolicies'), complete: checks[5] },
-    { id: 'gallery',    label: t('helperDashboard.sectionPhotos'), complete: checks[6] },
-    { id: 'visibility', label: t('helperDashboard.sectionVisibility'), complete: true },
-  ]), [t, coverImageUrl, core.profile_headline, core.bio_long, core.hourly_rate_min, checks[3], checks[4], checks[5], checks[6], checks[7]]);
+  const sectionFlags = useMemo(() => buildHelperSectionCompleteness({
+    coverImageUrl,
+    core,
+    servicesCount: services.length,
+    faqsCount: faqs.length,
+    policiesCount: policies.length,
+    galleryCount: gallery.length,
+  }), [coverImageUrl, core, services.length, faqs.length, policies.length, gallery.length]);
+
+  const SECTIONS = useMemo(() => applySectionCompleteness([
+    { id: 'cover',      label: t('profileStudio.sectionCover') },
+    { id: 'basics',     label: t('helperDashboard.sectionBasicInfo') },
+    { id: 'hours',      label: t('helperDashboard.sectionAvailability') },
+    { id: 'services',   label: t('helperDashboard.sectionServices') },
+    { id: 'faqs',       label: t('helperDashboard.sectionFaqs') },
+    { id: 'policies',   label: t('helperDashboard.sectionPolicies') },
+    { id: 'gallery',    label: t('helperDashboard.sectionPhotos') },
+    { id: 'visibility', label: t('helperDashboard.sectionVisibility') },
+  ], sectionFlags), [t, sectionFlags]);
 
   const panelHints = {
     cover: t('helperDashboard.profileCoverHint'),
@@ -348,24 +389,22 @@ export default function EditProfileTab() {
     visibility: t('helperDashboard.visibilityHint'),
   };
 
-  const stickySections = new Set(['basics', 'hours']);
+  const stickySections = HELPER_STICKY_SECTIONS;
   const hideSave = !stickySections.has(section);
   const dirty = stickySections.has(section) ? coreDirty : false;
   const saveLabel = section === 'hours'
     ? (saving ? t('helperDashboard.saving') : t('helperDashboard.saveHours'))
     : (saving ? t('helperDashboard.saving') : t('helperDashboard.saveBasicInfo'));
 
-  const place = [core.service_city, core.service_state].filter(Boolean).join(', ');
-  const rateBits = [];
-  if (core.hourly_rate_min !== '' && core.hourly_rate_min != null) rateBits.push(`$${core.hourly_rate_min}`);
-  if (core.hourly_rate_max !== '' && core.hourly_rate_max != null) rateBits.push(`$${core.hourly_rate_max}`);
+  const place = formatHelperPlace(core);
+  const rateBits = formatHelperRateBits(core);
   const rateLine = rateBits.length
     ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – '), defaultValue: `${rateBits.join(' – ')}/hr` })
     : '';
   const radiusLine = core.service_radius_miles
     ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles, defaultValue: `${core.service_radius_miles} mi radius` })
     : '';
-  const meta = [place, rateLine, radiusLine].filter(Boolean).join(' · ');
+  const meta = formatHelperPreviewMeta({ place, ratesLine: rateLine, radiusLine });
 
   const publicHref = user?.id ? `/helpers/public/${user.id}` : '';
 
@@ -772,7 +811,7 @@ export default function EditProfileTab() {
       subtitle={t('helperDashboard.editProfileDesc')}
       sections={SECTIONS}
       activeSection={section}
-      onSectionChange={setSection}
+      onSectionChange={handleSectionChange}
       dirty={dirty}
       saving={saving}
       onSave={() => saveCore()}
