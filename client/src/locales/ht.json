@@ -6208,7 +6208,17 @@
       "clearSearch": "Efase rechech",
       "oxsteedAssistantLabel": "Asistan OxSteed (AI)",
       "talkToHumanCta": "Pale ak yon moun",
-      "oxsteedAiOnlyHint": "OxSteed isit la se AI. Pou yon espesyalis sipò an dirèk, kontinye anba a."
+      "oxsteedAiOnlyHint": "OxSteed isit la se AI. Pou yon espesyalis sipò an dirèk, kontinye anba a.",
+      "helperAiAvailable": "Offline — pale ak asistan IA yo",
+      "aiUnavailableConnecting": "IA pa disponib — n ap konekte ou ak {{name}}",
+      "aiUnavailableEscalateTitle": "Ou bezwen yon moun?",
+      "aiUnavailableEscalate": "Asistan IA a pa disponib kounye a. Kontinye nan OxSteed Support pou yon espesyalis an dirèk.",
+      "verifyToReachHuman": "{{name}} online. Verifye oswa konekte pou pale ak yo an dirèk.",
+      "providerOfflineAiFallback": "{{name}} ale offline. Kounye a w ap pale ak asistan IA yo.",
+      "providerBackOnline": "{{name}} tounen online.",
+      "connectLiveCta": "Konekte ak {{name}} an dirèk",
+      "connectedLiveToast": "Konekte — pwochen mesaj ou a pral ale bay {{name}} an dirèk.",
+      "escalationPanelAria": "Opsyon eskalad sipò"
     },
     "messenger": {
       "message": "Mesaj",

@@ -6208,7 +6208,17 @@
       "clearSearch": "Clear search",
       "oxsteedAssistantLabel": "OxSteed Assistant (AI)",
       "talkToHumanCta": "Talk to a human",
-      "oxsteedAiOnlyHint": "OxSteed here is AI. For a live support specialist, continue below."
+      "oxsteedAiOnlyHint": "OxSteed here is AI. For a live support specialist, continue below.",
+      "helperAiAvailable": "Offline — chat with their AI assistant",
+      "aiUnavailableConnecting": "AI unavailable — connecting you to {{name}}",
+      "aiUnavailableEscalateTitle": "Need a person?",
+      "aiUnavailableEscalate": "The AI assistant is unavailable right now. Continue to OxSteed Support for a live specialist.",
+      "verifyToReachHuman": "{{name}} is online. Verify or sign in to reach them live.",
+      "providerOfflineAiFallback": "{{name}} went offline. You’re now chatting with their AI assistant.",
+      "providerBackOnline": "{{name}} is back online.",
+      "connectLiveCta": "Connect to {{name}} live",
+      "connectedLiveToast": "Connected — your next message goes to {{name}} live.",
+      "escalationPanelAria": "Support escalation options"
     },
     "messenger": {
       "message": "Message",

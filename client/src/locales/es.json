@@ -6208,7 +6208,17 @@
       "clearSearch": "Limpiar búsqueda",
       "oxsteedAssistantLabel": "Asistente OxSteed (IA)",
       "talkToHumanCta": "Hablar con una persona",
-      "oxsteedAiOnlyHint": "OxSteed aquí es IA. Para un especialista de soporte en vivo, continúa abajo."
+      "oxsteedAiOnlyHint": "OxSteed aquí es IA. Para un especialista de soporte en vivo, continúa abajo.",
+      "helperAiAvailable": "Fuera de línea — chatea con su asistente de IA",
+      "aiUnavailableConnecting": "IA no disponible — conectándote con {{name}}",
+      "aiUnavailableEscalateTitle": "¿Necesitas a una persona?",
+      "aiUnavailableEscalate": "El asistente de IA no está disponible ahora. Continúa a OxSteed Support para un especialista en vivo.",
+      "verifyToReachHuman": "{{name}} está en línea. Verifica o inicia sesión para hablar en vivo.",
+      "providerOfflineAiFallback": "{{name}} se desconectó. Ahora estás chateando con su asistente de IA.",
+      "providerBackOnline": "{{name}} volvió a estar en línea.",
+      "connectLiveCta": "Conectar con {{name}} en vivo",
+      "connectedLiveToast": "Conectado — tu próximo mensaje irá a {{name}} en vivo.",
+      "escalationPanelAria": "Opciones de escalada a soporte"
     },
     "messenger": {
       "message": "Mensaje",

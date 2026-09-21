@@ -32,7 +32,9 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
 
-  const helperLiveDisabled = helperStatus !== 'live' || !allowLiveChat;
+  // Helper destination stays selectable offline (AI path). Live badge is separate.
+  // allowLiveChat only gates the LIVE affordance, not messaging the provider AI.
+  void allowLiveChat;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -99,22 +101,24 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
             const title = destTitle(key);
             const sub = destSub(key);
             const selected = destination === key;
-            const disabled = key === 'helper' && helperLiveDisabled;
-            const disabledReason = key === 'helper'
-              ? (helperStatus !== 'live' ? t('helperProfile.chat.helperOffline') : t('helperProfile.chat.liveChatDisabled'))
-              : '';
+            const helperOffline = key === 'helper' && helperStatus !== 'live';
+            const liveDisabledNote = key === 'helper' && helperStatus === 'live' && !allowLiveChat;
+            const statusHint = helperOffline
+              ? t('helperProfile.chat.helperAiAvailable', {
+                  defaultValue: 'Offline — chat with their AI assistant',
+                })
+              : liveDisabledNote
+              ? t('helperProfile.chat.liveChatDisabled')
+              : sub;
 
             return (
               <button
                 key={key}
                 role="option"
                 aria-selected={selected}
-                disabled={disabled}
-                onClick={() => { if (!disabled) { onChange(key); setOpen(false); } }}
+                onClick={() => { onChange(key); setOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                  disabled
-                    ? 'opacity-50 cursor-not-allowed'
-                    : selected
+                  selected
                     ? 'bg-brand-500/10 border-l-2 border-brand-500'
                     : 'hover:bg-gray-700/60 border-l-2 border-transparent'
                 }`}
@@ -138,14 +142,19 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
                     >
                       {title}
                     </p>
-                    {key === 'helper' && helperStatus === 'live' && (
+                    {key === 'helper' && helperStatus === 'live' && allowLiveChat && (
                       <span className="inline-block px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-semibold rounded">
                         LIVE
                       </span>
                     )}
+                    {key === 'oxsteed' && (
+                      <span className="inline-block px-2 py-0.5 bg-sky-500/20 text-sky-300 text-xs font-semibold rounded">
+                        AI
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 truncate">
-                    {disabled ? disabledReason : sub}
+                    {statusHint}
                   </p>
                   <p className="text-xs text-gray-600 truncate">{label}</p>
                 </div>

@@ -285,3 +285,20 @@ the support escalation page — not inside the profile dock.
 | Guest socket | Verified guests connect `/chat` with guest auth; reconnect + expiry return to OTP gate | `useGuestProfileChatSocket`, `PublicProfileMessenger.onGuestSessionExpired` |
 | Claim-on-login | Unchanged `POST /api/chat/sessions/guest/claim` after auth | `ChatPanel` claim effect |
 
+
+## Bidirectional AI ↔ human routing (2026-09-21)
+
+Profile messenger now routes hard AI failures and provider presence changes without leaving a dead error bubble.
+
+| Trigger | Condition | Client behavior | Server signal |
+|---|---|---|---|
+| AI hard failure | `callWithFallback` exhausted | Structured decision via `resolveAiFailureRouting` | `type:'ai_error'`, `aiFailed:true`, `providerOnline`, `suggestedAction` |
+| → live helper | Provider online + auth/OTP guest | Auto-switch destination to `helper`, banner “AI unavailable — connecting you to {name}”, auto-retry into live path | `suggestedAction:'switch_helper_live'` |
+| → verify | Provider online, visitor not eligible | Keep AI error + verify/sign-in banner | `suggestedAction:'verify_for_live'` |
+| → support | Provider offline / no live path | In-dock escalation panel → `/support/escalation` via `buildSupportEscalationHandoff` | `suggestedAction:'escalate_support'` |
+| Helper offline mid-chat | `helperStatus` live → ai_assistant | Banner: chatting with AI; clear live conversation id | (status poll) |
+| Helper back online | ai_assistant → live | Offer “Connect to {name} live” | (status poll) |
+
+**OxSteed destination** remains AI-only (badge + copy). Live platform humans only through support escalation handoff — never implied as dock live agents.
+
+Evidence: `profileChatRouting.js`, `server/services/profileChatRouting.js`, `chatController.profileChatMessage`, `ChatPanel.tsx`.

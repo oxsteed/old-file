@@ -6208,7 +6208,17 @@
       "clearSearch": "مسح البحث",
       "oxsteedAssistantLabel": "مساعد OxSteed (ذكاء اصطناعي)",
       "talkToHumanCta": "التحدث إلى شخص",
-      "oxsteedAiOnlyHint": "OxSteed هنا ذكاء اصطناعي. للحصول على أخصائي دعم مباشر، تابع أدناه."
+      "oxsteedAiOnlyHint": "OxSteed هنا ذكاء اصطناعي. للحصول على أخصائي دعم مباشر، تابع أدناه.",
+      "helperAiAvailable": "غير متصل — دردش مع مساعدنا الذكي",
+      "aiUnavailableConnecting": "المساعد الذكي غير متاح — جارٍ توصيلك بـ {{name}}",
+      "aiUnavailableEscalateTitle": "هل تحتاج إلى شخص؟",
+      "aiUnavailableEscalate": "المساعد الذكي غير متاح الآن. تابع إلى دعم OxSteed للحصول على متخصص مباشر.",
+      "verifyToReachHuman": "{{name}} متصل. تحقق أو سجّل الدخول للوصول إليهم مباشرة.",
+      "providerOfflineAiFallback": "{{name}} أصبح غير متصل. أنت الآن تدردش مع مساعدنا الذكي.",
+      "providerBackOnline": "{{name}} عاد للاتصال.",
+      "connectLiveCta": "الاتصال بـ {{name}} مباشرة",
+      "connectedLiveToast": "تم الاتصال — ستصل رسالتك التالية إلى {{name}} مباشرة.",
+      "escalationPanelAria": "خيارات تصعيد الدعم"
     },
     "messenger": {
       "message": "رسالة",

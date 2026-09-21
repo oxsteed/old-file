@@ -33,6 +33,12 @@ import {
   shouldAppendGuestLiveMessage,
 } from './messengerDockState.js';
 import { buildSupportEscalationHandoff } from './supportEscalationHandoff.js';
+import {
+  canVisitorLive,
+  resolveAiFailureFromServer,
+  resolveAiFailureRouting,
+  resolveProviderPresenceTransition,
+} from './profileChatRouting.js';
 
 interface ChatPanelProps {
   session: ChatSession;
@@ -206,6 +212,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchOpen,       setSearchOpen]       = useState(false);
   const guestClaimKeyRef = useRef<string | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
+  /** AI-failure / presence routing banners (not a dead error bubble alone) */
+  const [routingNotice, setRoutingNotice] = useState<null | {
+    kind: 'ai_to_helper' | 'verify_for_live' | 'escalate_support' | 'fallback_to_ai' | 'offer_connect_live';
+  }>(null);
+  const [escalationOpen, setEscalationOpen] = useState(false);
+  const prevHelperStatusRef = useRef<string | null>(null);
+  const autoRetryLiveRef = useRef(false);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -214,11 +227,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       try {
         const { data } = await api.get(`/helpers/${helperId}/status`);
         if (cancelled) return;
-        setSession(prev => ({
-          ...prev,
-          helperStatus: data.helperStatus,
-          status: prev.destination === 'helper' ? data.helperStatus : prev.oxsteedStatus,
-        }));
+        const nextStatus = data.helperStatus;
+        setSession(prev => {
+          const previousStatus = prevHelperStatusRef.current ?? prev.helperStatus;
+          const presence = resolveProviderPresenceTransition({
+            previousStatus,
+            nextStatus,
+            destination: prev.destination,
+          });
+          prevHelperStatusRef.current = nextStatus;
+
+          // Schedule notice updates outside the updater when possible via microtask
+          queueMicrotask(() => {
+            if (presence.action === 'fallback_to_ai') {
+              setRoutingNotice({ kind: 'fallback_to_ai' });
+              setConversationId(null);
+              setThreadId(null);
+            } else if (presence.action === 'offer_connect_live') {
+              setRoutingNotice({ kind: 'offer_connect_live' });
+            }
+          });
+
+          return {
+            ...prev,
+            helperStatus: nextStatus,
+            status: prev.destination === 'helper' ? nextStatus : prev.oxsteedStatus,
+          };
+        });
       } catch { /* silent */ }
     };
     checkStatus();
@@ -477,6 +512,178 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }
   }, [externalDestination]);
 
+  const applyAiFailureRouting = useCallback(async ({
+    data,
+    userMsg,
+    destinationOverride,
+  }: {
+    data?: {
+      aiFailed?: boolean;
+      type?: string;
+      providerOnline?: boolean;
+      helperOnline?: boolean;
+      suggestedAction?: string | null;
+      authorType?: string;
+      reply?: string | null;
+      threadId?: string | null;
+    } | null;
+    userMsg: ChatMessage;
+    destinationOverride?: ChatDestination;
+  }) => {
+    const providerOnline = Boolean(
+      data?.providerOnline ?? data?.helperOnline ?? (session.helperStatus === 'live'),
+    );
+    const verifiedGuest = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+    const canLive = canVisitorLive({
+      isAuthenticated: Boolean(user),
+      guestVerified: Boolean(verifiedGuest),
+    });
+    const currentDest = destinationOverride || session.destination;
+    const decision = data?.suggestedAction || data?.aiFailed || data?.type === 'ai_error'
+      ? resolveAiFailureFromServer({
+          suggestedAction: data?.suggestedAction ?? null,
+          aiFailed: true,
+          providerOnline,
+          canLive,
+          allowLiveChat,
+          destination: currentDest,
+          canBeProvider: true,
+        })
+      : resolveAiFailureRouting({
+          aiFailed: true,
+          destination: currentDest,
+          providerOnline,
+          canLive,
+          allowLiveChat,
+          canBeProvider: true,
+        });
+
+    // Prefer auto-switch + retry into live when safe (one shot).
+    if (decision.autoRetryLive && !autoRetryLiveRef.current) {
+      autoRetryLiveRef.current = true;
+      if (decision.autoSwitchHelper || currentDest !== 'helper') {
+        handleDestinationChange('helper');
+      }
+      setRoutingNotice({ kind: 'ai_to_helper' });
+      setEscalationOpen(false);
+      const switchBanner: TimelineEvent = {
+        id: `evt-${Date.now()}-ai-to-helper`,
+        itemType: 'system',
+        eventType: 'message_queued',
+        content: t('helperProfile.chat.aiUnavailableConnecting', { name: helperName }),
+        timestamp: new Date().toISOString(),
+      };
+      setSession(prev => ({
+        ...prev,
+        destination: 'helper',
+        status: prev.helperStatus,
+        typing: { authorType: 'helper_ai', authorLabel: helperName },
+        timeline: [...prev.timeline, switchBanner],
+      }));
+
+      try {
+        const guestHeaders = verifiedGuest
+          ? {
+              'X-Guest-Profile-Token': verifiedGuest.guestToken,
+              'X-Guest-Session-Id': verifiedGuest.sessionId,
+            }
+          : undefined;
+        const retryRes = await api.post('/chat/profile-message', {
+          helperId,
+          ...(businessId ? { businessId } : {}),
+          destination: 'helper',
+          ...(isGuest ? {
+            guestName: guestName.trim(),
+            guestEmail: guestEmail.trim(),
+            guestSessionId: verifiedGuest?.sessionId,
+          } : {}),
+          language: localStorage.getItem('oxs:language') || 'en',
+          messages: [...session.timeline, userMsg]
+            .filter(i => i.itemType === 'message')
+            .map(i => {
+              const m = i as ChatMessage;
+              return {
+                role: m.authorType === 'user' ? 'user' : 'assistant',
+                content: m.content,
+              };
+            }),
+        }, guestHeaders ? { headers: guestHeaders } : undefined);
+        const retryData = retryRes.data;
+        if (retryData?.type === 'live') {
+          if (retryData.conversationId) setConversationId(retryData.conversationId);
+          setThreadId(null);
+          const waiting: TimelineEvent = {
+            id: `evt-${Date.now()}-live`,
+            itemType: 'system',
+            eventType: 'message_sent',
+            content: t('messages.messageSentWaiting', { name: helperName }),
+            timestamp: new Date().toISOString(),
+          };
+          setSession(prev => ({
+            ...prev,
+            typing: null,
+            timeline: [...prev.timeline, waiting],
+          }));
+          return;
+        }
+      } catch {
+        /* fall through to escalation / verify UI */
+      } finally {
+        autoRetryLiveRef.current = false;
+      }
+    }
+
+    const errMsg: ChatMessage = {
+      id: `msg-${Date.now()}-err`,
+      itemType: 'message',
+      authorType: (data?.authorType as ChatMessage['authorType']) || (currentDest === 'helper' ? 'helper_ai' : 'oxsteed_ai'),
+      content: t('messages.aiError'),
+      timestamp: new Date().toISOString(),
+    };
+    const events: TimelineItem[] = [errMsg];
+
+    if (decision.showVerifyBanner) {
+      setRoutingNotice({ kind: 'verify_for_live' });
+      events.push({
+        id: `evt-${Date.now()}-verify`,
+        itemType: 'system',
+        eventType: 'message_queued',
+        content: t('helperProfile.chat.verifyToReachHuman', { name: helperName }),
+        timestamp: new Date().toISOString(),
+      } as TimelineEvent);
+    } else if (decision.showEscalationPanel || decision.action === 'escalate_support') {
+      setRoutingNotice({ kind: 'escalate_support' });
+      setEscalationOpen(true);
+      events.push({
+        id: `evt-${Date.now()}-escalate`,
+        itemType: 'system',
+        eventType: 'message_queued',
+        content: t('helperProfile.chat.aiUnavailableEscalate'),
+        timestamp: new Date().toISOString(),
+      } as TimelineEvent);
+    } else {
+      setRoutingNotice(null);
+    }
+
+    setSession(prev => ({
+      ...prev,
+      typing: null,
+      timeline: [...prev.timeline, ...events],
+    }));
+  }, [
+    allowLiveChat,
+    businessId,
+    guestEmail,
+    guestName,
+    handleDestinationChange,
+    helperId,
+    helperName,
+    isGuest,
+    session,
+    t,
+    user,
+  ]);
+
   const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
     if (sending) return;
 
@@ -507,6 +714,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       timeline: [...prev.timeline, userMsg],
     }));
     setSending(true);
+    setEscalationOpen(false);
 
     try {
       const verifiedGuest = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
@@ -525,7 +733,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           guestEmail: guestEmail.trim(),
           guestSessionId: verifiedGuest?.sessionId,
         } : {}),
-        // threadId links this request to server-side Redis history (null = new session)
         ...(threadId ? { threadId } : {}),
         language: localStorage.getItem('oxs:language') || 'en',
         messages: [...session.timeline, userMsg]
@@ -539,11 +746,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           }),
       }, guestHeaders ? { headers: guestHeaders } : undefined);
 
+      if (data?.aiFailed || data?.type === 'ai_error') {
+        await applyAiFailureRouting({ data, userMsg });
+        return;
+      }
+
       if (data.type === 'live') {
         if (data.conversationId) setConversationId(data.conversationId);
-        // Live replies don't use thread memory - clear any stale threadId so
-        // a subsequent switch back to AI mode starts a fresh Redis thread.
         setThreadId(null);
+        setRoutingNotice(null);
         const waiting: TimelineEvent = {
           id:        `evt-${Date.now()}`,
           itemType:  'system',
@@ -557,7 +768,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           timeline: [...prev.timeline, waiting],
         }));
       } else {
-        // Store the server-assigned threadId so history is tracked server-side
         if (data.threadId) setThreadId(data.threadId);
         const aiMsg: ChatMessage = {
           id:         `msg-${Date.now()}-reply`,
@@ -591,7 +801,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         if (session.destination === 'helper' && isGuest) {
           const verified = readGuestVerifiedSession(helperId, businessId);
           if (data.helperOnline && verified) {
-            // Verified guest should have taken live path; if AI returned while online, still wait copy.
             events.push({
               id:        `evt-${Date.now()}-note`,
               itemType:  'system',
@@ -609,14 +818,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             } as TimelineEvent);
           }
         } else if (data.helperOnline && !user && session.destination === 'helper') {
-          const note: TimelineEvent = {
+          events.push({
             id:        `evt-${Date.now()}-note`,
             itemType:  'system',
             eventType: 'message_queued',
             content:   t('messages.helperOnlineSignIn', { name: helperName }),
             timestamp: new Date().toISOString(),
-          };
-          events.push(note);
+          } as TimelineEvent);
         }
         setSession(prev => ({
           ...prev,
@@ -624,23 +832,24 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           timeline: [...prev.timeline, aiMsg, ...events],
         }));
       }
-    } catch {
-      const errMsg: ChatMessage = {
-        id:         `msg-${Date.now()}-err`,
-        itemType:   'message',
-        authorType: 'oxsteed_ai',
-        content:    t('messages.aiError'),
-        timestamp:  new Date().toISOString(),
-      };
-      setSession(prev => ({
-        ...prev,
-        typing:   null,
-        timeline: [...prev.timeline, errMsg],
-      }));
+    } catch (err: unknown) {
+      const axiosData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      await applyAiFailureRouting({
+        data: {
+          aiFailed: true,
+          type: 'ai_error',
+          providerOnline: Boolean(axiosData?.providerOnline ?? session.helperStatus === 'live'),
+          helperOnline: Boolean(axiosData?.helperOnline ?? session.helperStatus === 'live'),
+          suggestedAction: (axiosData?.suggestedAction as string | undefined) ?? null,
+          authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
+        },
+        userMsg,
+      });
     } finally {
       setSending(false);
     }
-  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail, guestContactSaved]);
+  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail, guestContactSaved, applyAiFailureRouting, allowLiveChat]);
+
 
   const saveGuestContact = useCallback(() => {
     const name = guestName.trim();
@@ -662,12 +871,32 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [guestName, guestEmail, guestStorageKey, t]);
 
   const helperIsLive  = session.helperStatus === 'live';
+  const supportHandoff = React.useMemo(() => {
+    const returnTo = typeof window !== 'undefined'
+      ? `${window.location.pathname}${window.location.search}`
+      : undefined;
+    return buildSupportEscalationHandoff({
+      helperId,
+      businessId,
+      helperName,
+      returnTo,
+      timeline: session.timeline,
+    });
+  }, [helperId, businessId, helperName, session.timeline]);
   const isOffline     = currentStatus === 'offline';
   /** Guest inquiries are persisted server-side even when the helper is offline */
   const guestWritesAlways = isGuest && session.destination === 'helper';
-  const showOfflineWall = isOffline && !guestWritesAlways;
+  // Helper/business destination always keeps AI messaging available when offline.
+  // OxSteed destination may still surface an offline wall (rare).
+  const showOfflineWall = isOffline && !guestWritesAlways && session.destination !== 'helper';
   const composerStatus =
-    guestWritesAlways ? 'ai_assistant' : isOffline ? 'offline' : 'ai_assistant';
+    session.destination === 'helper'
+      ? 'ai_assistant'
+      : guestWritesAlways
+        ? 'ai_assistant'
+        : isOffline
+          ? 'offline'
+          : 'ai_assistant';
 
   const displayTimeline = React.useMemo(() => {
     const msgs = session.timeline.filter((item) => {
@@ -973,6 +1202,87 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         businessId={businessId}
         timeline={session.timeline}
       />
+
+      {/* ── Bidirectional routing notices (AI ↔ human) ── */}
+      {routingNotice?.kind === 'ai_to_helper' && (
+        <div
+          className="mx-4 my-2 p-3 rounded-xl border border-amber-600/40 bg-amber-950/40 text-amber-100 text-xs"
+          role="status"
+        >
+          {t('helperProfile.chat.aiUnavailableConnecting', { name: helperName })}
+        </div>
+      )}
+      {routingNotice?.kind === 'fallback_to_ai' && session.destination === 'helper' && (
+        <div
+          className="mx-4 my-2 p-3 rounded-xl border border-sky-700/50 bg-sky-950/40 text-sky-100 text-xs flex items-start justify-between gap-2"
+          role="status"
+        >
+          <span>{t('helperProfile.chat.providerOfflineAiFallback', { name: helperName })}</span>
+          <button
+            type="button"
+            className="text-sky-300 underline shrink-0"
+            onClick={() => setRoutingNotice(null)}
+          >
+            {t('common.dismiss', { defaultValue: 'Dismiss' })}
+          </button>
+        </div>
+      )}
+      {routingNotice?.kind === 'offer_connect_live' && session.destination === 'helper' && helperIsLive && (
+        <div
+          className="mx-4 my-2 p-3 rounded-xl border border-emerald-700/50 bg-emerald-950/40 text-emerald-100 text-xs flex flex-wrap items-center justify-between gap-2"
+          role="status"
+        >
+          <span>{t('helperProfile.chat.providerBackOnline', { name: helperName })}</span>
+          <button
+            type="button"
+            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+            onClick={() => {
+              handleDestinationChange('helper');
+              setRoutingNotice(null);
+              toast.success(t('helperProfile.chat.connectedLiveToast', { name: helperName }));
+            }}
+          >
+            {t('helperProfile.chat.connectLiveCta', { name: helperName })}
+          </button>
+        </div>
+      )}
+      {routingNotice?.kind === 'verify_for_live' && (
+        <div
+          className="mx-4 my-2 p-3 rounded-xl border border-orange-600/40 bg-orange-950/40 text-orange-100 text-xs"
+          role="status"
+        >
+          <p>{t('helperProfile.chat.verifyToReachHuman', { name: helperName })}</p>
+          {!user ? (
+            <Link to="/login" className="inline-block mt-1.5 font-semibold underline text-orange-200">
+              {t('auth.signIn') || 'Sign in'}
+            </Link>
+          ) : null}
+        </div>
+      )}
+      {(routingNotice?.kind === 'escalate_support' || escalationOpen) && (
+        <div
+          className="mx-4 my-2 p-3 rounded-xl border border-violet-600/40 bg-violet-950/50 text-violet-100 text-xs space-y-2"
+          role="region"
+          aria-label={t('helperProfile.chat.escalationPanelAria')}
+        >
+          <p className="font-semibold text-violet-50">{t('helperProfile.chat.aiUnavailableEscalateTitle')}</p>
+          <p>{t('helperProfile.chat.aiUnavailableEscalate')}</p>
+          <Link
+            to={{ pathname: supportHandoff.pathname, search: supportHandoff.search }}
+            state={supportHandoff.state}
+            className="inline-flex items-center justify-center w-full sm:w-auto px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold"
+          >
+            {t('helperProfile.chat.talkToHumanCta')}
+          </Link>
+          <button
+            type="button"
+            className="block text-violet-300/80 underline"
+            onClick={() => { setEscalationOpen(false); setRoutingNotice(null); }}
+          >
+            {t('helperProfile.chat.dismissHandoff')}
+          </button>
+        </div>
+      )}
 
       {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}
       {helperIsLive && !user && session.destination === 'helper' && !isGuest && (

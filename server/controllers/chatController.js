@@ -7,6 +7,7 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
+const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
@@ -791,6 +792,9 @@ exports.profileChatMessage = async (req, res, next) => {
         conversationId,
         message:        msgRow.rows[0],
         helperOnline:   true,
+        providerOnline: true,
+        aiFailed: false,
+        suggestedAction: null,
       });
     }
 
@@ -855,6 +859,9 @@ exports.profileChatMessage = async (req, res, next) => {
         type: 'live',
         guestSessionId: verifiedGuestSession.id,
         helperOnline: true,
+        providerOnline: true,
+        aiFailed: false,
+        suggestedAction: null,
         mode: 'guest_live',
       });
     }
@@ -925,7 +932,22 @@ exports.profileChatMessage = async (req, res, next) => {
     );
 
     if (!ai.ok) {
-      throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
+      const canLiveVisitor = Boolean(userId || verifiedGuestSession);
+      const failurePayload = buildProfileAiFailurePayload({
+        destination,
+        providerOnline,
+        canLive: canLiveVisitor,
+        allowLiveChat: true,
+        threadId,
+        helperOnline: providerOnline,
+      });
+      logger.warn('[ProfileChat] AI providers exhausted', {
+        destination,
+        providerOnline,
+        suggestedAction: failurePayload.suggestedAction,
+        helperId: resolvedHelperId,
+      });
+      return res.status(200).json(failurePayload);
     }
 
     let replyUserFacing = stripAiActionBlock(ai.reply);
@@ -960,10 +982,13 @@ exports.profileChatMessage = async (req, res, next) => {
       reply:       replyUserFacing,
       threadId,
       helperOnline: helperOnline,
+      providerOnline,
+      aiFailed: false,
+      suggestedAction: null,
       authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
       appointmentCreated,
       bookingError,
-      mode: (!helperOnline && destination === 'helper') ? 'offline_ai' : 'ai',
+      mode: (!providerOnline && destination === 'helper') ? 'offline_ai' : 'ai',
       guestVerified: Boolean(typeof verifiedGuestSession !== 'undefined' && verifiedGuestSession),
     });
   } catch (err) {

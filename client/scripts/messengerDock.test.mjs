@@ -24,6 +24,13 @@ import {
   readSupportEscalationHandoff,
 } from '../src/components/helperProfile/chat/supportEscalationHandoff.js';
 import {
+  canVisitorLive,
+  isOxsteedDestinationLiveAgent,
+  resolveAiFailureFromServer,
+  resolveAiFailureRouting,
+  resolveProviderPresenceTransition,
+} from '../src/components/helperProfile/chat/profileChatRouting.js';
+import {
   buildAvailabilityRange,
   buildBookingSlotMarker,
   buildMessengerBookingPayload,
@@ -481,4 +488,98 @@ test('buildSlotRequestMessage and confirmation include service name', () => {
   });
   assert.match(confirm, /Trim/);
   assert.ok(resolveClientTimezone());
+});
+
+
+test('resolveAiFailureRouting: switch to helper live when provider online + canLive', () => {
+  const r = resolveAiFailureRouting({
+    aiFailed: true,
+    destination: 'oxsteed',
+    providerOnline: true,
+    canLive: true,
+    allowLiveChat: true,
+  });
+  assert.equal(r.action, 'switch_helper_live');
+  assert.equal(r.suggestedAction, 'switch_helper_live');
+  assert.equal(r.autoSwitchHelper, true);
+  assert.equal(r.autoRetryLive, true);
+  assert.equal(r.showEscalationPanel, false);
+});
+
+test('resolveAiFailureRouting: verify banner when provider online but visitor cannot live', () => {
+  const r = resolveAiFailureRouting({
+    aiFailed: true,
+    destination: 'helper',
+    providerOnline: true,
+    canLive: false,
+  });
+  assert.equal(r.action, 'verify_for_live');
+  assert.equal(r.showVerifyBanner, true);
+  assert.equal(r.autoRetryLive, false);
+});
+
+test('resolveAiFailureRouting: escalate when provider offline', () => {
+  const r = resolveAiFailureRouting({
+    aiFailed: true,
+    destination: 'oxsteed',
+    providerOnline: false,
+    canLive: true,
+  });
+  assert.equal(r.action, 'escalate_support');
+  assert.equal(r.suggestedAction, 'escalate_support');
+  assert.equal(r.showEscalationPanel, true);
+});
+
+test('resolveAiFailureRouting: no action when ai did not fail', () => {
+  const r = resolveAiFailureRouting({ aiFailed: false, providerOnline: true, canLive: true });
+  assert.equal(r.action, null);
+  assert.equal(r.suggestedAction, null);
+});
+
+test('resolveAiFailureFromServer trusts switch_helper_live flag', () => {
+  const r = resolveAiFailureFromServer({
+    aiFailed: true,
+    suggestedAction: 'switch_helper_live',
+    destination: 'oxsteed',
+    providerOnline: false, // server flag wins over local guess
+    canLive: false,
+  });
+  assert.equal(r.action, 'switch_helper_live');
+  assert.equal(r.autoRetryLive, true);
+});
+
+test('resolveProviderPresenceTransition: live → offline falls back to AI', () => {
+  const r = resolveProviderPresenceTransition({
+    previousStatus: 'live',
+    nextStatus: 'ai_assistant',
+    destination: 'helper',
+  });
+  assert.equal(r.action, 'fallback_to_ai');
+  assert.equal(r.showAiBanner, true);
+});
+
+test('resolveProviderPresenceTransition: offline → live offers connect', () => {
+  const r = resolveProviderPresenceTransition({
+    previousStatus: 'ai_assistant',
+    nextStatus: 'live',
+    destination: 'helper',
+  });
+  assert.equal(r.action, 'offer_connect_live');
+  assert.equal(r.showConnectLiveCta, true);
+});
+
+test('resolveProviderPresenceTransition ignores oxsteed destination', () => {
+  const r = resolveProviderPresenceTransition({
+    previousStatus: 'ai_assistant',
+    nextStatus: 'live',
+    destination: 'oxsteed',
+  });
+  assert.equal(r.action, null);
+});
+
+test('canVisitorLive and OxSteed never live-agent', () => {
+  assert.equal(canVisitorLive({ isAuthenticated: true }), true);
+  assert.equal(canVisitorLive({ guestVerified: true }), true);
+  assert.equal(canVisitorLive({}), false);
+  assert.equal(isOxsteedDestinationLiveAgent(), false);
 });
