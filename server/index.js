@@ -482,9 +482,10 @@ app.use('/api/business-profile', businessProfileImagesRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews/business', businessReviewsRoutes);
 app.use('/api/chat', chatRoutes);
-// Legacy guest-to-helper API. Not used by PublicProfileMessenger (profile chat
-// uses /api/chat/profile-message + guest contact in sessionStorage). Kept for
-// older clients / securityHardening tests — do not delete casually.
+// Legacy guest-to-helper API (/api/guest-chat). Not used by PublicProfileMessenger
+// (profile guest gate → /api/chat/profile-message + sessionStorage contact).
+// Kept registered for older/mobile clients and securityHardening tests.
+// Do not expand; prefer profile messenger guest gate for new work.
 app.use('/api/guest-chat', guestChatRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/support-chat', supportChatRoutes);

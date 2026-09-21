@@ -1,5 +1,6 @@
-// Guest-to-helper chat system routes
-// Guests can initiate chats, helpers can claim and respond
+// LEGACY guest-to-helper chat routes (/api/guest-chat).
+// Not used by PublicProfileMessenger — prefer profile messenger guest gate.
+// Kept for older clients and securityHardening tests; do not expand.
 
 const express = require('express');
 const router = express.Router();
