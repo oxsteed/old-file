@@ -63,7 +63,6 @@ function PhotoDrop({
   alt,
   variant,
   emptyLabel,
-  hint,
   changeLabel,
   uploadLabel,
   removeLabel,
@@ -78,31 +77,47 @@ function PhotoDrop({
     onFile(file);
   }
 
+  function openPicker() {
+    document.getElementById(inputId)?.click();
+  }
+
   return (
-    <div>
+    <div className={`bpe-photo ${variant}`}>
       <div
-        className={`bpe-drop ${variant}${over ? ' over' : ''}`}
+        className={`bpe-drop ${variant}${over ? ' over' : ''}${preview ? ' has' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); takeFiles(e.dataTransfer.files); }}
-        onClick={() => document.getElementById(inputId)?.click()}
+        onClick={openPicker}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            document.getElementById(inputId)?.click();
+            openPicker();
           }
         }}
         role="button"
         tabIndex={0}
+        aria-label={emptyLabel}
       >
         {preview ? (
           <img src={preview} alt={alt} />
         ) : (
-          <div className="bpe-drop-empty">
-            <div>{emptyLabel}</div>
-            <p className="bpe-hint">{hint}</p>
-          </div>
+          <div className="bpe-drop-empty">{emptyLabel}</div>
         )}
+        {preview && (
+          <button
+            type="button"
+            className="bpe-photo-remove"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          >
+            {removeLabel}
+          </button>
+        )}
+        <div className="bpe-photo-overlay">
+          <label htmlFor={inputId} onClick={(e) => e.stopPropagation()}>
+            {preview ? changeLabel : uploadLabel}
+          </label>
+        </div>
       </div>
       <input
         id={inputId}
@@ -114,16 +129,6 @@ function PhotoDrop({
           e.target.value = '';
         }}
       />
-      <div className="bpe-photo-actions">
-        <label htmlFor={inputId}>
-          {preview ? changeLabel : uploadLabel}
-        </label>
-        {preview && (
-          <button type="button" onClick={onRemove}>
-            {removeLabel}
-          </button>
-        )}
-      </div>
     </div>
   );
 }
@@ -418,41 +423,36 @@ export default function BusinessProfileEditor({
         </aside>
       </div>
 
-      <section className="bpe-card">
-        <h3>{t('businessHub.sectionPhotos')}</h3>
-        <div className="bpe-grid-2">
-          <div>
-            <label htmlFor="bh-logo-input">{t('businessHub.businessLogo')}</label>
-            <PhotoDrop
-              inputId="bh-logo-input"
-              preview={logoPreview}
-              alt={t('businessHub.logoPreviewAlt')}
-              variant="square"
-              emptyLabel={t('businessHub.profileEditor.dropLogo')}
-              hint={t('businessHub.profileEditor.dropHint')}
-              changeLabel={t('businessHub.changeLogo')}
-              uploadLabel={t('businessHub.uploadLogo')}
-              removeLabel={t('businessHub.remove')}
-              onFile={onLogoChange}
-              onRemove={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
-            />
-          </div>
-          <div>
-            <label htmlFor="bh-cover-input">{t('businessHub.coverPhoto')}</label>
-            <PhotoDrop
-              inputId="bh-cover-input"
-              preview={coverPreview}
-              alt={t('businessHub.coverPreviewAlt')}
-              variant="wide"
-              emptyLabel={t('businessHub.profileEditor.dropCover')}
-              hint={t('businessHub.profileEditor.dropHint')}
-              changeLabel={t('businessHub.changeCover')}
-              uploadLabel={t('businessHub.uploadCover')}
-              removeLabel={t('businessHub.remove')}
-              onFile={onCoverChange}
-              onRemove={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
-            />
-          </div>
+      <section className="bpe-card bpe-photos-card">
+        <div className="bpe-photos-head">
+          <h3>{t('businessHub.sectionPhotos')}</h3>
+          <p className="bpe-hint">{t('businessHub.profileEditor.dropHint')}</p>
+        </div>
+        <div className="bpe-photos">
+          <PhotoDrop
+            inputId="bh-logo-input"
+            preview={logoPreview}
+            alt={t('businessHub.logoPreviewAlt')}
+            variant="square"
+            emptyLabel={t('businessHub.businessLogo')}
+            changeLabel={t('businessHub.changeLogo')}
+            uploadLabel={t('businessHub.uploadLogo')}
+            removeLabel={t('businessHub.remove')}
+            onFile={onLogoChange}
+            onRemove={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
+          />
+          <PhotoDrop
+            inputId="bh-cover-input"
+            preview={coverPreview}
+            alt={t('businessHub.coverPreviewAlt')}
+            variant="wide"
+            emptyLabel={t('businessHub.coverPhoto')}
+            changeLabel={t('businessHub.changeCover')}
+            uploadLabel={t('businessHub.uploadCover')}
+            removeLabel={t('businessHub.remove')}
+            onFile={onCoverChange}
+            onRemove={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
+          />
         </div>
       </section>
 

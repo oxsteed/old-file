@@ -306,10 +306,44 @@
   text-align: right;
 }
 
+.bpe-photos-card {
+  padding: 0.85rem 1rem;
+}
+
+.bpe-photos-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.bpe-photos-head h3 {
+  margin: 0;
+}
+
+.bpe-photos-head .bpe-hint {
+  margin: 0;
+}
+
+.bpe-photos {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.bpe-photo {
+  min-width: 0;
+}
+
 .bpe-drop {
-  min-height: 140px;
+  position: relative;
+  height: 88px;
+  min-height: 88px;
   border: 1px dashed #4b5563;
-  border-radius: 0.9rem;
+  border-radius: 0.85rem;
   background: rgba(15, 23, 42, 0.6);
   display: grid;
   place-items: center;
@@ -324,11 +358,8 @@
 }
 
 .bpe-drop.square {
-  aspect-ratio: 1 / 1;
-}
-
-.bpe-drop.wide {
-  aspect-ratio: 16 / 7;
+  width: 88px;
+  height: 88px;
 }
 
 .bpe-drop img {
@@ -338,39 +369,50 @@
 }
 
 .bpe-drop-empty {
-  padding: 1rem;
+  padding: 0.4rem;
   text-align: center;
   color: #9ca3af;
-  font-size: 0.82rem;
-}
-
-.bpe-photo-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
-}
-
-.bpe-photo-actions label,
-.bpe-photo-actions button {
-  flex: 1;
-  min-height: 40px;
-  border-radius: 0.65rem;
-  border: 0;
-  cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.25;
 }
 
-.bpe-photo-actions label {
-  background: #1f2937;
-  color: #e5e7eb;
+.bpe-photo-overlay {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 0.3rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+}
+
+.bpe-photo-overlay label {
   display: grid;
   place-items: center;
+  min-height: 32px;
+  border-radius: 0.45rem;
+  background: rgba(31, 41, 55, 0.92);
+  color: #e5e7eb;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 0.35rem;
+  text-align: center;
 }
 
-.bpe-photo-actions button {
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
+.bpe-photo-remove {
+  position: absolute;
+  top: 0.3rem;
+  inset-inline-end: 0.3rem;
+  z-index: 2;
+  min-height: 28px;
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0 0.45rem;
+  background: rgba(127, 29, 29, 0.94);
+  color: #fecaca;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .bpe-radius {
