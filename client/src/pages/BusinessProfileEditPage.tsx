@@ -52,18 +52,31 @@ export default function BusinessProfileEditPage() {
         return;
       }
 
-      const detail = await getBusinessProfileForEditor(selected.id);
-      const nextBusiness = detail.business || selected;
-      setBusiness(nextBusiness);
-      setForm({
-        business_name: nextBusiness.business_name || '',
-        description: nextBusiness.description || '',
-        business_type: nextBusiness.business_type || '',
-        website: nextBusiness.website || '',
-        phone: nextBusiness.phone || '',
-        address_city: nextBusiness.address_city || '',
-        address_state: nextBusiness.address_state || '',
-      });
+      try {
+        const detail = await getBusinessProfileForEditor(selected.id);
+        const nextBusiness = detail.business || selected;
+        setBusiness(nextBusiness);
+        setForm({
+          business_name: nextBusiness.business_name || '',
+          description: nextBusiness.description || '',
+          business_type: nextBusiness.business_type || '',
+          website: nextBusiness.website || '',
+          phone: nextBusiness.phone || '',
+          address_city: nextBusiness.address_city || '',
+          address_state: nextBusiness.address_state || '',
+        });
+      } catch {
+        setBusiness(selected);
+        setForm({
+          business_name: selected.business_name || '',
+          description: selected.description || '',
+          business_type: selected.business_type || '',
+          website: selected.website || '',
+          phone: selected.phone || '',
+          address_city: selected.address_city || '',
+          address_state: selected.address_state || '',
+        });
+      }
 
       const [teamRows, serviceRows, invoiceRows] = await Promise.allSettled([
         listMembers(selected.id),

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { axiosInstance } from '../../api/axios';
+import { getBusiness } from '../../api/businesses';
 import toast from 'react-hot-toast';
 import { BarChart3, Settings, Users, TrendingUp, DollarSign, Package, MessageSquare, ShoppingCart } from 'lucide-react';
 import { BusinessServicesTab } from './BusinessServicesTab';
@@ -45,8 +45,8 @@ export function BusinessHubComplete({ businessId }) {
   const loadBusinessData = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/api/businesses/${businessId}`);
-      setBusinessData(response.data);
+      const data = await getBusiness(businessId);
+      setBusinessData(data.business || data);
     } catch (error) {
       toast.error(t('businessHubComplete.loadError'));
     } finally {

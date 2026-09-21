@@ -26,6 +26,8 @@ function buildApp() {
   app.get('/api/businesses/categories', ctrl.listBusinessCategories);
   app.get('/api/businesses/media/:assetId', ctrl.getBusinessMediaAsset);
   app.post('/api/businesses', ctrl.addBusiness);
+  app.get('/api/businesses/:id/profile-edit', ctrl.getBusinessProfileForEditor);
+  app.get('/api/businesses/:id', ctrl.getBusiness);
   app.put(
     '/api/businesses/:id/photos',
     upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]),
@@ -104,7 +106,9 @@ describe('business category long-term wiring', () => {
       business_name: 'Bon Pate',
       industry_category: 'food',
       business_mode: 'food',
+      business_kind: 'restaurant',
     }));
+    expect(res.body.onboarding.nextRoute).toBe('/restaurants/merchant?business=8&setup=1');
     const businessInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO businesses/.test(sql));
     expect(businessInsert[0]).toMatch(/TRUE,FALSE/);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_restaurants/.test(sql))).toBe(true);
@@ -273,5 +277,62 @@ describe('business category long-term wiring', () => {
     expect(res.headers['content-type']).toMatch(/^image\/webp/);
     expect(res.headers.etag).toBe('"abc123"');
     expect(res.body).toEqual(content);
+  });
+
+  test('loads an unpublished draft business for the owner after create', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 8,
+          business_name: 'FastFix',
+          business_kind: 'service',
+          setup_status: 'in_progress',
+          is_listed: false,
+          is_active: true,
+          address_city: 'Columbus',
+          address_country: 'US',
+        }],
+      });
+
+    const res = await request(buildApp()).get('/api/businesses/8');
+
+    expect(res.status).toBe(200);
+    expect(res.body.business).toEqual(expect.objectContaining({
+      id: 8,
+      business_name: 'FastFix',
+      business_kind: 'service',
+      setup_status: 'in_progress',
+    }));
+    expect(mockQuery.mock.calls[1][0]).toMatch(/LEFT JOIN LATERAL/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/deleted_at IS NULL/);
+  });
+
+  test('profile-edit uses the same owner payload for an in-progress business', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 8, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 8,
+          business_name: 'FastFix',
+          business_kind: 'service',
+          setup_status: 'in_progress',
+          address_street: '1 Main',
+        }],
+      });
+
+    const res = await request(buildApp()).get('/api/businesses/8/profile-edit');
+
+    expect(res.status).toBe(200);
+    expect(res.body.business.address_street).toBe('1 Main');
+  });
+
+  test('rejects editor reads when the caller cannot edit the business', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/api/businesses/8');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Business not found');
   });
 });

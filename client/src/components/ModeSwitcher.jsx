@@ -40,7 +40,7 @@ export default function ModeSwitcher({ compact = false }) {
     api.get('/me/businesses')
       .then(res => {
         if (cancelled) return;
-        const items = Array.isArray(res?.data?.items) ? res.data.items : [];
+        const items = Array.isArray(res?.data?.data?.items) ? res.data.data.items : [];
         setMemberships(items.filter(m => m.status === 'active'));
       })
       .catch(() => { /* endpoint may not be deployed everywhere — fail quiet */ });

@@ -26,6 +26,8 @@ export const uploadBusinessPhotos  = (id, logoFile, coverFile) => {
 };
 // Public - no auth required
 export const getBusinessPublicProfile = (id)         => api.get(`/businesses/${id}/public`).then(r => r.data);
+// Owner/manager - unpublished drafts included. Same payload as profile-edit.
+export const getBusiness               = (id)        => api.get(`/businesses/${id}`).then(r => r.data);
 // Owner/manager - full address for Business Hub editor
 export const getBusinessProfileForEditor = (id)      => api.get(`/businesses/${id}/profile-edit`).then(r => r.data);
 

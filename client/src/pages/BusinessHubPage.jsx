@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useSearchParams, useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -81,6 +81,12 @@ import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
+import {
+  profileFormFromBusiness,
+  tagOwnedBusiness,
+  mergeBusinessList,
+  isBusinessPubliclyListed,
+} from '../utils/businessProfileForm';
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
@@ -139,17 +145,22 @@ function BusinessHubInner() {
   const currency = user?.preferred_currency
     || (user?.country ? getDefaultCurrency(user.country) : null)
     || 'USD';
-  const [businesses, setBusinesses]   = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   // URL params take precedence over localStorage when the page is opened at
   // /business/:businessId/workspace or /business/:businessId/workspace/:tab
   const routeParams = useParams();
+  const location = useLocation();
+  const createdFromNav = useMemo(
+    () => tagOwnedBusiness(location.state?.createdBusiness),
+    [location.state?.createdBusiness],
+  );
   const routeBusinessId = routeParams.businessId ? String(routeParams.businessId) : null;
   const routeTab = routeParams.tab ? String(routeParams.tab) : null;
   const navigate = useNavigate();
-  const [bizId, setBizId]             = useState(() => routeBusinessId || localStorage.getItem(LS_KEY) || '');
+  const [businesses, setBusinesses]   = useState(() => createdFromNav ? [createdFromNav] : []);
+  const [bizId, setBizId]             = useState(() => routeBusinessId || (createdFromNav ? String(createdFromNav.id) : '') || localStorage.getItem(LS_KEY) || '');
   const [tab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
-  const [loadingBiz, setLoadingBiz]   = useState(true);
+  const [loadingBiz, setLoadingBiz]   = useState(!createdFromNav);
 
   // modal state
   const [modal, setModal]     = useState(null); // 'add-biz' | 'add-inv' | 'edit-inv' | 'pay-inv' | 'add-goal' | 'edit-goal' | 'pay-tax'
@@ -243,10 +254,13 @@ function BusinessHubInner() {
       const ownedTagged   = owned.map(b   => ({ ...b, _role: 'owner'    }));
       const managedTagged = managed.map(b => ({ ...b, _role: b.role }));
       const seen = new Set(ownedTagged.map(b => String(b.id)));
-      const merged = [
-        ...ownedTagged,
-        ...managedTagged.filter(b => !seen.has(String(b.id))),
-      ];
+      const merged = mergeBusinessList(
+        createdFromNav ? [createdFromNav] : [],
+        [
+          ...ownedTagged,
+          ...managedTagged.filter(b => !seen.has(String(b.id))),
+        ],
+      );
       setBusinesses(merged);
       if (merged.length === 0) {
         // Stale oxs:bh:lastBusinessId would otherwise keep tab effects calling /api/businesses/:id/* → 404
@@ -270,9 +284,11 @@ function BusinessHubInner() {
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
       }
-    } catch { toast.error(t('businessHub.toastLoadBizFail')); }
+    } catch {
+      if (!createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
+    }
     finally { setLoadingBiz(false); }
-  }, [t, routeBusinessId]);
+  }, [t, routeBusinessId, createdFromNav]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
@@ -469,22 +485,7 @@ function BusinessHubInner() {
     try {
       const data = await getBusinessProfileForEditor(bizId);
       const biz = data.business;
-      const nextForm = {
-        business_name:       biz.business_name   || '',
-        business_type:       biz.business_type   || '',
-        profile_headline:    biz.profile_headline || '',
-        description:         biz.description     || biz.bio_short || '',
-        phone:               biz.phone           || '',
-        website:             biz.website         || '',
-        address_street:      biz.address_street  || '',
-        address_city:        biz.address_city    || '',
-        address_state:       biz.address_state   || '',
-        address_zip:         biz.address_zip     || '',
-        address_country:     biz.address_country || 'US',
-        service_radius_miles: biz.service_radius_miles || '',
-        logo_url:            biz.logo_url        || '',
-        cover_photo_url:     biz.cover_photo_url || '',
-      };
+      const nextForm = profileFormFromBusiness(biz);
       setProfileForm(nextForm);
       profileFieldsBaselineRef.current = {
         profile_headline: nextForm.profile_headline,
@@ -494,9 +495,26 @@ function BusinessHubInner() {
       setCoverPreview(biz.cover_photo_url || null);
       setLogoFile(null);
       setCoverFile(null);
-    } catch { setProfileErr(t('businessHub.errorProfileLoad')); }
+    } catch {
+      const listed = businesses.find((b) => String(b.id) === String(bizId)) || createdFromNav;
+      if (listed) {
+        const nextForm = profileFormFromBusiness(listed);
+        setProfileForm(nextForm);
+        profileFieldsBaselineRef.current = {
+          profile_headline: nextForm.profile_headline,
+          service_radius_miles: nextForm.service_radius_miles,
+        };
+        setLogoPreview(listed.logo_url || null);
+        setCoverPreview(listed.cover_photo_url || null);
+        setLogoFile(null);
+        setCoverFile(null);
+        setProfileErr('');
+      } else {
+        setProfileErr(t('businessHub.errorProfileLoad'));
+      }
+    }
     finally { setProfileLoading(false); }
-  }, [bizId, t]);
+  }, [bizId, t, businesses, createdFromNav]);
 
   const handleSaveProfile = useCallback(async () => {
     if (!profileForm) return;
@@ -672,18 +690,18 @@ function BusinessHubInner() {
 
   // ── add business ──────────────────────────────────────────────────────────
   async function handleBusinessCreated(result) {
-    const business = result?.business;
+    const business = tagOwnedBusiness(result?.business);
     if (!business?.id) return;
     localStorage.setItem(LS_KEY, String(business.id));
+    setBusinesses((prev) => mergeBusinessList(prev, [business]));
     setBizId(String(business.id));
     closeModal();
     toast.success(t('businessHub.toastBizAdded'));
-    await loadBusinesses();
-    if (business.business_kind === 'restaurant') {
-      navigate(`/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`);
-    } else {
-      navigate(`/business/${business.id}/workspace/profile`);
-    }
+    const nextPath = business.business_kind === 'restaurant'
+      ? `/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`
+      : `/business/${business.id}/workspace/profile`;
+    navigate(nextPath, { state: { createdBusiness: business }, replace: true });
+    loadBusinesses().catch(() => {});
   }
 
   // ── invoice CRUD ──────────────────────────────────────────────────────────
@@ -1349,7 +1367,7 @@ function BusinessHubInner() {
                   {currentRole === 'manager' ? t('businessHub.tagManager') : t('businessHub.tagRepresentative')}
                 </span>
               )}
-              {bizId && (
+              {bizId && isBusinessPubliclyListed(currentBiz) && (
                 <Link
                   to={isRestaurantBusiness && currentBiz?.restaurant_id
                     ? `/restaurants/r/${currentBiz.restaurant_id}`

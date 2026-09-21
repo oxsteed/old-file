@@ -9,6 +9,7 @@ const {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
   uploadBusinessPhotos, getBusinessMediaAsset,
+  getBusiness,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
   getBusinessAnalytics,
@@ -74,6 +75,7 @@ router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
 router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
+router.get('/:id', authenticate, getBusiness);
 router.get('/:id/onboarding', authenticate, getBusinessOnboarding);
 router.put('/:id/onboarding', authenticate, updateBusinessOnboarding);
 router.post('/:id/onboarding/complete', authenticate, completeBusinessOnboarding);

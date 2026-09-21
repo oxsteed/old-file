@@ -126,7 +126,7 @@ async function listBusinesses(req, res, next) {
               description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
               is_listed, tax_rate, logo_url, created_at,
-              COALESCE(active_template, 'default') AS active_template,
+              COALESCE(businesses.active_template, 'default') AS active_template,
               fr.id AS restaurant_id,
               fr.status AS restaurant_status,
               fr.discovery_status AS restaurant_discovery_status,
@@ -288,14 +288,15 @@ async function addBusiness(req, res, next) {
       return { biz: createdBusiness, reused: false };
     }, 'business_create');
 
+    const payload = withBusinessCapabilities(biz);
     return res.status(reused ? 200 : 201).json({
-      business: withBusinessCapabilities(biz),
+      business: payload,
       reused: !!reused,
       onboarding: {
-        currentStep: biz.business_kind === 'restaurant' ? 'restaurant_setup' : 'service_setup',
-        nextRoute: biz.business_kind === 'restaurant'
-          ? '/restaurants/merchant'
-          : `/business/${biz.id}/workspace/profile`,
+        currentStep: payload.business_kind === 'restaurant' ? 'restaurant_setup' : 'service_setup',
+        nextRoute: payload.business_kind === 'restaurant'
+          ? `/restaurants/merchant?business=${encodeURIComponent(payload.id)}&setup=1`
+          : `/business/${payload.id}/workspace/profile`,
       },
     });
   } catch (err) {
@@ -1399,56 +1400,83 @@ async function getBusinessPublicProfile(req, res) {
   }
 }
 
-// ── Authenticated profile editor payload ──────────────────────────────────────
-// GET /api/businesses/:id/profile-edit - owner or active manager; includes full address.
-async function getBusinessProfileForEditor(req, res) {
+async function loadBusinessEditorRow(id) {
+  const { rows: [row] } = await pool.query(
+    `SELECT
+       b.id,
+       b.user_id,
+       b.business_name,
+       b.business_type,
+       b.industry_category,
+       b.business_mode,
+       b.business_kind,
+       b.setup_status,
+       b.timezone,
+       b.currency_code,
+       b.published_at,
+       b.profile_version,
+       b.description,
+       b.website,
+       b.phone,
+       b.address_street,
+       b.address_city,
+       b.address_state,
+       b.address_zip,
+       b.address_country,
+       b.logo_url,
+       b.cover_photo_url,
+       b.is_primary,
+       b.is_active,
+       b.is_listed,
+       b.tax_rate,
+       COALESCE(b.active_template, 'default') AS active_template,
+       COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
+       b.service_radius_miles,
+       hp.bio_short,
+       b.ai_knowledge
+     FROM businesses b
+     LEFT JOIN LATERAL (
+       SELECT profile_headline, bio_short
+         FROM helper_profiles
+        WHERE user_id = b.user_id
+        LIMIT 1
+     ) hp ON TRUE
+     WHERE b.id = $1
+       AND b.deleted_at IS NULL`,
+    [id]
+  );
+  return row ? withBusinessCapabilities(row) : null;
+}
+
+async function sendBusinessEditorPayload(req, res, logName) {
   try {
     const { id } = req.params;
     const access = await canEditProfile(req.user.id, id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const { rows: [row] } = await pool.query(
-      `SELECT
-         b.id,
-         b.business_name,
-         b.business_type,
-         b.industry_category,
-         b.business_mode,
-         b.business_kind,
-         b.setup_status,
-         b.timezone,
-         b.currency_code,
-         b.published_at,
-         b.profile_version,
-         b.description,
-         b.website,
-         b.phone,
-         b.address_street,
-         b.address_city,
-         b.address_state,
-         b.address_zip,
-         b.address_country,
-         b.logo_url,
-         b.cover_photo_url,         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
-         b.service_radius_miles,
-         hp.bio_short,
-         b.ai_knowledge
-       FROM businesses b
-       LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
-       WHERE b.id = $1`,
-      [id]
-    );
-    if (!row) return res.status(404).json({ error: 'Business not found' });
-    return res.json({ business: withBusinessCapabilities(row) });
+    const business = await loadBusinessEditorRow(id);
+    if (!business) return res.status(404).json({ error: 'Business not found' });
+    return res.json({ business });
   } catch (err) {
-    logger.error('getBusinessProfileForEditor error', { err: err.message });
+    logger.error(`${logName} error`, { err: err.message, businessId: req.params?.id });
     return res.status(500).json({ error: 'Failed to load business profile' });
   }
 }
 
+// GET /api/businesses/:id - owner or active manager; unpublished drafts included.
+async function getBusiness(req, res) {
+  return sendBusinessEditorPayload(req, res, 'getBusiness');
+}
+
+// ── Authenticated profile editor payload ──────────────────────────────────────
+// GET /api/businesses/:id/profile-edit - owner or active manager; includes full address.
+async function getBusinessProfileForEditor(req, res) {
+  return sendBusinessEditorPayload(req, res, 'getBusinessProfileForEditor');
+}
+
 module.exports = {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
-  getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
+  getBusiness, getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
   uploadBusinessPhotos, getBusinessMediaAsset,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
