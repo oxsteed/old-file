@@ -453,9 +453,9 @@ const HelperBusinessProfilePage: React.FC = () => {
             )}
 
             {/*
-              Bottom padding so mobile CTA bar + FAB + iOS home indicator
+              Bottom padding so mobile CTA bar + launcher + iOS home indicator
               don't obscure the last section. h-32 = 128px covers:
-                CTA bar ~64px + FAB position ~80px + safe area ~34px
+                CTA bar ~64px + launcher ~80px + safe area ~34px
             */}
             <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
