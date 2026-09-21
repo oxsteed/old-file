@@ -14,10 +14,20 @@ function normalizeMessageAttachments(value) {
     if (!item || typeof item !== 'object') return [];
     const url = typeof item.url === 'string' ? item.url.trim() : '';
     if (!url) return [];
+    const type = typeof item.type === 'string'
+      ? item.type
+      : typeof item.mimeType === 'string'
+        ? item.mimeType
+        : null;
+    const filename = typeof item.filename === 'string'
+      ? item.filename
+      : typeof item.name === 'string'
+        ? item.name
+        : null;
     return [{
       url,
-      type: typeof item.type === 'string' ? item.type.slice(0, 120) : null,
-      filename: typeof item.filename === 'string' ? item.filename.slice(0, 255) : null,
+      type: type ? type.slice(0, 120) : null,
+      filename: filename ? filename.slice(0, 255) : null,
     }];
   });
 }
@@ -232,13 +242,21 @@ const getConversations = async (req, res) => {
 const getOrCreateConversation = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { helperId, jobId, businessId } = req.body;
+    const { jobId, businessId } = req.body;
+    const helperId = req.body.helperId || req.body.userId || req.body.ownerId;
 
     if (!helperId) return res.status(400).json({ error: 'Helper ID is required' });
 
-    // Validate that helperId is actually a helper account
+    // Helpers, tool owners, and anyone with a rental listing can be messaged.
     const helperCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND role IN ('helper', 'helper_pro', 'broker')`,
+      `SELECT id FROM users
+       WHERE id = $1
+         AND deleted_at IS NULL
+         AND (
+           role IN ('helper', 'helper_pro', 'broker')
+           OR COALESCE(default_mode, '') = 'tool_owner'
+           OR EXISTS (SELECT 1 FROM tool_rentals tr WHERE tr.user_id = users.id)
+         )`,
       [helperId]
     );
     if (helperCheck.rows.length === 0) {

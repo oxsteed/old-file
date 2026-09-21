@@ -129,4 +129,50 @@ describe('message attachments', () => {
     expect(res.body.fields.content).toBe('Message content or attachment is required');
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  test('POST /messages/conversations/:id accepts name/mimeType attachment aliases', async () => {
+    const stored = {
+      url: 'https://cdn.example.com/chat/photo.jpg',
+      type: 'image/jpeg',
+      filename: 'photo.jpg',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          customer_id: 'customer-456',
+          helper_id: 'user-123',
+          business_id: null,
+          job_id: null,
+          business_name: null,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'msg-2',
+          conversation_id: 'conv-1',
+          sender_id: 'user-123',
+          content: 'see photo',
+          message_type: 'text',
+          attachments: [stored],
+          is_read: false,
+          created_at: '2026-06-02T12:00:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conv-1')
+      .send({
+        content: 'see photo',
+        attachments: [{
+          url: stored.url,
+          name: 'photo.jpg',
+          mimeType: 'image/jpeg',
+        }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockQuery.mock.calls[1][1][4]).toBe(JSON.stringify([stored]));
+  });
 });
