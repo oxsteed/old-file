@@ -2059,8 +2059,8 @@
     "closeChat": "Cerrar chat",
     "isOffline": "{{name}} está desconectado",
     "leaveMessage": "Deja un mensaje y te responderán lo antes posible.",
-    "talkingToSupport": "Ahora estás hablando con el soporte de la plataforma OxSteed, no con {{name}}.",
-    "oxsteedSupport": "Soporte de la plataforma OxSteed",
+    "talkingToSupport": "Estás chateando con el Asistente OxSteed (IA), no con {{name}}. Esto no es soporte humano de la plataforma.",
+    "oxsteedSupport": "Asistente OxSteed (IA)",
     "helperIsOnline": "{{name}} está en línea.",
     "signInForReal": "Inicia sesión para enviar un mensaje real - la IA responde mientras tanto.",
     "messageSentWaiting": "Mensaje enviado - {{name}} responderá pronto.",
@@ -6171,8 +6171,8 @@
       "chatDestOptions": "Opciones de destino del chat",
       "talkToHelper": "Hablar con este ayudante",
       "helperMsgSub": "Enviar mensaje directamente al negocio",
-      "talkToOxsteed": "Hablar con OxSteed",
-      "oxsteedSub": "Soporte y ayuda de la plataforma",
+      "talkToOxsteed": "Asistente OxSteed (IA)",
+      "oxsteedSub": "Respuestas de IA sobre la plataforma (no es soporte en vivo)",
       "helperOffline": "Este ayudante está actualmente desconectado",
       "liveChatDisabled": "El chat en vivo está deshabilitado para este ayudante",
       "seen": "Visto",
@@ -6197,7 +6197,9 @@
       "messageComposer": "Compositor de mensajes",
       "chatPanel": "Panel de chat",
       "filterSearchResults": "Filtrar resultados de búsqueda",
-      "clearSearch": "Limpiar búsqueda"
+      "clearSearch": "Limpiar búsqueda",
+      "oxsteedAssistantLabel": "Asistente OxSteed (IA)",
+      "talkToHumanCta": "Hablar con una persona"
     },
     "messenger": {
       "message": "Mensaje",

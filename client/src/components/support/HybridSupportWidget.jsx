@@ -9,6 +9,8 @@ import './HybridSupportWidget.css';
 
 /**
  * HybridSupportWidget
+ * UNUSED — not mounted in App. Live floating widget is SupportWidget.jsx.
+ * Kept for reference; do not re-mount without an explicit product decision.
  * AI Chat → Escalate to Live Agent → Queue/Ticket Fallback
  */
 export default function HybridSupportWidget() {

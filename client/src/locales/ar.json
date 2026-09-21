@@ -2059,8 +2059,8 @@
     "closeChat": "إغلاق الدردشة",
     "isOffline": "{{name}} غير متصل",
     "leaveMessage": "اترك رسالة وسيقومون بالرد عليك في أقرب وقت ممكن.",
-    "talkingToSupport": "أنت الآن تتحدث إلى دعم منصة OxSteed، وليس {{name}}.",
-    "oxsteedSupport": "دعم منصة OxSteed",
+    "talkingToSupport": "أنت تتحدث مع مساعد OxSteed (ذكاء اصطناعي)، وليس {{name}}. هذا ليس دعمًا بشريًا للمنصة.",
+    "oxsteedSupport": "مساعد OxSteed (ذكاء اصطناعي)",
     "helperIsOnline": "{{name}} متصل بالإنترنت.",
     "signInForReal": "قم بتسجيل الدخول لإرسال رسالة حقيقية - الذكاء الاصطناعي يستجيب في هذه الأثناء.",
     "messageSentWaiting": "تم إرسال الرسالة - سيتم الرد على {{name}} قريبًا.",
@@ -6171,8 +6171,8 @@
       "chatDestOptions": "خيارات وجهة الدردشة",
       "talkToHelper": "تحدث إلى هذا المساعد",
       "helperMsgSub": "مراسلة رجال الأعمال مباشرة",
-      "talkToOxsteed": "التحدث إلى أوكسستيد",
-      "oxsteedSub": "دعم ومساعدة المنصة",
+      "talkToOxsteed": "مساعد OxSteed (ذكاء اصطناعي)",
+      "oxsteedSub": "إجابات الذكاء الاصطناعي عن المنصة (ليست دعمًا مباشرًا)",
       "helperOffline": "هذا المساعد غير متصل حاليا",
       "liveChatDisabled": "تم تعطيل الدردشة المباشرة لهذا المساعد",
       "seen": "مرئي",
@@ -6197,7 +6197,9 @@
       "messageComposer": "مؤلف الرسالة",
       "chatPanel": "لوحة الدردشة",
       "filterSearchResults": "تصفية نتائج البحث",
-      "clearSearch": "مسح البحث"
+      "clearSearch": "مسح البحث",
+      "oxsteedAssistantLabel": "مساعد OxSteed (ذكاء اصطناعي)",
+      "talkToHumanCta": "التحدث إلى شخص"
     },
     "messenger": {
       "message": "رسالة",

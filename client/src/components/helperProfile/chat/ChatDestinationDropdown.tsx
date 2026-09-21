@@ -56,9 +56,12 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentStatus = destination === 'helper' ? helperStatus : oxsteedStatus;
-  const currentLabel = destination === 'helper' ? helperName : 'OxSteed Support';
+  const currentLabel = destination === 'helper'
+    ? helperName
+    : t('helperProfile.chat.oxsteedAssistantLabel');
 
-  const destLabel = (key: ChatDestination) => key === 'helper' ? helperName : 'OxSteed Support';
+  const destLabel = (key: ChatDestination) =>
+    key === 'helper' ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
   const destTitle = (key: ChatDestination) =>
     key === 'helper' ? t('helperProfile.chat.talkToHelper') : t('helperProfile.chat.talkToOxsteed');
   const destSub = (key: ChatDestination) =>

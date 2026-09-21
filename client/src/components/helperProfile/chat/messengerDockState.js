@@ -6,6 +6,14 @@
 export const MESSENGER_MOBILE_BREAKPOINT = 1024;
 
 /**
+ * Profile messenger defaults to the provider (helper/business), not OxSteed AI.
+ * @returns {'helper'}
+ */
+export function defaultProfileChatDestination() {
+  return 'helper';
+}
+
+/**
  * Guests who may contact without an account see an in-dock gate until
  * name+email are saved. Authenticated users and blocked-guest profiles skip it.
  */

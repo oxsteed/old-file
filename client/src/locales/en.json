@@ -2059,8 +2059,8 @@
     "closeChat": "Close chat",
     "isOffline": "{{name}} is offline",
     "leaveMessage": "Leave a message and they'll get back to you as soon as possible.",
-    "talkingToSupport": "You are now talking to OxSteed platform support, not {{name}}.",
-    "oxsteedSupport": "OxSteed platform support",
+    "talkingToSupport": "You are chatting with the OxSteed Assistant (AI), not {{name}}. This is not live platform support.",
+    "oxsteedSupport": "OxSteed Assistant (AI)",
     "helperIsOnline": "{{name}} is online.",
     "signInForReal": "Sign in to send a real message - AI is responding in the meantime.",
     "messageSentWaiting": "Message sent - {{name}} will reply shortly.",
@@ -6036,8 +6036,8 @@
       "chatDestOptions": "Chat destination options",
       "talkToHelper": "Talk to this helper",
       "helperMsgSub": "Message the business directly",
-      "talkToOxsteed": "Talk to OxSteed",
-      "oxsteedSub": "Platform support & help",
+      "talkToOxsteed": "OxSteed Assistant (AI)",
+      "oxsteedSub": "AI answers about the platform (not live support)",
       "helperOffline": "This helper is currently offline",
       "liveChatDisabled": "Live chat is disabled for this helper",
       "seen": "Seen",
@@ -6062,7 +6062,9 @@
       "messageComposer": "Message composer",
       "chatPanel": "Chat panel",
       "filterSearchResults": "Filter search results",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "oxsteedAssistantLabel": "OxSteed Assistant (AI)",
+      "talkToHumanCta": "Talk to a human"
     },
     "messenger": {
       "message": "Message",

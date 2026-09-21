@@ -10,6 +10,7 @@ import {
   guestContactStorageKey,
   isValidGuestEmail,
   canContinueAsGuest,
+  defaultProfileChatDestination,
 } from '../src/components/helperProfile/chat/messengerDockState.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
@@ -114,4 +115,8 @@ test('isValidGuestEmail and canContinueAsGuest', () => {
   assert.equal(canContinueAsGuest({ name: 'Ada', email: 'ada@oxsteed.com' }), true);
   assert.equal(canContinueAsGuest({ name: '  ', email: 'ada@oxsteed.com' }), false);
   assert.equal(canContinueAsGuest({ name: 'Ada', email: 'bad' }), false);
+});
+
+test('defaultProfileChatDestination is helper (provider), not oxsteed', () => {
+  assert.equal(defaultProfileChatDestination(), 'helper');
 });

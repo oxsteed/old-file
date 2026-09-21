@@ -2144,8 +2144,8 @@
     "closeChat": "Fèmen chat",
     "isOffline": "{{name}} dekonekte",
     "leaveMessage": "Kite yon mesaj epi y ap reponn ou pi vit posib.",
-    "talkingToSupport": "W ap pale kounye a ak sipò platfòm OxSteed la, pa {{name}}.",
-    "oxsteedSupport": "Sipò platfòm OxSteed",
+    "talkingToSupport": "W ap chat ak Asistan OxSteed (AI), pa {{name}}. Sa a se pa sipò imen platfòm lan.",
+    "oxsteedSupport": "Asistan OxSteed (AI)",
     "helperIsOnline": "{{name}} an liy.",
     "signInForReal": "Konekte pou voye yon mesaj reyèl - AI ap reponn pandan tan sa a.",
     "messageSentWaiting": "Mesaj voye - {{name}} ap reponn talè konsa.",
@@ -6171,8 +6171,8 @@
       "chatDestOptions": "Opsyon destinasyon chat",
       "talkToHelper": "Pale ak asistan sa a",
       "helperMsgSub": "Voye mesaj dirèkteman bay biznis lan",
-      "talkToOxsteed": "Pale ak OxSteed",
-      "oxsteedSub": "Sipò ak èd platfòm",
+      "talkToOxsteed": "Asistan OxSteed (AI)",
+      "oxsteedSub": "Repons AI sou platfòm lan (pa sipò an dirèk)",
       "helperOffline": "Asistan sa a pa anliy kounye a",
       "liveChatDisabled": "Chat dirèk la deaktive pou asistan sa a",
       "seen": "Li",
@@ -6197,7 +6197,9 @@
       "messageComposer": "Konpoze Mesaj",
       "chatPanel": "Panèl Chat",
       "filterSearchResults": "Filtye rezilta chèch",
-      "clearSearch": "Efase rechech"
+      "clearSearch": "Efase rechech",
+      "oxsteedAssistantLabel": "Asistan OxSteed (AI)",
+      "talkToHumanCta": "Pale ak yon moun"
     },
     "messenger": {
       "message": "Mesaj",

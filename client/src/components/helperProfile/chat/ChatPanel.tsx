@@ -12,7 +12,6 @@ import type {
 } from '../../../types/helperProfile';
 import ChatDestinationDropdown from './ChatDestinationDropdown';
 import StatusBadge from './StatusBadge';
-import HandoffBanner from './HandoffBanner';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
 import api from '../../../api/axios';
@@ -44,25 +43,12 @@ interface ChatPanelProps {
   onExpand?: () => void;
 }
 
-/** Check if the most recent handoff event is unacknowledged */
-function getLastHandoff(items: TimelineItem[]): TimelineEvent | null {
-  for (let i = items.length - 1; i >= 0; i--) {
-    const item = items[i];
-    if (item.itemType === 'handoff') return item as TimelineEvent;
-  }
-  return null;
-}
-
-function getHandoffAgentName(destination: ChatDestination, helperName: string): string {
-  return destination === 'helper' ? helperName : 'OxSteed Support Agent';
-}
-
 // ── Offline / Message-mode empty state ───────────────────────────────────────
 const UnavailableState: React.FC<{ destination: ChatDestination; helperName: string }> = ({
   destination, helperName,
 }) => {
   const { t } = useTranslation();
-  const name = destination === 'helper' ? helperName : 'OxSteed Support';
+  const name = destination === 'helper' ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-10">
       <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
@@ -87,13 +73,21 @@ const DestinationContextBanner: React.FC<{
   if (destination === 'helper') return null;
   return (
     <div
-      className="flex items-center gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
+      className="flex items-start gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
       aria-label={t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
     >
-      <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" aria-hidden="true" />
-      <p className="text-xs text-violet-300">
-        {t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
-      </p>
+      <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-violet-300">
+          {t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
+        </p>
+        <Link
+          to="/support/escalation"
+          className="inline-block mt-1.5 text-xs font-semibold text-violet-200 underline hover:text-white"
+        >
+          {t('helperProfile.chat.talkToHumanCta')}
+        </Link>
+      </div>
     </div>
   );
 };
@@ -137,7 +131,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const { socket } = useSocket();
 
   const [session,          setSession]          = useState<ChatSession>(initialSession);
-  const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [sending,          setSending]          = useState(false);
   const [guestName,        setGuestName]        = useState('');
   const [guestEmail,       setGuestEmail]       = useState('');
@@ -382,15 +375,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const currentStatus =
     session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
 
-  const lastHandoff = !handoffDismissed ? getLastHandoff(session.timeline) : null;
-
   const handleDestinationChange = useCallback((dest: ChatDestination) => {
     setSession(prev => ({
       ...prev,
       destination: dest,
       status: dest === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
     }));
-    setHandoffDismissed(false);
     if (onDestinationChange) {
       onDestinationChange(dest);
     }
@@ -404,8 +394,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         destination: externalDestination,
         status: externalDestination === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
       }));
-      setHandoffDismissed(false);
-    }
+      }
   }, [externalDestination]);
 
   const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
@@ -927,15 +916,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* ── Handoff banner ─────────────────────────────────── */}
-      {lastHandoff && (
-        <HandoffBanner
-          destination={session.destination}
-          agentName={getHandoffAgentName(session.destination, helperName)}
-          onDismiss={() => setHandoffDismissed(true)}
-        />
       )}
 
       {/* ── Timeline / Search Results / Empty state ──────────── */}

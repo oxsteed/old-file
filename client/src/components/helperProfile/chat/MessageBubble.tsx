@@ -107,8 +107,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const labelMap: Record<MessageAuthorType, string> = {
     user: t('helperProfile.chat.youLabel'),
-    oxsteed_ai: 'OxSteed AI',
-    oxsteed_human: 'OxSteed Support',
+    oxsteed_ai: t('helperProfile.chat.oxsteedAssistantLabel'),
+    oxsteed_human: t('helperProfile.chat.oxsteedAssistantLabel'),
     helper_ai: t('helperProfile.chat.aiAssistant'),
     helper_human: helperName,
   };

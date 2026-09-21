@@ -9,6 +9,8 @@ import './CustomerSupportWidget.css';
 
 /**
  * CustomerSupportWidget
+ * UNUSED — not mounted in App. Live floating widget is SupportWidget.jsx.
+ * Kept for reference; do not re-mount without an explicit product decision.
  * Real-time support widget with 3-layer routing
  * Uses WebSocket for real-time messaging
  */

@@ -23,6 +23,7 @@ import { MessageCircle, Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { defaultProfileChatDestination } from '../components/helperProfile/chat/messengerDockState.js';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 
@@ -79,7 +80,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [savingHelper, setSavingHelper] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
-  const [chatDestination, setChatDestination] = useState<'helper' | 'oxsteed'>('oxsteed'); // default to helper
+  const [chatDestination, setChatDestination] = useState<'helper' | 'oxsteed'>(defaultProfileChatDestination()); // provider, not OxSteed AI
 
   // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
   useEffect(() => {
