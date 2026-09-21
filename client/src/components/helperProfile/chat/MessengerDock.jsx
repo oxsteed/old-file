@@ -96,8 +96,6 @@ export default function MessengerDock({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   const resolvedSubtitle =
     subtitle ?? t('helperProfile.messenger.replyExpectation');
 
@@ -106,6 +104,8 @@ export default function MessengerDock({
       className={['messenger-dock-root', className].filter(Boolean).join(' ')}
       data-open={open ? 'true' : 'false'}
       data-layout={layout}
+      hidden={!open}
+      aria-hidden={!open}
     >
       <div
         className="messenger-dock__backdrop"
