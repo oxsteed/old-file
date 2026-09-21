@@ -290,8 +290,10 @@ describe('deployment release identity wiring', () => {
     expect(workflow).toContain('branches: [old-files-claude]');
     expect(workflow).toContain('if: github.ref == \'refs/heads/old-files-claude\' && github.event_name == \'push\'');
     expect(workflow).toContain('uses: actions/checkout@v4');
-    expect(workflow).toContain('Validate Coolify deployment secrets');
-    expect(workflow).toContain('COOLIFY_WEBHOOK_URL must use HTTPS.');
+    expect(workflow).toContain('run: node scripts/deploy-coolify.cjs --deploy');
+    expect(workflow).toContain('run: node --test scripts/deploy-coolify.test.cjs');
+    expect(workflow).toContain('COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}');
+    expect(workflow).toContain('COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}');
     expect(workflow).toContain('printf \'%s\' "$ready_payload" | node server/scripts/verify-readiness-payload.js');
   });
 

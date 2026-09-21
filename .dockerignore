@@ -18,3 +18,13 @@ PRODUCTION_READINESS_AUDIT.md
 SECURITY_AUDIT.md
 security.md
 API_VERSIONING.md
+AGENTS.md
+docs/archive
+**/.codex_tmp
+server/__sync_probe.txt
+chess-cheat-sheet.pdf
+# Credentials must arrive through runtime configuration or build secrets.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example

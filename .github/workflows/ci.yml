@@ -26,6 +26,9 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Deployment command regression tests
+        run: node --test scripts/deploy-coolify.test.cjs
+
       - name: Client smoke tests
         working-directory: client
         run: node --test scripts/*.test.mjs
@@ -64,6 +67,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: install-check
     if: github.ref == 'refs/heads/old-files-claude' && github.event_name == 'push'
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    concurrency:
+      group: coolify-production-deploy
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -74,24 +83,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate Coolify deployment secrets
+      - name: Verify Coolify target and deploy
         env:
           COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          test -n "$COOLIFY_WEBHOOK_URL" || { echo "COOLIFY_WEBHOOK_URL is not configured." >&2; exit 1; }
-          test -n "$COOLIFY_TOKEN" || { echo "COOLIFY_TOKEN is not configured." >&2; exit 1; }
-          case "$COOLIFY_WEBHOOK_URL" in
-            https://*) ;;
-            *) echo "COOLIFY_WEBHOOK_URL must use HTTPS." >&2; exit 1 ;;
-          esac
-
-      - name: Trigger Coolify deploy
-        run: |
-          curl --fail-with-body --silent --show-error -X POST "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+        run: node scripts/deploy-coolify.cjs --deploy
 
       - name: Verify production recovered after deploy
         env:
