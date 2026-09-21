@@ -6187,6 +6187,31 @@
       "chatPanel": "لوحة الدردشة",
       "filterSearchResults": "تصفية نتائج البحث",
       "clearSearch": "مسح البحث"
+    },
+    "messenger": {
+      "message": "رسالة",
+      "messageName": "مراسلة {{name}}",
+      "launcherKicker": "محادثة",
+      "openAria": "فتح المراسلة مع {{name}}",
+      "close": "إغلاق المراسلة",
+      "replyExpectation": "يرد عادةً خلال يوم",
+      "inviteTitle": "مراسلة {{name}}",
+      "inviteBody": "اسأل عن التوفر أو الأسعار أو الحجز — تبقى الردود على OxSteed.",
+      "emptyPrompt": "اسأل عن التوفر أو الأسعار أو الحجز للبدء.",
+      "disclaimerHelper": "تُرسل الرسائل إلى هذا المساعد على OxSteed.",
+      "disclaimerBusiness": "تُرسل الرسائل إلى هذا النشاط على OxSteed.",
+      "guestEyebrow": "المتابعة كزائر",
+      "guestTitle": "مراسلة {{name}}",
+      "guestBody": "شارك اسمك وبريدك ليتمكن {{name}} من الرد. لا يلزم حساب.",
+      "guestNameLabel": "الاسم",
+      "guestEmailLabel": "البريد الإلكتروني",
+      "guestNamePlaceholder": "اسمك",
+      "guestEmailPlaceholder": "you@example.com",
+      "guestInvalidEmail": "أدخل بريداً إلكترونياً صالحاً.",
+      "continueAsGuest": "المتابعة كزائر",
+      "signInInstead": "تسجيل الدخول بدلاً من ذلك",
+      "entityHelper": "مساعد",
+      "entityBusiness": "نشاط"
     }
   },
   "disputes": {

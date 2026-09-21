@@ -5,9 +5,9 @@
  *
  * Layout:
  *   - Desktop (lg+): 2-column grid. Left 7/12 = profile sections stacked.
- *                    Right 5/12 = sticky CTA card + embedded ChatPanel.
- *   - Mobile: single column, sticky mobile CTA bar at bottom,
- *             FAB triggers full-screen chat drawer.
+ *                    Right 5/12 = sticky reputation + messenger invite card.
+ *   - Mobile: single column, sticky mobile CTA bar at bottom.
+ *   - Messenger dock (desktop panel / mobile sheet) shared by header CTA + launcher.
  *
  * API integration notes (see bottom of file).
  */
@@ -19,7 +19,7 @@ import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
-import { MessageCircle, Flag, X, GraduationCap } from 'lucide-react';
+import { MessageCircle, Flag, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -32,7 +32,6 @@ import CancellationStats from '../components/CancellationStats';
 import {
   ProfileSkeleton,
   ProfileError,
-  MobileChatDrawer,
   BackToTopButton,
   SectionNav,
 } from '../components/PublicProfilePageChrome';
@@ -49,7 +48,8 @@ import FAQSection from '../components/helperProfile/FAQSection';
 import CTASection from '../components/helperProfile/CTASection';
 
 // Chat
-import ChatPanel from '../components/helperProfile/chat/ChatPanel';
+import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
+import { MessengerInviteCard } from '../components/helperProfile/chat/MessengerDock.jsx';
 
 // Dynamic blocks (Issue #35) - fetched client-side after static shell renders
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
@@ -75,15 +75,11 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
-  const [desktopChatExpanded, setDesktopChatExpanded] = useState(false);
   const [savedHelperId, setSavedHelperId] = useState<number | null>(null);
   const [savingHelper, setSavingHelper] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
   const [chatDestination, setChatDestination] = useState<'helper' | 'oxsteed'>('oxsteed'); // default to helper
-  const chatPanelRef = React.useRef<HTMLDivElement>(null);
-  const messageInputRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
   useEffect(() => {
@@ -93,15 +89,6 @@ const HelperBusinessProfilePage: React.FC = () => {
     return () => {
       document.documentElement.style.scrollPaddingTop = previous;
     };
-  }, []);
-
-  // Track window resize to determine if we're on mobile/tablet
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint in Tailwind
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -218,24 +205,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     }
   }, [data, id, navigate, savedHelperId, t, user]);
 
-  const handleMessageHelper = useCallback(() => {
-    // Switch to helper destination and open chat
-    setChatDestination('helper');
-
-    if (!isMobile) {
-      // Desktop: scroll to chat panel and focus input
-      setTimeout(() => {
-        if (chatPanelRef.current) {
-          chatPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        if (messageInputRef.current) {
-          messageInputRef.current.focus();
-        }
-      }, 100);
-      return;
-    }
-
-    // Mobile: open chat drawer
+  const openMessengerDock = useCallback(() => {
     if (user) {
       setChatOpen(true);
       return;
@@ -246,31 +216,16 @@ const HelperBusinessProfilePage: React.FC = () => {
     } else {
       setGuestSignInModalOpen(true);
     }
-  }, [isMobile, user, data?.helper?.allowGuestContact]);
+  }, [user, data?.helper?.allowGuestContact]);
+
+  const handleMessageHelper = useCallback(() => {
+    setChatDestination('helper');
+    openMessengerDock();
+  }, [openMessengerDock]);
 
   const handleOpenChat = useCallback(() => {
-    // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
-    if (!isMobile) {
-      // Desktop: scroll right sidebar into view
-      const chatAside = document.querySelector('aside[aria-label*="bookAndChat"]');
-      if (chatAside) {
-        chatAside.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      return;
-    }
-
-    // Mobile: open chat drawer
-    if (user) {
-      setChatOpen(true);
-      return;
-    }
-    const allow = data?.helper?.allowGuestContact !== false;
-    if (allow) {
-      setChatOpen(true);
-    } else {
-      setGuestSignInModalOpen(true);
-    }
-  }, [isMobile, user, data?.helper?.allowGuestContact]);
+    openMessengerDock();
+  }, [openMessengerDock]);
 
   // ── Render states ──────────────────────────────────────────────────────────
   if (loadState === 'loading' || loadState === 'idle') {
@@ -509,7 +464,6 @@ const HelperBusinessProfilePage: React.FC = () => {
           <aside
             className="hidden lg:flex lg:col-span-5 flex-col gap-5"
             aria-label={t('businessProfile.bookAndChatAria')}
-            ref={chatPanelRef}
           >
             {/* Sticky wrapper: scroll internally so tall reputation card + chat fit below navbar */}
             <div className="sticky top-[7.25rem] max-h-[calc(100vh-7.25rem)] flex flex-col gap-5 overflow-y-auto overscroll-contain">
@@ -524,24 +478,10 @@ const HelperBusinessProfilePage: React.FC = () => {
                   {t('reportModal.report')}
                 </button>
               )}
-              <div
-                className="flex-1 min-h-0 flex flex-col overflow-hidden"
-                style={{ minHeight: '600px' }}
-              >
-                <ChatPanel
-                  session={chatSession}
-                  helperName={helper.businessName}
-                  helperId={helper.id}
-                  isGuest={isGuestVisitor}
-                  allowLiveChat={helper.allowLiveChat}
-                  variant="sidebar"
-                  className="h-full overflow-hidden flex flex-col"
-                  destination={chatDestination}
-                  onDestinationChange={setChatDestination}
-                  messageInputRef={messageInputRef}
-                  onExpand={() => setDesktopChatExpanded(true)}
-                />
-              </div>
+              <MessengerInviteCard
+                displayName={helper.businessName}
+                onOpen={handleOpenChat}
+              />
             </div>
           </aside>
         </div>
@@ -578,53 +518,22 @@ const HelperBusinessProfilePage: React.FC = () => {
         </button>
       </div>
 
-      {/* ── Mobile chat drawer ───────────────────────────────── */}
-      {isMobile && (
-        <MobileChatDrawer open={chatOpen} onClose={() => setChatOpen(false)}>
-          <ChatPanel
-            session={chatSession}
-            helperName={helper.businessName}
-            helperId={helper.id}
-            isGuest={isGuestVisitor}
-            variant="modal"
-            onClose={() => setChatOpen(false)}
-            className="h-full"
-          />
-        </MobileChatDrawer>
-      )}
-
-      {!isMobile && desktopChatExpanded && (
-        <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-6 py-8"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('helperProfile.chat.expandChat', { defaultValue: 'Expanded chat' })}
-        >
-          <div className="w-full max-w-5xl h-[min(86vh,880px)] relative">
-            <button
-              type="button"
-              onClick={() => setDesktopChatExpanded(false)}
-              className="absolute -top-4 -right-4 z-10 w-10 h-10 rounded-full bg-gray-900 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 flex items-center justify-center shadow-xl"
-              aria-label={t('messages.closeChat')}
-            >
-              <X className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <ChatPanel
-              session={chatSession}
-              helperName={helper.businessName}
-              helperId={helper.id}
-              isGuest={isGuestVisitor}
-              allowLiveChat={helper.allowLiveChat}
-              variant="modal"
-              onClose={() => setDesktopChatExpanded(false)}
-              className="h-full"
-              destination={chatDestination}
-              onDestinationChange={setChatDestination}
-              roomy
-            />
-          </div>
-        </div>
-      )}
+      <PublicProfileMessenger
+        open={chatOpen}
+        onOpen={handleOpenChat}
+        onClose={() => setChatOpen(false)}
+        session={chatSession}
+        helperName={helper.businessName}
+        helperId={helper.id}
+        avatarUrl={helper.avatar}
+        avatarShape="round"
+        isGuest={isGuestVisitor}
+        allowLiveChat={helper.allowLiveChat}
+        allowGuestContact={helper.allowGuestContact !== false}
+        destination={chatDestination}
+        onDestinationChange={setChatDestination}
+        entityKind="helper"
+      />
 
       {guestSignInModalOpen && (
         <div
@@ -672,22 +581,6 @@ const HelperBusinessProfilePage: React.FC = () => {
           onClose={() => setReportModalOpen(false)}
           onSuccess={() => setReportModalOpen(false)}
         />
-      )}
-
-      {/*
-        ── Mobile chat FAB ────────────────────────────────────────
-        bottom-[76px] clears the CTA bar (~64px tall) on all phones.
-        Stays on the RIGHT side; BackToTop is now on the LEFT.
-      */}
-      {!chatOpen && (
-        <button
-          onClick={handleOpenChat}
-          className="lg:hidden fixed right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors active:bg-brand-700"
-          style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
-          aria-label={t('businessProfile.openChatAria')}
-        >
-          <MessageCircle className="w-5 h-5" aria-hidden="true" />
-        </button>
       )}
 
       <BackToTopButton />
