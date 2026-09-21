@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import BusinessSkillsSelector from '../components/BusinessSkillsSelector';
-import CountrySelect from '../components/CountrySelect';
-import RegionInput from '../components/RegionInput';
-import PostalCodeInput from '../components/PostalCodeInput';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import RoleMenu from '../components/businessHub/RoleMenu';
 import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
@@ -41,6 +38,7 @@ import CreativeOperationsTab from '../components/businessHub/CreativeOperationsT
 import ProfessionalOperationsTab from '../components/businessHub/ProfessionalOperationsTab';
 import ContinuityOperationsTab from '../components/businessHub/ContinuityOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
+import BusinessProfileEditor from '../components/businessHub/BusinessProfileEditor';
 import {
   listBusinesses, updateBusiness, uploadBusinessPhotos,
   completeBusinessOnboarding,
@@ -92,6 +90,7 @@ import {
   businessWorkspacePath,
   emptyBusinessAnalytics,
 } from '../utils/businessProfileForm';
+import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEditor';
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
@@ -549,7 +548,7 @@ function BusinessHubInner() {
   }, [bizId, t, businesses, createdFromNav]);
 
   const handleSaveProfile = useCallback(async () => {
-    if (!profileForm) return;
+    if (!profileForm) return false;
     setProfileSaving(true);
     setProfileErr('');
     try {
@@ -573,9 +572,9 @@ function BusinessHubInner() {
       const body = {
         business_name:        profileForm.business_name       || undefined,
         business_type:        profileForm.business_type       || undefined,
-        description:          profileForm.description ?? '',
+        description:          String(profileForm.description ?? '').slice(0, DESCRIPTION_MAX),
         phone:                profileForm.phone ?? '',
-        website:              profileForm.website ?? '',
+        website:              normalizeWebsite(profileForm.website),
         address_street:       profileForm.address_street ?? '',
         address_city:         profileForm.address_city ?? '',
         address_state:        profileForm.address_state ?? '',
@@ -601,8 +600,10 @@ function BusinessHubInner() {
       setLogoFile(null);
       setCoverFile(null);
       await loadProfile();
+      return true;
     } catch (e) {
       setProfileErr(e?.response?.data?.error || t('businessHub.errorProfileSave'));
+      return false;
     } finally {
       setProfileSaving(false);
     }
@@ -1572,13 +1573,14 @@ function BusinessHubInner() {
                   </button>
                 </div>
               ) :
-              <ProfileTab
+              <BusinessProfileEditor
                 form={profileForm}
                 logoPreview={logoPreview}
                 coverPreview={coverPreview}
                 saving={profileSaving}
                 err={profileErr}
                 currentRole={currentRole}
+                currentBiz={currentBiz}
                 onChange={(patch) => setProfileForm(f => ({ ...f, ...patch }))}
                 onLogoChange={(file) => {
                   setLogoFile(file);
@@ -1589,7 +1591,13 @@ function BusinessHubInner() {
                   setCoverPreview(file ? URL.createObjectURL(file) : null);
                 }}
                 onSave={handleSaveProfile}
+                onPublish={handlePublishCurrentBusiness}
+                publishing={saving}
+                onJumpTab={setTab}
                 bizId={bizId}
+                restaurantSetupHref={bizId
+                  ? `/restaurants/merchant?business=${encodeURIComponent(bizId)}&setup=1`
+                  : ''}
               />
             )}
 
@@ -2408,307 +2416,6 @@ function BusinessHubInner() {
 
       </div>
     </PageShell>
-  );
-}
-
-// ── Profile tab ───────────────────────────────────────────────────────────────
-
-const BIZ_TYPES = [
-  { value: 'Handyman',       labelKey: 'bizTypeHandyman' },
-  { value: 'Plumbing',       labelKey: 'bizTypePlumbing' },
-  { value: 'Electrical',     labelKey: 'bizTypeElectrical' },
-  { value: 'HVAC',           labelKey: 'bizTypeHVAC' },
-  { value: 'Landscaping',    labelKey: 'bizTypeLandscaping' },
-  { value: 'Cleaning',       labelKey: 'bizTypeCleaning' },
-  { value: 'Painting',       labelKey: 'bizTypePainting' },
-  { value: 'Carpentry',      labelKey: 'bizTypeCarpentry' },
-  { value: 'Roofing',        labelKey: 'bizTypeRoofing' },
-  { value: 'Flooring',       labelKey: 'bizTypeFlooring' },
-  { value: 'Moving',         labelKey: 'bizTypeMoving' },
-  { value: 'Pest Control',   labelKey: 'bizTypePestControl' },
-  { value: 'Pool Service',   labelKey: 'bizTypePoolService' },
-  { value: 'Auto Repair',    labelKey: 'bizTypeAutoRepair' },
-  { value: 'General Labor',  labelKey: 'bizTypeGeneralLabor' },
-  { value: 'Other',          labelKey: 'bizTypeOther' },
-];
-
-function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
-  const { t } = useTranslation();
-
-  if (!form) return null;
-
-  function pf(e) {
-    const { name, value } = e.target;
-    onChange({ [name]: value });
-  }
-
-  const fieldClass = 'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none';
-  const labelClass = 'mb-1.5 block text-sm font-medium text-gray-300';
-  const cardClass = 'rounded-2xl border border-gray-800 bg-gray-900 p-5';
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-white">{t('businessHub.publicProfile')}</h2>
-          <p className="mt-1 text-sm text-gray-400">{t('businessHub.publicProfileSubtitle')}</p>
-          {currentRole === 'manager' && (
-            <p className="mt-2 text-xs text-indigo-300">
-              <Trans i18nKey="businessHub.managerNote">
-                You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
-              </Trans>
-            </p>
-          )}
-        </div>
-        {bizId && (
-          <a
-            href={`/business/${bizId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-orange-500/30 px-3 py-2 text-sm font-medium text-orange-300 hover:bg-orange-500/10"
-          >
-            {t('businessHub.preview')} →
-          </a>
-        )}
-      </div>
-
-      <div className={cardClass}>
-        <h3 className="mb-4 text-base font-semibold text-white">{t('businessHub.sectionPhotos')}</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>{t('businessHub.businessLogo')}</label>
-            <div className="mb-3 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-700 bg-gray-800/70">
-              {logoPreview ? (
-                <img src={logoPreview} alt={t('businessHub.logoPreviewAlt')} className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-sm text-gray-500">{t('businessHub.noLogo')}</span>
-              )}
-            </div>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={e => onLogoChange(e.target.files?.[0] || null)}
-              id="bh-logo-input"
-            />
-            <div className="flex gap-2">
-              <label htmlFor="bh-logo-input" className="flex-1 cursor-pointer rounded-lg bg-gray-800 px-3 py-2 text-center text-sm font-medium text-gray-200 hover:bg-gray-700">
-                {logoPreview ? t('businessHub.changeLogo') : t('businessHub.uploadLogo')}
-              </label>
-              {logoPreview && (
-                <button
-                  type="button"
-                  className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20"
-                  onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
-                >
-                  {t('businessHub.remove')}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>{t('businessHub.coverPhoto')}</label>
-            <div className="mb-3 flex aspect-[3/1.5] w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-700 bg-gray-800/70">
-              {coverPreview ? (
-                <img src={coverPreview} alt={t('businessHub.coverPreviewAlt')} className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-sm text-gray-500">{t('businessHub.noCoverPhoto')}</span>
-              )}
-            </div>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={e => onCoverChange(e.target.files?.[0] || null)}
-              id="bh-cover-input"
-            />
-            <div className="flex gap-2">
-              <label htmlFor="bh-cover-input" className="flex-1 cursor-pointer rounded-lg bg-gray-800 px-3 py-2 text-center text-sm font-medium text-gray-200 hover:bg-gray-700">
-                {coverPreview ? t('businessHub.changeCover') : t('businessHub.uploadCover')}
-              </label>
-              {coverPreview && (
-                <button
-                  type="button"
-                  className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20"
-                  onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
-                >
-                  {t('businessHub.remove')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className={cardClass}>
-        <h3 className="mb-4 text-base font-semibold text-white">{t('businessHub.sectionBusinessIdentity')}</h3>
-        <div className="space-y-4">
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldBusinessNameRequired')}</label>
-            <input
-              name="business_name"
-              value={form.business_name}
-              onChange={pf}
-              placeholder={t('businessHub.placeholderBizName')}
-              className={fieldClass}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>{t('businessHub.fieldBusinessType')}</label>
-              <select
-                name="business_type"
-                value={form.business_type}
-                onChange={pf}
-                className={fieldClass}
-              >
-                <option value="">{t('businessHub.selectTypePlaceholder')}</option>
-                {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{t('businessHub.fieldTagline')}</label>
-              <input
-                name="profile_headline"
-                value={form.profile_headline}
-                onChange={pf}
-                placeholder={t('businessHub.placeholderTagline')}
-                maxLength={120}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldAbout')}</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={pf}
-              rows={4}
-              placeholder={t('businessHub.placeholderAbout')}
-              className={`${fieldClass} resize-none`}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className={cardClass}>
-        <h3 className="mb-4 text-base font-semibold text-white">{t('businessHub.sectionContact')}</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldPhone')}</label>
-            <input
-              name="phone"
-              value={form.phone}
-              onChange={pf}
-              placeholder={t('businessHub.placeholderPhone')}
-              type="tel"
-              className={fieldClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldWebsite')}</label>
-            <input
-              name="website"
-              value={form.website}
-              onChange={pf}
-              placeholder={t('businessHub.placeholderWebsiteFull')}
-              type="url"
-              className={fieldClass}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className={cardClass}>
-        <h3 className="mb-4 text-base font-semibold text-white">{t('businessHub.sectionLocation')}</h3>
-        <div className="space-y-4">
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldStreetAddress')}</label>
-            <input
-              name="address_street"
-              value={form.address_street}
-              onChange={pf}
-              placeholder={t('businessHub.placeholderStreet')}
-              className={fieldClass}
-            />
-            <p className="mt-1 text-xs text-gray-500">{t('businessHub.streetHint')}</p>
-          </div>
-          <div>
-            <label className={labelClass}>{t('businessHub.fieldCountry') || 'Country'}</label>
-            <CountrySelect
-              value={form.address_country || 'US'}
-              onChange={(code) => onChange({ address_country: code, address_state: '' })}
-              includeBlank={false}
-              className={fieldClass}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className={labelClass}>{t('businessHub.fieldCity')}</label>
-              <input
-                name="address_city"
-                value={form.address_city}
-                onChange={pf}
-                placeholder={t('businessHub.placeholderCity')}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>{t('businessHub.fieldState')}</label>
-              <RegionInput
-                country={form.address_country || 'US'}
-                name="address_state"
-                value={form.address_state}
-                onChange={(v) => onChange({ address_state: v })}
-                placeholder={t('businessHub.selectStatePlaceholder')}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>{t('businessHub.fieldZip')}</label>
-              <PostalCodeInput
-                country={form.address_country || 'US'}
-                name="address_zip"
-                value={form.address_zip}
-                onChange={(v) => onChange({ address_zip: v })}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-          <div className="sm:w-1/3">
-            <label className={labelClass}>{t('businessHub.fieldServiceRadius')}</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                name="service_radius_miles"
-                value={form.service_radius_miles}
-                onChange={pf}
-                placeholder={t('businessHub.placeholderRadius')}
-                min="1"
-                max="200"
-                className={fieldClass}
-              />
-              <span className="text-sm text-gray-500">mi</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-gray-500">{t('businessHub.profileFooterNote')}</p>
-        <button
-          type="button"
-          className="bh-btn primary min-h-[44px] min-w-[160px]"
-          onClick={onSave}
-          disabled={saving}
-        >
-          {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
-        </button>
-      </div>
-      {err && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{err}</div>}
-    </div>
   );
 }
 
