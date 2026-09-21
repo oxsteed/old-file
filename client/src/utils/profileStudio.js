@@ -130,6 +130,11 @@ export function isHelperCoreDirty(core, baselineSerialized) {
 /**
  * Aggregate save-status model for Helper Edit Profile.
  * Incremental toward a future whole-profile draft/publish flow — no backend draft API yet.
+ *
+ * TODO(profile-studio-draft): When whole-profile draft + publish endpoints land
+ * (see docs/superpowers/specs/2026-09-21-profile-studio-design.md), wire dirty /
+ * lastSavedAt / publish readiness through this model instead of inventing a
+ * parallel client draft store. resolveHelperSaveBar remains the sticky-bar seam.
  */
 export function createHelperSaveStatus(overrides = {}) {
   const dirtyIn = overrides.dirty && typeof overrides.dirty === 'object' ? overrides.dirty : {};
@@ -304,3 +309,74 @@ export function buildBusinessStudioSummaryModel({
     about,
   });
 }
+
+/** Keys always present on buildPublicProfileSummaryModel output. */
+export const PUBLIC_PROFILE_SUMMARY_MODEL_KEYS = [
+  'variant',
+  'cover',
+  'avatar',
+  'name',
+  'tagline',
+  'typeLabel',
+  'meta',
+  'contact',
+  'about',
+  'availableNow',
+  'ratingLabel',
+];
+
+/**
+ * Class contract for PublicProfileSummaryCard root element.
+ * Keep in sync with the JSX component — tests assert this string.
+ */
+export function publicProfileSummaryCardClassName({
+  variant = 'helper',
+  surface = 'public',
+  className = '',
+} = {}) {
+  return [
+    'ppsc',
+    `ppsc-${variant === 'business' ? 'business' : 'helper'}`,
+    surface === 'studio' ? 'ppsc--studio' : 'ppsc--public',
+    className,
+  ].filter(Boolean).join(' ');
+}
+
+/**
+ * Map BusinessHeader / full guarded profile page helper props → summary card model.
+ * Localized strings (ratingLabel, placeFallback, metaExtra) should be built by the caller.
+ */
+export function buildFullProfileHeaderSummaryModel({
+  variant = 'helper',
+  coverImage = null,
+  avatar = null,
+  businessName = '',
+  ownerName = '',
+  tagline = '',
+  city = '',
+  state = '',
+  placeFallback = '',
+  ratingLabel = '',
+  metaExtra = '',
+  typeLabel = '',
+  contact = '',
+  about = '',
+  availableNow = null,
+} = {}) {
+  const place = [city, state].filter(Boolean).join(', ') || placeFallback || '';
+  const meta = [place, metaExtra].filter(Boolean).join(' · ');
+  return buildPublicProfileSummaryModel({
+    variant: variant === 'business' ? 'business' : 'helper',
+    cover: coverImage,
+    avatar,
+    name: businessName || ownerName || '',
+    tagline,
+    typeLabel,
+    meta,
+    contact,
+    about,
+    availableNow,
+    ratingLabel,
+  });
+}
+

@@ -369,7 +369,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       />
       <Navbar />
 
-      {/* Business hero header */}
+      {/* Helper hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
       <BusinessHeader
         helperId={id}
         helper={helper}

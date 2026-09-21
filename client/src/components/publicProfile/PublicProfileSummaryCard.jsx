@@ -1,9 +1,11 @@
+import { publicProfileSummaryCardClassName } from '../../utils/profileStudio';
 import '../../styles/PublicProfileSummaryCard.css';
 
 /**
  * Pure presentational public-profile summary.
- * Shared by public helper/business pages and Profile Studio preview.
- * No routing, data loading, or CTAs — pass `footer` for page-specific actions.
+ * Shared by public helper/business pages, Profile Studio preview,
+ * and full guarded profile pages (via PublicProfileHero).
+ * No routing or data loading — pass `footer` / `coverOverlay` for page chrome.
  *
  * @param {'helper'|'business'} variant
  * @param {'studio'|'public'} surface — studio = dark preview chrome; public = CSS-var theme
@@ -27,21 +29,18 @@ export default function PublicProfileSummaryCard({
   availableNowLabel = '',
   notAvailableNowLabel = '',
   ariaLabel = '',
+  coverOverlay = null,
   footer = null,
   className = '',
 }) {
   const initial = String(name || '').trim().slice(0, 1).toUpperCase() || '·';
-  const classes = [
-    'ppsc',
-    `ppsc-${variant}`,
-    surface === 'studio' ? 'ppsc--studio' : 'ppsc--public',
-    className,
-  ].filter(Boolean).join(' ');
+  const classes = publicProfileSummaryCardClassName({ variant, surface, className });
 
   return (
     <article className={classes} aria-label={ariaLabel || undefined}>
       <div className="ppsc-cover">
         {cover ? <img src={cover} alt="" /> : null}
+        {coverOverlay ? <div className="ppsc-cover-overlay">{coverOverlay}</div> : null}
       </div>
       <div className="ppsc-body">
         <div className={`ppsc-avatar${variant === 'helper' ? ' round' : ''}`}>

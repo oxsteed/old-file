@@ -118,9 +118,7 @@ export default function EditProfileTab() {
   const handleSectionChange = (next) => {
     if (shouldPromptLeaveStickySection(section, next, coreDirty)) {
       const ok = window.confirm(
-        t('profileStudio.unsavedLeave', {
-          defaultValue: 'You have unsaved changes. Leave this section anyway?',
-        }),
+        t('profileStudio.unsavedLeave'),
       );
       if (!ok) return;
     }
@@ -409,11 +407,7 @@ export default function EditProfileTab() {
     ? (saving ? t('helperDashboard.saving') : t('helperDashboard.saveHours'))
     : (saving ? t('helperDashboard.saving') : t('helperDashboard.saveBasicInfo'));
 
-  let statusMessage = t(saveBar.statusKey, {
-    defaultValue: saveBar.mode === 'auto'
-      ? 'Saved automatically'
-      : (saveBar.mode === 'saving' ? 'Saving…' : undefined),
-  });
+  let statusMessage = t(saveBar.statusKey);
   if (saveBar.mode === 'error' && saveBar.error) {
     statusMessage = saveBar.error;
   } else if (saveBar.mode === 'auto' && lastSavedAt) {
@@ -421,26 +415,21 @@ export default function EditProfileTab() {
       hour: 'numeric',
       minute: '2-digit',
     });
-    statusMessage = t('profileStudio.savedAutomaticallyWithTime', {
-      time,
-      defaultValue: `Saved automatically · ${time}`,
-    });
+    statusMessage = t('profileStudio.savedAutomaticallyWithTime', { time });
   }
   const statusHint = saveBar.showShortcutHint
     ? t('profileStudio.saveShortcut')
     : (lastSavedAt && saveBar.mode === 'auto'
-      ? t('profileStudio.autoSaveHint', {
-        defaultValue: 'Changes in this section save when you add, edit, or remove items.',
-      })
+      ? t('profileStudio.autoSaveHint')
       : null);
 
   const place = formatHelperPlace(core);
   const rateBits = formatHelperRateBits(core);
   const rateLine = rateBits.length
-    ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – '), defaultValue: `${rateBits.join(' – ')}/hr` })
+    ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – ') })
     : '';
   const radiusLine = core.service_radius_miles
-    ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles, defaultValue: `${core.service_radius_miles} mi radius` })
+    ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles })
     : '';
   const meta = formatHelperPreviewMeta({ place, ratesLine: rateLine, radiusLine });
 

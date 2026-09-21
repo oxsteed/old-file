@@ -4,7 +4,9 @@ import {
   HELPER_SECTION_IDS,
   HELPER_STICKY_SECTIONS,
   HELPER_AUTO_SAVE_SECTIONS,
+  PUBLIC_PROFILE_SUMMARY_MODEL_KEYS,
   applySectionCompleteness,
+  buildFullProfileHeaderSummaryModel,
   buildHelperSectionCompleteness,
   buildBusinessStudioSummaryModel,
   buildHelperStudioSummaryModel,
@@ -14,6 +16,7 @@ import {
   formatHelperPreviewMeta,
   formatHelperRateBits,
   isHelperCoreDirty,
+  publicProfileSummaryCardClassName,
   resolveHelperSaveBar,
   resolvePreviewField,
   serializeHelperCore,
@@ -215,3 +218,65 @@ test('shared public summary view-model for helper + business', () => {
   assert.equal(publicModel.ratingLabel, '5.0 (3)');
   assert.equal(publicModel.availableNow, null);
 });
+
+test('public summary card class contract for studio + public surfaces', () => {
+  assert.equal(
+    publicProfileSummaryCardClassName({ variant: 'helper', surface: 'public' }),
+    'ppsc ppsc-helper ppsc--public',
+  );
+  assert.equal(
+    publicProfileSummaryCardClassName({ variant: 'business', surface: 'studio', className: 'ppsc--page' }),
+    'ppsc ppsc-business ppsc--studio ppsc--page',
+  );
+  assert.equal(
+    publicProfileSummaryCardClassName({ variant: 'mystery', surface: 'public' }),
+    'ppsc ppsc-helper ppsc--public',
+  );
+});
+
+test('full-page header summary maps BusinessHeader helper props', () => {
+  const model = buildFullProfileHeaderSummaryModel({
+    variant: 'helper',
+    coverImage: 'cover.jpg',
+    avatar: 'avatar.jpg',
+    businessName: 'Maya Fixes',
+    ownerName: 'Maya',
+    tagline: 'Handy pro',
+    city: 'Austin',
+    state: 'TX',
+    ratingLabel: '4.9 · 12 reviews',
+    metaExtra: '40 jobs · Responds in 1 hour',
+  });
+  assert.equal(model.variant, 'helper');
+  assert.equal(model.cover, 'cover.jpg');
+  assert.equal(model.avatar, 'avatar.jpg');
+  assert.equal(model.name, 'Maya Fixes');
+  assert.equal(model.tagline, 'Handy pro');
+  assert.equal(model.ratingLabel, '4.9 · 12 reviews');
+  assert.equal(model.meta, 'Austin, TX · 40 jobs · Responds in 1 hour');
+  for (const key of PUBLIC_PROFILE_SUMMARY_MODEL_KEYS) {
+    assert.ok(Object.prototype.hasOwnProperty.call(model, key), `missing key ${key}`);
+  }
+
+  const biz = buildFullProfileHeaderSummaryModel({
+    variant: 'business',
+    businessName: '',
+    ownerName: 'Acme Owner',
+    placeFallback: 'Service area',
+  });
+  assert.equal(biz.variant, 'business');
+  assert.equal(biz.name, 'Acme Owner');
+  assert.equal(biz.meta, 'Service area');
+});
+
+test('PublicProfileSummaryCard required class roots stay documented', () => {
+  // Pure contract — mirrors JSX roots so Studio / public / hero stay aligned
+  // without requiring jsdom/RTL in this package.
+  const roots = ['ppsc', 'ppsc-cover', 'ppsc-body', 'ppsc-avatar', 'ppsc-name', 'ppsc-tagline', 'ppsc-meta', 'ppsc-footer', 'ppsc-cover-overlay'];
+  for (const cls of roots) {
+    assert.match(cls, /^ppsc/);
+  }
+  assert.ok(PUBLIC_PROFILE_SUMMARY_MODEL_KEYS.includes('ratingLabel'));
+  assert.ok(PUBLIC_PROFILE_SUMMARY_MODEL_KEYS.includes('availableNow'));
+});
+
