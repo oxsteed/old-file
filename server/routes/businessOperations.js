@@ -14,12 +14,10 @@ const loyaltyTiersController    = require('../controllers/loyaltyTiersController
 // ── MESSAGING ROUTES ──────────────────────────────────────────
 router.get ('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversations);
 router.post('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.createConversation);
+router.get ('/:businessId/messages/assignments/list',                      requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.listAssignments);
 router.get ('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversation);
 router.post('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.sendMessage);
 router.post('/:businessId/messages/:conversationId/archive',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.archiveConversation);
-
-// Phase 1c
-router.get ('/:businessId/messages/assignments/list',                      requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.listAssignments);
 router.post('/:businessId/messages/:conversationId/claim',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.claimConversation);
 router.post('/:businessId/messages/:conversationId/release',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.releaseConversation);
 router.post('/:businessId/messages/:conversationId/reassign',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), businessConversationAssignmentController.reassignConversation);

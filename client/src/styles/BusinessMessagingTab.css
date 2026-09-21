@@ -1,11 +1,13 @@
 .bmt-messaging-container {
   display: flex;
-  height: 100%;
+  min-height: 560px;
+  height: min(70vh, 720px);
   background: var(--app-bg);
   color: var(--app-text);
   gap: 1px;
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid var(--border-color, #1f2937);
 }
 
 .bmt-conversations-list {

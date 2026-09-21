@@ -16,24 +16,29 @@ export function BusinessMessagingTab({ businessId }) {
   const [loading, setLoading] = useState(false);
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
 
-  // Load conversations
-  useEffect(() => {
-    loadConversations();
-  }, [conversationType, search]);
-
   const loadConversations = async () => {
+    if (!businessId) return;
     try {
       setLoading(true);
       const response = await api.get(`/businesses/${businessId}/messages`, {
         params: { type: conversationType === 'all' ? undefined : conversationType, search }
       });
-      setConversations(response.data.conversations || []);
+      const raw = response.data;
+      const list = Array.isArray(raw?.conversations)
+        ? raw.conversations
+        : (Array.isArray(raw) ? raw : []);
+      setConversations(list);
     } catch (error) {
       toast.error(t('businessMessaging.toastLoadConversationsFailed'));
+      setConversations([]);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadConversations();
+  }, [businessId, conversationType, search]);
 
   // Load conversation messages
   const openConversation = async (conversationId) => {
@@ -42,7 +47,7 @@ export function BusinessMessagingTab({ businessId }) {
         `/businesses/${businessId}/messages/${conversationId}`
       );
       setSelectedConversation(response.data);
-      setMessages(response.data.messages || []);
+      setMessages(Array.isArray(response.data?.messages) ? response.data.messages : []);
     } catch (error) {
       toast.error(t('businessMessaging.toastLoadConversationFailed'));
     }
@@ -57,7 +62,7 @@ export function BusinessMessagingTab({ businessId }) {
         `/businesses/${businessId}/messages/${selectedConversation.id}`,
         { content: messageText, message_type: 'text' }
       );
-      setMessages([...(messages || []), response.data]);
+      setMessages([...(Array.isArray(messages) ? messages : []), response.data]);
       setMessageText('');
       // Reload conversations to update last_message_at
       loadConversations();
