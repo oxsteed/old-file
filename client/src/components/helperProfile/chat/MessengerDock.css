@@ -157,6 +157,10 @@
   pointer-events: auto;
 }
 
+.messenger-dock-root[data-open='false'] {
+  visibility: hidden;
+}
+
 .messenger-dock__backdrop {
   position: absolute;
   inset: 0;
@@ -501,4 +505,19 @@
     transition: none !important;
     animation: none !important;
   }
+}
+
+
+/* Dock-context bubble + composer polish */
+.chat-panel--dock .bg-brand-500 {
+  box-shadow: 0 6px 16px rgb(249 115 22 / 0.22);
+}
+
+.chat-panel--dock [class*="bg-gray-800"].rounded-2xl,
+.chat-panel--dock [class*="bg-gray-800"].rounded-xl {
+  background-color: rgb(31 41 55 / 0.92);
+}
+
+.chat-panel--dock textarea {
+  border-radius: 0.9rem;
 }
