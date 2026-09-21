@@ -12,9 +12,9 @@ These are **two largely separate product systems** that share branding (“OxSte
 |---|---|---|
 | Purpose | Platform customer support (tickets / live agents) | Talk to a helper/business (or OxSteed AI on that page) |
 | Primary entry | Global `SupportWidget` → `/support` | Dock on `/helpers/:id`, `/business/:id` |
-| Live humans | Yes (`support_agents` + queue) | Yes only for **authenticated** + helper/rep online + `destination=helper` |
+| Live humans | Yes (`support_agents` + queue) | Yes for **authenticated or OTP-verified guests** + helper/rep online + `destination=helper` |
 | OxSteed destination | Full support stack | **AI-only** on profile (`destination=oxsteed`); CTA hands off to `/support/escalation` with profile context |
-| Socket | `/support` | `/chat` via `useSocket` |
+| Socket | `/support` | `/chat` via `useSocket` (JWT or verified profile guest token) |
 | Core tables | `support_conversations` (+ legacy `support_tickets`) | `conversations`/`messages` (+ guest inbound tables) |
 
 **Important wiring note:** Unused `HybridSupportWidget` / `CustomerSupportWidget` were removed (never mounted). The live global widget is `client/src/components/SupportWidget.jsx`. Profile OxSteed AI uses `DestinationContextBanner` → `/support/escalation?from=profile&helperId=…` (see `supportEscalationHandoff.js`).
@@ -85,11 +85,12 @@ Evidence: `server/routes/support.js` 48–56; `server/controllers/publicSupportC
 ### Profile messenger
 **Logged-in:** optionalAuth on `/api/chat/profile-message`; live DM only if authenticated.
 **Guest:**
-- `MessengerGuestGate` collects name/email into sessionStorage (`messengerDockState.js`) — **no email verification code**.
-- Sends via `POST /api/chat/profile-message` with `guestName`/`guestEmail`.
-- Guests **cannot** enter live mode (server requires `userId` for live).
-- Claim after signup: `POST /api/chat/sessions/guest/claim` (ChatPanel).
-- Dedicated create endpoint `POST /api/chat/sessions/guest` writes `guest_profile_chat_inbound` — **no client caller found** from messenger send path (only claim is used). Parallel `/api/guest-chat` also unused by current messenger UI.
+- `MessengerGuestGate` collects name+email, then **email OTP verification** (`POST /api/chat/sessions/guest/verify/start|verify|resend`) — same rigor as support guest verify, scoped to that helper/business.
+- On success, client stores an opaque **guest token bound to helperId/businessId** (`writeGuestVerifiedSession`) and sends `X-Guest-Profile-Token` + `X-Guest-Session-Id` on profile messages.
+- When the provider is online and destination is helper, verified guests take the **live** path (guest_profile_chat_* + `/chat` socket guest auth). Otherwise AI with clear offline/AI messaging.
+- Claim after signup: `POST /api/chat/sessions/guest/claim` (ChatPanel) still merges inquiries when emails match.
+- Prefer `/api/chat/sessions/guest*` over legacy `/api/guest-chat` (not expanded).
+
 
 ---
 
