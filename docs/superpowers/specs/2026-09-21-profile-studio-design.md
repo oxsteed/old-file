@@ -104,3 +104,12 @@ Helper APIs stay split per area. The sticky bar triggers the **active section’
 - Preview: form + always-on live public preview.
 - Approach A: shared Profile Studio shell.
 - Layout, section maps, and polish approved by Emile.
+
+## Follow-ups (2026-09-21)
+
+### Shared public preview
+Studio preview and the public helper/business profile pages (`/helpers/public/:id`, `/businesses/public/:id`) share `PublicProfileSummaryCard` + `buildPublicProfileSummaryModel` so the live card matches what customers see. Full public pages that use `BusinessHeader` (guarded `/helpers/:id`, `/business/:id`) remain more interactive and are a later consolidation target.
+
+### Helper save → draft-friendly status
+Sticky bar uses a single client save-status model (`resolveHelperSaveBar` / `serializeHelperCore` in `profileStudio.js`): real dirty/save for Basics+Hours; Cover and list CRUD sections keep the bar visible with “Saved automatically” (no fake sticky Save). **Intended end-state:** whole-profile draft + publish once a backend draft API exists — do not invent one client-side.
+

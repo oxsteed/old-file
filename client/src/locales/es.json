@@ -15579,6 +15579,11 @@
     "jumpToSection": "Ir a {{section}}",
     "ratesMeta": "{{rates}}/h",
     "radiusMeta": "Radio de {{miles}} mi",
-    "unsavedLeave": "Tienes cambios sin guardar. ¿Salir de esta sección de todos modos?"
+    "unsavedLeave": "Tienes cambios sin guardar. ¿Salir de esta sección de todos modos?",
+    "savedAutomatically": "Guardado automáticamente",
+    "savedAutomaticallyWithTime": "Guardado automáticamente · {{time}}",
+    "autoSaveHint": "Los cambios de esta sección se guardan al agregar, editar o eliminar elementos.",
+    "savingStatus": "Guardando…",
+    "saveError": "No se pudo guardar. Inténtalo de nuevo."
   }
 }

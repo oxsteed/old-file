@@ -15261,6 +15261,11 @@
     "jumpToSection": "Go to {{section}}",
     "ratesMeta": "{{rates}}/hr",
     "radiusMeta": "{{miles}} mi radius",
-    "unsavedLeave": "You have unsaved changes. Leave this section anyway?"
+    "unsavedLeave": "You have unsaved changes. Leave this section anyway?",
+    "savedAutomatically": "Saved automatically",
+    "savedAutomaticallyWithTime": "Saved automatically · {{time}}",
+    "autoSaveHint": "Changes in this section save when you add, edit, or remove items.",
+    "savingStatus": "Saving…",
+    "saveError": "Couldn’t save. Try again."
   }
 }

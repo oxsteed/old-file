@@ -15579,6 +15579,11 @@
     "jumpToSection": "Aller à {{section}}",
     "ratesMeta": "{{rates}}/h",
     "radiusMeta": "Rayon de {{miles}} mi",
-    "unsavedLeave": "Vous avez des modifications non enregistrées. Quitter cette section quand même ?"
+    "unsavedLeave": "Vous avez des modifications non enregistrées. Quitter cette section quand même ?",
+    "savedAutomatically": "Enregistré automatiquement",
+    "savedAutomaticallyWithTime": "Enregistré automatiquement · {{time}}",
+    "autoSaveHint": "Les modifications de cette section sont enregistrées lorsque vous ajoutez, modifiez ou supprimez des éléments.",
+    "savingStatus": "Enregistrement…",
+    "saveError": "Échec de l’enregistrement. Réessayez."
   }
 }

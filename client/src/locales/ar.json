@@ -15582,6 +15582,11 @@
     "jumpToSection": "الانتقال إلى {{section}}",
     "ratesMeta": "{{rates}}/ساعة",
     "radiusMeta": "نصف قطر {{miles}} ميل",
-    "unsavedLeave": "لديك تغييرات غير محفوظة. هل تريد مغادرة هذا القسم على أي حال؟"
+    "unsavedLeave": "لديك تغييرات غير محفوظة. هل تريد مغادرة هذا القسم على أي حال؟",
+    "savedAutomatically": "تم الحفظ تلقائيًا",
+    "savedAutomaticallyWithTime": "تم الحفظ تلقائيًا · {{time}}",
+    "autoSaveHint": "تُحفظ التغييرات في هذا القسم عند إضافة العناصر أو تعديلها أو حذفها.",
+    "savingStatus": "جارٍ الحفظ…",
+    "saveError": "تعذّر الحفظ. حاول مرة أخرى."
   }
 }

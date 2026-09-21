@@ -11,7 +11,21 @@ export const HELPER_SECTION_IDS = [
   'visibility',
 ];
 
+/** Sections that use the sticky Save / Discard bar (core form). */
 export const HELPER_STICKY_SECTIONS = new Set(['basics', 'hours']);
+
+/**
+ * Sections that persist immediately via per-item CRUD / upload / toggle.
+ * Sticky bar stays visible as status-only ("Saved automatically"), not a fake Save.
+ */
+export const HELPER_AUTO_SAVE_SECTIONS = new Set([
+  'cover',
+  'services',
+  'faqs',
+  'policies',
+  'gallery',
+  'visibility',
+]);
 
 /**
  * Completeness flags for Helper Edit Profile nav / chips.
@@ -92,4 +106,201 @@ export function shouldPromptLeaveStickySection(fromSection, toSection, coreDirty
   if (!sticky.has(fromSection)) return false;
   if (sticky.has(toSection)) return false;
   return fromSection !== toSection;
+}
+
+/** Stable serialization for Helper core dirty detection. */
+export function serializeHelperCore(core) {
+  return JSON.stringify({
+    profile_headline: core?.profile_headline || '',
+    bio_long: core?.bio_long || '',
+    hourly_rate_min: core?.hourly_rate_min === '' || core?.hourly_rate_min == null ? '' : String(core.hourly_rate_min),
+    hourly_rate_max: core?.hourly_rate_max === '' || core?.hourly_rate_max == null ? '' : String(core.hourly_rate_max),
+    service_radius_miles: core?.service_radius_miles == null ? '' : String(core.service_radius_miles),
+    service_city: core?.service_city || '',
+    service_state: core?.service_state || '',
+    availability_json: core?.availability_json || {},
+    is_available_now: !!core?.is_available_now,
+  });
+}
+
+export function isHelperCoreDirty(core, baselineSerialized) {
+  return serializeHelperCore(core) !== String(baselineSerialized || '');
+}
+
+/**
+ * Aggregate save-status model for Helper Edit Profile.
+ * Incremental toward a future whole-profile draft/publish flow — no backend draft API yet.
+ */
+export function createHelperSaveStatus(overrides = {}) {
+  const dirtyIn = overrides.dirty && typeof overrides.dirty === 'object' ? overrides.dirty : {};
+  return {
+    /** Per sticky area; today core covers basics+hours together. */
+    dirty: {
+      core: false,
+      ...dirtyIn,
+    },
+    saving: false,
+    error: null,
+    /** Epoch ms of last successful persist (core or auto CRUD). */
+    lastSavedAt: null,
+    ...overrides,
+    dirty: {
+      core: false,
+      ...dirtyIn,
+    },
+  };
+}
+
+/**
+ * Resolve sticky-bar presentation for the active Helper section.
+ * - basics/hours: real dirty + Save/Discard
+ * - cover/CRUD/visibility: status-only ("Saved automatically"), never a fake Save
+ *
+ * @returns {{
+ *   mode: 'dirty'|'clean'|'saving'|'error'|'auto',
+ *   dirty: boolean,
+ *   showActions: boolean,
+ *   hideBar: boolean,
+ *   statusKey: string,
+ *   showShortcutHint: boolean,
+ *   lastSavedAt: number|null,
+ *   error: string|null,
+ * }}
+ */
+export function resolveHelperSaveBar({
+  section,
+  coreDirty = false,
+  saving = false,
+  error = null,
+  lastSavedAt = null,
+  stickySections = HELPER_STICKY_SECTIONS,
+} = {}) {
+  const isSticky = stickySections.has(section);
+
+  if (saving && isSticky) {
+    return {
+      mode: 'saving',
+      dirty: !!coreDirty,
+      showActions: true,
+      hideBar: false,
+      statusKey: 'profileStudio.savingStatus',
+      showShortcutHint: true,
+      lastSavedAt,
+      error: null,
+    };
+  }
+
+  if (error && isSticky) {
+    return {
+      mode: 'error',
+      dirty: true,
+      showActions: true,
+      hideBar: false,
+      statusKey: 'profileStudio.saveError',
+      showShortcutHint: true,
+      lastSavedAt,
+      error: String(error),
+    };
+  }
+
+  if (isSticky) {
+    const dirty = !!coreDirty;
+    return {
+      mode: dirty ? 'dirty' : 'clean',
+      dirty,
+      showActions: true,
+      hideBar: false,
+      statusKey: dirty ? 'profileStudio.unsaved' : 'profileStudio.savedHint',
+      showShortcutHint: true,
+      lastSavedAt,
+      error: null,
+    };
+  }
+
+  return {
+    mode: 'auto',
+    dirty: false,
+    showActions: false,
+    hideBar: false,
+    statusKey: 'profileStudio.savedAutomatically',
+    showShortcutHint: false,
+    lastSavedAt,
+    error: null,
+  };
+}
+
+/**
+ * Normalize fields into the shared PublicProfileSummaryCard view-model.
+ * Used by Studio preview and public pages so both surfaces stay aligned.
+ */
+export function buildPublicProfileSummaryModel({
+  variant = 'helper',
+  cover = null,
+  avatar = null,
+  name = '',
+  tagline = '',
+  typeLabel = '',
+  meta = '',
+  contact = '',
+  about = '',
+  availableNow = null,
+  ratingLabel = '',
+} = {}) {
+  return {
+    variant: variant === 'business' ? 'business' : 'helper',
+    cover: cover || null,
+    avatar: avatar || null,
+    name: name == null ? '' : String(name),
+    tagline: tagline == null ? '' : String(tagline),
+    typeLabel: typeLabel == null ? '' : String(typeLabel),
+    meta: meta == null ? '' : String(meta),
+    contact: contact == null ? '' : String(contact),
+    about: about == null ? '' : String(about),
+    availableNow: availableNow == null ? null : !!availableNow,
+    ratingLabel: ratingLabel == null ? '' : String(ratingLabel),
+  };
+}
+
+/** Studio/helper form → shared summary model. */
+export function buildHelperStudioSummaryModel({
+  coverImageUrl = null,
+  avatar = null,
+  name = '',
+  core = {},
+  meta = '',
+} = {}) {
+  return buildPublicProfileSummaryModel({
+    variant: 'helper',
+    cover: coverImageUrl,
+    avatar,
+    name,
+    tagline: core.profile_headline || '',
+    meta,
+    about: core.bio_long || '',
+    availableNow: !!core.is_available_now,
+  });
+}
+
+/** Studio/business form → shared summary model. */
+export function buildBusinessStudioSummaryModel({
+  cover = null,
+  avatar = null,
+  name = '',
+  tagline = '',
+  typeLabel = '',
+  meta = '',
+  contact = '',
+  about = '',
+} = {}) {
+  return buildPublicProfileSummaryModel({
+    variant: 'business',
+    cover,
+    avatar,
+    name,
+    tagline,
+    typeLabel,
+    meta,
+    contact,
+    about,
+  });
 }

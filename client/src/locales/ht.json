@@ -15579,6 +15579,11 @@
     "jumpToSection": "Ale nan {{section}}",
     "ratesMeta": "{{rates}}/èdtan",
     "radiusMeta": "Reyon {{miles}} mi",
-    "unsavedLeave": "Ou gen chanjman ki pa anrejistre. Kite seksyon sa a kanmenm?"
+    "unsavedLeave": "Ou gen chanjman ki pa anrejistre. Kite seksyon sa a kanmenm?",
+    "savedAutomatically": "Sove otomatikman",
+    "savedAutomaticallyWithTime": "Sove otomatikman · {{time}}",
+    "autoSaveHint": "Chanjman nan seksyon sa a sove lè ou ajoute, modifye, oswa retire atik.",
+    "savingStatus": "Ap sove…",
+    "saveError": "Pa t kapab sove. Eseye ankò."
   }
 }
