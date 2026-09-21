@@ -14,6 +14,13 @@ import ChatDestinationDropdown from './ChatDestinationDropdown';
 import StatusBadge from './StatusBadge';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
+import ProviderMessengerToolbar from '../../messaging/ProviderMessengerToolbar';
+import QuoteSharePanel from './QuoteSharePanel';
+import PopSharePanel from './PopSharePanel';
+import AgreementSharePanel from './AgreementSharePanel';
+import PaymentRequestSharePanel from './PaymentRequestSharePanel';
+import ConversationContactDrawer from '../../messaging/ConversationContactDrawer';
+
 import MessengerAvailabilityPicker from './MessengerAvailabilityPicker.jsx';
 import { quoteEventContent } from './messengerQuotes.js';
 import {
@@ -177,6 +184,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+
+  const isProviderActor = Boolean(
+    user?.id && (
+      String(user.id) === String(helperId) ||
+      (businessId && (user.role === 'business' || user.roles?.includes?.('business_owner')))
+    )
+  );
+
   const { socket } = useSocket();
 
   const [session,          setSession]          = useState<ChatSession>(initialSession);
@@ -213,6 +228,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchOpen,       setSearchOpen]       = useState(false);
   const guestClaimKeyRef = useRef<string | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
+  const [showProviderQuoteShare, setShowProviderQuoteShare] = useState(false);
+  const [showProviderPopShare, setShowProviderPopShare] = useState(false);
+  const [showProviderAgreementShare, setShowProviderAgreementShare] = useState(false);
+  const [showProviderPayReqShare, setShowProviderPayReqShare] = useState(false);
+  const [showProviderContact, setShowProviderContact] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState<null | { kind: string; id: string; token?: string }>(null);
   /** AI-failure / presence routing banners (not a dead error bubble alone) */
   const [routingNotice, setRoutingNotice] = useState<null | {
@@ -1672,6 +1692,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       ) : null}
 
       {/* ── Composer ────────────────────────────────────────── */}
+      {isProviderActor ? (
+        <ProviderMessengerToolbar
+          onQuote={() => setShowProviderQuoteShare(true)}
+          onPaymentRequest={() => setShowProviderPayReqShare(true)}
+          onAgreement={() => setShowProviderAgreementShare(true)}
+          onPop={() => setShowProviderPopShare(true)}
+          onSchedule={() => setShowAvailability(true)}
+          onContact={() => setShowProviderContact(true)}
+          showRefund={false}
+        />
+      ) : null}
       <MessageComposer
         status={composerStatus}
         onSend={handleSend}
@@ -1710,6 +1741,51 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         </p>
       </div>
       )}
+
+      {isProviderActor && showProviderQuoteShare ? (
+        <QuoteSharePanel
+          open={showProviderQuoteShare}
+          onClose={() => setShowProviderQuoteShare(false)}
+          kind={businessId ? 'business' : 'helper'}
+          businessId={businessId || null}
+          conversationId={conversationId || null}
+          onShared={() => setShowProviderQuoteShare(false)}
+        />
+      ) : null}
+      {isProviderActor && showProviderPopShare ? (
+        <PopSharePanel
+          open={showProviderPopShare}
+          onClose={() => setShowProviderPopShare(false)}
+          conversationId={conversationId || null}
+          businessId={businessId || null}
+          onShared={() => setShowProviderPopShare(false)}
+        />
+      ) : null}
+      {isProviderActor && showProviderAgreementShare ? (
+        <AgreementSharePanel
+          open={showProviderAgreementShare}
+          onClose={() => setShowProviderAgreementShare(false)}
+          conversationId={conversationId || null}
+          businessId={businessId || null}
+          onShared={() => setShowProviderAgreementShare(false)}
+        />
+      ) : null}
+      {isProviderActor && showProviderPayReqShare ? (
+        <PaymentRequestSharePanel
+          open={showProviderPayReqShare}
+          onClose={() => setShowProviderPayReqShare(false)}
+          conversationId={conversationId || null}
+          businessId={businessId || null}
+          onShared={() => setShowProviderPayReqShare(false)}
+        />
+      ) : null}
+      {isProviderActor && showProviderContact ? (
+        <ConversationContactDrawer
+          open={showProviderContact}
+          onClose={() => setShowProviderContact(false)}
+          conversationId={conversationId || null}
+        />
+      ) : null}
     </div>
   );
 };

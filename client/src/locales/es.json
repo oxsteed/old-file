@@ -2349,6 +2349,33 @@
       "memoPh": "p. ej. Depósito de cotización",
       "send": "Enviar solicitud de pago",
       "failed": "No se pudo enviar la solicitud de pago."
+    },
+    "providerToolbar": {
+      "aria": "Herramientas del proveedor",
+      "schedule": "Agenda"
+    },
+    "creditRefund": {
+      "title": "Reembolsar OxSteed Credit",
+      "button": "Reembolsar",
+      "amount": "Monto del reembolso",
+      "reason": "Motivo",
+      "reasonRequired": "Indica un motivo de reembolso.",
+      "amountRequired": "Indica un monto de reembolso válido.",
+      "amountTooHigh": "El reembolso no puede superar el monto pagado.",
+      "submit": "Emitir reembolso",
+      "success": "Reembolso publicado en el hilo.",
+      "failed": "No se pudo reembolsar este pago.",
+      "alreadyRefunded": "Este pago ya fue reembolsado."
+    },
+    "contactDrawer": {
+      "title": "Datos del cliente",
+      "button": "Contacto",
+      "name": "Nombre",
+      "email": "Correo",
+      "quotes": "Cotizaciones vinculadas",
+      "bookings": "Reservas vinculadas",
+      "none": "Ninguno",
+      "loadFailed": "No se pudieron cargar los datos de contacto."
     }
   },
   "dashboard": {
@@ -12981,7 +13008,18 @@
     "toastArchived": "Conversación archivada",
     "toastArchiveFailed": "No se pudo archivar la conversación",
     "toastCreated": "Conversación creada",
-    "toastCreateFailed": "No se pudo crear la conversación"
+    "toastCreateFailed": "No se pudo crear la conversación",
+    "modeDeals": "Tratos",
+    "modeTeam": "Equipo",
+    "modeTabsAria": "Modo de mensajería",
+    "dealsTitle": "Tratos con clientes",
+    "dealsEmpty": "Aún no hay conversaciones de trato.",
+    "selectDeal": "Selecciona una conversación de trato para abrir el espacio del proveedor.",
+    "customer": "Cliente",
+    "archive": "Archive",
+    "conversation": "Conversation",
+    "selectConversation": "Select a conversation",
+    "send": "Send"
   },
   "businessQuotes": {
     "title": "Cotizaciones",

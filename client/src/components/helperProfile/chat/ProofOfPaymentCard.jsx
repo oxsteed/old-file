@@ -12,6 +12,7 @@ export default function ProofOfPaymentCard({
   isProvider = false,
   guestAuthHeaders = null,
   onStatusChange,
+  onRefundRequest = null,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -155,6 +156,29 @@ export default function ProofOfPaymentCard({
               placeholder={t('helperProfile.messenger.popRejectReason')}
             />
           </>
+        ) : null}
+        {isProvider && onRefundRequest && (status === 'confirmed' || status === 'partially_refunded')
+          && String(pop?.payment_method || parsed?.paymentMethod || '').toLowerCase().includes('credit') ? (
+          <button
+            type="button"
+            className="artifact-btn"
+            disabled={busy}
+            onClick={() =>
+              onRefundRequest({
+                popId: pop?.id || parsed?.id,
+                paymentRequestId: pop?.payment_request_id || null,
+                creditTxnId: pop?.credit_txn_id || pop?.transaction_id || parsed?.transactionId || null,
+                amountCents: Math.max(
+                  0,
+                  Number(pop?.amount_cents ?? parsed?.amountCents ?? 0) -
+                    Number(pop?.refunded_amount_cents || 0),
+                ),
+                currency: pop?.currency || 'USD',
+              })
+            }
+          >
+            {t('messages.creditRefund.button')}
+          </button>
         ) : null}
       </div>
       {error ? <p className="artifact-error">{error}</p> : null}

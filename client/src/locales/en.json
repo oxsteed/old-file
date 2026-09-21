@@ -2349,6 +2349,33 @@
       "memoPh": "e.g. Deposit for quote",
       "send": "Send payment request",
       "failed": "Could not send payment request."
+    },
+    "providerToolbar": {
+      "aria": "Provider deal tools",
+      "schedule": "Schedule"
+    },
+    "creditRefund": {
+      "title": "Refund OxSteed Credit",
+      "button": "Refund",
+      "amount": "Refund amount",
+      "reason": "Reason",
+      "reasonRequired": "Enter a refund reason.",
+      "amountRequired": "Enter a valid refund amount.",
+      "amountTooHigh": "Refund cannot exceed the paid amount.",
+      "submit": "Issue refund",
+      "success": "Refund posted to the thread.",
+      "failed": "Could not refund this payment.",
+      "alreadyRefunded": "This payment was already refunded."
+    },
+    "contactDrawer": {
+      "title": "Customer details",
+      "button": "Contact",
+      "name": "Name",
+      "email": "Email",
+      "quotes": "Linked quotes",
+      "bookings": "Linked bookings",
+      "none": "None",
+      "loadFailed": "Could not load contact details."
     }
   },
   "dashboard": {
@@ -12897,7 +12924,18 @@
     "toastArchived": "Conversation archived",
     "toastArchiveFailed": "Failed to archive conversation",
     "toastCreated": "Conversation created",
-    "toastCreateFailed": "Failed to create conversation"
+    "toastCreateFailed": "Failed to create conversation",
+    "modeDeals": "Deals",
+    "modeTeam": "Team",
+    "modeTabsAria": "Messaging mode",
+    "dealsTitle": "Customer deals",
+    "dealsEmpty": "No deal conversations yet.",
+    "selectDeal": "Select a deal conversation to open the provider workspace.",
+    "customer": "Customer",
+    "archive": "Archive",
+    "conversation": "Conversation",
+    "selectConversation": "Select a conversation",
+    "send": "Send"
   },
   "businessQuotes": {
     "title": "Quotes",

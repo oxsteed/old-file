@@ -119,3 +119,44 @@ export function assertConversationMembershipHint({ userId, customerId } = {}) {
   if (String(userId) !== String(customerId)) return { ok: false, code: 'customer_only' };
   return { ok: true };
 }
+
+
+export function buildCreditRefundMarker({
+  id,
+  amountCents,
+  currency = 'USD',
+  status = 'posted',
+  popId = null,
+  refundTxnId = null,
+} = {}) {
+  if (!id) return '';
+  const amount = Number.isFinite(Number(amountCents)) ? Math.max(0, Math.round(Number(amountCents))) : 0;
+  const cur = String(currency || 'USD').toUpperCase().slice(0, 3) || 'USD';
+  const st = String(status || 'posted').toLowerCase().slice(0, 32) || 'posted';
+  const pop = popId != null && String(popId).trim() ? String(popId).trim() : 'none';
+  const txn = refundTxnId != null && String(refundTxnId).trim() ? String(refundTxnId).trim() : 'none';
+  return `[credit_refund:${id}|${amount}|${cur}|${st}|${pop}|${txn}]`;
+}
+
+export function parseCreditRefundMarker(text) {
+  const match = String(text || '').match(
+    /\[credit_refund:([^|\]]+)\|(\d+)\|([A-Za-z]{3})\|([^|\]]+)\|([^|\]]*)\|([^|\]]*)\]/i,
+  );
+  if (!match) return null;
+  return {
+    id: match[1],
+    amountCents: parseInt(match[2], 10) || 0,
+    currency: String(match[3] || 'USD').toUpperCase(),
+    status: String(match[4] || 'posted').toLowerCase(),
+    popId: match[5] === 'none' ? '' : match[5],
+    refundTxnId: match[6] === 'none' ? '' : match[6],
+    raw: match[0],
+  };
+}
+
+export function stripCreditRefundMarkers(text) {
+  return String(text || '')
+    .replace(/\[credit_refund:[^\]]+\]/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

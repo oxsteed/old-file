@@ -109,3 +109,49 @@ describe('chatOxsteedCreditPayment helpers', () => {
     expect(CREDIT_PAY_METHOD).toBe('oxsteed_credit');
   });
 });
+
+const {
+  resolveChatPurchaseOrderType,
+  normalizeCreditRefundPayload,
+  buildCreditRefundMarker,
+  parseCreditRefundMarker,
+  stripCreditRefundMarkers,
+} = require('../services/chatOxsteedCreditPayment');
+
+describe('chat credit refund + order-type helpers', () => {
+  test('resolveChatPurchaseOrderType prefers service then first allowed', () => {
+    expect(resolveChatPurchaseOrderType([])).toBe('service');
+    expect(resolveChatPurchaseOrderType(['service', 'pickup'])).toBe('service');
+    expect(resolveChatPurchaseOrderType(['pickup', 'delivery'])).toBe('pickup');
+  });
+
+  test('normalizeCreditRefundPayload requires reason + idempotency', () => {
+    expect(normalizeCreditRefundPayload({}).code).toBeTruthy();
+    expect(normalizeCreditRefundPayload({ reason: 'too short?' }).code).toBeTruthy();
+    const ok = normalizeCreditRefundPayload({
+      reason: 'Customer cancelled the job',
+      amountCents: 1500,
+      idempotencyKey: 'refund-key-12345',
+      popId: 'pop-1',
+    });
+    expect(ok.error).toBeUndefined();
+    expect(ok.amountCents).toBe(1500);
+    expect(ok.popId).toBe('pop-1');
+  });
+
+  test('credit refund marker round-trip', () => {
+    const marker = buildCreditRefundMarker({
+      id: 'rf1',
+      amountCents: 2500,
+      currency: 'USD',
+      status: 'posted',
+      popId: 'pop9',
+      refundTxnId: 'txn9',
+    });
+    const parsed = parseCreditRefundMarker(`Refunded\n${marker}`);
+    expect(parsed.id).toBe('rf1');
+    expect(parsed.amountCents).toBe(2500);
+    expect(parsed.popId).toBe('pop9');
+    expect(stripCreditRefundMarkers(`Hi\n${marker}\nBye`)).not.toMatch(/\[credit_refund:/);
+  });
+});

@@ -775,3 +775,25 @@ test('credit pay auth gate + membership hint', () => {
   assert.equal(assertConversationMembershipHint({ userId: 'a', customerId: 'a' }).ok, true);
   assert.equal(assertConversationMembershipHint({ userId: 'a', customerId: 'b' }).code, 'customer_only');
 });
+
+import {
+  buildCreditRefundMarker,
+  parseCreditRefundMarker,
+  stripCreditRefundMarkers,
+} from '../src/components/helperProfile/chat/messengerCreditPay.js';
+
+test('credit refund marker round-trip', () => {
+  const marker = buildCreditRefundMarker({
+    id: 'rf-1',
+    amountCents: 4200,
+    currency: 'usd',
+    status: 'posted',
+    popId: 'pop-1',
+    refundTxnId: 'txn-1',
+  });
+  const parsed = parseCreditRefundMarker(`Thanks\n${marker}`);
+  assert.equal(parsed.id, 'rf-1');
+  assert.equal(parsed.amountCents, 4200);
+  assert.equal(parsed.currency, 'USD');
+  assert.equal(stripCreditRefundMarkers(`x\n${marker}\ny`).includes('[credit_refund:'), false);
+});

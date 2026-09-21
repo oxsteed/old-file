@@ -106,6 +106,7 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 router.post('/payments/oxsteed-credit', chatLimiter, authenticate, chatCreditPay.payWithOxsteedCredit);
 router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
+router.post('/payments/:id/refund', chatLimiter, authenticate, chatCreditPay.refundChatCreditPayment);
 router.get('/payments/credit-hint', chatLimiter, authenticate, chatCreditPay.getCreditPayHint);
 
 // ── In-chat proof of payment + agreements ────────────────────────────────────

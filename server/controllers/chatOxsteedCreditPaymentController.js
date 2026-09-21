@@ -29,6 +29,11 @@ const {
   canPayWithOxsteedCredit,
   deriveQuotePaymentStatus,
   assertMembershipForCustomerPay,
+  resolveChatPurchaseOrderType,
+  normalizeCreditRefundPayload,
+  buildCreditRefundMarker,
+  buildCreditRefundShareContent,
+  toPublicCreditRefundCard,
 } = require('../services/chatOxsteedCreditPayment');
 
 function bad(res, status, error, code, extra = {}) {
@@ -112,13 +117,70 @@ async function postGuestMessage({ guestSessionId, senderName, content, helperId,
   return msg;
 }
 
+
 /**
  * Resolve an active OxSteed Credit partner for a chat payee.
- * Partners are restaurant-backed; businesses may be linked via partners.business_id.
- * Helpers without an eligible business partner cannot receive credit.
+ * 1) Direct business_id on partners
+ * 2) Helper → owned/member businesses that have an active partner (documented fallback)
  */
-async function resolveCreditPartner({ businessId, client = pool } = {}) {
-  if (!businessId) {
+async function resolveCreditPartner({ businessId, helperId, client = pool } = {}) {
+  const db = client || pool;
+
+  async function partnerForBusiness(bizId) {
+    if (!bizId) return null;
+    const { rows } = await db.query(
+      `SELECT p.id, p.restaurant_id, p.business_id, p.status, p.settlement_currency_code
+         FROM oxsteed_credit_partners p
+         JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE p.business_id = $1
+          AND p.status = 'active'
+          AND fr.status = 'active'
+        ORDER BY p.updated_at DESC NULLS LAST
+        LIMIT 1`,
+      [bizId],
+    );
+    return rows[0] || null;
+  }
+
+  if (businessId) {
+    const partner = await partnerForBusiness(businessId);
+    if (partner) {
+      return { ok: true, partner, resolvedBusinessId: businessId, resolution: 'business_id' };
+    }
+  }
+
+  if (helperId) {
+    const { rows: bizRows } = await db.query(
+      `SELECT b.id
+         FROM businesses b
+        WHERE b.is_active = TRUE
+          AND (
+            b.user_id = $1
+            OR EXISTS (
+              SELECT 1 FROM business_members bm
+               WHERE bm.business_id = b.id
+                 AND bm.member_id = $1
+                 AND bm.status = 'active'
+            )
+          )
+        ORDER BY b.is_primary DESC NULLS LAST, b.updated_at DESC NULLS LAST
+        LIMIT 25`,
+      [helperId],
+    );
+    for (const row of bizRows) {
+      const partner = await partnerForBusiness(row.id);
+      if (partner) {
+        return {
+          ok: true,
+          partner,
+          resolvedBusinessId: row.id,
+          resolution: 'helper_linked_business',
+        };
+      }
+    }
+  }
+
+  if (!businessId && !helperId) {
     return {
       ok: false,
       code: 'credit_provider_not_eligible',
@@ -126,26 +188,32 @@ async function resolveCreditPartner({ businessId, client = pool } = {}) {
         'This provider cannot receive OxSteed Credit. Credit payments require an eligible partner business.',
     };
   }
-  const { rows } = await client.query(
-    `SELECT p.id, p.restaurant_id, p.business_id, p.status, p.settlement_currency_code
-       FROM oxsteed_credit_partners p
-       JOIN food_restaurants fr ON fr.id = p.restaurant_id
-      WHERE p.business_id = $1
-        AND p.status = 'active'
-        AND fr.status = 'active'
-      ORDER BY p.updated_at DESC NULLS LAST
-      LIMIT 1`,
-    [businessId],
-  );
-  if (!rows[0]) {
-    return {
-      ok: false,
-      code: 'credit_provider_not_eligible',
-      error:
-        'This business is not enrolled to receive OxSteed Credit. Ask them to complete partner eligibility, or use another payment method / upload proof of payment.',
-    };
+  return {
+    ok: false,
+    code: 'credit_provider_not_eligible',
+    error:
+      'This provider is not enrolled to receive OxSteed Credit. Ask them to link an eligible partner business, or use another payment method / upload proof of payment.',
+  };
+}
+
+async function loadPartnerAllowedOrderTypes(partnerId, client = pool) {
+  if (!partnerId) return [];
+  try {
+    const { rows } = await client.query(
+      `SELECT a.allowed_order_types
+         FROM oxsteed_credit_partner_agreements a
+        WHERE a.partner_id = $1
+          AND a.status = 'active'
+          AND a.starts_at <= NOW()
+          AND (a.ends_at IS NULL OR a.ends_at > NOW())
+        ORDER BY a.version DESC
+        LIMIT 1`,
+      [partnerId],
+    );
+    return rows[0]?.allowed_order_types || [];
+  } catch {
+    return [];
   }
-  return { ok: true, partner: rows[0] };
 }
 
 async function loadPaymentRequest(id, client = pool) {
@@ -240,11 +308,13 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
     const quoteKind = normalized.quoteKind || paymentRequest?.quote_kind || null;
     const quoteId = normalized.quoteId || paymentRequest?.quote_id || null;
 
-    const partnerResult = await resolveCreditPartner({ businessId });
+    const partnerResult = await resolveCreditPartner({ businessId, helperId });
     if (!partnerResult.ok) {
       return bad(res, 403, partnerResult.error, partnerResult.code);
     }
     const partner = partnerResult.partner;
+    const allowedOrderTypes = await loadPartnerAllowedOrderTypes(partner.id);
+    const chatOrderType = resolveChatPurchaseOrderType(allowedOrderTypes);
 
     const senderName =
       `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Customer';
@@ -264,7 +334,7 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
             idempotencyKey: normalized.idempotencyKey,
             actorUserId: userId,
             actorType: 'customer',
-            orderType: 'service',
+            orderType: chatOrderType,
             category: 'chat_payment',
             referenceType: 'chat_payment',
             referenceId: paymentRequest?.id || normalized.conversationId,
@@ -279,6 +349,7 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
               helperId,
               businessId,
               channel: 'live_messenger',
+              chatOrderTypeMapped: chatOrderType,
             },
           });
 
@@ -587,7 +658,8 @@ exports.getCreditPayHint = async (req, res, next) => {
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
     const businessId = req.query.businessId || req.query.business_id || conv.business_id || null;
-    const partnerResult = await resolveCreditPartner({ businessId });
+    const helperId = req.query.helperId || req.query.helper_id || conv.helper_id || null;
+    const partnerResult = await resolveCreditPartner({ businessId, helperId });
     let account = null;
     try {
       account = await creditService.getCustomerCreditAccount(userId);
@@ -609,5 +681,278 @@ exports.getCreditPayHint = async (req, res, next) => {
     next(err);
   }
 };
+
+
+/**
+ * POST /api/chat/payments/:id/refund
+ * Provider refunds an in-chat OxSteed Credit payment (full or partial).
+ * :id may be a payment_request id; body may also supply popId / creditTxnId.
+ */
+exports.refundChatCreditPayment = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return bad(res, 401, 'Authentication required', 'auth_required');
+
+    const paymentRequestIdParam = req.params.id || null;
+    const normalized = normalizeCreditRefundPayload({
+      ...(req.body || {}),
+      paymentRequestId: (req.body || {}).paymentRequestId || (req.body || {}).payment_request_id || paymentRequestIdParam,
+    });
+    if (normalized.error) return bad(res, 400, normalized.error, normalized.code);
+
+    let paymentRequest = null;
+    if (normalized.paymentRequestId) {
+      paymentRequest = await loadPaymentRequest(normalized.paymentRequestId);
+    }
+
+    let pop = null;
+    if (normalized.popId) {
+      const { rows } = await pool.query('SELECT * FROM chat_proof_of_payments WHERE id = $1', [normalized.popId]);
+      pop = rows[0] || null;
+    } else if (paymentRequest?.paid_pop_id) {
+      const { rows } = await pool.query('SELECT * FROM chat_proof_of_payments WHERE id = $1', [paymentRequest.paid_pop_id]);
+      pop = rows[0] || null;
+    } else if (paymentRequest?.id) {
+      const { rows } = await pool.query(
+        `SELECT * FROM chat_proof_of_payments
+          WHERE payment_request_id = $1 AND payment_method = $2
+          ORDER BY created_at DESC LIMIT 1`,
+        [paymentRequest.id, CREDIT_PAY_METHOD],
+      );
+      pop = rows[0] || null;
+    }
+
+    if (!pop && !paymentRequest && !normalized.creditTxnId) {
+      return bad(res, 404, 'Payment not found to refund', 'not_found');
+    }
+
+    const conversationId =
+      pop?.conversation_id || paymentRequest?.conversation_id || req.body?.conversationId || null;
+    if (!conversationId) {
+      return bad(res, 400, 'conversationId required for refund', 'validation_failed');
+    }
+
+    const conv = await assertConversationParticipant(userId, conversationId);
+    if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
+
+    const isProvider =
+      isProviderOnConversation(userId, conv) ||
+      (conv.business_id && (await assertBusinessAccess(userId, conv.business_id)));
+    if (!isProvider) {
+      return bad(res, 403, 'Only the provider can refund chat credit payments', 'provider_only');
+    }
+
+    const purchaseTxnId =
+      normalized.creditTxnId ||
+      pop?.credit_txn_id ||
+      pop?.transaction_id ||
+      paymentRequest?.credit_txn_id ||
+      null;
+    if (!purchaseTxnId) {
+      return bad(res, 409, 'No OxSteed Credit transaction found for this payment', 'no_credit_txn');
+    }
+
+    const maxRefundable = Number(pop?.amount_cents || paymentRequest?.amount_cents || 0);
+    const alreadyRefunded = Number(pop?.refunded_amount_cents || paymentRequest?.refunded_amount_cents || 0);
+    const remaining = Math.max(0, maxRefundable - alreadyRefunded);
+    if (remaining <= 0) {
+      return bad(res, 409, 'Payment is already fully refunded', 'already_refunded');
+    }
+    const refundAmount = normalized.amountCents != null ? normalized.amountCents : remaining;
+    if (refundAmount <= 0 || refundAmount > remaining) {
+      return bad(res, 400, 'Refund amount exceeds remaining refundable balance', 'invalid_amount');
+    }
+
+    const correlationId = `chat-credit-refund-${normalized.idempotencyKey}`.slice(0, 160);
+    const senderName =
+      `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Provider';
+
+    let result;
+    try {
+      result = await withTransaction(pool, async (client) => {
+        // Idempotent replay
+        const existing = await client.query(
+          `SELECT * FROM chat_credit_refunds
+            WHERE requested_by = $1 AND idempotency_key = $2
+            LIMIT 1`,
+          [userId, normalized.idempotencyKey],
+        );
+        if (existing.rows[0]) {
+          return { refundRow: existing.rows[0], replay: true, message: null, pop, paymentRequest };
+        }
+
+        let refundTxn;
+        try {
+          refundTxn = await creditService.refundCreditInTransaction(client, {
+            purchaseTransactionId: purchaseTxnId,
+            amountCents: refundAmount,
+            idempotencyKey: normalized.idempotencyKey,
+            actorUserId: userId,
+            actorType: 'provider',
+            reason: normalized.reason,
+            correlationId,
+            requestIp: requestIp(req),
+            metadata: {
+              conversationId,
+              paymentRequestId: paymentRequest?.id || null,
+              popId: pop?.id || null,
+              channel: 'live_messenger',
+            },
+          });
+        } catch (e) {
+          // Fallback: by reference when purchase id lookup fails
+          if (paymentRequest?.id || conversationId) {
+            refundTxn = await creditService.refundCreditForReferenceInTransaction(client, {
+              referenceType: 'chat_payment',
+              referenceId: String(paymentRequest?.id || conversationId),
+              amountCents: refundAmount,
+              idempotencyKey: normalized.idempotencyKey,
+              actorUserId: userId,
+              actorType: 'provider',
+              reason: normalized.reason,
+              correlationId,
+              requestIp: requestIp(req),
+              metadata: {
+                conversationId,
+                paymentRequestId: paymentRequest?.id || null,
+                popId: pop?.id || null,
+                channel: 'live_messenger',
+              },
+            });
+          } else {
+            throw e;
+          }
+        }
+
+        const refundTxnId =
+          refundTxn?.transaction?.id != null
+            ? String(refundTxn.transaction.id)
+            : refundTxn?.id != null
+              ? String(refundTxn.id)
+              : null;
+
+        const newRefundedTotal = alreadyRefunded + refundAmount;
+        const fullyRefunded = newRefundedTotal >= maxRefundable;
+        const popStatus = fullyRefunded ? 'refunded' : 'partially_refunded';
+
+        let updatedPop = pop;
+        if (pop?.id) {
+          const { rows } = await client.query(
+            `UPDATE chat_proof_of_payments
+                SET status = $2,
+                    refunded_amount_cents = $3,
+                    refund_credit_txn_id = $4,
+                    refunded_at = NOW(),
+                    refund_reason = $5,
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING *`,
+            [pop.id, popStatus, newRefundedTotal, refundTxnId, normalized.reason],
+          );
+          updatedPop = rows[0] || pop;
+        }
+
+        let updatedPayReq = paymentRequest;
+        if (paymentRequest?.id) {
+          const { rows } = await client.query(
+            `UPDATE chat_payment_requests
+                SET status = CASE WHEN $2 THEN 'refunded' ELSE status END,
+                    refunded_amount_cents = $3,
+                    refund_credit_txn_id = $4,
+                    refunded_at = NOW(),
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING *`,
+            [paymentRequest.id, fullyRefunded, newRefundedTotal, refundTxnId],
+          );
+          updatedPayReq = rows[0] || paymentRequest;
+        }
+
+        const { rows: refundRows } = await client.query(
+          `INSERT INTO chat_credit_refunds (
+             conversation_id, payment_request_id, pop_id,
+             purchase_txn_id, refund_txn_id, amount_cents, currency,
+             reason, status, requested_by, idempotency_key, metadata
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'posted',$9,$10,$11::jsonb)
+           RETURNING *`,
+          [
+            conversationId,
+            updatedPayReq?.id || null,
+            updatedPop?.id || null,
+            String(purchaseTxnId),
+            refundTxnId,
+            refundAmount,
+            updatedPop?.currency || updatedPayReq?.currency || 'USD',
+            normalized.reason,
+            userId,
+            normalized.idempotencyKey,
+            JSON.stringify({
+              fullyRefunded,
+              channel: 'live_messenger',
+            }),
+          ],
+        );
+        const refundRow = refundRows[0];
+
+        const marker = buildCreditRefundMarker({
+          id: refundRow.id,
+          amountCents: refundAmount,
+          currency: refundRow.currency,
+          status: 'posted',
+          popId: updatedPop?.id,
+          refundTxnId,
+        });
+        const content = buildCreditRefundShareContent({
+          marker,
+          amountCents: refundAmount,
+          currency: refundRow.currency,
+          reason: normalized.reason,
+        });
+        const message = await postConversationMessage(client, {
+          conversationId,
+          senderId: userId,
+          content,
+          senderName,
+        });
+        await client.query(
+          `UPDATE chat_credit_refunds SET message_id = $2 WHERE id = $1`,
+          [refundRow.id, message?.id != null ? String(message.id) : null],
+        );
+
+        return {
+          refundRow: { ...refundRow, message_id: message?.id },
+          replay: false,
+          message,
+          pop: updatedPop,
+          paymentRequest: updatedPayReq,
+          fullyRefunded,
+        };
+      });
+    } catch (err) {
+      if (err.code || err.status || err.statusCode) {
+        return bad(
+          res,
+          err.status || err.statusCode || 400,
+          err.message,
+          err.code || 'credit_refund_failed',
+        );
+      }
+      throw err;
+    }
+
+    return res.status(result.replay ? 200 : 201).json({
+      refund: toPublicCreditRefundCard(result.refundRow),
+      pop: result.pop ? toPublicPopCard(result.pop) : null,
+      paymentRequest: result.paymentRequest
+        ? toPublicPaymentRequestCard(result.paymentRequest)
+        : null,
+      message: result.message || null,
+      replay: Boolean(result.replay),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 exports.resolveCreditPartner = resolveCreditPartner;

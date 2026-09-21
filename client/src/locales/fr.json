@@ -2349,6 +2349,33 @@
       "memoPh": "ex. Acompte pour devis",
       "send": "Envoyer la demande de paiement",
       "failed": "Impossible d'envoyer la demande de paiement."
+    },
+    "providerToolbar": {
+      "aria": "Outils prestataire",
+      "schedule": "Planning"
+    },
+    "creditRefund": {
+      "title": "Rembourser OxSteed Credit",
+      "button": "Rembourser",
+      "amount": "Montant du remboursement",
+      "reason": "Motif",
+      "reasonRequired": "Indiquez un motif de remboursement.",
+      "amountRequired": "Indiquez un montant de remboursement valide.",
+      "amountTooHigh": "Le remboursement ne peut pas dépasser le montant payé.",
+      "submit": "Émettre le remboursement",
+      "success": "Remboursement publié dans le fil.",
+      "failed": "Impossible de rembourser ce paiement.",
+      "alreadyRefunded": "Ce paiement a déjà été remboursé."
+    },
+    "contactDrawer": {
+      "title": "Coordonnées client",
+      "button": "Contact",
+      "name": "Nom",
+      "email": "E-mail",
+      "quotes": "Devis liés",
+      "bookings": "Réservations liées",
+      "none": "Aucun",
+      "loadFailed": "Impossible de charger les coordonnées."
     }
   },
   "dashboard": {
@@ -12981,7 +13008,18 @@
     "toastArchived": "Conversation archivée",
     "toastArchiveFailed": "Impossible d’archiver la conversation",
     "toastCreated": "Conversation créée",
-    "toastCreateFailed": "Impossible de créer la conversation"
+    "toastCreateFailed": "Impossible de créer la conversation",
+    "modeDeals": "Affaires",
+    "modeTeam": "Équipe",
+    "modeTabsAria": "Mode messagerie",
+    "dealsTitle": "Affaires clients",
+    "dealsEmpty": "Aucune conversation d’affaire pour le moment.",
+    "selectDeal": "Sélectionnez une conversation d’affaire pour ouvrir l’espace prestataire.",
+    "customer": "Client",
+    "archive": "Archive",
+    "conversation": "Conversation",
+    "selectConversation": "Select a conversation",
+    "send": "Send"
   },
   "businessQuotes": {
     "title": "Devis",

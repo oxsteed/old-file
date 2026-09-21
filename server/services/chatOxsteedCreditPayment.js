@@ -8,7 +8,7 @@
  */
 
 const MAX_AMOUNT_CENTS = 1000000000;
-const PAYMENT_REQ_STATUSES = new Set(['open', 'paid', 'cancelled']);
+const PAYMENT_REQ_STATUSES = new Set(['open', 'paid', 'cancelled', 'refunded']);
 const CREDIT_PAY_METHOD = 'oxsteed_credit';
 
 function encodeField(value, max = 80) {
@@ -266,6 +266,122 @@ function deriveQuotePaymentStatus(totalCents, amountPaidCents) {
   return 'partially_paid';
 }
 
+
+/**
+ * Pick a ledger orderType compatible with partner agreement allow-lists.
+ * Prefer `service` for chat; otherwise map onto the first allowed type
+ * (documented fallback for restaurant agreements that only list
+ * pickup/delivery/dine_in). Empty allow-list ⇒ treat as unrestricted.
+ */
+function resolveChatPurchaseOrderType(allowedOrderTypes) {
+  const allowed = Array.isArray(allowedOrderTypes)
+    ? allowedOrderTypes.map((v) => String(v || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  if (!allowed.length || allowed.includes('service')) return 'service';
+  return allowed[0];
+}
+
+/**
+ * Normalize POST /api/chat/payments/:id/refund body.
+ */
+function normalizeCreditRefundPayload(body = {}) {
+  const amountSource =
+    body.amount_cents !== undefined
+      ? body.amount_cents
+      : body.amountCents !== undefined
+        ? body.amountCents
+        : body.amount !== undefined
+          ? Math.round(Number(body.amount) * 100)
+          : undefined;
+  let amountCents = null;
+  if (amountSource !== undefined && amountSource !== null && String(amountSource).trim() !== '') {
+    const amount = parsePositiveAmountCents(amountSource);
+    if (amount.error) return amount;
+    amountCents = amount.amountCents;
+  }
+  const reason = String(body.reason || '').trim().slice(0, 500);
+  if (!reason) return { error: 'reason is required', code: 'validation_failed' };
+  const idem = normalizeIdempotencyKey(body.idempotencyKey || body.idempotency_key);
+  if (idem.error) return idem;
+  const popId = body.popId || body.pop_id || null;
+  const paymentRequestId = body.paymentRequestId || body.payment_request_id || null;
+  const creditTxnId = body.creditTxnId || body.credit_txn_id || body.purchaseTransactionId || null;
+  return {
+    amountCents,
+    reason,
+    idempotencyKey: idem.idempotencyKey,
+    popId: popId ? String(popId) : null,
+    paymentRequestId: paymentRequestId ? String(paymentRequestId) : null,
+    creditTxnId: creditTxnId ? String(creditTxnId) : null,
+  };
+}
+
+/**
+ * Marker: [credit_refund:id|amount_cents|currency|status|pop_id|txn]
+ */
+function buildCreditRefundMarker(opts = {}) {
+  const id = opts.id != null ? String(opts.id).trim() : '';
+  if (!id) return '';
+  const amount = Number.isFinite(Number(opts.amountCents))
+    ? Math.max(0, Math.round(Number(opts.amountCents)))
+    : 0;
+  const currency = String(opts.currency || 'USD').toUpperCase().slice(0, 3) || 'USD';
+  const status = String(opts.status || 'posted').toLowerCase().slice(0, 32) || 'posted';
+  const popId = opts.popId != null && String(opts.popId).trim() ? String(opts.popId).trim() : 'none';
+  const txn = opts.refundTxnId != null && String(opts.refundTxnId).trim()
+    ? String(opts.refundTxnId).trim()
+    : 'none';
+  return `[credit_refund:${id}|${amount}|${currency}|${status}|${popId}|${txn}]`;
+}
+
+function parseCreditRefundMarker(text) {
+  const match = String(text || '').match(
+    /\[credit_refund:([^|\]]+)\|(\d+)\|([A-Za-z]{3})\|([^|\]]+)\|([^|\]]*)\|([^|\]]*)\]/i,
+  );
+  if (!match) return null;
+  return {
+    id: match[1],
+    amountCents: parseInt(match[2], 10) || 0,
+    currency: String(match[3] || 'USD').toUpperCase(),
+    status: String(match[4] || 'posted').toLowerCase(),
+    popId: match[5] === 'none' ? '' : match[5],
+    refundTxnId: match[6] === 'none' ? '' : match[6],
+    raw: match[0],
+  };
+}
+
+function stripCreditRefundMarkers(text) {
+  return String(text || '')
+    .replace(/\[credit_refund:[^\]]+\]/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function buildCreditRefundShareContent({ marker, amountCents, currency, reason }) {
+  const dollars = (Number(amountCents) / 100).toFixed(2);
+  const cur = String(currency || 'USD').toUpperCase();
+  const note = reason ? `\n${String(reason).slice(0, 200)}` : '';
+  return `OxSteed Credit refund: ${cur} ${dollars}${note}\n${marker}`;
+}
+
+function toPublicCreditRefundCard(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    conversationId: row.conversation_id != null ? String(row.conversation_id) : null,
+    paymentRequestId: row.payment_request_id != null ? String(row.payment_request_id) : null,
+    popId: row.pop_id != null ? String(row.pop_id) : null,
+    amountCents: Number(row.amount_cents || 0),
+    currency: row.currency || 'USD',
+    reason: row.reason || null,
+    status: row.status || 'posted',
+    purchaseTxnId: row.purchase_txn_id || null,
+    refundTxnId: row.refund_txn_id || null,
+    createdAt: row.created_at || null,
+  };
+}
+
+
 function assertMembershipForCustomerPay(userId, conv) {
   if (!userId || !conv) return { ok: false, code: 'forbidden', error: 'Not a conversation participant' };
   if (String(conv.customer_id) !== String(userId)) {
@@ -291,6 +407,13 @@ module.exports = {
   canPayWithOxsteedCredit,
   deriveQuotePaymentStatus,
   assertMembershipForCustomerPay,
+  resolveChatPurchaseOrderType,
+  normalizeCreditRefundPayload,
+  buildCreditRefundMarker,
+  parseCreditRefundMarker,
+  stripCreditRefundMarkers,
+  buildCreditRefundShareContent,
+  toPublicCreditRefundCard,
   encodeField,
   decodeField,
 };

@@ -2349,6 +2349,33 @@
       "memoPh": "مثال: عربون للعرض",
       "send": "إرسال طلب الدفع",
       "failed": "تعذّر إرسال طلب الدفع."
+    },
+    "providerToolbar": {
+      "aria": "أدوات مقدّم الخدمة",
+      "schedule": "الجدولة"
+    },
+    "creditRefund": {
+      "title": "استرداد OxSteed Credit",
+      "button": "استرداد",
+      "amount": "مبلغ الاسترداد",
+      "reason": "السبب",
+      "reasonRequired": "أدخل سبب الاسترداد.",
+      "amountRequired": "أدخل مبلغ استرداد صالحًا.",
+      "amountTooHigh": "لا يمكن أن يتجاوز الاسترداد المبلغ المدفوع.",
+      "submit": "تنفيذ الاسترداد",
+      "success": "تم نشر الاسترداد في المحادثة.",
+      "failed": "تعذّر استرداد هذا الدفع.",
+      "alreadyRefunded": "تم استرداد هذا الدفع بالفعل."
+    },
+    "contactDrawer": {
+      "title": "تفاصيل العميل",
+      "button": "جهة الاتصال",
+      "name": "الاسم",
+      "email": "البريد",
+      "quotes": "عروض مرتبطة",
+      "bookings": "حجوزات مرتبطة",
+      "none": "لا يوجد",
+      "loadFailed": "تعذّر تحميل تفاصيل جهة الاتصال."
     }
   },
   "dashboard": {
@@ -12984,7 +13011,18 @@
     "toastArchived": "تمت أرشفة المحادثة",
     "toastArchiveFailed": "تعذر أرشفة المحادثة",
     "toastCreated": "تم إنشاء المحادثة",
-    "toastCreateFailed": "تعذر إنشاء المحادثة"
+    "toastCreateFailed": "تعذر إنشاء المحادثة",
+    "modeDeals": "الصفقات",
+    "modeTeam": "الفريق",
+    "modeTabsAria": "وضع المراسلة",
+    "dealsTitle": "صفقات العملاء",
+    "dealsEmpty": "لا توجد محادثات صفقات بعد.",
+    "selectDeal": "اختر محادثة صفقة لفتح مساحة مقدّم الخدمة.",
+    "customer": "العميل",
+    "archive": "Archive",
+    "conversation": "Conversation",
+    "selectConversation": "Select a conversation",
+    "send": "Send"
   },
   "businessQuotes": {
     "title": "عروض الأسعار",

@@ -16,6 +16,9 @@ import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
 import AgreementCard from '../helperProfile/chat/AgreementCard';
 import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
+import ProviderMessengerToolbar from './ProviderMessengerToolbar';
+import ConversationContactDrawer from './ConversationContactDrawer';
+import CreditRefundPanel from '../helperProfile/chat/CreditRefundPanel';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
@@ -62,6 +65,9 @@ export default function ConversationThread({
   const [showPopShare, setShowPopShare] = useState(false);
   const [showAgreementShare, setShowAgreementShare] = useState(false);
   const [showPaymentRequestShare, setShowPaymentRequestShare] = useState(false);
+  const [showCreditRefund, setShowCreditRefund] = useState(false);
+  const [refundTarget, setRefundTarget] = useState(null);
+  const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
@@ -257,6 +263,20 @@ export default function ConversationThread({
         </div>
       </header>
 
+      {role === 'helper' ? (
+        <ProviderMessengerToolbar
+          onQuote={() => setShowQuoteShare(true)}
+          onPaymentRequest={() => setShowPaymentRequestShare(true)}
+          onAgreement={() => setShowAgreementShare(true)}
+          onPop={() => setShowPopShare(true)}
+          onSchedule={() => { setSchedulingQuote(schedulingQuote || { kind: businessId ? 'business' : 'helper', id: null }); setShowQuoteSchedule(true); }}
+          onRefund={() => setShowCreditRefund(true)}
+          onContact={() => setShowContactDrawer(true)}
+          showRefund={Boolean(refundTarget)}
+        />
+      ) : null}
+
+
       <div
         ref={threadRef}
         className="messages-thread-scroll"
@@ -346,6 +366,10 @@ export default function ConversationThread({
                             <ProofOfPaymentCard
                               markerText={msg.content}
                               isProvider={role === 'helper'}
+                              onRefundRequest={(target) => {
+                                setRefundTarget(target);
+                                setShowCreditRefund(true);
+                              }}
                             />
                           ) : null}
                           {payReqParsed ? (
@@ -500,6 +524,26 @@ export default function ConversationThread({
           conversationId={conversationId}
           businessId={businessId}
           onShared={() => setShowAgreementShare(false)}
+        />
+      )}
+      {showContactDrawer && (
+        <ConversationContactDrawer
+          open={showContactDrawer}
+          onClose={() => setShowContactDrawer(false)}
+          conversationId={conversationId}
+        />
+      )}
+      {showCreditRefund && (
+        <CreditRefundPanel
+          open={showCreditRefund}
+          onClose={() => { setShowCreditRefund(false); setRefundTarget(null); }}
+          conversationId={conversationId}
+          paymentRequestId={refundTarget?.paymentRequestId || null}
+          popId={refundTarget?.popId || null}
+          creditTxnId={refundTarget?.creditTxnId || null}
+          maxAmountCents={refundTarget?.amountCents || null}
+          currency={refundTarget?.currency || 'USD'}
+          onRefunded={() => { setShowCreditRefund(false); setRefundTarget(null); }}
         />
       )}
       {showPaymentRequestShare && (

@@ -2434,6 +2434,33 @@
       "memoPh": "egz. Depo pou quote",
       "send": "Voye demann peman",
       "failed": "Pa t kapab voye demann peman an."
+    },
+    "providerToolbar": {
+      "aria": "Zouti founisè",
+      "schedule": "Orè"
+    },
+    "creditRefund": {
+      "title": "Rembouse OxSteed Credit",
+      "button": "Rembouse",
+      "amount": "Montan rembousman",
+      "reason": "Rezon",
+      "reasonRequired": "Antre yon rezon rembousman.",
+      "amountRequired": "Antre yon montan rembousman valid.",
+      "amountTooHigh": "Rembousman an pa ka depase montan ki peye a.",
+      "submit": "Fè rembousman an",
+      "success": "Rembousman pibliye nan fil la.",
+      "failed": "Pa t kapab rembouse peman sa a.",
+      "alreadyRefunded": "Peman sa a deja rembouse."
+    },
+    "contactDrawer": {
+      "title": "Detay kliyan",
+      "button": "Kontak",
+      "name": "Non",
+      "email": "Imèl",
+      "quotes": "Devis ki lye",
+      "bookings": "Rezervasyon ki lye",
+      "none": "Okenn",
+      "loadFailed": "Pa t kapab chaje detay kontak."
     }
   },
   "dashboard": {
@@ -12981,7 +13008,18 @@
     "toastArchived": "Konvèsasyon an anile",
     "toastArchiveFailed": "Nou pa t kapab anile konvèsasyon an",
     "toastCreated": "Konvèsasyon an kreye",
-    "toastCreateFailed": "Nou pa t kapab kreye konvèsasyon an"
+    "toastCreateFailed": "Nou pa t kapab kreye konvèsasyon an",
+    "modeDeals": "Afè",
+    "modeTeam": "Ekip",
+    "modeTabsAria": "Mòd mesajri",
+    "dealsTitle": "Afè kliyan",
+    "dealsEmpty": "Pokò ankò gen konvèsasyon afè.",
+    "selectDeal": "Chwazi yon konvèsasyon afè pou ouvri espas founisè a.",
+    "customer": "Kliyan",
+    "archive": "Archive",
+    "conversation": "Conversation",
+    "selectConversation": "Select a conversation",
+    "send": "Send"
   },
   "businessQuotes": {
     "title": "Soti nan quote",
