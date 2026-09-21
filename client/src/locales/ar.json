@@ -2118,6 +2118,7 @@
     "guestComposerHint": "يتضمن الإرسال اسمك المحفوظ والبريد الإلكتروني للمساعد.",
     "guestDeliveredDetail": "تم التسليم إلى المساعد - يمكنهم الرد عبر البريد الإلكتروني أو من صندوق بريد OxSteed الخاص بهم.",
     "guestDeliveredToast": "تم تسليم الرسالة إلى المساعد",
+    "guestClaimedToast": "استفسارك كضيف موجود الآن في صندوق الوارد الخاص بك.",
     "aiBookingRequested": "تم إرسال طلب التعيين إلى المزود",
     "aiBookingRequestedToast": "تم إرسال طلب التعيين",
     "aiBookingConflict": "ذلك الوقت لم يعد متاحا. حاول مرة أخرى.",

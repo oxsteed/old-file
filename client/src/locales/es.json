@@ -2118,6 +2118,7 @@
     "guestComposerHint": "Al enviar se incluyen tu nombre y correo guardados.",
     "guestDeliveredDetail": "Entregado al ayudante - puede responder por correo o desde su bandeja OxSteed.",
     "guestDeliveredToast": "Mensaje entregado al ayudante",
+    "guestClaimedToast": "Tu consulta de invitado ahora está en tu bandeja de entrada.",
     "aiBookingRequested": "Solicitud de cita enviada al proveedor",
     "aiBookingRequestedToast": "Solicitud de cita enviada",
     "aiBookingConflict": "Ese horario ya no está disponible. Prueba otro horario.",

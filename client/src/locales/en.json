@@ -2118,6 +2118,7 @@
     "guestComposerHint": "Sending includes your saved name and email for the helper.",
     "guestDeliveredDetail": "Delivered to the helper - they can reply by email or from their OxSteed inbox.",
     "guestDeliveredToast": "Message delivered to the helper",
+    "guestClaimedToast": "Your guest inquiry is now in your inbox.",
     "aiBookingRequested": "Appointment request sent to the provider",
     "aiBookingRequestedToast": "Appointment request sent",
     "aiBookingConflict": "That time is no longer available. Try another time.",

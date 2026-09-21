@@ -288,7 +288,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         }
 
         if (Number(data?.count || 0) > 0) {
-          toast.success(t('messages.guestClaimedToast', { defaultValue: 'Your guest inquiry is now in your inbox.' }));
+          toast.success(t('messages.guestClaimedToast'));
         }
       } catch {
         if (!cancelled) {
@@ -491,19 +491,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             id:        `evt-${Date.now()}-appointment`,
             itemType:  'booking_event',
             eventType: 'booking_requested',
-            content:   t('messages.aiBookingRequested', { defaultValue: 'Appointment request sent to the provider' }),
+            content:   t('messages.aiBookingRequested'),
             timestamp: new Date().toISOString(),
             metadata:  { appointmentId: data.appointmentCreated.id },
           });
-          toast.success(t('messages.aiBookingRequestedToast', { defaultValue: 'Appointment request sent' }));
+          toast.success(t('messages.aiBookingRequestedToast'));
         } else if (data.bookingError) {
           events.push({
             id:        `evt-${Date.now()}-appointment-error`,
             itemType:  'system',
             eventType: 'booking_request_failed',
             content:   data.bookingError === 'conflict'
-              ? t('messages.aiBookingConflict', { defaultValue: 'That time is no longer available. Try another time.' })
-              : t('messages.aiBookingFailed', { defaultValue: 'The appointment request could not be sent yet.' }),
+              ? t('messages.aiBookingConflict')
+              : t('messages.aiBookingFailed'),
             timestamp: new Date().toISOString(),
           });
         }
@@ -770,8 +770,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               <button
                 onClick={onExpand}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-                aria-label={t('helperProfile.chat.expandChat', { defaultValue: 'Expand chat' })}
-                title={t('helperProfile.chat.expandChat', { defaultValue: 'Expand chat' })}
+                aria-label={t('helperProfile.chat.expandChat')}
+                title={t('helperProfile.chat.expandChat')}
                 type="button"
               >
                 <Maximize2 className="w-4 h-4" aria-hidden="true" />
@@ -980,7 +980,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 disabled={loadingOlder}
                 className="w-full py-2 px-3 text-xs text-gray-400 hover:text-gray-300 border border-gray-700/50 rounded-lg hover:border-gray-600/50 transition-colors disabled:opacity-50"
               >
-                {loadingOlder ? t('common.loading') : t('messages.loadOlderMessages', { defaultValue: 'Load Older Messages' })}
+                {loadingOlder ? t('common.loading') : t('messages.loadOlderMessages')}
               </button>
             </div>
           )}

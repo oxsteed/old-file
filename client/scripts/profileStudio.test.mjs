@@ -504,3 +504,81 @@ test('helperProfile TrustSignals/CTA/Reviews locale keys exist with en/es/fr/ht/
     }
   }
 });
+
+test('helperProfile chat locale keys exist with en/es/fr/ht/ar parity (no defaultValue)', async () => {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const locales = ['en', 'es', 'fr', 'ht', 'ar'];
+  const chatDir = join(root, 'src/components/helperProfile/chat');
+
+  const entries = await readdir(chatDir);
+  const chatFiles = entries.filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'));
+  const sources = {};
+  for (const name of chatFiles) {
+    const rel = `src/components/helperProfile/chat/${name}`;
+    const src = await readFile(join(root, rel), 'utf8');
+    assert.equal(src.includes('defaultValue'), false, `${rel} must not use defaultValue crutches`);
+    sources[rel] = src;
+  }
+
+  const required = [
+    'helperProfile.chat.deleteConfirm',
+    'helperProfile.chat.messageComposer',
+    'helperProfile.chat.expandChat',
+    'messages.guestClaimedToast',
+    'messages.aiBookingRequested',
+    'messages.aiBookingRequestedToast',
+    'messages.aiBookingConflict',
+    'messages.aiBookingFailed',
+    'messages.loadOlderMessages',
+  ];
+
+  assert.ok(sources['src/components/helperProfile/chat/MessageBubble.tsx'].includes("t('helperProfile.chat.deleteConfirm')"));
+  assert.ok(sources['src/components/helperProfile/chat/MessageComposer.tsx'].includes("t('helperProfile.chat.messageComposer')"));
+  assert.ok(sources['src/components/helperProfile/chat/ChatPanel.tsx'].includes("t('helperProfile.chat.expandChat')"));
+  assert.ok(sources['src/components/helperProfile/chat/ChatPanel.tsx'].includes("t('messages.guestClaimedToast')"));
+  assert.ok(sources['src/components/helperProfile/chat/ChatPanel.tsx'].includes("t('messages.loadOlderMessages')"));
+
+  function getPath(obj, path) {
+    return path.split('.').reduce((cur, key) => (cur && typeof cur === 'object' ? cur[key] : undefined), obj);
+  }
+
+  const byLang = {};
+  for (const lang of locales) {
+    const json = JSON.parse(await readFile(join(root, `src/locales/${lang}.json`), 'utf8'));
+    byLang[lang] = json;
+    for (const key of required) {
+      const value = getPath(json, key);
+      assert.equal(typeof value, 'string', `${lang} missing ${key}`);
+      assert.ok(value.trim().length > 0, `${lang} empty ${key}`);
+    }
+  }
+
+  const enChat = Object.keys(byLang.en.helperProfile.chat).sort();
+  for (const lang of locales.slice(1)) {
+    assert.deepEqual(
+      Object.keys(byLang[lang].helperProfile.chat).sort(),
+      enChat,
+      `${lang} helperProfile.chat key parity drift`,
+    );
+  }
+
+  for (const leaf of [
+    'guestClaimedToast',
+    'aiBookingRequested',
+    'aiBookingRequestedToast',
+    'aiBookingConflict',
+    'aiBookingFailed',
+    'loadOlderMessages',
+  ]) {
+    for (const lang of locales.slice(1)) {
+      assert.equal(
+        typeof byLang[lang].messages[leaf],
+        'string',
+        `${lang} messages.${leaf} missing`,
+      );
+    }
+  }
+});
