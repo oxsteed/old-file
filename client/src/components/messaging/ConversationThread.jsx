@@ -25,9 +25,22 @@ import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messe
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helperProfile/chat/messengerCreditPay.js';
-import { parseBookingRequestMarker, stripBookingRequestMarkers } from '../helperProfile/chat/messengerBookingRequests.js';
+import {
+  parseBookingRequestMarker,
+  stripBookingRequestMarkers,
+  appendBookingRequestMarker,
+  buildProposeBookingPayload,
+  buildBookingRequestMarker,
+  buildInboxScheduleBookingBody,
+} from '../helperProfile/chat/messengerBookingRequests.js';
+import {
+  buildMessengerBookingPayload,
+  buildSlotRequestMessage,
+  resolveClientTimezone,
+} from '../helperProfile/chat/messengerAvailability.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
+import toast from 'react-hot-toast';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -488,7 +501,8 @@ export default function ConversationThread({
             onSelectSlot={async (slot) => {
               try {
                 if (proposingBookingId) {
-                  await api.post(`/chat/booking-requests/${proposingBookingId}/propose`, {
+                  const payload = buildProposeBookingPayload(slot);
+                  await api.post(`/chat/booking-requests/${proposingBookingId}/propose`, payload || {
                     requestedDate: slot.date,
                     requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
                     requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
@@ -501,6 +515,7 @@ export default function ConversationThread({
                       detail: { bookingId: proposingBookingId },
                     }));
                   } catch { /* ignore */ }
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
                   fetchMessages?.();
                 } else if (schedulingQuote?.kind && schedulingQuote?.id) {
                   await api.post(`/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`, {
@@ -516,12 +531,74 @@ export default function ConversationThread({
                     endIso: slot.endIso,
                     timezone: slot.timezone,
                   });
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                  fetchMessages?.();
+                } else {
+                  // Inbox Schedule with no quote: create durable booking_request + card marker
+                  const tz = slot.timezone || resolveClientTimezone();
+                  const textMsg = buildSlotRequestMessage({
+                    date: slot.date,
+                    start: slot.start,
+                    end: slot.end,
+                    providerName: otherName || '',
+                    locale: localStorage.getItem('oxs:language') || 'en',
+                    t,
+                    serviceId: slot.serviceId,
+                    serviceName: slot.serviceName,
+                    timezone: tz,
+                  });
+                  const body = buildInboxScheduleBookingBody({
+                    conversationId,
+                    helperId,
+                    businessId,
+                    serviceId: slot.serviceId,
+                    serviceName: slot.serviceName || otherName || 'Service request',
+                    date: slot.date,
+                    start: slot.start,
+                    end: slot.end,
+                    startIso: slot.startIso,
+                    endIso: slot.endIso,
+                    timezone: tz,
+                    description: textMsg || null,
+                    source: 'messenger_inbox_schedule',
+                  });
+                  if (!body) {
+                    toast.error(t('helperProfile.messenger.slotBookingFailed'));
+                    return;
+                  }
+                  const { data } = await api.post('/chat/booking-requests', body);
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                  try {
+                    window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {
+                      detail: { bookingId: data?.booking?.id || data?.bookingId },
+                    }));
+                  } catch { /* ignore */ }
+                  fetchMessages?.();
                 }
                 setShowQuoteSchedule(false);
                 setSchedulingQuote(null);
                 setProposingBookingId(null);
               } catch (err) {
                 console.error('schedule/propose failed', err);
+                const code = err?.response?.data?.code;
+                const agreements = err?.response?.data?.agreements;
+                if (code === 'agreement_required') {
+                  const title = agreements?.[0]?.title;
+                  toast.error(
+                    title
+                      ? t('helperProfile.messenger.agreementRequiredScheduleNamed', {
+                          title,
+                          defaultValue: `Accept "{{title}}" before scheduling.`,
+                        })
+                      : t('helperProfile.messenger.agreementRequiredSchedule', {
+                          defaultValue: 'Accept the required agreement before scheduling.',
+                        }),
+                  );
+                } else if (code === 'conflict') {
+                  toast.error(t('helperProfile.messenger.slotBookingConflict'));
+                } else {
+                  toast.error(t('helperProfile.messenger.slotBookingFailed'));
+                }
               }
             }}
           />

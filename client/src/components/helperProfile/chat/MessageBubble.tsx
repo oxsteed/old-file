@@ -30,6 +30,7 @@ interface MessageBubbleProps {
   onQuoteDeclined?: (payload: any, action?: string) => void;
   onQuoteRequestVerify?: () => void;
   isProviderView?: boolean;
+  onRefundRequest?: ((target: any) => void) | null;
   conversationId?: string | null;
   payeeBusinessId?: string | number | null;
   payeeHelperId?: string | null;
@@ -122,6 +123,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onQuoteDeclined,
   onQuoteRequestVerify,
   isProviderView = false,
+  onRefundRequest = null,
   conversationId = null,
   payeeBusinessId = null,
   payeeHelperId = null,
@@ -243,6 +245,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         markerText={message.content}
                         isProvider={isProviderView}
                         guestAuthHeaders={guestAuthHeaders}
+                        onRefundRequest={onRefundRequest}
                       />
                     </div>
                   ) : null}

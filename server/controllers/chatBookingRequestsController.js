@@ -20,6 +20,7 @@ const {
   normalizeDate,
   toChatStatus,
 } = require('../services/chatBookingRequests');
+const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 
 function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
@@ -420,6 +421,20 @@ exports.proposeBookingTime = async (req, res, next) => {
     const gate = canProviderRespond(booking);
     if (!gate.ok) return bad(res, 409, `Cannot propose: ${gate.reason}`, gate.reason);
 
+    const agreementGate = await checkScheduleAgreementGate(pool, {
+      conversationId: booking.conversation_id,
+      guestSessionId: booking.guest_session_id,
+    });
+    if (agreementGate.blocked) {
+      return bad(
+        res,
+        409,
+        'Accept the required agreement before scheduling',
+        'agreement_required',
+        { agreements: agreementGate.agreements },
+      );
+    }
+
     const body = req.body || {};
     const date = normalizeDate(body.requestedDate || body.date);
     const start = normalizeClock(body.requestedStartTime || body.start);
@@ -524,6 +539,168 @@ exports.proposeBookingTime = async (req, res, next) => {
  * Helper used by messenger create paths to attach chat linkage + return marker.
  * Not an HTTP handler.
  */
+
+/**
+ * POST /api/chat/booking-requests
+ * Inbox / ChatPanel Schedule with no quote: create a durable booking_request,
+ * post [booking_req:…] marker into the conversation, emit sockets.
+ * Customer or provider (schedules on behalf of conversation customer) may call.
+ * Body: {
+ *   conversationId, helperId?, businessId?, serviceId?, serviceName?,
+ *   requestedDate, requestedStartTime, requestedEndTime,
+ *   startIso?, endIso?, timezone?, description?, source?
+ * }
+ */
+exports.createChatBookingRequest = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return bad(res, 401, 'Authentication required', 'auth_error');
+
+    const body = req.body || {};
+    const conversationId = body.conversationId || body.conversation_id || null;
+    if (!conversationId) {
+      return bad(res, 400, 'conversationId is required', 'validation_failed');
+    }
+
+    const conv = await assertConversationParticipant(userId, conversationId);
+    if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
+
+    const agreementGate = await checkScheduleAgreementGate(pool, {
+      conversationId,
+      guestSessionId: null,
+    });
+    if (agreementGate.blocked) {
+      return bad(
+        res,
+        409,
+        'Accept the required agreement before scheduling',
+        'agreement_required',
+        { agreements: agreementGate.agreements },
+      );
+    }
+
+    const date = normalizeDate(body.requestedDate || body.date);
+    const start = normalizeClock(body.requestedStartTime || body.start);
+    const end = normalizeClock(body.requestedEndTime || body.end);
+    if (!date || !start || !end) {
+      return bad(res, 400, 'requestedDate, start, and end are required', 'validation_failed');
+    }
+    if (start >= end) {
+      return bad(res, 400, 'End time must be after start time', 'validation_failed');
+    }
+
+    const isProvider =
+      String(conv.helper_id) === String(userId) ||
+      (conv.business_id && (await assertBusinessAccess(userId, conv.business_id)));
+
+    let helperId = body.helperId || body.helper_id || conv.helper_id || null;
+    let businessId = body.businessId ?? body.business_id ?? conv.business_id ?? null;
+    if (businessId && !helperId) {
+      const biz = await pool.query('SELECT user_id FROM businesses WHERE id = $1', [businessId]);
+      helperId = biz.rows[0]?.user_id || null;
+    }
+    if (!helperId) {
+      return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
+    }
+
+    // Customer books themselves; provider schedules on behalf of the conversation customer.
+    let customerId;
+    if (isProvider) {
+      customerId = conv.customer_id || null;
+      if (!customerId) {
+        return bad(
+          res,
+          400,
+          'Conversation has no customer to schedule for',
+          'validation_failed',
+        );
+      }
+    } else {
+      customerId = userId;
+      if (String(customerId) === String(helperId)) {
+        return bad(res, 400, 'Cannot book with yourself', 'validation_failed');
+      }
+    }
+
+    const serviceName = String(
+      body.serviceName || body.service_name || 'Service request',
+    )
+      .trim()
+      .slice(0, 200);
+    const serviceId = body.serviceId ?? body.service_id ?? null;
+    const timezone = String(body.timezone || '').trim().slice(0, 80) || null;
+    const description = String(body.description || '').trim().slice(0, 2000) || null;
+    const source = String(body.source || 'messenger_inbox_schedule').trim().slice(0, 64);
+    const hours = 24;
+    const bookingId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    const { rows } = await pool.query(
+      `INSERT INTO booking_requests (
+         id, customer_id, helper_id, business_id, service_name, requested_date,
+         requested_start_time, requested_end_time, service_location,
+         description, expires_at, confirmation_hours,
+         conversation_id, guest_session_id, source, service_id, timezone
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, $10, $11,
+         $12, NULL, $13, $14, $15
+       ) RETURNING *`,
+      [
+        bookingId,
+        customerId,
+        helperId,
+        businessId || null,
+        serviceName,
+        date,
+        start.length === 5 ? `${start}:00` : start,
+        end.length === 5 ? `${end}:00` : end,
+        description,
+        expiresAt,
+        hours,
+        conversationId,
+        source,
+        serviceId != null ? String(serviceId) : null,
+        timezone,
+      ],
+    );
+    const booking = rows[0];
+
+    const actorName =
+      [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') ||
+      (isProvider ? 'Provider' : 'Customer');
+    await postStatusToThread({
+      booking,
+      event: 'requested',
+      actorId: userId,
+      actorName,
+    });
+    await emitBookingEvent({ booking, event: 'requested', actorId: userId });
+
+    try {
+      socketService.broadcastToUser(helperId, 'booking:requested', { booking });
+      if (customerId && String(customerId) !== String(userId)) {
+        socketService.broadcastToUser(customerId, 'booking:requested', { booking });
+      }
+    } catch { /* ignore */ }
+
+    return res.status(201).json({
+      success: true,
+      booking: toPublicBookingRequestCard(booking),
+      marker: buildBookingRequestMarker({
+        id: booking.id,
+        status: booking.status,
+        date,
+        start,
+        end,
+        serviceName,
+        serviceId,
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.linkBookingToChat = async function linkBookingToChat(bookingId, {
   conversationId = null,
   guestSessionId = null,

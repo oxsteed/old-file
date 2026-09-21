@@ -90,3 +90,20 @@ describe('chatBookingRequests service', () => {
     expect(toChatStatus('nope')).toBe('pending');
   });
 });
+
+describe('inbox schedule create helpers', () => {
+  test('inbox schedule create marker', () => {
+    const marker = buildBookingRequestMarker({
+      id: 'inbox-1',
+      status: 'pending',
+      date: '2026-09-25',
+      start: '14:00',
+      end: '15:00',
+      serviceName: 'Consult',
+    });
+    expect(marker).toMatch(/\[booking_req:inbox-1\|pending\|2026-09-25\|14:00\|15:00/);
+    const parsed = parseBookingRequestMarker(marker);
+    expect(parsed.serviceName).toBe('Consult');
+    expect(canProviderRespond({ status: 'pending' }).ok).toBe(true);
+  });
+});

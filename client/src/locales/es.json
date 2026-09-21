@@ -6486,7 +6486,9 @@
         "cancelled": "Cancelada",
         "accepted_cancelled": "Cancelada",
         "counter_proposed": "Nueva hora propuesta"
-      }
+      },
+      "agreementRequiredSchedule": "Acepta el acuerdo requerido antes de programar.",
+      "agreementRequiredScheduleNamed": "Acepta \"{{title}}\" antes de programar."
     }
   },
   "disputes": {

@@ -4,6 +4,7 @@ const { AppError } = require('../middleware/errorHandler');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const pool          = require('../db');
+const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
@@ -1574,6 +1575,20 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
     if (!helperId) {
       throw new AppError('helperId is required', 400, 'validation_failed', { helperId: 'helperId is required' });
     }
+
+    {
+      const agreementGate = await checkScheduleAgreementGate(pool, {
+        conversationId: body.conversationId || body.conversation_id || null,
+        guestSessionId: verifiedGuestSession?.id || body.guestSessionId || body.guest_session_id || null,
+      });
+      if (agreementGate.blocked) {
+        return res.status(409).json({
+          error: 'Accept the required agreement before scheduling',
+          code: 'agreement_required',
+          agreements: agreementGate.agreements,
+        });
+      }
+    }
     if (verifiedGuestSession && !guestProfileVerify.tokenMatchesProfile(verifiedGuestSession, { helperId, businessId })) {
       throw new AppError('Guest session does not match this profile', 403, 'forbidden');
     }
@@ -1594,7 +1609,9 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
 
     // Authenticated non-guest: create booking_request (production path parity)
     if (req.user?.id && !verifiedGuestSession) {
-      const bookingId = require('crypto').randomUUID();
+      
+
+const bookingId = require('crypto').randomUUID();
       const hours = 24;
       const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       let resolvedHelperId = helperId;

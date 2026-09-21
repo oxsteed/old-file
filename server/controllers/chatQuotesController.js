@@ -22,8 +22,8 @@ const {
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 
 
-function bad(res, status, error, code) {
-  return res.status(status).json({ error, code: code || 'error' });
+function bad(res, status, error, code, extra = {}) {
+  return res.status(status).json({ error, code: code || 'error', ...extra });
 }
 
 async function loadQuote(kind, id) {
@@ -816,7 +816,7 @@ exports.scheduleFromQuote = async (req, res, next) => {
         guestSessionId: quote.guest_session_id,
       });
       if (gate.blocked) {
-        return bad(res, 409, 'Accept the required agreement before scheduling', 'agreement_required');
+        return bad(res, 409, 'Accept the required agreement before scheduling', 'agreement_required', { agreements: gate.agreements });
       }
     }
 

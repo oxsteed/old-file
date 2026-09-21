@@ -6486,7 +6486,9 @@
         "cancelled": "Cancelled",
         "accepted_cancelled": "Cancelled",
         "counter_proposed": "New time proposed"
-      }
+      },
+      "agreementRequiredSchedule": "Accept the required agreement before scheduling.",
+      "agreementRequiredScheduleNamed": "Accept \"{{title}}\" before scheduling."
     }
   },
   "disputes": {

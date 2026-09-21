@@ -6486,7 +6486,9 @@
         "cancelled": "ملغى",
         "accepted_cancelled": "ملغى",
         "counter_proposed": "تم اقتراح وقت جديد"
-      }
+      },
+      "agreementRequiredSchedule": "اقبل الاتفاقية المطلوبة قبل الجدولة.",
+      "agreementRequiredScheduleNamed": "اقبل \"{{title}}\" قبل الجدولة."
     }
   },
   "disputes": {

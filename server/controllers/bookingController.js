@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { uuidv4 } = require('../utils/uuid');
@@ -167,7 +168,20 @@ exports.createBookingRequest = async (req, res) => {
       return sendError(res, 400, 'Helper account is inactive', 'HELPER_INACTIVE');
     }
 
-    const bookingId = uuidv4();
+    
+    if (conversationId || guestSessionId) {
+      const agreementGate = await checkScheduleAgreementGate(pool, {
+        conversationId: conversationId || null,
+        guestSessionId: guestSessionId || null,
+      });
+      if (agreementGate.blocked) {
+        return sendError(res, 409, 'Accept the required agreement before scheduling', 'agreement_required', {
+          agreements: agreementGate.agreements,
+        });
+      }
+    }
+
+const bookingId = uuidv4();
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
     const result = await pool.query(

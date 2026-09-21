@@ -125,6 +125,7 @@ router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('
 
 
 // ── In-chat booking request accept / decline / propose ───────────────────────
+router.post('/booking-requests', chatLimiter, authenticate, chatBookingRequests.createChatBookingRequest);
 router.get('/booking-requests/:id', chatLimiter, optionalAuth, chatBookingRequests.getBookingRequest);
 router.post('/booking-requests/:id/accept', chatLimiter, authenticate, chatBookingRequests.acceptBookingRequest);
 router.post('/booking-requests/:id/decline', chatLimiter, authenticate, chatBookingRequests.declineBookingRequest);

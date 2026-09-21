@@ -81,3 +81,13 @@ Adds `conversation_id`, `guest_session_id`, `appointment_id`, `quote_kind`, `quo
 - Guest + signed-in create paths store durable rows and render cards.
 - Quote schedule still works; guest live reply unchanged.
 - Jest + messenger-dock tests + `verify:i18n`.
+
+## Closed (inbox schedule create)
+
+| Method | Path | Who |
+|---|---|---|
+| POST | `/api/chat/booking-requests` | Conversation participant (customer or provider). Provider schedules on behalf of `conversation.customer_id`. Enforces agreement gate. Posts marker + sockets. |
+
+ChatPanel provider Schedule (no propose/quote) uses the same endpoint when `conversationId` is present. Customer picker create still uses `/api/bookings` + client marker append (parity markers).
+
+Agreement gate: create + quote schedule + propose + guest booking-request refuse with `agreement_required` when a non-superseded `required_before_schedule` agreement is not `accepted`/`acknowledged`.

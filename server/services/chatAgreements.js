@@ -162,7 +162,8 @@ function scheduleBlockedByAgreements(agreements = []) {
   const blockers = (agreements || []).filter((a) => {
     if (!a || !a.required_before_schedule) return false;
     if (a.superseded_at || a.status === 'superseded') return false;
-    return a.status !== 'accepted';
+    // Design: accepted OR acknowledged clears the schedule gate.
+    return a.status !== 'accepted' && a.status !== 'acknowledged';
   });
   return blockers.length
     ? { blocked: true, agreements: blockers.map((a) => ({ id: a.id, title: a.title, status: a.status })) }

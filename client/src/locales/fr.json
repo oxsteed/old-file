@@ -6486,7 +6486,9 @@
         "cancelled": "Annulée",
         "accepted_cancelled": "Annulée",
         "counter_proposed": "Nouveau créneau proposé"
-      }
+      },
+      "agreementRequiredSchedule": "Acceptez l’accord requis avant de planifier.",
+      "agreementRequiredScheduleNamed": "Acceptez « {{title}} » avant de planifier."
     }
   },
   "disputes": {

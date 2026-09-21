@@ -120,6 +120,11 @@ describe('chatAgreements', () => {
         { id: '1', title: 'A', status: 'accepted', required_before_schedule: true },
       ]).blocked,
     ).toBe(false);
+    expect(
+      scheduleBlockedByAgreements([
+        { id: '2', title: 'Ack', status: 'acknowledged', required_before_schedule: true },
+      ]).blocked,
+    ).toBe(false);
   });
 
   test('toPublicAgreementCard', () => {

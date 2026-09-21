@@ -84,3 +84,16 @@ Documented in this spec; no silent second ledger.
 - Helper messages parity + ChatPanel provider tools for provider actor.
 - Helper threads receive credit when a linked partner business exists; else clear error.
 - Refund E2E with Jest + messenger-dock tests + `verify:i18n` (en/es/fr/ht/ar).
+
+## Closed (2026-09-21 follow-up)
+
+- **Inbox Schedule without quote:** `ConversationThread` / ChatPanel provider Schedule with no quote or propose now `POST /api/chat/booking-requests` (conversation-scoped). Server creates `booking_requests`, posts `[booking_req:…]` marker, emits sockets. Guest path remains `POST /api/chat/sessions/guest/booking-request`; signed-in customer ChatPanel picker still uses `POST /api/bookings` + marker append.
+- **Agreement gate:** `required_before_schedule` enforced on create booking request, quote schedule, propose time, guest messenger booking, and ChatPanel/ConversationThread slot confirm. Status `accepted` **or** `acknowledged` clears the gate. API returns `code: agreement_required` + `agreements[]`.
+- **Refund parity:** ChatPanel provider view mounts `CreditRefundPanel` and passes `onRefundRequest` through ChatTimeline → MessageBubble → ProofOfPaymentCard (same as inbox).
+- **Credit partner:** helper→linked business resolution unchanged (documented fallback; no second ledger).
+
+## Intentional out-of-scope
+
+- Compromised-admin / break-glass remains admin-only (lists booking/POP/refund artifacts; no new break-glass UX in messenger).
+- E2EE messenger; second credit ledger; replacing Business Hub **Team** (`business_conversations`) with deal threads.
+- Customer Accept API for provider-proposed times (provider still Accepts/Declines pending cards).

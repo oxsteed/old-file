@@ -30,6 +30,7 @@ interface ChatTimelineProps {
   onQuoteDeclined?: (payload: any, action?: string) => void;
   onQuoteRequestVerify?: () => void;
   isProviderView?: boolean;
+  onRefundRequest?: ((target: any) => void) | null;
   conversationId?: string | null;
   onProposeTime?: (payload: { booking: any; conversationId?: string | null }) => void;
 }
@@ -73,6 +74,7 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   onQuoteDeclined,
   onQuoteRequestVerify,
   isProviderView,
+  onRefundRequest = null,
   conversationId = null,
   onProposeTime,
 }) => {
@@ -143,6 +145,7 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
               onQuoteDeclined={onQuoteDeclined}
               onQuoteRequestVerify={onQuoteRequestVerify}
               isProviderView={isProviderView}
+              onRefundRequest={onRefundRequest}
               conversationId={conversationId}
               onProposeTime={onProposeTime}
               onQuickReply={onQuickReply}

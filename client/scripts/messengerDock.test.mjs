@@ -55,6 +55,7 @@ import {
   appendBookingRequestMarker,
   canProviderRespondBooking,
   buildProposeBookingPayload,
+  buildInboxScheduleBookingBody,
 } from '../src/components/helperProfile/chat/messengerBookingRequests.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
@@ -896,3 +897,25 @@ test('buildProposeBookingPayload normalizes clock and rejects incomplete slots',
   assert.equal(alreadySeconds.requestedEndTime, '10:00:00');
 });
 
+
+test('buildInboxScheduleBookingBody creates durable schedule payload', () => {
+  assert.equal(buildInboxScheduleBookingBody({ date: '2026-09-25', start: '09:00', end: '10:00' }), null);
+  const body = buildInboxScheduleBookingBody({
+    conversationId: 'c1',
+    helperId: 'h1',
+    businessId: 'b1',
+    serviceId: 7,
+    serviceName: 'Consult',
+    date: '2026-09-25',
+    start: '09:00',
+    end: '10:00',
+    timezone: 'America/New_York',
+    source: 'messenger_inbox_schedule',
+  });
+  assert.equal(body.conversationId, 'c1');
+  assert.equal(body.requestedDate, '2026-09-25');
+  assert.equal(body.requestedStartTime, '09:00:00');
+  assert.equal(body.requestedEndTime, '10:00:00');
+  assert.equal(body.serviceId, 7);
+  assert.equal(body.source, 'messenger_inbox_schedule');
+});

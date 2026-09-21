@@ -115,3 +115,41 @@ export function buildProposeBookingPayload(slot) {
     timezone: slot.timezone || undefined,
   };
 }
+
+/**
+ * Body for POST /chat/booking-requests when inbox/ChatPanel Schedule has no quote.
+ */
+export function buildInboxScheduleBookingBody({
+  conversationId,
+  helperId = null,
+  businessId = null,
+  serviceId = null,
+  serviceName = '',
+  date,
+  start,
+  end,
+  startIso = null,
+  endIso = null,
+  timezone = null,
+  description = null,
+  source = 'messenger_inbox_schedule',
+} = {}) {
+  if (!conversationId || !date || !start || !end) return null;
+  const s = String(start);
+  const e = String(end);
+  return {
+    conversationId,
+    helperId: helperId || undefined,
+    businessId: businessId || undefined,
+    serviceId: serviceId != null && String(serviceId).trim() ? serviceId : undefined,
+    serviceName: String(serviceName || 'Service request').trim().slice(0, 200),
+    requestedDate: String(date).slice(0, 10),
+    requestedStartTime: s.length === 5 ? `${s}:00` : s,
+    requestedEndTime: e.length === 5 ? `${e}:00` : e,
+    startIso: startIso || undefined,
+    endIso: endIso || undefined,
+    timezone: timezone || undefined,
+    description: description || undefined,
+    source,
+  };
+}

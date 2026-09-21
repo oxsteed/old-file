@@ -14,6 +14,7 @@ import ChatDestinationDropdown from './ChatDestinationDropdown';
 import StatusBadge from './StatusBadge';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
+import CreditRefundPanel from './CreditRefundPanel';
 import ProviderMessengerToolbar from '../../messaging/ProviderMessengerToolbar';
 import QuoteSharePanel from './QuoteSharePanel';
 import PopSharePanel from './PopSharePanel';
@@ -239,6 +240,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [showProviderAgreementShare, setShowProviderAgreementShare] = useState(false);
   const [showProviderPayReqShare, setShowProviderPayReqShare] = useState(false);
   const [showProviderContact, setShowProviderContact] = useState(false);
+  const [showCreditRefund, setShowCreditRefund] = useState(false);
+  const [refundTarget, setRefundTarget] = useState<any>(null);
   const [schedulingQuote, setSchedulingQuote] = useState<null | { kind: string; id: string; token?: string }>(null);
   const [proposingBookingId, setProposingBookingId] = useState<string | number | null>(null);
   /** AI-failure / presence routing banners (not a dead error bubble alone) */
@@ -1517,6 +1520,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   onGuestSessionExpired?.();
                 }}
                 isProviderView={isProviderActor}
+                onRefundRequest={(target) => { setRefundTarget(target); setShowCreditRefund(true); }}
                 conversationId={conversationId}
                 onProposeTime={({ booking }) => {
                   setProposingBookingId(booking?.id || null);
@@ -1637,7 +1641,91 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 }
               }
 
-              const textMsg = buildSlotRequestMessage({
+              
+              // Provider inbox/profile schedule with no quote: durable booking for conversation customer
+              if (isProviderActor && conversationId) {
+                try {
+                  const tz = slot.timezone || resolveClientTimezone();
+                  const textMsg = buildSlotRequestMessage({
+                    date: slot.date,
+                    start: slot.start,
+                    end: slot.end,
+                    providerName: helperName,
+                    locale: localStorage.getItem('oxs:language') || 'en',
+                    t,
+                    serviceId: slot.serviceId,
+                    serviceName: slot.serviceName,
+                    timezone: tz,
+                  });
+                  const { data } = await api.post('/chat/booking-requests', {
+                    conversationId,
+                    helperId,
+                    businessId,
+                    serviceId: slot.serviceId,
+                    serviceName: slot.serviceName || helperName || 'Service request',
+                    requestedDate: slot.date,
+                    requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
+                    requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
+                    startIso: slot.startIso,
+                    endIso: slot.endIso,
+                    timezone: tz,
+                    description: textMsg || undefined,
+                    source: 'messenger_provider_schedule',
+                  });
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                  try {
+                    window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {
+                      detail: { bookingId: data?.booking?.id || data?.bookingId },
+                    }));
+                  } catch { /* ignore */ }
+                  const whenBits = `${slot.date} ${slot.start}–${slot.end}`;
+                  const confirm: TimelineEvent = {
+                    id: `evt-${Date.now()}-booking`,
+                    itemType: 'booking_event',
+                    eventType: 'booking_requested',
+                    content: buildSlotConfirmationContent({
+                      whenLabel: whenBits,
+                      serviceName: slot.serviceName || '',
+                      bookingId: data?.booking?.id || data?.bookingId,
+                      t,
+                    }),
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                      bookingId: data?.booking?.id || data?.bookingId,
+                      serviceId: slot.serviceId,
+                      serviceName: slot.serviceName,
+                      timezone: tz,
+                    },
+                  };
+                  setSession((prev) => ({
+                    ...prev,
+                    timeline: [...prev.timeline, confirm],
+                  }));
+                  setShowAvailability(false);
+                  setProposingBookingId(null);
+                  setSchedulingQuote(null);
+                } catch (err: any) {
+                  const code = err?.response?.data?.code;
+                  const agreements = err?.response?.data?.agreements;
+                  if (code === 'agreement_required') {
+                    const title = agreements?.[0]?.title;
+                    toast.error(
+                      title
+                        ? t('helperProfile.messenger.agreementRequiredScheduleNamed', { title })
+                        : t('helperProfile.messenger.agreementRequiredSchedule'),
+                    );
+                  } else {
+                    toast.error(
+                      code === 'conflict'
+                        ? t('helperProfile.messenger.slotBookingConflict')
+                        : t('helperProfile.messenger.slotBookingFailed'),
+                    );
+                  }
+                }
+                return;
+              }
+
+const textMsg = buildSlotRequestMessage({
                 date: slot.date,
                 start: slot.start,
                 end: slot.end,
@@ -1710,11 +1798,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 }
               } catch (err: any) {
                 const code = err?.response?.data?.code;
-                toast.error(
-                  code === 'conflict'
-                    ? t('helperProfile.messenger.slotBookingConflict')
-                    : t('helperProfile.messenger.slotBookingFailed'),
-                );
+                const agreements = err?.response?.data?.agreements;
+                if (code === 'agreement_required') {
+                  const title = agreements?.[0]?.title;
+                  toast.error(
+                    title
+                      ? t('helperProfile.messenger.agreementRequiredScheduleNamed', { title })
+                      : t('helperProfile.messenger.agreementRequiredSchedule'),
+                  );
+                } else {
+                  toast.error(
+                    code === 'conflict'
+                      ? t('helperProfile.messenger.slotBookingConflict')
+                      : t('helperProfile.messenger.slotBookingFailed'),
+                  );
+                }
               }
 
               // Optimistic confirmation chip in the timeline
@@ -1774,7 +1872,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             setShowAvailability(true);
           }}
           onContact={() => setShowProviderContact(true)}
-          showRefund={false}
+          onRefund={() => setShowCreditRefund(true)}
+          showRefund={Boolean(refundTarget)}
         />
       ) : null}
       <MessageComposer
@@ -1858,6 +1957,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           open={showProviderContact}
           onClose={() => setShowProviderContact(false)}
           conversationId={conversationId || null}
+        />
+      ) : null}
+
+      {showCreditRefund ? (
+        <CreditRefundPanel
+          open={showCreditRefund}
+          onClose={() => { setShowCreditRefund(false); setRefundTarget(null); }}
+          conversationId={conversationId}
+          paymentRequestId={refundTarget?.paymentRequestId || null}
+          popId={refundTarget?.popId || null}
+          creditTxnId={refundTarget?.creditTxnId || null}
+          maxAmountCents={refundTarget?.amountCents || null}
+          currency={refundTarget?.currency || 'USD'}
+          onRefunded={() => { setShowCreditRefund(false); setRefundTarget(null); }}
         />
       ) : null}
     </div>

@@ -6486,7 +6486,9 @@
         "cancelled": "Anile",
         "accepted_cancelled": "Anile",
         "counter_proposed": "Nouvo lè pwopoze"
-      }
+      },
+      "agreementRequiredSchedule": "Aksepte akò ki obligatwa a anvan ou pwograme.",
+      "agreementRequiredScheduleNamed": "Aksepte \"{{title}}\" anvan ou pwograme."
     }
   },
   "disputes": {
