@@ -8,31 +8,19 @@ import CoverImageUpload from './profile/CoverImageUpload';
 import ProfileStudioShell from './profileStudio/ProfileStudioShell';
 import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
 import {
-  HELPER_STICKY_SECTIONS,
   applySectionCompleteness,
   buildHelperSectionCompleteness,
   formatHelperPlace,
   formatHelperPreviewMeta,
   formatHelperRateBits,
+  isHelperCoreDirty,
+  resolveHelperSaveBar,
+  serializeHelperCore,
   shouldPromptLeaveStickySection,
 } from '../utils/profileStudio';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
-
-function serializeCore(core) {
-  return JSON.stringify({
-    profile_headline: core?.profile_headline || '',
-    bio_long: core?.bio_long || '',
-    hourly_rate_min: core?.hourly_rate_min === '' || core?.hourly_rate_min == null ? '' : String(core.hourly_rate_min),
-    hourly_rate_max: core?.hourly_rate_max === '' || core?.hourly_rate_max == null ? '' : String(core.hourly_rate_max),
-    service_radius_miles: core?.service_radius_miles == null ? '' : String(core.service_radius_miles),
-    service_city: core?.service_city || '',
-    service_state: core?.service_state || '',
-    availability_json: core?.availability_json || {},
-    is_available_now: !!core?.is_available_now,
-  });
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
@@ -40,6 +28,8 @@ export default function EditProfileTab() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [section, setSection] = useState('cover');
 
@@ -93,7 +83,7 @@ export default function EditProfileTab() {
           is_available_now:     !!d.is_available_now,
         };
         setCore(nextCore);
-        coreBaselineRef.current = serializeCore(nextCore);
+        coreBaselineRef.current = serializeHelperCore(nextCore);
         coreSnapRef.current = { ...nextCore, availability_json: { ...nextCore.availability_json } };
         setVisibility({
           show_services: d.show_services !== false,
@@ -112,7 +102,7 @@ export default function EditProfileTab() {
       .finally(() => setLoading(false));
   }, [t]);
 
-  const coreDirty = serializeCore(core) !== coreBaselineRef.current;
+  const coreDirty = isHelperCoreDirty(core, coreBaselineRef.current);
 
   // Leave-guard: warn on tab close / refresh when Basics/Hours core is dirty
   useEffect(() => {
@@ -128,9 +118,7 @@ export default function EditProfileTab() {
   const handleSectionChange = (next) => {
     if (shouldPromptLeaveStickySection(section, next, coreDirty)) {
       const ok = window.confirm(
-        t('profileStudio.unsavedLeave', {
-          defaultValue: 'You have unsaved changes. Leave this section anyway?',
-        }),
+        t('profileStudio.unsavedLeave'),
       );
       if (!ok) return;
     }
@@ -138,19 +126,28 @@ export default function EditProfileTab() {
   };
 
   // ── Core save ───────────────────────────────────────────────────────────────
+  const markSaved = () => {
+    setLastSavedAt(Date.now());
+    setSaveError(null);
+  };
+
   const saveCore = async (e) => {
     e?.preventDefault();
     setSaving(true);
+    setSaveError(null);
     try {
       await api.put('/helper-profile/core', core);
-      coreBaselineRef.current = serializeCore(core);
+      coreBaselineRef.current = serializeHelperCore(core);
       coreSnapRef.current = {
         ...core,
         availability_json: JSON.parse(JSON.stringify(core.availability_json || {})),
       };
+      markSaved();
       toast.success(t('helperDashboard.profileSaved'));
     } catch (err) {
-      toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
+      const msg = err.response?.data?.error || t('helperDashboard.failedSave');
+      setSaveError(msg);
+      toast.error(msg);
     }
     setSaving(false);
   };
@@ -171,11 +168,12 @@ export default function EditProfileTab() {
       const r = await api.post('/helper-profile/services', newSvc);
       setServices(p => [...p, r.data]);
       setNewSvc({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
+      markSaved();
       toast.success(t('helperDashboard.serviceAdded'));
     } catch { toast.error(t('helperDashboard.failedAddService')); }
   };
   const deleteService = async (id) => {
-    try { await api.delete(`/helper-profile/services/${id}`); setServices(p => p.filter(s => s.id !== id)); }
+    try { await api.delete(`/helper-profile/services/${id}`); setServices(p => p.filter(s => s.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
   const beginEditService = (s) => {
@@ -209,6 +207,7 @@ export default function EditProfileTab() {
       });
       setServices(p => p.map(s => (s.id === editingServiceId ? r.data : s)));
       cancelEditService();
+      markSaved();
       toast.success(t('helperDashboard.serviceUpdated'));
     } catch {
       toast.error(t('helperDashboard.failedUpdateService'));
@@ -222,11 +221,12 @@ export default function EditProfileTab() {
       const r = await api.post('/helper-profile/faqs', newFaq);
       setFaqs(p => [...p, r.data]);
       setNewFaq({ question:'', answer:'' });
+      markSaved();
       toast.success(t('helperDashboard.faqAdded'));
     } catch { toast.error(t('helperDashboard.failedAddFaq')); }
   };
   const deleteFaq = async (id) => {
-    try { await api.delete(`/helper-profile/faqs/${id}`); setFaqs(p => p.filter(f => f.id !== id)); }
+    try { await api.delete(`/helper-profile/faqs/${id}`); setFaqs(p => p.filter(f => f.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
   const beginEditFaq = (f) => {
@@ -247,6 +247,7 @@ export default function EditProfileTab() {
       });
       setFaqs(p => p.map(f => (f.id === editingFaqId ? r.data : f)));
       cancelEditFaq();
+      markSaved();
       toast.success(t('helperDashboard.faqUpdated'));
     } catch {
       toast.error(t('helperDashboard.failedUpdateFaq'));
@@ -260,11 +261,12 @@ export default function EditProfileTab() {
       const r = await api.post('/helper-profile/policies', newPol);
       setPolicies(p => [...p, r.data]);
       setNewPol({ title:'', content:'', icon:'calendar-x' });
+      markSaved();
       toast.success(t('helperDashboard.policyAdded'));
     } catch { toast.error(t('helperDashboard.failedAddPolicy')); }
   };
   const deletePolicy = async (id) => {
-    try { await api.delete(`/helper-profile/policies/${id}`); setPolicies(p => p.filter(pol => pol.id !== id)); }
+    try { await api.delete(`/helper-profile/policies/${id}`); setPolicies(p => p.filter(pol => pol.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
   const beginEditPolicy = (pol) => {
@@ -290,6 +292,7 @@ export default function EditProfileTab() {
       });
       setPolicies(p => p.map(pol => (pol.id === editingPolicyId ? r.data : pol)));
       cancelEditPolicy();
+      markSaved();
       toast.success(t('helperDashboard.policyUpdated'));
     } catch {
       toast.error(t('helperDashboard.failedUpdatePolicy'));
@@ -304,12 +307,13 @@ export default function EditProfileTab() {
       const r = await api.post('/helper-profile/gallery', newImg);
       setGallery(p => [...p, r.data]);
       setNewImg({ url:'', caption:'' });
+      markSaved();
       toast.success(t('helperDashboard.photoAdded'));
     } catch { toast.error(t('helperDashboard.failedAddPhoto')); }
     finally { setUploadingImage(false); }
   };
   const deleteImage = async (id) => {
-    try { await api.delete(`/helper-profile/gallery/${id}`); setGallery(p => p.filter(g => g.id !== id)); }
+    try { await api.delete(`/helper-profile/gallery/${id}`); setGallery(p => p.filter(g => g.id !== id)); markSaved(); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
 
@@ -319,6 +323,7 @@ export default function EditProfileTab() {
       const payload = { ...visibility, ...updates };
       await api.put('/helper-profile/visibility', payload);
       setVisibility(payload);
+      markSaved();
       toast.success(t('helperDashboard.visibilitySaved'));
     } catch (err) {
       toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
@@ -389,20 +394,42 @@ export default function EditProfileTab() {
     visibility: t('helperDashboard.visibilityHint'),
   };
 
-  const stickySections = HELPER_STICKY_SECTIONS;
-  const hideSave = !stickySections.has(section);
-  const dirty = stickySections.has(section) ? coreDirty : false;
+  const saveBar = resolveHelperSaveBar({
+    section,
+    coreDirty,
+    saving,
+    error: saveError,
+    lastSavedAt,
+  });
+  const dirty = saveBar.dirty;
+  const showSaveActions = saveBar.showActions;
   const saveLabel = section === 'hours'
     ? (saving ? t('helperDashboard.saving') : t('helperDashboard.saveHours'))
     : (saving ? t('helperDashboard.saving') : t('helperDashboard.saveBasicInfo'));
 
+  let statusMessage = t(saveBar.statusKey);
+  if (saveBar.mode === 'error' && saveBar.error) {
+    statusMessage = saveBar.error;
+  } else if (saveBar.mode === 'auto' && lastSavedAt) {
+    const time = new Date(lastSavedAt).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    statusMessage = t('profileStudio.savedAutomaticallyWithTime', { time });
+  }
+  const statusHint = saveBar.showShortcutHint
+    ? t('profileStudio.saveShortcut')
+    : (lastSavedAt && saveBar.mode === 'auto'
+      ? t('profileStudio.autoSaveHint')
+      : null);
+
   const place = formatHelperPlace(core);
   const rateBits = formatHelperRateBits(core);
   const rateLine = rateBits.length
-    ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – '), defaultValue: `${rateBits.join(' – ')}/hr` })
+    ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – ') })
     : '';
   const radiusLine = core.service_radius_miles
-    ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles, defaultValue: `${core.service_radius_miles} mi radius` })
+    ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles })
     : '';
   const meta = formatHelperPreviewMeta({ place, ratesLine: rateLine, radiusLine });
 
@@ -447,7 +474,7 @@ export default function EditProfileTab() {
       <CoverImageUpload
         embedded
         currentCoverUrl={coverImageUrl}
-        onUploadSuccess={(url) => setCoverImageUrl(url || null)}
+        onUploadSuccess={(url) => { setCoverImageUrl(url || null); markSaved(); }}
         onError={(msg) => {
           const s = typeof msg === 'string' ? msg : String(msg ?? '');
           if (s) toast.error(s);
@@ -817,7 +844,10 @@ export default function EditProfileTab() {
       onSave={() => saveCore()}
       onDiscard={discardCore}
       saveLabel={saveLabel}
-      hideSave={hideSave}
+      hideSave={false}
+      showSaveActions={showSaveActions}
+      statusMessage={statusMessage}
+      statusHint={statusHint}
       preview={preview}
       headerExtra={headerExtra}
       readinessPill={{

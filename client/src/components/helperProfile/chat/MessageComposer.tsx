@@ -122,7 +122,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       className={`${roomy ? 'px-4 py-4' : 'px-3 py-3'} bg-gray-900 border-t border-gray-800 ${
         isDisabled ? 'opacity-60' : ''
       }`}
-      aria-label={t('helperProfile.chat.messageComposer', { defaultValue: 'Message composer' })}
+      aria-label={t('helperProfile.chat.messageComposer')}
     >
       {hint && (
         <div className="mb-2 text-xs text-gray-400 px-0.5" role="status">

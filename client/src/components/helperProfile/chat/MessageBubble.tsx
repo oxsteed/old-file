@@ -260,7 +260,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(t('helperProfile.chat.deleteConfirm', { defaultValue: 'Delete this message?' }))) {
+                      if (window.confirm(t('helperProfile.chat.deleteConfirm'))) {
                         onDelete?.(message.id);
                       }
                     }}

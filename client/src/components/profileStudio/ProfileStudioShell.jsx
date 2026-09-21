@@ -10,7 +10,10 @@ import '../../styles/ProfileStudio.css';
  * - sections: { id, label, complete? }[]
  * - activeSection, onSectionChange
  * - dirty, saving, onSave, onDiscard?, saveLabel?
- * - hideSave?: boolean — list/CRUD sections that save inline
+ * - hideSave?: boolean — hide the entire sticky bar
+ * - showSaveActions?: boolean — when false, bar shows status only (CRUD auto-save)
+ * - statusMessage?: string — override dirty/clean copy
+ * - statusHint?: string | null — override / hide shortcut hint (null hides)
  * - preview: ReactNode (usually ProfilePreviewCard)
  * - headerExtra?: ReactNode
  * - readinessPill?: { label, ready?: boolean }
@@ -30,6 +33,9 @@ export default function ProfileStudioShell({
   onDiscard,
   saveLabel,
   hideSave = false,
+  showSaveActions = true,
+  statusMessage = null,
+  statusHint = undefined,
   preview = null,
   headerExtra = null,
   readinessPill = null,
@@ -42,6 +48,12 @@ export default function ProfileStudioShell({
   const active = sections.find((s) => s.id === activeSection) || sections[0];
   const resolvedSaveLabel = saveLabel
     || (saving ? t('common.saving') : t('common.save'));
+  const resolvedStatus = statusMessage != null
+    ? statusMessage
+    : (dirty ? t('profileStudio.unsaved') : t('profileStudio.savedHint'));
+  const resolvedHint = statusHint === undefined
+    ? t('profileStudio.saveShortcut')
+    : statusHint;
 
   return (
     <div className="ps">
@@ -134,36 +146,38 @@ export default function ProfileStudioShell({
       </div>
 
       {!hideSave ? (
-        <div className="ps-savebar">
+        <div className={`ps-savebar${showSaveActions ? '' : ' status-only'}`}>
           <div className="ps-save-copy">
             <p className={`ps-dirty${dirty ? '' : ' clean'}`} aria-live="polite">
-              {dirty
-                ? t('profileStudio.unsaved')
-                : t('profileStudio.savedHint')}
+              {resolvedStatus}
             </p>
-            <p className="ps-save-hint">{t('profileStudio.saveShortcut')}</p>
+            {resolvedHint ? (
+              <p className="ps-save-hint">{resolvedHint}</p>
+            ) : null}
           </div>
-          <div className="ps-save-actions">
-            {saveExtra}
-            {dirty && onDiscard ? (
+          {showSaveActions ? (
+            <div className="ps-save-actions">
+              {saveExtra}
+              {dirty && onDiscard ? (
+                <button
+                  type="button"
+                  className="ps-btn ghost"
+                  onClick={onDiscard}
+                  disabled={saving}
+                >
+                  {t('profileStudio.discard')}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className="ps-btn ghost"
-                onClick={onDiscard}
-                disabled={saving}
+                className="ps-btn primary"
+                onClick={onSave}
+                disabled={saving || !dirty}
               >
-                {t('profileStudio.discard')}
+                {resolvedSaveLabel}
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="ps-btn primary"
-              onClick={onSave}
-              disabled={saving || !dirty}
-            >
-              {resolvedSaveLabel}
-            </button>
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

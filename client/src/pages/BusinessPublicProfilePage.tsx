@@ -3,10 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
-import { Star, MapPin, Phone, Mail, Users } from 'lucide-react';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import PublicProfileSummaryCard from '../components/publicProfile/PublicProfileSummaryCard';
+import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
 import './BusinessPublicProfilePage.css';
 
 /**
@@ -88,58 +89,34 @@ export default function BusinessPublicProfilePage() {
       {/* Main Profile Content */}
       <div className="profile-container">
         <div className="profile-main">
-          {/* Business Info */}
-          <div className="profile-card">
-            <div className="business-header">
-              <img
-                src={business.profilePhotoUrl}
-                alt={business.name || business.business_name}
-                className="business-logo"
-              />
-              <div className="business-info">
-                <h1>{business.name || business.business_name}</h1>
-                <div className="business-rating">
-                  <Star size={18} fill="gold" color="gold" />
-                  <span>{business.rating} ({t('businessPublicProfile.reviewCount', { count: business.reviewCount })})</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="business-description">{business.description}</p>
-
-            {/* Contact Info */}
-            <div className="contact-info">
-              {business.location && (
-                <div className="contact-item">
-                  <MapPin size={18} />
-                  <span>{business.location}</span>
-                </div>
-              )}
-              {business.phone && (
-                <div className="contact-item">
-                  <Phone size={18} />
-                  <span>{business.phone}</span>
-                </div>
-              )}
-              {business.email && (
-                <div className="contact-item">
-                  <Mail size={18} />
-                  <span>{business.email}</span>
-                </div>
-              )}
-              {business.teamSize && (
-                <div className="contact-item">
-                  <Users size={18} />
-                  <span>{t('businessPublicProfile.teamMembers', { count: business.teamSize })}</span>
-                </div>
-              )}
-            </div>
-
-            {/* CTA Button */}
-            <button className="cta-button" onClick={() => navigate(`/book/business/${businessId}`)}>
-              {t('businessProfile.contactBusiness')}
-            </button>
-          </div>
+          {/* Business Info — shared summary with Profile Studio preview */}
+          <PublicProfileSummaryCard
+            {...buildPublicProfileSummaryModel({
+              variant: 'business',
+              cover: null,
+              avatar: business.profilePhotoUrl,
+              name: business.name || business.business_name || '',
+              tagline: business.headline || business.profile_headline || '',
+              meta: business.location || '',
+              contact: [
+                business.phone,
+                business.email,
+                business.teamSize
+                  ? t('businessPublicProfile.teamMembers', { count: business.teamSize })
+                  : '',
+              ].filter(Boolean).join(' · '),
+              about: business.description || '',
+              ratingLabel: business.rating != null
+                ? `${business.rating} (${t('businessPublicProfile.reviewCount', { count: business.reviewCount })})`
+                : '',
+            })}
+            surface="public"
+            footer={(
+              <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
+                {t('businessProfile.contactBusiness')}
+              </button>
+            )}
+          />
 
           {/* Services */}
           <div className="profile-card">

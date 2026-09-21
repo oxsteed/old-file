@@ -2203,6 +2203,7 @@
     "guestComposerHint": "Lè ou voye a, li gen non ak imèl ou ki sove.",
     "guestDeliveredDetail": "Delivre bay asistan an - li ka reponn pa imèl oswa nan bwat OxSteed li.",
     "guestDeliveredToast": "Mesaj delivre bay asistan an",
+    "guestClaimedToast": "Demann envite w la kounye a nan bwat resepsyon w.",
     "aiBookingRequested": "Demann randevou voye bay founisè a",
     "aiBookingRequestedToast": "Demann randevou voye",
     "aiBookingConflict": "Lè sa a pa disponib ankò. Eseye yon lòt lè.",
@@ -5971,6 +5972,9 @@
       "responseFromHelper": "Repons bò kote èd la",
       "verifiedPurchase": "Achat verifye",
       "showFewer": "Montre mwens"
+    ,
+      "noVerifiedYet": "Poko gen kòmantè verifye",
+      "noVerifiedYetSub": "Kòmantè yo parèt apre travay OxSteed fini, kidonk nouvo aidè yo kòmanse san nòt jiskaske kliyan yo gen travay reyèl pou evalye."
     },
     "services": {
       "quote": "Devis",
@@ -6004,7 +6008,10 @@
       "cannotSaveSelf": "Ou pa ka anrejistre pwòp pwofil ou.",
       "removedSavedHelper": "Yo retire {{name}} nan èdè ou te anrejistre yo.",
       "addedSavedHelper": "Yo ajoute {{name}} nan èdè ou te anrejistre yo.",
-      "saveHelperFailed": "Nou pa t kapab mete èdè ou te anrejistre yo ajou."
+      "saveHelperFailed": "Nou pa t kapab mete èdè ou te anrejistre yo ajou.",
+      "saveHelper": "Sove",
+      "savedHelper": "Sove deja",
+      "noReviewsYet": "Pa gen evalyasyon ankò"
     },
     "share": {
       "copyLink": "Kopi lyen",
@@ -6036,6 +6043,10 @@
       "trustSignalsAria": "Siyal konfyans",
       "showDetails": "Afiche detay yo",
       "hideDetails": "Kache detay yo"
+    ,
+      "contactForPricing": "Sitasyon",
+      "startingAtPrice": "Depi {{amount}}",
+      "flatRate": "fiks"
     },
     "trust": {
       "trustSignalsAria": "Konfyans ak Fyabilite",
@@ -15604,6 +15615,11 @@
     "jumpToSection": "Ale nan {{section}}",
     "ratesMeta": "{{rates}}/èdtan",
     "radiusMeta": "Reyon {{miles}} mi",
-    "unsavedLeave": "Ou gen chanjman ki pa anrejistre. Kite seksyon sa a kanmenm?"
+    "unsavedLeave": "Ou gen chanjman ki pa anrejistre. Kite seksyon sa a kanmenm?",
+    "savedAutomatically": "Sove otomatikman",
+    "savedAutomaticallyWithTime": "Sove otomatikman · {{time}}",
+    "autoSaveHint": "Chanjman nan seksyon sa a sove lè ou ajoute, modifye, oswa retire atik.",
+    "savingStatus": "Ap sove…",
+    "saveError": "Pa t kapab sove. Eseye ankò."
   }
 }

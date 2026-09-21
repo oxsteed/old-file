@@ -104,3 +104,25 @@ Helper APIs stay split per area. The sticky bar triggers the **active section’
 - Preview: form + always-on live public preview.
 - Approach A: shared Profile Studio shell.
 - Layout, section maps, and polish approved by Emile.
+
+## Follow-ups (2026-09-21)
+
+### Shared public preview
+Studio preview, compact public pages (`/helpers/public/:id`, `/businesses/public/:id`), and full guarded profiles (`/helpers/:id`, `/business/:id`) share `PublicProfileSummaryCard` + `buildPublicProfileSummaryModel` / `buildFullProfileHeaderSummaryModel`. Full pages compose the card through `PublicProfileHero` (identity band) while keeping page-only chrome (CTA, QR, share, badges, stats, section tabs) as slots/children around it. `BusinessHeader` is the thin adapter that maps `HelperProfile` → summary model + those slots.
+
+### Helper save → draft-friendly status
+Sticky bar uses a single client save-status model (`createHelperSaveStatus` / `resolveHelperSaveBar` / `serializeHelperCore` in `profileStudio.js`): real dirty/save for Basics+Hours; Cover and list CRUD sections keep the bar visible with “Saved automatically” (no fake sticky Save). **No whole-profile draft API exists on the server today** (searched helper/business profile routes — only unrelated quote/product draft/publish). Keep the client seam; do not invent a fake draft API.
+
+### Whole-profile draft + publish (intended contract)
+When we add a real backend, prefer one draft document per helper (and later business) rather than inventing parallel client stores:
+
+| Concern | Shape |
+|---|---|
+| Draft resource | `GET/PUT /api/helpers/me/profile/draft` — full editable snapshot (basics, hours, services, faqs, policies, gallery refs, visibility, cover) |
+| Publish | `POST /api/helpers/me/profile/publish` — validates completeness, copies draft → live public profile, returns `{ publishedAt, publicPath }` |
+| Status | `GET /api/helpers/me/profile/status` — `{ hasDraft, draftUpdatedAt, publishedAt, dirtySections[] }` |
+| Migration | Today’s per-section saves become “write through to draft”; publish is explicit. Until then, `createHelperSaveStatus` mirrors dirty/saving/lastSavedAt only in memory |
+| Client seam | `createHelperSaveStatus` + `resolveHelperSaveBar` stay the sticky-bar API; wire `lastSavedAt` / dirty flags from draft status when the endpoints land |
+
+Business Hub can follow the same pattern later (`/api/businesses/:id/profile/draft` + publish) once Helper proves the flow.
+

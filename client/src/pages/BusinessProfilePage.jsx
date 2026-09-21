@@ -994,7 +994,7 @@ export default function BusinessProfilePage() {
       />
       <Navbar />
 
-      {/* Business hero header - identical component to helper profile */}
+      {/* Business hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
       <BusinessHeader
         helperId={helper.id}
         helper={helper}

@@ -2118,6 +2118,7 @@
     "guestComposerHint": "Sending includes your saved name and email for the helper.",
     "guestDeliveredDetail": "Delivered to the helper - they can reply by email or from their OxSteed inbox.",
     "guestDeliveredToast": "Message delivered to the helper",
+    "guestClaimedToast": "Your guest inquiry is now in your inbox.",
     "aiBookingRequested": "Appointment request sent to the provider",
     "aiBookingRequestedToast": "Appointment request sent",
     "aiBookingConflict": "That time is no longer available. Try another time.",
@@ -5836,6 +5837,9 @@
       "showFewer": "Show fewer",
       "showAll": "Show all {{count}} reviews",
       "ratingDistribution": "Rating distribution"
+    ,
+      "noVerifiedYet": "No verified reviews yet",
+      "noVerifiedYetSub": "Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate."
     },
     "services": {
       "title": "Services & Pricing",
@@ -5869,7 +5873,10 @@
       "cannotSaveSelf": "You cannot save your own profile.",
       "removedSavedHelper": "{{name}} removed from saved helpers.",
       "addedSavedHelper": "{{name}} added to saved helpers.",
-      "saveHelperFailed": "Could not update saved helpers."
+      "saveHelperFailed": "Could not update saved helpers.",
+      "saveHelper": "Save",
+      "savedHelper": "Saved",
+      "noReviewsYet": "No reviews yet"
     },
     "share": {
       "copyLink": "Copy link",
@@ -5901,6 +5908,10 @@
       "trustSignalsAria": "Trust signals",
       "showDetails": "Show details",
       "hideDetails": "Hide details"
+    ,
+      "contactForPricing": "Quote",
+      "startingAtPrice": "From {{amount}}",
+      "flatRate": "flat"
     },
     "trust": {
       "trustSignalsAria": "Trust & Reliability",
@@ -15286,6 +15297,11 @@
     "jumpToSection": "Go to {{section}}",
     "ratesMeta": "{{rates}}/hr",
     "radiusMeta": "{{miles}} mi radius",
-    "unsavedLeave": "You have unsaved changes. Leave this section anyway?"
+    "unsavedLeave": "You have unsaved changes. Leave this section anyway?",
+    "savedAutomatically": "Saved automatically",
+    "savedAutomaticallyWithTime": "Saved automatically · {{time}}",
+    "autoSaveHint": "Changes in this section save when you add, edit, or remove items.",
+    "savingStatus": "Saving…",
+    "saveError": "Couldn’t save. Try again."
   }
 }

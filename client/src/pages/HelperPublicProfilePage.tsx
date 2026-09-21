@@ -3,10 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
-import { Star, MapPin } from 'lucide-react';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import PublicProfileSummaryCard from '../components/publicProfile/PublicProfileSummaryCard';
+import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
 import './HelperPublicProfilePage.css';
 
 /**
@@ -87,40 +88,30 @@ export default function HelperPublicProfilePage() {
       {/* Main Profile Content */}
       <div className="profile-container">
         <div className="profile-main">
-          {/* Helper Info */}
-          <div className="profile-card">
-            <div className="helper-header">
-              <img
-                src={profilePhoto}
-                alt={displayName}
-                className="helper-avatar"
-              />
-              <div className="helper-info">
-                <h1>{displayName}</h1>
-                <div className="helper-rating">
-                  <Star size={18} fill="gold" color="gold" />
-                  <span>{helper.rating} ({t('publicProfile.reviewCount', { count: helper.reviewCount })})</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="helper-bio">{helper.bio}</p>
-
-            {/* Contact Info */}
-            <div className="contact-info">
-              {location && (
-                <div className="contact-item">
-                  <MapPin size={18} />
-                  <span>{location}</span>
-                </div>
-              )}
-            </div>
-
-            {/* CTA Button */}
-            <button className="cta-button" onClick={() => navigate(`/book/${helperId}`)}>
-              {t('booking.bookNow')}
-            </button>
-          </div>
+          {/* Helper Info — shared summary with Profile Studio preview */}
+          <PublicProfileSummaryCard
+            {...buildPublicProfileSummaryModel({
+              variant: 'helper',
+              cover: null,
+              avatar: profilePhoto,
+              name: displayName,
+              tagline: helper.tagline || '',
+              meta: location,
+              about: helper.bio || '',
+              availableNow: isAvailable,
+              ratingLabel: helper.rating != null
+                ? `${helper.rating} (${t('publicProfile.reviewCount', { count: helper.reviewCount })})`
+                : '',
+            })}
+            surface="public"
+            availableNowLabel={t('helpersDir.available')}
+            notAvailableNowLabel={t('common.unavailable')}
+            footer={(
+              <button className="cta-button" type="button" onClick={() => navigate(`/book/${helperId}`)}>
+                {t('booking.bookNow')}
+              </button>
+            )}
+          />
 
           {/* Services */}
           <div className="profile-card">

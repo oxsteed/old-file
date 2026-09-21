@@ -182,7 +182,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       return;
     }
     if (String(user.id) === String(id)) {
-      toast.error(t('helperProfile.header.cannotSaveSelf', { defaultValue: 'You cannot save your own profile' }));
+      toast.error(t('helperProfile.header.cannotSaveSelf'));
       return;
     }
     setSavingHelper(true);
@@ -190,16 +190,16 @@ const HelperBusinessProfilePage: React.FC = () => {
       if (savedHelperId) {
         await api.delete(`/life/saved-helpers/${savedHelperId}`);
         setSavedHelperId(null);
-        toast.success(t('helperProfile.header.removedSavedHelper', { defaultValue: 'Removed from saved helpers' }));
+        toast.success(t('helperProfile.header.removedSavedHelper', { name: data?.helper?.businessName || data?.helper?.ownerName || '' }));
       } else {
         const { data: saved } = await api.post('/life/saved-helpers', {
           helper_id: id,
         });
         setSavedHelperId(saved.id);
-        toast.success(t('helperProfile.header.addedSavedHelper', { defaultValue: 'Saved helper' }));
+        toast.success(t('helperProfile.header.addedSavedHelper', { name: data?.helper?.businessName || data?.helper?.ownerName || '' }));
       }
     } catch {
-      toast.error(t('helperProfile.header.saveHelperFailed', { defaultValue: 'Could not update saved helper' }));
+      toast.error(t('helperProfile.header.saveHelperFailed'));
     } finally {
       setSavingHelper(false);
     }
@@ -324,7 +324,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       />
       <Navbar />
 
-      {/* Business hero header */}
+      {/* Helper hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
       <BusinessHeader
         helperId={id}
         helper={helper}
@@ -370,7 +370,7 @@ const HelperBusinessProfilePage: React.FC = () => {
               >
                 <h2 id="skill-badges-heading" className="text-base font-semibold text-white mb-3 flex items-center gap-2">
                   <GraduationCap size={16} className="text-orange-500" />
-                  {t('helperProfile.skillBadges', { defaultValue: 'Learn certifications' })}
+                  {t('helperProfile.skillBadges')}
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {helper.skillBadges.map((b: { id: string; label: string; category: string }) => (

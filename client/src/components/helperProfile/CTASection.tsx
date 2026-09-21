@@ -19,22 +19,22 @@ interface CTASectionProps {
 
 function formatPrice(t: (key: string, options?: any) => string, service?: Service): string {
   if (!service || !Number.isFinite(service.price) || service.price <= 0) {
-    return t('helperProfile.cta.contactForPricing', { defaultValue: 'Quote' });
+    return t('helperProfile.cta.contactForPricing');
   }
   const amount = `$${service.price.toFixed(0)}`;
   if (service.priceUnit === 'flat') return amount;
   if (service.priceUnit === 'starting_at') {
-    return t('helperProfile.cta.startingAtPrice', { amount, defaultValue: `From ${amount}` });
+    return t('helperProfile.cta.startingAtPrice', { amount });
   }
   if (service.priceUnit === 'quote') {
-    return t('helperProfile.cta.contactForPricing', { defaultValue: 'Quote' });
+    return t('helperProfile.cta.contactForPricing');
   }
   return amount;
 }
 
 function formatPriceUnit(t: (key: string, options?: any) => string, service?: Service): string {
   if (!service || !Number.isFinite(service.price) || service.price <= 0 || service.priceUnit === 'quote') return '';
-  if (service.priceUnit === 'flat') return t('helperProfile.cta.flatRate', { defaultValue: 'flat' });
+  if (service.priceUnit === 'flat') return t('helperProfile.cta.flatRate');
   if (service.priceUnit === 'starting_at') return '';
   return t('helperProfile.cta.perHour');
 }

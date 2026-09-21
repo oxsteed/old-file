@@ -225,6 +225,15 @@
   border: 1px solid #1f2937;
 }
 
+
+.ps-savebar.status-only {
+  justify-content: flex-start;
+}
+
+.ps-savebar.status-only .ps-save-copy {
+  flex: 1;
+}
+
 .ps-save-copy {
   min-width: 0;
 }
@@ -316,6 +325,25 @@
 }
 
 /* Preview card */
+
+/* Studio preview chrome around shared PublicProfileSummaryCard */
+.ppc-wrap {
+  position: relative;
+}
+
+.ppc-studio-chrome {
+  position: absolute;
+  top: 0.65rem;
+  inset-inline-start: 0.65rem;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ppc-wrap .ppc-kicker {
+  position: static;
+  pointer-events: auto;
+}
+
 .ppc {
   background: #111827;
   border: 1px solid #1f2937;

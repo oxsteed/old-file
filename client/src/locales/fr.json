@@ -2118,6 +2118,7 @@
     "guestComposerHint": "L’envoi inclut votre nom et votre e-mail enregistrés.",
     "guestDeliveredDetail": "Remis à l’assistant - il peut répondre par e-mail ou depuis sa boîte OxSteed.",
     "guestDeliveredToast": "Message remis à l’assistant",
+    "guestClaimedToast": "Votre demande d’invité est maintenant dans votre boîte de réception.",
     "aiBookingRequested": "Demande de rendez-vous envoyée au prestataire",
     "aiBookingRequestedToast": "Demande de rendez-vous envoyée",
     "aiBookingConflict": "Ce créneau n’est plus disponible. Essayez un autre horaire.",
@@ -5971,6 +5972,9 @@
       "responseFromHelper": "Réponse de l'aidant",
       "verifiedPurchase": "Achat vérifié",
       "showFewer": "Afficher moins"
+    ,
+      "noVerifiedYet": "Aucun avis vérifié pour le moment",
+      "noVerifiedYetSub": "Les avis apparaissent après des missions OxSteed terminées, donc les nouveaux aidants démarrent sans note tant que les clients n'ont pas de travail réel à évaluer."
     },
     "services": {
       "quote": "Sur devis",
@@ -6004,7 +6008,10 @@
       "cannotSaveSelf": "Vous ne pouvez pas enregistrer votre propre profil.",
       "removedSavedHelper": "{{name}} a été retiré de vos prestataires enregistrés.",
       "addedSavedHelper": "{{name}} a été ajouté à vos prestataires enregistrés.",
-      "saveHelperFailed": "Impossible de mettre à jour les prestataires enregistrés."
+      "saveHelperFailed": "Impossible de mettre à jour les prestataires enregistrés.",
+      "saveHelper": "Enregistrer",
+      "savedHelper": "Enregistré",
+      "noReviewsYet": "Aucun avis encore"
     },
     "share": {
       "copyLink": "Copier le lien",
@@ -6036,6 +6043,10 @@
       "trustSignalsAria": "Signaux de confiance",
       "showDetails": "Afficher les détails",
       "hideDetails": "Masquer les détails"
+    ,
+      "contactForPricing": "Devis",
+      "startingAtPrice": "À partir de {{amount}}",
+      "flatRate": "forfait"
     },
     "trust": {
       "trustSignalsAria": "Confiance et Fiabilité",
@@ -15604,6 +15615,11 @@
     "jumpToSection": "Aller à {{section}}",
     "ratesMeta": "{{rates}}/h",
     "radiusMeta": "Rayon de {{miles}} mi",
-    "unsavedLeave": "Vous avez des modifications non enregistrées. Quitter cette section quand même ?"
+    "unsavedLeave": "Vous avez des modifications non enregistrées. Quitter cette section quand même ?",
+    "savedAutomatically": "Enregistré automatiquement",
+    "savedAutomaticallyWithTime": "Enregistré automatiquement · {{time}}",
+    "autoSaveHint": "Les modifications de cette section sont enregistrées lorsque vous ajoutez, modifiez ou supprimez des éléments.",
+    "savingStatus": "Enregistrement…",
+    "saveError": "Échec de l’enregistrement. Réessayez."
   }
 }

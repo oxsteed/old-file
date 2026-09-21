@@ -2118,6 +2118,7 @@
     "guestComposerHint": "Al enviar se incluyen tu nombre y correo guardados.",
     "guestDeliveredDetail": "Entregado al ayudante - puede responder por correo o desde su bandeja OxSteed.",
     "guestDeliveredToast": "Mensaje entregado al ayudante",
+    "guestClaimedToast": "Tu consulta de invitado ahora está en tu bandeja de entrada.",
     "aiBookingRequested": "Solicitud de cita enviada al proveedor",
     "aiBookingRequestedToast": "Solicitud de cita enviada",
     "aiBookingConflict": "Ese horario ya no está disponible. Prueba otro horario.",
@@ -5971,6 +5972,9 @@
       "responseFromHelper": "Respuesta del ayudante",
       "verifiedPurchase": "Compra verificada",
       "showFewer": "Mostrar menos"
+    ,
+      "noVerifiedYet": "Aún no hay reseñas verificadas",
+      "noVerifiedYetSub": "Las reseñas aparecen después de trabajos completados en OxSteed, así que los ayudantes nuevos empiezan sin calificación hasta que los clientes tengan trabajo real que evaluar."
     },
     "services": {
       "quote": "Cotización",
@@ -6004,7 +6008,10 @@
       "cannotSaveSelf": "No puedes guardar tu propio perfil.",
       "removedSavedHelper": "Se eliminó a {{name}} de tus ayudantes guardados.",
       "addedSavedHelper": "Se agregó a {{name}} a tus ayudantes guardados.",
-      "saveHelperFailed": "No se pudieron actualizar los ayudantes guardados."
+      "saveHelperFailed": "No se pudieron actualizar los ayudantes guardados.",
+      "saveHelper": "Guardar",
+      "savedHelper": "Guardado",
+      "noReviewsYet": "Sin reseñas aún"
     },
     "share": {
       "copyLink": "Copiar enlace",
@@ -6036,6 +6043,10 @@
       "trustSignalsAria": "Señales de confianza",
       "showDetails": "Mostrar detalles",
       "hideDetails": "Ocultar detalles"
+    ,
+      "contactForPricing": "Presupuesto",
+      "startingAtPrice": "Desde {{amount}}",
+      "flatRate": "fijo"
     },
     "trust": {
       "trustSignalsAria": "Confianza y Fiabilidad",
@@ -15604,6 +15615,11 @@
     "jumpToSection": "Ir a {{section}}",
     "ratesMeta": "{{rates}}/h",
     "radiusMeta": "Radio de {{miles}} mi",
-    "unsavedLeave": "Tienes cambios sin guardar. ¿Salir de esta sección de todos modos?"
+    "unsavedLeave": "Tienes cambios sin guardar. ¿Salir de esta sección de todos modos?",
+    "savedAutomatically": "Guardado automáticamente",
+    "savedAutomaticallyWithTime": "Guardado automáticamente · {{time}}",
+    "autoSaveHint": "Los cambios de esta sección se guardan al agregar, editar o eliminar elementos.",
+    "savingStatus": "Guardando…",
+    "saveError": "No se pudo guardar. Inténtalo de nuevo."
   }
 }
