@@ -64,11 +64,6 @@ function mapGuestInquiryRow(r) {
 const getGuestInquiries = async (req, res) => {
   try {
     const userId = req.user.id;
-    const role = req.user.role;
-    if (!['helper', 'helper_pro', 'broker'].includes(role)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
     const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
 
     let result;
@@ -121,11 +116,6 @@ const getGuestInquiries = async (req, res) => {
 const getGuestInquiryById = async (req, res) => {
   try {
     const userId = req.user.id;
-    const role = req.user.role;
-    if (!['helper', 'helper_pro', 'broker'].includes(role)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
     const inquiryId = req.params.id;
     if (!inquiryId || typeof inquiryId !== 'string') {
       return res.status(400).json({ error: 'Invalid inquiry id' });

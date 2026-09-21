@@ -15,25 +15,29 @@ import {
   UserRoundCheck,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
 import PageShell from '../PageShell';
 import PageMeta from '../PageMeta';
 import { formatInboxTime } from '../../utils/inboxTimeFormat';
 import { parseConversationStartParams, conversationStartRequestBody } from '../../utils/conversationStart';
+import {
+  isGuestConversation,
+  conversationSide,
+  conversationMatchesSide,
+  hasHelperInboxWork,
+} from '../../utils/inboxRole';
 import ConversationThread from './ConversationThread';
 import GuestInquiryPanel from './GuestInquiryPanel';
 import '../../pages/MessagesPage.css';
 
-function isGuestConversation(conv) {
-  return Boolean(conv?.is_guest_inquiry || String(conv?.id || '').startsWith('guest-'));
-}
-
-export default function MessagingWorkspace({ role = 'customer' }) {
+export default function MessagingWorkspace({ role = 'auto' }) {
   const { t } = useTranslation();
-  const isHelper = role === 'helper';
-  const basePath = isHelper ? '/helper/messages' : '/messages';
-  const { conversationId, inquiryId } = useParams();
+  const { user, isHelper: accountIsHelper } = useAuth();
   const location = useLocation();
+  const helperRoute = location.pathname.startsWith('/helper/messages') || role === 'helper';
+  const basePath = helperRoute ? '/helper/messages' : '/messages';
+  const { conversationId, inquiryId } = useParams();
   const navigate = useNavigate();
   const { socket } = useSocket();
 
@@ -41,6 +45,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [sideFilter, setSideFilter] = useState('all');
   const [newInbound, setNewInbound] = useState(new Set());
   const [businessFilter, setBusinessFilter] = useState('all');
   const [managedBusinesses, setManagedBusinesses] = useState([]);
@@ -51,9 +56,11 @@ export default function MessagingWorkspace({ role = 'customer' }) {
     : null);
   const selectedId = selectedGuestId ? `guest-${selectedGuestId}` : conversationId || null;
   const hasThread = Boolean(conversationId || inquiryId);
+  const userId = user?.id || null;
+  const showHelperInbox = hasHelperInboxWork(userId, conversations, accountIsHelper || helperRoute);
+  const dualRole = showHelperInbox && conversations.some((conv) => conversationSide(userId, conv) === 'customer');
 
   useEffect(() => {
-    if (!isHelper) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -77,34 +84,29 @@ export default function MessagingWorkspace({ role = 'customer' }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [isHelper]);
+  }, []);
 
   const fetchConversations = useCallback(async () => {
     try {
-      const params = isHelper && businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
-      if (isHelper) {
-        const [convRes, guestRes] = await Promise.all([
-          api.get(`/messages/conversations${params}`),
-          api.get(`/messages/guest-inquiries${params}`).catch(() => ({ data: [] })),
-        ]);
-        const convList = Array.isArray(convRes.data) ? convRes.data : [];
-        const guestList = Array.isArray(guestRes.data) ? guestRes.data : [];
-        const merged = [...guestList, ...convList].sort((a, b) => {
-          const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
-          const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
-          return tb - ta;
-        });
-        setConversations(merged);
-      } else {
-        const res = await api.get('/messages/conversations');
-        setConversations(Array.isArray(res.data) ? res.data : []);
-      }
+      const params = businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
+      const [convRes, guestRes] = await Promise.all([
+        api.get(`/messages/conversations${params}`),
+        api.get(`/messages/guest-inquiries${params}`).catch(() => ({ data: [] })),
+      ]);
+      const convList = Array.isArray(convRes.data) ? convRes.data : [];
+      const guestList = Array.isArray(guestRes.data) ? guestRes.data : [];
+      const merged = [...guestList, ...convList].sort((a, b) => {
+        const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
+        const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
+        return tb - ta;
+      });
+      setConversations(merged);
     } catch (err) {
       console.error('Failed to load conversations:', err);
     } finally {
       setLoading(false);
     }
-  }, [isHelper, businessFilter]);
+  }, [businessFilter]);
 
   useEffect(() => {
     setLoading(true);
@@ -134,15 +136,14 @@ export default function MessagingWorkspace({ role = 'customer' }) {
       if (payload?.conversationId) bumpConv(payload.conversationId);
     };
     socket.on('message:new', handleMessageNew);
-    if (isHelper) socket.on('profile_chat:new_message', handleProfileChat);
+    socket.on('profile_chat:new_message', handleProfileChat);
     return () => {
       socket.off('message:new', handleMessageNew);
       socket.off('profile_chat:new_message', handleProfileChat);
     };
-  }, [socket, fetchConversations, isHelper]);
+  }, [socket, fetchConversations]);
 
   useEffect(() => {
-    if (isHelper) return undefined;
     const start = parseConversationStartParams(location.search);
     const body = conversationStartRequestBody(start);
     if (!body) return undefined;
@@ -161,7 +162,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
         if (!cancelled) setStarting(false);
       });
     return () => { cancelled = true; };
-  }, [location.search, isHelper, basePath, navigate, t]);
+  }, [location.search, basePath, navigate, t]);
 
   const unreadCount = useMemo(
     () => conversations.reduce((sum, conv) => sum + (parseInt(conv.unread_count, 10) || 0), 0) + newInbound.size,
@@ -178,6 +179,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
     return conversations.filter((conv) => {
       const unread = parseInt(conv.unread_count, 10) > 0 || newInbound.has(String(conv.id));
       if (filter === 'unread' && !unread) return false;
+      if (!conversationMatchesSide(userId, conv, sideFilter)) return false;
       if (!q) return true;
       return [
         conv.other_user_name,
@@ -188,7 +190,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
         conv.guest_email,
       ].filter(Boolean).join(' ').toLowerCase().includes(q);
     });
-  }, [conversations, query, filter, newInbound]);
+  }, [conversations, query, filter, sideFilter, newInbound, userId]);
 
   const handleOpen = (conv) => {
     const convId = conv.id;
@@ -210,28 +212,30 @@ export default function MessagingWorkspace({ role = 'customer' }) {
           })
         );
       } catch {}
-      navigate(`${basePath}/guest/${uuid}`);
+      navigate(`/helper/messages/guest/${uuid}`);
       return;
     }
     navigate(`${basePath}/${convId}`);
   };
 
   const closeThread = () => navigate(basePath);
+  const selectedConversation = conversations.find((conv) => String(conv.id) === String(selectedId));
+  const threadRole = conversationSide(userId, selectedConversation);
 
   return (
     <PageShell hideFooter>
       <PageMeta
-        title={isHelper ? t('messages.helperMetaTitle') : t('messages.title')}
-        description={isHelper ? t('messages.helperMetaDesc') : t('messages.metaDesc')}
+        title={dualRole ? t('messages.unifiedMetaTitle') : showHelperInbox ? t('messages.helperMetaTitle') : t('messages.title')}
+        description={dualRole ? t('messages.unifiedMetaDesc') : showHelperInbox ? t('messages.helperMetaDesc') : t('messages.metaDesc')}
         noIndex
       />
       <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}`}>
         <header className="messages-hero compact">
           <div>
             <p className="messages-kicker">
-              {isHelper ? t('messages.helperKicker') : t('messages.kicker')}
+              {dualRole ? t('messages.unifiedKicker') : showHelperInbox ? t('messages.helperKicker') : t('messages.kicker')}
             </p>
-            <h1>{isHelper ? t('messages.helperTitle') : t('messages.title')}</h1>
+            <h1>{dualRole ? t('messages.unifiedTitle') : showHelperInbox ? t('messages.helperTitle') : t('messages.title')}</h1>
           </div>
           <div className="messages-hero-stats">
             <div>
@@ -240,9 +244,9 @@ export default function MessagingWorkspace({ role = 'customer' }) {
             </div>
             <div>
               <span>{unreadCount}</span>
-              <small>{isHelper ? t('messages.stats.needsReply') : t('messages.stats.unread')}</small>
+              <small>{showHelperInbox ? t('messages.stats.needsReply') : t('messages.stats.unread')}</small>
             </div>
-            {isHelper && (
+            {showHelperInbox && (
               <div>
                 <span>{guestCount}</span>
                 <small>{t('messages.stats.guestLeads')}</small>
@@ -258,7 +262,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={isHelper ? t('messages.helperSearchPlaceholder') : t('messages.searchPlaceholder')}
+              placeholder={showHelperInbox ? t('messages.helperSearchPlaceholder') : t('messages.searchPlaceholder')}
             />
           </label>
           <div className="messages-filter" role="group" aria-label={t('messages.filterAriaLabel')}>
@@ -278,7 +282,20 @@ export default function MessagingWorkspace({ role = 'customer' }) {
               {unreadCount > 0 && <em>{unreadCount}</em>}
             </button>
           </div>
-          {isHelper && managedBusinesses.length > 0 && (
+          {dualRole && (
+            <div className="messages-filter" role="group" aria-label={t('messages.sideFilterAriaLabel')}>
+              <button type="button" className={sideFilter === 'all' ? 'active' : ''} onClick={() => setSideFilter('all')}>
+                {t('messages.sideAll')}
+              </button>
+              <button type="button" className={sideFilter === 'helper' ? 'active' : ''} onClick={() => setSideFilter('helper')}>
+                {t('messages.sideHelper')}
+              </button>
+              <button type="button" className={sideFilter === 'customer' ? 'active' : ''} onClick={() => setSideFilter('customer')}>
+                {t('messages.sideCustomer')}
+              </button>
+            </div>
+          )}
+          {managedBusinesses.length > 0 && (
             <select
               value={businessFilter}
               onChange={(e) => {
@@ -294,20 +311,13 @@ export default function MessagingWorkspace({ role = 'customer' }) {
             </select>
           )}
           <div className="messages-actions">
-            {isHelper ? (
-              <>
-                <button type="button" onClick={fetchConversations} disabled={loading}>
-                  <RefreshCw size={15} />
-                  {t('messages.refresh')}
-                </button>
-                <Link to="/dashboard/edit-profile">{t('messages.improveProfile')}</Link>
-              </>
-            ) : (
-              <>
-                <Link to="/helpers">{t('messages.findHelpers')}</Link>
-                <Link to="/post-job">{t('messages.postJob')}</Link>
-              </>
-            )}
+            <button type="button" onClick={fetchConversations} disabled={loading}>
+              <RefreshCw size={15} />
+              {t('messages.refresh')}
+            </button>
+            {showHelperInbox && <Link to="/dashboard/edit-profile">{t('messages.improveProfile')}</Link>}
+            <Link to="/helpers">{t('messages.findHelpers')}</Link>
+            <Link to="/post-job">{t('messages.postJob')}</Link>
           </div>
         </section>
 
@@ -319,19 +329,19 @@ export default function MessagingWorkspace({ role = 'customer' }) {
                 <p>{starting ? t('messages.startingConversation') : t('common.loading')}</p>
               </div>
             ) : conversations.length === 0 ? (
-              isHelper ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
+              showHelperInbox ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
             ) : filteredConversations.length === 0 ? (
               <div className="messages-empty compact">
                 <MessageSquare size={30} />
                 <h2>
                   {filter === 'unread'
                     ? t('messages.filteredUnreadEmpty.title')
-                    : t(isHelper ? 'messages.helperFilteredEmpty.title' : 'messages.filteredEmpty.title')}
+                    : t(showHelperInbox ? 'messages.helperFilteredEmpty.title' : 'messages.filteredEmpty.title')}
                 </h2>
                 <p>
                   {filter === 'unread'
                     ? t('messages.filteredUnreadEmpty.text')
-                    : t(isHelper ? 'messages.helperFilteredEmpty.text' : 'messages.filteredEmpty.text')}
+                    : t(showHelperInbox ? 'messages.helperFilteredEmpty.text' : 'messages.filteredEmpty.text')}
                 </p>
               </div>
             ) : (
@@ -342,6 +352,8 @@ export default function MessagingWorkspace({ role = 'customer' }) {
                   const badge = isNew && !parseInt(conv.unread_count, 10) ? t('messages.newBadge') : conv.unread_count;
                   const isGuestRow = isGuestConversation(conv);
                   const isActive = String(selectedId) === String(conv.id);
+                  const side = conversationSide(userId, conv);
+                  const helperSide = side === 'helper';
                   return (
                     <button
                       key={conv.id}
@@ -350,20 +362,25 @@ export default function MessagingWorkspace({ role = 'customer' }) {
                       className={`messages-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
                       aria-current={isActive ? 'page' : undefined}
                     >
-                      <div className={`messages-avatar${isHelper ? ' helper' : ''}`}>
+                      <div className={`messages-avatar${helperSide ? ' helper' : ''}`}>
                         {(conv.other_user_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div className="messages-row-main">
                         <div className="messages-row-top">
                           <strong>
-                            {conv.other_user_name || (isHelper ? t('messages.customer') : t('common.helper'))}
+                            {conv.other_user_name || (helperSide ? t('messages.customer') : t('common.helper'))}
                             {isGuestRow && <em className="messages-guest-badge">{t('messages.guestInquiryBadge')}</em>}
+                            {dualRole && !isGuestRow && (
+                              <em className="messages-guest-badge">
+                                {helperSide ? t('messages.youAreHelper') : t('messages.youAreCustomer')}
+                              </em>
+                            )}
                           </strong>
                           <span>{formatInboxTime(conv.last_message_at || conv.created_at)}</span>
                         </div>
                         {(conv.conversation_business_name || conv.helper_business_name) && (
                           <p className="messages-business">
-                            {isHelper
+                            {helperSide
                               ? t('messages.via', { name: conv.conversation_business_name || conv.helper_business_name })
                               : (conv.helper_business_name || conv.conversation_business_name)}
                           </p>
@@ -391,7 +408,7 @@ export default function MessagingWorkspace({ role = 'customer' }) {
             ) : conversationId ? (
               <ConversationThread
                 conversationId={conversationId}
-                role={role}
+                role={threadRole}
                 onBack={closeThread}
               />
             ) : (
@@ -405,8 +422,8 @@ export default function MessagingWorkspace({ role = 'customer' }) {
         </div>
 
         {!hasThread && (
-          <section className="messages-guide" aria-label={t(isHelper ? 'messages.helperGuide.ariaLabel' : 'messages.guide.ariaLabel')}>
-            {isHelper ? (
+          <section className="messages-guide" aria-label={t(showHelperInbox ? 'messages.helperGuide.ariaLabel' : 'messages.guide.ariaLabel')}>
+            {showHelperInbox ? (
               <>
                 <GuideItem icon={UserRoundCheck} title={t('messages.helperGuide.leads.title')} text={t('messages.helperGuide.leads.text')} />
                 <GuideItem icon={Briefcase} title={t('messages.helperGuide.jobs.title')} text={t('messages.helperGuide.jobs.text')} />

@@ -3,6 +3,12 @@ import test from 'node:test';
 import { parseConversationStartParams, conversationStartRequestBody } from './conversationStart.js';
 import { toStoredAttachment, parseInlineAttachments, isImageAttachment } from './messageAttachments.js';
 import { draftStorageKey, loadMessageDraft, saveMessageDraft, clearMessageDraft } from './messageDrafts.js';
+import {
+  conversationSide,
+  conversationMatchesSide,
+  hasHelperInboxWork,
+  isGuestConversation,
+} from './inboxRole.js';
 
 test('parseConversationStartParams accepts helperId, userId, and ownerId', () => {
   assert.deepEqual(parseConversationStartParams('?helperId=abc'), {
@@ -59,4 +65,17 @@ test('message drafts persist until cleared', () => {
   saveMessageDraft('c1', 'keep me');
   clearMessageDraft('c1');
   assert.equal(loadMessageDraft('c1'), '');
+});
+
+test('conversationSide keeps customer and helper threads distinct for dual-role users', () => {
+  const me = 'user-1';
+  assert.equal(conversationSide(me, { customer_id: me, helper_id: 'h1' }), 'customer');
+  assert.equal(conversationSide(me, { customer_id: 'c1', helper_id: me }), 'helper');
+  assert.equal(conversationSide(me, { id: 'guest-9', is_guest_inquiry: true }), 'helper');
+  assert.equal(conversationSide(me, { business_id: 4, helper_id: 'other' }), 'helper');
+  assert.equal(isGuestConversation({ id: 'guest-abc' }), true);
+  assert.equal(conversationMatchesSide(me, { customer_id: me, helper_id: 'h1' }, 'helper'), false);
+  assert.equal(conversationMatchesSide(me, { customer_id: me, helper_id: 'h1' }, 'customer'), true);
+  assert.equal(hasHelperInboxWork(me, [{ helper_id: me }], false), true);
+  assert.equal(hasHelperInboxWork(me, [{ customer_id: me, helper_id: 'h1' }], false), false);
 });
