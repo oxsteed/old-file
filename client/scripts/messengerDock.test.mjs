@@ -52,6 +52,7 @@ import {
   stripBookingRequestMarkers,
   appendBookingRequestMarker,
   canProviderRespondBooking,
+  buildProposeBookingPayload,
 } from '../src/components/helperProfile/chat/messengerBookingRequests.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
@@ -833,3 +834,32 @@ test('booking_req marker round-trip and append', () => {
   assert.equal(canProviderRespondBooking('pending'), true);
   assert.equal(canProviderRespondBooking('accepted'), false);
 });
+
+test('buildProposeBookingPayload normalizes clock and rejects incomplete slots', () => {
+  assert.equal(buildProposeBookingPayload(null), null);
+  assert.equal(buildProposeBookingPayload({ date: '2026-09-22', start: '09:00' }), null);
+  const payload = buildProposeBookingPayload({
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:30',
+    startIso: '2026-09-22T13:00:00.000Z',
+    endIso: '2026-09-22T14:30:00.000Z',
+    timezone: 'America/New_York',
+  });
+  assert.deepEqual(payload, {
+    requestedDate: '2026-09-22',
+    requestedStartTime: '09:00:00',
+    requestedEndTime: '10:30:00',
+    startIso: '2026-09-22T13:00:00.000Z',
+    endIso: '2026-09-22T14:30:00.000Z',
+    timezone: 'America/New_York',
+  });
+  const alreadySeconds = buildProposeBookingPayload({
+    date: '2026-09-22',
+    start: '09:00:00',
+    end: '10:00:00',
+  });
+  assert.equal(alreadySeconds.requestedStartTime, '09:00:00');
+  assert.equal(alreadySeconds.requestedEndTime, '10:00:00');
+});
+

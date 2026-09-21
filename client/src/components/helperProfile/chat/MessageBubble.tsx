@@ -34,6 +34,7 @@ interface MessageBubbleProps {
   payeeBusinessId?: string | number | null;
   payeeHelperId?: string | null;
   onCreditPaid?: (payload: any) => void;
+  onProposeTime?: (payload: { booking: any; conversationId?: string | null }) => void;
 }
 
 interface AuthorConfig {
@@ -125,6 +126,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   payeeBusinessId = null,
   payeeHelperId = null,
   onCreditPaid,
+  onProposeTime,
 }) => {
   const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType] || AUTHOR_CONFIG.user;
@@ -277,6 +279,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         markerText={message.content}
                         isProvider={isProviderView}
                         conversationId={conversationId}
+                        onProposeTime={onProposeTime}
                       />
                     </div>
                   ) : null}

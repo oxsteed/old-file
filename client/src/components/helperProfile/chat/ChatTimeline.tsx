@@ -30,6 +30,8 @@ interface ChatTimelineProps {
   onQuoteDeclined?: (payload: any, action?: string) => void;
   onQuoteRequestVerify?: () => void;
   isProviderView?: boolean;
+  conversationId?: string | null;
+  onProposeTime?: (payload: { booking: any; conversationId?: string | null }) => void;
 }
 
 function isMessage(item: TimelineItem): item is ChatMessageType {
@@ -71,6 +73,8 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   onQuoteDeclined,
   onQuoteRequestVerify,
   isProviderView,
+  conversationId = null,
+  onProposeTime,
 }) => {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -139,6 +143,8 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
               onQuoteDeclined={onQuoteDeclined}
               onQuoteRequestVerify={onQuoteRequestVerify}
               isProviderView={isProviderView}
+              conversationId={conversationId}
+              onProposeTime={onProposeTime}
               onQuickReply={onQuickReply}
               showQuickReplies={true}
             />

@@ -29,7 +29,10 @@ import {
   buildSlotRequestMessage,
   resolveClientTimezone,
 } from './messengerAvailability.js';
-import { appendBookingRequestMarker } from './messengerBookingRequests.js';
+import {
+  appendBookingRequestMarker,
+  buildProposeBookingPayload,
+} from './messengerBookingRequests.js';
 import { createBookingRequest } from '../../../api/bookings';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
@@ -235,6 +238,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [showProviderPayReqShare, setShowProviderPayReqShare] = useState(false);
   const [showProviderContact, setShowProviderContact] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState<null | { kind: string; id: string; token?: string }>(null);
+  const [proposingBookingId, setProposingBookingId] = useState<string | number | null>(null);
   /** AI-failure / presence routing banners (not a dead error bubble alone) */
   const [routingNotice, setRoutingNotice] = useState<null | {
     kind: 'ai_to_helper' | 'verify_for_live' | 'escalate_support' | 'fallback_to_ai' | 'offer_connect_live';
@@ -1469,6 +1473,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   if (kind && id) {
                     setSchedulingQuote({ kind, id, token: q?.token });
                   }
+                  setProposingBookingId(null);
                   setShowAvailability(true);
                   const evt: TimelineEvent = {
                     id: `evt-${Date.now()}-quote-accepted`,
@@ -1497,7 +1502,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 onQuoteRequestVerify={() => {
                   onGuestSessionExpired?.();
                 }}
-                isProviderView={false}
+                isProviderView={isProviderActor}
+                conversationId={conversationId}
+                onProposeTime={({ booking }) => {
+                  setProposingBookingId(booking?.id || null);
+                  setSchedulingQuote(null);
+                  setShowAvailability(true);
+                }}
               />
             )}
           </div>
@@ -1520,10 +1531,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             helperId={helperId}
             businessId={businessId}
             open={showAvailability}
-            onClose={() => setShowAvailability(false)}
+            onClose={() => {
+              setShowAvailability(false);
+              setProposingBookingId(null);
+            }}
             onSelectSlot={async (slot) => {
               const locale = localStorage.getItem('oxs:language') || 'en';
               const tz = slot.timezone || resolveClientTimezone();
+
+              if (proposingBookingId) {
+                const payload = buildProposeBookingPayload({ ...slot, timezone: tz });
+                if (!payload) return;
+                try {
+                  await api.post(`/chat/booking-requests/${proposingBookingId}/propose`, payload);
+                  try {
+                    window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {
+                      detail: { bookingId: proposingBookingId },
+                    }));
+                  } catch { /* ignore */ }
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                  setShowAvailability(false);
+                  setProposingBookingId(null);
+                  setSchedulingQuote(null);
+                } catch (err: any) {
+                  const code = err?.response?.data?.code;
+                  toast.error(
+                    code === 'conflict'
+                      ? t('helperProfile.messenger.slotBookingConflict')
+                      : t('helperProfile.messenger.slotBookingFailed'),
+                  );
+                }
+                return;
+              }
 
               if (schedulingQuote?.kind && schedulingQuote?.id) {
                 const verified = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
@@ -1714,7 +1753,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onPaymentRequest={() => setShowProviderPayReqShare(true)}
           onAgreement={() => setShowProviderAgreementShare(true)}
           onPop={() => setShowProviderPopShare(true)}
-          onSchedule={() => setShowAvailability(true)}
+          onSchedule={() => {
+            setProposingBookingId(null);
+            setShowAvailability(true);
+          }}
           onContact={() => setShowProviderContact(true)}
           showRefund={false}
         />

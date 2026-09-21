@@ -101,3 +101,17 @@ export function appendBookingRequestMarker(messageText, markerOpts) {
   if (base.includes('[booking_req:')) return base;
   return base ? `${base}\n${marker}` : marker;
 }
+
+export function buildProposeBookingPayload(slot) {
+  if (!slot?.date || !slot?.start || !slot?.end) return null;
+  const start = String(slot.start);
+  const end = String(slot.end);
+  return {
+    requestedDate: String(slot.date).slice(0, 10),
+    requestedStartTime: start.length === 5 ? `${start}:00` : start,
+    requestedEndTime: end.length === 5 ? `${end}:00` : end,
+    startIso: slot.startIso || undefined,
+    endIso: slot.endIso || undefined,
+    timezone: slot.timezone || undefined,
+  };
+}

@@ -16,7 +16,7 @@ Customers and guests can already request a time via messenger availability picke
 3. **Parity**: signed-in and verified guest create paths; customer sees confirmed/declined status in-thread.
 4. **Socket refresh** so both sides update without reload.
 5. **Admin break-glass** continues to list booking artifacts via `booking_requests.conversation_id`.
-6. Stretch: provider **Propose different time** opens `MessengerAvailabilityPicker` and updates the pending request.
+6. Provider **Propose different time** opens `MessengerAvailabilityPicker` and updates the pending request (ConversationThread + ChatPanel dock).
 
 ## Non-goals
 
@@ -57,9 +57,11 @@ Authz reuses `chatThreadAccess` (conversation participant, business member, gues
 2. Cancel linked appointment when present.
 3. Post status + sockets.
 
-### Propose (stretch)
+### Propose (stretch → done)
 
 Update requested date/times → `counter_proposed`; keep pending for customer visibility; post revised marker.
+
+**ChatPanel parity (2026-09-21):** when `isProviderActor` (`user.id === helperId` or business actor), `BookingRequestCard` gets `onProposeTime` via MessageBubble/ChatTimeline; opens in-dock `MessengerAvailabilityPicker` and POSTs `/api/chat/booking-requests/:id/propose` (same as ConversationThread/inbox). Customer/guest path unchanged.
 
 ### Migration 537
 
