@@ -3,6 +3,7 @@ import '../../styles/ProfileStudio.css';
 
 /**
  * Shared Profile Studio chrome for Business + Helper Edit Profile.
+ * RTL: LanguageContext sets <html dir>; do not set dir on this shell.
  *
  * props:
  * - title, subtitle

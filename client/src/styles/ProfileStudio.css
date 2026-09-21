@@ -49,7 +49,8 @@
   align-items: center;
   gap: 0.35rem;
   border-radius: 999px;
-  padding: 0.35rem 0.75rem;
+  padding-block: 0.35rem;
+  padding-inline: 0.75rem;
   font-size: 0.75rem;
   font-weight: 700;
   border: 1px solid rgba(251, 146, 60, 0.35);
@@ -88,12 +89,13 @@
   justify-content: space-between;
   gap: 0.5rem;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: 1px solid transparent;
   background: transparent;
   color: #9ca3af;
   border-radius: 0.75rem;
-  padding: 0.65rem 0.8rem;
+  padding-block: 0.65rem;
+  padding-inline: 0.8rem;
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
@@ -142,7 +144,8 @@
   background: #111827;
   color: #9ca3af;
   border-radius: 999px;
-  padding: 0.4rem 0.75rem;
+  padding-block: 0.4rem;
+  padding-inline: 0.75rem;
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -160,7 +163,8 @@
   background: #111827;
   color: #fff;
   border-radius: 0.75rem;
-  padding: 0.65rem 0.8rem;
+  padding-block: 0.65rem;
+  padding-inline: 0.8rem;
   font-size: 0.9rem;
 }
 
@@ -175,7 +179,8 @@
   background: #111827;
   border: 1px solid #1f2937;
   border-radius: 1rem;
-  padding: 1.1rem 1.15rem 1.25rem;
+  padding-block: 1.1rem 1.25rem;
+  padding-inline: 1.15rem;
   min-width: 0;
 }
 
@@ -211,7 +216,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-top: 0.25rem;
-  padding: 0.85rem 1rem;
+  padding-block: 0.85rem;
+  padding-inline: 1rem;
   border-top: 1px solid #1f2937;
   background: rgba(17, 24, 39, 0.96);
   backdrop-filter: blur(8px);
@@ -253,7 +259,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.7rem;
-  padding: 0.55rem 1rem;
+  padding-block: 0.55rem;
+  padding-inline: 1rem;
   font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
@@ -319,7 +326,7 @@
 .ppc-kicker {
   position: absolute;
   top: 0.65rem;
-  left: 0.65rem;
+  inset-inline-start: 0.65rem;
   z-index: 1;
   font-size: 0.65rem;
   font-weight: 700;
@@ -328,7 +335,8 @@
   color: #fdba74;
   background: rgba(17, 24, 39, 0.72);
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
+  padding-block: 0.2rem;
+  padding-inline: 0.55rem;
 }
 
 .ppc-cover {
@@ -347,7 +355,8 @@
 }
 
 .ppc-body {
-  padding: 0 1rem 1rem;
+  padding-block: 0 1rem;
+  padding-inline: 1rem;
 }
 
 .ppc-avatar {
@@ -470,3 +479,58 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Arabic / RTL polish
+ * LanguageContext sets document.documentElement.dir = "rtl" for `ar`.
+ * Flex/grid auto-mirror under dir; we also support .ps[dir="rtl"] and :dir(rtl).
+ * Do not force direction:ltr on the shell — that would fight the global dir.
+ * --------------------------------------------------------------------------- */
+
+[dir="rtl"] .ps-nav-btn,
+:dir(rtl) .ps-nav-btn,
+.ps[dir="rtl"] .ps-nav-btn {
+  text-align: start;
+}
+
+/* Chip row reads right→left under RTL (flex main-start flips with dir). */
+[dir="rtl"] .ps-chips,
+:dir(rtl) .ps-chips,
+.ps[dir="rtl"] .ps-chips {
+  justify-content: flex-start;
+}
+
+/* Sticky save: copy at inline-start, actions at inline-end (mirrors LTR). */
+[dir="rtl"] .ps-savebar,
+:dir(rtl) .ps-savebar,
+.ps[dir="rtl"] .ps-savebar {
+  flex-direction: row;
+}
+
+[dir="rtl"] .ps-save-actions,
+:dir(rtl) .ps-save-actions,
+.ps[dir="rtl"] .ps-save-actions {
+  /* Primary stays at inline-end of the action group after dir mirroring. */
+  justify-content: flex-start;
+}
+
+@media (min-width: 1024px) {
+  /*
+   * Desktop 3-col: under RTL, column 1 (nav) sits at inline-start (right),
+   * so visual LTR order becomes preview | form | nav. Keep the same track
+   * sizes; only assert direction so nested LTR widgets cannot cancel it.
+   */
+  [dir="rtl"] .ps-body,
+  :dir(rtl) .ps-body,
+  .ps[dir="rtl"] .ps-body {
+    direction: rtl;
+  }
+
+  [dir="rtl"] .ps-main,
+  :dir(rtl) .ps-main,
+  .ps[dir="rtl"] .ps-main {
+    /* Form fields still follow document/script direction via inheritance. */
+    direction: inherit;
+  }
+}
+
