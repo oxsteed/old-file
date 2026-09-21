@@ -4506,7 +4506,11 @@
       "reopening": "Ap relouvri…",
       "reopenError": "Nou pa t kapab relouvri konvèsasyon sa a.",
       "realtimeReconnecting": "Mizajou an dirèk yo ap rekonekte. Mesaj ou yo toujou disponib atravè livrezon an sekirite.",
-      "realtimeUnavailable": "Mizajou an dirèk yo pa disponib pou yon ti tan. N ap kontinye verifye repons yo."
+      "realtimeUnavailable": "Mizajou an dirèk yo pa disponib pou yon ti tan. N ap kontinye verifye repons yo.",
+      "profileHandoffTitle": "Ap kontinye soti nan chat pwofil la",
+      "profileHandoffBody": "OxSteed sou pwofil la se AI sèlman. Paj sa a konekte ou ak sipò platfòm nan.",
+      "profileHandoffContext": "Pwofil: {{name}}",
+      "returnToProfile": "Retounen nan pwofil la"
     }
   },
   "businessHub": {
@@ -6199,7 +6203,8 @@
       "filterSearchResults": "Filtye rezilta chèch",
       "clearSearch": "Efase rechech",
       "oxsteedAssistantLabel": "Asistan OxSteed (AI)",
-      "talkToHumanCta": "Pale ak yon moun"
+      "talkToHumanCta": "Pale ak yon moun",
+      "oxsteedAiOnlyHint": "OxSteed isit la se AI. Pou yon espesyalis sipò an dirèk, kontinye anba a."
     },
     "messenger": {
       "message": "Mesaj",

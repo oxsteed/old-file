@@ -12,6 +12,10 @@ import {
   canContinueAsGuest,
   defaultProfileChatDestination,
 } from '../src/components/helperProfile/chat/messengerDockState.js';
+import {
+  buildSupportEscalationHandoff,
+  readSupportEscalationHandoff,
+} from '../src/components/helperProfile/chat/supportEscalationHandoff.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
   assert.equal(shouldShowGuestGate({ isAuthenticated: true }), false);
@@ -119,4 +123,46 @@ test('isValidGuestEmail and canContinueAsGuest', () => {
 
 test('defaultProfileChatDestination is helper (provider), not oxsteed', () => {
   assert.equal(defaultProfileChatDestination(), 'helper');
+});
+
+test('buildSupportEscalationHandoff: query carries profile ids and returnTo', () => {
+  const handoff = buildSupportEscalationHandoff({
+    helperId: 'h-1',
+    businessId: 'b-2',
+    helperName: 'Ada Helper',
+    returnTo: '/helpers/h-1',
+    timeline: [
+      { itemType: 'message', authorType: 'visitor', content: 'Need billing help' },
+      { itemType: 'message', authorType: 'ai', content: 'I am an AI assistant.' },
+    ],
+  });
+  assert.equal(handoff.pathname, '/support/escalation');
+  const params = new URLSearchParams(handoff.search);
+  assert.equal(params.get('from'), 'profile');
+  assert.equal(params.get('helperId'), 'h-1');
+  assert.equal(params.get('businessId'), 'b-2');
+  assert.equal(params.get('helperName'), 'Ada Helper');
+  assert.equal(params.get('returnTo'), '/helpers/h-1');
+  assert.match(handoff.state.prefillMessage, /Need billing help/);
+  assert.match(handoff.state.prefillMessage, /OxSteed AI/);
+});
+
+test('readSupportEscalationHandoff: merges search + state', () => {
+  const parsed = readSupportEscalationHandoff({
+    search: '?from=profile&helperId=h-9&returnTo=/helpers/h-9',
+    state: { prefillMessage: 'Hello from dock', helperName: 'From State' },
+  });
+  assert.equal(parsed.isFromProfile, true);
+  assert.equal(parsed.helperId, 'h-9');
+  assert.equal(parsed.helperName, 'From State');
+  assert.equal(parsed.returnTo, '/helpers/h-9');
+  assert.equal(parsed.prefillMessage, 'Hello from dock');
+});
+
+test('readSupportEscalationHandoff: rejects non-path returnTo', () => {
+  const parsed = readSupportEscalationHandoff({
+    search: '?returnTo=https://evil.example',
+    state: null,
+  });
+  assert.equal(parsed.returnTo, null);
 });

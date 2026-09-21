@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import io from 'socket.io-client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -30,6 +30,7 @@ import { realtimeNamespaceUrl } from '../lib/realtime';
 import { createMessageRequestId } from '../lib/messageRequestId';
 import { useAuth } from '../hooks/useAuth';
 import './SupportEscalationPage.css';
+import { readSupportEscalationHandoff } from '../components/helperProfile/chat/supportEscalationHandoff.js';
 
 const OXSTEED_SUPPORT_PHONE = '+1 (937) 408-5169';
 const OXSTEED_SUPPORT_EMAIL = 'support@oxsteed.com';
@@ -69,11 +70,12 @@ function ResolutionSummary({ t, summary }) {
   </section>;
 }
 
-function PublicGuestSupport({ t }) {
+function PublicGuestSupport({ t, handoff }) {
+  const navigate = useNavigate();
   const [step, setStep] = useState('start');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(() => handoff?.prefillMessage || '');
   const [code, setCode] = useState('');
   const [conversationId, setConversationId] = useState(sessionStorage.getItem('oxs:guest-support-id') || '');
   const [token, setToken] = useState(sessionStorage.getItem('oxs:guest-support-token') || '');
@@ -303,6 +305,38 @@ function PublicGuestSupport({ t }) {
             <p className="text-slate-300 text-lg leading-7">
               {t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}
             </p>
+            {handoff?.isFromProfile && (
+              <div className="mt-4 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4">
+                <p className="font-semibold text-violet-200">
+                  {t('support.escalation.profileHandoffTitle', { defaultValue: 'Continuing from a profile chat' })}
+                </p>
+                <p className="mt-1 text-sm text-slate-300">
+                  {t('support.escalation.profileHandoffBody', {
+                    defaultValue: 'OxSteed on the profile is AI-only. This page connects you with platform support.',
+                    name: handoff.helperName || '',
+                  })}
+                </p>
+                {handoff.helperName && (
+                  <p className="mt-2 text-xs text-violet-300/90">
+                    {t('support.escalation.profileHandoffContext', {
+                      defaultValue: 'Profile: {{name}}',
+                      name: handoff.helperName,
+                    })}
+                    {handoff.helperId ? ` · helperId ${handoff.helperId}` : ''}
+                    {handoff.businessId ? ` · businessId ${handoff.businessId}` : ''}
+                  </p>
+                )}
+                {handoff.returnTo && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(handoff.returnTo)}
+                    className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white"
+                  >
+                    {t('support.escalation.returnToProfile', { defaultValue: 'Return to profile' })}
+                  </button>
+                )}
+              </div>
+            )}
           </header>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
             <div className="min-w-0">
@@ -435,13 +469,15 @@ function localizeWaitingState(waiting) {
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const handoff = readSupportEscalationHandoff(location);
   if (loading) return <div className="min-h-screen bg-slate-950" />;
   return user
-    ? <AuthenticatedSupportEscalationPage user={user} />
-    : <PublicGuestSupport t={t} />;
+    ? <AuthenticatedSupportEscalationPage user={user} handoff={handoff} />
+    : <PublicGuestSupport t={t} handoff={handoff} />;
 }
 
-function AuthenticatedSupportEscalationPage({ user }) {
+function AuthenticatedSupportEscalationPage({ user, handoff }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState('checking'); // 'checking' | 'live-chat' | 'ticket' | 'success'
@@ -473,7 +509,7 @@ function AuthenticatedSupportEscalationPage({ user }) {
   const profileEmail = user?.email || '';
   const [visitorName, setVisitorName] = useState(profileName);
   const [visitorEmail, setVisitorEmail] = useState(profileEmail);
-  const [ticketMessage, setTicketMessage] = useState('');
+  const [ticketMessage, setTicketMessage] = useState(() => handoff?.prefillMessage || '');
   const [ticketSubmitting, setTicketSubmitting] = useState(false);
   const [successTicketId, setSuccessTicketId] = useState(null);
 
@@ -890,6 +926,10 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
   const handleClose = () => {
     if (socketRef.current) socketRef.current.disconnect();
+    if (handoff?.returnTo) {
+      navigate(handoff.returnTo);
+      return;
+    }
     navigate(-1);
   };
 
@@ -1188,6 +1228,41 @@ function AuthenticatedSupportEscalationPage({ user }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
               <section className="rounded-[28px] border p-6 md:p-8 shadow-2xl" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.82)' }}>
+                {handoff?.isFromProfile && (
+                  <div className="mb-6 rounded-3xl border border-violet-500/30 bg-violet-500/10 p-5">
+                    <p className="font-semibold text-violet-200">
+                      {t('support.escalation.profileHandoffTitle', { defaultValue: 'Continuing from a profile chat' })}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-300">
+                      {t('support.escalation.profileHandoffBody', {
+                        defaultValue: 'OxSteed on the profile is AI-only. This page connects you with platform support.',
+                        name: handoff.helperName || '',
+                      })}
+                    </p>
+                    {(handoff.helperName || handoff.helperId || handoff.businessId) && (
+                      <p className="mt-2 text-xs text-violet-300/90">
+                        {handoff.helperName
+                          ? t('support.escalation.profileHandoffContext', {
+                              defaultValue: 'Profile: {{name}}',
+                              name: handoff.helperName,
+                            })
+                          : ''}
+                        {handoff.helperId ? ` · helperId ${handoff.helperId}` : ''}
+                        {handoff.businessId ? ` · businessId ${handoff.businessId}` : ''}
+                      </p>
+                    )}
+                    {handoff.returnTo && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(handoff.returnTo)}
+                        className="mt-3 text-sm font-semibold text-violet-200 underline hover:text-white"
+                      >
+                        {t('support.escalation.returnToProfile', { defaultValue: 'Return to profile' })}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-start gap-4 p-5 rounded-3xl border mb-6" style={{ borderColor: 'rgba(249,115,22,0.24)', background: 'rgba(249,115,22,0.08)' }}>
                   <AlertCircle className="text-orange-400 flex-shrink-0 mt-1" size={24} />
                   <div>

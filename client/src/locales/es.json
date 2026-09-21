@@ -4421,7 +4421,11 @@
       "reopening": "Reabriendo…",
       "reopenError": "No se pudo reabrir esta conversación.",
       "realtimeReconnecting": "Las actualizaciones en directo se están reconectando. Tus mensajes siguen disponibles mediante entrega segura.",
-      "realtimeUnavailable": "Las actualizaciones en directo no están disponibles temporalmente. Seguiremos comprobando las respuestas."
+      "realtimeUnavailable": "Las actualizaciones en directo no están disponibles temporalmente. Seguiremos comprobando las respuestas.",
+      "profileHandoffTitle": "Continuando desde el chat del perfil",
+      "profileHandoffBody": "OxSteed en el perfil es solo IA. Esta página te conecta con el soporte de la plataforma.",
+      "profileHandoffContext": "Perfil: {{name}}",
+      "returnToProfile": "Volver al perfil"
     }
   },
   "businessHub": {
@@ -6199,7 +6203,8 @@
       "filterSearchResults": "Filtrar resultados de búsqueda",
       "clearSearch": "Limpiar búsqueda",
       "oxsteedAssistantLabel": "Asistente OxSteed (IA)",
-      "talkToHumanCta": "Hablar con una persona"
+      "talkToHumanCta": "Hablar con una persona",
+      "oxsteedAiOnlyHint": "OxSteed aquí es IA. Para un especialista de soporte en vivo, continúa abajo."
     },
     "messenger": {
       "message": "Mensaje",

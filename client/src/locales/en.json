@@ -4286,7 +4286,11 @@
       "reopening": "Reopening…",
       "reopenError": "Could not reopen this conversation.",
       "realtimeReconnecting": "Live updates are reconnecting. Your messages remain available through secure delivery.",
-      "realtimeUnavailable": "Live updates are temporarily unavailable. We will keep checking for replies."
+      "realtimeUnavailable": "Live updates are temporarily unavailable. We will keep checking for replies.",
+      "profileHandoffTitle": "Continuing from a profile chat",
+      "profileHandoffBody": "OxSteed on the profile is AI-only. This page connects you with platform support.",
+      "profileHandoffContext": "Profile: {{name}}",
+      "returnToProfile": "Return to profile"
     }
   },
   "businessHub": {
@@ -6064,7 +6068,8 @@
       "filterSearchResults": "Filter search results",
       "clearSearch": "Clear search",
       "oxsteedAssistantLabel": "OxSteed Assistant (AI)",
-      "talkToHumanCta": "Talk to a human"
+      "talkToHumanCta": "Talk to a human",
+      "oxsteedAiOnlyHint": "OxSteed here is AI. For a live support specialist, continue below."
     },
     "messenger": {
       "message": "Message",

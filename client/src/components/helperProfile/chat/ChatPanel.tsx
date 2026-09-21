@@ -18,6 +18,7 @@ import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../hooks/useSocket';
 import { readGuestContact } from './messengerDockState.js';
+import { buildSupportEscalationHandoff } from './supportEscalationHandoff.js';
 
 interface ChatPanelProps {
   session: ChatSession;
@@ -68,9 +69,24 @@ const UnavailableState: React.FC<{ destination: ChatDestination; helperName: str
 const DestinationContextBanner: React.FC<{
   destination: ChatDestination;
   helperName: string;
-}> = ({ destination, helperName }) => {
+  helperId: string;
+  businessId?: string;
+  timeline: TimelineItem[];
+}> = ({ destination, helperName, helperId, businessId, timeline }) => {
   const { t } = useTranslation();
   if (destination === 'helper') return null;
+
+  const returnTo = typeof window !== 'undefined'
+    ? `${window.location.pathname}${window.location.search}`
+    : undefined;
+  const handoff = buildSupportEscalationHandoff({
+    helperId,
+    businessId,
+    helperName,
+    returnTo,
+    timeline,
+  });
+
   return (
     <div
       className="flex items-start gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
@@ -81,8 +97,14 @@ const DestinationContextBanner: React.FC<{
         <p className="text-xs text-violet-300">
           {t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
         </p>
+        <p className="text-[11px] text-violet-400/90 mt-0.5">
+          {t('helperProfile.chat.oxsteedAiOnlyHint', {
+            defaultValue: 'OxSteed here is AI. For a live support specialist, continue below.',
+          })}
+        </p>
         <Link
-          to="/support/escalation"
+          to={{ pathname: handoff.pathname, search: handoff.search }}
+          state={handoff.state}
           className="inline-block mt-1.5 text-xs font-semibold text-violet-200 underline hover:text-white"
         >
           {t('helperProfile.chat.talkToHumanCta')}
@@ -846,6 +868,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       <DestinationContextBanner
         destination={session.destination}
         helperName={helperName}
+        helperId={helperId}
+        businessId={businessId}
+        timeline={session.timeline}
       />
 
       {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}

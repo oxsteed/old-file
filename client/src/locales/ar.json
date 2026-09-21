@@ -4421,7 +4421,11 @@
       "reopening": "جارٍ إعادة الفتح…",
       "reopenError": "تعذر إعادة فتح هذه المحادثة.",
       "realtimeReconnecting": "جارٍ إعادة الاتصال بالتحديثات المباشرة. تظل رسائلك متاحة عبر التسليم الآمن.",
-      "realtimeUnavailable": "التحديثات المباشرة غير متاحة مؤقتًا. سنواصل التحقق من الردود."
+      "realtimeUnavailable": "التحديثات المباشرة غير متاحة مؤقتًا. سنواصل التحقق من الردود.",
+      "profileHandoffTitle": "المتابعة من دردشة الملف الشخصي",
+      "profileHandoffBody": "OxSteed في الملف الشخصي ذكاء اصطناعي فقط. تربطك هذه الصفحة بدعم المنصة.",
+      "profileHandoffContext": "الملف الشخصي: {{name}}",
+      "returnToProfile": "العودة إلى الملف الشخصي"
     }
   },
   "businessHub": {
@@ -6199,7 +6203,8 @@
       "filterSearchResults": "تصفية نتائج البحث",
       "clearSearch": "مسح البحث",
       "oxsteedAssistantLabel": "مساعد OxSteed (ذكاء اصطناعي)",
-      "talkToHumanCta": "التحدث إلى شخص"
+      "talkToHumanCta": "التحدث إلى شخص",
+      "oxsteedAiOnlyHint": "OxSteed هنا ذكاء اصطناعي. للحصول على أخصائي دعم مباشر، تابع أدناه."
     },
     "messenger": {
       "message": "رسالة",
