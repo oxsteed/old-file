@@ -411,6 +411,7 @@ export default function ConversationThread({
                             <BookingRequestCard
                               markerText={msg.content}
                               isProvider={role === 'helper'}
+                              isAuthenticated
                               conversationId={conversationId}
                               onProposeTime={({ booking }) => {
                                 setProposingBookingId(booking?.id || null);

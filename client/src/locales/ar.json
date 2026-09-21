@@ -6488,7 +6488,9 @@
         "counter_proposed": "تم اقتراح وقت جديد"
       },
       "agreementRequiredSchedule": "اقبل الاتفاقية المطلوبة قبل الجدولة.",
-      "agreementRequiredScheduleNamed": "اقبل \"{{title}}\" قبل الجدولة."
+      "agreementRequiredScheduleNamed": "اقبل \"{{title}}\" قبل الجدولة.",
+      "bookingCustomerCounterAction": "اقبل لتأكيد هذا الوقت، أو ارفض مع ملاحظة اختيارية.",
+      "bookingVerifyToRespond": "تحقق للرد"
     }
   },
   "disputes": {

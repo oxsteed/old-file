@@ -6488,7 +6488,9 @@
         "counter_proposed": "Nouvo lè pwopoze"
       },
       "agreementRequiredSchedule": "Aksepte akò ki obligatwa a anvan ou pwograme.",
-      "agreementRequiredScheduleNamed": "Aksepte \"{{title}}\" anvan ou pwograme."
+      "agreementRequiredScheduleNamed": "Aksepte \"{{title}}\" anvan ou pwograme.",
+      "bookingCustomerCounterAction": "Aksepte pou konfime lè sa a, oswa refize ak yon nòt opsyonèl.",
+      "bookingVerifyToRespond": "Verifye pou reponn"
     }
   },
   "disputes": {

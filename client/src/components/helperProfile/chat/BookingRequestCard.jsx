@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Calendar, Check, X, Loader2, MessageSquare, Clock } from 'lucide-react';
 import api from '../../../api/axios';
 import {
+  canCustomerRespondBooking,
   canProviderRespondBooking,
   parseBookingRequestMarker,
   toBookingChatStatus,
@@ -10,14 +11,19 @@ import {
 import './MessengerDock.css';
 
 /**
- * In-thread booking request card — provider Accept / Decline / Propose time;
- * customer sees live status.
+ * In-thread booking request card —
+ * Provider: Accept / Decline / Propose on pending|counter_proposed|expired.
+ * Customer/guest: Accept / Decline on counter_proposed (provider-proposed time).
  */
 export default function BookingRequestCard({
   markerText,
   initialBooking = null,
   bookingId: idProp,
   isProvider = false,
+  isAuthenticated = false,
+  guestVerified = false,
+  guestAuthHeaders = null,
+  onRequestVerify,
   conversationId = null,
   onStatusChange,
   onAccepted,
@@ -47,7 +53,9 @@ export default function BookingRequestCard({
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get(`/chat/booking-requests/${bookingId}`);
+      const { data } = await api.get(`/chat/booking-requests/${bookingId}`, {
+        headers: guestAuthHeaders || undefined,
+      });
       setBooking(data);
     } catch (err) {
       if (parsed) {
@@ -66,7 +74,7 @@ export default function BookingRequestCard({
     } finally {
       setLoading(false);
     }
-  }, [bookingId, parsed, t]);
+  }, [bookingId, parsed, t, guestAuthHeaders]);
 
   useEffect(() => {
     if (!initialBooking) load();
@@ -87,17 +95,42 @@ export default function BookingRequestCard({
   }, [bookingId, load]);
 
   const status = toBookingChatStatus(booking?.status || parsed?.status);
-  const canRespond = isProvider && canProviderRespondBooking(status);
+  const canProviderAct = isProvider && canProviderRespondBooking(status);
+  const canCustomerAct =
+    !isProvider
+    && canCustomerRespondBooking(status)
+    && (isAuthenticated || guestVerified || Boolean(guestAuthHeaders));
+  const canCustomerActNeedsVerify =
+    !isProvider
+    && canCustomerRespondBooking(status)
+    && !isAuthenticated
+    && !guestVerified
+    && !guestAuthHeaders;
+  const canRespond = canProviderAct || canCustomerAct;
 
   const respond = async (action) => {
     if (!bookingId) return;
+    if (!isProvider && !isAuthenticated && !guestVerified && !guestAuthHeaders) {
+      onRequestVerify?.();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const { data } = await api.post(`/chat/booking-requests/${bookingId}/${action}`, {
-        reason: action === 'decline' ? reason || undefined : undefined,
-        decline_reason: action === 'decline' ? reason || undefined : undefined,
-      });
+      let endpoint;
+      if (isProvider) {
+        endpoint = action === 'accept' ? 'accept' : 'decline';
+      } else {
+        endpoint = action === 'accept' ? 'customer-accept' : 'customer-decline';
+      }
+      const { data } = await api.post(
+        `/chat/booking-requests/${bookingId}/${endpoint}`,
+        {
+          reason: action === 'decline' ? reason || undefined : undefined,
+          decline_reason: action === 'decline' ? reason || undefined : undefined,
+        },
+        { headers: guestAuthHeaders || undefined },
+      );
       const next = data.booking || {
         ...booking,
         status: action === 'accept' ? 'accepted' : 'declined',
@@ -215,7 +248,7 @@ export default function BookingRequestCard({
             <X className="w-3.5 h-3.5" aria-hidden />
             {t('helperProfile.messenger.bookingDecline')}
           </button>
-          {typeof onProposeTime === 'function' ? (
+          {canProviderAct && typeof onProposeTime === 'function' ? (
             <button
               type="button"
               className="messenger-booking-card__btn messenger-booking-card__btn--ghost"
@@ -226,6 +259,18 @@ export default function BookingRequestCard({
               {t('helperProfile.messenger.bookingProposeTime')}
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {canCustomerActNeedsVerify ? (
+        <div className="messenger-booking-card__actions">
+          <button
+            type="button"
+            className="messenger-booking-card__btn messenger-booking-card__btn--primary"
+            onClick={() => onRequestVerify?.()}
+          >
+            {t('helperProfile.messenger.bookingVerifyToRespond')}
+          </button>
         </div>
       ) : null}
 
@@ -268,9 +313,14 @@ export default function BookingRequestCard({
           {t('helperProfile.messenger.bookingCustomerDeclined')}
         </p>
       ) : null}
-      {!isProvider && status === 'counter_proposed' ? (
+      {!isProvider && status === 'counter_proposed' && !canRespond && !canCustomerActNeedsVerify ? (
         <p className="messenger-booking-card__hint">
           {t('helperProfile.messenger.bookingCustomerCounter')}
+        </p>
+      ) : null}
+      {!isProvider && status === 'counter_proposed' && (canRespond || canCustomerActNeedsVerify) ? (
+        <p className="messenger-booking-card__hint">
+          {t('helperProfile.messenger.bookingCustomerCounterAction')}
         </p>
       ) : null}
     </div>

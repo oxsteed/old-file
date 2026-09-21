@@ -109,6 +109,24 @@ function canProviderRespond(row) {
   return { ok: false, reason: 'invalid_status' };
 }
 
+/**
+ * Customer / verified guest may accept or decline a provider-proposed time.
+ * Status: counter_proposed (propose different time, or provider-originated schedule).
+ */
+function canCustomerRespond(row) {
+  if (!row) return { ok: false, reason: 'not_found' };
+  const status = toChatStatus(row.status);
+  if (status === 'counter_proposed') return { ok: true };
+  if (status === 'pending') return { ok: false, reason: 'awaiting_provider' };
+  if (status === 'accepted') return { ok: false, reason: 'already_accepted' };
+  if (status === 'declined') return { ok: false, reason: 'already_declined' };
+  if (status === 'expired') return { ok: false, reason: 'expired' };
+  if (status === 'cancelled' || status === 'accepted_cancelled') {
+    return { ok: false, reason: 'cancelled' };
+  }
+  return { ok: false, reason: 'invalid_status' };
+}
+
 function formatTimePart(value) {
   if (!value) return '';
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -149,6 +167,7 @@ function toPublicBookingRequestCard(row) {
     declined_at: row.declined_at || null,
     created_at: row.created_at || null,
     can_respond: canProviderRespond(row).ok,
+    can_customer_respond: canCustomerRespond(row).ok,
     marker: buildBookingRequestMarker({
       id: row.id,
       status,
@@ -187,6 +206,7 @@ module.exports = {
   stripBookingRequestMarkers,
   toChatStatus,
   canProviderRespond,
+  canCustomerRespond,
   toPublicBookingRequestCard,
   buildStatusMessage,
   normalizeClock,

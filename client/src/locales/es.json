@@ -6488,7 +6488,9 @@
         "counter_proposed": "Nueva hora propuesta"
       },
       "agreementRequiredSchedule": "Acepta el acuerdo requerido antes de programar.",
-      "agreementRequiredScheduleNamed": "Acepta \"{{title}}\" antes de programar."
+      "agreementRequiredScheduleNamed": "Acepta \"{{title}}\" antes de programar.",
+      "bookingCustomerCounterAction": "Acepta para confirmar esta hora, o rechaza con una nota opcional.",
+      "bookingVerifyToRespond": "Verifícate para responder"
     }
   },
   "disputes": {

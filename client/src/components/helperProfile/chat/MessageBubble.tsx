@@ -281,6 +281,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       <BookingRequestCard
                         markerText={message.content}
                         isProvider={isProviderView}
+                        isAuthenticated={isAuthenticated}
+                        guestVerified={guestVerified}
+                        guestAuthHeaders={guestAuthHeaders}
+                        onRequestVerify={onQuoteRequestVerify}
                         conversationId={conversationId}
                         onProposeTime={onProposeTime}
                       />

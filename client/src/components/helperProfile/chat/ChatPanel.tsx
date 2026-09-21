@@ -480,15 +480,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }));
     };
 
+    const handleBookingChatUpdated = (payload: any) => {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', { detail: payload }));
+        }
+      } catch { /* ignore */ }
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
     socket.on('messages:read', handleMessagesRead);
+    socket.on('booking:chat_updated', handleBookingChatUpdated);
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:edited', handleMessageEdited);
       socket.off('message:deleted', handleMessageDeleted);
       socket.off('messages:read', handleMessagesRead);
+      socket.off('booking:chat_updated', handleBookingChatUpdated);
     };
   }, [socket, conversationId]);
 

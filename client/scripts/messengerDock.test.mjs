@@ -54,6 +54,7 @@ import {
   stripBookingRequestMarkers,
   appendBookingRequestMarker,
   canProviderRespondBooking,
+  canCustomerRespondBooking,
   buildProposeBookingPayload,
   buildInboxScheduleBookingBody,
 } from '../src/components/helperProfile/chat/messengerBookingRequests.js';
@@ -836,6 +837,16 @@ test('booking_req marker round-trip and append', () => {
   assert.match(appended, /\[booking_req:br-9/);
   assert.equal(canProviderRespondBooking('pending'), true);
   assert.equal(canProviderRespondBooking('accepted'), false);
+  assert.equal(canCustomerRespondBooking('counter_proposed'), true);
+  assert.equal(canCustomerRespondBooking('pending'), false);
+  assert.equal(canCustomerRespondBooking('accepted'), false);
+});
+
+test('canCustomerRespondBooking gates provider-proposed times only', () => {
+  assert.equal(canCustomerRespondBooking('counter_proposed'), true);
+  assert.equal(canCustomerRespondBooking('pending'), false);
+  assert.equal(canCustomerRespondBooking('expired'), false);
+  assert.equal(canCustomerRespondBooking('declined'), false);
 });
 
 

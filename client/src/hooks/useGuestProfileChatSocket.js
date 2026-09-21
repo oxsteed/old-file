@@ -123,6 +123,23 @@ export function useGuestProfileChatSocket({
 
     socket.on('guest_chat:message', handleIncoming('guest_chat:message'));
     socket.on('profile_chat:new_message', handleIncoming('profile_chat:new_message'));
+    socket.on('booking:chat_updated', (payload) => {
+      const payloadSessionId =
+        payload?.guestSessionId ||
+        payload?.sessionId ||
+        payload?.guest_session_id;
+      if (
+        payloadSessionId != null &&
+        String(payloadSessionId) !== String(sessionId)
+      ) {
+        return;
+      }
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', { detail: payload }));
+        }
+      } catch { /* ignore */ }
+    });
 
     return () => {
       cancelled = true;

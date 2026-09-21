@@ -5,6 +5,7 @@ const {
   parseBookingRequestMarker,
   stripBookingRequestMarkers,
   canProviderRespond,
+  canCustomerRespond,
   toPublicBookingRequestCard,
   buildStatusMessage,
   toChatStatus,
@@ -51,6 +52,14 @@ describe('chatBookingRequests service', () => {
     expect(canProviderRespond({ status: 'declined' }).reason).toBe('already_declined');
   });
 
+  test('canCustomerRespond only allows counter_proposed', () => {
+    expect(canCustomerRespond({ status: 'counter_proposed' }).ok).toBe(true);
+    expect(canCustomerRespond({ status: 'pending' }).reason).toBe('awaiting_provider');
+    expect(canCustomerRespond({ status: 'accepted' }).reason).toBe('already_accepted');
+    expect(canCustomerRespond({ status: 'declined' }).reason).toBe('already_declined');
+    expect(canCustomerRespond({ status: 'expired' }).reason).toBe('expired');
+  });
+
   test('toPublicBookingRequestCard shape', () => {
     const card = toPublicBookingRequestCard({
       id: 'abc',
@@ -66,7 +75,22 @@ describe('chatBookingRequests service', () => {
     expect(card.requested_start_time).toBe('09:00');
     expect(card.requested_end_time).toBe('10:30');
     expect(card.can_respond).toBe(true);
+    expect(card.can_customer_respond).toBe(false);
     expect(card.marker).toMatch(/\[booking_req:abc\|pending/);
+  });
+
+  test('toPublicBookingRequestCard can_customer_respond on counter_proposed', () => {
+    const card = toPublicBookingRequestCard({
+      id: 'cp1',
+      status: 'counter_proposed',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '11:00:00',
+      requested_end_time: '12:00:00',
+    });
+    expect(card.can_respond).toBe(true);
+    expect(card.can_customer_respond).toBe(true);
+    expect(card.marker).toMatch(/\[booking_req:cp1\|counter_proposed/);
   });
 
   test('buildStatusMessage includes updated marker', () => {

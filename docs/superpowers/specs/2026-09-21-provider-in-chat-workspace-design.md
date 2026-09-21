@@ -92,8 +92,11 @@ Documented in this spec; no silent second ledger.
 - **Refund parity:** ChatPanel provider view mounts `CreditRefundPanel` and passes `onRefundRequest` through ChatTimeline → MessageBubble → ProofOfPaymentCard (same as inbox).
 - **Credit partner:** helper→linked business resolution unchanged (documented fallback; no second ledger).
 
+## Closed (2026-09-21 customer accept)
+
+- **Customer Accept / Decline** for `counter_proposed` (provider Propose or provider-originated schedule create): `POST …/customer-accept` + `…/customer-decline`; BookingRequestCard Accept/Decline for customer/guest; provider keeps Accept/Decline/Propose on pending.
+
 ## Intentional out-of-scope
 
 - Compromised-admin / break-glass remains admin-only (lists booking/POP/refund artifacts; no new break-glass UX in messenger).
 - E2EE messenger; second credit ledger; replacing Business Hub **Team** (`business_conversations`) with deal threads.
-- Customer Accept API for provider-proposed times (provider still Accepts/Declines pending cards).

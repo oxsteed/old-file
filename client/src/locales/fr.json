@@ -6488,7 +6488,9 @@
         "counter_proposed": "Nouveau créneau proposé"
       },
       "agreementRequiredSchedule": "Acceptez l’accord requis avant de planifier.",
-      "agreementRequiredScheduleNamed": "Acceptez « {{title}} » avant de planifier."
+      "agreementRequiredScheduleNamed": "Acceptez « {{title}} » avant de planifier.",
+      "bookingCustomerCounterAction": "Acceptez pour confirmer ce créneau, ou refusez avec une note facultative.",
+      "bookingVerifyToRespond": "Vérifiez-vous pour répondre"
     }
   },
   "disputes": {

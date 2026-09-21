@@ -6488,7 +6488,9 @@
         "counter_proposed": "New time proposed"
       },
       "agreementRequiredSchedule": "Accept the required agreement before scheduling.",
-      "agreementRequiredScheduleNamed": "Accept \"{{title}}\" before scheduling."
+      "agreementRequiredScheduleNamed": "Accept \"{{title}}\" before scheduling.",
+      "bookingCustomerCounterAction": "Accept to confirm this time, or decline with an optional note.",
+      "bookingVerifyToRespond": "Verify to respond"
     }
   },
   "disputes": {

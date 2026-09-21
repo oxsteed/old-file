@@ -15,6 +15,7 @@ const {
   parseBookingRequestMarker,
   toPublicBookingRequestCard,
   canProviderRespond,
+  canCustomerRespond,
   buildStatusMessage,
   normalizeClock,
   normalizeDate,
@@ -52,6 +53,29 @@ async function isProviderForBooking(userId, booking) {
     if (guest) return true;
   }
   return false;
+}
+
+async function isCustomerForBooking(req, booking) {
+  if (!booking) return { ok: false, reason: 'not_found' };
+  const userId = req.user?.id;
+  if (userId && (await isProviderForBooking(userId, booking))) {
+    return { ok: false, reason: 'provider_cannot_customer_respond' };
+  }
+  if (userId && booking.customer_id && String(booking.customer_id) === String(userId)) {
+    return { ok: true, via: 'customer', userId };
+  }
+  if (userId && booking.conversation_id) {
+    const conv = await assertConversationParticipant(userId, booking.conversation_id);
+    if (conv && String(conv.customer_id) === String(userId)) {
+      return { ok: true, via: 'conversation_customer', userId };
+    }
+  }
+  const guest = await resolveGuestFromRequest(req);
+  if (guest && booking.guest_session_id && String(guest.id) === String(booking.guest_session_id)) {
+    return { ok: true, via: 'guest', guest };
+  }
+  if (!userId && !guest) return { ok: false, reason: 'verify_required' };
+  return { ok: false, reason: 'forbidden' };
 }
 
 async function canViewBooking(req, booking) {
@@ -155,12 +179,27 @@ async function emitBookingEvent({ booking, event, actorId = null }) {
     if (booking.conversation_id) {
       socketService.broadcastToConversation(booking.conversation_id, 'booking:chat_updated', payload);
     }
+    if (booking.guest_session_id) {
+      try {
+        socketService.io?.to?.(`guest_session_${booking.guest_session_id}`)?.emit?.(
+          'booking:chat_updated',
+          payload,
+        );
+      } catch { /* optional */ }
+    }
   } catch (e) {
     logger.warn('[chatBookingRequests] emit failed', { error: e.message });
   }
 }
 
-async function postStatusToThread({ booking, event, actorId, actorName, reason = '' }) {
+async function postStatusToThread({
+  booking,
+  event,
+  actorId,
+  actorName,
+  reason = '',
+  senderType = 'helper',
+}) {
   const content = buildStatusMessage({ booking, event, reason });
   if (!content) return null;
   if (booking.conversation_id && actorId) {
@@ -179,7 +218,7 @@ async function postStatusToThread({ booking, event, actorId, actorName, reason =
     try {
       return await postGuestMessage({
         guestSessionId: booking.guest_session_id,
-        senderType: 'helper',
+        senderType: senderType || 'helper',
         senderName: actorName || 'Provider',
         content,
         helperId: booking.helper_id,
@@ -391,6 +430,143 @@ exports.declineBookingRequest = async (req, res, next) => {
       actorId: userId,
       actorName,
       reason,
+    });
+    await emitBookingEvent({ booking: updated, event: 'declined', actorId: userId });
+
+    return res.json({
+      success: true,
+      booking: toPublicBookingRequestCard(updated),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/chat/booking-requests/:id/customer-accept
+ * Customer or verified guest accepts a provider-proposed (counter_proposed) time.
+ */
+exports.customerAcceptBookingRequest = async (req, res, next) => {
+  try {
+    const booking = await loadBooking(req.params.id);
+    if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
+
+    const authz = await isCustomerForBooking(req, booking);
+    if (!authz.ok) {
+      if (authz.reason === 'verify_required') {
+        return bad(res, 401, 'Sign in or verify as guest', 'verify_required');
+      }
+      if (authz.reason === 'provider_cannot_customer_respond') {
+        return bad(res, 403, 'Provider cannot use customer-accept; use /accept', 'forbidden');
+      }
+      return bad(res, 403, 'Only the customer or verified guest can accept this time', 'forbidden');
+    }
+
+    const gate = canCustomerRespond(booking);
+    if (!gate.ok) return bad(res, 409, `Cannot accept: ${gate.reason}`, gate.reason);
+
+    const { rows } = await pool.query(
+      `UPDATE booking_requests
+          SET status = 'accepted',
+              accepted_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP,
+              helper_response_reason = NULL
+        WHERE id = $1 AND status = 'counter_proposed'
+        RETURNING *`,
+      [booking.id],
+    );
+    if (!rows[0]) return bad(res, 409, 'Booking is no longer awaiting customer response', 'invalid_status');
+    let updated = rows[0];
+
+    let appointment = null;
+    try {
+      appointment = await confirmOrCreateAppointment(updated, updated.helper_id);
+      if (appointment?.id && !updated.appointment_id) {
+        updated = { ...updated, appointment_id: appointment.id };
+      }
+    } catch (e) {
+      logger.warn('[chatBookingRequests] customer-accept appointment failed', { error: e.message });
+    }
+
+    const userId = authz.userId || req.user?.id || null;
+    const actorName = userId
+      ? [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer'
+      : (authz.guest?.guest_name || 'Guest');
+    await postStatusToThread({
+      booking: updated,
+      event: 'accepted',
+      actorId: userId,
+      actorName,
+      senderType: 'guest',
+    });
+    await emitBookingEvent({ booking: updated, event: 'accepted', actorId: userId });
+
+    return res.json({
+      success: true,
+      booking: toPublicBookingRequestCard(updated),
+      appointmentId: appointment?.id || updated.appointment_id || null,
+      appointment,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/chat/booking-requests/:id/customer-decline
+ * Body: { reason?: string }
+ */
+exports.customerDeclineBookingRequest = async (req, res, next) => {
+  try {
+    const booking = await loadBooking(req.params.id);
+    if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
+
+    const authz = await isCustomerForBooking(req, booking);
+    if (!authz.ok) {
+      if (authz.reason === 'verify_required') {
+        return bad(res, 401, 'Sign in or verify as guest', 'verify_required');
+      }
+      if (authz.reason === 'provider_cannot_customer_respond') {
+        return bad(res, 403, 'Provider cannot use customer-decline; use /decline', 'forbidden');
+      }
+      return bad(res, 403, 'Only the customer or verified guest can decline this time', 'forbidden');
+    }
+
+    const gate = canCustomerRespond(booking);
+    if (!gate.ok) return bad(res, 409, `Cannot decline: ${gate.reason}`, gate.reason);
+
+    const reason = String(req.body?.reason || req.body?.decline_reason || '').trim().slice(0, 500) || null;
+
+    const { rows } = await pool.query(
+      `UPDATE booking_requests
+          SET status = 'declined',
+              declined_at = CURRENT_TIMESTAMP,
+              helper_response_reason = $2,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status = 'counter_proposed'
+        RETURNING *`,
+      [booking.id, reason],
+    );
+    if (!rows[0]) return bad(res, 409, 'Booking is no longer awaiting customer response', 'invalid_status');
+    const updated = rows[0];
+
+    try {
+      await cancelLinkedAppointment(updated, updated.helper_id);
+    } catch (e) {
+      logger.warn('[chatBookingRequests] customer-decline appointment cancel failed', { error: e.message });
+    }
+
+    const userId = authz.userId || req.user?.id || null;
+    const actorName = userId
+      ? [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer'
+      : (authz.guest?.guest_name || 'Guest');
+    await postStatusToThread({
+      booking: updated,
+      event: 'declined',
+      actorId: userId,
+      actorName,
+      reason,
+      senderType: 'guest',
     });
     await emitBookingEvent({ booking: updated, event: 'declined', actorId: userId });
 
@@ -635,15 +811,18 @@ exports.createChatBookingRequest = async (req, res, next) => {
     const bookingId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
+    // Provider scheduling on behalf of customer → counter_proposed (customer Accept/Decline).
+    // Customer-originated requests stay pending for the provider.
+    const initialStatus = isProvider ? 'counter_proposed' : 'pending';
     const { rows } = await pool.query(
       `INSERT INTO booking_requests (
          id, customer_id, helper_id, business_id, service_name, requested_date,
          requested_start_time, requested_end_time, service_location,
          description, expires_at, confirmation_hours,
-         conversation_id, guest_session_id, source, service_id, timezone
+         conversation_id, guest_session_id, source, service_id, timezone, status
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, $10, $11,
-         $12, NULL, $13, $14, $15
+         $12, NULL, $13, $14, $15, $16
        ) RETURNING *`,
       [
         bookingId,
@@ -661,6 +840,7 @@ exports.createChatBookingRequest = async (req, res, next) => {
         source,
         serviceId != null ? String(serviceId) : null,
         timezone,
+        initialStatus,
       ],
     );
     const booking = rows[0];
@@ -670,7 +850,7 @@ exports.createChatBookingRequest = async (req, res, next) => {
       (isProvider ? 'Provider' : 'Customer');
     await postStatusToThread({
       booking,
-      event: 'requested',
+      event: isProvider ? 'counter_proposed' : 'requested',
       actorId: userId,
       actorName,
     });

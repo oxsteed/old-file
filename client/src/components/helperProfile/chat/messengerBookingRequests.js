@@ -94,6 +94,11 @@ export function canProviderRespondBooking(status) {
   return s === 'pending' || s === 'counter_proposed' || s === 'expired';
 }
 
+/** Customer / verified guest can Accept or Decline a provider-proposed time. */
+export function canCustomerRespondBooking(status) {
+  return toBookingChatStatus(status) === 'counter_proposed';
+}
+
 export function appendBookingRequestMarker(messageText, markerOpts) {
   const marker = buildBookingRequestMarker(markerOpts);
   if (!marker) return String(messageText || '');

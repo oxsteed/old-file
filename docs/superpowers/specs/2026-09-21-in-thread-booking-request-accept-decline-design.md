@@ -41,9 +41,11 @@ Posted with human summary text. Client strips marker and renders `BookingRequest
 | GET | `/api/chat/booking-requests/:id` | Participant / verified guest |
 | POST | `/api/chat/booking-requests/:id/accept` | Provider (helper owner or business member) |
 | POST | `/api/chat/booking-requests/:id/decline` | Provider (`reason` optional) |
-| POST | `/api/chat/booking-requests/:id/propose` | Provider (counter time) |
+| POST | `/api/chat/booking-requests/:id/propose` | Provider (counter time → `counter_proposed`) |
+| POST | `/api/chat/booking-requests/:id/customer-accept` | Conversation customer or verified guest (not provider); status must be `counter_proposed` |
+| POST | `/api/chat/booking-requests/:id/customer-decline` | Same authz; optional `reason`; → `declined` |
 
-Authz reuses `chatThreadAccess` (conversation participant, business member, guest inquiry access).
+Authz reuses `chatThreadAccess` (conversation participant, business member, guest inquiry access). Customer respond uses `optionalAuth` (signed-in customer or verified guest session match).
 
 ### Accept
 
@@ -59,10 +61,19 @@ Authz reuses `chatThreadAccess` (conversation participant, business member, gues
 
 ### Propose (stretch → done)
 
-Update requested date/times → `counter_proposed`; keep pending for customer visibility; post revised marker.
+Update requested date/times → `counter_proposed`; post revised marker; customer/guest can then Accept/Decline.
 
-**ChatPanel parity (2026-09-21):** when `isProviderActor` (`user.id === helperId` or business actor), `BookingRequestCard` gets `onProposeTime` via MessageBubble/ChatTimeline; opens in-dock `MessengerAvailabilityPicker` and POSTs `/api/chat/booking-requests/:id/propose` (same as ConversationThread/inbox). Customer/guest path unchanged.
+**ChatPanel parity (2026-09-21):** when `isProviderActor` (`user.id === helperId` or business actor), `BookingRequestCard` gets `onProposeTime` via MessageBubble/ChatTimeline; opens in-dock `MessengerAvailabilityPicker` and POSTs `/api/chat/booking-requests/:id/propose` (same as ConversationThread/inbox).
 **Availability gate (2026-09-21 follow-up):** `MessengerAvailabilityPicker` is no longer limited to `session.destination === 'helper'`. `canShowAvailabilityPicker({ destination, businessId, helperId })` also allows `destination === 'business'` and any session with a `businessId` (business public-profile / business-only chat), while OxSteed destination stays excluded. Helper destination / helperId path unchanged. Propose-different-time and schedule entry points force-mount the picker when a provider id is present.
+
+### Customer Accept / Decline (closed 2026-09-21)
+
+When status is `counter_proposed` (provider **Propose different time**, or provider-originated inbox/ChatPanel Schedule create), the **customer or verified guest** can Accept or Decline in-thread:
+
+1. **Accept** → `accepted`; reuses `confirmOrCreateAppointment` (same as provider accept); posts status marker; emits `booking:chat_updated` + `booking:updated`.
+2. **Decline** → `declined` + optional note; cancels linked appointment; posts status + sockets.
+3. Provider is rejected on customer endpoints (`provider_cannot_customer_respond`); provider keeps Accept/Decline/Propose on pending (and may still act on `counter_proposed`).
+4. UI: `BookingRequestCard` shows Accept/Decline for customer/guest on `counter_proposed`; hides Propose for them; guest path passes `guestAuthHeaders` / verify gate.
 
 
 ### Migration 537
@@ -72,8 +83,8 @@ Adds `conversation_id`, `guest_session_id`, `appointment_id`, `quote_kind`, `quo
 ## UI
 
 - `helperProfile/chat/BookingRequestCard.jsx` in MessageBubble + ConversationThread.
-- Provider: Accept / Decline (+ note) / Propose different time.
-- Customer/guest: status badge + hint copy (en/es/fr/ht/ar).
+- Provider: Accept / Decline (+ note) / Propose different time (pending / counter_proposed / expired).
+- Customer/guest: Accept / Decline (+ note) when `counter_proposed`; otherwise status badge + hint copy (en/es/fr/ht/ar).
 
 ## Success criteria
 
@@ -88,6 +99,10 @@ Adds `conversation_id`, `guest_session_id`, `appointment_id`, `quote_kind`, `quo
 |---|---|---|
 | POST | `/api/chat/booking-requests` | Conversation participant (customer or provider). Provider schedules on behalf of `conversation.customer_id`. Enforces agreement gate. Posts marker + sockets. |
 
-ChatPanel provider Schedule (no propose/quote) uses the same endpoint when `conversationId` is present. Customer picker create still uses `/api/bookings` + client marker append (parity markers).
+ChatPanel provider Schedule (no propose/quote) uses the same endpoint when `conversationId` is present. When the **provider** creates the request, status is `counter_proposed` so the customer can Accept/Decline; customer-originated creates stay `pending` for the provider. Customer picker create still uses `/api/bookings` + client marker append (parity markers).
 
 Agreement gate: create + quote schedule + propose + guest booking-request refuse with `agreement_required` when a non-superseded `required_before_schedule` agreement is not `accepted`/`acknowledged`.
+
+## Closed (customer accept residual)
+
+Customer Accept/Decline API + in-thread UI for `counter_proposed` / provider-proposed times — residual from provider-in-chat workspace closed.
