@@ -2041,7 +2041,7 @@
     "noMessagesSub": "¡Inicia la conversación!",
     "allConversations": "Todas las Conversaciones",
     "helperNoConvSub": "Cuando un cliente te contacte desde tu perfil, su mensaje aparecerá aquí.",
-    "re": "Re:",
+    "re": "Re: {{title}}",
     "newBadge": "Nuevo",
     "notFound": "Conversación no encontrada.",
     "notFoundSub": "Esta conversación no existe o no tienes acceso.",
@@ -2176,7 +2176,9 @@
     "heroDescription": "Mantén cada pregunta al ayudante, conversación de trabajo, detalle de reserva y seguimiento en un lugar responsable. Los mensajes mantienen el alcance, los horarios, las fotos, las notas de acceso y las decisiones conectadas con el trabajo.",
     "stats": {
       "conversations": "Conversaciones",
-      "unread": "Sin leer"
+      "unread": "Sin leer",
+      "needsReply": "Por responder",
+      "guestLeads": "Leads de invitados"
     },
     "toolsAriaLabel": "Herramientas de mensajes",
     "searchPlaceholder": "Busca personas, trabajos o mensajes...",
@@ -2204,6 +2206,72 @@
       "repeat": {
         "title": "Relaciones repetidas",
         "text": "Las buenas conversaciones se convierten en ayudantes guardados, nuevas reservas y necesidades futuras planificadas."
+      }
+    },
+    "startFailed": "No se pudo iniciar esa conversación. Prueba a abrir el perfil de la persona.",
+    "startingConversation": "Abriendo conversación…",
+    "unreadFilter": "No leídos",
+    "allFilter": "Todos",
+    "filterAriaLabel": "Filtrar conversaciones",
+    "selectConversation": "Elige una conversación",
+    "selectConversationHint": "Abre un hilo para seguir hablando, o inicia uno desde un perfil, una reserva o un trabajo.",
+    "jumpToLatest": "Mensajes nuevos",
+    "characterCount": "Quedan {{count}}",
+    "refresh": "Actualizar",
+    "improveProfile": "Mejorar perfil",
+    "findJobs": "Buscar trabajos",
+    "helperKicker": "Bandeja del negocio",
+    "helperMetaTitle": "Bandeja del ayudante - OxSteed",
+    "helperMetaDesc": "Gestiona mensajes de clientes, conversaciones de trabajo e consultas de invitados.",
+    "helperSearchPlaceholder": "Busca clientes, negocios, trabajos o notas de leads...",
+    "filteredUnreadEmpty": {
+      "title": "Estás al día.",
+      "text": "No hay conversaciones sin leer. Vuelve a Todos para ver el resto."
+    },
+    "helperFilteredEmpty": {
+      "title": "Ningún hilo de cliente coincide con esa búsqueda.",
+      "text": "Prueba un nombre de cliente, negocio, título de trabajo, correo de invitado o una frase del mensaje."
+    },
+    "helperEmpty": {
+      "kicker": "Aún no hay mensajes de clientes",
+      "title": "Tu bandeja está lista para recibir leads.",
+      "text": "Las conversaciones aparecen aquí cuando alguien escribe a tu perfil, responde a tus ofertas, te reserva o pregunta por un trabajo activo.",
+      "helpTitle": "Cómo generar más conversaciones",
+      "helpProfile": "Completa tus servicios, precios, fotos, preguntas frecuentes y portada.",
+      "helpShare": "Comparte tu perfil público o código QR con las personas que conoces.",
+      "helpBid": "Oferta en trabajos con alcance, plazos y siguientes pasos claros.",
+      "helpReply": "Responde rápido para que el cliente sienta que habla con un negocio real."
+    },
+    "helperGuide": {
+      "ariaLabel": "Guía de la bandeja del ayudante",
+      "leads": {
+        "title": "Leads del perfil",
+        "text": "Las preguntas de tu perfil público pueden convertirse en reservas, trabajos o clientes repetidos."
+      },
+      "jobs": {
+        "title": "Contexto del trabajo",
+        "text": "Mantén el alcance, las expectativas, las fotos y el seguimiento de la oferta junto al trabajo."
+      },
+      "business": {
+        "title": "Enrutado del negocio",
+        "text": "Filtra por negocio si gestionas más de un perfil o apoyas a un equipo."
+      },
+      "convert": {
+        "title": "Mejor conversión",
+        "text": "Respuestas claras y rápidas generan confianza antes de que el cliente decida a quién contratar."
+      }
+    },
+    "starters": {
+      "title": "Empieza con un primer mensaje útil",
+      "customer": {
+        "available": "Hola, ¿tienes disponibilidad esta semana?",
+        "quote": "¿Puedes compartir un presupuesto y plazos?",
+        "photos": "Puedo enviar fotos del trabajo si ayuda."
+      },
+      "helper": {
+        "thanks": "Gracias por escribir — puedo ayudarte con esto.",
+        "when": "¿Cuándo te gustaría que lo hagamos?",
+        "details": "¿Puedes compartir fotos o un poco más de detalle?"
       }
     }
   },

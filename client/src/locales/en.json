@@ -2176,7 +2176,9 @@
     "heroDescription": "Keep every helper question, job conversation, booking detail, and follow-up in one accountable place. Messages are where scope, timing, photos, access notes, and decisions stay connected to the work.",
     "stats": {
       "conversations": "Conversations",
-      "unread": "Unread"
+      "unread": "Unread",
+      "needsReply": "Needs reply",
+      "guestLeads": "Guest leads"
     },
     "toolsAriaLabel": "Message tools",
     "searchPlaceholder": "Search people, jobs, or messages...",
@@ -2204,6 +2206,72 @@
       "repeat": {
         "title": "Repeat relationships",
         "text": "Good conversations become saved helpers, repeat bookings, and planned future needs."
+      }
+    },
+    "startFailed": "Could not start that conversation. Try opening the person's profile instead.",
+    "startingConversation": "Opening conversation…",
+    "unreadFilter": "Unread",
+    "allFilter": "All",
+    "filterAriaLabel": "Filter conversations",
+    "selectConversation": "Pick a conversation",
+    "selectConversationHint": "Choose a thread to keep talking, or start one from a helper profile, booking, or job.",
+    "jumpToLatest": "New messages",
+    "characterCount": "{{count}} left",
+    "refresh": "Refresh",
+    "improveProfile": "Improve profile",
+    "findJobs": "Find jobs",
+    "helperKicker": "Business inbox",
+    "helperMetaTitle": "Helper Inbox - OxSteed",
+    "helperMetaDesc": "Manage customer messages, job conversations, and guest profile inquiries.",
+    "helperSearchPlaceholder": "Search customers, businesses, jobs, or lead notes...",
+    "filteredUnreadEmpty": {
+      "title": "You're caught up.",
+      "text": "No unread conversations right now. Switch back to All to browse the rest."
+    },
+    "helperFilteredEmpty": {
+      "title": "No customer threads match that search.",
+      "text": "Try a customer name, business name, job title, guest email, or message phrase."
+    },
+    "helperEmpty": {
+      "kicker": "No customer messages yet",
+      "title": "Your business inbox is ready for leads.",
+      "text": "Customer conversations appear here when people message your profile, respond to your bids, book you directly, or ask about active work.",
+      "helpTitle": "How to generate more conversations",
+      "helpProfile": "Complete your services, pricing, photos, FAQs, and profile cover.",
+      "helpShare": "Share your public profile or QR code with people you meet offline.",
+      "helpBid": "Bid on jobs with clear scope, timing, and next steps.",
+      "helpReply": "Reply quickly so customers feel they are dealing with a real business."
+    },
+    "helperGuide": {
+      "ariaLabel": "Helper inbox guide",
+      "leads": {
+        "title": "Profile leads",
+        "text": "Questions from your public profile can become bookings, jobs, or repeat customers."
+      },
+      "jobs": {
+        "title": "Job context",
+        "text": "Keep scope, expectations, photos, and bid follow-up attached to the work."
+      },
+      "business": {
+        "title": "Business routing",
+        "text": "Filter by business when you manage more than one profile or support a team."
+      },
+      "convert": {
+        "title": "Better conversion",
+        "text": "Fast, clear replies build trust before a customer decides who to hire."
+      }
+    },
+    "starters": {
+      "title": "Start with a useful first message",
+      "customer": {
+        "available": "Hi, are you available this week?",
+        "quote": "Could you share a quote and timing?",
+        "photos": "I can send photos of the work if that helps."
+      },
+      "helper": {
+        "thanks": "Thanks for reaching out — I can help with this.",
+        "when": "When would you like this done?",
+        "details": "Could you share photos or a few more details?"
       }
     }
   },

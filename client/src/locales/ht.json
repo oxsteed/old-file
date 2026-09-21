@@ -2115,7 +2115,7 @@
     "noMessages": "Pa gen mesaj ankò",
     "noMessagesSub": "Kòmanse yon konvèsasyon lè ou kontakte yon èd nan yon lis travay.",
     "allConversations": "Tout Konvèsasyon",
-    "re": "Rèp:",
+    "re": "Rèp: {{title}}",
     "via": "via {{name}}",
     "typeMessage": "Tape yon mesaj…",
     "typeReply": "Tape repons ou...",
@@ -2261,7 +2261,9 @@
     "heroDescription": "Kenbe chak kesyon pou èd la, konvèsasyon travay, detay rezèvasyon, ak swivi nan yon sèl kote ki responsab. Mesaj yo kenbe dimansyon travay la, lè, foto, nòt aksè, ak desizyon yo konekte ak travay la.",
     "stats": {
       "conversations": "Konvèsasyon",
-      "unread": "Pa li"
+      "unread": "Pa li",
+      "needsReply": "Bezwen repons",
+      "guestLeads": "Klient envite"
     },
     "toolsAriaLabel": "Zouti mesaj",
     "searchPlaceholder": "Chèche moun, travay, oswa mesaj...",
@@ -2289,6 +2291,72 @@
       "repeat": {
         "title": "Relasyon ki repete",
         "text": "Bon konvèsasyon vin tounen èd ou sove, rezèvasyon ki repete, ak bezwen lavni ou planifye."
+      }
+    },
+    "startFailed": "Nou pa t ka kòmanse konvèsasyon sa a. Eseye ouvri pwofil moun nan.",
+    "startingConversation": "N ap ouvri konvèsasyon an…",
+    "unreadFilter": "Pa li",
+    "allFilter": "Tout",
+    "filterAriaLabel": "Filtre konvèsasyon yo",
+    "selectConversation": "Chwazi yon konvèsasyon",
+    "selectConversationHint": "Chwazi yon fil pou kontinye pale, oswa kòmanse youn nan yon pwofil, rezèvasyon, oswa travay.",
+    "jumpToLatest": "Nouvo mesaj",
+    "characterCount": "{{count}} rete",
+    "refresh": "Rafrechi",
+    "improveProfile": "Amelyore pwofil",
+    "findJobs": "Jwenn travay",
+    "helperKicker": "Bwat biznis",
+    "helperMetaTitle": "Bwat èd - OxSteed",
+    "helperMetaDesc": "Jere mesaj kliyan, konvèsasyon travay, ak demann envite.",
+    "helperSearchPlaceholder": "Chèche kliyan, biznis, travay, oswa nòt...",
+    "filteredUnreadEmpty": {
+      "title": "Ou a jou.",
+      "text": "Pa gen konvèsasyon ki poko li kounye a. Retounen nan Tout pou wè rès yo."
+    },
+    "helperFilteredEmpty": {
+      "title": "Pa gen fil kliyan ki matche rechèch sa a.",
+      "text": "Eseye yon non kliyan, biznis, tit travay, imèl envite, oswa yon fraz nan mesaj la."
+    },
+    "helperEmpty": {
+      "kicker": "Poko gen mesaj kliyan",
+      "title": "Bwat biznis ou a pare pou kliyan.",
+      "text": "Konvèsasyon yo parèt isit la lè moun voye mesaj nan pwofil ou, reponn òf ou, rezève ou, oswa poze kesyon sou travay aktif.",
+      "helpTitle": "Kijan pou jenere plis konvèsasyon",
+      "helpProfile": "Ranpli sèvis, pri, foto, FAQ, ak kouvèti pwofil ou.",
+      "helpShare": "Pataje pwofil piblik ou oswa kòd QR ak moun ou rankontre.",
+      "helpBid": "Fè òf sou travay ak dimansyon, tan, ak pwochen etap ki klè.",
+      "helpReply": "Reponn vit pou kliyan santi yo ap pale ak yon vrè biznis."
+    },
+    "helperGuide": {
+      "ariaLabel": "Gid bwat èd",
+      "leads": {
+        "title": "Kliyan nan pwofil",
+        "text": "Kesyon nan pwofil piblik ou ka tounen rezèvasyon, travay, oswa kliyan ki retounen."
+      },
+      "jobs": {
+        "title": "Kontèks travay",
+        "text": "Kenbe dimansyon, atant, foto, ak swivi òf yo tache ak travay la."
+      },
+      "business": {
+        "title": "Wout biznis",
+        "text": "Filtre pa biznis lè ou jere plizyè pwofil oswa yon ekip."
+      },
+      "convert": {
+        "title": "Pi bon konvèsyon",
+        "text": "Repons rapid e klè bati konfyans anvan kliyan an deside ki moun pou anboche."
+      }
+    },
+    "starters": {
+      "title": "Kòmanse ak yon premye mesaj ki itil",
+      "customer": {
+        "available": "Bonjou, èske ou disponib semèn sa a?",
+        "quote": "Èske ou ka pataje yon pri ak yon tan?",
+        "photos": "Mwen ka voye foto travay la si sa ede."
+      },
+      "helper": {
+        "thanks": "Mèsi dèske ou kontakte m — mwen ka ede ak sa.",
+        "when": "Kilè ou ta renmen sa fèt?",
+        "details": "Èske ou ka pataje foto oswa yon ti kras plis detay?"
       }
     }
   },

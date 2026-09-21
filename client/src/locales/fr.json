@@ -2028,7 +2028,7 @@
     "noMessages": "Pas encore de messages",
     "noMessagesSub": "Commencez une conversation en contactant un aide sur une annonce.",
     "allConversations": "Toutes les Conversations",
-    "re": "Rép:",
+    "re": "Rép. : {{title}}",
     "via": "via {{name}}",
     "typeMessage": "Tapez un message…",
     "typeReply": "Tapez votre réponse...",
@@ -2176,7 +2176,9 @@
     "heroDescription": "Gardez chaque question au prestataire, conversation de mission, détail de réservation et suivi dans un lieu responsable. Les messages relient le périmètre, les horaires, les photos, les notes d’accès et les décisions au travail.",
     "stats": {
       "conversations": "Conversations",
-      "unread": "Non lus"
+      "unread": "Non lus",
+      "needsReply": "À répondre",
+      "guestLeads": "Prospects invités"
     },
     "toolsAriaLabel": "Outils de messagerie",
     "searchPlaceholder": "Rechercher des personnes, missions ou messages...",
@@ -2204,6 +2206,72 @@
       "repeat": {
         "title": "Relations durables",
         "text": "Les bonnes conversations deviennent des prestataires enregistrés, des réservations répétées et des besoins futurs planifiés."
+      }
+    },
+    "startFailed": "Impossible de démarrer cette conversation. Ouvrez plutôt le profil de la personne.",
+    "startingConversation": "Ouverture de la conversation…",
+    "unreadFilter": "Non lus",
+    "allFilter": "Tous",
+    "filterAriaLabel": "Filtrer les conversations",
+    "selectConversation": "Choisissez une conversation",
+    "selectConversationHint": "Ouvrez un fil pour continuer, ou démarrez-en un depuis un profil, une réservation ou une mission.",
+    "jumpToLatest": "Nouveaux messages",
+    "characterCount": "{{count}} restants",
+    "refresh": "Actualiser",
+    "improveProfile": "Améliorer le profil",
+    "findJobs": "Trouver des missions",
+    "helperKicker": "Boîte de réception professionnelle",
+    "helperMetaTitle": "Boîte prestataire - OxSteed",
+    "helperMetaDesc": "Gérez les messages clients, les conversations de mission et les demandes d’invités.",
+    "helperSearchPlaceholder": "Rechercher des clients, entreprises, missions ou notes…",
+    "filteredUnreadEmpty": {
+      "title": "Vous êtes à jour.",
+      "text": "Aucune conversation non lue pour le moment. Revenez à Tous pour parcourir le reste."
+    },
+    "helperFilteredEmpty": {
+      "title": "Aucun fil client ne correspond à cette recherche.",
+      "text": "Essayez un nom de client, une entreprise, un titre de mission, un e-mail d’invité ou une phrase du message."
+    },
+    "helperEmpty": {
+      "kicker": "Pas encore de messages clients",
+      "title": "Votre boîte est prête à recevoir des demandes.",
+      "text": "Les conversations apparaissent ici quand quelqu’un écrit sur votre profil, répond à une offre, vous réserve ou pose une question sur un travail en cours.",
+      "helpTitle": "Comment générer plus de conversations",
+      "helpProfile": "Complétez vos services, tarifs, photos, FAQ et image de couverture.",
+      "helpShare": "Partagez votre profil public ou votre QR code avec les personnes que vous rencontrez.",
+      "helpBid": "Proposez sur des missions avec un périmètre, un délai et des prochaines étapes clairs.",
+      "helpReply": "Répondez vite pour que le client sente qu’il parle à une vraie entreprise."
+    },
+    "helperGuide": {
+      "ariaLabel": "Guide de la boîte prestataire",
+      "leads": {
+        "title": "Demandes du profil",
+        "text": "Les questions de votre profil public peuvent devenir des réservations, des missions ou des clients fidèles."
+      },
+      "jobs": {
+        "title": "Contexte de la mission",
+        "text": "Gardez le périmètre, les attentes, les photos et le suivi d’offre attachés au travail."
+      },
+      "business": {
+        "title": "Routage d’entreprise",
+        "text": "Filtrez par entreprise si vous gérez plusieurs profils ou une équipe."
+      },
+      "convert": {
+        "title": "Meilleure conversion",
+        "text": "Des réponses rapides et claires créent la confiance avant que le client choisisse qui embaucher."
+      }
+    },
+    "starters": {
+      "title": "Commencez par un premier message utile",
+      "customer": {
+        "available": "Bonjour, êtes-vous disponible cette semaine ?",
+        "quote": "Pouvez-vous partager un devis et un délai ?",
+        "photos": "Je peux envoyer des photos du travail si cela aide."
+      },
+      "helper": {
+        "thanks": "Merci pour votre message — je peux vous aider.",
+        "when": "Quand souhaitez-vous que ce soit fait ?",
+        "details": "Pouvez-vous partager des photos ou un peu plus de détails ?"
       }
     }
   },
