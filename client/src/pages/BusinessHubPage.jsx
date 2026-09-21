@@ -82,6 +82,7 @@ import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
+import HiringPipelineBoard from '../components/careers/HiringPipelineBoard';
 import {
   profileFormFromBusiness,
   tagOwnedBusiness,
@@ -1222,6 +1223,7 @@ function BusinessHubInner() {
     'analytics',
     'loyalty',
     'team',
+    'hiring',
     'integrations',
     'expenses',
     'quotes',
@@ -1239,7 +1241,7 @@ function BusinessHubInner() {
   // business capabilities so restaurant owners do not have to decipher service
   // concepts such as appointments, service packages, or client invoicing.
   const candidateTabs = isRestaurantBusiness
-    ? ['messages', 'team']
+    ? ['messages', 'team', 'hiring']
     : serviceBusinessTabs;
   const visibleTabs = candidateTabs.filter((tb) => LAUNCH_BUSINESS_HUB_TABS.has(tb)).filter((tb) => {
     if (tb === 'workflow' && !canEditBizProfile) return false;
@@ -1251,6 +1253,7 @@ function BusinessHubInner() {
     if (tb === 'overview' && !canViewFinanceHub) return false;
     if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
+    if (tb === 'hiring' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
     if (['property-ops','trades-ops','beauty-ops','creative-ops','professional-ops','continuity-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
@@ -1298,6 +1301,9 @@ function BusinessHubInner() {
     if (tab === 'ai' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
+    if (tab === 'hiring' && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
     if (financeTabIds.includes(tab) && !canViewFinanceHub) {
       setTab('team');
     }
@@ -1314,6 +1320,7 @@ function BusinessHubInner() {
     if (tb === 'hours') return t('businessHub.tabHoursLabel');
     if (tb === 'skills') return t('businessHub.tabSkillsLabel');
     if (tb === 'team') return t('businessHub.tabTeamLabel');
+    if (tb === 'hiring') return t('businessHub.tabHiringLabel');
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
@@ -1949,10 +1956,17 @@ function BusinessHubInner() {
                 onRevokeAccessCode={handleRevokeAccessCode}
                 showVortexAccess={LAUNCH_VISIBILITY.businessHubVortexAccess}
                 onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
+                onOpenHiring={canEditBizProfile ? () => setTab('hiring') : null}
+                businessId={bizId}
                 onRevoke={handleRevokeMember}
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
               />
+            )}
+
+            {/* ── Hiring tab ───────────────────────────────────────── */}
+            {tab === 'hiring' && bizId && canEditBizProfile && (
+              <HiringPipelineBoard employerType="business" businessId={bizId} />
             )}
 
             {/* ── Messages tab ─────────────────────────────────────── */}
@@ -3595,7 +3609,8 @@ function TeamTab({
   onGenerateToken, generatingToken, onCreateAccessCode, generatingAccessCode,
   onRevokeToken, onRevokeAccessCode,
   showVortexAccess = false,
-  onInvite, onRevoke, onAccept, onDecline,
+  onInvite, onOpenHiring, businessId,
+  onRevoke, onAccept, onDecline,
 }) {
   const { t } = useTranslation();
   const roleLabel = (role) => {
@@ -3855,8 +3870,19 @@ function TeamTab({
       <div className="bh-team-section">
         <div className="bh-team-heading-row">
           <h3 className="bh-team-heading">{t('businessHub.teamMembersSection')}</h3>
-          <button className="bh-btn primary" onClick={onInvite}>{t('businessHub.btnInvite')}</button>
+          <div className="bh-team-heading-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {onOpenHiring && (
+              <button className="bh-btn" onClick={onOpenHiring}>{t('businessHub.openHiring')}</button>
+            )}
+            {businessId && (
+              <Link className="bh-btn" to={`/business/${businessId}/careers`}>{t('businessHub.viewPublicCareers')}</Link>
+            )}
+            <button className="bh-btn primary" onClick={onInvite}>{t('businessHub.btnInvite')}</button>
+          </div>
         </div>
+        {onOpenHiring && (
+          <p className="bh-team-vortex-desc">{t('businessHub.hiringHint')}</p>
+        )}
 
         {members.length === 0 ? (
           <div className="bh-empty" style={{ padding: '2rem 0' }}>

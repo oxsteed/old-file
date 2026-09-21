@@ -157,6 +157,7 @@ const { sendDirectServiceAreaPage } = require('./routes/directServiceAreaPage');
 const restaurantRoutes = require('./routes/restaurants');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
 const businessTeamRoutes   = require('./routes/businessTeam');
+const careerRoutes         = require('./routes/careers');
 const vortexAccessRoutes   = require('./routes/vortex');
 const meWorkspaceRoutes    = require('./routes/meWorkspace');
 const runnerWorkspaceRoutes = require('./routes/runner');
@@ -466,7 +467,8 @@ app.use('/api/businesses', businessMsgTemplatesRoutes);
 app.use('/api/businesses', businessIntegrationsRoutes);
 app.use('/api/businesses', businessProductPricingRoutes);
 app.use('/api/businesses', businessTeamRoutes);
-app.use('/api/vortex',     vortexAccessRoutes);
+  app.use('/api/careers',    careerRoutes);
+  app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);
 app.use('/api/admin/corporate', corporateRolesRoutes);
 app.use('/api/internal/workspaces', internalWorkspaceRoutes);

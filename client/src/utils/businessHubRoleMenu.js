@@ -40,6 +40,7 @@ export const TAB_PERMISSIONS = {
   analytics:        'analytics.view_summary',
   loyalty:          'customers.view_all',
   team:             'team.view',
+  hiring:           'team.view',
   integrations:     'settings.integrations',
   expenses:         'analytics.view_financial',
   quotes:           'quotes.create',
@@ -77,6 +78,7 @@ export function filterAllowedTabs(tabKeys, role, permissionSet) {
 //   group : section header (optional)
 const COMMON_FOOTER = [
   { id: 'team',         label: 'businessHub.menu.team',         tab: 'team',         group: 'admin' },
+  { id: 'hiring',       label: 'businessHub.menu.hiring',       tab: 'hiring',       group: 'admin' },
   { id: 'settings',     label: 'businessHub.menu.settings',     tab: 'integrations', group: 'admin' },
 ];
 

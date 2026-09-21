@@ -884,7 +884,8 @@
     "accountTermination": "إنهاء الحساب",
     "disputeResolution": "حل النزاعات",
     "independentContractor": "المقاول المستقل",
-    "howOxsteedWorks": "كيف يعمل OxSteed"
+    "howOxsteedWorks": "كيف يعمل OxSteed",
+    "careers": "الوظائف"
   },
   "accountTermination": {
     "pageTitle": "سياسة إنهاء الحساب",
@@ -4393,6 +4394,10 @@
     "tabProfile": "تحرير الملف الشخصي",
     "tabEditProfile": "تحرير الملف الشخصي",
     "tabTeamLabel": "فريق",
+    "tabHiringLabel": "التوظيف",
+    "openHiring": "فتح التوظيف",
+    "viewPublicCareers": "عرض الوظائف العامة",
+    "hiringHint": "ادعُ أشخاصًا تعرفهم بالفعل، أو انشر وظيفة ليمر المتقدمون بالفرز والمقابلة والعرض ثم التوظيف. ينضم التوظيف إلى تبويب الفريق هذا.",
     "tabOverviewLabel": "ملخص",
     "tabInvoicesLabel": "الفواتير",
     "tabTaxLabel": "ضريبة",
@@ -5145,6 +5150,7 @@
       "documents": "وثائق",
       "team": "فريق",
       "settings": "إعدادات",
+      "hiring": "التوظيف",
       "supportEscalations": "دعم التصعيد",
       "escalations": "التصعيد"
     },
@@ -14913,5 +14919,156 @@
     "currentlyUnavailable": "غير متاحة حاليًا",
     "categoryComingSoon": "ستتوفر الخدمات في هذه الفئة قريبًا.",
     "categoryPaused": "هذه الفئة غير متاحة مؤقتًا."
+  }
+,
+
+  "careers": {
+    "metaTitle": "الوظائف في OxSteed",
+    "metaDesc": "قدّم إلى OxSteed وإلى الشركات التي توظّف عبر OxSteed. وظائف عن بُعد وهجينة وحضورية في جميع أنحاء العالم.",
+    "kicker": "الوظائف",
+    "title": "اعمل مع OxSteed",
+    "businessTitle": "الوظائف المفتوحة في هذا النشاط",
+    "subtitle": "توظّف OxSteed والشركات على المنصة دوليًا. صفِّ حسب البلد ومكان العمل وصاحب العمل، بما في ذلك الوظائف عن بُعد الظاهرة في كل البلدان.",
+    "searchPlaceholder": "ابحث عن وظائف أو فرق أو مدن",
+    "loading": "جارٍ تحميل الوظائف المفتوحة…",
+    "noOpenings": "لا توجد وظائف مفتوحة تطابق هذه عوامل التصفية الآن.",
+    "noApplications": "لم تتقدم إلى أي وظيفة بعد.",
+    "loadError": "تعذر تحميل الوظائف.",
+    "viewRole": "عرض الوظيفة",
+    "back": "العودة إلى الوظائف",
+    "remoteWorldwide": "عن بُعد في جميع أنحاء العالم",
+    "myApplications": "طلباتي",
+    "filters": {
+      "allWorkplaces": "كل أماكن العمل",
+      "allEmployers": "OxSteed والشركات",
+      "oxsteed": "OxSteed",
+      "businesses": "شركات على OxSteed"
+    },
+    "workplace": {
+      "remote": "عن بُعد",
+      "hybrid": "هجين",
+      "onsite": "في الموقع"
+    },
+    "employment": {
+      "full_time": "دوام كامل",
+      "part_time": "دوام جزئي",
+      "contract": "عقد",
+      "intern": "تدريب",
+      "seasonal": "موسمي",
+      "temporary": "مؤقت"
+    },
+    "authorization": {
+      "local_authorized": "مصرح بالعمل بالفعل",
+      "visa_sponsorship": "كفالة تأشيرة متاحة",
+      "any": "مفتوح للعاملين المصرح لهم وللكفالة"
+    },
+    "period": {
+      "hourly": "ساعي",
+      "monthly": "شهري",
+      "yearly": "سنوي"
+    },
+    "opening": {
+      "notFound": "هذه الوظيفة لم تعد مفتوحة.",
+      "noDescription": "ستُشارك التفاصيل أثناء الفرز."
+    },
+    "fields": {
+      "title": "المسمى الوظيفي",
+      "department": "القسم",
+      "employment": "نوع التوظيف",
+      "workplace": "مكان العمل",
+      "country": "البلد",
+      "city": "المدينة",
+      "timezone": "المنطقة الزمنية",
+      "currency": "العملة",
+      "payMin": "الراتب من",
+      "payMax": "الراتب إلى",
+      "authorization": "تصريح العمل",
+      "languages": "اللغات",
+      "teamRole": "دور الفريق بعد التوظيف",
+      "status": "حالة الإعلان",
+      "description": "الوصف",
+      "requirements": "المتطلبات",
+      "benefits": "المزايا",
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "resumeUrl": "رابط السيرة أو المعرض",
+      "coverLetter": "خطاب التقديم",
+      "relocate": "أنا مستعد للانتقال"
+    },
+    "apply": {
+      "title": "قدّم",
+      "eeo": "ترحب OxSteed بالمتقدمين من كل بلد نعمل فيه. أخبرنا من أين تعمل وأي اللغات تستخدم.",
+      "submitted": "تم إرسال الطلب.",
+      "error": "تعذر إرسال هذا الطلب.",
+      "sending": "جارٍ الإرسال…",
+      "submit": "إرسال الطلب",
+      "offerAccepted": "تم قبول العرض.",
+      "acceptOffer": "قبول العرض",
+      "declineOffer": "رفض العرض",
+      "withdraw": "سحب"
+    },
+    "stage": {
+      "received": "مستلم",
+      "screening": "فرز",
+      "interview": "مقابلة",
+      "assessment": "تقييم",
+      "offer": "عرض",
+      "hired": "تم التوظيف",
+      "rejected": "مرفوض",
+      "withdrawn": "مسحوب"
+    },
+    "departments": {
+      "engineering": "الهندسة",
+      "product": "المنتج",
+      "operations": "العمليات",
+      "support": "الدعم",
+      "people": "الأفراد",
+      "finance": "المالية",
+      "marketing": "التسويق",
+      "restaurant": "المطعم",
+      "logistics": "الخدمات اللوجستية",
+      "sales": "المبيعات",
+      "legal": "القانوني",
+      "other": "أخرى"
+    },
+    "teamRoles": {
+      "employee": "موظف",
+      "manager": "مدير",
+      "representative": "ممثل",
+      "support_agent": "وكيل دعم"
+    },
+    "openingStatus": {
+      "draft": "مسودة",
+      "open": "مفتوحة",
+      "paused": "متوقفة",
+      "closed": "مغلقة",
+      "filled": "مشغولة"
+    },
+    "employer": {
+      "kicker": "التوظيف",
+      "title": "مسار التوظيف",
+      "platformHelp": "انشر وظائف OxSteed، وافرز المتقدمين، وأجرِ المقابلات، وقدّم العروض، ووظّف عبر مسار دولي واحد.",
+      "businessHelp": "انشر وظائف مفتوحة لهذا النشاط. يصل التوظيف إلى تبويب الفريق بالدور الذي تختاره.",
+      "editRole": "تعديل الوظيفة",
+      "newRole": "نشر وظيفة",
+      "loadError": "تعذر تحميل التوظيف.",
+      "saved": "تم حفظ الوظيفة.",
+      "saveError": "تعذر حفظ هذه الوظيفة.",
+      "stageUpdated": "تم تحديث المسار.",
+      "stageError": "تغيير المرحلة هذا غير مسموح.",
+      "interviewWhen": "تاريخ ووقت المقابلة (أي منطقة زمنية، مثل 2026-10-02 15:00)",
+      "interviewBooked": "تم جدولة المقابلة.",
+      "offerCreated": "تم إرسال العرض.",
+      "saving": "جارٍ الحفظ…",
+      "saveRole": "حفظ الوظيفة",
+      "cancelEdit": "إلغاء",
+      "newApplicants": "جديد",
+      "pipelineFor": "مسار {{title}}",
+      "interview": "جدولة مقابلة",
+      "offer": "إرسال عرض",
+      "hire": "توظيف"
+    }
   }
 }

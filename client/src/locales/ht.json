@@ -969,7 +969,8 @@
     "accountTermination": "Fèmti Kont",
     "disputeResolution": "Rezolisyon Diferan",
     "independentContractor": "Kontraktè Endepandan",
-    "howOxsteedWorks": "Kijan OxSteed mache"
+    "howOxsteedWorks": "Kijan OxSteed mache",
+    "careers": "Karyè"
   },
   "accountTermination": {
     "pageTitle": "Règleman Fèmti Kont",
@@ -4609,6 +4610,10 @@
     "tabProfile": "Modifye Pwofil",
     "tabEditProfile": "Modifye Pwofil",
     "tabTeamLabel": "Ekip",
+    "tabHiringLabel": "Anbochaj",
+    "openHiring": "Louvri anbochaj",
+    "viewPublicCareers": "Gade wòl piblik yo",
+    "hiringHint": "Envite moun ou deja konnen, oswa pibliye yon wòl pou kandida yo pase nan seleksyon, entèvyou, ofri, ak anbochaj. Yon anbochaj rantre nan onglet Ekip sa a.",
     "tabOverviewLabel": "Apèsi",
     "tabInvoicesLabel": "Bòdwo",
     "tabTaxLabel": "Taks",
@@ -5117,6 +5122,7 @@
       "documents": "Dokiman",
       "team": "Ekip",
       "settings": "Paramèt",
+      "hiring": "Anbochaj",
       "supportEscalations": "Eskalasyon",
       "escalations": "Eskalasyon"
     },
@@ -14910,5 +14916,156 @@
     "currentlyUnavailable": "Pa disponib kounye a",
     "categoryComingSoon": "Sèvis ki nan kategori sa a ap disponib talè konsa.",
     "categoryPaused": "Kategori sa a pa disponib pou yon ti tan."
+  }
+,
+
+  "careers": {
+    "metaTitle": "Karyè nan OxSteed",
+    "metaDesc": "Aplike nan OxSteed ak nan biznis k ap anboche sou OxSteed. Wòl aleka, ibrid, ak sou plas toupatou nan mond lan.",
+    "kicker": "Karyè",
+    "title": "Travay ak OxSteed",
+    "businessTitle": "Wòl ouvè nan biznis sa a",
+    "subtitle": "OxSteed ak biznis sou platfòm nan anboche entènasyonalman. Filtre selon peyi, kote travay, ak anplwayè, enkli wòl aleka ki rete vizib toupatou.",
+    "searchPlaceholder": "Chèche wòl, ekip, oswa vil",
+    "loading": "Ap chaje wòl ouvè yo…",
+    "noOpenings": "Pa gen wòl ouvè ki matche filtè sa yo kounye a.",
+    "noApplications": "Ou poko aplike pou okenn wòl.",
+    "loadError": "Nou pa t kapab chaje karyè yo.",
+    "viewRole": "Gade wòl la",
+    "back": "Retounen nan karyè",
+    "remoteWorldwide": "Aleka nan lemonn antye",
+    "myApplications": "Aplikasyon mwen yo",
+    "filters": {
+      "allWorkplaces": "Tout kote travay",
+      "allEmployers": "OxSteed ak biznis yo",
+      "oxsteed": "OxSteed",
+      "businesses": "Biznis sou OxSteed"
+    },
+    "workplace": {
+      "remote": "Aleka",
+      "hybrid": "Ibrid",
+      "onsite": "Sou plas"
+    },
+    "employment": {
+      "full_time": "Tan plen",
+      "part_time": "Tan pasyèl",
+      "contract": "Kontra",
+      "intern": "Estaj",
+      "seasonal": "Sezon",
+      "temporary": "Tanporè"
+    },
+    "authorization": {
+      "local_authorized": "Deja otorize pou travay",
+      "visa_sponsorship": "Sipò viza disponib",
+      "any": "Ouvè pou moun ki otorize ak sipò viza"
+    },
+    "period": {
+      "hourly": "pa èdtan",
+      "monthly": "pa mwa",
+      "yearly": "pa ane"
+    },
+    "opening": {
+      "notFound": "Wòl sa a pa ouvè ankò.",
+      "noDescription": "Detay yo ap pataje pandan seleksyon an."
+    },
+    "fields": {
+      "title": "Tit wòl la",
+      "department": "Depatman",
+      "employment": "Kalite travay",
+      "workplace": "Kote travay",
+      "country": "Peyi",
+      "city": "Vil",
+      "timezone": "Zòn tan",
+      "currency": "Lajan",
+      "payMin": "Peman depi",
+      "payMax": "Peman jiska",
+      "authorization": "Otorizasyon travay",
+      "languages": "Lang",
+      "teamRole": "Wòl ekip apre anbochaj",
+      "status": "Estati pòs la",
+      "description": "Deskripsyon",
+      "requirements": "Egzijans",
+      "benefits": "Avantaj",
+      "firstName": "Non",
+      "lastName": "Siyati",
+      "email": "Imèl",
+      "phone": "Telefòn",
+      "resumeUrl": "URL CV oswa pòtfolyo",
+      "coverLetter": "Lèt motivasyon",
+      "relocate": "Mwen dispoze deplase"
+    },
+    "apply": {
+      "title": "Aplike",
+      "eeo": "OxSteed akeyi kandida nan tout peyi kote nou opere. Di nou kote w travay e ki lang ou itilize.",
+      "submitted": "Aplikasyon an voye.",
+      "error": "Nou pa t kapab voye aplikasyon sa a.",
+      "sending": "Ap voye…",
+      "submit": "Voye aplikasyon an",
+      "offerAccepted": "Ofri a aksepte.",
+      "acceptOffer": "Aksepte ofri a",
+      "declineOffer": "Refize ofri a",
+      "withdraw": "Retire"
+    },
+    "stage": {
+      "received": "Resevwa",
+      "screening": "Seleksyon",
+      "interview": "Entèvyou",
+      "assessment": "Evalyasyon",
+      "offer": "Ofri",
+      "hired": "Anboche",
+      "rejected": "Refize",
+      "withdrawn": "Retire"
+    },
+    "departments": {
+      "engineering": "Jeni",
+      "product": "Pwodwi",
+      "operations": "Operasyon",
+      "support": "Sipò",
+      "people": "Moun",
+      "finance": "Finans",
+      "marketing": "Maketing",
+      "restaurant": "Restoran",
+      "logistics": "Lojistik",
+      "sales": "Vant",
+      "legal": "Legal",
+      "other": "Lòt"
+    },
+    "teamRoles": {
+      "employee": "Anplwaye",
+      "manager": "Manadjè",
+      "representative": "Reprezantan",
+      "support_agent": "Ajan sipò"
+    },
+    "openingStatus": {
+      "draft": "Bouyon",
+      "open": "Ouvè",
+      "paused": "Sispann",
+      "closed": "Fèmen",
+      "filled": "Ranpli"
+    },
+    "employer": {
+      "kicker": "Anbochaj",
+      "title": "Tiyo anbochaj",
+      "platformHelp": "Pibliye wòl OxSteed, chwazi kandida, fè entèvyou, ofri, epi anboche nan yon tiyo entènasyonal.",
+      "businessHelp": "Pibliye wòl ouvè pou biznis sa a. Yon anbochaj rive nan onglet Ekip la ak wòl ou chwazi a.",
+      "editRole": "Modifye wòl",
+      "newRole": "Pibliye yon wòl",
+      "loadError": "Nou pa t kapab chaje anbochaj la.",
+      "saved": "Wòl la sove.",
+      "saveError": "Nou pa t kapab sove wòl sa a.",
+      "stageUpdated": "Tiyo a mete ajou.",
+      "stageError": "Chanjman etap sa a pa pèmèt.",
+      "interviewWhen": "Dat ak lè entèvyou (nenpòt zòn tan, pa egzanp 2026-10-02 15:00)",
+      "interviewBooked": "Entèvyou pwograme.",
+      "offerCreated": "Ofri a voye.",
+      "saving": "Ap sove…",
+      "saveRole": "Sove wòl la",
+      "cancelEdit": "Anile",
+      "newApplicants": "nouvo",
+      "pipelineFor": "Tiyo pou {{title}}",
+      "interview": "Pwograme entèvyou",
+      "offer": "Voye ofri",
+      "hire": "Anboche"
+    }
   }
 }

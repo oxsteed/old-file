@@ -884,7 +884,8 @@
     "accountTermination": "Résiliation de Compte",
     "disputeResolution": "Résolution des Litiges",
     "independentContractor": "Travailleur Indépendant",
-    "howOxsteedWorks": "Comment fonctionne OxSteed"
+    "howOxsteedWorks": "Comment fonctionne OxSteed",
+    "careers": "Carrières"
   },
   "accountTermination": {
     "pageTitle": "Politique de Résiliation de Compte",
@@ -4393,6 +4394,10 @@
     "tabProfile": "Modifier le Profil",
     "tabEditProfile": "Modifier le Profil",
     "tabTeamLabel": "Équipe",
+    "tabHiringLabel": "Recrutement",
+    "openHiring": "Ouvrir le recrutement",
+    "viewPublicCareers": "Voir les postes publics",
+    "hiringHint": "Invitez des personnes que vous connaissez déjà, ou publiez un poste pour que les candidats passent par la présélection, l’entretien, l’offre et l’embauche. Une embauche rejoint cet onglet Équipe.",
     "tabOverviewLabel": "Aperçu",
     "tabInvoicesLabel": "Factures",
     "tabTaxLabel": "Taxes",
@@ -5145,6 +5150,7 @@
       "documents": "Documents",
       "team": "Equipe",
       "settings": "Parametres",
+      "hiring": "Recrutement",
       "supportEscalations": "Escalades",
       "escalations": "Escalades"
     },
@@ -14910,5 +14916,156 @@
     "currentlyUnavailable": "Actuellement indisponible",
     "categoryComingSoon": "Les services de cette catégorie seront bientôt disponibles.",
     "categoryPaused": "Cette catégorie est temporairement indisponible."
+  }
+,
+
+  "careers": {
+    "metaTitle": "Carrières chez OxSteed",
+    "metaDesc": "Postulez chez OxSteed et auprès des entreprises qui recrutent sur OxSteed. Postes distants, hybrides et sur site dans le monde entier.",
+    "kicker": "Carrières",
+    "title": "Travailler avec OxSteed",
+    "businessTitle": "Postes ouverts de cette entreprise",
+    "subtitle": "OxSteed et les entreprises de la plateforme recrutent à l’international. Filtrez par pays, lieu de travail et employeur, y compris les postes distants visibles partout.",
+    "searchPlaceholder": "Rechercher des postes, équipes ou villes",
+    "loading": "Chargement des postes…",
+    "noOpenings": "Aucun poste ne correspond à ces filtres pour le moment.",
+    "noApplications": "Vous n’avez encore postulé à aucun poste.",
+    "loadError": "Impossible de charger les carrières.",
+    "viewRole": "Voir le poste",
+    "back": "Retour aux carrières",
+    "remoteWorldwide": "Télétravail mondial",
+    "myApplications": "Mes candidatures",
+    "filters": {
+      "allWorkplaces": "Tous les lieux de travail",
+      "allEmployers": "OxSteed et entreprises",
+      "oxsteed": "OxSteed",
+      "businesses": "Entreprises sur OxSteed"
+    },
+    "workplace": {
+      "remote": "Télétravail",
+      "hybrid": "Hybride",
+      "onsite": "Sur site"
+    },
+    "employment": {
+      "full_time": "Temps plein",
+      "part_time": "Temps partiel",
+      "contract": "Contrat",
+      "intern": "Stage",
+      "seasonal": "Saisonnier",
+      "temporary": "Temporaire"
+    },
+    "authorization": {
+      "local_authorized": "Déjà autorisé à travailler",
+      "visa_sponsorship": "Parrainage de visa disponible",
+      "any": "Ouvert aux travailleurs autorisés et au parrainage"
+    },
+    "period": {
+      "hourly": "horaire",
+      "monthly": "mensuel",
+      "yearly": "annuel"
+    },
+    "opening": {
+      "notFound": "Ce poste n’est plus ouvert.",
+      "noDescription": "Les détails seront partagés pendant la présélection."
+    },
+    "fields": {
+      "title": "Intitulé du poste",
+      "department": "Département",
+      "employment": "Type d’emploi",
+      "workplace": "Lieu de travail",
+      "country": "Pays",
+      "city": "Ville",
+      "timezone": "Fuseau horaire",
+      "currency": "Devise",
+      "payMin": "Salaire de",
+      "payMax": "Salaire à",
+      "authorization": "Autorisation de travail",
+      "languages": "Langues",
+      "teamRole": "Rôle d’équipe après embauche",
+      "status": "Statut de l’offre",
+      "description": "Description",
+      "requirements": "Exigences",
+      "benefits": "Avantages",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "resumeUrl": "URL du CV ou du portfolio",
+      "coverLetter": "Lettre de motivation",
+      "relocate": "Je suis prêt à déménager"
+    },
+    "apply": {
+      "title": "Postuler",
+      "eeo": "OxSteed accueille les candidats de tous les pays où nous opérons. Indiquez d’où vous travaillez et quelles langues vous utilisez.",
+      "submitted": "Candidature envoyée.",
+      "error": "Impossible d’envoyer cette candidature.",
+      "sending": "Envoi…",
+      "submit": "Envoyer la candidature",
+      "offerAccepted": "Offre acceptée.",
+      "acceptOffer": "Accepter l’offre",
+      "declineOffer": "Refuser l’offre",
+      "withdraw": "Retirer"
+    },
+    "stage": {
+      "received": "Reçue",
+      "screening": "Présélection",
+      "interview": "Entretien",
+      "assessment": "Évaluation",
+      "offer": "Offre",
+      "hired": "Embauché",
+      "rejected": "Refusée",
+      "withdrawn": "Retirée"
+    },
+    "departments": {
+      "engineering": "Ingénierie",
+      "product": "Produit",
+      "operations": "Opérations",
+      "support": "Support",
+      "people": "Personnes",
+      "finance": "Finance",
+      "marketing": "Marketing",
+      "restaurant": "Restaurant",
+      "logistics": "Logistique",
+      "sales": "Ventes",
+      "legal": "Juridique",
+      "other": "Autre"
+    },
+    "teamRoles": {
+      "employee": "Employé",
+      "manager": "Manager",
+      "representative": "Représentant",
+      "support_agent": "Agent de support"
+    },
+    "openingStatus": {
+      "draft": "Brouillon",
+      "open": "Ouvert",
+      "paused": "En pause",
+      "closed": "Fermé",
+      "filled": "Pourvu"
+    },
+    "employer": {
+      "kicker": "Recrutement",
+      "title": "Pipeline de recrutement",
+      "platformHelp": "Publiez des postes OxSteed, présélectionnez, interviewez, offrez et embauchez dans un pipeline international.",
+      "businessHelp": "Publiez des postes pour cette entreprise. Une embauche arrive dans l’onglet Équipe avec le rôle choisi.",
+      "editRole": "Modifier le poste",
+      "newRole": "Publier un poste",
+      "loadError": "Impossible de charger le recrutement.",
+      "saved": "Poste enregistré.",
+      "saveError": "Impossible d’enregistrer ce poste.",
+      "stageUpdated": "Pipeline mis à jour.",
+      "stageError": "Ce changement d’étape n’est pas autorisé.",
+      "interviewWhen": "Date et heure de l’entretien (n’importe quel fuseau, par exemple 2026-10-02 15:00)",
+      "interviewBooked": "Entretien planifié.",
+      "offerCreated": "Offre envoyée.",
+      "saving": "Enregistrement…",
+      "saveRole": "Enregistrer le poste",
+      "cancelEdit": "Annuler",
+      "newApplicants": "nouveaux",
+      "pipelineFor": "Pipeline pour {{title}}",
+      "interview": "Planifier un entretien",
+      "offer": "Envoyer une offre",
+      "hire": "Embaucher"
+    }
   }
 }

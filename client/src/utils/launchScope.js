@@ -42,6 +42,7 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'calendar',
   'invoices',
   'team',
+  'hiring',
 ]);
 
 export const LAUNCH_VISIBILITY = Object.freeze({

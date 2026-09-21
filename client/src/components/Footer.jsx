@@ -156,6 +156,7 @@ export default function Footer() {
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
+              <FooterLink to="/careers">{t('footer.careers')}</FooterLink>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>

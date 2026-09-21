@@ -76,6 +76,7 @@ const SUPER_NAV = [
   { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    label: 'User Action Log' },
   { to: '/admin/super/one-truth',              icon: Fingerprint,   label: 'One Truth'       },
   { to: '/admin/super/franchises',             icon: Globe,         label: 'Franchise HQ'    },
+  { to: '/admin/super/careers',                icon: Briefcase,     label: 'Careers'         },
   { to: '/admin/super/country-packs',          icon: Globe,         label: 'Country Packs'   },
   { to: '/admin/super/corporate/departments',  icon: Building2,     label: 'Corporate Setup' },
   { to: '/admin/super/mode-policies',          icon: Key,           label: 'Mode Policies'   },
@@ -101,6 +102,7 @@ const SIMPLE_SUPER_NAV = [
   '/admin/super/restaurant-credit',
   '/admin/super/oxsteed-credit',
   '/admin/super/conversations',
+  '/admin/super/careers',
   '/admin/super/settings',
   '/admin/super/audit-log',
 ];

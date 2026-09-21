@@ -42,6 +42,7 @@ import CorporateOrgChart    from './pages/super/CorporateOrgChart';
 import CorporateAssignments from './pages/super/CorporateAssignments';
 import CorporateDepartments from './pages/super/CorporateDepartments';
 import FranchiseHQPage      from './pages/super/FranchiseHQPage';
+import CareersAdmin         from './pages/super/CareersAdmin';
 import RestaurantCreditAdmin from './pages/super/RestaurantCreditAdmin';
 import OxsteedCreditAdmin from './pages/super/OxsteedCreditAdmin';
 
@@ -313,6 +314,9 @@ export default function AdminApp() {
           } />
           <Route path="super/franchises" element={
             <AdminGuard superOnly><FranchiseHQPage /></AdminGuard>
+          } />
+          <Route path="super/careers" element={
+            <AdminGuard superOnly><CareersAdmin /></AdminGuard>
           } />
 
           {/* Corporate hierarchy (migration 246) - org chart open to all admins,

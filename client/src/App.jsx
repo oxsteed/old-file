@@ -47,6 +47,9 @@ const AccountTerminationPage = lazy(() => import('./pages/AccountTerminationPage
 const DisputeResolutionPage = lazy(() => import('./pages/DisputeResolutionPage'));
 const IndependentContractorPage = lazy(() => import('./pages/IndependentContractorPage'));
 const AboutPage = lazy(() => import('./pages/about'));
+const CareersPage = lazy(() => import('./pages/CareersPage'));
+const CareerOpeningPage = lazy(() => import('./pages/CareerOpeningPage'));
+const MyCareerApplicationsPage = lazy(() => import('./pages/MyCareerApplicationsPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPassword'));
 const TwoFactorSetup = lazy(() => import('./pages/Settings/TwoFactorSetup'));
@@ -285,6 +288,10 @@ export default function App() {
                     <Route path="/learn"                   element={<Guarded><LearnModePage /></Guarded>} />
                     <Route path="/translator"              element={<Guarded><TranslatorWorkspacePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
+                    <Route path="/careers"                 element={<Guarded><CareersPage /></Guarded>} />
+                    <Route path="/careers/me"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><MyCareerApplicationsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/careers/:id"             element={<Guarded><CareerOpeningPage /></Guarded>} />
+                    <Route path="/business/:businessId/careers" element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
                     <Route path="/bids/:bidId"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><BidDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

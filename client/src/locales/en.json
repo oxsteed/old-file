@@ -884,7 +884,8 @@
     "accountTermination": "Account Termination",
     "disputeResolution": "Dispute Resolution",
     "independentContractor": "Independent Contractor",
-    "howOxsteedWorks": "How OxSteed Works"
+    "howOxsteedWorks": "How OxSteed Works",
+    "careers": "Careers"
   },
   "accountTermination": {
     "pageTitle": "Account Termination Policy",
@@ -4354,6 +4355,10 @@
     "tabProfile": "Edit Profile",
     "tabEditProfile": "Edit Profile",
     "tabTeamLabel": "Team",
+    "tabHiringLabel": "Hiring",
+    "openHiring": "Open hiring",
+    "viewPublicCareers": "View public roles",
+    "hiringHint": "Invite people you already know, or post a role so applicants move through screening, interview, offer, and hire. A hire joins this Team tab.",
     "tabOverviewLabel": "Overview",
     "tabInvoicesLabel": "Invoices",
     "tabTaxLabel": "Tax",
@@ -5106,6 +5111,7 @@
       "documents": "Documents",
       "team": "Team",
       "settings": "Settings",
+      "hiring": "Hiring",
       "supportEscalations": "Support escalations",
       "escalations": "Escalations"
     },
@@ -15011,5 +15017,156 @@
     "currentlyUnavailable": "Currently unavailable",
     "categoryComingSoon": "Services in this category are coming soon.",
     "categoryPaused": "This category is temporarily unavailable."
+  }
+,
+
+  "careers": {
+    "metaTitle": "Careers at OxSteed",
+    "metaDesc": "Apply to OxSteed and to businesses hiring on OxSteed. Remote, hybrid, and onsite roles worldwide.",
+    "kicker": "Careers",
+    "title": "Work with OxSteed",
+    "businessTitle": "Open roles at this business",
+    "subtitle": "OxSteed and businesses on the platform hire internationally. Filter by country, workplace, and employer, including remote roles that stay visible worldwide.",
+    "searchPlaceholder": "Search roles, teams, or cities",
+    "loading": "Loading open roles…",
+    "noOpenings": "No open roles match those filters right now.",
+    "noApplications": "You have not applied to any roles yet.",
+    "loadError": "Could not load careers.",
+    "viewRole": "View role",
+    "back": "Back to careers",
+    "remoteWorldwide": "Remote worldwide",
+    "myApplications": "My applications",
+    "filters": {
+      "allWorkplaces": "All workplaces",
+      "allEmployers": "OxSteed and businesses",
+      "oxsteed": "OxSteed",
+      "businesses": "Businesses on OxSteed"
+    },
+    "workplace": {
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "On site"
+    },
+    "employment": {
+      "full_time": "Full time",
+      "part_time": "Part time",
+      "contract": "Contract",
+      "intern": "Internship",
+      "seasonal": "Seasonal",
+      "temporary": "Temporary"
+    },
+    "authorization": {
+      "local_authorized": "Already authorized to work",
+      "visa_sponsorship": "Visa sponsorship available",
+      "any": "Open to authorized workers and sponsorship"
+    },
+    "period": {
+      "hourly": "hourly",
+      "monthly": "monthly",
+      "yearly": "yearly"
+    },
+    "opening": {
+      "notFound": "This role is no longer open.",
+      "noDescription": "Details will be shared during screening."
+    },
+    "fields": {
+      "title": "Role title",
+      "department": "Department",
+      "employment": "Employment type",
+      "workplace": "Workplace",
+      "country": "Country",
+      "city": "City",
+      "timezone": "Timezone",
+      "currency": "Currency",
+      "payMin": "Pay from",
+      "payMax": "Pay to",
+      "authorization": "Work authorization",
+      "languages": "Languages",
+      "teamRole": "Team role after hire",
+      "status": "Posting status",
+      "description": "Description",
+      "requirements": "Requirements",
+      "benefits": "Benefits",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "resumeUrl": "Resume or portfolio URL",
+      "coverLetter": "Cover letter",
+      "relocate": "I am willing to relocate"
+    },
+    "apply": {
+      "title": "Apply",
+      "eeo": "OxSteed welcomes applicants from every country we operate in. Tell us where you work from and which languages you use.",
+      "submitted": "Application sent.",
+      "error": "Could not submit this application.",
+      "sending": "Sending…",
+      "submit": "Submit application",
+      "offerAccepted": "Offer accepted.",
+      "acceptOffer": "Accept offer",
+      "declineOffer": "Decline offer",
+      "withdraw": "Withdraw"
+    },
+    "stage": {
+      "received": "Received",
+      "screening": "Screening",
+      "interview": "Interview",
+      "assessment": "Assessment",
+      "offer": "Offer",
+      "hired": "Hired",
+      "rejected": "Rejected",
+      "withdrawn": "Withdrawn"
+    },
+    "departments": {
+      "engineering": "Engineering",
+      "product": "Product",
+      "operations": "Operations",
+      "support": "Support",
+      "people": "People",
+      "finance": "Finance",
+      "marketing": "Marketing",
+      "restaurant": "Restaurant",
+      "logistics": "Logistics",
+      "sales": "Sales",
+      "legal": "Legal",
+      "other": "Other"
+    },
+    "teamRoles": {
+      "employee": "Employee",
+      "manager": "Manager",
+      "representative": "Representative",
+      "support_agent": "Support agent"
+    },
+    "openingStatus": {
+      "draft": "Draft",
+      "open": "Open",
+      "paused": "Paused",
+      "closed": "Closed",
+      "filled": "Filled"
+    },
+    "employer": {
+      "kicker": "Hiring",
+      "title": "Hiring pipeline",
+      "platformHelp": "Post OxSteed roles, screen applicants, interview, offer, and hire through one international pipeline.",
+      "businessHelp": "Post open roles for this business. A hire lands on the Team tab with the role you choose.",
+      "editRole": "Edit role",
+      "newRole": "Post a role",
+      "loadError": "Could not load hiring.",
+      "saved": "Role saved.",
+      "saveError": "Could not save this role.",
+      "stageUpdated": "Pipeline updated.",
+      "stageError": "That stage change is not allowed.",
+      "interviewWhen": "Interview date and time (any timezone, for example 2026-10-02 15:00)",
+      "interviewBooked": "Interview scheduled.",
+      "offerCreated": "Offer sent.",
+      "saving": "Saving…",
+      "saveRole": "Save role",
+      "cancelEdit": "Cancel",
+      "newApplicants": "new",
+      "pipelineFor": "Pipeline for {{title}}",
+      "interview": "Schedule interview",
+      "offer": "Send offer",
+      "hire": "Hire"
+    }
   }
 }

@@ -884,7 +884,8 @@
     "accountTermination": "Cancelación de Cuenta",
     "disputeResolution": "Resolución de Disputas",
     "independentContractor": "Contratista Independiente",
-    "howOxsteedWorks": "Cómo funciona OxSteed"
+    "howOxsteedWorks": "Cómo funciona OxSteed",
+    "careers": "Carreras"
   },
   "accountTermination": {
     "pageTitle": "Política de Cancelación de Cuenta",
@@ -4524,6 +4525,10 @@
     "tabProfile": "Editar Perfil",
     "tabEditProfile": "Editar Perfil",
     "tabTeamLabel": "Equipo",
+    "tabHiringLabel": "Contratación",
+    "openHiring": "Abrir contratación",
+    "viewPublicCareers": "Ver roles públicos",
+    "hiringHint": "Invita a personas que ya conoces, o publica un rol para que los postulantes pasen por selección, entrevista, oferta y contratación. Una contratación llega a esta pestaña de Equipo.",
     "tabOverviewLabel": "Resumen",
     "tabInvoicesLabel": "Facturas",
     "tabTaxLabel": "Impuestos",
@@ -5145,6 +5150,7 @@
       "documents": "Documentos",
       "team": "Equipo",
       "settings": "Configuracion",
+      "hiring": "Contratación",
       "supportEscalations": "Escalaciones",
       "escalations": "Escalaciones"
     },
@@ -14927,5 +14933,156 @@
     "currentlyUnavailable": "No disponible actualmente",
     "categoryComingSoon": "Los servicios de esta categoría estarán disponibles próximamente.",
     "categoryPaused": "Esta categoría no está disponible temporalmente."
+  }
+,
+
+  "careers": {
+    "metaTitle": "Carreras en OxSteed",
+    "metaDesc": "Postúlate a OxSteed y a negocios que contratan en OxSteed. Roles remotos, híbridos y presenciales en todo el mundo.",
+    "kicker": "Carreras",
+    "title": "Trabaja con OxSteed",
+    "businessTitle": "Vacantes de este negocio",
+    "subtitle": "OxSteed y los negocios de la plataforma contratan a nivel internacional. Filtra por país, tipo de trabajo y empleador, incluidos los roles remotos visibles en todos los países.",
+    "searchPlaceholder": "Buscar roles, equipos o ciudades",
+    "loading": "Cargando vacantes…",
+    "noOpenings": "No hay vacantes con esos filtros ahora.",
+    "noApplications": "Aún no te has postulado a ningún rol.",
+    "loadError": "No se pudieron cargar las carreras.",
+    "viewRole": "Ver rol",
+    "back": "Volver a carreras",
+    "remoteWorldwide": "Remoto en todo el mundo",
+    "myApplications": "Mis postulaciones",
+    "filters": {
+      "allWorkplaces": "Todos los lugares de trabajo",
+      "allEmployers": "OxSteed y negocios",
+      "oxsteed": "OxSteed",
+      "businesses": "Negocios en OxSteed"
+    },
+    "workplace": {
+      "remote": "Remoto",
+      "hybrid": "Híbrido",
+      "onsite": "Presencial"
+    },
+    "employment": {
+      "full_time": "Tiempo completo",
+      "part_time": "Tiempo parcial",
+      "contract": "Contrato",
+      "intern": "Prácticas",
+      "seasonal": "De temporada",
+      "temporary": "Temporal"
+    },
+    "authorization": {
+      "local_authorized": "Ya autorizado para trabajar",
+      "visa_sponsorship": "Patrocinio de visa disponible",
+      "any": "Abierto a trabajadores autorizados y patrocinio"
+    },
+    "period": {
+      "hourly": "por hora",
+      "monthly": "mensual",
+      "yearly": "anual"
+    },
+    "opening": {
+      "notFound": "Este rol ya no está abierto.",
+      "noDescription": "Los detalles se compartirán durante la selección."
+    },
+    "fields": {
+      "title": "Título del rol",
+      "department": "Departamento",
+      "employment": "Tipo de empleo",
+      "workplace": "Lugar de trabajo",
+      "country": "País",
+      "city": "Ciudad",
+      "timezone": "Zona horaria",
+      "currency": "Moneda",
+      "payMin": "Pago desde",
+      "payMax": "Pago hasta",
+      "authorization": "Autorización de trabajo",
+      "languages": "Idiomas",
+      "teamRole": "Rol de equipo al contratar",
+      "status": "Estado de la vacante",
+      "description": "Descripción",
+      "requirements": "Requisitos",
+      "benefits": "Beneficios",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo",
+      "phone": "Teléfono",
+      "resumeUrl": "URL del currículum o portafolio",
+      "coverLetter": "Carta de presentación",
+      "relocate": "Estoy dispuesto a reubicarme"
+    },
+    "apply": {
+      "title": "Postularse",
+      "eeo": "OxSteed recibe postulantes de todos los países donde opera. Indica desde dónde trabajas y qué idiomas usas.",
+      "submitted": "Postulación enviada.",
+      "error": "No se pudo enviar esta postulación.",
+      "sending": "Enviando…",
+      "submit": "Enviar postulación",
+      "offerAccepted": "Oferta aceptada.",
+      "acceptOffer": "Aceptar oferta",
+      "declineOffer": "Rechazar oferta",
+      "withdraw": "Retirar"
+    },
+    "stage": {
+      "received": "Recibida",
+      "screening": "Selección",
+      "interview": "Entrevista",
+      "assessment": "Evaluación",
+      "offer": "Oferta",
+      "hired": "Contratado",
+      "rejected": "Rechazada",
+      "withdrawn": "Retirada"
+    },
+    "departments": {
+      "engineering": "Ingeniería",
+      "product": "Producto",
+      "operations": "Operaciones",
+      "support": "Soporte",
+      "people": "Personas",
+      "finance": "Finanzas",
+      "marketing": "Marketing",
+      "restaurant": "Restaurante",
+      "logistics": "Logística",
+      "sales": "Ventas",
+      "legal": "Legal",
+      "other": "Otro"
+    },
+    "teamRoles": {
+      "employee": "Empleado",
+      "manager": "Gerente",
+      "representative": "Representante",
+      "support_agent": "Agente de soporte"
+    },
+    "openingStatus": {
+      "draft": "Borrador",
+      "open": "Abierta",
+      "paused": "En pausa",
+      "closed": "Cerrada",
+      "filled": "Cubierta"
+    },
+    "employer": {
+      "kicker": "Contratación",
+      "title": "Pipeline de contratación",
+      "platformHelp": "Publica roles de OxSteed, filtra postulantes, entrevista, ofrece y contrata en un pipeline internacional.",
+      "businessHelp": "Publica vacantes de este negocio. Una contratación llega a la pestaña Equipo con el rol que elijas.",
+      "editRole": "Editar rol",
+      "newRole": "Publicar un rol",
+      "loadError": "No se pudo cargar la contratación.",
+      "saved": "Rol guardado.",
+      "saveError": "No se pudo guardar este rol.",
+      "stageUpdated": "Pipeline actualizado.",
+      "stageError": "Ese cambio de etapa no está permitido.",
+      "interviewWhen": "Fecha y hora de la entrevista (cualquier zona horaria, por ejemplo 2026-10-02 15:00)",
+      "interviewBooked": "Entrevista programada.",
+      "offerCreated": "Oferta enviada.",
+      "saving": "Guardando…",
+      "saveRole": "Guardar rol",
+      "cancelEdit": "Cancelar",
+      "newApplicants": "nuevos",
+      "pipelineFor": "Pipeline de {{title}}",
+      "interview": "Programar entrevista",
+      "offer": "Enviar oferta",
+      "hire": "Contratar"
+    }
   }
 }
