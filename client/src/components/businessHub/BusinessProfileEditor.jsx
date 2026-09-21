@@ -129,9 +129,10 @@ function PhotoDrop({
 }
 
 function CheckList({ items, t, onJump }) {
+  const rows = Array.isArray(items) ? items : [];
   return (
     <ul className="bpe-check-list">
-      {items.map((item) => {
+      {rows.map((item) => {
         const label = t(`businessHub.profileEditor.${CHECK_I18N[item.id] || item.id}`);
         const jumpLabel = item.tab === 'services'
           ? t('businessHub.profileEditor.jumpService')
@@ -635,7 +636,11 @@ export default function BusinessProfileEditor({
         </div>
       </section>
 
-      {err && <div className="bpe-error">{err}</div>}
+      {err ? (
+        <div className="bpe-error">
+          {typeof err === 'string' ? err : (err?.message || String(err))}
+        </div>
+      ) : null}
 
       <div className="bpe-savebar">
         <div className="bpe-save-copy">

@@ -47,9 +47,10 @@ export function displayWebsite(value) {
     .replace(/\/$/, '');
 }
 
-export function formatPreviewPlace(form = {}) {
-  const city = String(form.address_city || '').trim();
-  const region = String(form.address_state || '').trim();
+export function formatPreviewPlace(form) {
+  const data = form && typeof form === 'object' ? form : {};
+  const city = String(data.address_city || '').trim();
+  const region = String(data.address_state || '').trim();
   return [city, region].filter(Boolean).join(', ');
 }
 
@@ -59,7 +60,7 @@ export function hoursAreSet(hours) {
 }
 
 export function buildProfileChecks({
-  form = {},
+  form,
   logoPreview,
   coverPreview,
   serviceCount = 0,
@@ -67,13 +68,14 @@ export function buildProfileChecks({
   isRestaurant = false,
   restaurantReady = false,
   menuCount = 0,
-}) {
-  const name = String(form.business_name || '').trim();
-  const type = String(form.business_type || '').trim();
-  const city = String(form.address_city || '').trim();
-  const about = String(form.description || '').trim();
-  const phone = String(form.phone || '').trim();
-  const website = String(form.website || '').trim();
+} = {}) {
+  const data = form && typeof form === 'object' ? form : {};
+  const name = String(data.business_name || '').trim();
+  const type = String(data.business_type || '').trim();
+  const city = String(data.address_city || '').trim();
+  const about = String(data.description || '').trim();
+  const phone = String(data.phone || '').trim();
+  const website = String(data.website || '').trim();
 
   const listing = [
     { id: 'name', done: !!name, tab: null },

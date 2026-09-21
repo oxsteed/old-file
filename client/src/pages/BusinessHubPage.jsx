@@ -1564,10 +1564,12 @@ function BusinessHubInner() {
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
-              profileLoading ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
+              (profileLoading || (!profileForm && !profileErr)) ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
               !profileForm && profileErr ? (
                 <div className="bh-empty" style={{ marginTop: '1rem' }}>
-                  <p className="bh-error" style={{ marginBottom: '1rem' }}>{profileErr}</p>
+                  <p className="bh-error" style={{ marginBottom: '1rem' }}>
+                    {typeof profileErr === 'string' ? profileErr : (profileErr?.message || t('businessHub.errorProfileLoad'))}
+                  </p>
                   <button type="button" className="bh-btn primary" onClick={() => loadProfile()}>
                     {t('businessHub.tryAgain')}
                   </button>

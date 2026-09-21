@@ -72,6 +72,14 @@ test('restaurant listing uses profile and menu instead of services', () => {
   assert.equal(checks.listing.find((row) => row.id === 'restaurant_profile').tab, 'restaurant');
 });
 
+test('null form does not crash listing checks or place formatting', () => {
+  const checks = buildProfileChecks({ form: null });
+  assert.equal(checks.listing[0].done, false);
+  assert.equal(checks.customer.length, 3);
+  assert.equal(formatPreviewPlace(null), '');
+  assert.equal(serializeProfileState(null, null, null).includes('"form":{}'), true);
+});
+
 test('hours, listing status, and unsaved snapshots', () => {
   assert.equal(hoursAreSet([{ is_closed: false, start_time: '09:00' }]), true);
   assert.equal(hoursAreSet([{ is_closed: true, start_time: '09:00' }]), false);
