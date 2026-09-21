@@ -7,9 +7,11 @@ import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
 import PopSharePanel from '../helperProfile/chat/PopSharePanel';
 import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
 import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
+import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import AgreementCard from '../helperProfile/chat/AgreementCard';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
+import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helperProfile/chat/messengerCreditPay.js';
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
@@ -313,10 +315,12 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                     const quoteParsed = parseQuoteMarker(raw);
                     const popParsed = parsePopMarker(raw);
                     const agreementParsed = parseAgreementMarker(raw);
+                    const payReqParsed = parsePaymentRequestMarker(raw);
                     let body = raw;
                     if (quoteParsed) body = stripQuoteMarkers(body);
                     if (popParsed) body = stripPopMarkers(body);
                     if (agreementParsed) body = stripAgreementMarkers(body);
+                    if (payReqParsed) body = stripPaymentRequestMarkers(body);
                     return (
                       <>
                         {body ? <p className="messages-guest-bubble-body">{body}</p> : null}
@@ -325,6 +329,9 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                         ) : null}
                         {popParsed ? (
                           <ProofOfPaymentCard markerText={raw} isProvider />
+                        ) : null}
+                        {payReqParsed ? (
+                          <PaymentRequestCard markerText={raw} isProvider isAuthenticated={false} />
                         ) : null}
                         {agreementParsed ? (
                           <AgreementCard markerText={raw} isProvider isAuthenticated />

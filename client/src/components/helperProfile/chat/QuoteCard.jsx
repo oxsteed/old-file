@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, X, MessageSquare, Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import { Check, X, MessageSquare, Calendar, Loader2, AlertTriangle, Wallet } from 'lucide-react';
 import api from '../../../api/axios';
 import {
   canCustomerRespond,
@@ -9,6 +9,7 @@ import {
   parseQuoteMarker,
   toChatQuoteStatus,
 } from './messengerQuotes.js';
+import PayWithCreditModal from './PayWithCreditModal.jsx';
 import './MessengerDock.css';
 
 /**
@@ -28,6 +29,11 @@ export default function QuoteCard({
   onDeclined,
   onRequestVerify,
   onStatusChange,
+  conversationId = null,
+  payeeBusinessId = null,
+  payeeHelperId = null,
+  onRequestSignIn,
+  onCreditPaid,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -48,6 +54,7 @@ export default function QuoteCard({
   const [error, setError] = useState(null);
   const [reason, setReason] = useState('');
   const [showReason, setShowReason] = useState(false);
+  const [showCreditPay, setShowCreditPay] = useState(false);
 
   const load = useCallback(async () => {
     if (!kind || !quoteId) return;
@@ -293,6 +300,45 @@ export default function QuoteCard({
           </button>
         </div>
       )}
+
+
+      {!isProvider && (status === 'accepted' || status === 'sent') && !quote?.superseded_at && !expired && (
+        <div className="messenger-quote-card__actions" style={{ marginTop: 8 }}>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
+              onClick={() => setShowCreditPay(true)}
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              {t('helperProfile.messenger.creditPayButton')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="messenger-quote-card__btn messenger-quote-card__btn--secondary"
+              onClick={() => (onRequestSignIn || onRequestVerify)?.()}
+            >
+              {t('helperProfile.messenger.creditPaySignInCta')}
+            </button>
+          )}
+        </div>
+      )}
+
+      <PayWithCreditModal
+        open={showCreditPay}
+        onClose={() => setShowCreditPay(false)}
+        conversationId={conversationId}
+        amountCents={total}
+        currency={quote?.currency || 'USD'}
+        quoteKind={kind}
+        quoteId={quoteId}
+        payeeBusinessId={payeeBusinessId}
+        payeeHelperId={payeeHelperId}
+        isAuthenticated={isAuthenticated}
+        onRequestSignIn={onRequestSignIn || onRequestVerify}
+        onPaid={(data) => onCreditPaid?.(data)}
+      />
 
       {status === 'accepted' && !isProvider && (
         <button

@@ -727,3 +727,51 @@ test('Agreement marker + respond gate', () => {
   );
   assert.equal(stripAgreementMarkers(`X\n${marker}`).includes('[agreement:'), false);
 });
+
+import {
+  buildPaymentRequestMarker,
+  parsePaymentRequestMarker,
+  stripPaymentRequestMarkers,
+  canPayWithOxsteedCredit,
+  validateCreditPayAmount,
+  normalizeIdempotencyKey,
+  makeCreditPayIdempotencyKey,
+  assertConversationMembershipHint,
+} from '../src/components/helperProfile/chat/messengerCreditPay.js';
+
+test('payment request marker round-trip', () => {
+  const marker = buildPaymentRequestMarker({
+    id: 'pr9',
+    amountCents: 3300,
+    currency: 'USD',
+    status: 'open',
+    memo: 'Half deposit',
+    quoteKind: 'helper',
+    quoteId: 'hq1',
+  });
+  const parsed = parsePaymentRequestMarker(`Pay please\n${marker}`);
+  assert.equal(parsed.id, 'pr9');
+  assert.equal(parsed.amountCents, 3300);
+  assert.equal(parsed.memo, 'Half deposit');
+  assert.equal(stripPaymentRequestMarkers(`A\n${marker}\nB`).includes('[payment_req:'), false);
+});
+
+test('credit pay amount + idempotency helpers', () => {
+  assert.equal(validateCreditPayAmount(0).ok, false);
+  assert.equal(validateCreditPayAmount(500).ok, true);
+  assert.equal(normalizeIdempotencyKey('abc').ok, false);
+  assert.equal(normalizeIdempotencyKey('abcdefghi').ok, true);
+  const key = makeCreditPayIdempotencyKey({ conversationId: 'c', amountCents: 100 });
+  assert.ok(key.length >= 8);
+  assert.ok(key.length <= 160);
+});
+
+test('credit pay auth gate + membership hint', () => {
+  assert.equal(canPayWithOxsteedCredit({ isAuthenticated: true }).ok, true);
+  assert.equal(
+    canPayWithOxsteedCredit({ isAuthenticated: false, guestVerified: true }).reason,
+    'auth_required_for_credit',
+  );
+  assert.equal(assertConversationMembershipHint({ userId: 'a', customerId: 'a' }).ok, true);
+  assert.equal(assertConversationMembershipHint({ userId: 'a', customerId: 'b' }).code, 'customer_only');
+});

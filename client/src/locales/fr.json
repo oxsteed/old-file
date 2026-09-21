@@ -2339,6 +2339,16 @@
       "file": "Fichier du contrat (facultatif)",
       "send": "Partager dans le chat",
       "failed": "Impossible de partager l'accord."
+    },
+    "paymentRequestShare": {
+      "title": "Demander un paiement",
+      "button": "Demander $",
+      "amount": "Montant",
+      "amountRequired": "Saisissez un montant valide.",
+      "memo": "Mémo",
+      "memoPh": "ex. Acompte pour devis",
+      "send": "Envoyer la demande de paiement",
+      "failed": "Impossible d'envoyer la demande de paiement."
     }
   },
   "dashboard": {
@@ -6404,6 +6414,25 @@
         "accepted": "Accepté",
         "declined": "Refusé",
         "superseded": "Remplacé"
+      },
+      "creditPayButton": "Payer avec OxSteed Credit",
+      "creditPayTitle": "Payer avec OxSteed Credit",
+      "creditPayConfirm": "Confirmer le paiement OxSteed Credit",
+      "creditPayBalanceHint": "Solde disponible : {{balance}}",
+      "creditPayLoadingBalance": "Vérification du solde…",
+      "creditPaySignIn": "Connectez-vous pour payer avec OxSteed Credit. Les invités peuvent toujours téléverser une preuve de paiement.",
+      "creditPaySignInCta": "Se connecter pour payer avec le crédit",
+      "creditPayFailed": "Impossible de finaliser le paiement OxSteed Credit.",
+      "creditPayProviderIneligible": "Ce prestataire ne peut pas encore recevoir OxSteed Credit.",
+      "creditPayInvalidAmount": "Saisissez un montant valide.",
+      "paymentRequestEyebrow": "Demande de paiement",
+      "paymentRequestCardAria": "Demande de paiement",
+      "paymentRequestLoading": "Chargement de la demande de paiement…",
+      "paymentRequestLoadError": "Impossible de charger cette demande de paiement.",
+      "paymentRequestStatus": {
+        "open": "Ouverte",
+        "paid": "Payée",
+        "cancelled": "Annulée"
       }
     }
   },

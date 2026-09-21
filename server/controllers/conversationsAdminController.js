@@ -7,6 +7,7 @@ const { normalizeBreakGlassReason } = require('../services/chatThreadAccess');
 const { toPublicQuoteCard } = require('../services/chatQuotes');
 const { toPublicPopCard } = require('../services/chatProofOfPayment');
 const { toPublicAgreementCard } = require('../services/chatAgreements');
+const { toPublicPaymentRequestCard } = require('../services/chatOxsteedCreditPayment');
 
 async function writeBreakGlassLog({ adminId, conversationId, guestSessionId, reason, req }) {
   await db.query(
@@ -37,7 +38,7 @@ async function writeBreakGlassLog({ adminId, conversationId, guestSessionId, rea
 }
 
 async function loadLinkedArtifacts(conversationId) {
-  const [quotesBiz, quotesHelper, pops, agreements, bookings] = await Promise.all([
+  const [quotesBiz, quotesHelper, pops, agreements, bookings, paymentRequests] = await Promise.all([
     db
       .query(
         `SELECT * FROM business_quotes WHERE conversation_id = $1 ORDER BY created_at DESC NULLS LAST LIMIT 50`,
@@ -72,6 +73,12 @@ async function loadLinkedArtifacts(conversationId) {
         [conversationId],
       )
       .catch(() => ({ rows: [] })),
+    db
+      .query(
+        `SELECT * FROM chat_payment_requests WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [conversationId],
+      )
+      .catch(() => ({ rows: [] })),
   ]);
 
   return {
@@ -81,6 +88,7 @@ async function loadLinkedArtifacts(conversationId) {
     ].filter(Boolean),
     proof_of_payments: pops.rows.map((r) => toPublicPopCard(r)),
     agreements: agreements.rows.map((r) => toPublicAgreementCard(r, { includeBody: true })),
+    payment_requests: paymentRequests.rows.map((r) => toPublicPaymentRequestCard(r)),
     bookings: bookings.rows,
   };
 }
@@ -295,7 +303,7 @@ exports.getGuestInquiry = async (req, res) => {
       )
       .catch(() => ({ rows: [] }));
 
-    const [pops, agreements, quotesH, quotesB] = await Promise.all([
+    const [pops, agreements, quotesH, quotesB, paymentRequests] = await Promise.all([
       db
         .query(`SELECT * FROM chat_proof_of_payments WHERE guest_session_id = $1 ORDER BY created_at DESC LIMIT 50`, [
           id,
@@ -310,6 +318,9 @@ exports.getGuestInquiry = async (req, res) => {
       db
         .query(`SELECT * FROM business_quotes WHERE guest_session_id = $1 ORDER BY created_at DESC LIMIT 50`, [id])
         .catch(() => ({ rows: [] })),
+      db
+        .query(`SELECT * FROM chat_payment_requests WHERE guest_session_id = $1 ORDER BY created_at DESC LIMIT 50`, [id])
+        .catch(() => ({ rows: [] })),
     ]);
 
     res.json({
@@ -317,6 +328,7 @@ exports.getGuestInquiry = async (req, res) => {
       messages,
       proof_of_payments: pops.rows.map((r) => toPublicPopCard(r)),
       agreements: agreements.rows.map((r) => toPublicAgreementCard(r)),
+      payment_requests: paymentRequests.rows.map((r) => toPublicPaymentRequestCard(r)),
       quotes: [
         ...quotesB.rows.map((r) => toPublicQuoteCard('business', r)),
         ...quotesH.rows.map((r) => toPublicQuoteCard('helper', r)),

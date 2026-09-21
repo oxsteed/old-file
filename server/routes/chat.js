@@ -26,6 +26,7 @@ const pool = require('../db');
 const chatQuotes = require('../controllers/chatQuotesController');
 const chatPop = require('../controllers/chatProofOfPaymentController');
 const chatAgreements = require('../controllers/chatAgreementsController');
+const chatCreditPay = require('../controllers/chatOxsteedCreditPaymentController');
 
 const {
   extractGuestAuth,
@@ -99,6 +100,13 @@ router.get('/quotes/:kind/:id', chatLimiter, optionalAuth, chatQuotes.getQuote);
 router.post('/quotes/:kind/:id/respond', chatLimiter, optionalAuth, chatQuotes.respondQuote);
 router.post('/quotes/:kind/:id/revise', chatLimiter, authenticate, chatQuotes.reviseQuote);
 router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.scheduleFromQuote);
+
+
+// ── In-chat OxSteed Credit payments ──────────────────────────────────────────
+router.post('/payments/oxsteed-credit', chatLimiter, authenticate, chatCreditPay.payWithOxsteedCredit);
+router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
+router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
+router.get('/payments/credit-hint', chatLimiter, authenticate, chatCreditPay.getCreditPayHint);
 
 // ── In-chat proof of payment + agreements ────────────────────────────────────
 router.post('/pop/share', chatLimiter, optionalAuth, upload.single('file'), validateFileUpload, chatPop.sharePop);

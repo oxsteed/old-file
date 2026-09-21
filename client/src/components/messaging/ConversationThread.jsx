@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip, Receipt, ScrollText } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip, Receipt, ScrollText, Wallet } from 'lucide-react';
 import { useConversationChat } from '../../hooks/useConversationChat';
 import AutoTranslatedMessage from '../AutoTranslatedMessage';
 import MessageReactions from '../MessageReactions';
@@ -14,10 +14,13 @@ import PopSharePanel from '../helperProfile/chat/PopSharePanel';
 import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
 import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
 import AgreementCard from '../helperProfile/chat/AgreementCard';
+import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
+import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
+import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helperProfile/chat/messengerCreditPay.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 
@@ -58,6 +61,7 @@ export default function ConversationThread({
   const [showQuoteShare, setShowQuoteShare] = useState(false);
   const [showPopShare, setShowPopShare] = useState(false);
   const [showAgreementShare, setShowAgreementShare] = useState(false);
+  const [showPaymentRequestShare, setShowPaymentRequestShare] = useState(false);
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
@@ -220,6 +224,17 @@ export default function ConversationThread({
               <span className="hide-sm">{t('messages.agreementShare.button')}</span>
             </button>
           )}
+          {role === 'helper' && (
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowPaymentRequestShare(true)}
+              title={t('messages.paymentRequestShare.title')}
+            >
+              <Wallet size={14} aria-hidden />
+              <span className="hide-sm">{t('messages.paymentRequestShare.button')}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={toggleTranslate}
@@ -293,10 +308,12 @@ export default function ConversationThread({
                       const quoteParsed = parseQuoteMarker(msg.content);
                       const popParsed = parsePopMarker(msg.content);
                       const agreementParsed = parseAgreementMarker(msg.content);
+                      const payReqParsed = parsePaymentRequestMarker(msg.content);
                       let displayText = parsed.text || msg.content || '';
                       if (quoteParsed) displayText = stripQuoteMarkers(displayText);
                       if (popParsed) displayText = stripPopMarkers(displayText);
                       if (agreementParsed) displayText = stripAgreementMarkers(displayText);
+                      if (payReqParsed) displayText = stripPaymentRequestMarkers(displayText);
                       return (
                         <>
                           {displayText ? (
@@ -313,6 +330,9 @@ export default function ConversationThread({
                               isProvider={role === 'helper'}
                               isAuthenticated
                               guestVerified={false}
+                              conversationId={conversationId}
+                              payeeBusinessId={businessId}
+                              payeeHelperId={helperId}
                               onAccepted={(data) => {
                                 const q = data?.quote || data;
                                 if (q?.kind && q?.id) {
@@ -326,6 +346,16 @@ export default function ConversationThread({
                             <ProofOfPaymentCard
                               markerText={msg.content}
                               isProvider={role === 'helper'}
+                            />
+                          ) : null}
+                          {payReqParsed ? (
+                            <PaymentRequestCard
+                              markerText={msg.content}
+                              conversationId={conversationId}
+                              isProvider={role === 'helper'}
+                              isAuthenticated
+                              payeeBusinessId={businessId}
+                              payeeHelperId={helperId}
                             />
                           ) : null}
                           {agreementParsed ? (
@@ -470,6 +500,15 @@ export default function ConversationThread({
           conversationId={conversationId}
           businessId={businessId}
           onShared={() => setShowAgreementShare(false)}
+        />
+      )}
+      {showPaymentRequestShare && (
+        <PaymentRequestSharePanel
+          open={showPaymentRequestShare}
+          onClose={() => setShowPaymentRequestShare(false)}
+          conversationId={conversationId}
+          businessId={businessId}
+          onShared={() => setShowPaymentRequestShare(false)}
         />
       )}
 <ConversationComposer

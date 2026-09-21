@@ -2339,6 +2339,16 @@
       "file": "ملف العقد (اختياري)",
       "send": "مشاركة في المحادثة",
       "failed": "تعذر مشاركة الاتفاقية."
+    },
+    "paymentRequestShare": {
+      "title": "طلب دفع",
+      "button": "اطلب $",
+      "amount": "المبلغ",
+      "amountRequired": "أدخل مبلغًا صالحًا.",
+      "memo": "ملاحظة",
+      "memoPh": "مثال: عربون للعرض",
+      "send": "إرسال طلب الدفع",
+      "failed": "تعذّر إرسال طلب الدفع."
     }
   },
   "dashboard": {
@@ -6404,6 +6414,25 @@
         "accepted": "مقبولة",
         "declined": "مرفوضة",
         "superseded": "مستبدلة"
+      },
+      "creditPayButton": "الدفع عبر OxSteed Credit",
+      "creditPayTitle": "الدفع عبر OxSteed Credit",
+      "creditPayConfirm": "تأكيد الدفع عبر OxSteed Credit",
+      "creditPayBalanceHint": "الرصيد المتاح: {{balance}}",
+      "creditPayLoadingBalance": "جارٍ التحقق من الرصيد…",
+      "creditPaySignIn": "سجّل الدخول للدفع عبر OxSteed Credit. يمكن للضيوف ما زالوا رفع إثبات الدفع.",
+      "creditPaySignInCta": "سجّل الدخول للدفع بالرصيد",
+      "creditPayFailed": "تعذّر إكمال الدفع عبر OxSteed Credit.",
+      "creditPayProviderIneligible": "هذا المزود لا يمكنه استلام OxSteed Credit بعد.",
+      "creditPayInvalidAmount": "أدخل مبلغًا صالحًا.",
+      "paymentRequestEyebrow": "طلب دفع",
+      "paymentRequestCardAria": "طلب دفع",
+      "paymentRequestLoading": "جارٍ تحميل طلب الدفع…",
+      "paymentRequestLoadError": "تعذّر تحميل طلب الدفع هذا.",
+      "paymentRequestStatus": {
+        "open": "مفتوح",
+        "paid": "مدفوع",
+        "cancelled": "ملغى"
       }
     }
   },

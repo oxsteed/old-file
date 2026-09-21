@@ -7,9 +7,11 @@ import AutoTranslatedMessage from '../../AutoTranslatedMessage';
 import QuoteCard from './QuoteCard';
 import ProofOfPaymentCard from './ProofOfPaymentCard';
 import AgreementCard from './AgreementCard';
+import PaymentRequestCard from './PaymentRequestCard';
 import { parseQuoteMarker, stripQuoteMarkers } from './messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from './messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from './messengerAgreements.js';
+import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from './messengerCreditPay.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -26,6 +28,10 @@ interface MessageBubbleProps {
   onQuoteDeclined?: (payload: any, action?: string) => void;
   onQuoteRequestVerify?: () => void;
   isProviderView?: boolean;
+  conversationId?: string | null;
+  payeeBusinessId?: string | number | null;
+  payeeHelperId?: string | null;
+  onCreditPaid?: (payload: any) => void;
 }
 
 interface AuthorConfig {
@@ -113,6 +119,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onQuoteDeclined,
   onQuoteRequestVerify,
   isProviderView = false,
+  conversationId = null,
+  payeeBusinessId = null,
+  payeeHelperId = null,
+  onCreditPaid,
 }) => {
   const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType] || AUTHOR_CONFIG.user;
@@ -186,10 +196,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               const quoteParsed = parseQuoteMarker(message.content);
               const popParsed = parsePopMarker(message.content);
               const agreementParsed = parseAgreementMarker(message.content);
+              const payReqParsed = parsePaymentRequestMarker(message.content);
               let displayText = message.content;
               if (quoteParsed) displayText = stripQuoteMarkers(displayText);
               if (popParsed) displayText = stripPopMarkers(displayText);
               if (agreementParsed) displayText = stripAgreementMarkers(displayText);
+              if (payReqParsed) displayText = stripPaymentRequestMarkers(displayText);
               return (
                 <>
                   {displayText ? (
@@ -211,6 +223,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         onAccepted={onQuoteAccepted}
                         onDeclined={onQuoteDeclined}
                         onRequestVerify={onQuoteRequestVerify}
+                        conversationId={conversationId}
+                        payeeBusinessId={payeeBusinessId}
+                        payeeHelperId={payeeHelperId}
+                        onRequestSignIn={onQuoteRequestVerify}
+                        onCreditPaid={onCreditPaid}
                       />
                     </div>
                   ) : null}
@@ -220,6 +237,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         markerText={message.content}
                         isProvider={isProviderView}
                         guestAuthHeaders={guestAuthHeaders}
+                      />
+                    </div>
+                  ) : null}
+                  {payReqParsed ? (
+                    <div className="mt-2">
+                      <PaymentRequestCard
+                        markerText={message.content}
+                        conversationId={conversationId}
+                        isProvider={isProviderView}
+                        isAuthenticated={isAuthenticated}
+                        guestVerified={guestVerified}
+                        payeeBusinessId={payeeBusinessId}
+                        payeeHelperId={payeeHelperId}
+                        onRequestSignIn={onQuoteRequestVerify}
+                        onPaid={onCreditPaid}
                       />
                     </div>
                   ) : null}

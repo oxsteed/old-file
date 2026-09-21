@@ -2424,6 +2424,16 @@
       "file": "Fichye kontra (opsyonèl)",
       "send": "Pataje nan chat la",
       "failed": "Pa t kapab pataje akò a."
+    },
+    "paymentRequestShare": {
+      "title": "Mande peman",
+      "button": "Mande $",
+      "amount": "Montan",
+      "amountRequired": "Antre yon montan valab.",
+      "memo": "Nòt",
+      "memoPh": "egz. Depo pou quote",
+      "send": "Voye demann peman",
+      "failed": "Pa t kapab voye demann peman an."
     }
   },
   "dashboard": {
@@ -6404,6 +6414,25 @@
         "accepted": "Aksepte",
         "declined": "Refize",
         "superseded": "Ranplase"
+      },
+      "creditPayButton": "Peye ak OxSteed Credit",
+      "creditPayTitle": "Peye ak OxSteed Credit",
+      "creditPayConfirm": "Konfime peman OxSteed Credit",
+      "creditPayBalanceHint": "Balans disponib: {{balance}}",
+      "creditPayLoadingBalance": "Ap tcheke balans…",
+      "creditPaySignIn": "Konekte pou peye ak OxSteed Credit. Envite yo ka toujou telechaje yon prèv peman.",
+      "creditPaySignInCta": "Konekte pou peye ak kredi",
+      "creditPayFailed": "Pa t kapab fini peman OxSteed Credit la.",
+      "creditPayProviderIneligible": "Founisè sa a poko ka resevwa OxSteed Credit.",
+      "creditPayInvalidAmount": "Antre yon montan valab.",
+      "paymentRequestEyebrow": "Demann peman",
+      "paymentRequestCardAria": "Demann peman",
+      "paymentRequestLoading": "Ap chaje demann peman…",
+      "paymentRequestLoadError": "Pa t kapab chaje demann peman sa a.",
+      "paymentRequestStatus": {
+        "open": "Louvri",
+        "paid": "Peye",
+        "cancelled": "Anile"
       }
     }
   },

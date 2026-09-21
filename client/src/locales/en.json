@@ -2339,6 +2339,16 @@
       "file": "Contract file (optional)",
       "send": "Share in chat",
       "failed": "Could not share the agreement."
+    },
+    "paymentRequestShare": {
+      "title": "Request payment",
+      "button": "Request $",
+      "amount": "Amount",
+      "amountRequired": "Enter a valid amount.",
+      "memo": "Memo",
+      "memoPh": "e.g. Deposit for quote",
+      "send": "Send payment request",
+      "failed": "Could not send payment request."
     }
   },
   "dashboard": {
@@ -6404,6 +6414,25 @@
         "accepted": "Accepted",
         "declined": "Declined",
         "superseded": "Superseded"
+      },
+      "creditPayButton": "Pay with OxSteed Credit",
+      "creditPayTitle": "Pay with OxSteed Credit",
+      "creditPayConfirm": "Confirm OxSteed Credit payment",
+      "creditPayBalanceHint": "Available balance: {{balance}}",
+      "creditPayLoadingBalance": "Checking balance…",
+      "creditPaySignIn": "Sign in to pay with OxSteed Credit. Guests can still upload proof of payment.",
+      "creditPaySignInCta": "Sign in to pay with credit",
+      "creditPayFailed": "Could not complete OxSteed Credit payment.",
+      "creditPayProviderIneligible": "This provider cannot receive OxSteed Credit yet.",
+      "creditPayInvalidAmount": "Enter a valid payment amount.",
+      "paymentRequestEyebrow": "Payment request",
+      "paymentRequestCardAria": "Payment request",
+      "paymentRequestLoading": "Loading payment request…",
+      "paymentRequestLoadError": "Could not load this payment request.",
+      "paymentRequestStatus": {
+        "open": "Open",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
       }
     }
   },
