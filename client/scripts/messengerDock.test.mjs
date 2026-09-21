@@ -4,6 +4,7 @@ import {
   MESSENGER_MOBILE_BREAKPOINT,
   shouldShowGuestGate,
   getMessengerPhase,
+  getMessengerPhaseWithVerification,
   shouldShowLauncher,
   resolveDockLayout,
   shouldPulseLauncher,
@@ -11,6 +12,9 @@ import {
   isValidGuestEmail,
   canContinueAsGuest,
   defaultProfileChatDestination,
+  writeGuestVerifiedSession,
+  readGuestVerifiedSession,
+  clearGuestVerifiedSession,
 } from '../src/components/helperProfile/chat/messengerDockState.js';
 import {
   buildSupportEscalationHandoff,
@@ -165,4 +169,50 @@ test('readSupportEscalationHandoff: rejects non-path returnTo', () => {
     state: null,
   });
   assert.equal(parsed.returnTo, null);
+});
+
+
+test('getMessengerPhaseWithVerification: otp until verified', () => {
+  assert.equal(
+    getMessengerPhaseWithVerification({
+      dockOpen: true,
+      isAuthenticated: false,
+      guestContactSaved: true,
+      guestVerified: false,
+    }),
+    'guest_otp',
+  );
+  assert.equal(
+    getMessengerPhaseWithVerification({
+      dockOpen: true,
+      isAuthenticated: false,
+      guestVerified: true,
+    }),
+    'thread',
+  );
+});
+
+test('guest verified session binds token to helper/business key', () => {
+  const store = new Map();
+  const storage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)); },
+    removeItem: (k) => { store.delete(k); },
+  };
+  assert.equal(
+    writeGuestVerifiedSession('h1', 9, {
+      guestToken: 'abc',
+      sessionId: 's1',
+      email: 'a@b.com',
+      name: 'Ada',
+      expiresInSeconds: 60,
+    }, storage),
+    true,
+  );
+  const read = readGuestVerifiedSession('h1', 9, storage);
+  assert.equal(read.guestToken, 'abc');
+  assert.equal(read.sessionId, 's1');
+  assert.equal(readGuestVerifiedSession('h2', 9, storage), null);
+  clearGuestVerifiedSession('h1', 9, storage);
+  assert.equal(readGuestVerifiedSession('h1', 9, storage), null);
 });

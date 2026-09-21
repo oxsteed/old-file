@@ -5975,8 +5975,7 @@
       "helperReplied": "El ayudante respondió",
       "responseFromHelper": "Respuesta del ayudante",
       "verifiedPurchase": "Compra verificada",
-      "showFewer": "Mostrar menos"
-    ,
+      "showFewer": "Mostrar menos",
       "noVerifiedYet": "Aún no hay reseñas verificadas",
       "noVerifiedYetSub": "Las reseñas aparecen después de trabajos completados en OxSteed, así que los ayudantes nuevos empiezan sin calificación hasta que los clientes tengan trabajo real que evaluar."
     },
@@ -6046,8 +6045,7 @@
       "messageHelperAria": "Enviar un mensaje a este ayudante",
       "trustSignalsAria": "Señales de confianza",
       "showDetails": "Mostrar detalles",
-      "hideDetails": "Ocultar detalles"
-    ,
+      "hideDetails": "Ocultar detalles",
       "contactForPricing": "Presupuesto",
       "startingAtPrice": "Desde {{amount}}",
       "flatRate": "fijo"
@@ -6229,7 +6227,24 @@
       "continueAsGuest": "Continuar como invitado",
       "signInInstead": "Iniciar sesión",
       "entityHelper": "ayudante",
-      "entityBusiness": "negocio"
+      "entityBusiness": "negocio",
+      "guestVerifySending": "Enviando código…",
+      "guestVerifyStartError": "No pudimos enviar un código de verificación. Inténtalo de nuevo.",
+      "guestOtpEyebrow": "Verifica tu correo",
+      "guestOtpTitle": "Introduce tu código",
+      "guestOtpBody": "Enviamos un código de 6 dígitos a {{email}}. Introdúcelo para escribir a {{name}}.",
+      "guestOtpLabel": "Código de verificación",
+      "guestOtpPlaceholder": "123456",
+      "guestOtpSubmit": "Verificar y continuar",
+      "guestOtpVerifying": "Verificando…",
+      "guestOtpResend": "Reenviar código",
+      "guestOtpResendError": "No se pudo reenviar el código. Espera e inténtalo de nuevo.",
+      "guestOtpInvalid": "Introduce el código de 6 dígitos de tu correo.",
+      "guestOtpBack": "Usar otro correo",
+      "guestLiveWaiting": "{{name}} está en línea — tu mensaje se entregó en vivo.",
+      "guestOfflineAi": "{{name}} está desconectado. Estás hablando con su asistente de IA — puedes dejar un mensaje.",
+      "guestOfflineBanner": "Desconectado — asistente de IA",
+      "guestLiveBanner": "Chat en vivo"
     }
   },
   "disputes": {

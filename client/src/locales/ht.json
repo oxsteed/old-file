@@ -5975,8 +5975,7 @@
       "helperReplied": "Èd la te reponn",
       "responseFromHelper": "Repons bò kote èd la",
       "verifiedPurchase": "Achat verifye",
-      "showFewer": "Montre mwens"
-    ,
+      "showFewer": "Montre mwens",
       "noVerifiedYet": "Poko gen kòmantè verifye",
       "noVerifiedYetSub": "Kòmantè yo parèt apre travay OxSteed fini, kidonk nouvo aidè yo kòmanse san nòt jiskaske kliyan yo gen travay reyèl pou evalye."
     },
@@ -6046,8 +6045,7 @@
       "messageHelperAria": "Voye yon mesaj bay aidè sa a",
       "trustSignalsAria": "Siyal konfyans",
       "showDetails": "Afiche detay yo",
-      "hideDetails": "Kache detay yo"
-    ,
+      "hideDetails": "Kache detay yo",
       "contactForPricing": "Sitasyon",
       "startingAtPrice": "Depi {{amount}}",
       "flatRate": "fiks"
@@ -6229,7 +6227,24 @@
       "continueAsGuest": "Kontinye kòm envite",
       "signInInstead": "Konekte pito",
       "entityHelper": "èdè",
-      "entityBusiness": "biznis"
+      "entityBusiness": "biznis",
+      "guestVerifySending": "Y ap voye kòd la…",
+      "guestVerifyStartError": "Nou pa t kapab voye yon kòd verifikasyon. Tanpri eseye ankò.",
+      "guestOtpEyebrow": "Verifye imèl ou",
+      "guestOtpTitle": "Antre kòd ou",
+      "guestOtpBody": "Nou voye yon kòd 6 chif nan {{email}}. Antre li pou w ka ekri {{name}}.",
+      "guestOtpLabel": "Kòd verifikasyon",
+      "guestOtpPlaceholder": "123456",
+      "guestOtpSubmit": "Verifye epi kontinye",
+      "guestOtpVerifying": "Y ap verifye…",
+      "guestOtpResend": "Voye kòd la ankò",
+      "guestOtpResendError": "Pa t kapab voye kòd la ankò. Tanpri rete tann epi eseye ankò.",
+      "guestOtpInvalid": "Antre kòd 6 chif ki soti nan imèl ou.",
+      "guestOtpBack": "Sèvi ak yon lòt imèl",
+      "guestLiveWaiting": "{{name}} sou liy — mesaj ou te livré an dirèk.",
+      "guestOfflineAi": "{{name}} pa sou liy kounye a. Ou ap pale ak asistan IA li — ou ka kite yon mesaj.",
+      "guestOfflineBanner": "Pa sou liy — asistan IA",
+      "guestLiveBanner": "Chat an dirèk"
     }
   },
   "disputes": {

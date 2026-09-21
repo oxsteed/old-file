@@ -5975,8 +5975,7 @@
       "verifiedPurchase": "عملية شراء تم التحقق منها",
       "showFewer": "عرض أقل",
       "showAll": "عرض جميع التقييمات {{count}}",
-      "ratingDistribution": "توزيع التقييم"
-    ,
+      "ratingDistribution": "توزيع التقييم",
       "noVerifiedYet": "لا توجد تقييمات تم التحقق منها بعد",
       "noVerifiedYetSub": "تظهر التقييمات بعد إنجاز مهام OxSteed، لذا يبدأ المساعدون الجدد بدون تقييم حتى يكون لدى العملاء عمل حقيقي لتقييمه."
     },
@@ -6046,8 +6045,7 @@
       "messageHelperAria": "أرسل رسالة إلى هذا المساعد",
       "trustSignalsAria": "إشارات الثقة",
       "showDetails": "إظهار التفاصيل",
-      "hideDetails": "إخفاء التفاصيل"
-    ,
+      "hideDetails": "إخفاء التفاصيل",
       "contactForPricing": "عرض سعر",
       "startingAtPrice": "ابتداء من {{amount}}",
       "flatRate": "ثابت"
@@ -6229,7 +6227,24 @@
       "continueAsGuest": "المتابعة كزائر",
       "signInInstead": "تسجيل الدخول بدلاً من ذلك",
       "entityHelper": "مساعد",
-      "entityBusiness": "نشاط"
+      "entityBusiness": "نشاط",
+      "guestVerifySending": "جارٍ إرسال الرمز…",
+      "guestVerifyStartError": "تعذر إرسال رمز التحقق. يرجى المحاولة مرة أخرى.",
+      "guestOtpEyebrow": "تحقق من بريدك الإلكتروني",
+      "guestOtpTitle": "أدخل رمزك",
+      "guestOtpBody": "أرسلنا رمزًا مكونًا من 6 أرقام إلى {{email}}. أدخله لمراسلة {{name}}.",
+      "guestOtpLabel": "رمز التحقق",
+      "guestOtpPlaceholder": "123456",
+      "guestOtpSubmit": "تحقق ومتابعة",
+      "guestOtpVerifying": "جارٍ التحقق…",
+      "guestOtpResend": "إعادة إرسال الرمز",
+      "guestOtpResendError": "تعذر إعادة إرسال الرمز. يرجى الانتظار والمحاولة مرة أخرى.",
+      "guestOtpInvalid": "أدخل الرمز المكون من 6 أرقام من بريدك الإلكتروني.",
+      "guestOtpBack": "استخدم بريدًا إلكترونيًا آخر",
+      "guestLiveWaiting": "{{name}} متصل — تم تسليم رسالتك مباشرة.",
+      "guestOfflineAi": "{{name}} غير متصل الآن. أنت تتحدث مع مساعده الذكي — يمكنك ترك رسالة في أي وقت.",
+      "guestOfflineBanner": "غير متصل — مساعد ذكي",
+      "guestLiveBanner": "دردشة مباشرة"
     }
   },
   "disputes": {

@@ -5975,8 +5975,7 @@
       "helperReplied": "L'aidant a répondu",
       "responseFromHelper": "Réponse de l'aidant",
       "verifiedPurchase": "Achat vérifié",
-      "showFewer": "Afficher moins"
-    ,
+      "showFewer": "Afficher moins",
       "noVerifiedYet": "Aucun avis vérifié pour le moment",
       "noVerifiedYetSub": "Les avis apparaissent après des missions OxSteed terminées, donc les nouveaux aidants démarrent sans note tant que les clients n'ont pas de travail réel à évaluer."
     },
@@ -6046,8 +6045,7 @@
       "messageHelperAria": "Envoyer un message à ce prestataire",
       "trustSignalsAria": "Signaux de confiance",
       "showDetails": "Afficher les détails",
-      "hideDetails": "Masquer les détails"
-    ,
+      "hideDetails": "Masquer les détails",
       "contactForPricing": "Devis",
       "startingAtPrice": "À partir de {{amount}}",
       "flatRate": "forfait"
@@ -6229,7 +6227,24 @@
       "continueAsGuest": "Continuer en invité",
       "signInInstead": "Se connecter plutôt",
       "entityHelper": "assistant",
-      "entityBusiness": "entreprise"
+      "entityBusiness": "entreprise",
+      "guestVerifySending": "Envoi du code…",
+      "guestVerifyStartError": "Impossible d'envoyer un code de vérification. Réessayez.",
+      "guestOtpEyebrow": "Vérifiez votre e-mail",
+      "guestOtpTitle": "Entrez votre code",
+      "guestOtpBody": "Nous avons envoyé un code à 6 chiffres à {{email}}. Saisissez-le pour écrire à {{name}}.",
+      "guestOtpLabel": "Code de vérification",
+      "guestOtpPlaceholder": "123456",
+      "guestOtpSubmit": "Vérifier et continuer",
+      "guestOtpVerifying": "Vérification…",
+      "guestOtpResend": "Renvoyer le code",
+      "guestOtpResendError": "Impossible de renvoyer le code. Patientez et réessayez.",
+      "guestOtpInvalid": "Saisissez le code à 6 chiffres reçu par e-mail.",
+      "guestOtpBack": "Utiliser un autre e-mail",
+      "guestLiveWaiting": "{{name}} est en ligne — votre message a été livré en direct.",
+      "guestOfflineAi": "{{name}} est hors ligne. Vous discutez avec son assistant IA — laissez un message à tout moment.",
+      "guestOfflineBanner": "Hors ligne — assistant IA",
+      "guestLiveBanner": "Chat en direct"
     }
   },
   "disputes": {

@@ -17,7 +17,7 @@ import MessageComposer from './MessageComposer';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../hooks/useSocket';
-import { readGuestContact } from './messengerDockState.js';
+import { readGuestContact, readGuestVerifiedSession } from './messengerDockState.js';
 import { buildSupportEscalationHandoff } from './supportEscalationHandoff.js';
 
 interface ChatPanelProps {
@@ -207,6 +207,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const guestStorageKey = `oxs:guest-contact:${helperId}:${businessId ?? 'personal'}`;
   const guestTokenKey = `oxs:guest-token:${helperId}:${businessId ?? 'personal'}`;
+  // Prefer opaque verified guest session (OTP) over legacy JWT-shaped guest tokens.
+  useEffect(() => {
+    if (!isGuest) return;
+    const verified = readGuestVerifiedSession(helperId, businessId);
+    if (!verified) return;
+    if (verified.name) setGuestName(verified.name);
+    if (verified.email) setGuestEmail(verified.email);
+    setGuestContactSaved(true);
+  }, [isGuest, helperId, businessId]);
+
 
   useEffect(() => {
     if (!isGuest) return;
@@ -451,6 +461,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     setSending(true);
 
     try {
+      const verifiedGuest = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+      const guestHeaders = verifiedGuest
+        ? {
+            'X-Guest-Profile-Token': verifiedGuest.guestToken,
+            'X-Guest-Session-Id': verifiedGuest.sessionId,
+          }
+        : undefined;
       const { data } = await api.post('/chat/profile-message', {
         helperId,
         ...(businessId ? { businessId } : {}),
@@ -458,6 +475,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         ...(isGuest && session.destination === 'helper' ? {
           guestName: guestName.trim(),
           guestEmail: guestEmail.trim(),
+          guestSessionId: verifiedGuest?.sessionId,
         } : {}),
         // threadId links this request to server-side Redis history (null = new session)
         ...(threadId ? { threadId } : {}),
@@ -471,7 +489,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               content: m.content,
             };
           }),
-      });
+      }, guestHeaders ? { headers: guestHeaders } : undefined);
 
       if (data.type === 'live') {
         if (data.conversationId) setConversationId(data.conversationId);
@@ -522,7 +540,27 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             timestamp: new Date().toISOString(),
           });
         }
-        if (data.helperOnline && !user && session.destination === 'helper') {
+        if (session.destination === 'helper' && isGuest) {
+          const verified = readGuestVerifiedSession(helperId, businessId);
+          if (data.helperOnline && verified) {
+            // Verified guest should have taken live path; if AI returned while online, still wait copy.
+            events.push({
+              id:        `evt-${Date.now()}-note`,
+              itemType:  'system',
+              eventType: 'message_queued',
+              content:   t('helperProfile.messenger.guestLiveWaiting', { name: helperName }),
+              timestamp: new Date().toISOString(),
+            } as TimelineEvent);
+          } else if (!data.helperOnline) {
+            events.push({
+              id:        `evt-${Date.now()}-offline`,
+              itemType:  'system',
+              eventType: 'message_queued',
+              content:   t('helperProfile.messenger.guestOfflineAi', { name: helperName }),
+              timestamp: new Date().toISOString(),
+            } as TimelineEvent);
+          }
+        } else if (data.helperOnline && !user && session.destination === 'helper') {
           const note: TimelineEvent = {
             id:        `evt-${Date.now()}-note`,
             itemType:  'system',

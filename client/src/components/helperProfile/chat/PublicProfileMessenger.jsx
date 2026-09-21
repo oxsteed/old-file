@@ -5,8 +5,9 @@ import MessengerDock, { MessengerInviteCard } from './MessengerDock.jsx';
 import MessengerGuestGate from './MessengerGuestGate.jsx';
 import ChatPanel from './ChatPanel';
 import {
-  getMessengerPhase,
+  getMessengerPhaseWithVerification,
   readGuestContact,
+  readGuestVerifiedSession,
 } from './messengerDockState.js';
 
 /**
@@ -36,6 +37,8 @@ export default function PublicProfileMessenger({
 }) {
   const { t } = useTranslation();
   const [guestContactSaved, setGuestContactSaved] = useState(false);
+  const [guestVerified, setGuestVerified] = useState(false);
+  const [otpPending, setOtpPending] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
 
   useEffect(() => {
@@ -45,24 +48,38 @@ export default function PublicProfileMessenger({
   useEffect(() => {
     if (!isGuest) {
       setGuestContactSaved(true);
+      setGuestVerified(true);
+      setOtpPending(false);
       return;
     }
     const saved = readGuestContact(helperId, businessId);
+    const verified = readGuestVerifiedSession(helperId, businessId);
     setGuestContactSaved(Boolean(saved));
+    setGuestVerified(Boolean(verified));
+    setOtpPending(Boolean(saved) && !verified);
   }, [isGuest, helperId, businessId, open]);
 
   const phase = useMemo(
     () =>
-      getMessengerPhase({
+      getMessengerPhaseWithVerification({
         dockOpen: open,
         isAuthenticated: !isGuest,
         guestContactSaved,
+        guestVerified,
         allowGuestContact,
+        otpPending,
       }),
-    [open, isGuest, guestContactSaved, allowGuestContact],
+    [open, isGuest, guestContactSaved, guestVerified, allowGuestContact, otpPending],
   );
 
   const handleGuestContinue = useCallback(() => {
+    setGuestContactSaved(true);
+    setOtpPending(true);
+  }, []);
+
+  const handleGuestVerified = useCallback(() => {
+    setGuestVerified(true);
+    setOtpPending(false);
     setGuestContactSaved(true);
   }, []);
 
@@ -74,7 +91,7 @@ export default function PublicProfileMessenger({
     </p>
   );
 
-  const showGate = open && phase === 'guest_gate';
+  const showGate = open && (phase === 'guest_gate' || phase === 'guest_otp');
   const showThread = hasOpened && !showGate;
 
   return (
@@ -109,12 +126,13 @@ export default function PublicProfileMessenger({
             helperId={helperId}
             businessId={businessId}
             onContinue={handleGuestContinue}
+            onVerified={handleGuestVerified}
             entityKind={entityKind}
           />
         ) : null}
         {showThread ? (
           <ChatPanel
-            key={isGuest ? `guest-${guestContactSaved ? 'ready' : 'pending'}` : 'auth'}
+            key={isGuest ? `guest-${guestVerified ? 'verified' : guestContactSaved ? 'otp' : 'pending'}` : 'auth'}
             session={session}
             helperName={helperName}
             helperId={helperId}
