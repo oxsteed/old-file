@@ -6460,6 +6460,32 @@
         "open": "Abierta",
         "paid": "Pagada",
         "cancelled": "Cancelada"
+      },
+      "bookingEyebrow": "Solicitud de reserva",
+      "bookingCardAria": "Solicitud de reserva para {{title}}",
+      "bookingFallbackTitle": "Solicitud de servicio",
+      "bookingLoading": "Cargando reserva…",
+      "bookingLoadError": "No se pudo cargar esta solicitud de reserva.",
+      "bookingRespondError": "No se pudo actualizar la reserva. Inténtalo de nuevo.",
+      "bookingAlreadyAccepted": "Esta reserva ya fue aceptada.",
+      "bookingAccept": "Aceptar",
+      "bookingDecline": "Rechazar",
+      "bookingProposeTime": "Proponer otra hora",
+      "bookingDeclineReason": "Nota opcional",
+      "bookingDeclinePlaceholder": "Explícales por qué (opcional)",
+      "bookingConfirmDecline": "Confirmar rechazo",
+      "bookingCustomerPending": "Esperando confirmación del proveedor.",
+      "bookingCustomerAccepted": "Confirmado — tu reserva está lista.",
+      "bookingCustomerDeclined": "Esta solicitud fue rechazada.",
+      "bookingCustomerCounter": "El proveedor propuso otra hora.",
+      "bookingStatus": {
+        "pending": "Pendiente",
+        "accepted": "Aceptada",
+        "declined": "Rechazada",
+        "expired": "Caducada",
+        "cancelled": "Cancelada",
+        "accepted_cancelled": "Cancelada",
+        "counter_proposed": "Nueva hora propuesta"
       }
     }
   },

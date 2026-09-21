@@ -27,6 +27,7 @@ const chatQuotes = require('../controllers/chatQuotesController');
 const chatPop = require('../controllers/chatProofOfPaymentController');
 const chatAgreements = require('../controllers/chatAgreementsController');
 const chatCreditPay = require('../controllers/chatOxsteedCreditPaymentController');
+const chatBookingRequests = require('../controllers/chatBookingRequestsController');
 
 const {
   extractGuestAuth,
@@ -121,6 +122,13 @@ router.get('/agreements/:id/download', chatLimiter, optionalAuth, chatAgreements
 router.post('/agreements/:id/respond', chatLimiter, optionalAuth, chatAgreements.respondAgreement);
 router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('file'), validateFileUpload, chatAgreements.reviseAgreement);
 
+
+
+// ── In-chat booking request accept / decline / propose ───────────────────────
+router.get('/booking-requests/:id', chatLimiter, optionalAuth, chatBookingRequests.getBookingRequest);
+router.post('/booking-requests/:id/accept', chatLimiter, authenticate, chatBookingRequests.acceptBookingRequest);
+router.post('/booking-requests/:id/decline', chatLimiter, authenticate, chatBookingRequests.declineBookingRequest);
+router.post('/booking-requests/:id/propose', chatLimiter, authenticate, chatBookingRequests.proposeBookingTime);
 
 // POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
 router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);

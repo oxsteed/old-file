@@ -6460,6 +6460,32 @@
         "open": "مفتوح",
         "paid": "مدفوع",
         "cancelled": "ملغى"
+      },
+      "bookingEyebrow": "طلب حجز",
+      "bookingCardAria": "طلب حجز لـ {{title}}",
+      "bookingFallbackTitle": "طلب خدمة",
+      "bookingLoading": "جارٍ تحميل الحجز…",
+      "bookingLoadError": "تعذّر تحميل طلب الحجز هذا.",
+      "bookingRespondError": "تعذّر تحديث الحجز. حاول مرة أخرى.",
+      "bookingAlreadyAccepted": "تم قبول هذا الحجز مسبقًا.",
+      "bookingAccept": "قبول",
+      "bookingDecline": "رفض",
+      "bookingProposeTime": "اقتراح وقت مختلف",
+      "bookingDeclineReason": "ملاحظة اختيارية",
+      "bookingDeclinePlaceholder": "أخبرهم بالسبب (اختياري)",
+      "bookingConfirmDecline": "تأكيد الرفض",
+      "bookingCustomerPending": "بانتظار تأكيد مقدّم الخدمة.",
+      "bookingCustomerAccepted": "تم التأكيد — تم حجزك.",
+      "bookingCustomerDeclined": "تم رفض هذا الطلب.",
+      "bookingCustomerCounter": "اقترح مقدّم الخدمة وقتًا مختلفًا.",
+      "bookingStatus": {
+        "pending": "قيد الانتظار",
+        "accepted": "مقبول",
+        "declined": "مرفوض",
+        "expired": "منتهي",
+        "cancelled": "ملغى",
+        "accepted_cancelled": "ملغى",
+        "counter_proposed": "تم اقتراح وقت جديد"
       }
     }
   },

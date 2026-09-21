@@ -92,6 +92,11 @@ exports.createBookingRequest = async (req, res) => {
       serviceLocation,
       description,
       confirmationHours,
+      conversationId,
+      guestSessionId,
+      serviceId,
+      timezone,
+      source,
     } = req.body;
 
     // A booking now targets either a specific helper, a business (which routes
@@ -169,8 +174,9 @@ exports.createBookingRequest = async (req, res) => {
       `INSERT INTO booking_requests (
         id, customer_id, helper_id, business_id, service_name, requested_date,
         requested_start_time, requested_end_time, service_location,
-        description, expires_at, confirmation_hours
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        description, expires_at, confirmation_hours,
+        conversation_id, guest_session_id, source, service_id, timezone
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         bookingId,
@@ -185,6 +191,11 @@ exports.createBookingRequest = async (req, res) => {
         description || null,
         expiresAt,
         hours,
+        conversationId || null,
+        guestSessionId || null,
+        source || (conversationId || guestSessionId ? 'messenger_picker' : 'direct'),
+        serviceId != null ? String(serviceId) : null,
+        timezone || null,
       ]
     );
 

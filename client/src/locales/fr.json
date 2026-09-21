@@ -6460,6 +6460,32 @@
         "open": "Ouverte",
         "paid": "Payée",
         "cancelled": "Annulée"
+      },
+      "bookingEyebrow": "Demande de réservation",
+      "bookingCardAria": "Demande de réservation pour {{title}}",
+      "bookingFallbackTitle": "Demande de service",
+      "bookingLoading": "Chargement de la réservation…",
+      "bookingLoadError": "Impossible de charger cette demande de réservation.",
+      "bookingRespondError": "Impossible de mettre à jour la réservation. Réessayez.",
+      "bookingAlreadyAccepted": "Cette réservation a déjà été acceptée.",
+      "bookingAccept": "Accepter",
+      "bookingDecline": "Refuser",
+      "bookingProposeTime": "Proposer un autre créneau",
+      "bookingDeclineReason": "Note facultative",
+      "bookingDeclinePlaceholder": "Expliquez pourquoi (facultatif)",
+      "bookingConfirmDecline": "Confirmer le refus",
+      "bookingCustomerPending": "En attente de confirmation du prestataire.",
+      "bookingCustomerAccepted": "Confirmé — vous êtes réservé.",
+      "bookingCustomerDeclined": "Cette demande a été refusée.",
+      "bookingCustomerCounter": "Le prestataire a proposé un autre créneau.",
+      "bookingStatus": {
+        "pending": "En attente",
+        "accepted": "Acceptée",
+        "declined": "Refusée",
+        "expired": "Expirée",
+        "cancelled": "Annulée",
+        "accepted_cancelled": "Annulée",
+        "counter_proposed": "Nouveau créneau proposé"
       }
     }
   },

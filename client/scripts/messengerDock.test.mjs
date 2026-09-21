@@ -46,6 +46,13 @@ import {
   slotsForDate,
   toLocalDateKey,
 } from '../src/components/helperProfile/chat/messengerAvailability.js';
+import {
+  buildBookingRequestMarker,
+  parseBookingRequestMarker,
+  stripBookingRequestMarkers,
+  appendBookingRequestMarker,
+  canProviderRespondBooking,
+} from '../src/components/helperProfile/chat/messengerBookingRequests.js';
 
 test('shouldShowGuestGate: authenticated users never see the gate', () => {
   assert.equal(shouldShowGuestGate({ isAuthenticated: true }), false);
@@ -796,4 +803,33 @@ test('credit refund marker round-trip', () => {
   assert.equal(parsed.amountCents, 4200);
   assert.equal(parsed.currency, 'USD');
   assert.equal(stripCreditRefundMarkers(`x\n${marker}\ny`).includes('[credit_refund:'), false);
+});
+
+test('booking_req marker round-trip and append', () => {
+  const marker = buildBookingRequestMarker({
+    id: 'br-9',
+    status: 'pending',
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    serviceName: 'Trim',
+    serviceId: 3,
+  });
+  assert.match(marker, /\[booking_req:br-9\|pending\|2026-09-22\|09:00\|10:00/);
+  const parsed = parseBookingRequestMarker(`Hi\n${marker}`);
+  assert.equal(parsed.id, 'br-9');
+  assert.equal(parsed.serviceName, 'Trim');
+  const stripped = stripBookingRequestMarkers(`Hi\n${marker}`);
+  assert.equal(stripped.includes('booking_req'), false);
+  const appended = appendBookingRequestMarker('Slot please', {
+    id: 'br-9',
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    serviceName: 'Trim',
+  });
+  assert.match(appended, /Slot please/);
+  assert.match(appended, /\[booking_req:br-9/);
+  assert.equal(canProviderRespondBooking('pending'), true);
+  assert.equal(canProviderRespondBooking('accepted'), false);
 });

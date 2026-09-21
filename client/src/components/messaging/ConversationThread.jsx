@@ -15,6 +15,7 @@ import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
 import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
 import AgreementCard from '../helperProfile/chat/AgreementCard';
 import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
+import BookingRequestCard from '../helperProfile/chat/BookingRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
 import ProviderMessengerToolbar from './ProviderMessengerToolbar';
 import ConversationContactDrawer from './ConversationContactDrawer';
@@ -24,6 +25,7 @@ import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messe
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helperProfile/chat/messengerCreditPay.js';
+import { parseBookingRequestMarker, stripBookingRequestMarkers } from '../helperProfile/chat/messengerBookingRequests.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 
@@ -70,6 +72,7 @@ export default function ConversationThread({
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
+  const [proposingBookingId, setProposingBookingId] = useState(null);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
     try { return localStorage.getItem('oxs:msg-translate') !== 'off'; } catch { return true; }
   });
@@ -87,7 +90,7 @@ export default function ConversationThread({
   });
 
   const {
-    messages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
+    messages, fetchMessages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
     newMessage, loading, sending, notFound, otherTyping, showSeen, lastSentByMe,
     stickToBottom, messagesEndRef, threadRef, inputRef,
     handleInputChange, handleBlur, sendMessage, retryMessage,
@@ -269,7 +272,7 @@ export default function ConversationThread({
           onPaymentRequest={() => setShowPaymentRequestShare(true)}
           onAgreement={() => setShowAgreementShare(true)}
           onPop={() => setShowPopShare(true)}
-          onSchedule={() => { setSchedulingQuote(schedulingQuote || { kind: businessId ? 'business' : 'helper', id: null }); setShowQuoteSchedule(true); }}
+          onSchedule={() => { setProposingBookingId(null); setSchedulingQuote(schedulingQuote || { kind: businessId ? 'business' : 'helper', id: null }); setShowQuoteSchedule(true); }}
           onRefund={() => setShowCreditRefund(true)}
           onContact={() => setShowContactDrawer(true)}
           showRefund={Boolean(refundTarget)}
@@ -329,11 +332,13 @@ export default function ConversationThread({
                       const popParsed = parsePopMarker(msg.content);
                       const agreementParsed = parseAgreementMarker(msg.content);
                       const payReqParsed = parsePaymentRequestMarker(msg.content);
+                      const bookingReqParsed = parseBookingRequestMarker(msg.content);
                       let displayText = parsed.text || msg.content || '';
                       if (quoteParsed) displayText = stripQuoteMarkers(displayText);
                       if (popParsed) displayText = stripPopMarkers(displayText);
                       if (agreementParsed) displayText = stripAgreementMarkers(displayText);
                       if (payReqParsed) displayText = stripPaymentRequestMarkers(displayText);
+                      if (bookingReqParsed) displayText = stripBookingRequestMarkers(displayText);
                       return (
                         <>
                           {displayText ? (
@@ -387,6 +392,18 @@ export default function ConversationThread({
                               markerText={msg.content}
                               isProvider={role === 'helper'}
                               isAuthenticated
+                            />
+                          ) : null}
+                          {bookingReqParsed ? (
+                            <BookingRequestCard
+                              markerText={msg.content}
+                              isProvider={role === 'helper'}
+                              conversationId={conversationId}
+                              onProposeTime={({ booking }) => {
+                                setProposingBookingId(booking?.id || null);
+                                setSchedulingQuote(null);
+                                setShowQuoteSchedule(true);
+                              }}
                             />
                           ) : null}
                         </>
@@ -461,32 +478,50 @@ export default function ConversationThread({
       )}
 
       
-      {showQuoteSchedule && schedulingQuote && (
+      {showQuoteSchedule && (schedulingQuote || proposingBookingId) && (
         <div className="messages-quote-schedule-wrap" style={{ padding: '0.5rem 0.75rem' }}>
           <MessengerAvailabilityPicker
             helperId={helperId}
             businessId={businessId}
             open={showQuoteSchedule}
-            onClose={() => { setShowQuoteSchedule(false); setSchedulingQuote(null); }}
+            onClose={() => { setShowQuoteSchedule(false); setSchedulingQuote(null); setProposingBookingId(null); }}
             onSelectSlot={async (slot) => {
               try {
-                await api.post(`/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`, {
-                  token: schedulingQuote.token,
-                  helperId,
-                  businessId,
-                  serviceId: slot.serviceId,
-                  serviceName: slot.serviceName,
-                  requestedDate: slot.date,
-                  requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
-                  requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
-                  startIso: slot.startIso,
-                  endIso: slot.endIso,
-                  timezone: slot.timezone,
-                });
+                if (proposingBookingId) {
+                  await api.post(`/chat/booking-requests/${proposingBookingId}/propose`, {
+                    requestedDate: slot.date,
+                    requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
+                    requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
+                    startIso: slot.startIso,
+                    endIso: slot.endIso,
+                    timezone: slot.timezone,
+                  });
+                  try {
+                    window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {
+                      detail: { bookingId: proposingBookingId },
+                    }));
+                  } catch { /* ignore */ }
+                  fetchMessages?.();
+                } else if (schedulingQuote?.kind && schedulingQuote?.id) {
+                  await api.post(`/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`, {
+                    token: schedulingQuote.token,
+                    helperId,
+                    businessId,
+                    serviceId: slot.serviceId,
+                    serviceName: slot.serviceName,
+                    requestedDate: slot.date,
+                    requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
+                    requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
+                    startIso: slot.startIso,
+                    endIso: slot.endIso,
+                    timezone: slot.timezone,
+                  });
+                }
                 setShowQuoteSchedule(false);
                 setSchedulingQuote(null);
+                setProposingBookingId(null);
               } catch (err) {
-                console.error('quote schedule failed', err);
+                console.error('schedule/propose failed', err);
               }
             }}
           />

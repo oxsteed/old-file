@@ -866,8 +866,9 @@ exports.scheduleFromQuote = async (req, res, next) => {
         `INSERT INTO booking_requests (
            id, customer_id, helper_id, business_id, service_name, requested_date,
            requested_start_time, requested_end_time, service_location,
-           description, expires_at, confirmation_hours
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           description, expires_at, confirmation_hours,
+           conversation_id, guest_session_id, quote_kind, quote_id, source
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,
         [
           bookingId,
@@ -882,6 +883,11 @@ exports.scheduleFromQuote = async (req, res, next) => {
           description,
           expiresAt,
           hours,
+          quote.conversation_id || null,
+          quote.guest_session_id || null,
+          kind,
+          String(quote.id),
+          'quote_schedule',
         ],
       );
       booking = rows[0];
@@ -919,6 +925,34 @@ exports.scheduleFromQuote = async (req, res, next) => {
       }
       appointmentId = result.appointment?.id;
       booking = result.appointment;
+      try {
+        const chatBookingReq = require('./chatBookingRequestsController');
+        const guestBooking = await chatBookingReq.createGuestChatBookingRequest({
+          helperId,
+          businessId,
+          guestSessionId: guest?.id || quote.guest_session_id || null,
+          serviceName,
+          date,
+          start,
+          end,
+          description,
+          appointmentId,
+          source: 'quote_schedule',
+          conversationId: quote.conversation_id || null,
+        });
+        if (guestBooking?.id) {
+          bookingId = guestBooking.id;
+          booking = guestBooking;
+          await pool.query(
+            `UPDATE booking_requests
+                SET quote_kind = $2, quote_id = $3, updated_at = NOW()
+              WHERE id = $1`,
+            [guestBooking.id, kind, String(quote.id)],
+          );
+        }
+      } catch (e) {
+        logger.warn('[chatQuotes] guest booking_request create failed', { error: e.message });
+      }
     }
 
     const table = kind === 'business' ? 'business_quotes' : 'helper_quotes';
@@ -931,13 +965,26 @@ exports.scheduleFromQuote = async (req, res, next) => {
       [quote.id, bookingId, appointmentId],
     );
 
+    const chatBookingReq = require('./chatBookingRequestsController');
+    const bookingMarker = bookingId
+      ? chatBookingReq.buildBookingRequestMarker({
+          id: bookingId,
+          status: 'pending',
+          date,
+          start,
+          end,
+          serviceName,
+        })
+      : '';
     const statusLabel = `Appointment requested from quote: ${quote.title || 'Quote'} · ${date} ${start}–${end}`;
+    const threadContent = bookingMarker ? `${bookingMarker}
+${statusLabel}` : statusLabel;
     await emitQuoteStatusToThread({
       conversationId: quote.conversation_id,
       guestSessionId: quote.guest_session_id,
       helperId,
       customerId: userId || null,
-      content: statusLabel,
+      content: threadContent,
       meta: {
         quoteKind: kind,
         quoteId: String(quote.id),
@@ -952,7 +999,8 @@ exports.scheduleFromQuote = async (req, res, next) => {
         await postConversationMessage({
           conversationId: quote.conversation_id,
           senderId: userId,
-          content: `[quote_status:${kind}|${quote.id}|scheduled]\n${statusLabel}`,
+          content: `[quote_status:${kind}|${quote.id}|scheduled]
+${threadContent}`,
           senderName: 'Customer',
           isProfileChat: true,
         });

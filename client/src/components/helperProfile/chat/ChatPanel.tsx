@@ -29,6 +29,7 @@ import {
   buildSlotRequestMessage,
   resolveClientTimezone,
 } from './messengerAvailability.js';
+import { appendBookingRequestMarker } from './messengerBookingRequests.js';
 import { createBookingRequest } from '../../../api/bookings';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
@@ -1622,6 +1623,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     requestedEndTime: payload.requestedEndTime,
                     description: payload.description,
                     confirmationHours: 24,
+                    conversationId: (session as any)?.conversationId || undefined,
+                    serviceId: payload.serviceId,
+                    timezone: payload.timezone,
+                    source: 'messenger_picker',
                   });
                   bookingMeta = { bookingId: row?.id || row?.bookingId };
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
@@ -1685,7 +1690,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               }));
 
               // Still post the structured chat message so the provider sees intent in-thread
-              await handleSend(textMsg);
+              const withBookingMarker = bookingMeta.bookingId
+                ? appendBookingRequestMarker(textMsg, {
+                    id: bookingMeta.bookingId,
+                    status: 'pending',
+                    date: slot.date,
+                    start: slot.start,
+                    end: slot.end,
+                    serviceName: slot.serviceName || '',
+                    serviceId: slot.serviceId,
+                  })
+                : textMsg;
+              await handleSend(withBookingMarker);
             }}
           />
         </>

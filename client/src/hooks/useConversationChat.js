@@ -273,7 +273,19 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       );
     };
 
+
+    const onBookingChatUpdated = (payload) => {
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', { detail: payload }));
+        }
+      } catch { /* ignore */ }
+      // Refresh thread so status system messages appear
+      fetchMessages();
+    };
+
     socket.on('message:new', onMessageNew);
+    socket.on('booking:chat_updated', onBookingChatUpdated);
     socket.on('user:typing', onTyping);
     socket.on('user:stopped_typing', onStoppedTyping);
     socket.on('messages:read', onMessagesRead);
@@ -289,6 +301,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
     return () => {
       socket.off('message:new', onMessageNew);
+      socket.off('booking:chat_updated', onBookingChatUpdated);
       socket.off('user:typing', onTyping);
       socket.off('user:stopped_typing', onStoppedTyping);
       socket.off('messages:read', onMessagesRead);
@@ -414,6 +427,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
   return {
     messages,
+    fetchMessages,
     otherName,
     helperBusiness,
     jobTitle,

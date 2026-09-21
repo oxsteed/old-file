@@ -8,10 +8,12 @@ import QuoteCard from './QuoteCard';
 import ProofOfPaymentCard from './ProofOfPaymentCard';
 import AgreementCard from './AgreementCard';
 import PaymentRequestCard from './PaymentRequestCard';
+import BookingRequestCard from './BookingRequestCard';
 import { parseQuoteMarker, stripQuoteMarkers } from './messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from './messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from './messengerAgreements.js';
 import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from './messengerCreditPay.js';
+import { parseBookingRequestMarker, stripBookingRequestMarkers } from './messengerBookingRequests.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -197,11 +199,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               const popParsed = parsePopMarker(message.content);
               const agreementParsed = parseAgreementMarker(message.content);
               const payReqParsed = parsePaymentRequestMarker(message.content);
+              const bookingReqParsed = parseBookingRequestMarker(message.content);
               let displayText = message.content;
               if (quoteParsed) displayText = stripQuoteMarkers(displayText);
               if (popParsed) displayText = stripPopMarkers(displayText);
               if (agreementParsed) displayText = stripAgreementMarkers(displayText);
               if (payReqParsed) displayText = stripPaymentRequestMarkers(displayText);
+              if (bookingReqParsed) displayText = stripBookingRequestMarkers(displayText);
               return (
                 <>
                   {displayText ? (
@@ -264,6 +268,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         guestVerified={guestVerified}
                         guestAuthHeaders={guestAuthHeaders}
                         onRequestVerify={onQuoteRequestVerify}
+                      />
+                    </div>
+                  ) : null}
+                  {bookingReqParsed ? (
+                    <div className="mt-2">
+                      <BookingRequestCard
+                        markerText={message.content}
+                        isProvider={isProviderView}
+                        conversationId={conversationId}
                       />
                     </div>
                   ) : null}

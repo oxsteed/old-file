@@ -6460,6 +6460,32 @@
         "open": "Louvri",
         "paid": "Peye",
         "cancelled": "Anile"
+      },
+      "bookingEyebrow": "Demann rezèvasyon",
+      "bookingCardAria": "Demann rezèvasyon pou {{title}}",
+      "bookingFallbackTitle": "Demann sèvis",
+      "bookingLoading": "Ap chaje rezèvasyon an…",
+      "bookingLoadError": "Pa t kapab chaje demann rezèvasyon sa a.",
+      "bookingRespondError": "Pa t kapab mete rezèvasyon an ajou. Eseye ankò.",
+      "bookingAlreadyAccepted": "Rezèvasyon sa a te deja aksepte.",
+      "bookingAccept": "Aksepte",
+      "bookingDecline": "Refize",
+      "bookingProposeTime": "Pwopoze yon lòt lè",
+      "bookingDeclineReason": "Nòt opsyonèl",
+      "bookingDeclinePlaceholder": "Di yo poukisa (opsyonèl)",
+      "bookingConfirmDecline": "Konfime refi",
+      "bookingCustomerPending": "Ap tann konfimasyon founisè a.",
+      "bookingCustomerAccepted": "Konfime — ou rezève.",
+      "bookingCustomerDeclined": "Yo te refize demann sa a.",
+      "bookingCustomerCounter": "Founisè a pwopoze yon lòt lè.",
+      "bookingStatus": {
+        "pending": "Anatant",
+        "accepted": "Aksepte",
+        "declined": "Refize",
+        "expired": "Ekspire",
+        "cancelled": "Anile",
+        "accepted_cancelled": "Anile",
+        "counter_proposed": "Nouvo lè pwopoze"
       }
     }
   },

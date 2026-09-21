@@ -6460,6 +6460,32 @@
         "open": "Open",
         "paid": "Paid",
         "cancelled": "Cancelled"
+      },
+      "bookingEyebrow": "Booking request",
+      "bookingCardAria": "Booking request for {{title}}",
+      "bookingFallbackTitle": "Service request",
+      "bookingLoading": "Loading booking…",
+      "bookingLoadError": "Could not load this booking request.",
+      "bookingRespondError": "Could not update the booking. Try again.",
+      "bookingAlreadyAccepted": "This booking was already accepted.",
+      "bookingAccept": "Accept",
+      "bookingDecline": "Decline",
+      "bookingProposeTime": "Propose different time",
+      "bookingDeclineReason": "Optional note",
+      "bookingDeclinePlaceholder": "Let them know why (optional)",
+      "bookingConfirmDecline": "Confirm decline",
+      "bookingCustomerPending": "Waiting for the provider to confirm.",
+      "bookingCustomerAccepted": "Confirmed — you're booked.",
+      "bookingCustomerDeclined": "This request was declined.",
+      "bookingCustomerCounter": "The provider proposed a different time.",
+      "bookingStatus": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "cancelled": "Cancelled",
+        "accepted_cancelled": "Cancelled",
+        "counter_proposed": "New time proposed"
       }
     }
   },

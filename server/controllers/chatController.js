@@ -7,6 +7,7 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
+const chatBookingReqCtl = require('./chatBookingRequestsController');
 const { buildProfileAiFailurePayload } = require('../services/profileChatRouting');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
@@ -1608,12 +1609,14 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       if (serviceId) descParts.push(`serviceId=${serviceId}`);
       if (timezone) descParts.push(`tz=${timezone}`);
       if (body.description) descParts.push(String(body.description));
+      const conversationId = body.conversationId || body.conversation_id || null;
       const { rows } = await pool.query(
         `INSERT INTO booking_requests (
            id, customer_id, helper_id, business_id, service_name, requested_date,
            requested_start_time, requested_end_time, service_location,
-           description, expires_at, confirmation_hours
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           description, expires_at, confirmation_hours,
+           conversation_id, source, service_id, timezone
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING *`,
         [
           bookingId,
@@ -1628,16 +1631,30 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
           descParts.join(' | ') || null,
           expiresAt,
           hours,
+          conversationId,
+          'messenger_picker',
+          serviceId != null ? String(serviceId) : null,
+          timezone || null,
         ]
       );
       try {
         socketService.broadcastToUser(resolvedHelperId, 'booking:requested', { booking: rows[0] });
       } catch { /* ignore */ }
+      const marker = chatBookingReqCtl.buildBookingRequestMarker({
+        id: rows[0].id,
+        status: rows[0].status,
+        date,
+        start,
+        end,
+        serviceName,
+        serviceId,
+      });
       return res.status(201).json({
         success: true,
         type: 'booking_request',
         bookingId: rows[0].id,
         booking: rows[0],
+        marker,
       });
     }
 
@@ -1690,9 +1707,47 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
     }
 
     const appointment = result.appointment;
-    // Also mirror into guest chat messages so the helper inbox thread shows the request
+    let bookingRow = null;
+    let marker = null;
+    try {
+      bookingRow = await chatBookingReqCtl.createGuestChatBookingRequest({
+        helperId,
+        businessId,
+        guestSessionId: verifiedGuestSession?.id || null,
+        serviceName,
+        serviceId,
+        date,
+        start,
+        end,
+        timezone,
+        description: action.customer_notes,
+        appointmentId: appointment.id,
+        source: 'messenger_picker',
+        conversationId: body.conversationId || body.conversation_id || null,
+      });
+      marker = chatBookingReqCtl.buildBookingRequestMarker({
+        id: bookingRow.id,
+        status: bookingRow.status,
+        date,
+        start,
+        end,
+        serviceName,
+        serviceId,
+      });
+      try {
+        socketService.broadcastToUser(helperId, 'booking:requested', {
+          booking: chatBookingReqCtl.toPublicBookingRequestCard(bookingRow),
+        });
+      } catch { /* ignore */ }
+    } catch (e) {
+      logger.warn('[MessengerBooking] durable booking_request create failed', { error: e.message });
+    }
+
+    // Mirror into guest chat so the helper inbox shows the request (+ durable marker when available)
     if (verifiedGuestSession?.id && appointment?.id) {
-      const summary = `Booking request: ${serviceName} · ${date} ${start}–${end}`;
+      const summary = marker
+        ? `${marker}\nBooking request: ${serviceName} · ${date} ${start}–${end}`
+        : `Booking request: ${serviceName} · ${date} ${start}–${end}`;
       try {
         await pool.query(
           `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
@@ -1711,6 +1766,7 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
           senderName: guestName || 'Guest',
           guestName,
           guestEmail,
+          bookingId: bookingRow?.id || null,
         };
         socketService.broadcastToUser(helperId, 'profile_chat:new_message', socketPayload);
       } catch (e) {
@@ -1723,6 +1779,9 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       type: 'appointment',
       appointmentId: appointment.id,
       appointment,
+      bookingId: bookingRow?.id || null,
+      booking: bookingRow,
+      marker,
     });
   } catch (err) {
     if (err.code === 'SCHEDULING_CONFLICT') {
