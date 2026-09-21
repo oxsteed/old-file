@@ -5971,6 +5971,9 @@
       "responseFromHelper": "Repons bò kote èd la",
       "verifiedPurchase": "Achat verifye",
       "showFewer": "Montre mwens"
+    ,
+      "noVerifiedYet": "Poko gen kòmantè verifye",
+      "noVerifiedYetSub": "Kòmantè yo parèt apre travay OxSteed fini, kidonk nouvo aidè yo kòmanse san nòt jiskaske kliyan yo gen travay reyèl pou evalye."
     },
     "services": {
       "quote": "Devis",
@@ -6039,6 +6042,10 @@
       "trustSignalsAria": "Siyal konfyans",
       "showDetails": "Afiche detay yo",
       "hideDetails": "Kache detay yo"
+    ,
+      "contactForPricing": "Sitasyon",
+      "startingAtPrice": "Depi {{amount}}",
+      "flatRate": "fiks"
     },
     "trust": {
       "trustSignalsAria": "Konfyans ak Fyabilite",

@@ -169,12 +169,10 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           </div>
           <div>
             <p className="text-sm font-semibold text-white">
-              {t('helperProfile.reviews.noVerifiedYet', { defaultValue: 'No verified reviews yet' })}
+              {t('helperProfile.reviews.noVerifiedYet')}
             </p>
             <p className="text-sm text-gray-400 leading-relaxed mt-1">
-              {t('helperProfile.reviews.noVerifiedYetSub', {
-                defaultValue: 'Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate.',
-              })}
+              {t('helperProfile.reviews.noVerifiedYetSub')}
             </p>
           </div>
         </div>

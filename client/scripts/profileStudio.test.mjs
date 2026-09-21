@@ -416,3 +416,91 @@ test('BusinessHeader save/review locale keys exist with en/es/fr/ht/ar parity (n
   }
 });
 
+
+test('helperProfile TrustSignals/CTA/Reviews locale keys exist with en/es/fr/ht/ar parity (no defaultValue)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const locales = ['en', 'es', 'fr', 'ht', 'ar'];
+
+  const files = [
+    'src/components/helperProfile/TrustSignals.tsx',
+    'src/components/helperProfile/CTASection.tsx',
+    'src/components/helperProfile/ReviewsSection.tsx',
+  ];
+  const sources = {};
+  for (const rel of files) {
+    const src = await readFile(join(root, rel), 'utf8');
+    assert.equal(src.includes('defaultValue'), false, `${rel} must not use defaultValue crutches`);
+    sources[rel] = src;
+  }
+
+  // Keys referenced by the public band (CTA price labels, empty reviews, trust signals)
+  const required = [
+    'helperProfile.cta.contactForPricing',
+    'helperProfile.cta.startingAtPrice',
+    'helperProfile.cta.flatRate',
+    'helperProfile.reviews.noVerifiedYet',
+    'helperProfile.reviews.noVerifiedYetSub',
+    'helperProfile.trust.idVerification',
+    'helperProfile.trust.verified',
+    'helperProfile.trust.notVerified',
+    'helperProfile.trust.professionalLicense',
+    'helperProfile.trust.licenseClaimed',
+    'helperProfile.trust.noLicense',
+    'helperProfile.trust.insurance',
+    'helperProfile.trust.insuranceClaimed',
+    'helperProfile.trust.noInsurance',
+    'helperProfile.trust.yearsInBusiness',
+    'helperProfile.trust.justStarted',
+    'helperProfile.trust.notAvailable',
+    'helperProfile.trust.yearsLabel',
+    'helperProfile.trust.currentlyAvailable',
+    'helperProfile.trust.notCurrentlyAvailable',
+    'helperProfile.trust.availabilityStatus',
+    'helperProfile.trust.respondTime',
+    'helperProfile.trust.responseVaries',
+    'helperProfile.trust.responseTime',
+    'helperProfile.trust.jobsCompletedCount',
+    'helperProfile.trust.noJobsYet',
+    'helperProfile.trust.jobsCompleted',
+    'helperProfile.trust.completionRate',
+    'helperProfile.trust.noCompletionData',
+    'helperProfile.trust.completionRateLabel',
+    'helperProfile.trust.trustSignalsAria',
+  ];
+
+  assert.ok(sources[files[1]].includes("t('helperProfile.cta.contactForPricing')"));
+  assert.ok(sources[files[1]].includes("t('helperProfile.cta.startingAtPrice'"));
+  assert.ok(sources[files[1]].includes("t('helperProfile.cta.flatRate')"));
+  assert.ok(sources[files[2]].includes("t('helperProfile.reviews.noVerifiedYet')"));
+  assert.ok(sources[files[2]].includes("t('helperProfile.reviews.noVerifiedYetSub')"));
+  assert.ok(sources[files[0]].includes("t('helperProfile.trust.trustSignalsAria')"));
+
+  function getPath(obj, path) {
+    return path.split('.').reduce((cur, key) => (cur && typeof cur === 'object' ? cur[key] : undefined), obj);
+  }
+
+  const byLang = {};
+  for (const lang of locales) {
+    const json = JSON.parse(await readFile(join(root, `src/locales/${lang}.json`), 'utf8'));
+    byLang[lang] = json;
+    for (const key of required) {
+      const value = getPath(json, key);
+      assert.equal(typeof value, 'string', `${lang} missing ${key}`);
+      assert.ok(value.trim().length > 0, `${lang} empty ${key}`);
+    }
+  }
+
+  for (const leaf of ['cta', 'trust', 'reviews']) {
+    const enKeys = Object.keys(byLang.en.helperProfile[leaf]).sort();
+    for (const lang of locales.slice(1)) {
+      assert.deepEqual(
+        Object.keys(byLang[lang].helperProfile[leaf]).sort(),
+        enKeys,
+        `${lang} helperProfile.${leaf} key parity drift`,
+      );
+    }
+  }
+});

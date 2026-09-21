@@ -5836,6 +5836,9 @@
       "showFewer": "Show fewer",
       "showAll": "Show all {{count}} reviews",
       "ratingDistribution": "Rating distribution"
+    ,
+      "noVerifiedYet": "No verified reviews yet",
+      "noVerifiedYetSub": "Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate."
     },
     "services": {
       "title": "Services & Pricing",
@@ -5904,6 +5907,10 @@
       "trustSignalsAria": "Trust signals",
       "showDetails": "Show details",
       "hideDetails": "Hide details"
+    ,
+      "contactForPricing": "Quote",
+      "startingAtPrice": "From {{amount}}",
+      "flatRate": "flat"
     },
     "trust": {
       "trustSignalsAria": "Trust & Reliability",

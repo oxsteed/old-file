@@ -5971,6 +5971,9 @@
       "responseFromHelper": "Réponse de l'aidant",
       "verifiedPurchase": "Achat vérifié",
       "showFewer": "Afficher moins"
+    ,
+      "noVerifiedYet": "Aucun avis vérifié pour le moment",
+      "noVerifiedYetSub": "Les avis apparaissent après des missions OxSteed terminées, donc les nouveaux aidants démarrent sans note tant que les clients n'ont pas de travail réel à évaluer."
     },
     "services": {
       "quote": "Sur devis",
@@ -6039,6 +6042,10 @@
       "trustSignalsAria": "Signaux de confiance",
       "showDetails": "Afficher les détails",
       "hideDetails": "Masquer les détails"
+    ,
+      "contactForPricing": "Devis",
+      "startingAtPrice": "À partir de {{amount}}",
+      "flatRate": "forfait"
     },
     "trust": {
       "trustSignalsAria": "Confiance et Fiabilité",

@@ -5971,6 +5971,9 @@
       "showFewer": "عرض أقل",
       "showAll": "عرض جميع التقييمات {{count}}",
       "ratingDistribution": "توزيع التقييم"
+    ,
+      "noVerifiedYet": "لا توجد تقييمات تم التحقق منها بعد",
+      "noVerifiedYetSub": "تظهر التقييمات بعد إنجاز مهام OxSteed، لذا يبدأ المساعدون الجدد بدون تقييم حتى يكون لدى العملاء عمل حقيقي لتقييمه."
     },
     "services": {
       "title": "الخدمات والتسعير",
@@ -6039,6 +6042,10 @@
       "trustSignalsAria": "إشارات الثقة",
       "showDetails": "إظهار التفاصيل",
       "hideDetails": "إخفاء التفاصيل"
+    ,
+      "contactForPricing": "عرض سعر",
+      "startingAtPrice": "ابتداء من {{amount}}",
+      "flatRate": "ثابت"
     },
     "trust": {
       "trustSignalsAria": "الثقة والموثوقية",

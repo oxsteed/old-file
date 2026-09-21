@@ -5971,6 +5971,9 @@
       "responseFromHelper": "Respuesta del ayudante",
       "verifiedPurchase": "Compra verificada",
       "showFewer": "Mostrar menos"
+    ,
+      "noVerifiedYet": "Aún no hay reseñas verificadas",
+      "noVerifiedYetSub": "Las reseñas aparecen después de trabajos completados en OxSteed, así que los ayudantes nuevos empiezan sin calificación hasta que los clientes tengan trabajo real que evaluar."
     },
     "services": {
       "quote": "Cotización",
@@ -6039,6 +6042,10 @@
       "trustSignalsAria": "Señales de confianza",
       "showDetails": "Mostrar detalles",
       "hideDetails": "Ocultar detalles"
+    ,
+      "contactForPricing": "Presupuesto",
+      "startingAtPrice": "Desde {{amount}}",
+      "flatRate": "fijo"
     },
     "trust": {
       "trustSignalsAria": "Confianza y Fiabilidad",
