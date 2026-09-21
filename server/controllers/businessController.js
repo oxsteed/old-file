@@ -871,6 +871,15 @@ async function deleteBusiness(req, res, next) {
 
 // ── Analytics: P&L, trends, job stats ────────────────────────────────────────
 // GET /api/businesses/:id/analytics?period=6m
+async function queryAnalyticsOrEmpty(sql, params, fallbackRows = []) {
+  try {
+    return await pool.query(sql, params);
+  } catch (err) {
+    logger.warn('getBusinessAnalytics query failed', { err: err.message });
+    return { rows: fallbackRows };
+  }
+}
+
 async function getBusinessAnalytics(req, res, next) {
   try {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
@@ -879,11 +888,12 @@ async function getBusinessAnalytics(req, res, next) {
     const bizId   = access.id;
     const ownerId = access.owner_id;
 
-    // 6-month monthly breakdown
+    // A just-created unpublished business has no invoices/expenses yet. Each
+    // source fails independently so the overview still returns zeroed KPIs.
     const [invoiceRevRes, oxsteedRevRes, expenseRes, jobStatsRes, invoiceSummaryRes] = await Promise.all([
 
       // Paid invoice revenue by month (last 6 months)
-      pool.query(`
+      queryAnalyticsOrEmpty(`
         SELECT
           TO_CHAR(DATE_TRUNC('month', paid_at), 'YYYY-MM') AS month,
           COALESCE(SUM(total), 0)                           AS revenue
@@ -897,7 +907,7 @@ async function getBusinessAnalytics(req, res, next) {
 
       // OxSteed payment income by month (for primary business only)
       access.is_primary
-        ? pool.query(`
+        ? queryAnalyticsOrEmpty(`
             SELECT
               TO_CHAR(DATE_TRUNC('month', COALESCE(captured_at, released_at)), 'YYYY-MM') AS month,
               COALESCE(SUM(helper_payout), 0) AS revenue
@@ -911,7 +921,7 @@ async function getBusinessAnalytics(req, res, next) {
         : Promise.resolve({ rows: [] }),
 
       // Business-tagged expenses by month
-      pool.query(`
+      queryAnalyticsOrEmpty(`
         SELECT
           TO_CHAR(DATE_TRUNC('month', occurred_at::date), 'YYYY-MM') AS month,
           COALESCE(SUM(amount), 0)                                     AS expenses
@@ -925,7 +935,7 @@ async function getBusinessAnalytics(req, res, next) {
 
       // OxSteed job stats (primary business only)
       access.is_primary
-        ? pool.query(`
+        ? queryAnalyticsOrEmpty(`
             SELECT
               COUNT(*)::int AS jobs_completed,
               COALESCE(AVG(helper_payout), 0) AS avg_job_value,
@@ -934,11 +944,11 @@ async function getBusinessAnalytics(req, res, next) {
             WHERE payee_id = $1
               AND status IN ('captured','released')
               AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
-          `, [ownerId])
+          `, [ownerId], [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }])
         : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
 
       // Outstanding invoices summary - include per-status counts for the Overview KPIs
-      pool.query(`
+      queryAnalyticsOrEmpty(`
         SELECT
           COALESCE(SUM(total - amount_paid) FILTER (WHERE status IN ('sent','overdue')), 0) AS outstanding,
           COALESCE(SUM(total - amount_paid) FILTER (WHERE status = 'overdue'), 0)            AS overdue,
@@ -946,7 +956,7 @@ async function getBusinessAnalytics(req, res, next) {
           COUNT(*) FILTER (WHERE status = 'overdue')                                         AS overdue_count
         FROM business_invoices
         WHERE business_id = $1
-      `, [bizId]),
+      `, [bizId], [{ outstanding: 0, overdue: 0, sent_count: 0, overdue_count: 0 }]),
     ]);
 
     // Merge monthly revenue (invoice + OxSteed) and expenses into a unified series
@@ -975,8 +985,8 @@ async function getBusinessAnalytics(req, res, next) {
         profit:   round2(acc.profit + m.profit),
       }), { revenue: 0, expenses: 0, profit: 0 });
 
-    const jobStats    = jobStatsRes.rows[0];
-    const invSummary  = invoiceSummaryRes.rows[0];
+    const jobStats    = jobStatsRes.rows[0] || { jobs_completed: 0, avg_job_value: 0, max_job_value: 0 };
+    const invSummary  = invoiceSummaryRes.rows[0] || {};
 
     return res.json({
       business_id: bizId,

@@ -49,3 +49,40 @@ export function isBusinessPubliclyListed(biz) {
     && biz.is_active !== false
   );
 }
+
+export function businessFromEditorResponse(payload) {
+  if (!payload) return null;
+  if (payload.business && payload.business.id != null) {
+    return tagOwnedBusiness(payload.business);
+  }
+  if (payload.id != null) return tagOwnedBusiness(payload);
+  return null;
+}
+
+export function businessWorkspacePath(businessId, tab = 'overview') {
+  if (businessId == null || businessId === '') return '/business-hub';
+  const id = encodeURIComponent(String(businessId));
+  if (!tab || tab === 'overview') return `/business/${id}/workspace`;
+  return `/business/${id}/workspace/${encodeURIComponent(String(tab))}`;
+}
+
+export function emptyBusinessAnalytics(businessId) {
+  return {
+    business_id: businessId,
+    monthly: [],
+    mtd: { revenue: 0, expenses: 0, profit: 0 },
+    last_month: { revenue: 0, expenses: 0, profit: 0 },
+    ytd: { revenue: 0, expenses: 0, profit: 0 },
+    invoices: {
+      outstanding_total: 0,
+      overdue_total: 0,
+      sent: 0,
+      overdue_count: 0,
+    },
+    jobs: {
+      completed_6m: 0,
+      avg_value: 0,
+      max_value: 0,
+    },
+  };
+}

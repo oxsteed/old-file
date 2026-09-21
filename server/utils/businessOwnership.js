@@ -65,6 +65,7 @@ async function canManageBusinessFinance(userId, bizId) {
     `SELECT b.id, b.business_name, b.is_primary, b.tax_rate, b.user_id AS owner_id
      FROM businesses b
      WHERE b.id = $1
+       AND b.deleted_at IS NULL
        AND (
          b.user_id = $2
          OR EXISTS (

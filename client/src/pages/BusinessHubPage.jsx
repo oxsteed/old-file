@@ -52,6 +52,7 @@ import {
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
+  getBusiness,
   getBusinessProfileForEditor,
   // Business content (services, gallery, policies, faqs, hours)
   listBusinessServices, createBusinessService, updateBusinessService, deleteBusinessService,
@@ -86,6 +87,9 @@ import {
   tagOwnedBusiness,
   mergeBusinessList,
   isBusinessPubliclyListed,
+  businessFromEditorResponse,
+  businessWorkspacePath,
+  emptyBusinessAnalytics,
 } from '../utils/businessProfileForm';
 import '../styles/BusinessHubPage.css';
 
@@ -243,24 +247,46 @@ function BusinessHubInner() {
   // so the server skips helper_profiles UPSERT (see businessController updateBusiness).
   const profileFieldsBaselineRef = useRef(null);
 
+  const seedBusinessFromId = useCallback(async (id) => {
+    if (!id) return null;
+    try {
+      return businessFromEditorResponse(await getBusiness(id));
+    } catch {
+      return null;
+    }
+  }, []);
+
   // ── load businesses (owned + managed) ───────────────────────────────────
   const loadBusinesses = useCallback(async () => {
     setLoadingBiz(true);
     try {
-      const [owned, managed] = await Promise.all([
-        listBusinesses(),
-        listManagedBusinesses().catch(() => []),
-      ]);
+      let listFailed = false;
+      let owned = [];
+      let managed = [];
+      try {
+        [owned, managed] = await Promise.all([
+          listBusinesses(),
+          listManagedBusinesses().catch(() => []),
+        ]);
+      } catch {
+        listFailed = true;
+      }
       const ownedTagged   = owned.map(b   => ({ ...b, _role: 'owner'    }));
       const managedTagged = managed.map(b => ({ ...b, _role: b.role }));
       const seen = new Set(ownedTagged.map(b => String(b.id)));
-      const merged = mergeBusinessList(
+      let merged = mergeBusinessList(
         createdFromNav ? [createdFromNav] : [],
         [
           ...ownedTagged,
           ...managedTagged.filter(b => !seen.has(String(b.id))),
         ],
       );
+      // Direct workspace URLs (/business/:id/workspace) must still open a
+      // just-created draft even if the list endpoint lags or 500s.
+      if (routeBusinessId && !merged.some((b) => String(b.id) === routeBusinessId)) {
+        const fetched = await seedBusinessFromId(routeBusinessId);
+        if (fetched) merged = mergeBusinessList(merged, [fetched]);
+      }
       setBusinesses(merged);
       if (merged.length === 0) {
         // Stale oxs:bh:lastBusinessId would otherwise keep tab effects calling /api/businesses/:id/* → 404
@@ -275,6 +301,7 @@ function BusinessHubInner() {
         setMembers([]);
         setVortexTokens([]);
         setAccessCodes([]);
+        if (listFailed && !createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
       } else {
         // URL param (routeBusinessId) wins; fall back to localStorage, then first owned.
         const fromUrl = routeBusinessId && merged.find(b => String(b.id) === routeBusinessId) ? routeBusinessId : null;
@@ -288,7 +315,7 @@ function BusinessHubInner() {
       if (!createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
     }
     finally { setLoadingBiz(false); }
-  }, [t, routeBusinessId, createdFromNav]);
+  }, [t, routeBusinessId, createdFromNav, seedBusinessFromId]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
@@ -316,23 +343,26 @@ function BusinessHubInner() {
   // When on the per-business workspace URL, keep state and URL in sync.
   useEffect(() => {
     if (!routeBusinessId) return;
+    if (loadingBiz) return;
+    const known = businesses.some((b) => String(b.id) === routeBusinessId);
+    if (!known) return;
     if (String(bizId) !== routeBusinessId) setBizId(routeBusinessId);
     if (routeTab && routeTab !== tab) setTab(routeTab);
-  }, [routeBusinessId, routeTab]); // intentionally ignore bizId/tab to avoid feedback loop
+  }, [routeBusinessId, routeTab, loadingBiz, businesses]); // intentionally ignore bizId/tab to avoid feedback loop
 
-  // When the user switches business or tab via in-page controls AND we're on
-  // the workspace URL, push the new path so refresh/back/share works.
+  // When the user switches tab via in-page controls AND we're already on this
+  // business's workspace URL, push the new path so refresh/back/share works.
+  // Do not rewrite the path while bizId is ahead of the URL (create/switch) —
+  // that race used to clobber /workspace/profile down to /workspace.
   useEffect(() => {
     if (!routeBusinessId) return;
     if (!bizId) return;
-    const desiredPath = tab === 'overview'
-      ? `/business/${bizId}/workspace`
-      : `/business/${bizId}/workspace/${tab}`;
-    // Only navigate if the URL actually needs to change
+    if (String(bizId) !== String(routeBusinessId)) return;
+    const desiredPath = businessWorkspacePath(bizId, tab);
     if (window.location.pathname !== desiredPath) {
-      navigate(desiredPath, { replace: true });
+      navigate(desiredPath, { replace: true, state: location.state });
     }
-  }, [bizId, tab, routeBusinessId, navigate]);
+  }, [bizId, tab, routeBusinessId, navigate, location.state]);
 
   // ── load tab data when bizId or tab changes ──────────────────────────────
   const loadOverview = useCallback(async () => {
@@ -342,13 +372,14 @@ function BusinessHubInner() {
     try {
       setAnalytics(await getAnalytics(bizId));
     } catch {
-      setAnalytics(null);
-      setAnalyticsError(true);
-      toast.error(t('businessHub.errorAnalytics'));
+      // New drafts have no P&L yet. Keep the overview usable instead of
+      // toasting a load failure on /business/:id/workspace.
+      setAnalytics(emptyBusinessAnalytics(bizId));
+      setAnalyticsError(false);
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [bizId, t]);
+  }, [bizId]);
 
   const loadInvoices = useCallback(async () => {
     if (!bizId) return;
@@ -670,6 +701,9 @@ function BusinessHubInner() {
     setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null); setTradesOpsData(null); setBeautyOpsData(null); setCreativeOpsData(null); setProfessionalOpsData(null); setContinuityOpsData(null);
     setMembersLoading(true);
     setMembers([]);
+    if (routeBusinessId) {
+      navigate(businessWorkspacePath(id, tab), { replace: true, state: location.state });
+    }
   }
 
   // ── modal helpers ─────────────────────────────────────────────────────────
@@ -692,14 +726,16 @@ function BusinessHubInner() {
   async function handleBusinessCreated(result) {
     const business = tagOwnedBusiness(result?.business);
     if (!business?.id) return;
+    const nextTab = business.business_kind === 'restaurant' ? 'overview' : 'profile';
+    const nextPath = business.business_kind === 'restaurant'
+      ? `/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`
+      : businessWorkspacePath(business.id, nextTab);
     localStorage.setItem(LS_KEY, String(business.id));
+    setTab(nextTab);
     setBusinesses((prev) => mergeBusinessList(prev, [business]));
     setBizId(String(business.id));
     closeModal();
     toast.success(t('businessHub.toastBizAdded'));
-    const nextPath = business.business_kind === 'restaurant'
-      ? `/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`
-      : `/business/${business.id}/workspace/profile`;
     navigate(nextPath, { state: { createdBusiness: business }, replace: true });
     loadBusinesses().catch(() => {});
   }
@@ -1107,6 +1143,11 @@ function BusinessHubInner() {
   }
 
   const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
+  const workspaceMissing = Boolean(
+    routeBusinessId
+    && !loadingBiz
+    && !businesses.some((b) => String(b.id) === routeBusinessId)
+  );
   const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
@@ -1341,6 +1382,17 @@ function BusinessHubInner() {
         {/* Business switcher */}
         {loadingBiz ? (
           <p className="bh-loading">{t('businessHub.loadingBusinesses')}</p>
+        ) : workspaceMissing ? (
+          <div className="bh-empty">
+            <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>
+            <p>{t('businessHub.noBizDesc')}</p>
+            <button className="bh-btn" onClick={() => loadBusinesses()}>
+              {t('businessHub.tryAgain')}
+            </button>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
+              {t('businessHub.addABusiness')}
+            </button>
+          </div>
         ) : businesses.length === 0 ? (
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>

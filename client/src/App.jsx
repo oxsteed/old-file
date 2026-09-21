@@ -333,6 +333,11 @@ export default function App() {
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Workspace URLs must be declared before the public /business/:id
+                        profile so a just-created draft at /business/1/workspace cannot
+                        be treated as a public profile load. */}
+                    <Route path="/business/:businessId/workspace"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/business/:businessId/workspace/:tab"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/business/:businessId/maintenance-request" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MaintenanceRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/trades-request" element={<Guarded><RouteErrorBoundary><TradesDiagnosticRequestPage /></RouteErrorBoundary></Guarded>} />
@@ -509,10 +514,6 @@ export default function App() {
                     <Route path="/access-gate/recovery" element={<RouteErrorBoundary><AccessGateRecoveryPage /></RouteErrorBoundary>} />
                     {/* Critical: Business analytics dashboard with multiple tabs */}
                     <Route path="/business-hub"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    {/* Per-business workspace URLs. The businessId in the URL is the source of truth;
-                        BusinessHubPage reads useParams().businessId before falling back to localStorage. */}
-                    <Route path="/business/:businessId/workspace"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/business/:businessId/workspace/:tab"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Role-aware appointment + availability calendar system */}
                     <Route path="/calendar" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
 import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { businessWorkspacePath } from '../utils/businessProfileForm';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
 
@@ -118,9 +119,7 @@ export default function BusinessSwitcher({ compact = false }) {
     // so subsequent logins land on the right business.
     setWorkspaceContext(id).catch(() => {});
     const tab = routeTab && routeBusinessId ? routeTab : '';
-    const path = tab
-      ? `/business/${id}/workspace/${tab}`
-      : `/business/${id}/workspace`;
+    const path = businessWorkspacePath(id, tab);
     navigate(path);
     setOpen(false);
   }, [navigate, routeTab, routeBusinessId]);
@@ -130,7 +129,7 @@ export default function BusinessSwitcher({ compact = false }) {
   // Single business → just a static link, no dropdown.
   if (businesses.length === 1) {
     const b = businesses[0];
-    const path = `/business/${b.id}/workspace`;
+    const path = businessWorkspacePath(b.id);
     return (
       <Link
         to={path}
