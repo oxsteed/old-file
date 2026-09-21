@@ -3458,31 +3458,120 @@
     "jobs": "Travaux",
     "noCategoryMatches": "Aucune catégorie ne correspond à « {{search}} »",
     "capture": {
-      "accessDenied": "L’accès à la caméra ou au microphone a été refusé. Autorisez-le dans les paramètres du navigateur et réessayez.", "deviceNotFound": "Aucune caméra ni aucun microphone n’a été trouvé sur cet appareil.", "startError": "Impossible de démarrer la capture : {{error}}", "takePhoto": "📷 Prendre une photo en direct", "recordVideo": "🎥 Enregistrer une vidéo", "recordAudio": "🎙 Enregistrer un audio", "close": "Fermer", "starting": "Démarrage…", "processing": "Traitement…", "snapPhoto": "📷 Prendre la photo", "startRecording": "⏺ Démarrer l’enregistrement", "stop": "⏹ Arrêter", "microphoneReady": "Microphone prêt"
+      "accessDenied": "L’accès à la caméra ou au microphone a été refusé. Autorisez-le dans les paramètres du navigateur et réessayez.",
+      "deviceNotFound": "Aucune caméra ni aucun microphone n’a été trouvé sur cet appareil.",
+      "startError": "Impossible de démarrer la capture : {{error}}",
+      "takePhoto": "📷 Prendre une photo en direct",
+      "recordVideo": "🎥 Enregistrer une vidéo",
+      "recordAudio": "🎙 Enregistrer un audio",
+      "close": "Fermer",
+      "starting": "Démarrage…",
+      "processing": "Traitement…",
+      "snapPhoto": "📷 Prendre la photo",
+      "startRecording": "⏺ Démarrer l’enregistrement",
+      "stop": "⏹ Arrêter",
+      "microphoneReady": "Microphone prêt"
     },
     "stepIntro": {
-      "details": { "eyebrow": "Définir les travaux", "title": "Indiquez à OxSteed ce qui doit être fait.", "body": "Un titre précis, une adresse claire et des médias utiles permettent aux bons prestataires de se reconnaître plus vite." },
-      "requirements": { "eyebrow": "Fixer les critères", "title": "Définissez qui peut soumissionner.", "body": "Utilisez les exigences pour filtrer le prestataire, l’équipe, les outils et les garanties nécessaires." },
-      "budget": { "eyebrow": "Budget et calendrier", "title": "Rendez le calendrier concret.", "body": "Définissez le budget, l’urgence, les préférences de calendrier et les notes privées pour recevoir des offres mieux adaptées." },
-      "review": { "eyebrow": "Vérification finale", "title": "Vérifiez l’annonce avant sa publication.", "body": "C’est la dernière vérification avant de recevoir les offres de prestataires correspondant à la demande." }
+      "details": {
+        "eyebrow": "Définir les travaux",
+        "title": "Indiquez à OxSteed ce qui doit être fait.",
+        "body": "Un titre précis, une adresse claire et des médias utiles permettent aux bons prestataires de se reconnaître plus vite."
+      },
+      "requirements": {
+        "eyebrow": "Fixer les critères",
+        "title": "Définissez qui peut soumissionner.",
+        "body": "Utilisez les exigences pour filtrer le prestataire, l’équipe, les outils et les garanties nécessaires."
+      },
+      "budget": {
+        "eyebrow": "Budget et calendrier",
+        "title": "Rendez le calendrier concret.",
+        "body": "Définissez le budget, l’urgence, les préférences de calendrier et les notes privées pour recevoir des offres mieux adaptées."
+      },
+      "review": {
+        "eyebrow": "Vérification finale",
+        "title": "Vérifiez l’annonce avant sa publication.",
+        "body": "C’est la dernière vérification avant de recevoir les offres de prestataires correspondant à la demande."
+      }
     },
     "metaDescription": "Décrivez les travaux et recevez des offres compétitives de prestataires locaux de confiance. Publication gratuite.",
-    "hero": { "kicker": "Annonce de travaux du client", "subtitle": "Décrivez les travaux, définissez qui peut soumissionner et transformez une tâche imprécise en demande claire et facile à chiffrer.", "free": "Publication gratuite", "requirements": "Définissez vos exigences", "bids": "Invitez des offres compétitives", "betterBidsTitle": "Comment obtenir de meilleures offres", "tipScope": "Un périmètre précis vaut mieux qu’une description générale.", "tipMedia": "Les photos ou vidéos réduisent les questions répétées.", "tipRequirements": "Les exigences évitent de perdre du temps avec des prestataires inadaptés." },
-    "directHelperNotice": "Demande directe à {{name}}. Cette personne sera avertie lorsque votre annonce sera publiée.", "thisHelper": "ce prestataire", "viewProfile": "Voir le profil",
+    "hero": {
+      "kicker": "Annonce de travaux du client",
+      "subtitle": "Décrivez les travaux, définissez qui peut soumissionner et transformez une tâche imprécise en demande claire et facile à chiffrer.",
+      "free": "Publication gratuite",
+      "requirements": "Définissez vos exigences",
+      "bids": "Invitez des offres compétitives",
+      "betterBidsTitle": "Comment obtenir de meilleures offres",
+      "tipScope": "Un périmètre précis vaut mieux qu’une description générale.",
+      "tipMedia": "Les photos ou vidéos réduisent les questions répétées.",
+      "tipRequirements": "Les exigences évitent de perdre du temps avec des prestataires inadaptés."
+    },
+    "directHelperNotice": "Demande directe à {{name}}. Cette personne sera avertie lorsque votre annonce sera publiée.",
+    "thisHelper": "ce prestataire",
+    "viewProfile": "Voir le profil",
     "maintenanceMode": "Le mode demande de maintenance est actif. Ajoutez des photos, des notes d’accès, le degré d’urgence et les créneaux souhaités afin que le gestionnaire puisse accepter, planifier ou attribuer les travaux.",
-    "currentStep": "Étape actuelle", "helperFilters": "Filtres des prestataires", "mediaAdded": "Médias ajoutés", "optional": "Facultatif",
-    "mediaTabs": { "photos": "Photos", "video": "Vidéo", "audio": "Audio" }, "clickToUpload": "Cliquer pour téléverser : {{type}}", "orDragDrop": "ou glisser-déposer",
-    "mediaLimits": { "photos": "JPG, PNG, WEBP · jusqu’à 5 photos · 10 Mo chacune", "video": "MP4, MOV · jusqu’à 1 vidéo · 100 Mo", "audio": "MP3, WAV · jusqu’à 1 fichier · 20 Mo" },
-    "previewNumber": "Aperçu {{number}}", "remove": "Supprimer",
-    "credentialNotice": "Lorsqu’un prestataire fournit une licence ou une assurance, OxSteed tente de les vérifier. Toutes les autres exigences sont confirmées par le prestataire avant l’offre.", "dismiss": "Masquer",
-    "licenseTypes": { "select": "Préciser le type de licence…", "ohElectrician": "Électricien de l’Ohio (OCILB)", "ohPlumber": "Plombier de l’Ohio", "ohHvac": "Entrepreneur CVC de l’Ohio", "generalContractor": "Entrepreneur général", "other": "Autre / Préciser dans la description" },
-    "skillLevels": { "beginner": "Débutant - tâches simples", "intermediate": "Intermédiaire - 2 ans et plus", "advanced": "Avancé - 5 ans et plus", "expert": "Expert / Maître" },
-    "crewOptions": { "solo": "Seul (1 personne)", "two": "2 personnes", "three": "3 personnes", "fourPlus": "4 personnes ou plus" },
-    "removeSkill": "Supprimer {{name}}", "strictRequirementsWarning": "Des exigences strictes peuvent limiter le nombre de prestataires pouvant soumissionner. Vous pourrez encore les modifier après publication.", "openBidHelp": "Les prestataires proposeront leur propre prix. Vous verrez toutes les offres et choisirez celle qui correspond à votre budget.",
-    "stepReviewPostLabel": "Étape 4 sur 4 - Vérifier et publier", "reviewHelp": "Vérifiez que tout est correct avant la publication.", "edit": "Modifier", "readOnlySkill": "{{name}}, lecture seule", "mediaNumber": "Média {{number}}", "nextStep": "Étape suivante", "postAndInvite": "Publier et inviter des offres", "jobPostingSummary": "Résumé de l’annonce", "jobSummary": "Résumé des travaux", "requirementsToConfirm": "Les prestataires doivent confirmer {{count}} exigence(s) avant de pouvoir soumissionner.",
-    "beforePost": "Avant de publier", "easierToPrice": "Facilitez le chiffrage des travaux.",
-    "beforePostTips": { "details": "Précisez le problème, pas seulement la catégorie.", "dates": "Ajoutez les dates souhaitées si l’accès dépend de votre disponibilité.", "tools": "Indiquez les outils, permis ou matériaux particuliers à prévoir." },
-    "whatHappensNext": "Prochaine étape", "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
+    "currentStep": "Étape actuelle",
+    "helperFilters": "Filtres des prestataires",
+    "mediaAdded": "Médias ajoutés",
+    "optional": "Facultatif",
+    "mediaTabs": {
+      "photos": "Photos",
+      "video": "Vidéo",
+      "audio": "Audio"
+    },
+    "clickToUpload": "Cliquer pour téléverser : {{type}}",
+    "orDragDrop": "ou glisser-déposer",
+    "mediaLimits": {
+      "photos": "JPG, PNG, WEBP · jusqu’à 5 photos · 10 Mo chacune",
+      "video": "MP4, MOV · jusqu’à 1 vidéo · 100 Mo",
+      "audio": "MP3, WAV · jusqu’à 1 fichier · 20 Mo"
+    },
+    "previewNumber": "Aperçu {{number}}",
+    "remove": "Supprimer",
+    "credentialNotice": "Lorsqu’un prestataire fournit une licence ou une assurance, OxSteed tente de les vérifier. Toutes les autres exigences sont confirmées par le prestataire avant l’offre.",
+    "dismiss": "Masquer",
+    "licenseTypes": {
+      "select": "Préciser le type de licence…",
+      "ohElectrician": "Électricien de l’Ohio (OCILB)",
+      "ohPlumber": "Plombier de l’Ohio",
+      "ohHvac": "Entrepreneur CVC de l’Ohio",
+      "generalContractor": "Entrepreneur général",
+      "other": "Autre / Préciser dans la description"
+    },
+    "skillLevels": {
+      "beginner": "Débutant - tâches simples",
+      "intermediate": "Intermédiaire - 2 ans et plus",
+      "advanced": "Avancé - 5 ans et plus",
+      "expert": "Expert / Maître"
+    },
+    "crewOptions": {
+      "solo": "Seul (1 personne)",
+      "two": "2 personnes",
+      "three": "3 personnes",
+      "fourPlus": "4 personnes ou plus"
+    },
+    "removeSkill": "Supprimer {{name}}",
+    "strictRequirementsWarning": "Des exigences strictes peuvent limiter le nombre de prestataires pouvant soumissionner. Vous pourrez encore les modifier après publication.",
+    "openBidHelp": "Les prestataires proposeront leur propre prix. Vous verrez toutes les offres et choisirez celle qui correspond à votre budget.",
+    "stepReviewPostLabel": "Étape 4 sur 4 - Vérifier et publier",
+    "reviewHelp": "Vérifiez que tout est correct avant la publication.",
+    "edit": "Modifier",
+    "readOnlySkill": "{{name}}, lecture seule",
+    "mediaNumber": "Média {{number}}",
+    "nextStep": "Étape suivante",
+    "postAndInvite": "Publier et inviter des offres",
+    "jobPostingSummary": "Résumé de l’annonce",
+    "jobSummary": "Résumé des travaux",
+    "requirementsToConfirm": "Les prestataires doivent confirmer {{count}} exigence(s) avant de pouvoir soumissionner.",
+    "beforePost": "Avant de publier",
+    "easierToPrice": "Facilitez le chiffrage des travaux.",
+    "beforePostTips": {
+      "details": "Précisez le problème, pas seulement la catégorie.",
+      "dates": "Ajoutez les dates souhaitées si l’accès dépend de votre disponibilité.",
+      "tools": "Indiquez les outils, permis ou matériaux particuliers à prévoir."
+    },
+    "whatHappensNext": "Prochaine étape",
+    "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
     "bidNow": "Faire une offre",
@@ -4169,7 +4258,14 @@
     "jobCount": "{{count}} emploi trouvé"
   },
   "support": {
-    "liveWait": {"title":"En attente d’un agent d’assistance","body":"Nous recherchons un agent disponible. Ajoutez des détails ci-dessous pendant l’attente, ou contactez-nous par téléphone ou SMS.","unavailable":"Aucun agent n’est disponible pour le moment","fallback":"Votre demande est enregistrée. Laissez un message ci-dessous pour le suivi, ou appelez ou envoyez un SMS au +1 (937) 408-5169.","connected":"Un agent d’assistance a rejoint la conversation","closed":"Cette conversation est fermée"},
+    "liveWait": {
+      "title": "En attente d’un agent d’assistance",
+      "body": "Nous recherchons un agent disponible. Ajoutez des détails ci-dessous pendant l’attente, ou contactez-nous par téléphone ou SMS.",
+      "unavailable": "Aucun agent n’est disponible pour le moment",
+      "fallback": "Votre demande est enregistrée. Laissez un message ci-dessous pour le suivi, ou appelez ou envoyez un SMS au +1 (937) 408-5169.",
+      "connected": "Un agent d’assistance a rejoint la conversation",
+      "closed": "Cette conversation est fermée"
+    },
     "helpTitle": "Comment pouvons-nous vous aider ?",
     "helpSubtitle": "Posez une question ou démarrez une conversation avec notre assistant IA.",
     "placeholder": "Posez une question…",
@@ -6022,8 +6118,8 @@
       "sectionFaqs": "FAQ",
       "sectionPolicies": "Politiques"
     },
-  "chat": {
-    "expandChat": "Agrandir le chat",
+    "chat": {
+      "expandChat": "Agrandir le chat",
       "aiAssistant": "Assistant IA",
       "onlineNow": "En ligne maintenant",
       "availableToday": "Disponible aujourd'hui",
@@ -9363,13 +9459,23 @@
     "success": "Demande de réservation envoyée !",
     "loading": "Chargement du service…",
     "notFound": "Service introuvable.",
-    "sections": { "details": "Détails du service", "selectDate": "Sélectionner une date", "selectTime": "Sélectionner une heure" },
+    "sections": {
+      "details": "Détails du service",
+      "selectDate": "Sélectionner une date",
+      "selectTime": "Sélectionner une heure"
+    },
     "durationLabel": "Durée",
     "durationValue_one": "{{count}} minute",
     "durationValue_other": "{{count}} minutes",
     "basePriceLabel": "Prix de base",
     "noAvailableSlots": "Aucun créneau disponible à cette date.",
-    "summary": { "title": "Résumé de la réservation", "dateLabel": "Date", "timeLabel": "Heure", "basePriceLabel": "Prix de base", "totalPriceLabel": "Total" },
+    "summary": {
+      "title": "Résumé de la réservation",
+      "dateLabel": "Date",
+      "timeLabel": "Heure",
+      "basePriceLabel": "Prix de base",
+      "totalPriceLabel": "Total"
+    },
     "form": {
       "title": "Vos coordonnées",
       "nameLabel": "Nom",
@@ -9382,7 +9488,10 @@
       "notesPlaceholder": "Indiquez tout détail utile à l'entreprise…",
       "termsText": "J'accepte les conditions de réservation et la politique d'annulation."
     },
-    "buttons": { "booking": "Envoi de la demande…", "bookNow": "Réserver · {{price}}" }
+    "buttons": {
+      "booking": "Envoi de la demande…",
+      "bookNow": "Réserver · {{price}}"
+    }
   },
   "booking": {
     "pageTitle": "Réserver un prestataire",
@@ -13607,18 +13716,182 @@
       "soldOut": "Épuisé",
       "menuSections": "Sections du menu",
       "jumpTo": "Aller à",
-      "paymentApp": "Application de paiement / QR", "paymentReferenceHint": "Indiquez votre numéro de commande ou votre nom dans la note de paiement.", "receiptUploaded": "Reçu téléversé", "proofUploadError": "Impossible de téléverser le justificatif de paiement.", "proofRequiredError": "Téléversez un justificatif de paiement ou ajoutez un numéro de confirmation.", "loadingMenu": "Chargement du menu…", "notFoundTitle": "Restaurant introuvable", "browseRestaurants": "Voir les restaurants", "takeout": "À emporter", "new": "Nouveau", "openNow": "Ouvert maintenant", "minuteRange": "{{start}}–{{end}} min", "freePickup": "Retrait gratuit", "freeDelivery": "Livraison gratuite", "deliveryPrice": "Livraison {{price}}", "minimumOrder": "Commande minimale de {{price}}", "noMinimum": "Aucun minimum",
-      "days": { "monday": "Lun", "tuesday": "Mar", "wednesday": "Mer", "thursday": "Jeu", "friday": "Ven", "saturday": "Sam", "sunday": "Dim" },
-      "tags": { "vegetarian": "Végétarien", "vegan": "Végane", "gf": "SG", "gluten-free": "SG", "spicy": "Épicé", "veg": "Végétarien", "halal": "Halal", "keto": "Kéto", "dairy_free": "Sans produits laitiers" },
-      "filters": { "all": "Tout", "vegetarian": "Végétarien", "vegan": "Végane", "gf": "Sans gluten", "spicy": "Épicé" },
-      "filteredBy": "Filtré - {{filter}}", "popularItems": "Articles populaires", "guest": "Client", "specialOffer": "Offre spéciale", "percentOff": "{{percent}} % de réduction", "deal": "Promotion", "endsOn": "Se termine le {{date}}", "moreItems": " + {{count}} autre(s)", "itemAdded": "{{item}} ajouté", "item": "Article", "reorderError": "Cette commande ne peut pas être ajoutée à nouveau pour le moment.", "linkCopied": "Lien copié !",
-      "tabs": { "menu": "Menu", "info": "Infos", "reviews": "Avis", "deals": "Promotions" },
-      "timeSlots": { "asap": "Dès que possible", "in15": "Dans 15 minutes", "adds15": "Ajoute 15 min à l’estimation", "in30": "Dans 30 minutes", "scheduled": "Planifié à l’avance", "later": "Planifier plus tard", "chooseTime": "Choisir une heure précise" },
-      "estimated": "Env. {{time}}", "payAtRestaurant": "Payer au restaurant", "payOnDelivery": "Payer à la livraison", "cardOrCash": "Carte ou espèces, paiement auprès du restaurant", "restaurantCredit": "Crédit restaurant", "creditAvailable": "{{amount}} disponible", "insufficientCredit": "Solde insuffisant - {{amount}} disponible", "payWithApp": "Payer avec l’application du restaurant", "sendTo": "Envoyer à {{handle}}", "usePaymentInstructions": "Suivez les instructions du restaurant et téléversez un justificatif", "pickupDetails": "Détails du retrait", "deliveryDetails": "Détails de la livraison", "deliveryFee": "Frais de livraison", "free": "Gratuit",
-      "orderNumber": "Votre commande n° {{number}}", "readyForPickupShort": "Prête à retirer !", "dismissOrderStatus": "Fermer l’état de la commande", "share": "Partager", "orderItems": "Commande · {{count}} article(s)", "startOrder": "Commencer une commande", "hours": "Horaires", "location": "Adresse", "contact": "Contact", "searchMenu": "Rechercher chez {{restaurant}}…", "reorder": "Commander à nouveau", "noMenuItems": "Aucun article au menu pour le moment", "searchResults": "{{count}} résultat(s) pour « {{query}} »", "noResults": "Aucun résultat pour « {{query}} »", "noItemsHere": "Aucun article ici pour le moment", "tryDifferentSearch": "Essayez un autre terme de recherche", "tryDifferentCategory": "Essayez une autre catégorie", "hoursUnavailable": "Horaires indisponibles", "noContact": "Aucune coordonnée pour le moment", "reviewCount": "{{count}} avis", "noReviews": "Aucun avis pour le moment", "firstReview": "Soyez le premier à donner votre avis après votre commande.", "noDeals": "Aucune promotion active", "checkDealsLater": "Revenez plus tard pour les promotions.", "viewCart": "Voir le panier",
-      "payment": "Paiement", "emptyCart": "Votre panier est vide", "emptyCartHelp": "Ajoutez des articles du menu pour commencer", "browseMenu": "Voir le menu", "subtotal": "Sous-total", "checkoutTotal": "Commander · {{total}}", "signInRequired": "Connexion requise", "signInCheckoutTitle": "Connectez-vous pour poursuivre la commande", "signInCheckoutBody": "La consultation reste ouverte à tous, mais la commande finale est liée à un compte OxSteed afin de pouvoir la suivre, la mettre à jour et la retrouver.", "streetAddress": "Adresse", "streetPlaceholder": "Rue et numéro…", "aptSuite": "Appartement / Suite", "optional": "facultatif", "aptPlaceholder": "Appartement 4B…", "pickupTime": "Heure de retrait", "deliveryTime": "Heure de livraison", "signInToCheckout": "Se connecter pour commander", "continueToPayment": "Continuer vers le paiement →", "signInOrderTitle": "Connectez-vous pour passer cette commande", "signInOrderBody": "Vous pouvez consulter les menus sans compte, mais la commande est liée à votre connexion OxSteed afin que son suivi et son historique restent associés à votre profil.", "signInContinue": "Se connecter pour continuer", "backToCart": "Retour au panier",
-      "paymentMethod": "Mode de paiement", "creditSummary": "{{available}} disponible{{reserved}}", "creditReserved": " · {{amount}} réservé", "addCredit": "Ajouter du crédit ou consulter le solde", "manageCredit": "Gérer le crédit →", "payDirectly": "Payer directement le restaurant", "sendPaymentTo": "Envoyer le paiement à", "paymentAccountCopied": "Compte de paiement copié", "paymentAccountCopyError": "Impossible de copier le compte de paiement.", "copy": "Copier", "paymentQrAlt": "Code QR de paiement du restaurant", "confirmPaymentQuestion": "Comment souhaitez-vous confirmer le paiement ?", "uploadReceipt": "Téléverser un reçu", "enterConfirmation": "Saisir la confirmation", "receiptAttached": "Reçu joint", "viewReceipt": "Voir le reçu", "uploadingReceipt": "Téléversement du reçu…", "chooseReceipt": "Choisir une capture, un reçu ou un PDF", "confirmationPlaceholder": "Numéro de confirmation ou nom de l’expéditeur", "addNote": "Ajouter une note (facultatif)", "paymentNotePlaceholder": "Toute information aidant le restaurant à identifier le paiement", "proofRequiredHelp": "Ajoutez un reçu ou un numéro de confirmation avant de passer la commande.", "proofOptionalHelp": "Le justificatif est facultatif. Le restaurant confirmera le paiement avant de terminer la commande.",
-      "promoCode": "Code promotionnel", "promoPlaceholder": "p. ex. ETE10", "orderSummary": "Récapitulatif de la commande", "creditChargeNote": "💠 Votre crédit restaurant est débité lors de la commande.", "directPaymentNote": "📲 Joignez votre justificatif à la commande afin que le restaurant puisse l’identifier rapidement.", "counterPaymentNote": "🏪 Le paiement est réglé au comptoir lorsque la commande est prête. Aucune carte n’est débitée en ligne.", "deliveryPaymentNote": "🏪 Le paiement est réglé à la livraison. Aucune carte n’est débitée en ligne.", "placingOrder": "Envoi de la commande…", "placeOrderTotal": "Passer la commande · {{total}}", "confirmedNumber": "Votre numéro de commande est le {{number}}.", "readyShortly": "Elle sera bientôt prête.", "confirmedPreparing": "Votre commande est confirmée et en préparation.", "readyNotification": "Nous vous avertirons lorsqu’elle sera prête.", "liveStatus": "État en direct : {{status}}", "estimatedTime": "Temps estimé", "backToMenu": "Retour au menu", "required": "Obligatoire", "specialInstructions": "Instructions spéciales", "specialInstructionsPlaceholder": "P. ex. sans oignons, sauce à part, serviettes supplémentaires…", "allergyPlaceholder": "Allergies, substitutions…", "addQuantity": "Ajouter {{count}} · {{total}}"
+      "paymentApp": "Application de paiement / QR",
+      "paymentReferenceHint": "Indiquez votre numéro de commande ou votre nom dans la note de paiement.",
+      "receiptUploaded": "Reçu téléversé",
+      "proofUploadError": "Impossible de téléverser le justificatif de paiement.",
+      "proofRequiredError": "Téléversez un justificatif de paiement ou ajoutez un numéro de confirmation.",
+      "loadingMenu": "Chargement du menu…",
+      "notFoundTitle": "Restaurant introuvable",
+      "browseRestaurants": "Voir les restaurants",
+      "takeout": "À emporter",
+      "new": "Nouveau",
+      "openNow": "Ouvert maintenant",
+      "minuteRange": "{{start}}–{{end}} min",
+      "freePickup": "Retrait gratuit",
+      "freeDelivery": "Livraison gratuite",
+      "deliveryPrice": "Livraison {{price}}",
+      "minimumOrder": "Commande minimale de {{price}}",
+      "noMinimum": "Aucun minimum",
+      "days": {
+        "monday": "Lun",
+        "tuesday": "Mar",
+        "wednesday": "Mer",
+        "thursday": "Jeu",
+        "friday": "Ven",
+        "saturday": "Sam",
+        "sunday": "Dim"
+      },
+      "tags": {
+        "vegetarian": "Végétarien",
+        "vegan": "Végane",
+        "gf": "SG",
+        "gluten-free": "SG",
+        "spicy": "Épicé",
+        "veg": "Végétarien",
+        "halal": "Halal",
+        "keto": "Kéto",
+        "dairy_free": "Sans produits laitiers"
+      },
+      "filters": {
+        "all": "Tout",
+        "vegetarian": "Végétarien",
+        "vegan": "Végane",
+        "gf": "Sans gluten",
+        "spicy": "Épicé"
+      },
+      "filteredBy": "Filtré - {{filter}}",
+      "popularItems": "Articles populaires",
+      "guest": "Client",
+      "specialOffer": "Offre spéciale",
+      "percentOff": "{{percent}} % de réduction",
+      "deal": "Promotion",
+      "endsOn": "Se termine le {{date}}",
+      "moreItems": " + {{count}} autre(s)",
+      "itemAdded": "{{item}} ajouté",
+      "item": "Article",
+      "reorderError": "Cette commande ne peut pas être ajoutée à nouveau pour le moment.",
+      "linkCopied": "Lien copié !",
+      "tabs": {
+        "menu": "Menu",
+        "info": "Infos",
+        "reviews": "Avis",
+        "deals": "Promotions"
+      },
+      "timeSlots": {
+        "asap": "Dès que possible",
+        "in15": "Dans 15 minutes",
+        "adds15": "Ajoute 15 min à l’estimation",
+        "in30": "Dans 30 minutes",
+        "scheduled": "Planifié à l’avance",
+        "later": "Planifier plus tard",
+        "chooseTime": "Choisir une heure précise"
+      },
+      "estimated": "Env. {{time}}",
+      "payAtRestaurant": "Payer au restaurant",
+      "payOnDelivery": "Payer à la livraison",
+      "cardOrCash": "Carte ou espèces, paiement auprès du restaurant",
+      "restaurantCredit": "Crédit restaurant",
+      "creditAvailable": "{{amount}} disponible",
+      "insufficientCredit": "Solde insuffisant - {{amount}} disponible",
+      "payWithApp": "Payer avec l’application du restaurant",
+      "sendTo": "Envoyer à {{handle}}",
+      "usePaymentInstructions": "Suivez les instructions du restaurant et téléversez un justificatif",
+      "pickupDetails": "Détails du retrait",
+      "deliveryDetails": "Détails de la livraison",
+      "deliveryFee": "Frais de livraison",
+      "free": "Gratuit",
+      "orderNumber": "Votre commande n° {{number}}",
+      "readyForPickupShort": "Prête à retirer !",
+      "dismissOrderStatus": "Fermer l’état de la commande",
+      "share": "Partager",
+      "orderItems": "Commande · {{count}} article(s)",
+      "startOrder": "Commencer une commande",
+      "hours": "Horaires",
+      "location": "Adresse",
+      "contact": "Contact",
+      "searchMenu": "Rechercher chez {{restaurant}}…",
+      "reorder": "Commander à nouveau",
+      "noMenuItems": "Aucun article au menu pour le moment",
+      "searchResults": "{{count}} résultat(s) pour « {{query}} »",
+      "noResults": "Aucun résultat pour « {{query}} »",
+      "noItemsHere": "Aucun article ici pour le moment",
+      "tryDifferentSearch": "Essayez un autre terme de recherche",
+      "tryDifferentCategory": "Essayez une autre catégorie",
+      "hoursUnavailable": "Horaires indisponibles",
+      "noContact": "Aucune coordonnée pour le moment",
+      "reviewCount": "{{count}} avis",
+      "noReviews": "Aucun avis pour le moment",
+      "firstReview": "Soyez le premier à donner votre avis après votre commande.",
+      "noDeals": "Aucune promotion active",
+      "checkDealsLater": "Revenez plus tard pour les promotions.",
+      "viewCart": "Voir le panier",
+      "payment": "Paiement",
+      "emptyCart": "Votre panier est vide",
+      "emptyCartHelp": "Ajoutez des articles du menu pour commencer",
+      "browseMenu": "Voir le menu",
+      "subtotal": "Sous-total",
+      "checkoutTotal": "Commander · {{total}}",
+      "signInRequired": "Connexion requise",
+      "signInCheckoutTitle": "Connectez-vous pour poursuivre la commande",
+      "signInCheckoutBody": "La consultation reste ouverte à tous, mais la commande finale est liée à un compte OxSteed afin de pouvoir la suivre, la mettre à jour et la retrouver.",
+      "streetAddress": "Adresse",
+      "streetPlaceholder": "Rue et numéro…",
+      "aptSuite": "Appartement / Suite",
+      "optional": "facultatif",
+      "aptPlaceholder": "Appartement 4B…",
+      "pickupTime": "Heure de retrait",
+      "deliveryTime": "Heure de livraison",
+      "signInToCheckout": "Se connecter pour commander",
+      "continueToPayment": "Continuer vers le paiement →",
+      "signInOrderTitle": "Connectez-vous pour passer cette commande",
+      "signInOrderBody": "Vous pouvez consulter les menus sans compte, mais la commande est liée à votre connexion OxSteed afin que son suivi et son historique restent associés à votre profil.",
+      "signInContinue": "Se connecter pour continuer",
+      "backToCart": "Retour au panier",
+      "paymentMethod": "Mode de paiement",
+      "creditSummary": "{{available}} disponible{{reserved}}",
+      "creditReserved": " · {{amount}} réservé",
+      "addCredit": "Ajouter du crédit ou consulter le solde",
+      "manageCredit": "Gérer le crédit →",
+      "payDirectly": "Payer directement le restaurant",
+      "sendPaymentTo": "Envoyer le paiement à",
+      "paymentAccountCopied": "Compte de paiement copié",
+      "paymentAccountCopyError": "Impossible de copier le compte de paiement.",
+      "copy": "Copier",
+      "paymentQrAlt": "Code QR de paiement du restaurant",
+      "confirmPaymentQuestion": "Comment souhaitez-vous confirmer le paiement ?",
+      "uploadReceipt": "Téléverser un reçu",
+      "enterConfirmation": "Saisir la confirmation",
+      "receiptAttached": "Reçu joint",
+      "viewReceipt": "Voir le reçu",
+      "uploadingReceipt": "Téléversement du reçu…",
+      "chooseReceipt": "Choisir une capture, un reçu ou un PDF",
+      "confirmationPlaceholder": "Numéro de confirmation ou nom de l’expéditeur",
+      "addNote": "Ajouter une note (facultatif)",
+      "paymentNotePlaceholder": "Toute information aidant le restaurant à identifier le paiement",
+      "proofRequiredHelp": "Ajoutez un reçu ou un numéro de confirmation avant de passer la commande.",
+      "proofOptionalHelp": "Le justificatif est facultatif. Le restaurant confirmera le paiement avant de terminer la commande.",
+      "promoCode": "Code promotionnel",
+      "promoPlaceholder": "p. ex. ETE10",
+      "orderSummary": "Récapitulatif de la commande",
+      "creditChargeNote": "💠 Votre crédit restaurant est débité lors de la commande.",
+      "directPaymentNote": "📲 Joignez votre justificatif à la commande afin que le restaurant puisse l’identifier rapidement.",
+      "counterPaymentNote": "🏪 Le paiement est réglé au comptoir lorsque la commande est prête. Aucune carte n’est débitée en ligne.",
+      "deliveryPaymentNote": "🏪 Le paiement est réglé à la livraison. Aucune carte n’est débitée en ligne.",
+      "placingOrder": "Envoi de la commande…",
+      "placeOrderTotal": "Passer la commande · {{total}}",
+      "confirmedNumber": "Votre numéro de commande est le {{number}}.",
+      "readyShortly": "Elle sera bientôt prête.",
+      "confirmedPreparing": "Votre commande est confirmée et en préparation.",
+      "readyNotification": "Nous vous avertirons lorsqu’elle sera prête.",
+      "liveStatus": "État en direct : {{status}}",
+      "estimatedTime": "Temps estimé",
+      "backToMenu": "Retour au menu",
+      "required": "Obligatoire",
+      "specialInstructions": "Instructions spéciales",
+      "specialInstructionsPlaceholder": "P. ex. sans oignons, sauce à part, serviettes supplémentaires…",
+      "allergyPlaceholder": "Allergies, substitutions…",
+      "addQuantity": "Ajouter {{count}} · {{total}}"
     },
     "order": {
       "specialInstructions": "Instructions spéciales (facultatif)",
@@ -14610,14 +14883,38 @@
   },
   "publicSeo": {
     "help": {
-      "restaurant": { "title": "Centre d'aide OxSteed Restaurants | Commandes et assistance", "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants." },
-      "manager": { "title": "Centre d'aide OxSteed Manager | Opérations de restaurant", "description": "Découvrez comment les propriétaires et responsables utilisent OxSteed Manager pour les commandes, menus, équipes, rapports et assistance." },
-      "pos": { "title": "Centre d'aide OxSteed POS | Commandes et paiements", "description": "Découvrez comment utiliser OxSteed POS pour les commandes au comptoir, paiements, commandes en attente, remises, équipes et caisse." },
-      "kitchen": { "title": "Centre d'aide OxSteed Kitchen | Tickets et préparation", "description": "Découvrez comment OxSteed Kitchen gère les files de tickets, la préparation, le passage expo, la disponibilité et l'historique du service." },
-      "display": { "title": "Centre d'aide OxSteed Display | État des commandes", "description": "Découvrez comment OxSteed Display prend en charge l'état des commandes, les parcours kiosque et les mises à jour destinées aux clients." },
-      "inventory": { "title": "Centre d'aide OxSteed Inventory | Stock et disponibilité", "description": "Découvrez comment OxSteed Inventory accompagne le suivi des stocks, la disponibilité, les comptages et les opérations de restaurant." },
-      "crew": { "title": "Centre d'aide OxSteed Crew | Workflows de l'équipe", "description": "Découvrez comment OxSteed Crew aide le personnel avec les tâches, les listes de contrôle et la coordination quotidienne du restaurant." },
-      "runner": { "title": "Centre d'aide OxSteed Runner | Remise et livraison", "description": "Découvrez comment OxSteed Runner accompagne le retrait, la remise, la coordination des livraisons et les mises à jour du service." }
+      "restaurant": {
+        "title": "Centre d'aide OxSteed Restaurants | Commandes et assistance",
+        "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants."
+      },
+      "manager": {
+        "title": "Centre d'aide OxSteed Manager | Opérations de restaurant",
+        "description": "Découvrez comment les propriétaires et responsables utilisent OxSteed Manager pour les commandes, menus, équipes, rapports et assistance."
+      },
+      "pos": {
+        "title": "Centre d'aide OxSteed POS | Commandes et paiements",
+        "description": "Découvrez comment utiliser OxSteed POS pour les commandes au comptoir, paiements, commandes en attente, remises, équipes et caisse."
+      },
+      "kitchen": {
+        "title": "Centre d'aide OxSteed Kitchen | Tickets et préparation",
+        "description": "Découvrez comment OxSteed Kitchen gère les files de tickets, la préparation, le passage expo, la disponibilité et l'historique du service."
+      },
+      "display": {
+        "title": "Centre d'aide OxSteed Display | État des commandes",
+        "description": "Découvrez comment OxSteed Display prend en charge l'état des commandes, les parcours kiosque et les mises à jour destinées aux clients."
+      },
+      "inventory": {
+        "title": "Centre d'aide OxSteed Inventory | Stock et disponibilité",
+        "description": "Découvrez comment OxSteed Inventory accompagne le suivi des stocks, la disponibilité, les comptages et les opérations de restaurant."
+      },
+      "crew": {
+        "title": "Centre d'aide OxSteed Crew | Workflows de l'équipe",
+        "description": "Découvrez comment OxSteed Crew aide le personnel avec les tâches, les listes de contrôle et la coordination quotidienne du restaurant."
+      },
+      "runner": {
+        "title": "Centre d'aide OxSteed Runner | Remise et livraison",
+        "description": "Découvrez comment OxSteed Runner accompagne le retrait, la remise, la coordination des livraisons et les mises à jour du service."
+      }
     },
     "direct": {
       "services": {
@@ -14836,10 +15133,27 @@
       "no": "Non"
     },
     "status": {
-      "requested": "Demandé", "reviewing": "En cours d’examen", "quoted": "Devis établi", "contacted": "Contacté", "accepted": "Accepté", "scheduled": "Planifié", "enRoute": "En route", "started": "Commencé", "waitingCustomer": "En attente du client", "completed": "Terminé", "closed": "Clôturé", "cancelled": "Annulé"
+      "requested": "Demandé",
+      "reviewing": "En cours d’examen",
+      "quoted": "Devis établi",
+      "contacted": "Contacté",
+      "accepted": "Accepté",
+      "scheduled": "Planifié",
+      "enRoute": "En route",
+      "started": "Commencé",
+      "waitingCustomer": "En attente du client",
+      "completed": "Terminé",
+      "closed": "Clôturé",
+      "cancelled": "Annulé"
     },
     "paymentStatus": {
-      "unpaid": "Non payé", "pending": "En attente", "submitted": "Soumis", "partiallyPaid": "Partiellement payé", "paid": "Payé", "disputed": "Contesté", "refunded": "Remboursé"
+      "unpaid": "Non payé",
+      "pending": "En attente",
+      "submitted": "Soumis",
+      "partiallyPaid": "Partiellement payé",
+      "paid": "Payé",
+      "disputed": "Contesté",
+      "refunded": "Remboursé"
     },
     "history": {
       "title": "Historique des services",
@@ -14848,7 +15162,9 @@
       "loadingBody": "Nous récupérons vos dossiers Direct.",
       "emptyTitle": "Aucun historique Direct pour le moment",
       "emptyBody": "Après une demande de devis ou la planification d’une intervention, le dossier apparaîtra ici.",
-      "errors": { "load": "Impossible de charger l’historique." }
+      "errors": {
+        "load": "Impossible de charger l’historique."
+      }
     },
     "support": {
       "title": "Assistance et messages",
@@ -14870,7 +15186,10 @@
       "send": "Envoyer",
       "openEscalation": "Ouvrir l’assistance en direct",
       "attachedConversation": "Votre conversation est liée à cette demande.",
-      "errors": { "load": "Impossible de charger l’assistance.", "send": "Impossible d’envoyer le message." }
+      "errors": {
+        "load": "Impossible de charger l’assistance.",
+        "send": "Impossible d’envoyer le message."
+      }
     },
     "account": {
       "title": "Profil client et adresses",
@@ -14884,25 +15203,75 @@
       "addLocation": "Ajouter une adresse",
       "profileEyebrow": "Profil",
       "fields": {
-        "label": "Libellé", "countryCode": "Code pays", "address": "Adresse", "addressLine2": "Complément d’adresse", "city": "Ville", "region": "Région / État", "postalCode": "Code postal", "defaultLocation": "Adresse par défaut", "notes": "Notes"
+        "label": "Libellé",
+        "countryCode": "Code pays",
+        "address": "Adresse",
+        "addressLine2": "Complément d’adresse",
+        "city": "Ville",
+        "region": "Région / État",
+        "postalCode": "Code postal",
+        "defaultLocation": "Adresse par défaut",
+        "notes": "Notes"
       },
-      "placeholders": { "label": "Domicile, boutique, bureau...", "notes": "Code d’accès, stationnement, consignes..." },
-      "actions": { "edit": "Modifier", "delete": "Supprimer", "save": "Enregistrer l’adresse", "cancelEdit": "Annuler la modification" },
-      "messages": { "saved": "Adresse enregistrée.", "deleted": "Adresse supprimée." },
-      "errors": { "load": "Impossible de charger les données du compte.", "required": "Le libellé, l’adresse et la ville sont obligatoires.", "save": "Impossible d’enregistrer l’adresse." }
+      "placeholders": {
+        "label": "Domicile, boutique, bureau...",
+        "notes": "Code d’accès, stationnement, consignes..."
+      },
+      "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "save": "Enregistrer l’adresse",
+        "cancelEdit": "Annuler la modification"
+      },
+      "messages": {
+        "saved": "Adresse enregistrée.",
+        "deleted": "Adresse supprimée."
+      },
+      "errors": {
+        "load": "Impossible de charger les données du compte.",
+        "required": "Le libellé, l’adresse et la ville sont obligatoires.",
+        "save": "Impossible d’enregistrer l’adresse."
+      }
     },
     "case": {
       "headers": {
-        "quote": { "title": "Examen du devis", "subtitle": "Examinez l’estimation et décidez si vous souhaitez l’accepter." },
-        "book": { "title": "Planifier votre visite", "subtitle": "Choisissez un créneau et confirmez l’adresse du service." },
-        "job": { "title": "État de l’intervention", "subtitle": "Suivez la demande du devis jusqu’à la fin des travaux." },
-        "proof": { "title": "Preuve de paiement", "subtitle": "Téléversez un reçu ou une référence pour conserver le paiement dans le dossier." },
-        "receipt": { "title": "Confirmation du reçu", "subtitle": "Confirmez que la preuve a été reçue et liée à l’historique." },
-        "history": { "subtitle": "Consultez chaque demande, devis, intervention et reçu Direct." },
-        "support": { "title": "Assistance Direct", "subtitle": "Écrivez à l’équipe OxSteed au sujet de cette intervention." },
-        "account": { "subtitle": "Gardez les adresses de service et les notes prêtes pour la prochaine visite." },
-        "change": { "title": "Annuler ou replanifier", "subtitle": "Modifiez le plan sans recommencer tout le processus." },
-        "default": { "subtitle": "Consultez et gérez ce dossier." }
+        "quote": {
+          "title": "Examen du devis",
+          "subtitle": "Examinez l’estimation et décidez si vous souhaitez l’accepter."
+        },
+        "book": {
+          "title": "Planifier votre visite",
+          "subtitle": "Choisissez un créneau et confirmez l’adresse du service."
+        },
+        "job": {
+          "title": "État de l’intervention",
+          "subtitle": "Suivez la demande du devis jusqu’à la fin des travaux."
+        },
+        "proof": {
+          "title": "Preuve de paiement",
+          "subtitle": "Téléversez un reçu ou une référence pour conserver le paiement dans le dossier."
+        },
+        "receipt": {
+          "title": "Confirmation du reçu",
+          "subtitle": "Confirmez que la preuve a été reçue et liée à l’historique."
+        },
+        "history": {
+          "subtitle": "Consultez chaque demande, devis, intervention et reçu Direct."
+        },
+        "support": {
+          "title": "Assistance Direct",
+          "subtitle": "Écrivez à l’équipe OxSteed au sujet de cette intervention."
+        },
+        "account": {
+          "subtitle": "Gardez les adresses de service et les notes prêtes pour la prochaine visite."
+        },
+        "change": {
+          "title": "Annuler ou replanifier",
+          "subtitle": "Modifiez le plan sans recommencer tout le processus."
+        },
+        "default": {
+          "subtitle": "Consultez et gérez ce dossier."
+        }
       },
       "loadingBody": "Récupération du dossier Direct.",
       "emptyTitle": "Aucun dossier trouvé",
@@ -14920,19 +15289,71 @@
       "currentStatusSuffix": "Le dossier restera dans l’historique pendant toute son évolution.",
       "accountHelp": "Gérez vos adresses de service enregistrées depuis la page du compte.",
       "fields": {
-        "scheduledStart": "Début prévu", "scheduledEnd": "Fin prévue", "onSiteContact": "Contact sur place", "contactPhone": "Téléphone du contact", "accessNotes": "Notes d’accès", "paymentMethod": "Mode de paiement", "receiptNumber": "Référence / numéro de reçu", "proofLink": "Lien de la preuve", "uploadReceipt": "Téléverser le reçu", "note": "Note", "paymentStatus": "État du paiement", "proofReceived": "Preuve reçue", "changeReason": "Motif de la modification", "newDate": "Nouvelle date", "newWindow": "Nouveau créneau"
+        "scheduledStart": "Début prévu",
+        "scheduledEnd": "Fin prévue",
+        "onSiteContact": "Contact sur place",
+        "contactPhone": "Téléphone du contact",
+        "accessNotes": "Notes d’accès",
+        "paymentMethod": "Mode de paiement",
+        "receiptNumber": "Référence / numéro de reçu",
+        "proofLink": "Lien de la preuve",
+        "uploadReceipt": "Téléverser le reçu",
+        "note": "Note",
+        "paymentStatus": "État du paiement",
+        "proofReceived": "Preuve reçue",
+        "changeReason": "Motif de la modification",
+        "newDate": "Nouvelle date",
+        "newWindow": "Nouveau créneau"
       },
-      "placeholders": { "timeWindow": "Matin, après-midi, etc.", "proofLink": "Reçu partagé, capture d’écran ou lien de fichier", "changeReason": "Indiquez-nous ce qui doit changer..." },
-      "paymentMethods": { "cash": "Espèces", "bankTransfer": "Virement bancaire" },
+      "placeholders": {
+        "timeWindow": "Matin, après-midi, etc.",
+        "proofLink": "Reçu partagé, capture d’écran ou lien de fichier",
+        "changeReason": "Indiquez-nous ce qui doit changer..."
+      },
+      "paymentMethods": {
+        "cash": "Espèces",
+        "bankTransfer": "Virement bancaire"
+      },
       "actions": {
-        "acceptQuote": "Accepter le devis", "decline": "Refuser", "requestChanges": "Demander des modifications", "saveSchedule": "Enregistrer le créneau", "submitProof": "Envoyer la preuve", "confirmReceipt": "Confirmer le reçu", "reschedule": "Replanifier", "cancelRequest": "Annuler la demande", "openProofUpload": "Ouvrir le téléversement de preuve", "cancel": "Annuler", "askForChanges": "Demander des modifications", "requestChange": "Demander une modification", "uploadProof": "Téléverser une preuve", "openLocations": "Ouvrir les adresses"
+        "acceptQuote": "Accepter le devis",
+        "decline": "Refuser",
+        "requestChanges": "Demander des modifications",
+        "saveSchedule": "Enregistrer le créneau",
+        "submitProof": "Envoyer la preuve",
+        "confirmReceipt": "Confirmer le reçu",
+        "reschedule": "Replanifier",
+        "cancelRequest": "Annuler la demande",
+        "openProofUpload": "Ouvrir le téléversement de preuve",
+        "cancel": "Annuler",
+        "askForChanges": "Demander des modifications",
+        "requestChange": "Demander une modification",
+        "uploadProof": "Téléverser une preuve",
+        "openLocations": "Ouvrir les adresses"
       },
       "messages": {
-        "scheduleSaved": "Créneau enregistré.", "cancelled": "Demande annulée.", "updated": "Demande mise à jour.", "quoteAccepted": "Devis accepté.", "declined": "Demande refusée.", "messageSent": "Message envoyé.", "proofUploaded": "Preuve jointe.", "proofSaved": "Preuve de paiement enregistrée.", "receiptConfirmed": "Reçu confirmé."
+        "scheduleSaved": "Créneau enregistré.",
+        "cancelled": "Demande annulée.",
+        "updated": "Demande mise à jour.",
+        "quoteAccepted": "Devis accepté.",
+        "declined": "Demande refusée.",
+        "messageSent": "Message envoyé.",
+        "proofUploaded": "Preuve jointe.",
+        "proofSaved": "Preuve de paiement enregistrée.",
+        "receiptConfirmed": "Reçu confirmé."
       },
-      "prompts": { "declineReason": "Pourquoi refusez-vous ce devis ?" },
+      "prompts": {
+        "declineReason": "Pourquoi refusez-vous ce devis ?"
+      },
       "errors": {
-        "loadRequest": "Impossible de charger la demande", "load": "Impossible de charger le dossier Direct.", "saveSchedule": "Impossible d’enregistrer le créneau.", "update": "Impossible de mettre à jour la demande.", "acceptQuote": "Impossible d’accepter le devis.", "declineQuote": "Impossible de refuser le devis.", "uploadProof": "Impossible de téléverser la preuve.", "saveProof": "Impossible d’enregistrer la preuve.", "confirmReceipt": "Impossible de confirmer le reçu."
+        "loadRequest": "Impossible de charger la demande",
+        "load": "Impossible de charger le dossier Direct.",
+        "saveSchedule": "Impossible d’enregistrer le créneau.",
+        "update": "Impossible de mettre à jour la demande.",
+        "acceptQuote": "Impossible d’accepter le devis.",
+        "declineQuote": "Impossible de refuser le devis.",
+        "uploadProof": "Impossible de téléverser la preuve.",
+        "saveProof": "Impossible d’enregistrer la preuve.",
+        "confirmReceipt": "Impossible de confirmer le reçu."
       }
     }
   },
@@ -14950,9 +15371,9 @@
     "scheduleByQuote": "Planification selon le devis",
     "request": "Demander",
     "selectedService": "Service du catalogue sélectionné : {{service}}",
-  "loadingServices": "Chargement des services...",
-  "noServices": "Aucun service publié ne correspond à cette recherche.",
-  "showMoreServices": "Afficher plus de services ({{count}})",
+    "loadingServices": "Chargement des services...",
+    "noServices": "Aucun service publié ne correspond à cette recherche.",
+    "showMoreServices": "Afficher plus de services ({{count}})",
     "equipment": "Équipement",
     "toolsEquipment": "Outils et équipement",
     "searchTools": "Rechercher des outils...",
@@ -14979,9 +15400,7 @@
     "currentlyUnavailable": "Actuellement indisponible",
     "categoryComingSoon": "Les services de cette catégorie seront bientôt disponibles.",
     "categoryPaused": "Cette catégorie est temporairement indisponible."
-  }
-,
-
+  },
   "careers": {
     "metaTitle": "Carrières chez OxSteed",
     "metaDesc": "Postulez chez OxSteed et auprès des entreprises qui recrutent sur OxSteed. Postes distants, hybrides et sur site dans le monde entier.",
@@ -15130,5 +15549,36 @@
       "offer": "Envoyer une offre",
       "hire": "Embaucher"
     }
+  },
+  "profileStudio": {
+    "kicker": "Studio de profil",
+    "sections": "Sections du profil",
+    "complete": "Section complète",
+    "incomplete": "Section incomplète",
+    "unsaved": "Modifications non enregistrées",
+    "savedHint": "Toutes les modifications sont enregistrées",
+    "saveShortcut": "Appuyez sur ⌘S / Ctrl+S pour enregistrer",
+    "discard": "Annuler",
+    "previewLabel": "Aperçu en direct",
+    "previewEmptyName": "Ajoutez un nom",
+    "previewEmptyTagline": "Ajoutez un slogan",
+    "previewEmptyPlace": "Ajoutez un lieu",
+    "viewPublic": "Voir le profil public",
+    "availableNow": "Disponible maintenant",
+    "notAvailableNow": "Non marqué comme disponible",
+    "sectionReadiness": "Préparation",
+    "sectionCover": "Couverture",
+    "hintIdentity": "Nom, catégorie, slogan et à propos affichés sur votre page publique.",
+    "hintContact": "Comment les clients peuvent vous joindre.",
+    "hintLocation": "Où vous intervenez et jusqu’où vous vous déplacez.",
+    "hintReadiness": "Liste de contrôle pour la mise en ligne et la confiance client. Accédez aux points à corriger.",
+    "hintBasics": "Titre, bio, tarifs et zone de service que les clients voient en premier.",
+    "hintServices": "Ajoutez, modifiez ou supprimez vos services. Les changements sont enregistrés par élément.",
+    "hintFaqs": "Questions et réponses fréquentes sur votre profil public.",
+    "hintPolicies": "Annulation, paiement et autres politiques à connaître pour les clients.",
+    "jumpToSection": "Aller à {{section}}",
+    "ratesMeta": "{{rates}}/h",
+    "radiusMeta": "Rayon de {{miles}} mi",
+    "unsavedLeave": "Vous avez des modifications non enregistrées. Quitter cette section quand même ?"
   }
 }

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import CountrySelect from '../CountrySelect';
 import RegionInput from '../RegionInput';
 import PostalCodeInput from '../PostalCodeInput';
+import ProfileStudioShell from '../profileStudio/ProfileStudioShell';
+import ProfilePreviewCard from '../profileStudio/ProfilePreviewCard';
 import { getCountryName, getDialCode, getPostalLabel, getRegionLabel } from '../../lib/countries';
 import {
   getBusinessOnboarding,
@@ -145,11 +147,17 @@ function CheckList({ items, t, onJump }) {
             ? t('businessHub.profileEditor.jumpHours')
             : item.tab === 'restaurant'
               ? t('businessHub.profileEditor.jumpRestaurant')
-              : null;
-        if (!item.done && item.tab && jumpLabel) {
+              : item.section
+                ? t('profileStudio.jumpToSection', { section: item.sectionLabel || item.section })
+                : null;
+        if (!item.done && (item.tab || item.section) && jumpLabel) {
           return (
             <li key={item.id}>
-              <button type="button" className="bpe-jump" onClick={() => onJump(item.tab)}>
+              <button
+                type="button"
+                className="bpe-jump"
+                onClick={() => onJump(item.tab || item.section, item)}
+              >
                 <span className="bpe-dot" aria-hidden="true" />
                 <span>{jumpLabel}</span>
               </button>
@@ -191,20 +199,35 @@ export default function BusinessProfileEditor({
   const isRestaurant = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
   const baselineRef = useRef('');
+  const baselineSnapRef = useRef(null);
   const [radiusDisplay, setRadiusDisplay] = useState(() => milesToDisplay(form?.service_radius_miles, country));
   const [copied, setCopied] = useState(false);
   const [serviceCount, setServiceCount] = useState(0);
   const [menuCount, setMenuCount] = useState(0);
   const [restaurantReady, setRestaurantReady] = useState(false);
   const [hoursReady, setHoursReady] = useState(false);
+  const [activeSection, setActiveSection] = useState('photos');
+  // Local preview overrides so Discard can restore photo URLs without parent API changes.
+  const [localLogo, setLocalLogo] = useState(undefined);
+  const [localCover, setLocalCover] = useState(undefined);
+
+  const effectiveLogo = localLogo !== undefined ? localLogo : logoPreview;
+  const effectiveCover = localCover !== undefined ? localCover : coverPreview;
 
   const dirty = form
-    ? serializeProfileState(form, logoPreview, coverPreview) !== baselineRef.current
+    ? serializeProfileState(form, effectiveLogo, effectiveCover) !== baselineRef.current
     : false;
 
   useEffect(() => {
     if (!form || saving) return;
     baselineRef.current = serializeProfileState(form, logoPreview, coverPreview);
+    baselineSnapRef.current = {
+      form: { ...form },
+      logo: logoPreview || null,
+      cover: coverPreview || null,
+    };
+    setLocalLogo(undefined);
+    setLocalCover(undefined);
     setRadiusDisplay(milesToDisplay(form.service_radius_miles, form.address_country || 'US'));
   }, [bizId, saving]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -253,15 +276,15 @@ export default function BusinessProfileEditor({
   const checks = useMemo(
     () => buildProfileChecks({
       form,
-      logoPreview,
-      coverPreview,
+      logoPreview: effectiveLogo,
+      coverPreview: effectiveCover,
       serviceCount,
       hoursReady,
       isRestaurant,
       restaurantReady,
       menuCount,
     }),
-    [form, logoPreview, coverPreview, serviceCount, hoursReady, isRestaurant, restaurantReady, menuCount],
+    [form, effectiveLogo, effectiveCover, serviceCount, hoursReady, isRestaurant, restaurantReady, menuCount],
   );
 
   const listingDone = checks.listing.filter((row) => row.done).length;
@@ -273,6 +296,27 @@ export default function BusinessProfileEditor({
   const place = formatPreviewPlace(form);
   const countryName = getCountryName(country);
   const publicPath = bizId ? `/business/${bizId}` : '';
+
+  const photosComplete = !!(effectiveLogo || effectiveCover);
+  const identityComplete = !!(form?.business_name && form?.business_type && form?.description);
+  const contactComplete = !!(form?.phone || form?.website);
+  const locationComplete = !!(form?.address_city && form?.address_country);
+
+  const sections = useMemo(() => ([
+    { id: 'photos', label: t('businessHub.sectionPhotos'), complete: photosComplete },
+    { id: 'identity', label: t('businessHub.sectionBusinessIdentity'), complete: identityComplete },
+    { id: 'contact', label: t('businessHub.sectionContact'), complete: contactComplete },
+    { id: 'location', label: t('businessHub.sectionLocation'), complete: locationComplete },
+    { id: 'readiness', label: t('profileStudio.sectionReadiness'), complete: listingReady },
+  ]), [t, photosComplete, identityComplete, contactComplete, locationComplete, listingReady]);
+
+  const panelHints = {
+    photos: t('businessHub.profileEditor.dropHint'),
+    identity: t('profileStudio.hintIdentity'),
+    contact: t('profileStudio.hintContact'),
+    location: t('profileStudio.hintLocation'),
+    readiness: t('profileStudio.hintReadiness'),
+  };
 
   const patch = useCallback((name, value) => {
     onChange({ [name]: value });
@@ -301,12 +345,29 @@ export default function BusinessProfileEditor({
     if (next !== (form?.website || '')) patch('website', next);
   }
 
-  function handleJump(tab) {
-    if (tab === 'restaurant' && restaurantSetupHref) {
+  function handleJump(tabOrSection, item) {
+    if (item?.section) {
+      setActiveSection(item.section);
+      return;
+    }
+    if (tabOrSection === 'restaurant' && restaurantSetupHref) {
       window.location.assign(restaurantSetupHref);
       return;
     }
-    if (tab && onJumpTab) onJumpTab(tab);
+    // Map checklist ids that live in this editor to studio sections
+    const sectionMap = {
+      name: 'identity',
+      category: 'identity',
+      description: 'identity',
+      photo: 'photos',
+      contact: 'contact',
+      location: 'location',
+    };
+    if (sectionMap[item?.id]) {
+      setActiveSection(sectionMap[item.id]);
+      return;
+    }
+    if (tabOrSection && onJumpTab) onJumpTab(tabOrSection);
   }
 
   async function handlePublishClick() {
@@ -331,133 +392,127 @@ export default function BusinessProfileEditor({
     }
   }
 
+  function handleLogoFile(file) {
+    setLocalLogo(undefined);
+    onLogoChange(file);
+  }
+
+  function handleCoverFile(file) {
+    setLocalCover(undefined);
+    onCoverChange(file);
+  }
+
+  function handleDiscard() {
+    const snap = baselineSnapRef.current;
+    if (!snap) return;
+    onChange({ ...snap.form });
+    // Clear any pending File uploads in the parent, then restore preview URLs locally.
+    onLogoChange(null);
+    onCoverChange(null);
+    setLocalLogo(snap.logo);
+    setLocalCover(snap.cover);
+    setRadiusDisplay(milesToDisplay(snap.form.service_radius_miles, snap.form.address_country || 'US'));
+  }
+
   if (!form) return null;
 
   const headline = String(form.profile_headline || '');
   const about = String(form.description || '');
   const websiteShown = displayWebsite(form.website);
 
-  return (
-    <div className="bpe">
-      <div className="bpe-top">
-        <div>
-          <p className="bpe-kicker">{t('businessHub.profileEditor.kicker')}</p>
-          <h2>{t('businessHub.profileEditor.title')}</h2>
-          <p className="bpe-sub">{t('businessHub.profileEditor.subtitle')}</p>
-          {currentRole === 'manager' && (
-            <p className="bpe-manager">
-              <Trans i18nKey="businessHub.managerNote">
-                You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
-              </Trans>
-            </p>
-          )}
-        </div>
-        <div className="bpe-top-actions">
-          <span className={`bpe-status ${listed ? 'live' : 'draft'}`}>
-            {listed ? t('businessHub.profileEditor.live') : t('businessHub.profileEditor.draft')}
-          </span>
-          {bizId && (
-            <>
-              <button type="button" className="bpe-ghost" onClick={copyPublicLink}>
-                {copied ? t('businessHub.profileEditor.copied') : t('businessHub.profileEditor.copyLink')}
-              </button>
-              <a
-                href={publicPath}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bpe-ghost"
-              >
-                {t('businessHub.profileEditor.openPage')}
-              </a>
-            </>
-          )}
-        </div>
+  const preview = (
+    <ProfilePreviewCard
+      variant="business"
+      cover={effectiveCover}
+      avatar={effectiveLogo}
+      name={form.business_name || ''}
+      tagline={headline}
+      typeLabel={typeLabel ? t(`businessHub.${typeLabel.labelKey}`) : ''}
+      meta={place ? [place, countryName].filter(Boolean).join(' · ') : ''}
+      contact={[form.phone, websiteShown].filter(Boolean).join(' · ')}
+      about={about}
+      publicHref={publicPath || ''}
+      publicLabel={t('businessHub.profileEditor.openPage')}
+    />
+  );
+
+  const headerExtra = (
+    <>
+      <span className={`bpe-status ${listed ? 'live' : 'draft'}`}>
+        {listed ? t('businessHub.profileEditor.live') : t('businessHub.profileEditor.draft')}
+      </span>
+      {bizId && (
+        <>
+          <button type="button" className="bpe-ghost" onClick={copyPublicLink}>
+            {copied ? t('businessHub.profileEditor.copied') : t('businessHub.profileEditor.copyLink')}
+          </button>
+          <a
+            href={publicPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bpe-ghost"
+          >
+            {t('businessHub.profileEditor.openPage')}
+          </a>
+        </>
+      )}
+    </>
+  );
+
+  const saveExtra = currentRole === 'owner' && !listed ? (
+    <button
+      type="button"
+      className="ps-btn"
+      onClick={handlePublishClick}
+      disabled={publishing || saving || !listingReady || !onPublish}
+      title={!listingReady ? t('businessHub.profileEditor.publishHint') : undefined}
+    >
+      {publishing ? t('businessHub.profileEditor.publishing') : t('businessHub.profileEditor.publish')}
+    </button>
+  ) : null;
+
+  let sectionBody = null;
+
+  if (activeSection === 'photos') {
+    sectionBody = (
+      <div className="bpe-photos">
+        <PhotoDrop
+          inputId="bh-logo-input"
+          preview={effectiveLogo}
+          alt={t('businessHub.logoPreviewAlt')}
+          variant="square"
+          emptyLabel={t('businessHub.businessLogo')}
+          changeLabel={t('businessHub.changeLogo')}
+          uploadLabel={t('businessHub.uploadLogo')}
+          removeLabel={t('businessHub.remove')}
+          onFile={handleLogoFile}
+          onRemove={() => {
+            setLocalLogo(null);
+            onLogoChange(null);
+            onChange({ logo_url: '' });
+          }}
+        />
+        <PhotoDrop
+          inputId="bh-cover-input"
+          preview={effectiveCover}
+          alt={t('businessHub.coverPreviewAlt')}
+          variant="wide"
+          emptyLabel={t('businessHub.coverPhoto')}
+          changeLabel={t('businessHub.changeCover')}
+          uploadLabel={t('businessHub.uploadCover')}
+          removeLabel={t('businessHub.remove')}
+          onFile={handleCoverFile}
+          onRemove={() => {
+            setLocalCover(null);
+            onCoverChange(null);
+            onChange({ cover_photo_url: '' });
+          }}
+        />
       </div>
-
-      <div className="bpe-stage">
-        <article className="bpe-preview" aria-label={t('businessHub.profileEditor.previewLabel')}>
-          <div className="bpe-preview-cover">
-            <span className="bpe-preview-kicker">{t('businessHub.profileEditor.previewLabel')}</span>
-            {coverPreview ? <img src={coverPreview} alt="" /> : null}
-          </div>
-          <div className="bpe-preview-body">
-            <div className="bpe-logo">
-              {logoPreview
-                ? <img src={logoPreview} alt="" />
-                : (form.business_name || '').trim().slice(0, 1).toUpperCase()}
-            </div>
-            <h3 className={`bpe-preview-name${form.business_name ? '' : ' bpe-muted'}`}>
-              {form.business_name || t('businessHub.profileEditor.previewEmptyName')}
-            </h3>
-            {typeLabel && (
-              <span className="bpe-preview-type">{t(`businessHub.${typeLabel.labelKey}`)}</span>
-            )}
-            <p className={`bpe-preview-tagline${headline ? '' : ' bpe-muted'}`}>
-              {headline || t('businessHub.profileEditor.previewEmptyTagline')}
-            </p>
-            <p className={`bpe-preview-place${place ? '' : ' bpe-muted'}`}>
-              {place
-                ? [place, countryName].filter(Boolean).join(' · ')
-                : t('businessHub.profileEditor.previewEmptyPlace')}
-            </p>
-            {(form.phone || websiteShown) && (
-              <p className="bpe-preview-contact">
-                {[form.phone, websiteShown].filter(Boolean).join(' · ')}
-              </p>
-            )}
-            {about && <p className="bpe-preview-about">{about}</p>}
-          </div>
-        </article>
-
-        <aside className="bpe-checks">
-          <div className="bpe-progress" aria-hidden="true">
-            <span style={{ width: `${Math.round((listingDone / Math.max(listingTotal, 1)) * 100)}%` }} />
-          </div>
-          <h3>{t('businessHub.profileEditor.listingTitle')}</h3>
-          <p className="bpe-hint">
-            {t('businessHub.profileEditor.listingProgress', { done: listingDone, total: listingTotal })}
-          </p>
-          <CheckList items={checks.listing} t={t} onJump={handleJump} />
-          <h3>{t('businessHub.profileEditor.customerTitle')}</h3>
-          <CheckList items={checks.customer} t={t} onJump={handleJump} />
-        </aside>
-      </div>
-
-      <section className="bpe-card bpe-photos-card">
-        <div className="bpe-photos-head">
-          <h3>{t('businessHub.sectionPhotos')}</h3>
-          <p className="bpe-hint">{t('businessHub.profileEditor.dropHint')}</p>
-        </div>
-        <div className="bpe-photos">
-          <PhotoDrop
-            inputId="bh-logo-input"
-            preview={logoPreview}
-            alt={t('businessHub.logoPreviewAlt')}
-            variant="square"
-            emptyLabel={t('businessHub.businessLogo')}
-            changeLabel={t('businessHub.changeLogo')}
-            uploadLabel={t('businessHub.uploadLogo')}
-            removeLabel={t('businessHub.remove')}
-            onFile={onLogoChange}
-            onRemove={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
-          />
-          <PhotoDrop
-            inputId="bh-cover-input"
-            preview={coverPreview}
-            alt={t('businessHub.coverPreviewAlt')}
-            variant="wide"
-            emptyLabel={t('businessHub.coverPhoto')}
-            changeLabel={t('businessHub.changeCover')}
-            uploadLabel={t('businessHub.uploadCover')}
-            removeLabel={t('businessHub.remove')}
-            onFile={onCoverChange}
-            onRemove={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
-          />
-        </div>
-      </section>
-
-      <section className="bpe-card">
-        <h3>{t('businessHub.sectionBusinessIdentity')}</h3>
+    );
+  } else if (activeSection === 'identity') {
+    sectionBody = (
+      <>
         <div>
           <label htmlFor="bh-business-name">{t('businessHub.fieldBusinessNameRequired')}</label>
           <input
@@ -511,47 +566,47 @@ export default function BusinessProfileEditor({
           />
           <p className="bpe-count">{t('businessHub.profileEditor.aboutCount', { count: about.length, max: DESCRIPTION_MAX })}</p>
         </div>
-      </section>
-
-      <section className="bpe-card">
-        <h3>{t('businessHub.sectionContact')}</h3>
-        <div className="bpe-grid-2">
-          <div>
-            <label htmlFor="bh-phone">{t('businessHub.fieldPhone')}</label>
-            <div className="bpe-phonewrap">
-              {dial ? <span className="bpe-dial">{`+${dial}`}</span> : null}
-              <input
-                id="bh-phone"
-                className="bpe-field"
-                name="phone"
-                value={form.phone || ''}
-                onChange={pf}
-                placeholder={t('businessHub.placeholderPhone')}
-                type="tel"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="bh-website">{t('businessHub.fieldWebsite')}</label>
+      </>
+    );
+  } else if (activeSection === 'contact') {
+    sectionBody = (
+      <div className="bpe-grid-2">
+        <div>
+          <label htmlFor="bh-phone">{t('businessHub.fieldPhone')}</label>
+          <div className="bpe-phonewrap">
+            {dial ? <span className="bpe-dial">{`+${dial}`}</span> : null}
             <input
-              id="bh-website"
+              id="bh-phone"
               className="bpe-field"
-              name="website"
-              value={form.website || ''}
+              name="phone"
+              value={form.phone || ''}
               onChange={pf}
-              onBlur={handleWebsiteBlur}
-              placeholder={t('businessHub.placeholderWebsiteFull')}
-              type="text"
-              inputMode="url"
-              autoComplete="url"
+              placeholder={t('businessHub.placeholderPhone')}
+              type="tel"
             />
-            <p className="bpe-hint">{t('businessHub.profileEditor.websiteHint')}</p>
           </div>
         </div>
-      </section>
-
-      <section className="bpe-card">
-        <h3>{t('businessHub.sectionLocation')}</h3>
+        <div>
+          <label htmlFor="bh-website">{t('businessHub.fieldWebsite')}</label>
+          <input
+            id="bh-website"
+            className="bpe-field"
+            name="website"
+            value={form.website || ''}
+            onChange={pf}
+            onBlur={handleWebsiteBlur}
+            placeholder={t('businessHub.placeholderWebsiteFull')}
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+          />
+          <p className="bpe-hint">{t('businessHub.profileEditor.websiteHint')}</p>
+        </div>
+      </div>
+    );
+  } else if (activeSection === 'location') {
+    sectionBody = (
+      <>
         <div>
           <label htmlFor="bh-street">{t('businessHub.fieldStreetAddress')}</label>
           <input
@@ -634,43 +689,62 @@ export default function BusinessProfileEditor({
             </p>
           </div>
         </div>
-      </section>
-
-      {err ? (
-        <div className="bpe-error">
-          {typeof err === 'string' ? err : (err?.message || String(err))}
+      </>
+    );
+  } else if (activeSection === 'readiness') {
+    sectionBody = (
+      <div className="bpe-checks bpe-checks-inline">
+        <div className="bpe-progress" aria-hidden="true">
+          <span style={{ width: `${Math.round((listingDone / Math.max(listingTotal, 1)) * 100)}%` }} />
         </div>
-      ) : null}
-
-      <div className="bpe-savebar">
-        <div className="bpe-save-copy">
-          <p className="bpe-dirty" aria-live="polite">
-            {dirty ? t('businessHub.profileEditor.unsaved') : t('businessHub.profileEditor.savedHint')}
-          </p>
-          <p className="bpe-hint">{t('businessHub.profileEditor.saveShortcut')}</p>
-        </div>
-        <div className="bpe-save-actions">
-          {currentRole === 'owner' && !listed && (
-            <button
-              type="button"
-              className="bpe-btn"
-              onClick={handlePublishClick}
-              disabled={publishing || saving || !listingReady || !onPublish}
-              title={!listingReady ? t('businessHub.profileEditor.publishHint') : undefined}
-            >
-              {publishing ? t('businessHub.profileEditor.publishing') : t('businessHub.profileEditor.publish')}
-            </button>
-          )}
-          <button
-            type="button"
-            className="bpe-btn primary"
-            onClick={onSave}
-            disabled={saving || !dirty}
-          >
-            {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
-          </button>
-        </div>
+        <h3>{t('businessHub.profileEditor.listingTitle')}</h3>
+        <p className="bpe-hint">
+          {t('businessHub.profileEditor.listingProgress', { done: listingDone, total: listingTotal })}
+        </p>
+        <CheckList items={checks.listing} t={t} onJump={handleJump} />
+        <h3>{t('businessHub.profileEditor.customerTitle')}</h3>
+        <CheckList items={checks.customer} t={t} onJump={handleJump} />
       </div>
+    );
+  }
+
+  return (
+    <div className="bpe bpe-studio">
+      {currentRole === 'manager' && (
+        <p className="bpe-manager" style={{ marginBottom: '0.5rem' }}>
+          <Trans i18nKey="businessHub.managerNote">
+            You are editing as a <strong>Manager</strong>. Changes apply to the business owner&apos;s public profile.
+          </Trans>
+        </p>
+      )}
+
+      <ProfileStudioShell
+        title={t('businessHub.profileEditor.title')}
+        subtitle={t('businessHub.profileEditor.subtitle')}
+        sections={sections}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        dirty={dirty}
+        saving={saving}
+        onSave={onSave}
+        onDiscard={handleDiscard}
+        saveLabel={saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
+        preview={preview}
+        headerExtra={headerExtra}
+        readinessPill={{
+          label: t('businessHub.profileEditor.listingProgress', { done: listingDone, total: listingTotal }),
+          ready: listingReady,
+        }}
+        panelHint={panelHints[activeSection]}
+        saveExtra={saveExtra}
+      >
+        {sectionBody}
+        {err ? (
+          <div className="bpe-error" style={{ marginTop: '1rem' }}>
+            {typeof err === 'string' ? err : (err?.message || String(err))}
+          </div>
+        ) : null}
+      </ProfileStudioShell>
     </div>
   );
 }

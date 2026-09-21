@@ -15231,5 +15231,36 @@
       "offer": "Send offer",
       "hire": "Hire"
     }
+  },
+  "profileStudio": {
+    "kicker": "Profile Studio",
+    "sections": "Profile sections",
+    "complete": "Section complete",
+    "incomplete": "Section incomplete",
+    "unsaved": "Unsaved changes",
+    "savedHint": "All changes saved",
+    "saveShortcut": "Press ⌘S / Ctrl+S to save",
+    "discard": "Discard",
+    "previewLabel": "Live preview",
+    "previewEmptyName": "Add a name",
+    "previewEmptyTagline": "Add a tagline",
+    "previewEmptyPlace": "Add a location",
+    "viewPublic": "View public profile",
+    "availableNow": "Available now",
+    "notAvailableNow": "Not marked available",
+    "sectionReadiness": "Readiness",
+    "sectionCover": "Cover",
+    "hintIdentity": "Name, category, tagline, and about shown on your public page.",
+    "hintContact": "How customers reach you.",
+    "hintLocation": "Where you operate and how far you travel.",
+    "hintReadiness": "Checklist for listing and customer trust. Jump to fix gaps.",
+    "hintBasics": "Headline, bio, rates, and service area customers see first.",
+    "hintServices": "Add, edit, or remove the services you offer. Changes save per item.",
+    "hintFaqs": "Common questions and answers on your public profile.",
+    "hintPolicies": "Cancellation, payment, and other policies customers should know.",
+    "jumpToSection": "Go to {{section}}",
+    "ratesMeta": "{{rates}}/hr",
+    "radiusMeta": "{{miles}} mi radius",
+    "unsavedLeave": "You have unsaved changes. Leave this section anyway?"
   }
 }

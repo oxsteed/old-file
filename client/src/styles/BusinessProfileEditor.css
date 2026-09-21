@@ -555,3 +555,21 @@
     transition: none;
   }
 }
+
+/* Profile Studio integration — avoid double chrome inside the shell panel */
+.bpe-studio .bpe-checks-inline {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.bpe-studio .bpe-checks-inline h3 {
+  margin-top: 0.85rem;
+}
+
+.bpe-studio .bpe-checks-inline h3:first-of-type {
+  margin-top: 0;
+}
+
