@@ -15,7 +15,13 @@ import StatusBadge from './StatusBadge';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
 import MessengerAvailabilityPicker from './MessengerAvailabilityPicker.jsx';
-import { buildSlotRequestMessage } from './messengerAvailability.js';
+import {
+  buildMessengerBookingPayload,
+  buildSlotConfirmationContent,
+  buildSlotRequestMessage,
+  resolveClientTimezone,
+} from './messengerAvailability.js';
+import { createBookingRequest } from '../../../api/bookings';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../hooks/useSocket';
@@ -52,6 +58,8 @@ interface ChatPanelProps {
   onExpand?: () => void;
   /** When false (dock closed), disconnect the guest /chat socket. Defaults true for sidebar. */
   dockOpen?: boolean;
+  /** Fired when verified guest token expires so parent can re-show OTP gate */
+  onGuestSessionExpired?: () => void;
 }
 
 // ── Offline / Message-mode empty state ───────────────────────────────────────
@@ -158,6 +166,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   roomy = false,
   onExpand,
   dockOpen = true,
+  onGuestSessionExpired,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -430,7 +439,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, []);
   const handleGuestSocketExpired = useCallback(() => {
     clearGuestVerifiedSession(helperId, businessId);
-  }, [helperId, businessId]);
+    toast.error(t('helperProfile.messenger.guestSessionExpired'));
+    onGuestSessionExpired?.();
+  }, [helperId, businessId, onGuestSessionExpired, t]);
   useGuestProfileChatSocket({
     enabled: Boolean(dockOpen),
     isGuest,
@@ -906,6 +917,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={handleDestinationChange}
         />
 
+        {isGuest && session.destination === 'helper' && verifiedGuestSession ? (
+          <p
+            className={`text-xs rounded-lg px-2.5 py-1.5 border ${
+              helperIsLive
+                ? 'border-emerald-700/60 bg-emerald-950/40 text-emerald-300'
+                : 'border-amber-700/50 bg-amber-950/30 text-amber-200'
+            }`}
+            role="status"
+          >
+            {helperIsLive
+              ? t('helperProfile.messenger.guestLiveBanner')
+              : t('helperProfile.messenger.guestOfflineBanner')}
+          </p>
+        ) : null}
+
         {searchOpen && (
         <div className="flex gap-2 items-center">
           <input
@@ -1115,18 +1141,114 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             businessId={businessId}
             open={showAvailability}
             onClose={() => setShowAvailability(false)}
-            onSelectSlot={(slot) => {
+            onSelectSlot={async (slot) => {
+              const locale = localStorage.getItem('oxs:language') || 'en';
+              const tz = slot.timezone || resolveClientTimezone();
               const textMsg = buildSlotRequestMessage({
                 date: slot.date,
                 start: slot.start,
                 end: slot.end,
                 providerName: helperName,
-                locale: localStorage.getItem('oxs:language') || 'en',
+                locale,
                 t,
+                serviceId: slot.serviceId,
+                serviceName: slot.serviceName,
+                timezone: tz,
               });
               if (!textMsg) return;
               setShowAvailability(false);
-              handleSend(textMsg);
+
+              const payload = buildMessengerBookingPayload({
+                helperId,
+                businessId,
+                serviceId: slot.serviceId,
+                serviceName: slot.serviceName || helperName,
+                date: slot.date,
+                start: slot.start,
+                end: slot.end,
+                startIso: slot.startIso,
+                endIso: slot.endIso,
+                timezone: tz,
+                guestSessionId: readGuestVerifiedSession(helperId, businessId)?.sessionId,
+                description: textMsg,
+              });
+
+              let bookingMeta: { bookingId?: string; appointmentId?: string } = {};
+              try {
+                if (user && payload) {
+                  const row = await createBookingRequest({
+                    helperId: payload.helperId,
+                    businessId: payload.businessId,
+                    serviceName: payload.serviceName,
+                    requestedDate: payload.requestedDate,
+                    requestedStartTime: payload.requestedStartTime,
+                    requestedEndTime: payload.requestedEndTime,
+                    description: payload.description,
+                    confirmationHours: 24,
+                  });
+                  bookingMeta = { bookingId: row?.id || row?.bookingId };
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                } else if (isGuest && payload) {
+                  const verified = readGuestVerifiedSession(helperId, businessId);
+                  if (!verified) {
+                    toast.error(t('helperProfile.messenger.guestSessionExpired'));
+                    onGuestSessionExpired?.();
+                    return;
+                  }
+                  const { data } = await api.post(
+                    '/chat/sessions/guest/booking-request',
+                    payload,
+                    {
+                      headers: {
+                        'X-Guest-Profile-Token': verified.guestToken,
+                        'X-Guest-Session-Id': verified.sessionId,
+                      },
+                    },
+                  );
+                  bookingMeta = {
+                    appointmentId: data?.appointmentId || data?.appointment?.id,
+                    bookingId: data?.bookingId,
+                  };
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                }
+              } catch (err: any) {
+                const code = err?.response?.data?.code;
+                toast.error(
+                  code === 'conflict'
+                    ? t('helperProfile.messenger.slotBookingConflict')
+                    : t('helperProfile.messenger.slotBookingFailed'),
+                );
+              }
+
+              // Optimistic confirmation chip in the timeline
+              const whenBits = `${slot.date} ${slot.start}–${slot.end}`;
+              const confirm: TimelineEvent = {
+                id: `evt-${Date.now()}-booking`,
+                itemType: 'booking_event',
+                eventType: 'booking_requested',
+                content: buildSlotConfirmationContent({
+                  whenLabel: whenBits,
+                  serviceName: slot.serviceName || '',
+                  bookingId: bookingMeta.bookingId,
+                  appointmentId: bookingMeta.appointmentId,
+                  t,
+                }),
+                timestamp: new Date().toISOString(),
+                metadata: {
+                  ...bookingMeta,
+                  serviceId: slot.serviceId,
+                  serviceName: slot.serviceName,
+                  timezone: tz,
+                  marker: textMsg,
+                },
+              };
+              setSession((prev) => ({
+                ...prev,
+                timeline: [...prev.timeline, confirm],
+              }));
+
+              // Still post the structured chat message so the provider sees intent in-thread
+              await handleSend(textMsg);
             }}
           />
         </>

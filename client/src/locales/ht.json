@@ -2370,7 +2370,13 @@
         "when": "Kilè ou ta renmen sa fèt?",
         "details": "Èske ou ka pataje foto oswa yon ti kras plis detay?"
       }
-    }
+    },
+    "guestInquiryLiveHint": "Reponn an dirèk nan app la — envite a wè mesaj ou imedyatman si li konekte.",
+    "guestInquiryLoadingThread": "Ap chaje konvèsasyon an…",
+    "guestInquiryReplyPlaceholder": "Ekri yon repons pou envite a…",
+    "guestInquirySendReply": "Voye repons",
+    "guestInquirySendError": "Pa t kapab voye repons lan. Eseye ankò.",
+    "you": "Ou"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -6255,7 +6261,15 @@
       "availabilityNoSlots": "Pa gen orè ki louvri nan de semèn kap vini yo.",
       "availabilityNoSlotsDay": "Pa gen orè ki louvri jou sa a.",
       "availabilityDates": "Dat ki disponib",
-      "slotRequestMessage": "Mwen ta renmen mande: {{when}}\n{{marker}}"
+      "slotRequestMessage": "Mwen ta renmen mande {{service}}: {{when}}\n{{marker}}",
+      "availabilityServices": "Sèvis",
+      "slotBookingConfirmed": "Demann rezèvasyon voye pou {{service}} · {{when}}",
+      "slotBookingToast": "Demann rezèvasyon voye — founisè a toujou bezwen konfime.",
+      "slotBookingFailed": "Pa t kapab kreye demann rezèvasyon an. Mesaj chat la te prepare kanmenm.",
+      "slotBookingConflict": "Lè sa a pa disponib ankò. Chwazi yon lòt.",
+      "guestSessionExpired": "Sesyon envite ou a ekspire. Tanpri verifye imèl ou ankò.",
+      "slotBookingConfirmedPlain": "Demann rezèvasyon voye · {{when}}",
+      "guestOtpExpired": "Kòd sa a ekspire. Peze Voye kòd ankò pou jwenn yon nouvo."
     }
   },
   "disputes": {

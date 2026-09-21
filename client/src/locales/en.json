@@ -2285,7 +2285,13 @@
         "when": "When would you like this done?",
         "details": "Could you share photos or a few more details?"
       }
-    }
+    },
+    "guestInquiryLiveHint": "Reply live in-app — the guest sees your message instantly when connected.",
+    "guestInquiryLoadingThread": "Loading conversation…",
+    "guestInquiryReplyPlaceholder": "Write a reply to the guest…",
+    "guestInquirySendReply": "Send reply",
+    "guestInquirySendError": "Could not send reply. Try again.",
+    "you": "You"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -6255,7 +6261,15 @@
       "availabilityNoSlots": "No open slots in the next two weeks.",
       "availabilityNoSlotsDay": "No open times on this day.",
       "availabilityDates": "Available dates",
-      "slotRequestMessage": "I'd like to request: {{when}}\n{{marker}}"
+      "slotRequestMessage": "I'd like to request {{service}}: {{when}}\n{{marker}}",
+      "availabilityServices": "Services",
+      "slotBookingConfirmed": "Booking request sent for {{service}} · {{when}}",
+      "slotBookingToast": "Booking request sent — the provider still needs to confirm.",
+      "slotBookingFailed": "Could not create the booking request. Your chat message was still prepared.",
+      "slotBookingConflict": "That time is no longer available. Pick another slot.",
+      "guestSessionExpired": "Your guest session expired. Please verify your email again.",
+      "slotBookingConfirmedPlain": "Booking request sent · {{when}}",
+      "guestOtpExpired": "That code expired. Tap Resend code for a new one."
     }
   },
   "disputes": {

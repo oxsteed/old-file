@@ -637,3 +637,35 @@
   border-color: rgb(249 115 22);
   color: rgb(254 215 170);
 }
+
+.messenger-availability__services {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.messenger-availability__service {
+  flex: 0 0 auto;
+  border: 1px solid rgb(75 85 99);
+  background: rgb(17 24 39);
+  color: rgb(229 231 235);
+  border-radius: 0.55rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  max-width: 12rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.messenger-availability__service.is-active,
+.messenger-availability__service[aria-selected="true"] {
+  border-color: rgb(56 189 248);
+  background: rgb(12 74 110 / 0.45);
+  color: rgb(186 230 253);
+}
+.messenger-availability__service:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

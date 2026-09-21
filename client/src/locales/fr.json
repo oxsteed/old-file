@@ -2285,7 +2285,13 @@
         "when": "Quand souhaitez-vous que ce soit fait ?",
         "details": "Pouvez-vous partager des photos ou un peu plus de détails ?"
       }
-    }
+    },
+    "guestInquiryLiveHint": "Répondez en direct dans l’app — l’invité voit votre message instantanément s’il est connecté.",
+    "guestInquiryLoadingThread": "Chargement de la conversation…",
+    "guestInquiryReplyPlaceholder": "Écrivez une réponse à l’invité…",
+    "guestInquirySendReply": "Envoyer la réponse",
+    "guestInquirySendError": "Impossible d’envoyer la réponse. Réessayez.",
+    "you": "Vous"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -6255,7 +6261,15 @@
       "availabilityNoSlots": "Aucun créneau libre dans les deux prochaines semaines.",
       "availabilityNoSlotsDay": "Aucun horaire libre ce jour-là.",
       "availabilityDates": "Dates disponibles",
-      "slotRequestMessage": "Je voudrais demander : {{when}}\n{{marker}}"
+      "slotRequestMessage": "Je souhaite demander {{service}} : {{when}}\n{{marker}}",
+      "availabilityServices": "Services",
+      "slotBookingConfirmed": "Demande de réservation envoyée pour {{service}} · {{when}}",
+      "slotBookingToast": "Demande de réservation envoyée — le prestataire doit encore confirmer.",
+      "slotBookingFailed": "Impossible de créer la demande de réservation. Le message du chat a tout de même été préparé.",
+      "slotBookingConflict": "Ce créneau n’est plus disponible. Choisissez-en un autre.",
+      "guestSessionExpired": "Votre session invité a expiré. Veuillez vérifier votre e-mail à nouveau.",
+      "slotBookingConfirmedPlain": "Demande de réservation envoyée · {{when}}",
+      "guestOtpExpired": "Ce code a expiré. Appuyez sur Renvoyer le code pour en obtenir un nouveau."
     }
   },
   "disputes": {

@@ -5,6 +5,7 @@ const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const pool          = require('../db');
 const socketService = require('../services/socketService');
+const { broadcastGuestChatMessage } = socketService;
 const guestProfileVerify = require('../services/guestProfileChatVerification');
 const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
@@ -837,6 +838,18 @@ exports.profileChatMessage = async (req, res, next) => {
       notifyTargets.forEach((targetId) => {
         socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
       });
+      // Also emit into guest_session_* so multi-tab guests / parity listeners update.
+      try {
+        broadcastGuestChatMessage(verifiedGuestSession.id, {
+          messageId: null,
+          senderType: 'guest',
+          senderName: verifiedGuestSession.guest_name,
+          message: content,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        logger.warn('[ProfileChat] guest session broadcast failed', { error: e.message });
+      }
 
       return res.json({
         type: 'live',
@@ -1505,6 +1518,193 @@ exports.resendGuestProfileChatCode = async (req, res, next) => {
   } catch (err) {
     if (err.status) {
       return res.status(err.status).json({ error: err.message, code: err.code || 'error' });
+    }
+    next(err);
+  }
+};
+
+
+/**
+ * POST /api/chat/sessions/guest/booking-request
+ * Verified guest (or optional JWT) creates a pending appointment from a messenger slot.
+ * Authenticated customers should prefer POST /api/bookings; this path is primarily for guests.
+ */
+exports.createMessengerGuestBooking = async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    let verifiedGuestSession = req.guestSession || null;
+    if (!verifiedGuestSession && !req.user?.id) {
+      const { token, sessionId } = guestProfileVerify.extractGuestAuth(req);
+      if (token && sessionId) {
+        verifiedGuestSession = await guestProfileVerify.loadVerifiedGuestSession(token, sessionId);
+      }
+    }
+    if (!verifiedGuestSession && !req.user?.id) {
+      throw new AppError('Authentication or verified guest session required', 401, 'auth_error');
+    }
+
+    const helperId = body.helperId || body.helper_id || verifiedGuestSession?.helper_id;
+    const businessId = body.businessId ?? body.business_id ?? verifiedGuestSession?.business_id ?? null;
+    if (!helperId) {
+      throw new AppError('helperId is required', 400, 'validation_failed', { helperId: 'helperId is required' });
+    }
+    if (verifiedGuestSession && !guestProfileVerify.tokenMatchesProfile(verifiedGuestSession, { helperId, businessId })) {
+      throw new AppError('Guest session does not match this profile', 403, 'forbidden');
+    }
+
+    const serviceName = String(body.serviceName || body.service_name || 'Service request').trim().slice(0, 200);
+    const serviceId = body.serviceId ?? body.service_id ?? null;
+    const date = String(body.requestedDate || body.date || '').slice(0, 10);
+    const start = String(body.requestedStartTime || body.start || '').slice(0, 8);
+    const end = String(body.requestedEndTime || body.end || '').slice(0, 8);
+    const startIso = body.startIso || (date && start ? `${date}T${start.length === 5 ? start + ':00' : start}` : null);
+    const endIso = body.endIso || (date && end ? `${date}T${end.length === 5 ? end + ':00' : end}` : null);
+    const timezone = String(body.timezone || '').trim().slice(0, 80);
+
+    const guestName = verifiedGuestSession?.guest_name
+      || [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ')
+      || '';
+    const guestEmail = verifiedGuestSession?.guest_email || req.user?.email || '';
+
+    // Authenticated non-guest: create booking_request (production path parity)
+    if (req.user?.id && !verifiedGuestSession) {
+      const bookingId = require('crypto').randomUUID();
+      const hours = 24;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      let resolvedHelperId = helperId;
+      if (businessId && !helperId) {
+        const biz = await pool.query(`SELECT user_id FROM businesses WHERE id = $1`, [businessId]);
+        resolvedHelperId = biz.rows[0]?.user_id;
+      }
+      if (!resolvedHelperId) {
+        throw new AppError('helperId or businessId is required', 400, 'validation_failed');
+      }
+      const descParts = [];
+      if (serviceId) descParts.push(`serviceId=${serviceId}`);
+      if (timezone) descParts.push(`tz=${timezone}`);
+      if (body.description) descParts.push(String(body.description));
+      const { rows } = await pool.query(
+        `INSERT INTO booking_requests (
+           id, customer_id, helper_id, business_id, service_name, requested_date,
+           requested_start_time, requested_end_time, service_location,
+           description, expires_at, confirmation_hours
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         RETURNING *`,
+        [
+          bookingId,
+          req.user.id,
+          resolvedHelperId,
+          businessId || null,
+          serviceName,
+          date,
+          start.length === 5 ? `${start}:00` : start,
+          end.length === 5 ? `${end}:00` : end,
+          null,
+          descParts.join(' | ') || null,
+          expiresAt,
+          hours,
+        ]
+      );
+      try {
+        socketService.broadcastToUser(resolvedHelperId, 'booking:requested', { booking: rows[0] });
+      } catch { /* ignore */ }
+      return res.status(201).json({
+        success: true,
+        type: 'booking_request',
+        bookingId: rows[0].id,
+        booking: rows[0],
+      });
+    }
+
+    const threadId = `messenger:${verifiedGuestSession?.id || req.user.id}:${date}|${start}|${end}|${serviceId || 'na'}`;
+    const action = {
+      guest_name: guestName,
+      guest_email: guestEmail,
+      service_description: serviceId
+        ? `${serviceName} (service #${serviceId})`
+        : serviceName,
+      scheduled_start_time: startIso,
+      scheduled_end_time: endIso,
+      estimated_duration_minutes: (() => {
+        try {
+          const ms = new Date(endIso) - new Date(startIso);
+          return Math.max(15, Math.min(480, Math.round(ms / 60000) || 60));
+        } catch {
+          return 60;
+        }
+      })(),
+      customer_notes: [
+        timezone ? `timezone=${timezone}` : null,
+        body.description ? String(body.description).slice(0, 500) : null,
+        'source=messenger_dock',
+      ].filter(Boolean).join(' | ') || null,
+    };
+
+    const result = await createAiBookingFromAction(
+      action,
+      helperId,
+      threadId,
+      req.user?.id || null,
+      { name: guestName, email: guestEmail },
+    );
+
+    if (!result?.ok) {
+      if (result?.reason === 'invalid_email') {
+        throw new AppError('A verified email is required to request a booking', 400, 'validation_failed');
+      }
+      if (result?.reason === 'invalid_time') {
+        throw new AppError('Invalid slot time', 400, 'validation_failed');
+      }
+      if (result?.reason === 'too_soon') {
+        throw new AppError('That slot is too soon to book', 400, 'validation_failed');
+      }
+      if (result?.reason === 'conflict') {
+        return res.status(409).json({ error: 'That time is no longer available', code: 'conflict' });
+      }
+      throw new AppError('Could not create booking request', 500, 'booking_failed');
+    }
+
+    const appointment = result.appointment;
+    // Also mirror into guest chat messages so the helper inbox thread shows the request
+    if (verifiedGuestSession?.id && appointment?.id) {
+      const summary = `Booking request: ${serviceName} · ${date} ${start}–${end}`;
+      try {
+        await pool.query(
+          `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
+           VALUES ($1, 'guest', $2, $3)`,
+          [verifiedGuestSession.id, guestName || 'Guest', summary]
+        );
+        const socketPayload = {
+          conversationId: null,
+          guestInquiry: true,
+          guestSessionId: verifiedGuestSession.id,
+          message: {
+            content: summary,
+            sender_type: 'guest',
+            sender_name: guestName || 'Guest',
+          },
+          senderName: guestName || 'Guest',
+          guestName,
+          guestEmail,
+        };
+        socketService.broadcastToUser(helperId, 'profile_chat:new_message', socketPayload);
+      } catch (e) {
+        logger.warn('[MessengerBooking] guest message mirror failed', { error: e.message });
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      type: 'appointment',
+      appointmentId: appointment.id,
+      appointment,
+    });
+  } catch (err) {
+    if (err.code === 'SCHEDULING_CONFLICT') {
+      return res.status(409).json({ error: 'That time is no longer available', code: 'conflict' });
+    }
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code || 'error', fields: err.fields });
     }
     next(err);
   }

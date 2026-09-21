@@ -2285,7 +2285,13 @@
         "when": "متى تريد إنجاز هذا؟",
         "details": "هل يمكنك مشاركة صور أو مزيد من التفاصيل؟"
       }
-    }
+    },
+    "guestInquiryLiveHint": "رد مباشرة داخل التطبيق — يرى الضيف رسالتك فورًا عند الاتصال.",
+    "guestInquiryLoadingThread": "جاري تحميل المحادثة…",
+    "guestInquiryReplyPlaceholder": "اكتب ردًا للضيف…",
+    "guestInquirySendReply": "إرسال الرد",
+    "guestInquirySendError": "تعذر إرسال الرد. حاول مرة أخرى.",
+    "you": "أنت"
   },
   "dashboard": {
     "welcome": "مرحبًا بك مرة أخرى، {{name}}!",
@@ -6255,7 +6261,15 @@
       "availabilityNoSlots": "لا توجد فترات متاحة خلال الأسبوعين القادمين.",
       "availabilityNoSlotsDay": "لا توجد أوقات متاحة في هذا اليوم.",
       "availabilityDates": "التواريخ المتاحة",
-      "slotRequestMessage": "أود طلب: {{when}}\n{{marker}}"
+      "slotRequestMessage": "أود طلب {{service}}: {{when}}\n{{marker}}",
+      "availabilityServices": "الخدمات",
+      "slotBookingConfirmed": "تم إرسال طلب الحجز لـ {{service}} · {{when}}",
+      "slotBookingToast": "تم إرسال طلب الحجز — ما زال على المزود التأكيد.",
+      "slotBookingFailed": "تعذر إنشاء طلب الحجز. تم تجهيز رسالة الدردشة على أي حال.",
+      "slotBookingConflict": "هذا الوقت لم يعد متاحًا. اختر موعدًا آخر.",
+      "guestSessionExpired": "انتهت جلسة الضيف. يُرجى التحقق من بريدك مرة أخرى.",
+      "slotBookingConfirmedPlain": "تم إرسال طلب الحجز · {{when}}",
+      "guestOtpExpired": "انتهت صلاحية هذا الرمز. اضغط إعادة إرسال الرمز للحصول على رمز جديد."
     }
   },
   "disputes": {

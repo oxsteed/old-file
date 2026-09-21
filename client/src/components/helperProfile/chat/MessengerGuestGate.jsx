@@ -107,9 +107,14 @@ export default function MessengerGuestGate({
       writeGuestVerifiedSession(helperId, businessId, verified);
       onVerified?.(verified);
     } catch (err) {
+      const code = err?.response?.data?.code || '';
+      const expired = /expir|otp_expired|code_expired|invalid_or_expired/i.test(
+        `${code} ${err?.response?.data?.error || ''}`,
+      );
       setError(
-        err?.response?.data?.error
-          || t('helperProfile.messenger.guestOtpInvalid'),
+        expired
+          ? t('helperProfile.messenger.guestOtpExpired')
+          : (err?.response?.data?.error || t('helperProfile.messenger.guestOtpInvalid')),
       );
     } finally {
       setBusy(false);

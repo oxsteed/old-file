@@ -7,6 +7,7 @@ const {
   startGuestProfileChatVerification,
   verifyGuestProfileChatCode,
   resendGuestProfileChatCode,
+  createMessengerGuestBooking,
   financialAdvisor,
   transcribeAudio,
   getProfileContext,
@@ -30,7 +31,10 @@ const {
 
 const optionalAuth = async (req, res, next) => {
   const header = req.headers.authorization || '';
-  if (header.startsWith('Guest ')) {
+  const hasGuestHeader =
+    header.startsWith('Guest ') ||
+    Boolean(String(req.headers['x-guest-profile-token'] || '').trim());
+  if (hasGuestHeader) {
     try {
       const { token, sessionId } = extractGuestAuth(req);
       const session = await loadVerifiedGuestSession(token, sessionId);
@@ -82,6 +86,9 @@ router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, p
 router.post('/sessions/guest/verify/start', authLimiter, profileChatLimiter, startGuestProfileChatVerification);
 router.post('/sessions/guest/verify', authLimiter, profileChatLimiter, verifyGuestProfileChatCode);
 router.post('/sessions/guest/verify/resend', authLimiter, profileChatLimiter, resendGuestProfileChatCode);
+
+// POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
+router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);

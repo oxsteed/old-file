@@ -26,11 +26,16 @@ import {
 import {
   buildAvailabilityRange,
   buildBookingSlotMarker,
+  buildMessengerBookingPayload,
+  buildSlotConfirmationContent,
   buildSlotRequestMessage,
+  filterBookableServices,
   listAvailabilityDates,
   normalizeBusinessAvailabilityPayload,
   normalizeHelperAvailabilityPayload,
   parseBookingSlotMarker,
+  pickDefaultBookableService,
+  resolveClientTimezone,
   slotsForDate,
   toLocalDateKey,
 } from '../src/components/helperProfile/chat/messengerAvailability.js';
@@ -394,6 +399,9 @@ test('booking slot marker round-trip and request message', () => {
     date: '2026-09-22',
     start: '09:00',
     end: '10:00',
+    serviceId: null,
+    serviceName: '',
+    timezone: '',
   });
   const msg = buildSlotRequestMessage({
     date: '2026-09-22',
@@ -402,6 +410,75 @@ test('booking slot marker round-trip and request message', () => {
     providerName: 'Ada',
     locale: 'en',
   });
-  assert.match(msg, /\[booking_slot:2026-09-22\|09:00\|10:00\]/);
+  assert.match(msg, /\[booking_slot:2026-09-22\|09:00\|10:00/);
   assert.match(msg, /Ada|request/i);
+});
+
+
+test('filterBookableServices keeps active online-bookable rows', () => {
+  const bookable = filterBookableServices([
+    { id: 1, name: 'Cut', allow_online_booking: true, is_active: true },
+    { id: 2, name: 'Hidden', allow_online_booking: false, is_active: true },
+    { id: 3, name: 'Inactive', allow_online_booking: true, is_active: false },
+    { id: 4, title: 'Color', allow_online_booking: true },
+  ]);
+  assert.equal(bookable.length, 2);
+  assert.equal(bookable[0].name, 'Cut');
+  assert.equal(pickDefaultBookableService(bookable).id, 1);
+});
+
+test('extended booking marker round-trip includes service and timezone', () => {
+  const marker = buildBookingSlotMarker({
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    serviceId: 42,
+    serviceName: 'Haircut & Style',
+    timezone: 'America/New_York',
+  });
+  assert.match(marker, /\[booking_slot:2026-09-22\|09:00\|10:00/);
+  assert.match(marker, /svc:42/);
+  const parsed = parseBookingSlotMarker(`Please\n${marker}`);
+  assert.equal(parsed.date, '2026-09-22');
+  assert.equal(parsed.serviceId, '42');
+  assert.equal(parsed.serviceName, 'Haircut & Style');
+  assert.equal(parsed.timezone, 'America/New_York');
+});
+
+test('buildMessengerBookingPayload shapes pending request fields', () => {
+  const payload = buildMessengerBookingPayload({
+    helperId: 'h1',
+    businessId: 9,
+    serviceId: 3,
+    serviceName: 'Trim',
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    timezone: 'UTC',
+  });
+  assert.equal(payload.helperId, 'h1');
+  assert.equal(payload.businessId, 9);
+  assert.equal(payload.serviceId, 3);
+  assert.equal(payload.requestedDate, '2026-09-22');
+  assert.equal(payload.requestedStartTime, '09:00:00');
+  assert.equal(payload.timezone, 'UTC');
+});
+
+test('buildSlotRequestMessage and confirmation include service name', () => {
+  const msg = buildSlotRequestMessage({
+    date: '2026-09-22',
+    start: '09:00',
+    end: '10:00',
+    serviceName: 'Trim',
+    providerName: 'Ada',
+    locale: 'en',
+  });
+  assert.match(msg, /Trim/);
+  assert.match(msg, /name:Trim/);
+  const confirm = buildSlotConfirmationContent({
+    whenLabel: 'Tue · 9:00 AM',
+    serviceName: 'Trim',
+  });
+  assert.match(confirm, /Trim/);
+  assert.ok(resolveClientTimezone());
 });

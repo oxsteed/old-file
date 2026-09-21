@@ -1,5 +1,6 @@
 const pool          = require('../db');
 const socketService = require('../services/socketService');
+const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { sendNotification } = require('../services/notificationService');
@@ -1122,10 +1123,208 @@ const getMessageReactions = async (req, res) => {
   }
 };
 
+
+/**
+ * Confirm helper/owner or active business rep may access a guest inquiry session.
+ */
+async function assertGuestInquiryAccess(userId, inquiryId) {
+  const rowRes = await pool.query(
+    `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+            g.guest_verified_at, g.session_status,
+            cb.business_name AS conversation_business_name
+     FROM guest_profile_chat_inbound g
+     LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+     WHERE g.id = $1`,
+    [inquiryId]
+  );
+  const r = rowRes.rows[0];
+  if (!r) {
+    const err = new Error('Not found');
+    err.status = 404;
+    throw err;
+  }
+  let allowed = String(r.helper_id) === String(userId);
+  if (!allowed && r.business_id != null) {
+    const rep = await pool.query(
+      `SELECT 1 FROM business_members bm
+       WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'`,
+      [r.business_id, userId]
+    );
+    allowed = rep.rows.length > 0;
+  }
+  if (!allowed) {
+    const err = new Error('Forbidden');
+    err.status = 403;
+    throw err;
+  }
+  return r;
+}
+
+/**
+ * GET /api/messages/guest-inquiries/:id/messages
+ * Thread history for a verified (or leave-message) guest profile session.
+ */
+const getGuestInquiryMessages = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const inquiryId = String(req.params.id || '').replace(/^guest-/i, '');
+    if (!inquiryId) return res.status(400).json({ error: 'Invalid inquiry id' });
+
+    await assertGuestInquiryAccess(userId, inquiryId);
+
+    const { rows } = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+       FROM guest_profile_chat_messages
+       WHERE session_id = $1
+       ORDER BY created_at ASC
+       LIMIT 500`,
+      [inquiryId]
+    );
+
+    // Seed with original inbound message when the messages table is empty
+    if (!rows.length) {
+      const seed = await pool.query(
+        `SELECT id, guest_name, message, created_at FROM guest_profile_chat_inbound WHERE id = $1`,
+        [inquiryId]
+      );
+      const s = seed.rows[0];
+      if (s?.message) {
+        return res.json([
+          {
+            id: `inbound-${s.id}`,
+            session_id: inquiryId,
+            sender_type: 'guest',
+            sender_name: s.guest_name,
+            message: s.message,
+            content: s.message,
+            created_at: s.created_at,
+          },
+        ]);
+      }
+    }
+
+    res.json(
+      rows.map((m) => ({
+        id: m.id,
+        session_id: m.session_id,
+        sender_type: m.sender_type,
+        sender_name: m.sender_name,
+        message: m.message,
+        content: m.message,
+        created_at: m.created_at,
+      }))
+    );
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: 'Not found' });
+    if (error.status === 403) return res.status(403).json({ error: 'Forbidden' });
+    logger.error('Error fetching guest inquiry messages', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch guest inquiry messages' });
+  }
+};
+
+/**
+ * POST /api/messages/guest-inquiries/:id/messages
+ * Helper/business reply into a guest live thread; emits to guest_session_* room.
+ */
+const replyGuestInquiryMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const inquiryId = String(req.params.id || '').replace(/^guest-/i, '');
+    const message = String(req.body?.message || req.body?.content || '').trim();
+    if (!inquiryId) return res.status(400).json({ error: 'Invalid inquiry id' });
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+    if (message.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+
+    const session = await assertGuestInquiryAccess(userId, inquiryId);
+
+    const senderName =
+      String(req.user.first_name || '').trim() ||
+      String(req.user.email || '').split('@')[0] ||
+      'Helper';
+
+    const { rows } = await pool.query(
+      `INSERT INTO guest_profile_chat_messages
+         (session_id, sender_type, sender_name, message, created_at)
+       VALUES ($1, 'helper', $2, $3, CURRENT_TIMESTAMP)
+       RETURNING id, session_id, sender_type, sender_name, message, created_at`,
+      [inquiryId, senderName, message]
+    );
+    const msg = rows[0];
+
+    await pool.query(
+      `UPDATE guest_profile_chat_inbound
+       SET last_helper_message_at = CURRENT_TIMESTAMP,
+           helper_messages_count = COALESCE(helper_messages_count, 0) + 1,
+           last_activity_at = CURRENT_TIMESTAMP,
+           session_status = CASE
+             WHEN session_status IN (
+               'waiting_for_helper',
+               'ai_fallback_pending',
+               'ai_support_active',
+               'helper_takeover_requested'
+             ) THEN 'helper_assigned'
+             ELSE session_status
+           END
+       WHERE id = $1`,
+      [inquiryId]
+    ).catch(async () => {
+      await pool.query(
+        `UPDATE guest_profile_chat_inbound
+         SET last_activity_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [inquiryId]
+      ).catch(() => {});
+    });
+
+    const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
+    broadcastGuestChatMessage(inquiryId, {
+      messageId: msg.id,
+      senderType: 'helper',
+      senderName,
+      message,
+      createdAt,
+    });
+
+    // Also nudge the helper's own sockets (inbox badge / open thread refresh)
+    try {
+      socketService.broadcastToUser(session.helper_id, 'profile_chat:new_message', {
+        guestInquiry: true,
+        guestInquiryId: inquiryId,
+        guestSessionId: inquiryId,
+        message: {
+          id: msg.id,
+          content: message,
+          sender_type: 'helper',
+          sender_name: senderName,
+          created_at: createdAt,
+        },
+        senderName,
+      });
+    } catch { /* ignore */ }
+
+    res.status(201).json({
+      id: msg.id,
+      session_id: inquiryId,
+      sender_type: 'helper',
+      sender_name: senderName,
+      message,
+      content: message,
+      created_at: createdAt,
+    });
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: 'Not found' });
+    if (error.status === 403) return res.status(403).json({ error: 'Forbidden' });
+    logger.error('Error replying to guest inquiry', { err: error.message });
+    res.status(500).json({ error: 'Failed to send guest reply' });
+  }
+};
+
 module.exports = {
   getConversations,
   getGuestInquiries,
   getGuestInquiryById,
+  getGuestInquiryMessages,
+  replyGuestInquiryMessage,
   getOrCreateConversation,
   getConversationMeta,
   getMessages,

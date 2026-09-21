@@ -5,6 +5,7 @@ import MessengerDock, { MessengerInviteCard } from './MessengerDock.jsx';
 import MessengerGuestGate from './MessengerGuestGate.jsx';
 import ChatPanel from './ChatPanel';
 import {
+  clearGuestVerifiedSession,
   getMessengerPhaseWithVerification,
   readGuestContact,
   readGuestVerifiedSession,
@@ -83,6 +84,13 @@ export default function PublicProfileMessenger({
     setGuestContactSaved(true);
   }, []);
 
+  const handleGuestSessionExpired = useCallback(() => {
+    clearGuestVerifiedSession(helperId, businessId);
+    setGuestVerified(false);
+    setOtpPending(true);
+    setGuestContactSaved(true);
+  }, [helperId, businessId]);
+
   const disclaimer = (
     <p className="messenger-dock__disclaimer">
       {entityKind === 'business'
@@ -145,6 +153,7 @@ export default function PublicProfileMessenger({
             className="chat-panel--dock h-full overflow-hidden flex flex-col"
             destination={destination}
             onDestinationChange={onDestinationChange}
+            onGuestSessionExpired={handleGuestSessionExpired}
           />
         ) : null}
       </MessengerDock>

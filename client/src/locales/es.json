@@ -2285,7 +2285,13 @@
         "when": "¿Cuándo te gustaría que lo hagamos?",
         "details": "¿Puedes compartir fotos o un poco más de detalle?"
       }
-    }
+    },
+    "guestInquiryLiveHint": "Responde en vivo en la app — el invitado ve tu mensaje al instante si está conectado.",
+    "guestInquiryLoadingThread": "Cargando conversación…",
+    "guestInquiryReplyPlaceholder": "Escribe una respuesta al invitado…",
+    "guestInquirySendReply": "Enviar respuesta",
+    "guestInquirySendError": "No se pudo enviar la respuesta. Inténtalo de nuevo.",
+    "you": "Tú"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -6255,7 +6261,15 @@
       "availabilityNoSlots": "No hay horarios libres en las próximas dos semanas.",
       "availabilityNoSlotsDay": "No hay horarios libres este día.",
       "availabilityDates": "Fechas disponibles",
-      "slotRequestMessage": "Me gustaría solicitar: {{when}}\n{{marker}}"
+      "slotRequestMessage": "Me gustaría solicitar {{service}}: {{when}}\n{{marker}}",
+      "availabilityServices": "Servicios",
+      "slotBookingConfirmed": "Solicitud de reserva enviada para {{service}} · {{when}}",
+      "slotBookingToast": "Solicitud de reserva enviada — el proveedor aún debe confirmar.",
+      "slotBookingFailed": "No se pudo crear la solicitud de reserva. El mensaje del chat sí se preparó.",
+      "slotBookingConflict": "Ese horario ya no está disponible. Elige otro.",
+      "guestSessionExpired": "Tu sesión de invitado expiró. Verifica tu correo otra vez.",
+      "slotBookingConfirmedPlain": "Solicitud de reserva enviada · {{when}}",
+      "guestOtpExpired": "Ese código expiró. Toca Reenviar código para obtener uno nuevo."
     }
   },
   "disputes": {

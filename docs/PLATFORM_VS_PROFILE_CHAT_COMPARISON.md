@@ -83,7 +83,8 @@ Evidence: `server/routes/support.js` 48–56; `server/controllers/publicSupportC
 - `POST /api/support-chat/initiate` → live admin via **DM `conversations`** or `support_tickets` (`supportChatController.js`) — older path; client escalation page does **not** use it.
 
 ### Profile messenger
-**Logged-in:** optionalAuth on `/api/chat/profile-message`; live DM only if authenticated.
+**Logged-in:** optionalAuth on `/api/chat/profile-message`; live DM when provider online.
+**Guest live replies (provider inbox):** helpers/business reps answer in-app via guest inquiry thread APIs (not email-only).
 **Guest:**
 - `MessengerGuestGate` collects name+email, then **email OTP verification** (`POST /api/chat/sessions/guest/verify/start|verify|resend`) — same rigor as support guest verify, scoped to that helper/business.
 - On success, client stores an opaque **guest token bound to helperId/businessId** (`writeGuestVerifiedSession`) and sends `X-Guest-Profile-Token` + `X-Guest-Session-Id` on profile messages.
@@ -271,3 +272,16 @@ When a visitor selects OxSteed on the profile messenger, the dock stays AI-only.
 `SupportEscalationPage` reads both via `readSupportEscalationHandoff` and prefills
 the guest start message or authenticated ticket message. Live agents are only on
 the support escalation page — not inside the profile dock.
+
+
+## Messenger dock booking + guest live reply (2026-09-21)
+
+| Capability | Behavior | Evidence |
+|---|---|---|
+| Service chooser | Business (and multi-service helpers) pick a bookable service before loading slots | `MessengerAvailabilityPicker.jsx`, `filterBookableServices` |
+| Slot → pending request | Authenticated: `POST /api/bookings`. Verified guest: `POST /api/chat/sessions/guest/booking-request` → pending `appointments` (`source=ai_chat`) | `ChatPanel.tsx`, `createMessengerGuestBooking` |
+| Chat confirmation | Still posts `[booking_slot:…]` (+ service/timezone extras) and a booking chip in the timeline | `messengerAvailability.js` |
+| Helper → guest live reply | Inbox `GuestInquiryPanel` loads `/messages/guest-inquiries/:id/messages` and POSTs replies; server emits `guest_chat:message` + `profile_chat:new_message` to `guest_session_*` | `messageController.replyGuestInquiryMessage`, `socketService.broadcastGuestChatMessage` |
+| Guest socket | Verified guests connect `/chat` with guest auth; reconnect + expiry return to OTP gate | `useGuestProfileChatSocket`, `PublicProfileMessenger.onGuestSessionExpired` |
+| Claim-on-login | Unchanged `POST /api/chat/sessions/guest/claim` after auth | `ChatPanel` claim effect |
+

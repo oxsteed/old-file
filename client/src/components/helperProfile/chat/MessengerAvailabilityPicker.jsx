@@ -3,12 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { Calendar, Loader2, X } from 'lucide-react';
 import api from '../../../api/axios';
 import { listBusinessServices } from '../../../api/businesses';
+import { fetchHelperProfile } from '../../../api/helpers';
 import './MessengerDock.css';
 import {
   buildAvailabilityRange,
+  filterBookableServices,
   listAvailabilityDates,
   normalizeBusinessAvailabilityPayload,
   normalizeHelperAvailabilityPayload,
+  pickDefaultBookableService,
+  resolveClientTimezone,
   slotsForDate,
 } from './messengerAvailability.js';
 
@@ -37,7 +41,7 @@ function formatTimeRange(slot, locale) {
 
 /**
  * Compact availability calendar for the public profile messenger dock.
- * Loads helper weekly slots or the first bookable business service slots.
+ * Business (and multi-service helpers): client picks a bookable service, then slots load.
  */
 export default function MessengerAvailabilityPicker({
   helperId,
@@ -49,17 +53,56 @@ export default function MessengerAvailabilityPicker({
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
   const [loading, setLoading] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState(null);
   const [slots, setSlots] = useState([]);
   const [hasTemplate, setHasTemplate] = useState(true);
-  const [serviceLabel, setServiceLabel] = useState('');
+  const [services, setServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+
+  const selectedService = useMemo(
+    () => services.find((s) => String(s.id) === String(selectedServiceId)) || null,
+    [services, selectedServiceId],
+  );
 
   const dates = useMemo(() => listAvailabilityDates(slots), [slots]);
   const daySlots = useMemo(
     () => slotsForDate(slots, selectedDate),
     [slots, selectedDate],
   );
+
+  const loadSlotsForService = useCallback(async (service) => {
+    if (!businessId || !service?.id) return;
+    setLoadingSlots(true);
+    setError(null);
+    const { from, to } = buildAvailabilityRange(14);
+    try {
+      const { data } = await api.get(
+        `/businesses/${businessId}/services/${service.id}/slots`,
+        { params: { from, to } },
+      );
+      const normalized = normalizeBusinessAvailabilityPayload({
+        ...data,
+        service_id: service.id,
+      });
+      const withMeta = normalized.slots.map((slot) => ({
+        ...slot,
+        serviceId: service.id,
+        serviceName: service.name,
+        timezone: resolveClientTimezone(),
+      }));
+      setSlots(withMeta);
+      setHasTemplate(normalized.hasTemplate || withMeta.length > 0);
+      setSelectedDate(listAvailabilityDates(withMeta)[0] || null);
+    } catch {
+      setError(t('helperProfile.messenger.availabilityLoadError'));
+      setSlots([]);
+      setHasTemplate(false);
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [businessId, t]);
 
   const load = useCallback(async () => {
     if (!helperId && !businessId) return;
@@ -68,39 +111,51 @@ export default function MessengerAvailabilityPicker({
     const { from, to } = buildAvailabilityRange(14);
     try {
       if (businessId) {
-        const services = await listBusinessServices(businessId);
-        const list = Array.isArray(services) ? services : [];
-        const bookable =
-          list.find((s) => s?.allow_online_booking !== false && s?.is_active !== false) ||
-          list[0];
-        if (!bookable?.id) {
+        const list = await listBusinessServices(businessId);
+        const bookable = filterBookableServices(list);
+        setServices(bookable);
+        if (!bookable.length) {
           setSlots([]);
           setHasTemplate(false);
-          setServiceLabel('');
+          setSelectedServiceId(null);
           return;
         }
-        setServiceLabel(String(bookable.name || bookable.title || '').trim());
-        const { data } = await api.get(
-          `/businesses/${businessId}/services/${bookable.id}/slots`,
-          { params: { from, to } },
-        );
-        const normalized = normalizeBusinessAvailabilityPayload({
-          ...data,
-          service_id: bookable.id,
-        });
-        setSlots(normalized.slots);
-        setHasTemplate(normalized.hasTemplate);
-        setSelectedDate(listAvailabilityDates(normalized.slots)[0] || null);
-      } else {
-        const { data } = await api.get(`/helpers/${helperId}/available-slots`, {
-          params: { from, to },
-        });
-        const normalized = normalizeHelperAvailabilityPayload(data);
-        setSlots(normalized.slots);
-        setHasTemplate(normalized.hasTemplate);
-        setServiceLabel('');
-        setSelectedDate(listAvailabilityDates(normalized.slots)[0] || null);
+        const initial = pickDefaultBookableService(bookable);
+        setSelectedServiceId(initial.id);
+        setLoading(false);
+        await loadSlotsForService(initial);
+        return;
       }
+
+      // Helper path: optional multi-service chooser from public profile services
+      let helperServices = [];
+      try {
+        const profile = await fetchHelperProfile(helperId);
+        helperServices = filterBookableServices(profile?.services || []);
+      } catch {
+        helperServices = [];
+      }
+      setServices(helperServices);
+      if (helperServices.length) {
+        setSelectedServiceId((prev) => prev ?? helperServices[0].id);
+      } else {
+        setSelectedServiceId(null);
+      }
+
+      const { data } = await api.get(`/helpers/${helperId}/available-slots`, {
+        params: { from, to },
+      });
+      const normalized = normalizeHelperAvailabilityPayload(data);
+      const svc = helperServices[0] || null;
+      const withMeta = normalized.slots.map((slot) => ({
+        ...slot,
+        serviceId: svc?.id ?? null,
+        serviceName: svc?.name || '',
+        timezone: resolveClientTimezone(),
+      }));
+      setSlots(withMeta);
+      setHasTemplate(normalized.hasTemplate);
+      setSelectedDate(listAvailabilityDates(withMeta)[0] || null);
     } catch {
       setError(t('helperProfile.messenger.availabilityLoadError'));
       setSlots([]);
@@ -108,7 +163,7 @@ export default function MessengerAvailabilityPicker({
     } finally {
       setLoading(false);
     }
-  }, [helperId, businessId, t]);
+  }, [helperId, businessId, t, loadSlotsForService]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -116,7 +171,30 @@ export default function MessengerAvailabilityPicker({
     return undefined;
   }, [open, load]);
 
+  const onServiceChange = async (serviceId) => {
+    setSelectedServiceId(serviceId);
+    const svc = services.find((s) => String(s.id) === String(serviceId));
+    if (businessId && svc) {
+      await loadSlotsForService(svc);
+      return;
+    }
+    // Helper multi-service: same weekly slots, annotate with selected service
+    if (svc) {
+      setSlots((prev) =>
+        prev.map((slot) => ({
+          ...slot,
+          serviceId: svc.id,
+          serviceName: svc.name,
+          timezone: slot.timezone || resolveClientTimezone(),
+        })),
+      );
+    }
+  };
+
   if (!open) return null;
+
+  const busy = loading || loadingSlots;
+  const showServiceChooser = services.length > 1;
 
   return (
     <div className="messenger-availability" role="region" aria-label={t('helperProfile.messenger.availabilityTitle')}>
@@ -140,33 +218,51 @@ export default function MessengerAvailabilityPicker({
         {businessId
           ? t('helperProfile.messenger.availabilityHintBusiness')
           : t('helperProfile.messenger.availabilityHintHelper')}
-        {serviceLabel ? ` · ${serviceLabel}` : ''}
+        {selectedService && !showServiceChooser ? ` · ${selectedService.name}` : ''}
       </p>
 
-      {loading ? (
+      {showServiceChooser ? (
+        <div className="messenger-availability__services" role="listbox" aria-label={t('helperProfile.messenger.availabilityServices')}>
+          {services.map((svc) => (
+            <button
+              key={svc.id}
+              type="button"
+              role="option"
+              aria-selected={String(selectedServiceId) === String(svc.id)}
+              className={`messenger-availability__service${String(selectedServiceId) === String(svc.id) ? ' is-active' : ''}`}
+              onClick={() => onServiceChange(svc.id)}
+              disabled={busy}
+            >
+              {svc.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {busy ? (
         <div className="messenger-availability__status">
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
           <span>{t('helperProfile.messenger.availabilityLoading')}</span>
         </div>
       ) : null}
 
-      {!loading && error ? (
+      {!busy && error ? (
         <p className="messenger-availability__status messenger-availability__status--error">{error}</p>
       ) : null}
 
-      {!loading && !error && !hasTemplate ? (
+      {!busy && !error && !hasTemplate ? (
         <p className="messenger-availability__status">
           {t('helperProfile.messenger.availabilityEmpty')}
         </p>
       ) : null}
 
-      {!loading && !error && hasTemplate && dates.length === 0 ? (
+      {!busy && !error && hasTemplate && dates.length === 0 ? (
         <p className="messenger-availability__status">
           {t('helperProfile.messenger.availabilityNoSlots')}
         </p>
       ) : null}
 
-      {!loading && dates.length > 0 ? (
+      {!busy && dates.length > 0 ? (
         <>
           <div className="messenger-availability__dates" role="listbox" aria-label={t('helperProfile.messenger.availabilityDates')}>
             {dates.map((dateKey) => (
@@ -193,7 +289,14 @@ export default function MessengerAvailabilityPicker({
                   key={slot.startIso || `${slot.date}-${slot.start}`}
                   type="button"
                   className="messenger-availability__slot"
-                  onClick={() => onSelectSlot?.(slot)}
+                  onClick={() =>
+                    onSelectSlot?.({
+                      ...slot,
+                      serviceId: slot.serviceId ?? selectedService?.id ?? null,
+                      serviceName: slot.serviceName || selectedService?.name || '',
+                      timezone: slot.timezone || resolveClientTimezone(),
+                    })
+                  }
                 >
                   {formatTimeRange(slot, locale)}
                 </button>

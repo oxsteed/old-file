@@ -120,25 +120,70 @@ export function slotsForDate(slots, dateKey) {
 
 /**
  * Structured marker providers (and future parsers) can recognize in chat text.
- * Example: [booking_slot:2026-09-22|09:00|10:00]
+ * Base: [booking_slot:YYYY-MM-DD|HH:MM|HH:MM]
+ * Extended: …|svc:ID|name:ENCODED|tz:ZONE
  */
-export function buildBookingSlotMarker({ date, start, end }) {
+export function buildBookingSlotMarker({
+  date,
+  start,
+  end,
+  serviceId = null,
+  serviceName = '',
+  timezone = '',
+} = {}) {
   const d = String(date || '').slice(0, 10);
   const s = normalizeClock(start);
   const e = normalizeClock(end);
   if (!d || !s || !e) return '';
-  return `[booking_slot:${d}|${s}|${e}]`;
+  const parts = [`booking_slot:${d}|${s}|${e}`];
+  if (serviceId != null && String(serviceId).trim()) {
+    parts.push(`svc:${String(serviceId).trim()}`);
+  }
+  const name = String(serviceName || '').trim();
+  if (name) {
+    parts.push(`name:${encodeURIComponent(name).slice(0, 120)}`);
+  }
+  const tz = String(timezone || '').trim();
+  if (tz) {
+    parts.push(`tz:${encodeURIComponent(tz).slice(0, 80)}`);
+  }
+  return `[${parts.join('|')}]`;
+}
+
+/** @deprecated alias — same as buildBookingSlotMarker */
+export function buildBookingSlotMarkerExtended(opts) {
+  return buildBookingSlotMarker(opts);
+}
+
+export function parseBookingSlotMarker(text) {
+  const match = String(text || '').match(
+    /\[booking_slot:(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d{2}:\d{2})(?:\|([^\]]+))?\]/,
+  );
+  if (!match) return null;
+  const extra = { serviceId: null, serviceName: '', timezone: '' };
+  if (match[4]) {
+    for (const part of String(match[4]).split('|')) {
+      if (part.startsWith('svc:')) extra.serviceId = part.slice(4);
+      else if (part.startsWith('name:')) {
+        try {
+          extra.serviceName = decodeURIComponent(part.slice(5));
+        } catch {
+          extra.serviceName = part.slice(5);
+        }
+      } else if (part.startsWith('tz:')) {
+        try {
+          extra.timezone = decodeURIComponent(part.slice(3));
+        } catch {
+          extra.timezone = part.slice(3);
+        }
+      }
+    }
+  }
+  return { date: match[1], start: match[2], end: match[3], ...extra };
 }
 
 /**
  * Human + machine chat payload for a chosen availability slot.
- * @param {object} opts
- * @param {string} opts.date
- * @param {string} opts.start
- * @param {string} opts.end
- * @param {string} [opts.providerName]
- * @param {string} [opts.locale]
- * @param {(key: string, vars?: object) => string} [opts.t] i18n function
  */
 export function buildSlotRequestMessage({
   date,
@@ -147,8 +192,19 @@ export function buildSlotRequestMessage({
   providerName = '',
   locale = 'en',
   t,
+  serviceId = null,
+  serviceName = '',
+  timezone = '',
 } = {}) {
-  const marker = buildBookingSlotMarker({ date, start, end });
+  const tz = timezone || resolveClientTimezone();
+  const marker = buildBookingSlotMarker({
+    date,
+    start,
+    end,
+    serviceId,
+    serviceName,
+    timezone: tz,
+  });
   if (!marker) return '';
 
   let whenLabel = `${date} ${normalizeClock(start)}–${normalizeClock(end)}`;
@@ -168,21 +224,123 @@ export function buildSlotRequestMessage({
     /* keep fallback */
   }
 
+  const svc = String(serviceName || '').trim();
   if (typeof t === 'function') {
     return t('helperProfile.messenger.slotRequestMessage', {
       when: whenLabel,
       name: providerName || '',
+      service: svc,
       marker,
-      defaultValue: `I'd like to request: ${whenLabel}\n${marker}`,
+      defaultValue: svc
+        ? `I'd like to request ${svc}: ${whenLabel}\n${marker}`
+        : `I'd like to request: ${whenLabel}\n${marker}`,
     });
   }
 
   const nameBit = providerName ? ` with ${providerName}` : '';
-  return `I'd like to request${nameBit}: ${whenLabel}\n${marker}`;
+  const svcBit = svc ? ` ${svc}` : '';
+  return `I'd like to request${svcBit}${nameBit}: ${whenLabel}\n${marker}`;
 }
 
-export function parseBookingSlotMarker(text) {
-  const match = String(text || '').match(/\[booking_slot:(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d{2}:\d{2})\]/);
-  if (!match) return null;
-  return { date: match[1], start: match[2], end: match[3] };
+/**
+ * Bookable business/helper service rows (online booking + active).
+ */
+export function filterBookableServices(list) {
+  const rows = Array.isArray(list) ? list : [];
+  return rows
+    .filter((s) => s && (s.id != null || s.service_id != null))
+    .filter((s) => s.allow_online_booking !== false && s.is_active !== false && s.active !== false)
+    .map((s) => ({
+      id: s.id ?? s.service_id,
+      name: String(s.name || s.title || s.service_name || '').trim() || `Service ${s.id ?? s.service_id}`,
+      durationMinutes: Number(s.duration_minutes || s.durationMinutes || s.duration) || null,
+      price: s.price != null ? Number(s.price) : null,
+      raw: s,
+    }));
+}
+
+export function pickDefaultBookableService(list) {
+  const bookable = filterBookableServices(list);
+  return bookable[0] || null;
+}
+
+/** IANA timezone when available; falls back to offset label. */
+export function resolveClientTimezone(date = new Date()) {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+  } catch {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const abs = Math.abs(offset);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `UTC${sign}${hh}:${mm}`;
+  }
+}
+
+/**
+ * API payload for creating a pending booking/appointment from a messenger slot.
+ */
+export function buildMessengerBookingPayload({
+  helperId = null,
+  businessId = null,
+  serviceId = null,
+  serviceName = '',
+  date,
+  start,
+  end,
+  startIso = null,
+  endIso = null,
+  timezone = '',
+  guestSessionId = null,
+  description = '',
+} = {}) {
+  const d = String(date || '').slice(0, 10);
+  const s = normalizeClock(start);
+  const e = normalizeClock(end);
+  if (!d || !s || !e) return null;
+  const tz = timezone || resolveClientTimezone();
+  return {
+    helperId: helperId || undefined,
+    businessId: businessId || undefined,
+    serviceId: serviceId != null && String(serviceId).trim() ? serviceId : undefined,
+    serviceName: String(serviceName || 'Service request').trim().slice(0, 200),
+    requestedDate: d,
+    requestedStartTime: s.length === 5 ? `${s}:00` : s,
+    requestedEndTime: e.length === 5 ? `${e}:00` : e,
+    startIso: startIso || `${d}T${s}:00`,
+    endIso: endIso || `${d}T${e}:00`,
+    timezone: tz,
+    guestSessionId: guestSessionId || undefined,
+    description: String(description || '').trim().slice(0, 2000) || undefined,
+  };
+}
+
+export function buildSlotConfirmationContent({
+  whenLabel,
+  serviceName = '',
+  bookingId = null,
+  appointmentId = null,
+  t,
+} = {}) {
+  const svc = String(serviceName || '').trim();
+  const fallback = svc
+    ? `Booking request sent for ${svc} · ${whenLabel}`
+    : `Booking request sent · ${whenLabel}`;
+  if (typeof t === 'function') {
+    if (svc) {
+      return t('helperProfile.messenger.slotBookingConfirmed', {
+        when: whenLabel,
+        service: svc,
+        id: bookingId || appointmentId || '',
+        defaultValue: fallback,
+      });
+    }
+    return t('helperProfile.messenger.slotBookingConfirmedPlain', {
+      when: whenLabel,
+      id: bookingId || appointmentId || '',
+      defaultValue: fallback,
+    });
+  }
+  return fallback;
 }
