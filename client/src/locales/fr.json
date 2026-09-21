@@ -10102,6 +10102,7 @@
       "serviceBusiness": "Entreprise de services",
       "readiness": "Préparation",
       "live": "En ligne",
+      "draft": "Brouillon",
       "setupNeeded": "Configuration requise",
       "paused": "En pause",
       "hidden": "Masqué aux clients",

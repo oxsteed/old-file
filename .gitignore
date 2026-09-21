@@ -11,3 +11,14 @@ coverage/
 *.seed
 *.pid.lock
 .claude/
+
+# Local credentials; keep documented templates tracked.
+.env.*
+!.env.example
+!.env.production.example
+!.env.development.example
+
+# Generated assistant reports and local scratch artifacts.
+**/.codex_tmp/
+/server/__sync_probe.txt
+/chess-cheat-sheet.pdf

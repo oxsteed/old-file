@@ -5,13 +5,14 @@ This checklist is for “real users” beta testing on **production backend + pr
 ## One-time production setup
 
 ### API/Server
-- Configure production env using `5/server/.env.example` as the source of truth.
+- Configure production env using `server/.env.example` as the source of truth.
+- Follow `docs/deployment-ci.md` for the current Coolify target and CI integration.
 - Set `CORS_ORIGINS` to your production website origins (no localhost).
 - Ensure you have **Redis** in production (`REDIS_URL`) if you run multiple server instances (rate limiting becomes per-instance without it).
 - Set up DB backups and verify you can restore (see “Restore drill” below).
 
 ### Web client
-- Configure build-time env using `5/client/.env.production.example`.
+- Configure build-time env using `client/.env.production.example`.
 - CI must run `npm ci` before `npm run build:ci` so TypeScript (`tsc`) exists.
 - If you want Sentry sourcemaps: set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` in CI (not in browser env).
 
@@ -26,15 +27,16 @@ This checklist is for “real users” beta testing on **production backend + pr
 ## Monitoring & alerting
 
 ### Sentry
-- Server Sentry is enabled when `SENTRY_DSN` is set (see `5/server/instrument.js`).
-- Web Sentry initializes from `VITE_SENTRY_DSN` (see `5/client/src/instrument.jsx`).
+- Server Sentry is enabled when `SENTRY_DSN` is set (see `server/instrument.js`).
+- Web Sentry initializes from `VITE_SENTRY_DSN` (see `client/src/instrument.jsx`).
 - Create alert rules for:
   - error spike (5xx or unhandled exceptions)
-  - `/health` downtime (uptime monitor)
+  - `/ready` downtime (dependency and worker readiness)
   - Stripe webhook failure rate (server logs/Sentry issues)
 
 ### Uptime monitors
 - Monitor:
+  - `GET /ready` (readiness; use this for routing and deploy acceptance)
   - `GET /health`
   - `GET /api/health`
   - `GET /api/health/deep` (includes Redis signal when configured)
@@ -47,18 +49,30 @@ This checklist is for “real users” beta testing on **production backend + pr
 - Keep an emergency kill switch ready: set `FEATURE_PAYMENTS_ENABLED=false`.
 
 ## Emergency feature kill switches
-Server env flags (set to `false` to disable without redeploying code):
+Server env flags (set to `false`, then restart/redeploy the runtime to load them):
 - `FEATURE_PAYMENTS_ENABLED`
 - `FEATURE_UPLOADS_ENABLED`
 - `FEATURE_CHAT_ENABLED`
 
 ## Restore drill (required before inviting users)
-1. Take a production DB backup (your provider snapshot or `pg_dump`).
-2. Restore to a scratch DB.
-3. Run a basic query and boot the server against the restored DB.
-4. Document the exact steps for your hosting provider in your internal ops docs.
+1. Use `scripts/backup-coolify-production.sh` for the current Colima/Coolify stack.
+2. Check scheduling with `scripts/verify-local-backup-scheduler.sh`.
+3. Use `scripts/verify-production-restore.sh` to verify a local backup in an
+   isolated database. Never restore test data over production.
+4. Follow `docs/oxsteed-credit-production-runbook.md` and retain the resulting
+   restore evidence. Backups remain local for now.
+
+## CI and security scanning
+
+The checked-in workflow is `.github/workflows/ci.yml`. It runs client checks,
+backend regression tests, and optional isolated database verifiers when
+`CI_DATABASE_URL` is configured. Missing database configuration means those live
+checks are skipped, not passed. Never point `CI_DATABASE_URL` at production.
+
+CodeQL appears separately in GitHub Actions, but this repository contains no
+CodeQL workflow file. Verify its current GitHub code-scanning configuration and
+results before claiming coverage or adding a duplicate workflow.
 
 ## “Real users” invite policy (minimum)
 - Invite-only cohort, limited size, with a single support channel.
 - Publish beta expectations: response time, refund policy, known limitations.
-

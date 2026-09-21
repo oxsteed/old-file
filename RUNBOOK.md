@@ -2,6 +2,16 @@
 
 This runbook is intentionally short and action-oriented.
 
+## CI or deployment failed
+1. Open the failed Actions job: verification failure and deployment failure are
+   different incidents. Fix the first failed check before retrying publication.
+2. For Coolify HTTP 404, verify the live instance, application UUID, and token
+   team permissions using `docs/deployment-ci.md` and the read-only deploy check.
+3. Inspect the exact queued deployment and commit. A healthy old container does
+   not prove a new release succeeded.
+4. Keep one automatic deployment controller; coordinate a switch from Coolify's
+   GitHub hook to Actions only after its access and deployment checks work.
+
 ## API down
 1. Check process liveness at `/health` and traffic readiness at `/ready`.
 2. Inspect `/ready` JSON for the failing dependency: database, migrations, configured Redis, realtime, workers, traffic, or shutdown.
