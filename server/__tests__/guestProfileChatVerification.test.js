@@ -39,12 +39,18 @@ describe('guestProfileChatVerification helpers', () => {
     expect(tokenMatchesProfile({ helper_id: 'h1', business_id: null }, { helperId: 'h1', businessId: 1 })).toBe(false);
   });
 
-  test('canEnterLiveMode requires helper destination + online + auth or verified guest', () => {
+  test('canEnterLiveMode requires helper/business destination + online + auth or verified guest', () => {
     expect(canEnterLiveMode({ destination: 'oxsteed', providerOnline: true, userId: 'u1' })).toBe(false);
     expect(canEnterLiveMode({ destination: 'helper', providerOnline: false, userId: 'u1' })).toBe(false);
     expect(canEnterLiveMode({ destination: 'helper', providerOnline: true, userId: 'u1' })).toBe(true);
+    expect(canEnterLiveMode({ destination: 'business', providerOnline: true, userId: 'u1' })).toBe(true);
     expect(canEnterLiveMode({
       destination: 'helper',
+      providerOnline: true,
+      verifiedGuest: { id: 's1', guest_verified_at: new Date() },
+    })).toBe(true);
+    expect(canEnterLiveMode({
+      destination: 'business',
       providerOnline: true,
       verifiedGuest: { id: 's1', guest_verified_at: new Date() },
     })).toBe(true);

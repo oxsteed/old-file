@@ -890,7 +890,7 @@ exports.profileChatMessage = async (req, res, next) => {
     }
 
     if (!systemPrompt) throw new AppError('Helper not found', 404, 'not_found');
-    if (!userId && destination === 'helper' && guestContact.email) {
+    if (!userId && (destination === 'helper' || destination === 'business') && guestContact.email) {
       systemPrompt += `\n\n## Visitor contact already collected\nName: ${guestContact.name || 'Not provided'}\nEmail: ${guestContact.email}\nPhone: ${guestContact.phone || 'Not provided'}\nUse this contact information if the visitor asks to create a booking request.`;
     }
     systemPrompt += getLanguageInstruction(language);
@@ -989,7 +989,7 @@ exports.profileChatMessage = async (req, res, next) => {
       authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
       appointmentCreated,
       bookingError,
-      mode: (!providerOnline && destination === 'helper') ? 'offline_ai' : 'ai',
+      mode: (!providerOnline && (destination === 'helper' || destination === 'business')) ? 'offline_ai' : 'ai',
       guestVerified: Boolean(typeof verifiedGuestSession !== 'undefined' && verifiedGuestSession),
     });
   } catch (err) {

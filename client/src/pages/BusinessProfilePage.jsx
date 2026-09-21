@@ -164,7 +164,7 @@ function mapToHelperProfileData(profile, t) {
 
   const chatSession = {
     id:            `session_${business.owner_id}`,
-    destination:   'helper',
+    destination:   'business',
     status:        'ai_assistant',
     helperStatus:  'ai_assistant',
     oxsteedStatus: 'ai_assistant',

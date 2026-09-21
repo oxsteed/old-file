@@ -27,6 +27,8 @@ import {
   buildMessengerBookingPayload,
   buildSlotConfirmationContent,
   buildSlotRequestMessage,
+  canShowAvailabilityPicker,
+  isProviderChatDestination,
   resolveClientTimezone,
 } from './messengerAvailability.js';
 import {
@@ -85,7 +87,7 @@ const UnavailableState: React.FC<{ destination: ChatDestination; helperName: str
   destination, helperName,
 }) => {
   const { t } = useTranslation();
-  const name = destination === 'helper' ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
+  const name = isProviderChatDestination(destination) ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-10">
       <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
@@ -110,7 +112,7 @@ const DestinationContextBanner: React.FC<{
   timeline: TimelineItem[];
 }> = ({ destination, helperName, helperId, businessId, timeline }) => {
   const { t } = useTranslation();
-  if (destination === 'helper') return null;
+  if (isProviderChatDestination(destination)) return null;
 
   const returnTo = typeof window !== 'undefined'
     ? `${window.location.pathname}${window.location.search}`
@@ -278,7 +280,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           return {
             ...prev,
             helperStatus: nextStatus,
-            status: prev.destination === 'helper' ? nextStatus : prev.oxsteedStatus,
+            status: isProviderChatDestination(prev.destination) ? nextStatus : prev.oxsteedStatus,
           };
         });
       } catch { /* silent */ }
@@ -374,7 +376,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [isGuest, guestStorageKey, guestTokenKey]);
 
   useEffect(() => {
-    if (!isGuest || session.destination !== 'helper') return;
+    if (!isGuest || !isProviderChatDestination(session.destination)) return;
     if (!user?.email || !guestContactSaved) return;
 
     const guestEmailNormalized = guestEmail.trim().toLowerCase();
@@ -515,18 +517,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   });
 
   const currentStatus =
-    session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
+    isProviderChatDestination(session.destination) ? session.helperStatus : session.oxsteedStatus;
 
   const handleDestinationChange = useCallback((dest: ChatDestination) => {
+    // Dropdown exposes provider as `helper`; business-only profiles keep `business`.
+    const resolved: ChatDestination =
+      dest === 'helper' && businessId ? 'business' : dest;
     setSession(prev => ({
       ...prev,
-      destination: dest,
-      status: dest === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
+      destination: resolved,
+      status: isProviderChatDestination(resolved) ? prev.helperStatus : prev.oxsteedStatus,
     }));
     if (onDestinationChange) {
-      onDestinationChange(dest);
+      onDestinationChange(resolved);
     }
-  }, [onDestinationChange]);
+  }, [onDestinationChange, businessId]);
 
   // Sync external destination prop
   useEffect(() => {
@@ -588,8 +593,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     // Prefer auto-switch + retry into live when safe (one shot).
     if (decision.autoRetryLive && !autoRetryLiveRef.current) {
       autoRetryLiveRef.current = true;
-      if (decision.autoSwitchHelper || currentDest !== 'helper') {
-        handleDestinationChange('helper');
+      const providerDest: ChatDestination = businessId ? 'business' : 'helper';
+      if (decision.autoSwitchHelper || !isProviderChatDestination(currentDest)) {
+        handleDestinationChange(providerDest);
       }
       setRoutingNotice({ kind: 'ai_to_helper' });
       setEscalationOpen(false);
@@ -602,7 +608,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       };
       setSession(prev => ({
         ...prev,
-        destination: 'helper',
+        destination: providerDest,
         status: prev.helperStatus,
         typing: { authorType: 'helper_ai', authorLabel: helperName },
         timeline: [...prev.timeline, switchBanner],
@@ -618,7 +624,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         const retryRes = await api.post('/chat/profile-message', {
           helperId,
           ...(businessId ? { businessId } : {}),
-          destination: 'helper',
+          destination: providerDest,
           ...(isGuest ? {
             guestName: guestName.trim(),
             guestEmail: guestEmail.trim(),
@@ -714,7 +720,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
     if (sending) return;
 
-    if (isGuest && session.destination === 'helper') {
+    if (isGuest && isProviderChatDestination(session.destination)) {
       const name = guestName.trim();
       const email = guestEmail.trim();
       if (!guestContactSaved || !name || !email) {
@@ -737,7 +743,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     };
     setSession(prev => ({
       ...prev,
-      typing:   { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: t('helperProfile.chat.aiAssistant') },
+      typing:   { authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai', authorLabel: t('helperProfile.chat.aiAssistant') },
       timeline: [...prev.timeline, userMsg],
     }));
     setSending(true);
@@ -755,7 +761,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         helperId,
         ...(businessId ? { businessId } : {}),
         destination: session.destination,
-        ...(isGuest && session.destination === 'helper' ? {
+        ...(isGuest && isProviderChatDestination(session.destination) ? {
           guestName: guestName.trim(),
           guestEmail: guestEmail.trim(),
           guestSessionId: verifiedGuest?.sessionId,
@@ -799,7 +805,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         const aiMsg: ChatMessage = {
           id:         `msg-${Date.now()}-reply`,
           itemType:   'message',
-          authorType: data.authorType || (session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai'),
+          authorType: data.authorType || (isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai'),
           content:    data.reply || t('messages.aiError'),
           timestamp:  new Date().toISOString(),
         };
@@ -825,7 +831,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             timestamp: new Date().toISOString(),
           });
         }
-        if (session.destination === 'helper' && isGuest) {
+        if (isProviderChatDestination(session.destination) && isGuest) {
           const verified = readGuestVerifiedSession(helperId, businessId);
           if (data.helperOnline && verified) {
             events.push({
@@ -844,7 +850,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               timestamp: new Date().toISOString(),
             } as TimelineEvent);
           }
-        } else if (data.helperOnline && !user && session.destination === 'helper') {
+        } else if (data.helperOnline && !user && isProviderChatDestination(session.destination)) {
           events.push({
             id:        `evt-${Date.now()}-note`,
             itemType:  'system',
@@ -868,7 +874,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           providerOnline: Boolean(axiosData?.providerOnline ?? session.helperStatus === 'live'),
           helperOnline: Boolean(axiosData?.helperOnline ?? session.helperStatus === 'live'),
           suggestedAction: (axiosData?.suggestedAction as string | undefined) ?? null,
-          authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
+          authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai',
         },
         userMsg,
       });
@@ -912,12 +918,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [helperId, businessId, helperName, session.timeline]);
   const isOffline     = currentStatus === 'offline';
   /** Guest inquiries are persisted server-side even when the helper is offline */
-  const guestWritesAlways = isGuest && session.destination === 'helper';
+  const guestWritesAlways = isGuest && isProviderChatDestination(session.destination);
+  const availabilityPickerAllowed = canShowAvailabilityPicker({
+    destination: session.destination,
+    businessId,
+    helperId,
+  });
+  // Propose / schedule / quote-accept may force-open the picker even if the toggle is hidden.
+  const mountAvailabilityPicker = availabilityPickerAllowed
+    || (showAvailability && Boolean(businessId || helperId));
   // Helper/business destination always keeps AI messaging available when offline.
   // OxSteed destination may still surface an offline wall (rare).
-  const showOfflineWall = isOffline && !guestWritesAlways && session.destination !== 'helper';
+  const showOfflineWall = isOffline && !guestWritesAlways && !isProviderChatDestination(session.destination);
   const composerStatus =
-    session.destination === 'helper'
+    isProviderChatDestination(session.destination)
       ? 'ai_assistant'
       : guestWritesAlways
         ? 'ai_assistant'
@@ -934,8 +948,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const welcome: ChatMessage = {
       id: 'welcome-msg',
       itemType: 'message',
-      authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
-      content: session.destination === 'helper'
+      authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai',
+      content: isProviderChatDestination(session.destination)
         ? t('messages.helperAiWelcome', { name: helperName })
         : t('messages.oxsteedAiWelcome'),
       timestamp: new Date().toISOString(),
@@ -1173,7 +1187,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={handleDestinationChange}
         />
 
-        {isGuest && session.destination === 'helper' && verifiedGuestSession ? (
+        {isGuest && isProviderChatDestination(session.destination) && verifiedGuestSession ? (
           <p
             className={`text-xs rounded-lg px-2.5 py-1.5 border ${
               helperIsLive
@@ -1239,7 +1253,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {t('helperProfile.chat.aiUnavailableConnecting', { name: helperName })}
         </div>
       )}
-      {routingNotice?.kind === 'fallback_to_ai' && session.destination === 'helper' && (
+      {routingNotice?.kind === 'fallback_to_ai' && isProviderChatDestination(session.destination) && (
         <div
           className="mx-4 my-2 p-3 rounded-xl border border-sky-700/50 bg-sky-950/40 text-sky-100 text-xs flex items-start justify-between gap-2"
           role="status"
@@ -1254,7 +1268,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </button>
         </div>
       )}
-      {routingNotice?.kind === 'offer_connect_live' && session.destination === 'helper' && helperIsLive && (
+      {routingNotice?.kind === 'offer_connect_live' && isProviderChatDestination(session.destination) && helperIsLive && (
         <div
           className="mx-4 my-2 p-3 rounded-xl border border-emerald-700/50 bg-emerald-950/40 text-emerald-100 text-xs flex flex-wrap items-center justify-between gap-2"
           role="status"
@@ -1312,11 +1326,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       )}
 
       {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}
-      {helperIsLive && !user && session.destination === 'helper' && !isGuest && (
+      {helperIsLive && !user && isProviderChatDestination(session.destination) && !isGuest && (
         <SignInPrompt helperName={helperName} />
       )}
 
-      {isGuest && session.destination === 'helper' && !isDockMode && (
+      {isGuest && isProviderChatDestination(session.destination) && !isDockMode && (
         <div className="px-4 py-3 border-b border-gray-800 space-y-3 bg-gray-950/40">
           {!guestContactSaved ? (
             <>
@@ -1516,8 +1530,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       )}
 
       {/* ── Availability (helper/business live chat) ───────── */}
-      {session.destination === 'helper' ? (
+      {mountAvailabilityPicker ? (
         <>
+          {availabilityPickerAllowed ? (
           <button
             type="button"
             className={`messenger-availability-toggle${showAvailability ? ' is-open' : ''}`}
@@ -1527,6 +1542,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <Calendar className="w-3.5 h-3.5" aria-hidden="true" />
             {t('helperProfile.messenger.availabilityToggle')}
           </button>
+          ) : null}
           <MessengerAvailabilityPicker
             helperId={helperId}
             businessId={businessId}
@@ -1764,16 +1780,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       <MessageComposer
         status={composerStatus}
         onSend={handleSend}
-        compact={!!(isGuest && session.destination === 'helper') && !roomy}
+        compact={!!(isGuest && isProviderChatDestination(session.destination)) && !roomy}
         roomy={roomy}
         hint={
-          isGuest && session.destination === 'helper' && guestContactSaved ? (
+          isGuest && isProviderChatDestination(session.destination) && guestContactSaved ? (
             <span className="text-emerald-400/90">{t('messages.guestComposerHint')}</span>
-          ) : isGuest && session.destination === 'helper' ? (
+          ) : isGuest && isProviderChatDestination(session.destination) ? (
             <span>{t('messages.guestComposerLocked')}</span>
           ) : undefined
         }
-        disabled={!!(isGuest && session.destination === 'helper' && !guestContactSaved)}
+        disabled={!!(isGuest && isProviderChatDestination(session.destination) && !guestContactSaved)}
         conversationId={conversationId}
         placeholder={
           session.destination === 'oxsteed'
@@ -1791,7 +1807,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       {!isDockMode && (
       <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          {isGuest && session.destination === 'helper'
+          {isGuest && isProviderChatDestination(session.destination)
             ? t('messages.guestFooterNote')
             : helperIsLive && user
             ? t('messages.helperWillReceive', { name: helperName })

@@ -54,7 +54,7 @@ function tokenMatchesProfile(session, { helperId, businessId = null } = {}) {
 /**
  * Live routing gate for profile chat.
  * Authenticated users OR verified guests may go live when provider is online
- * and destination is helper.
+ * and destination is helper or business (provider side of the dock).
  */
 function canEnterLiveMode({
   destination = 'helper',
@@ -62,7 +62,7 @@ function canEnterLiveMode({
   userId = null,
   verifiedGuest = null,
 } = {}) {
-  if (destination !== 'helper') return false;
+  if (destination !== 'helper' && destination !== 'business') return false;
   if (!providerOnline) return false;
   if (userId) return true;
   return Boolean(verifiedGuest?.id && verifiedGuest?.guest_verified_at);

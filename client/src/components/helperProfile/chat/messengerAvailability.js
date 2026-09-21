@@ -344,3 +344,43 @@ export function buildSlotConfirmationContent({
   }
   return fallback;
 }
+
+/**
+ * Whether the in-dock availability toggle / MessengerAvailabilityPicker should
+ * be offered for this chat session.
+ *
+ * - OxSteed AI destination never shows provider slots.
+ * - `destination === 'business'` or a present `businessId` → business slots API.
+ * - `destination === 'helper'` or a present `helperId` → helper availability.
+ *
+ * @param {{ destination?: string|null, businessId?: string|number|null, helperId?: string|number|null }} [opts]
+ * @returns {boolean}
+ */
+/**
+ * Provider side of the profile dock (helper personal or business entity).
+ * OxSteed AI is excluded.
+ * @param {string|null|undefined} destination
+ * @returns {boolean}
+ */
+export function isProviderChatDestination(destination) {
+  const dest = String(destination || '').trim().toLowerCase();
+  return dest === 'helper' || dest === 'business';
+}
+
+export function canShowAvailabilityPicker({
+  destination = null,
+  businessId = null,
+  helperId = null,
+} = {}) {
+  const dest = String(destination || '').trim().toLowerCase();
+  if (dest === 'oxsteed') return false;
+
+  const hasBusiness = businessId != null && String(businessId).trim() !== '';
+  const hasHelper = helperId != null && String(helperId).trim() !== '';
+
+  if (dest === 'business') return true;
+  if (hasBusiness) return true;
+  if (dest === 'helper') return true;
+  if (hasHelper) return true;
+  return false;
+}

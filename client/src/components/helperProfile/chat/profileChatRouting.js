@@ -15,7 +15,7 @@
  *
  * @param {object} opts
  * @param {boolean} [opts.aiFailed]
- * @param {'helper'|'oxsteed'} [opts.destination] current destination (informational)
+ * @param {'helper'|'business'|'oxsteed'} [opts.destination] current destination (informational)
  * @param {boolean} [opts.providerOnline] helper or business rep online
  * @param {boolean} [opts.canLive] authenticated OR OTP-verified guest
  * @param {boolean} [opts.allowLiveChat] profile allows live chat
@@ -55,7 +55,7 @@ export function resolveAiFailureRouting({
     return {
       action: 'switch_helper_live',
       suggestedAction: 'switch_helper_live',
-      autoSwitchHelper: destination !== 'helper',
+      autoSwitchHelper: destination !== 'helper' && destination !== 'business',
       autoRetryLive: true,
       showVerifyBanner: false,
       showEscalationPanel: false,
@@ -95,7 +95,7 @@ export function resolveAiFailureRouting({
  * @param {boolean} [opts.providerOnline]
  * @param {boolean} [opts.canLive]
  * @param {boolean} [opts.allowLiveChat]
- * @param {'helper'|'oxsteed'} [opts.destination]
+ * @param {'helper'|'business'|'oxsteed'} [opts.destination]
  * @param {boolean} [opts.canBeProvider]
  */
 export function resolveAiFailureFromServer({
@@ -121,7 +121,7 @@ export function resolveAiFailureFromServer({
       return {
         action: 'switch_helper_live',
         suggestedAction: 'switch_helper_live',
-        autoSwitchHelper: destination !== 'helper',
+        autoSwitchHelper: destination !== 'helper' && destination !== 'business',
         autoRetryLive: true,
         showVerifyBanner: false,
         showEscalationPanel: false,
@@ -169,12 +169,12 @@ export function resolveAiFailureFromServer({
 }
 
 /**
- * Coherent online/offline transitions while destination=helper.
+ * Coherent online/offline transitions while destination=helper|business.
  *
  * @param {object} opts
  * @param {string} [opts.previousStatus]
  * @param {string} [opts.nextStatus]
- * @param {'helper'|'oxsteed'} [opts.destination]
+ * @param {'helper'|'business'|'oxsteed'} [opts.destination]
  * @returns {{ action: PresenceAction, showAiBanner: boolean, showConnectLiveCta: boolean }}
  */
 export function resolveProviderPresenceTransition({
@@ -182,7 +182,7 @@ export function resolveProviderPresenceTransition({
   nextStatus = null,
   destination = 'helper',
 } = {}) {
-  if (destination !== 'helper') {
+  if (destination !== 'helper' && destination !== 'business') {
     return { action: null, showAiBanner: false, showConnectLiveCta: false };
   }
   if (!previousStatus || !nextStatus || previousStatus === nextStatus) {

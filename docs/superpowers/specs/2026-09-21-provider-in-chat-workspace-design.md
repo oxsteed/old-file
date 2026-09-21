@@ -73,6 +73,11 @@ Documented in this spec; no silent second ledger.
 
 `GET` existing conversation meta (+ guest inquiry fields when present). Side drawer shows name, email, linked quote/booking ids — no navigation away.
 
+
+### F. Availability picker gate (business + helper)
+
+`canShowAvailabilityPicker` opens the in-dock calendar for helper destination **and** business destination / `businessId` sessions (business slots API). Schedule toolbar + Propose different time remain available to business actors on ChatPanel and Business Hub deals (`ConversationThread`).
+
 ## Success criteria
 
 - Business Hub Deals chat: quote, pay request, agreement, POP, schedule, refund in-tab.

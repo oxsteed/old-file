@@ -62,6 +62,8 @@ Authz reuses `chatThreadAccess` (conversation participant, business member, gues
 Update requested date/times → `counter_proposed`; keep pending for customer visibility; post revised marker.
 
 **ChatPanel parity (2026-09-21):** when `isProviderActor` (`user.id === helperId` or business actor), `BookingRequestCard` gets `onProposeTime` via MessageBubble/ChatTimeline; opens in-dock `MessengerAvailabilityPicker` and POSTs `/api/chat/booking-requests/:id/propose` (same as ConversationThread/inbox). Customer/guest path unchanged.
+**Availability gate (2026-09-21 follow-up):** `MessengerAvailabilityPicker` is no longer limited to `session.destination === 'helper'`. `canShowAvailabilityPicker({ destination, businessId, helperId })` also allows `destination === 'business'` and any session with a `businessId` (business public-profile / business-only chat), while OxSteed destination stays excluded. Helper destination / helperId path unchanged. Propose-different-time and schedule entry points force-mount the picker when a provider id is present.
+
 
 ### Migration 537
 

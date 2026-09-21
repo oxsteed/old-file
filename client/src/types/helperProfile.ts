@@ -162,7 +162,7 @@ export interface FAQ {
 // ─── Chat ───────────────────────────────────────────────────────────────────
 
 /** Which side the user is addressing */
-export type ChatDestination = 'oxsteed' | 'helper';
+export type ChatDestination = 'oxsteed' | 'helper' | 'business';
 
 /**
  * live          - human online and responding

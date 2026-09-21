@@ -57,17 +57,18 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
     return () => document.removeEventListener('keydown', handler);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentStatus = destination === 'helper' ? helperStatus : oxsteedStatus;
-  const currentLabel = destination === 'helper'
+  const isProviderDest = destination === 'helper' || destination === 'business';
+  const currentStatus = isProviderDest ? helperStatus : oxsteedStatus;
+  const currentLabel = isProviderDest
     ? helperName
     : t('helperProfile.chat.oxsteedAssistantLabel');
 
   const destLabel = (key: ChatDestination) =>
-    key === 'helper' ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
+    key === 'helper' || key === 'business' ? helperName : t('helperProfile.chat.oxsteedAssistantLabel');
   const destTitle = (key: ChatDestination) =>
-    key === 'helper' ? t('helperProfile.chat.talkToHelper') : t('helperProfile.chat.talkToOxsteed');
+    key === 'helper' || key === 'business' ? t('helperProfile.chat.talkToHelper') : t('helperProfile.chat.talkToOxsteed');
   const destSub = (key: ChatDestination) =>
-    key === 'helper' ? t('helperProfile.chat.helperMsgSub') : t('helperProfile.chat.oxsteedSub');
+    key === 'helper' || key === 'business' ? t('helperProfile.chat.helperMsgSub') : t('helperProfile.chat.oxsteedSub');
 
   return (
     <div ref={ref} className="relative">
@@ -100,7 +101,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
             const label = destLabel(key);
             const title = destTitle(key);
             const sub = destSub(key);
-            const selected = destination === key;
+            const selected = (destination === key || (key === 'helper' && destination === 'business'));
             const helperOffline = key === 'helper' && helperStatus !== 'live';
             const liveDisabledNote = key === 'helper' && helperStatus === 'live' && !allowLiveChat;
             const statusHint = helperOffline

@@ -36,6 +36,8 @@ import {
   buildMessengerBookingPayload,
   buildSlotConfirmationContent,
   buildSlotRequestMessage,
+  canShowAvailabilityPicker,
+  isProviderChatDestination,
   filterBookableServices,
   listAvailabilityDates,
   normalizeBusinessAvailabilityPayload,
@@ -834,6 +836,37 @@ test('booking_req marker round-trip and append', () => {
   assert.equal(canProviderRespondBooking('pending'), true);
   assert.equal(canProviderRespondBooking('accepted'), false);
 });
+
+
+test('canShowAvailabilityPicker allows helper, business destination, and businessId', () => {
+  assert.equal(canShowAvailabilityPicker({ destination: 'oxsteed', helperId: 'h1' }), false);
+  assert.equal(canShowAvailabilityPicker({ destination: 'oxsteed', businessId: 'b1' }), false);
+  assert.equal(canShowAvailabilityPicker({ destination: 'helper', helperId: 'h1' }), true);
+  assert.equal(canShowAvailabilityPicker({ destination: 'helper' }), true);
+  assert.equal(canShowAvailabilityPicker({ destination: 'business', businessId: 'b1' }), true);
+  assert.equal(canShowAvailabilityPicker({ destination: 'business' }), true);
+  assert.equal(canShowAvailabilityPicker({ businessId: 'b1', helperId: 'owner' }), true);
+  assert.equal(canShowAvailabilityPicker({ helperId: 'h1' }), true);
+  assert.equal(canShowAvailabilityPicker({}), false);
+  assert.equal(canShowAvailabilityPicker({ businessId: '  ' }), false);
+});
+
+test('isProviderChatDestination treats helper and business as provider side', () => {
+  assert.equal(isProviderChatDestination('helper'), true);
+  assert.equal(isProviderChatDestination('business'), true);
+  assert.equal(isProviderChatDestination('oxsteed'), false);
+  assert.equal(isProviderChatDestination(null), false);
+});
+
+test('resolveProviderPresenceTransition handles business destination', () => {
+  const r = resolveProviderPresenceTransition({
+    previousStatus: 'live',
+    nextStatus: 'ai_assistant',
+    destination: 'business',
+  });
+  assert.equal(r.action, 'fallback_to_ai');
+});
+
 
 test('buildProposeBookingPayload normalizes clock and rejects incomplete slots', () => {
   assert.equal(buildProposeBookingPayload(null), null);
