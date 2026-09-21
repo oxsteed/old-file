@@ -55,7 +55,10 @@ function hasPermission(biz, requested) {
 }
 
 function getRestaurantReadiness(biz) {
-  if (biz.setup_status !== 'active' || !biz.restaurant_id || biz.restaurant_status === 'draft') {
+  if (biz.setup_status === 'draft' || biz.restaurant_status === 'draft') {
+    return { key: 'draft', color: '#f59e0b' };
+  }
+  if (biz.setup_status !== 'active' || !biz.restaurant_id) {
     return { key: 'setupNeeded', color: '#f59e0b' };
   }
   if (biz.restaurant_status === 'paused') return { key: 'paused', color: '#f97316' };
@@ -79,7 +82,9 @@ function BusinessCard({ biz, currency, t }) {
     : `/business/${businessId}/workspace`;
   const readiness = isRestaurant
     ? getRestaurantReadiness(biz)
-    : { key: biz.setup_status === 'active' ? 'live' : 'setupNeeded', color: biz.setup_status === 'active' ? '#34d399' : '#f59e0b' };
+    : biz.setup_status === 'draft'
+      ? { key: 'draft', color: '#f59e0b' }
+      : { key: biz.setup_status === 'active' ? 'live' : 'setupNeeded', color: biz.setup_status === 'active' ? '#34d399' : '#f59e0b' };
   const roleKeys = {
     owner: 'owner',
     manager: 'roleManager',
@@ -145,6 +150,14 @@ function BusinessCard({ biz, currency, t }) {
             )}
             {biz.is_primary && (
               <span className="text-orange-400">{t('dashboards.businessOwner.primary', { defaultValue: 'Primary' })}</span>
+            )}
+            {(biz.setup_status === 'draft' || biz.restaurant_status === 'draft') && (
+              <span
+                className="px-1.5 py-0.5 rounded-md uppercase tracking-wider font-semibold"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+              >
+                {t('dashboards.businessOwner.draft', { defaultValue: 'Draft' })}
+              </span>
             )}
           </div>
         </div>
@@ -256,7 +269,12 @@ export default function BusinessOwnerDashboard() {
       .then((data) => {
         if (cancelled) return;
         const items = Array.isArray(data?.items) ? data.items : [];
-        setBusinesses(items.filter(b => b.status === 'active'));
+        // Include active memberships and owned draft/in-progress workspaces (Hub keeps drafts).
+        setBusinesses(items.filter((b) => (
+          b.status === 'active'
+          || b.is_owner
+          || ['draft', 'in_progress'].includes(b.setup_status)
+        )));
         setLoaded(true);
       })
       .catch(() => {
@@ -341,7 +359,7 @@ export default function BusinessOwnerDashboard() {
           </p>
           <div className="flex justify-center gap-3 flex-wrap">
             <Link
-              to="/business-hub"
+              to="/business-hub?create=service"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
             >
               {t('dashboards.businessOwner.createFirst', { defaultValue: 'Create a business' })} <ArrowRight size={16} />
@@ -378,7 +396,7 @@ export default function BusinessOwnerDashboard() {
             </p>
           </div>
           <Link
-            to="/business-hub"
+            to="/business-hub?create=service"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
           >
             <Plus size={16} /> {t('dashboards.businessOwner.addBusiness', { defaultValue: 'Add a business' })}

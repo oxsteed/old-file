@@ -80,6 +80,8 @@ import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { canAccessBusinessHub } from '../utils/modeAccess';
+import TabErrorBoundary from '../components/TabErrorBoundary';
 import HiringPipelineBoard from '../components/careers/HiringPipelineBoard';
 import {
   profileFormFromBusiness,
@@ -94,7 +96,6 @@ import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEdito
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
-const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {
@@ -125,8 +126,8 @@ export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  // guard
-  if (!user || !HELPER_ROLES.includes(user.role)) {
+  // guard — capability/mode check (helper-class + business_owner/team), not role list
+  if (!user || !canAccessBusinessHub(user)) {
     return (
       <PageShell>
         <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />
@@ -1564,7 +1565,8 @@ function BusinessHubInner() {
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
-              (profileLoading || (!profileForm && !profileErr)) ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
+              <TabErrorBoundary label={t('businessHub.tabProfileLabel', { defaultValue: 'Profile' })} resetKey="profile">
+              {(profileLoading || (!profileForm && !profileErr)) ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
               !profileForm && profileErr ? (
                 <div className="bh-empty" style={{ marginTop: '1rem' }}>
                   <p className="bh-error" style={{ marginBottom: '1rem' }}>
@@ -1600,12 +1602,14 @@ function BusinessHubInner() {
                 restaurantSetupHref={bizId
                   ? `/restaurants/merchant?business=${encodeURIComponent(bizId)}&setup=1`
                   : ''}
-              />
+              />}
+              </TabErrorBoundary>
             )}
 
             {/* ── Services tab ─────────────────────────────────────── */}
             {tab === 'services' && (
-              servicesLoading ? <p className="bh-loading">{t('businessHub.loadingServices')}</p> :
+              <TabErrorBoundary label={t('businessHub.tabServicesLabel', { defaultValue: 'Services' })} resetKey="services">
+              {servicesLoading ? <p className="bh-loading">{t('businessHub.loadingServices')}</p> :
               <div className="space-y-6">
                 <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                   <div className="mb-4">
@@ -1631,7 +1635,8 @@ function BusinessHubInner() {
                     <BusinessServicesTab businessId={bizId} />
                   </div>
                 )}
-              </div>
+              </div>}
+              </TabErrorBoundary>
             )}
 
             {/* ── Gallery tab ──────────────────────────────────────── */}
@@ -1759,6 +1764,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'calendar' && bizId && (
+              <TabErrorBoundary label={t('businessHub.tabCalendarLabel', { defaultValue: 'Calendar' })} resetKey="calendar">
               <div className="space-y-6">
                 <div className="bh-calendar-wrap">
                   <div className="bh-calendar-header">
@@ -1838,6 +1844,7 @@ function BusinessHubInner() {
                   </div>
                 )}
               </div>
+              </TabErrorBoundary>
             )}
 
             {tab === 'clients' && bizId && canEditBizProfile && (
@@ -1981,7 +1988,9 @@ function BusinessHubInner() {
 
             {/* ── Messages tab ─────────────────────────────────────── */}
             {tab === 'messages' && bizId && canEditBizProfile && (
-              <BusinessMessagingTab businessId={bizId} />
+              <TabErrorBoundary label={t('businessHub.tabMessagesLabel', { defaultValue: 'Messages' })} resetKey="messages">
+                <BusinessMessagingTab businessId={bizId} />
+              </TabErrorBoundary>
             )}
 
             {/* ── Products tab ─────────────────────────────────────── */}

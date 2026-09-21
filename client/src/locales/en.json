@@ -10010,6 +10010,7 @@
       "serviceBusiness": "Service business",
       "readiness": "Readiness",
       "live": "Live",
+      "draft": "Draft",
       "setupNeeded": "Setup needed",
       "paused": "Paused",
       "hidden": "Hidden from customers",

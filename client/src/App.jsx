@@ -27,6 +27,7 @@ const FranchiseIntakePage = lazy(() => import('./pages/FranchiseIntakePage'));
 const FranchiseApplicantDashboard = lazy(() => import('./pages/FranchiseApplicantDashboard'));
 const FranchiseTerritoryOpsPage = lazy(() => import('./pages/FranchiseTerritoryOpsPage'));
 const SmartDashboard = lazy(() => import('./pages/SmartDashboard'));
+const HelperDashboard = lazy(() => import('./pages/HelperDashboard'));
 const UpgradePage = lazy(() => import('./pages/UpgradePage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const JobListPage = lazy(() => import('./pages/JobListPage'));
@@ -399,7 +400,7 @@ export default function App() {
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/activity"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><ActivityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />

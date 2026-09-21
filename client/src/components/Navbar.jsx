@@ -10,6 +10,7 @@ import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { navLinksForMode } from '../utils/modeAccess';
 import '../styles/BusinessSwitcher.css';
 
 const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
@@ -51,6 +52,8 @@ export default function Navbar() {
   const resourcesMenuRef = useRef(null);
   const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
   const dashboardPath = routeForMode(currentMode);
+  const navLinks = navLinksForMode(user);
+  const showBusinessHub = !!user && navLinks.showBusinessHub;
 
   useEffect(() => {
     if (!user) return;
@@ -207,6 +210,12 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
+                {showBusinessHub && (
+                  <NavLink
+                    to="/business-hub"
+                    active={isActive('/business-hub') || location.pathname.startsWith('/business/')}
+                  >{t('nav.business')}</NavLink>
+                )}
                 {showSupportWorkspaceNav && (
                   <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
                 )}
@@ -331,7 +340,7 @@ export default function Navbar() {
               </>
             )}
             {user && <ModeSwitcher />}
-            {isHelper && <BusinessSwitcher />}
+            {showBusinessHub && <BusinessSwitcher />}
             <LanguageSelector />
             <ThemeToggle />
           </div>
@@ -367,7 +376,7 @@ export default function Navbar() {
           <div className="ox-nav-mobile-menu">
             <div className="ox-nav-mobile-preferences">
               {user && <ModeSwitcher compact />}
-              {isHelper && <BusinessSwitcher compact />}
+              {showBusinessHub && <BusinessSwitcher compact />}
               <ThemeToggle />
             </div>
             {user ? (
@@ -404,7 +413,7 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
+                {showBusinessHub && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
                 {SHOW_LEGACY_NAV_RESOURCES && isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
