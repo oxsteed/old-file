@@ -90,6 +90,14 @@ export function canManageBusinesses(user) {
   return m === 'business_owner' || m === 'helper' || m === 'business_manager' || m === 'admin';
 }
 
+// Business Hub gate — helper-class modes (helper, business_owner, team roles)
+// aligned with SmartDashboard families that operate workspaces.
+export function canAccessBusinessHub(user) {
+  if (!user) return false;
+  if (isHelperClassMode(user)) return true;
+  return ['admin', 'super_admin'].includes(user.role) || getMode(user) === 'admin';
+}
+
 export function canOfferConsulting(user) {
   return getMode(user) === 'consultant';
 }
@@ -136,7 +144,7 @@ export function navLinksForMode(user) {
     showPostJob: canPostJobs(user),
     showMessages: !!user,
     showDashboard: !!user,
-    showBusinessHub: canManageBusinesses(user),
+    showBusinessHub: canAccessBusinessHub(user),
     showQRGenerator: isHelperClassMode(user),
     showToolRentalsBrowse: true,
     showConsultingPortal: m === 'consultant',
@@ -154,6 +162,7 @@ export default {
   canBidOnJobs,
   canListTools,
   canManageBusinesses,
+  canAccessBusinessHub,
   canOfferConsulting,
   canSeeLifeFeatures,
   canSeeFranchiseApplications,
