@@ -6198,6 +6198,31 @@
       "chatPanel": "Panèl Chat",
       "filterSearchResults": "Filtye rezilta chèch",
       "clearSearch": "Efase rechech"
+    },
+    "messenger": {
+      "message": "Mesaj",
+      "messageName": "Voye mesaj bay {{name}}",
+      "launcherKicker": "Chat",
+      "openAria": "Louvri mesajri a ak {{name}}",
+      "close": "Fèmen mesajri a",
+      "replyExpectation": "Anjeneral reponn nan yon jou",
+      "inviteTitle": "Voye mesaj bay {{name}}",
+      "inviteBody": "Mande sou disponiblite, pri, oswa rezèvasyon — repons yo rete sou OxSteed.",
+      "emptyPrompt": "Mande sou disponiblite, pri, oswa rezèvasyon pou kòmanse.",
+      "disclaimerHelper": "Mesaj yo ale bay èdè sa a sou OxSteed.",
+      "disclaimerBusiness": "Mesaj yo ale bay biznis sa a sou OxSteed.",
+      "guestEyebrow": "Kontinye kòm envite",
+      "guestTitle": "Voye mesaj bay {{name}}",
+      "guestBody": "Pataje non ak imèl ou pou {{name}} ka reponn. Ou pa bezwen yon kont.",
+      "guestNameLabel": "Non",
+      "guestEmailLabel": "Imèl",
+      "guestNamePlaceholder": "Non ou",
+      "guestEmailPlaceholder": "ou@egzanp.com",
+      "guestInvalidEmail": "Antre yon adrès imèl valid.",
+      "continueAsGuest": "Kontinye kòm envite",
+      "signInInstead": "Konekte pito",
+      "entityHelper": "èdè",
+      "entityBusiness": "biznis"
     }
   },
   "disputes": {

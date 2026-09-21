@@ -20,6 +20,7 @@
     "test:restaurant-accessibility": "node --test scripts/restaurantAccessibility.test.mjs",
     "test:business-profile-editor": "node --test scripts/businessProfileEditor.test.mjs",
     "test:profile-studio": "node --test scripts/profileStudio.test.mjs scripts/businessProfileEditor.test.mjs",
+    "test:messenger-dock": "node --test scripts/messengerDock.test.mjs",
     "typecheck": "tsc --noEmit",
     "build:ci": "npm run test:credit-currency && npm run test:credit-date-time && npm run test:credit-admin-idempotency && npm run test:credit-request-guards && npm run test:credit-status && npm run test:credit-errors && npm run test:auth-refresh-policy && npm run test:realtime-url && npm run test:restaurant-discovery && npm run test:restaurant-accessibility && npm run test:business-profile-editor && npm run verify:i18n && tsc --noEmit && vite build"
   },

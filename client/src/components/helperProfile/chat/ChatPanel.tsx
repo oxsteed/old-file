@@ -18,6 +18,7 @@ import MessageComposer from './MessageComposer';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../hooks/useSocket';
+import { readGuestContact } from './messengerDockState.js';
 
 interface ChatPanelProps {
   session: ChatSession;
@@ -29,8 +30,8 @@ interface ChatPanelProps {
   isGuest?: boolean;
   /** When false, disables live chat mode; user can only use AI assistant */
   allowLiveChat?: boolean;
-  /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
-  variant?: 'sidebar' | 'modal';
+  /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). 'dock' = messenger dock body. */
+  variant?: 'sidebar' | 'modal' | 'dock';
   onClose?: () => void;
   className?: string;
   /** Override the chat destination (helper or oxsteed) from parent */
@@ -141,7 +142,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [guestName,        setGuestName]        = useState('');
   const [guestEmail,       setGuestEmail]       = useState('');
   /** Guest saved contact locally - send button sends message + this contact */
-  const [guestContactSaved, setGuestContactSaved] = useState(false);
+  const [guestContactSaved, setGuestContactSaved] = useState(() => {
+    if (!isGuest) return false;
+    return Boolean(readGuestContact(helperId, businessId));
+  });
   const [conversationId,   setConversationId]   = useState<string | null>(null);
   // threadId ties this chat session to server-side Redis history (AI mode only).
   // null until the first AI response is received; echoed back on every subsequent send.
@@ -588,6 +592,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   // Whether to show the close button - always show it when variant is 'modal',
   // even if onClose is undefined (fall back to a no-op so the button is never invisible)
+  const isDockMode = variant === 'dock';
   const showCloseButton = variant === 'modal';
   const handleClose = onClose ?? (() => {});
 
@@ -738,12 +743,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div
-      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-full ${roomy ? 'shadow-2xl shadow-black/40' : ''} ${className}`}
+      className={`flex flex-col overflow-hidden h-full ${isDockMode ? 'chat-panel--dock bg-transparent border-0 rounded-none' : `bg-gray-900 border border-gray-800 rounded-2xl ${roomy ? 'shadow-2xl shadow-black/40' : ''}`} ${className}`}
       aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3 border-b border-gray-800 space-y-3 flex-shrink-0">
+      <div className={`px-4 pt-4 pb-3 border-b border-gray-800 space-y-3 flex-shrink-0 ${isDockMode ? 'bg-transparent pt-3' : ''}`}>
         {/* Title row */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -766,7 +771,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             >
               <Search className="w-4 h-4" aria-hidden="true" />
             </button>
-            {onExpand && !roomy && (
+            {onExpand && !roomy && !isDockMode && (
               <button
                 onClick={onExpand}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
@@ -859,7 +864,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         <SignInPrompt helperName={helperName} />
       )}
 
-      {isGuest && session.destination === 'helper' && (
+      {isGuest && session.destination === 'helper' && !isDockMode && (
         <div className="px-4 py-3 border-b border-gray-800 space-y-3 bg-gray-950/40">
           {!guestContactSaved ? (
             <>
@@ -985,20 +990,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
           )}
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-            <ChatTimeline
-              items={displayTimeline}
-              helperName={helperName}
-              typing={sending ? session.typing : null}
-              currentUserId={user?.id}
-              onMessageDelete={handleMessageDelete}
-              onMessageEdit={handleMessageEdit}
-              onQuickReply={handleQuickReply}
-              editingMessageId={editingMessageId}
-              editingText={editingText}
-              onEditTextChange={setEditingText}
-              onEditSave={handleEditSave}
-              onEditCancel={handleEditCancel}
-            />
+            {displayTimeline.length === 0 && !sending ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center h-full min-h-[10rem]">
+                <MessageCircle className="w-8 h-8 text-gray-600" aria-hidden="true" />
+                <p className="text-sm text-gray-300 font-medium">{t('messages.noMessagesStart')}</p>
+                <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
+                  {t('helperProfile.messenger.emptyPrompt')}
+                </p>
+              </div>
+            ) : (
+              <ChatTimeline
+                items={displayTimeline}
+                helperName={helperName}
+                typing={sending ? session.typing : null}
+                currentUserId={user?.id}
+                onMessageDelete={handleMessageDelete}
+                onMessageEdit={handleMessageEdit}
+                onQuickReply={handleQuickReply}
+                editingMessageId={editingMessageId}
+                editingText={editingText}
+                onEditTextChange={setEditingText}
+                onEditSave={handleEditSave}
+                onEditCancel={handleEditCancel}
+              />
+            )}
           </div>
         </div>
       )}
@@ -1031,6 +1046,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       />
 
       {/* ── Footer ──────────────────────────────────────────── */}
+      {!isDockMode && (
       <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
           {isGuest && session.destination === 'helper'
@@ -1040,6 +1056,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             : t('messages.aiMonitored')}
         </p>
       </div>
+      )}
     </div>
   );
 };

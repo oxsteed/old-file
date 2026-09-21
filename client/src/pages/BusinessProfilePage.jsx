@@ -26,7 +26,6 @@ import ProfileShareControls from '../components/helperProfile/ProfileShareContro
 import {
   ProfileSkeleton,
   ProfileError,
-  MobileChatDrawer,
   BackToTopButton,
   SectionNav,
 } from '../components/PublicProfilePageChrome';
@@ -41,7 +40,8 @@ import PoliciesSection from '../components/helperProfile/PoliciesSection';
 import ReviewsSection from '../components/helperProfile/ReviewsSection';
 import FAQSection from '../components/helperProfile/FAQSection';
 import CTASection from '../components/helperProfile/CTASection';
-import ChatPanel from '../components/helperProfile/chat/ChatPanel';
+import PublicProfileMessenger from '../components/helperProfile/chat/PublicProfileMessenger.jsx';
+import { MessengerInviteCard } from '../components/helperProfile/chat/MessengerDock.jsx';
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
@@ -724,16 +724,6 @@ export default function BusinessProfilePage() {
   const [chatOpen,    setChatOpen]    = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
-
-  // Track window resize to determine if we're on mobile/tablet
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint in Tailwind
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Scroll padding: Navbar (~64px) + SectionNav (~40px) + breathing room
   useEffect(() => {
@@ -845,17 +835,6 @@ export default function BusinessProfilePage() {
   }, [profileData, navigate, id]);
 
   const handleOpenChat = useCallback(() => {
-    // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
-    if (!isMobile) {
-      // Desktop: scroll right sidebar into view
-      const chatAside = document.querySelector('aside[aria-label*="bookAndChat"]');
-      if (chatAside) {
-        chatAside.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      return;
-    }
-
-    // Mobile: open chat drawer
     if (user) {
       setChatOpen(true);
       return;
@@ -866,7 +845,7 @@ export default function BusinessProfilePage() {
     } else {
       setGuestSignInModalOpen(true);
     }
-  }, [isMobile, user, profileData?.helper?.allowGuestContact]);
+  }, [user, profileData?.helper?.allowGuestContact]);
 
   const handleSelectService = useCallback(
     (service) => {
@@ -1149,18 +1128,10 @@ export default function BusinessProfilePage() {
                   {t('reportModal.report')}
                 </button>
               )}
-              <div className="flex-1 min-h-0" style={{ minHeight: '360px', maxHeight: 'min(80vh, calc(100vh - 200px))' }}>
-                <ChatPanel
-                  session={chatSession}
-                  helperName={helper.businessName}
-                  helperId={helper.id}
-                  businessId={String(bizId)}
-                  isGuest={isGuestVisitor}
-                  allowLiveChat={helper.allowLiveChat}
-                  variant="sidebar"
-                  className="h-full"
-                />
-              </div>
+              <MessengerInviteCard
+                displayName={helper.businessName}
+                onOpen={handleOpenChat}
+              />
             </div>
           </aside>
 
@@ -1194,20 +1165,21 @@ export default function BusinessProfilePage() {
         </button>
       </div>
 
-      {/* ── Mobile chat drawer ───────────────────────────────────────── */}
-      <MobileChatDrawer open={chatOpen} onClose={() => setChatOpen(false)}>
-        <ChatPanel
-          session={chatSession}
-          helperName={helper.businessName}
-          helperId={helper.id}
-          businessId={String(bizId)}
-          isGuest={isGuestVisitor}
-          allowLiveChat={helper.allowLiveChat}
-          variant="modal"
-          onClose={() => setChatOpen(false)}
-          className="h-full"
-        />
-      </MobileChatDrawer>
+      <PublicProfileMessenger
+        open={chatOpen}
+        onOpen={handleOpenChat}
+        onClose={() => setChatOpen(false)}
+        session={chatSession}
+        helperName={helper.businessName}
+        helperId={helper.id}
+        businessId={String(bizId)}
+        avatarUrl={helper.avatar}
+        avatarShape="square"
+        isGuest={isGuestVisitor}
+        allowLiveChat={helper.allowLiveChat}
+        allowGuestContact={helper.allowGuestContact !== false}
+        entityKind="business"
+      />
 
       {guestSignInModalOpen && (
         <div
@@ -1254,18 +1226,6 @@ export default function BusinessProfilePage() {
           reportedName={helper.businessName}
           onClose={() => setReportModalOpen(false)}
         />
-      )}
-
-      {/* ── Mobile chat FAB ──────────────────────────────────────────── */}
-      {!chatOpen && (
-        <button
-          onClick={handleOpenChat}
-          className="lg:hidden fixed right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors active:bg-brand-700"
-          style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
-          aria-label="Open chat"
-        >
-          <MessageCircle className="w-5 h-5" aria-hidden="true" />
-        </button>
       )}
 
       <BackToTopButton />

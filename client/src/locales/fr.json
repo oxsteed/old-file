@@ -6198,6 +6198,31 @@
       "chatPanel": "Panneau de chat",
       "filterSearchResults": "Filtrer les résultats de recherche",
       "clearSearch": "Effacer la recherche"
+    },
+    "messenger": {
+      "message": "Message",
+      "messageName": "Message à {{name}}",
+      "launcherKicker": "Discussion",
+      "openAria": "Ouvrir la messagerie avec {{name}}",
+      "close": "Fermer la messagerie",
+      "replyExpectation": "Répond généralement sous un jour",
+      "inviteTitle": "Envoyer un message à {{name}}",
+      "inviteBody": "Demandez la disponibilité, les tarifs ou une réservation — les réponses restent sur OxSteed.",
+      "emptyPrompt": "Demandez la disponibilité, les tarifs ou une réservation pour commencer.",
+      "disclaimerHelper": "Les messages sont envoyés à cet assistant sur OxSteed.",
+      "disclaimerBusiness": "Les messages sont envoyés à cette entreprise sur OxSteed.",
+      "guestEyebrow": "Continuer en invité",
+      "guestTitle": "Message à {{name}}",
+      "guestBody": "Indiquez votre nom et votre e-mail pour que {{name}} puisse répondre. Aucun compte requis.",
+      "guestNameLabel": "Nom",
+      "guestEmailLabel": "E-mail",
+      "guestNamePlaceholder": "Votre nom",
+      "guestEmailPlaceholder": "vous@exemple.com",
+      "guestInvalidEmail": "Saisissez une adresse e-mail valide.",
+      "continueAsGuest": "Continuer en invité",
+      "signInInstead": "Se connecter plutôt",
+      "entityHelper": "assistant",
+      "entityBusiness": "entreprise"
     }
   },
   "disputes": {

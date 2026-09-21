@@ -6063,6 +6063,31 @@
       "chatPanel": "Chat panel",
       "filterSearchResults": "Filter search results",
       "clearSearch": "Clear search"
+    },
+    "messenger": {
+      "message": "Message",
+      "messageName": "Message {{name}}",
+      "launcherKicker": "Chat",
+      "openAria": "Open messenger with {{name}}",
+      "close": "Close messenger",
+      "replyExpectation": "Usually replies within a day",
+      "inviteTitle": "Message {{name}}",
+      "inviteBody": "Ask about availability, pricing, or booking — replies stay on OxSteed.",
+      "emptyPrompt": "Ask about availability, pricing, or booking to get started.",
+      "disclaimerHelper": "Messages go to this helper on OxSteed.",
+      "disclaimerBusiness": "Messages go to this business on OxSteed.",
+      "guestEyebrow": "Continue as guest",
+      "guestTitle": "Message {{name}}",
+      "guestBody": "Share your name and email so {{name}} can reply. No account required.",
+      "guestNameLabel": "Name",
+      "guestEmailLabel": "Email",
+      "guestNamePlaceholder": "Your name",
+      "guestEmailPlaceholder": "you@example.com",
+      "guestInvalidEmail": "Enter a valid email address.",
+      "continueAsGuest": "Continue as guest",
+      "signInInstead": "Sign in instead",
+      "entityHelper": "helper",
+      "entityBusiness": "business"
     }
   },
   "disputes": {
