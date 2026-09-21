@@ -613,7 +613,7 @@ function BusinessHubInner() {
     if (!bizId) return;
     setServicesLoading(true);
     try { setServices(await listBusinessServices(bizId)); }
-    catch { toast.error(t('businessHub.errorLoadServices')); }
+    catch { setServices([]); toast.error(t('businessHub.errorLoadServices')); }
     finally { setServicesLoading(false); }
   }, [bizId, t]);
 
@@ -645,7 +645,7 @@ function BusinessHubInner() {
     if (!bizId) return;
     setHoursLoading(true);
     try { setHours(await listBusinessHours(bizId)); }
-    catch { toast.error(t('businessHub.errorLoadHours')); }
+    catch { setHours([]); toast.error(t('businessHub.errorLoadHours')); }
     finally { setHoursLoading(false); }
   }, [bizId, t]);
 
@@ -1775,7 +1775,7 @@ function BusinessHubInner() {
                       onEdit={() => {
                         setFormErr('');
                         const formData = {};
-                        hours.forEach(h => {
+                        (Array.isArray(hours) ? hours : []).forEach(h => {
                           formData[`closed_${h.day_of_week}`] = h.is_closed;
                           formData[`start_${h.day_of_week}`] = h.start_time || '';
                           formData[`end_${h.day_of_week}`] = h.end_time || '';
@@ -3938,8 +3938,9 @@ function TeamTab({
 
 function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
   const { t } = useTranslation();
+  const list = Array.isArray(services) ? services : [];
 
-  if (!services || services.length === 0) {
+  if (list.length === 0) {
     return (
       <div className="bh-empty" style={{ padding: '2rem 0' }}>
         <p>{t('businessHub.noServicesYet')}</p>
@@ -3953,7 +3954,7 @@ function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
 
   return (
     <div className="space-y-4">
-      {services.map(svc => (
+      {list.map(svc => (
         <div key={svc.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
@@ -4097,6 +4098,7 @@ function FAQsTab({ faqs, businessId, onNew, onEdit, onDelete }) {
 function HoursTab({ hours, businessId, onEdit }) {
   const { t } = useTranslation();
   const days = [t('businessHub.daysSunday'), t('businessHub.daysMonday'), t('businessHub.daysTuesday'), t('businessHub.daysWednesday'), t('businessHub.daysThursday'), t('businessHub.daysFriday'), t('businessHub.daysSaturday')];
+  const list = Array.isArray(hours) ? hours : [];
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
@@ -4106,7 +4108,7 @@ function HoursTab({ hours, businessId, onEdit }) {
       </div>
       <div className="space-y-4">
         {[0, 1, 2, 3, 4, 5, 6].map(dayNum => {
-          const dayHours = hours?.find(h => h.day_of_week === dayNum);
+          const dayHours = list.find(h => h.day_of_week === dayNum);
           return (
             <div key={dayNum} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
               <span className="font-medium text-gray-300 min-w-[100px]">{days[dayNum]}</span>

@@ -1,7 +1,64 @@
 const db = require('../db');
-const { apiError, sendError, sendSuccess } = require('../utils/apiError');
+const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusiness } = require('../utils/businessOwnership');
+
+function parsePositiveInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function parseNonNegativeInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function coerceServiceFields(body = {}) {
+  let price = body.price;
+  let basePriceCents = body.base_price_cents;
+  if ((basePriceCents === undefined || basePriceCents === null || basePriceCents === '')
+      && price !== undefined && price !== null && price !== '') {
+    const dollars = parseFloat(price);
+    if (!Number.isNaN(dollars)) basePriceCents = Math.round(dollars * 100);
+  }
+  if ((price === undefined || price === null || price === '')
+      && basePriceCents !== undefined && basePriceCents !== null && basePriceCents !== '') {
+    const cents = parseInt(basePriceCents, 10);
+    if (!Number.isNaN(cents)) price = cents / 100;
+  }
+
+  let duration = body.duration;
+  let durationMinutes = parsePositiveInt(body.duration_minutes);
+  if (durationMinutes == null && duration != null && String(duration).trim() !== '') {
+    const parsed = parseInt(String(duration), 10);
+    if (Number.isFinite(parsed) && parsed > 0) durationMinutes = parsed;
+  }
+  if ((duration === undefined || duration === null || duration === '') && durationMinutes != null) {
+    duration = String(durationMinutes);
+  }
+
+  return {
+    name: body.name != null ? String(body.name).trim() : undefined,
+    description: body.description,
+    price,
+    price_unit: body.price_unit,
+    duration,
+    popular: body.popular,
+    category: body.category,
+    is_active: body.is_active,
+    duration_minutes: durationMinutes,
+    base_price_cents: parseNonNegativeInt(basePriceCents),
+    max_capacity: parsePositiveInt(body.max_capacity),
+    min_notice_hours: parseNonNegativeInt(body.min_notice_hours),
+    cancellation_policy_hours: parseNonNegativeInt(body.cancellation_policy_hours),
+  };
+}
+
+const SERVICE_SELECT = `id, name, description, price, price_unit, duration, popular, category, sort_order, is_active,
+         duration_minutes, base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
+         created_at, updated_at`;
 
 // ─── SERVICES ────────────────────────────────────────────────────────────────
 
@@ -19,7 +76,7 @@ exports.getBusinessServices = async (req, res) => {
         if (!hasAccess) return sendError(res, 403, 'Access denied');
       }
 
-      const query = `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order, is_active, created_at, updated_at
+      const query = `SELECT ${SERVICE_SELECT}
          FROM business_services
          WHERE business_id = $1
          ${!showAll ? 'AND is_active = true' : ''}
@@ -39,18 +96,18 @@ exports.getBusinessServices = async (req, res) => {
 exports.createBusinessService = async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { name, description, price, price_unit = 'flat', duration, popular = false, category = 'General' } = req.body;
+    const fields = coerceServiceFields(req.body);
 
     // Validate access
     const hasAccess = await canAccessBusiness(req.user.id, businessId, ['owner', 'manager']);
     if (!hasAccess) return sendError(res, 403, 'Access denied');
 
     // Validate required fields
-    if (!name) return sendError(res, 400, 'Name is required');
-    if (price === undefined || price === null) return sendError(res, 400, 'Price is required');
+    if (!fields.name) return sendError(res, 400, 'Name is required');
+    if (fields.price === undefined || fields.price === null) return sendError(res, 400, 'Price is required');
 
     // Validate price is numeric and non-negative
-    const priceNum = parseFloat(price);
+    const priceNum = parseFloat(fields.price);
     if (isNaN(priceNum) || priceNum < 0 || priceNum > 999999.99) {
       return sendError(res, 400, 'Price must be a number between 0 and 999999.99');
     }
@@ -63,10 +120,29 @@ exports.createBusinessService = async (req, res) => {
     const client = await db.connect();
     try {
       const result = await client.query(
-        `INSERT INTO business_services (business_id, name, description, price, price_unit, duration, popular, category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO business_services (
+            business_id, name, description, price, price_unit, duration, popular, category,
+            duration_minutes, base_price_cents, max_capacity, min_notice_hours,
+            cancellation_policy_hours, created_by_id
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
-        [parseInt(businessId, 10), name, description || null, priceNum, price_unit, duration || null, popular, category]
+        [
+          parseInt(businessId, 10),
+          fields.name,
+          fields.description || null,
+          priceNum,
+          fields.price_unit || 'flat',
+          fields.duration || null,
+          fields.popular || false,
+          fields.category || 'General',
+          fields.duration_minutes,
+          fields.base_price_cents != null ? fields.base_price_cents : Math.round(priceNum * 100),
+          fields.max_capacity || 1,
+          fields.min_notice_hours != null ? fields.min_notice_hours : 24,
+          fields.cancellation_policy_hours != null ? fields.cancellation_policy_hours : 24,
+          req.user?.id || null,
+        ]
       );
 
       sendSuccess(res, result.rows[0], 201);
@@ -82,7 +158,7 @@ exports.createBusinessService = async (req, res) => {
 exports.updateBusinessService = async (req, res) => {
   try {
     const { businessId, serviceId } = req.params;
-    const { name, description, price, price_unit, duration, popular, category, is_active } = req.body;
+    const fields = coerceServiceFields(req.body);
 
     // Validate access
     const hasAccess = await canAccessBusiness(req.user.id, businessId, ['owner', 'manager']);
@@ -100,10 +176,31 @@ exports.updateBusinessService = async (req, res) => {
              popular = COALESCE($6, popular),
              category = COALESCE($7, category),
              is_active = COALESCE($8, is_active),
+             duration_minutes = COALESCE($9, duration_minutes),
+             base_price_cents = COALESCE($10, base_price_cents),
+             max_capacity = COALESCE($11, max_capacity),
+             min_notice_hours = COALESCE($12, min_notice_hours),
+             cancellation_policy_hours = COALESCE($13, cancellation_policy_hours),
              updated_at = NOW()
-         WHERE id = $9 AND business_id = $10
+         WHERE id = $14 AND business_id = $15
          RETURNING *`,
-        [name, description, price, price_unit, duration, popular, category, is_active, serviceId, businessId]
+        [
+          fields.name || null,
+          fields.description,
+          fields.price,
+          fields.price_unit,
+          fields.duration,
+          fields.popular,
+          fields.category,
+          fields.is_active,
+          fields.duration_minutes,
+          fields.base_price_cents,
+          fields.max_capacity,
+          fields.min_notice_hours,
+          fields.cancellation_policy_hours,
+          serviceId,
+          businessId,
+        ]
       );
 
       if (result.rows.length === 0) return sendError(res, 404, 'Service not found');

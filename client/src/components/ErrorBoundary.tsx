@@ -52,11 +52,13 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
       this.setState({ hasError: false, error: null });
     } else {
       // Fallback: hard redirect when rendered outside a Router (e.g. tests)
-this.state.error.message    }
+      window.location.href = '/';
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      const showDetails = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV;
       return (
         <div style={styles.container}>
           <div style={styles.card}>
@@ -65,9 +67,9 @@ this.state.error.message    }
             <p style={styles.message}>
               {i18next.t('errorBoundary.message')}
             </p>
-                    {(
+            {showDetails && this.state.error && (
               <pre style={styles.errorDetail}>
-                          {this.state.error?.message}\n{this.state.error?.stack}
+                {this.state.error?.message}{'\n'}{this.state.error?.stack}
               </pre>
             )}
             <div style={styles.actions}>

@@ -28,12 +28,12 @@ export function AppointmentCalendarView({ businessId }) {
       const response = await api.get(`/businesses/${businessId}/appointments`, {
         params: {
           status: filter === 'all' ? undefined : filter,
-          startDate: startOfMonth.toISOString().split('T')[0],
-          endDate: endOfMonth.toISOString().split('T')[0]
+          start_date: startOfMonth.toISOString().split('T')[0],
+          end_date: endOfMonth.toISOString().split('T')[0]
         }
       });
 
-      setAppointments(response.data.appointments || []);
+      setAppointments(Array.isArray(response.data?.appointments) ? response.data.appointments : []);
     } catch (error) {
       toast.error(t('businessAppointments.loadFailed'));
       setAppointments([]);

@@ -95,7 +95,9 @@ async function getAppointment(req, res, next) {
 async function listAppointments(req, res, next) {
   try {
     const { businessId } = req.params;
-    const { status = 'all', start_date, end_date, staff_id, customer_id, limit = 50, offset = 0 } = req.query;
+    const { status = 'all', staff_id, customer_id, limit = 50, offset = 0 } = req.query;
+    const start_date = req.query.start_date || req.query.startDate;
+    const end_date = req.query.end_date || req.query.endDate;
 
     let query = `
       SELECT ba.id, ba.service_id, ba.staff_id, ba.customer_id, ba.customer_name,

@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const AppError = require('../utils/appError');
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -125,49 +126,5 @@ const errorHandler = (err, req, res, next) => {
   // Send response
   res.status(status).json(response);
 };
-
-/**
- * Custom Error Class
- *
- * Represents an application error that should be sent to the client.
- * Use this for all errors that need to be returned in API responses.
- *
- * @example
- *   throw new AppError('User not found', 404, 'user_not_found');
- *   throw new AppError('Validation failed', 400, 'validation_failed', {
- *     email: 'Invalid email format'
- *   });
- */
-class AppError extends Error {
-  /**
-   * @param {string} message - Human-readable error message
-   * @param {number} status - HTTP status code (default: 500)
-   * @param {string} code - Machine-readable error code (default: 'app_error')
-   * @param {Record<string, string>} fields - Per-field validation errors (optional)
-   */
-  constructor(message, status = 500, code = 'app_error', fields = {}) {
-    super(message);
-    this.name = 'AppError';
-    this.status = status;
-    this.code = code;
-    this.fields = fields;
-    this.isOperational = true;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-
-  /**
-   * Convert to JSON for API response
-   */
-  toJSON() {
-    return {
-      error: this.message,
-      code: this.code,
-      status: this.status,
-      timestamp: new Date().toISOString(),
-      fields: Object.keys(this.fields).length > 0 ? this.fields : undefined,
-    };
-  }
-}
 
 module.exports = { errorHandler, AppError };

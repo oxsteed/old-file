@@ -95,8 +95,18 @@ export const generateVortexToken = (bizId, payload)      => api.post(`/businesse
 export const revokeVortexToken   = (bizId, tokenId)      => api.delete(`/businesses/${bizId}/vortex-tokens/${tokenId}`).then(r => r.data);
 export const redeemVortexToken   = (token)               => api.post('/businesses/vortex/redeem', { token }).then(r => r.data);
 
+function asArray(payload, ...keys) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  for (const key of keys) {
+    if (Array.isArray(payload[key])) return payload[key];
+  }
+  return [];
+}
+
 // ── Business content: Services ─────────────────────────────────────────────────
-export const listBusinessServices  = (bizId)             => api.get(`/businesses/${bizId}/services`).then(r => r.data || []);
+export const listBusinessServices  = (bizId)             => api.get(`/businesses/${bizId}/services`).then(r => asArray(r.data, 'services'));
 export const createBusinessService = (bizId, payload)    => api.post(`/businesses/${bizId}/services`, payload).then(r => r.data);
 export const updateBusinessService = (bizId, svcId, p)   => api.put(`/businesses/${bizId}/services/${svcId}`, p).then(r => r.data);
 export const deleteBusinessService = (bizId, svcId)      => api.delete(`/businesses/${bizId}/services/${svcId}`).then(r => r.data);
@@ -120,7 +130,7 @@ export const updateBusinessFAQ     = (bizId, faqId, p)   => api.put(`/businesses
 export const deleteBusinessFAQ     = (bizId, faqId)      => api.delete(`/businesses/${bizId}/faqs/${faqId}`).then(r => r.data);
 
 // ── Business content: Hours ────────────────────────────────────────────────────
-export const listBusinessHours     = (bizId)             => api.get(`/businesses/${bizId}/hours`).then(r => r.data || []);
+export const listBusinessHours     = (bizId)             => api.get(`/businesses/${bizId}/hours`).then(r => asArray(r.data, 'hours'));
 export const updateBusinessHours   = (bizId, payload)    => api.put(`/businesses/${bizId}/hours`, payload).then(r => r.data);
 
 // ── Business content: Skills ───────────────────────────────────────────────────

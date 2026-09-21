@@ -18,7 +18,11 @@ async function listServices(req, res, next) {
         bs.max_capacity, bs.min_notice_hours, bs.cancellation_policy_hours,
         bs.is_active, bs.created_at,
         (SELECT COUNT(*) FROM business_service_staff WHERE service_id = bs.id) as staff_count,
-        (SELECT json_agg(json_build_object('id', bss.staff_id, 'name', (SELECT display_name FROM users WHERE id = bss.staff_id)))
+        (SELECT json_agg(json_build_object(
+          'id', bss.staff_id,
+          'name', (SELECT NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), '')
+                   FROM users u WHERE u.id = bss.staff_id)
+        ))
          FROM business_service_staff bss WHERE bss.service_id = bs.id LIMIT 5) as staff
       FROM business_services bs
       WHERE bs.business_id = $1 AND (bs.is_active = true OR $2 = true)

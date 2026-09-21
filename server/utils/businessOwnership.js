@@ -81,9 +81,25 @@ async function canManageBusinessFinance(userId, bizId) {
   return rows[0] || null;
 }
 
+/**
+ * Boolean access check used by content/booking controllers.
+ * Default roles are owner and manager (profile-edit access).
+ * Pass a broader role list (e.g. representative) to allow any active member.
+ */
+async function canAccessBusiness(userId, bizId, roles = ['owner', 'manager']) {
+  if (!userId || bizId == null) return false;
+  const allowed = Array.isArray(roles) && roles.length ? roles : ['owner', 'manager'];
+  const needsTeam = allowed.some((role) => role !== 'owner' && role !== 'manager');
+  const row = needsTeam
+    ? await canAccessBusinessTeam(userId, bizId)
+    : await canEditProfile(userId, bizId);
+  return !!row;
+}
+
 module.exports = {
   ownedBusiness,
   canEditProfile,
+  canAccessBusiness,
   canAccessBusinessTeam,
   canManageBusinessFinance,
 };

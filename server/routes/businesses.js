@@ -1,7 +1,7 @@
 // server/routes/businesses.js
 const express = require('express');
 const router  = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -140,8 +140,11 @@ router.delete('/:id/vortex-tokens/:tokenId',    authenticate, revokeToken);
 
 // ── Business content (services, gallery, policies, faqs, hours) ────────────────
 // SERVICES
-router.get('/:businessId/services/manage',       authenticate, getBusinessServices);
-router.get('/:businessId/services',              getBusinessServices);
+router.get('/:businessId/services/manage',       authenticate, (req, res, next) => {
+  req.query = { ...req.query, all: 'true' };
+  return getBusinessServices(req, res, next);
+});
+router.get('/:businessId/services',              optionalAuth, getBusinessServices);
 router.post('/:businessId/services',             authenticate, createBusinessService);
 router.put('/:businessId/services/:serviceId',   authenticate, updateBusinessService);
 router.delete('/:businessId/services/:serviceId', authenticate, deleteBusinessService);

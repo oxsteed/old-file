@@ -49,7 +49,7 @@ export function BusinessServicesTab({ businessId }) {
   const loadServices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/businesses/${businessId}/services`, { params: { all: 'true' } });
+      const response = await api.get(`/businesses/${businessId}/services/manage`);
       const raw = Array.isArray(response.data)
         ? response.data
         : (Array.isArray(response.data?.services) ? response.data.services : []);

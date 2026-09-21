@@ -16,8 +16,9 @@ export function WaitlistManager({ businessId }) {
     setLoading(true);
     try {
       const res = await api.get(`/businesses/${businessId}/waitlist`, { params: { status: filter } });
-      setEntries(res.data || []);
-    } catch { toast.error(t('businessHub.waitlist.toastLoadFail')); }
+      const raw = res.data;
+      setEntries(Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []));
+    } catch { toast.error(t('businessHub.waitlist.toastLoadFail')); setEntries([]); }
     finally { setLoading(false); }
   };
 

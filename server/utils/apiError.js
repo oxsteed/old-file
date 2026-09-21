@@ -19,6 +19,8 @@
 
 'use strict';
 
+const AppError = require('./appError');
+
 /**
  * Send a structured error response.
  * @param {import('express').Response} res
@@ -60,4 +62,4 @@ function sendSuccess(res, data, status = 200, meta) {
   return res.status(status).json(body);
 }
 
-module.exports = { sendError, sendValidationError, sendSuccess };
+module.exports = { sendError, sendValidationError, sendSuccess, AppError };
