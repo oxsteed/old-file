@@ -302,3 +302,19 @@ Profile messenger now routes hard AI failures and provider presence changes with
 **OxSteed destination** remains AI-only (badge + copy). Live platform humans only through support escalation handoff — never implied as dock live agents.
 
 Evidence: `profileChatRouting.js`, `server/services/profileChatRouting.js`, `chatController.profileChatMessage`, `ChatPanel.tsx`.
+
+---
+
+## Quotes in chat (2026-09-21)
+
+Profile messenger + helper/business inbox now support **structured quote cards** end-to-end:
+
+| Step | Where | Notes |
+|---|---|---|
+| Share | Provider inbox (`ConversationThread` / `GuestInquiryPanel`) via `QuoteSharePanel` | `POST /api/chat/quotes/share` posts `[quote:…]` marker + socket |
+| View / respond | Customer dock `QuoteCard` in timeline | Accept / Decline / Request changes; OTP gate for unsigned guests |
+| Schedule | After accept → `MessengerAvailabilityPicker` | `POST /api/chat/quotes/:kind/:id/schedule` → pending booking/appointment |
+| Revise | Provider `POST .../revise` | Parent superseded; new version re-shared |
+
+Design: `docs/superpowers/specs/2026-09-21-quotes-in-chat-design.md`. Reuses `business_quotes` / `helper_quotes` (job-less helper quotes for profile threads). No new payment stack.
+

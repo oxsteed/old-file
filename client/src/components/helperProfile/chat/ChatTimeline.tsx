@@ -23,6 +23,13 @@ interface ChatTimelineProps {
   onEditTextChange?: (text: string) => void;
   onEditSave?: () => void;
   onEditCancel?: () => void;
+  isAuthenticated?: boolean;
+  guestVerified?: boolean;
+  guestAuthHeaders?: Record<string, string> | null;
+  onQuoteAccepted?: (payload: any) => void;
+  onQuoteDeclined?: (payload: any, action?: string) => void;
+  onQuoteRequestVerify?: () => void;
+  isProviderView?: boolean;
 }
 
 function isMessage(item: TimelineItem): item is ChatMessageType {
@@ -57,6 +64,13 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   onEditTextChange,
   onEditSave,
   onEditCancel,
+  isAuthenticated,
+  guestVerified,
+  guestAuthHeaders,
+  onQuoteAccepted,
+  onQuoteDeclined,
+  onQuoteRequestVerify,
+  isProviderView,
 }) => {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -118,6 +132,13 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
               currentUserId={currentUserId}
               onDelete={onMessageDelete}
               onEdit={onMessageEdit}
+              isAuthenticated={isAuthenticated}
+              guestVerified={guestVerified}
+              guestAuthHeaders={guestAuthHeaders}
+              onQuoteAccepted={onQuoteAccepted}
+              onQuoteDeclined={onQuoteDeclined}
+              onQuoteRequestVerify={onQuoteRequestVerify}
+              isProviderView={isProviderView}
               onQuickReply={onQuickReply}
               showQuickReplies={true}
             />

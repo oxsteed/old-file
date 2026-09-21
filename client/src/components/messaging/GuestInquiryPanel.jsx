@@ -1,7 +1,11 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Loader2, FileText } from 'lucide-react';
+import QuoteCard from '../helperProfile/chat/QuoteCard';
+import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
+import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
+import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
@@ -33,6 +37,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [showQuoteShare, setShowQuoteShare] = useState(false);
   const bottomRef = useRef(null);
 
   const inquiryUuid = useMemo(() => {
@@ -254,7 +259,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
           <p>{t('messages.guestInquiryUnavailableHint')}</p>
         </div>
       ) : (
-        <div className="messages-guest-card messages-guest-card--live">
+        <div className="messages-guest-card messages-guest-card--live" style={{ position: 'relative' }}>
           <div className="messages-guest-card-head">
             <div>
               <p className="messages-kicker">{t('messages.guestInquiryBadge')}</p>
@@ -295,13 +300,58 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                       ? ` · ${new Date(m.created_at).toLocaleString()}`
                       : ''}
                   </p>
-                  <p className="messages-guest-bubble-body">{m.message || m.content}</p>
+                  {(() => {
+                    const raw = m.message || m.content || '';
+                    const quoteParsed = parseQuoteMarker(raw);
+                    const body = quoteParsed ? stripQuoteMarkers(raw) : raw;
+                    return (
+                      <>
+                        {body ? <p className="messages-guest-bubble-body">{body}</p> : null}
+                        {quoteParsed ? (
+                          <QuoteCard markerText={raw} isProvider isAuthenticated guestVerified={false} />
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })}
             <div ref={bottomRef} />
           </div>
 
+          <div className="messages-guest-composer-tools" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowQuoteShare(true)}
+            >
+              <FileText size={14} aria-hidden />
+              {t('messages.quoteShare.button')}
+            </button>
+          </div>
+          {showQuoteShare && (
+            <QuoteSharePanel
+              open={showQuoteShare}
+              onClose={() => setShowQuoteShare(false)}
+              kind="helper"
+              guestSessionId={inquiryUuid}
+              clientName={guestName}
+              clientEmail={guestEmail}
+              onShared={(data) => {
+                if (data?.message) {
+                  setMessages((prev) => [...prev, {
+                    id: data.message.id || `share-${Date.now()}`,
+                    sender_type: 'helper',
+                    sender_name: data.message.sender_name || '',
+                    message: data.content || data.message.message || data.message.content,
+                    content: data.content || data.message.message || data.message.content,
+                    created_at: data.message.created_at || new Date().toISOString(),
+                  }]);
+                }
+                setShowQuoteShare(false);
+              }}
+            />
+          )}
           <form className="messages-guest-composer" onSubmit={sendReply}>
             {sendError ? (
               <p className="messages-guest-send-error" role="alert">{sendError}</p>

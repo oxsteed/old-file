@@ -70,6 +70,11 @@ const EVENT_STYLES: Record<string, EventStyle> = {
 const SUB_TYPE_ICON: Record<string, React.ElementType> = {
   booking_confirmed: CheckCircle2,
   quote_sent: Clock,
+  quote_accepted: CheckCircle2,
+  quote_declined: AlertCircle,
+  quote_scheduled: CalendarCheck,
+  quote_expired: Clock,
+  quote_superseded: Info,
   guest_delivered: CheckCircle2,
 };
 

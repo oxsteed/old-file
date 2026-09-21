@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronDown, Globe, Paperclip } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip } from 'lucide-react';
 import { useConversationChat } from '../../hooks/useConversationChat';
 import AutoTranslatedMessage from '../AutoTranslatedMessage';
 import MessageReactions from '../MessageReactions';
 import FinancialAdvisorPanel from '../FinancialAdvisorPanel';
 import ConversationComposer from './ConversationComposer';
 import { parseInlineAttachments, attachmentLabel, isImageAttachment } from '../../utils/messageAttachments';
+import QuoteCard from '../helperProfile/chat/QuoteCard';
+import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
+import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
+import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
+import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 
 function formatTime(ts) {
@@ -44,6 +49,9 @@ export default function ConversationThread({
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showAdvisor, setShowAdvisor] = useState(false);
+  const [showQuoteShare, setShowQuoteShare] = useState(false);
+  const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
+  const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
     try { return localStorage.getItem('oxs:msg-translate') !== 'off'; } catch { return true; }
   });
@@ -61,7 +69,7 @@ export default function ConversationThread({
   });
 
   const {
-    messages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId,
+    messages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
     newMessage, loading, sending, notFound, otherTyping, showSeen, lastSentByMe,
     stickToBottom, messagesEndRef, threadRef, inputRef,
     handleInputChange, handleBlur, sendMessage, retryMessage,
@@ -173,6 +181,17 @@ export default function ConversationThread({
           </div>
         </div>
         <div className="messages-thread-actions">
+          {role === 'helper' && (
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowQuoteShare(true)}
+              title={t('messages.quoteShare.title')}
+            >
+              <FileText size={14} aria-hidden />
+              <span className="hide-sm">{t('messages.quoteShare.button')}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={toggleTranslate}
@@ -242,12 +261,39 @@ export default function ConversationThread({
               ) : (
                 <>
                   <div className={`messages-bubble ${isMe ? 'mine' : 'theirs'}${msg._failed ? ' failed' : ''}${msg._pending ? ' pending' : ''}`}>
-                    <AutoTranslatedMessage
-                      text={parsed.text}
-                      enabled={translateEnabled}
-                      incomingOnly
-                      isOwnMessage={isMe}
-                    />
+                    {(() => {
+                      const quoteParsed = parseQuoteMarker(msg.content);
+                      const displayText = quoteParsed
+                        ? stripQuoteMarkers(parsed.text || msg.content)
+                        : parsed.text;
+                      return (
+                        <>
+                          {displayText ? (
+                            <AutoTranslatedMessage
+                              text={displayText}
+                              enabled={translateEnabled}
+                              incomingOnly
+                              isOwnMessage={isMe}
+                            />
+                          ) : null}
+                          {quoteParsed ? (
+                            <QuoteCard
+                              markerText={msg.content}
+                              isProvider={role === 'helper'}
+                              isAuthenticated
+                              guestVerified={false}
+                              onAccepted={(data) => {
+                                const q = data?.quote || data;
+                                if (q?.kind && q?.id) {
+                                  setSchedulingQuote({ kind: q.kind, id: q.id, token: q.token });
+                                  setShowQuoteSchedule(true);
+                                }
+                              }}
+                            />
+                          ) : null}
+                        </>
+                      );
+                    })()}
                     <MessageAttachments attachments={attachments} />
                     {msg.updated_at && msg.updated_at > msg.created_at && (
                       <span className="messages-edited">{t('messages.edited')}</span>
@@ -316,7 +362,55 @@ export default function ConversationThread({
         </button>
       )}
 
-      <ConversationComposer
+      
+      {showQuoteSchedule && schedulingQuote && (
+        <div className="messages-quote-schedule-wrap" style={{ padding: '0.5rem 0.75rem' }}>
+          <MessengerAvailabilityPicker
+            helperId={helperId}
+            businessId={businessId}
+            open={showQuoteSchedule}
+            onClose={() => { setShowQuoteSchedule(false); setSchedulingQuote(null); }}
+            onSelectSlot={async (slot) => {
+              try {
+                await api.post(`/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`, {
+                  token: schedulingQuote.token,
+                  helperId,
+                  businessId,
+                  serviceId: slot.serviceId,
+                  serviceName: slot.serviceName,
+                  requestedDate: slot.date,
+                  requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
+                  requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
+                  startIso: slot.startIso,
+                  endIso: slot.endIso,
+                  timezone: slot.timezone,
+                });
+                setShowQuoteSchedule(false);
+                setSchedulingQuote(null);
+              } catch (err) {
+                console.error('quote schedule failed', err);
+              }
+            }}
+          />
+        </div>
+      )}
+      {showQuoteShare && (
+        <QuoteSharePanel
+          open={showQuoteShare}
+          onClose={() => setShowQuoteShare(false)}
+          kind={businessId ? 'business' : 'helper'}
+          businessId={businessId}
+          conversationId={conversationId}
+          onShared={(data) => {
+            // Optimistic append if socket lags
+            if (data?.message) {
+              /* useConversationChat will pick up via socket */
+            }
+            setShowQuoteShare(false);
+          }}
+        />
+      )}
+<ConversationComposer
         conversationId={conversationId}
         value={newMessage}
         onChange={handleInputChange}

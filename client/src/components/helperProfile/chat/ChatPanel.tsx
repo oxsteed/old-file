@@ -15,6 +15,7 @@ import StatusBadge from './StatusBadge';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
 import MessengerAvailabilityPicker from './MessengerAvailabilityPicker.jsx';
+import { quoteEventContent } from './messengerQuotes.js';
 import {
   buildMessengerBookingPayload,
   buildSlotConfirmationContent,
@@ -212,6 +213,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchOpen,       setSearchOpen]       = useState(false);
   const guestClaimKeyRef = useRef<string | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
+  const [schedulingQuote, setSchedulingQuote] = useState<null | { kind: string; id: string; token?: string }>(null);
   /** AI-failure / presence routing banners (not a dead error bubble alone) */
   const [routingNotice, setRoutingNotice] = useState<null | {
     kind: 'ai_to_helper' | 'verify_for_live' | 'escalate_support' | 'fallback_to_ai' | 'offer_connect_live';
@@ -1428,6 +1430,53 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 onEditTextChange={setEditingText}
                 onEditSave={handleEditSave}
                 onEditCancel={handleEditCancel}
+                isAuthenticated={Boolean(user)}
+                guestVerified={Boolean(isGuest && readGuestVerifiedSession(helperId, businessId))}
+                guestAuthHeaders={(() => {
+                  const v = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+                  return v
+                    ? {
+                        'X-Guest-Profile-Token': v.guestToken,
+                        'X-Guest-Session-Id': v.sessionId,
+                      }
+                    : null;
+                })()}
+                onQuoteAccepted={(data) => {
+                  const q = data?.quote || data;
+                  const kind = q?.kind;
+                  const id = q?.id;
+                  if (kind && id) {
+                    setSchedulingQuote({ kind, id, token: q?.token });
+                  }
+                  setShowAvailability(true);
+                  const evt: TimelineEvent = {
+                    id: `evt-${Date.now()}-quote-accepted`,
+                    itemType: 'system',
+                    eventType: 'quote_accepted',
+                    content: quoteEventContent('accepted', q?.title || '', t),
+                    timestamp: new Date().toISOString(),
+                    metadata: { quoteKind: kind, quoteId: id },
+                  };
+                  if (!data?.alreadyAccepted) {
+                    setSession((prev) => ({ ...prev, timeline: [...prev.timeline, evt] }));
+                  }
+                }}
+                onQuoteDeclined={(data, action) => {
+                  const q = data?.quote || data;
+                  const evt: TimelineEvent = {
+                    id: `evt-${Date.now()}-quote-declined`,
+                    itemType: 'system',
+                    eventType: 'quote_declined',
+                    content: quoteEventContent('declined', q?.title || '', t),
+                    timestamp: new Date().toISOString(),
+                    metadata: { action },
+                  };
+                  setSession((prev) => ({ ...prev, timeline: [...prev.timeline, evt] }));
+                }}
+                onQuoteRequestVerify={() => {
+                  onGuestSessionExpired?.();
+                }}
+                isProviderView={false}
               />
             )}
           </div>
@@ -1454,6 +1503,64 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             onSelectSlot={async (slot) => {
               const locale = localStorage.getItem('oxs:language') || 'en';
               const tz = slot.timezone || resolveClientTimezone();
+
+              if (schedulingQuote?.kind && schedulingQuote?.id) {
+                const verified = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+                try {
+                  const { data } = await api.post(
+                    `/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`,
+                    {
+                      token: schedulingQuote.token,
+                      helperId,
+                      businessId,
+                      serviceId: slot.serviceId,
+                      serviceName: slot.serviceName || helperName,
+                      requestedDate: slot.date,
+                      requestedStartTime: slot.start.length === 5 ? `${slot.start}:00` : slot.start,
+                      requestedEndTime: slot.end.length === 5 ? `${slot.end}:00` : slot.end,
+                      startIso: slot.startIso,
+                      endIso: slot.endIso,
+                      timezone: tz,
+                    },
+                    verified
+                      ? {
+                          headers: {
+                            'X-Guest-Profile-Token': verified.guestToken,
+                            'X-Guest-Session-Id': verified.sessionId,
+                          },
+                        }
+                      : undefined,
+                  );
+                  toast.success(t('helperProfile.messenger.slotBookingToast'));
+                  const whenBits = `${slot.date} ${slot.start}–${slot.end}`;
+                  const confirm: TimelineEvent = {
+                    id: `evt-${Date.now()}-quote-scheduled`,
+                    itemType: 'booking_event',
+                    eventType: 'quote_scheduled',
+                    content: `${quoteEventContent('scheduled', data?.quote?.title || '', t)} · ${whenBits}`,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                      quoteKind: schedulingQuote.kind,
+                      quoteId: schedulingQuote.id,
+                      bookingId: data?.bookingId,
+                      appointmentId: data?.appointmentId,
+                    },
+                  };
+                  setSession((prev) => ({ ...prev, timeline: [...prev.timeline, confirm] }));
+                  setSchedulingQuote(null);
+                  setShowAvailability(false);
+                  return;
+                } catch (err: any) {
+                  const code = err?.response?.data?.code;
+                  toast.error(
+                    code === 'conflict'
+                      ? t('helperProfile.messenger.slotBookingConflict')
+                      : t('helperProfile.messenger.slotBookingFailed'),
+                  );
+                  return;
+                }
+              }
+
               const textMsg = buildSlotRequestMessage({
                 date: slot.date,
                 start: slot.start,

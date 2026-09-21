@@ -1734,3 +1734,5 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.createAiBookingFromAction = createAiBookingFromAction;

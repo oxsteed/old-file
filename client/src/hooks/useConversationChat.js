@@ -21,6 +21,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const [messages, setMessages] = useState([]);
   const [otherName, setOtherName] = useState('');
   const [helperBusiness, setHelperBusiness] = useState('');
+  const [businessId, setBusinessId] = useState(null);
   const [jobTitle, setJobTitle] = useState('');
   const [otherUserId, setOtherUserId] = useState(null);
   const [jobId, setJobId] = useState(null);
@@ -54,6 +55,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setMessages([]);
     setOtherName('');
     setHelperBusiness('');
+    setBusinessId(null);
     setJobTitle('');
     setOtherUserId(null);
     setJobId(null);
@@ -109,6 +111,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         if (res.data.other_user_id) setOtherUserId(res.data.other_user_id);
         if (res.data.job_id) setJobId(res.data.job_id);
         if (res.data.helper_id) setHelperId(res.data.helper_id);
+        if (res.data.business_id != null) setBusinessId(res.data.business_id);
       })
       .catch(() => {});
   }, [conversationId]);
@@ -417,6 +420,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     otherUserId,
     jobId,
     helperId,
+    businessId,
     newMessage,
     loading,
     sending,

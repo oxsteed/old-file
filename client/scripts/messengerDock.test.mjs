@@ -583,3 +583,95 @@ test('canVisitorLive and OxSteed never live-agent', () => {
   assert.equal(canVisitorLive({}), false);
   assert.equal(isOxsteedDestinationLiveAgent(), false);
 });
+
+// ── Quotes in chat ───────────────────────────────────────────────────────────
+import {
+  buildQuoteMarker,
+  parseQuoteMarker,
+  parseQuoteStatusMarker,
+  stripQuoteMarkers,
+  isQuoteExpired,
+  canCustomerRespond,
+  buildShareMessageContent,
+  buildRequestChangesMessage,
+  toChatQuoteStatus,
+  formatCents,
+} from '../src/components/helperProfile/chat/messengerQuotes.js';
+
+test('buildQuoteMarker / parseQuoteMarker round-trip', () => {
+  const marker = buildQuoteMarker({
+    kind: 'business',
+    id: 42,
+    token: 'abc123',
+    status: 'sent',
+    totalCents: 12500,
+    title: 'Kitchen repair',
+    validUntil: '2026-10-01',
+    version: 2,
+  });
+  assert.match(marker, /^\[quote:business\|42\|/);
+  const parsed = parseQuoteMarker(`Please review\n${marker}`);
+  assert.equal(parsed.kind, 'business');
+  assert.equal(parsed.id, '42');
+  assert.equal(parsed.token, 'abc123');
+  assert.equal(parsed.status, 'sent');
+  assert.equal(parsed.totalCents, 12500);
+  assert.equal(parsed.title, 'Kitchen repair');
+  assert.equal(parsed.validUntil, '2026-10-01');
+  assert.equal(parsed.version, 2);
+});
+
+test('parseQuoteMarker maps business approved status via toChatQuoteStatus', () => {
+  assert.equal(toChatQuoteStatus('business', 'approved'), 'accepted');
+  assert.equal(toChatQuoteStatus('helper', 'accepted'), 'accepted');
+});
+
+test('stripQuoteMarkers removes quote and status markers', () => {
+  const text = 'Hello\n[quote:helper|u1|tok|sent|100|Title|2026-10-01|v1]\n[quote_status:helper|u1|accepted]\nThanks';
+  const stripped = stripQuoteMarkers(text);
+  assert.equal(stripped.includes('[quote:'), false);
+  assert.equal(stripped.includes('[quote_status:'), false);
+  assert.match(stripped, /Hello/);
+  assert.match(stripped, /Thanks/);
+});
+
+test('parseQuoteStatusMarker', () => {
+  const p = parseQuoteStatusMarker('[quote_status:business|99|scheduled]');
+  assert.equal(p.kind, 'business');
+  assert.equal(p.id, '99');
+  assert.equal(p.status, 'scheduled');
+});
+
+test('isQuoteExpired: date-only valid_until inclusive through that day', () => {
+  assert.equal(
+    isQuoteExpired({ status: 'sent', valid_until: '2099-01-01' }, new Date('2026-09-21T12:00:00Z')),
+    false,
+  );
+  assert.equal(
+    isQuoteExpired({ status: 'sent', valid_until: '2020-01-01' }, new Date('2026-09-21T12:00:00Z')),
+    true,
+  );
+  assert.equal(isQuoteExpired({ status: 'expired' }), true);
+  assert.equal(isQuoteExpired({ status: 'sent', superseded_at: '2026-01-01' }), true);
+});
+
+test('canCustomerRespond gates on auth/guest and status', () => {
+  const quote = { kind: 'helper', status: 'sent', valid_until: '2099-12-31' };
+  assert.equal(canCustomerRespond(quote, { isAuthenticated: false, guestVerified: false }).ok, false);
+  assert.equal(canCustomerRespond(quote, { isAuthenticated: false, guestVerified: false }).reason, 'verify_required');
+  assert.equal(canCustomerRespond(quote, { isAuthenticated: true }).ok, true);
+  assert.equal(canCustomerRespond(quote, { guestVerified: true }).ok, true);
+  assert.equal(
+    canCustomerRespond({ ...quote, status: 'accepted' }, { isAuthenticated: true }).ok,
+    false,
+  );
+});
+
+test('buildShareMessageContent and request-changes template', () => {
+  const marker = buildQuoteMarker({ kind: 'helper', id: 'x', totalCents: 5000, title: 'Fix' });
+  const content = buildShareMessageContent({ marker, title: 'Fix', totalCents: 5000 });
+  assert.match(content, /Fix/);
+  assert.match(content, /\[quote:helper\|/);
+  assert.match(buildRequestChangesMessage({ title: 'Fix', reason: 'too high' }), /too high/);
+  assert.match(formatCents(1999, 'en'), /19\.99|\$19/);
+});

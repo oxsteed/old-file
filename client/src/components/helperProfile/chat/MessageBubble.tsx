@@ -4,6 +4,8 @@ import { Bot, Building2, User, UserCheck, Copy, ThumbsUp, ThumbsDown, MessageSqu
 import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfile';
 import api from '../../../api/axios';
 import AutoTranslatedMessage from '../../AutoTranslatedMessage';
+import QuoteCard from './QuoteCard';
+import { parseQuoteMarker, stripQuoteMarkers } from './messengerQuotes.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -13,6 +15,13 @@ interface MessageBubbleProps {
   onEdit?: (messageId: string) => void;
   onQuickReply?: (text: string) => void;
   showQuickReplies?: boolean;
+  isAuthenticated?: boolean;
+  guestVerified?: boolean;
+  guestAuthHeaders?: Record<string, string> | null;
+  onQuoteAccepted?: (payload: any) => void;
+  onQuoteDeclined?: (payload: any, action?: string) => void;
+  onQuoteRequestVerify?: () => void;
+  isProviderView?: boolean;
 }
 
 interface AuthorConfig {
@@ -93,6 +102,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onEdit,
   onQuickReply,
   showQuickReplies,
+  isAuthenticated = false,
+  guestVerified = false,
+  guestAuthHeaders = null,
+  onQuoteAccepted,
+  onQuoteDeclined,
+  onQuoteRequestVerify,
+  isProviderView = false,
 }) => {
   const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType] || AUTHOR_CONFIG.user;
@@ -162,12 +178,38 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${config.bubble} ${
             isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'
           }`}>
-            <AutoTranslatedMessage
-              text={message.content}
-              incomingOnly
-              isOwnMessage={isUser}
-              compact
-            />
+            {(() => {
+              const quoteParsed = parseQuoteMarker(message.content);
+              const displayText = quoteParsed
+                ? stripQuoteMarkers(message.content)
+                : message.content;
+              return (
+                <>
+                  {displayText ? (
+                    <AutoTranslatedMessage
+                      text={displayText}
+                      incomingOnly
+                      isOwnMessage={isUser}
+                      compact
+                    />
+                  ) : null}
+                  {quoteParsed ? (
+                    <div className="mt-2">
+                      <QuoteCard
+                        markerText={message.content}
+                        isProvider={isProviderView}
+                        isAuthenticated={isAuthenticated}
+                        guestVerified={guestVerified}
+                        guestAuthHeaders={guestAuthHeaders}
+                        onAccepted={onQuoteAccepted}
+                        onDeclined={onQuoteDeclined}
+                        onRequestVerify={onQuoteRequestVerify}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              );
+            })()}
 
             {/* Attachments */}
             {message.attachments && message.attachments.length > 0 && (

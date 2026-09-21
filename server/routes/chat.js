@@ -23,6 +23,8 @@ const logger = require('../utils/logger');
 // which the profileChatMessage handler treats as "AI mode".
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
+const chatQuotes = require('../controllers/chatQuotesController');
+
 const {
   extractGuestAuth,
   loadVerifiedGuestSession,
@@ -86,6 +88,15 @@ router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, p
 router.post('/sessions/guest/verify/start', authLimiter, profileChatLimiter, startGuestProfileChatVerification);
 router.post('/sessions/guest/verify', authLimiter, profileChatLimiter, verifyGuestProfileChatCode);
 router.post('/sessions/guest/verify/resend', authLimiter, profileChatLimiter, resendGuestProfileChatCode);
+
+
+// ── In-chat quotes (helper + business) ───────────────────────────────────────
+router.get('/quotes/list', chatLimiter, authenticate, chatQuotes.listForThread);
+router.post('/quotes/share', chatLimiter, authenticate, chatQuotes.shareQuote);
+router.get('/quotes/:kind/:id', chatLimiter, optionalAuth, chatQuotes.getQuote);
+router.post('/quotes/:kind/:id/respond', chatLimiter, optionalAuth, chatQuotes.respondQuote);
+router.post('/quotes/:kind/:id/revise', chatLimiter, authenticate, chatQuotes.reviseQuote);
+router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.scheduleFromQuote);
 
 // POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
 router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);
