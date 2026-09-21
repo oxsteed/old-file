@@ -1,13 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { ProgressBar, Card, CardHeader, Btn, Input, Textarea, Select } from './dashboardUI';
+import { ProgressBar, Btn, Input, Textarea, Select } from './dashboardUI';
 import CoverImageUpload from './profile/CoverImageUpload';
+import ProfileStudioShell from './profileStudio/ProfileStudioShell';
+import ProfilePreviewCard from './profileStudio/ProfilePreviewCard';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
+
+function serializeCore(core) {
+  return JSON.stringify({
+    profile_headline: core?.profile_headline || '',
+    bio_long: core?.bio_long || '',
+    hourly_rate_min: core?.hourly_rate_min === '' || core?.hourly_rate_min == null ? '' : String(core.hourly_rate_min),
+    hourly_rate_max: core?.hourly_rate_max === '' || core?.hourly_rate_max == null ? '' : String(core.hourly_rate_max),
+    service_radius_miles: core?.service_radius_miles == null ? '' : String(core.service_radius_miles),
+    service_city: core?.service_city || '',
+    service_state: core?.service_state || '',
+    availability_json: core?.availability_json || {},
+    is_available_now: !!core?.is_available_now,
+  });
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
@@ -16,7 +32,7 @@ export default function EditProfileTab() {
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [section, setSection] = useState('core');
+  const [section, setSection] = useState('cover');
 
   const [visibility, setVisibility] = useState({
     show_services: true,
@@ -49,11 +65,14 @@ export default function EditProfileTab() {
   const [newImg, setNewImg] = useState({ url:'', caption:'' });
   const [coverImageUrl, setCoverImageUrl] = useState(null);
 
+  const coreBaselineRef = useRef('');
+  const coreSnapRef = useRef(null);
+
   useEffect(() => {
     api.get('/helper-profile/me')
       .then(r => {
         const d = r.data;
-        setCore({
+        const nextCore = {
           profile_headline:     d.profile_headline     || '',
           bio_long:             d.bio_long              || '',
           hourly_rate_min:      d.hourly_rate_min       || '',
@@ -63,7 +82,10 @@ export default function EditProfileTab() {
           service_state:        d.service_state         || '',
           availability_json:    d.availability_json     || buildDefaultAvail(),
           is_available_now:     !!d.is_available_now,
-        });
+        };
+        setCore(nextCore);
+        coreBaselineRef.current = serializeCore(nextCore);
+        coreSnapRef.current = { ...nextCore, availability_json: { ...nextCore.availability_json } };
         setVisibility({
           show_services: d.show_services !== false,
           show_faqs: d.show_faqs !== false,
@@ -81,17 +103,33 @@ export default function EditProfileTab() {
       .finally(() => setLoading(false));
   }, [t]);
 
+  const coreDirty = serializeCore(core) !== coreBaselineRef.current;
+
   // ── Core save ───────────────────────────────────────────────────────────────
   const saveCore = async (e) => {
     e?.preventDefault();
     setSaving(true);
     try {
       await api.put('/helper-profile/core', core);
+      coreBaselineRef.current = serializeCore(core);
+      coreSnapRef.current = {
+        ...core,
+        availability_json: JSON.parse(JSON.stringify(core.availability_json || {})),
+      };
       toast.success(t('helperDashboard.profileSaved'));
     } catch (err) {
       toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
     }
     setSaving(false);
+  };
+
+  const discardCore = () => {
+    const snap = coreSnapRef.current;
+    if (!snap) return;
+    setCore({
+      ...snap,
+      availability_json: JSON.parse(JSON.stringify(snap.availability_json || {})),
+    });
   };
 
   // ── Services ────────────────────────────────────────────────────────────────
@@ -288,68 +326,416 @@ export default function EditProfileTab() {
   ];
   const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100);
 
-  const SECTIONS = [
-    { id: 'core',     label: t('helperDashboard.sectionBasicInfo')   },
-    { id: 'hours',    label: t('helperDashboard.sectionAvailability') },
-    { id: 'services', label: t('helperDashboard.sectionServices')     },
-    { id: 'faqs',     label: t('helperDashboard.sectionFaqs')         },
-    { id: 'policies', label: t('helperDashboard.sectionPolicies')     },
-    { id: 'gallery',  label: t('helperDashboard.sectionPhotos')       },
-  ];
+  const SECTIONS = useMemo(() => ([
+    { id: 'cover',      label: t('profileStudio.sectionCover'), complete: !!coverImageUrl },
+    { id: 'basics',     label: t('helperDashboard.sectionBasicInfo'), complete: !!(core.profile_headline && core.bio_long && core.hourly_rate_min) },
+    { id: 'hours',      label: t('helperDashboard.sectionAvailability'), complete: checks[7] },
+    { id: 'services',   label: t('helperDashboard.sectionServices'), complete: checks[3] },
+    { id: 'faqs',       label: t('helperDashboard.sectionFaqs'), complete: checks[4] },
+    { id: 'policies',   label: t('helperDashboard.sectionPolicies'), complete: checks[5] },
+    { id: 'gallery',    label: t('helperDashboard.sectionPhotos'), complete: checks[6] },
+    { id: 'visibility', label: t('helperDashboard.sectionVisibility'), complete: true },
+  ]), [t, coverImageUrl, core.profile_headline, core.bio_long, core.hourly_rate_min, checks[3], checks[4], checks[5], checks[6], checks[7]]);
 
-  const MISSING_KEYS = [
-    ['helperDashboard.bio',      checks[0]],
-    ['helperDashboard.tagline',  checks[1]],
-    ['helperDashboard.minRate',  checks[2]],
-    ['helperDashboard.sectionServices',  checks[3]],
-    ['helperDashboard.sectionFaqs',      checks[4]],
-    ['helperDashboard.sectionPolicies',  checks[5]],
-    ['helperDashboard.sectionPhotos',    checks[6]],
-    ['helperDashboard.sectionAvailability', checks[7]],
-  ].filter(([, done]) => !done).map(([key]) => t(key));
+  const panelHints = {
+    cover: t('helperDashboard.profileCoverHint'),
+    basics: t('profileStudio.hintBasics'),
+    hours: t('helperDashboard.hoursHint'),
+    services: t('profileStudio.hintServices'),
+    faqs: t('profileStudio.hintFaqs'),
+    policies: t('profileStudio.hintPolicies'),
+    gallery: t('helperDashboard.photosHint'),
+    visibility: t('helperDashboard.visibilityHint'),
+  };
+
+  const stickySections = new Set(['basics', 'hours']);
+  const hideSave = !stickySections.has(section);
+  const dirty = stickySections.has(section) ? coreDirty : false;
+  const saveLabel = section === 'hours'
+    ? (saving ? t('helperDashboard.saving') : t('helperDashboard.saveHours'))
+    : (saving ? t('helperDashboard.saving') : t('helperDashboard.saveBasicInfo'));
+
+  const place = [core.service_city, core.service_state].filter(Boolean).join(', ');
+  const rateBits = [];
+  if (core.hourly_rate_min !== '' && core.hourly_rate_min != null) rateBits.push(`$${core.hourly_rate_min}`);
+  if (core.hourly_rate_max !== '' && core.hourly_rate_max != null) rateBits.push(`$${core.hourly_rate_max}`);
+  const rateLine = rateBits.length
+    ? t('profileStudio.ratesMeta', { rates: rateBits.join(' – '), defaultValue: `${rateBits.join(' – ')}/hr` })
+    : '';
+  const radiusLine = core.service_radius_miles
+    ? t('profileStudio.radiusMeta', { miles: core.service_radius_miles, defaultValue: `${core.service_radius_miles} mi radius` })
+    : '';
+  const meta = [place, rateLine, radiusLine].filter(Boolean).join(' · ');
+
+  const publicHref = user?.id ? `/helpers/public/${user.id}` : '';
+
+  const preview = (
+    <ProfilePreviewCard
+      variant="helper"
+      cover={coverImageUrl}
+      avatar={user?.avatar_url || user?.profile_photo_url || null}
+      name={user?.name || user?.full_name || ''}
+      tagline={core.profile_headline || ''}
+      meta={meta}
+      about={core.bio_long || ''}
+      availableNow={!!core.is_available_now}
+      publicHref={publicHref}
+      publicLabel={t('helperDashboard.viewPublicProfile')}
+    />
+  );
+
+  const headerExtra = publicHref ? (
+    <a
+      href={publicHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      {t('helperDashboard.viewPublicProfile')}
+    </a>
+  ) : null;
 
   if (loading) return <div className="py-16 text-center text-gray-500 text-sm">{t('helperDashboard.loadingProfile')}</div>;
 
-  return (
-    <div className="space-y-6">
-      {/* Header with Public Profile Link & Visibility Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-white">{t('helperDashboard.editProfile')}</h2>
-          <p className="text-xs text-gray-500 mt-1">{t('helperDashboard.editProfileDesc')}</p>
+  let sectionBody = null;
+
+  if (section === 'cover') {
+    sectionBody = (
+      <CoverImageUpload
+        embedded
+        currentCoverUrl={coverImageUrl}
+        onUploadSuccess={(url) => setCoverImageUrl(url || null)}
+        onError={(msg) => {
+          const s = typeof msg === 'string' ? msg : String(msg ?? '');
+          if (s) toast.error(s);
+        }}
+      />
+    );
+  } else if (section === 'basics') {
+    sectionBody = (
+      <form
+        id="ps-helper-basics"
+        onSubmit={saveCore}
+        className="space-y-4"
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            if (!saving && coreDirty) saveCore();
+          }
+        }}
+      >
+        <Input label={t('helperDashboard.tagline')} value={core.profile_headline}
+          onChange={e => setCore({ ...core, profile_headline: e.target.value })}
+          placeholder={t('helperDashboard.taglinePlaceholder')} maxLength={280} />
+        <Textarea label={t('helperDashboard.bio')} rows={5} value={core.bio_long}
+          onChange={e => setCore({ ...core, bio_long: e.target.value })}
+          placeholder={t('helperDashboard.bioPlaceholder')} maxLength={1500} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label={t('helperDashboard.minRate')} type="number" min="0" value={core.hourly_rate_min}
+            onChange={e => setCore({ ...core, hourly_rate_min: e.target.value })} placeholder="45" />
+          <Input label={t('helperDashboard.maxRate')} type="number" min="0" value={core.hourly_rate_max}
+            onChange={e => setCore({ ...core, hourly_rate_max: e.target.value })} placeholder="85" />
         </div>
-        <a
-          href={`/helpers/public/${user?.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          {t('helperDashboard.viewPublicProfile')}
-        </a>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label={t('helperDashboard.city')} value={core.service_city}
+            onChange={e => setCore({ ...core, service_city: e.target.value })} placeholder="Austin" />
+          <Input label={t('helperDashboard.state')} value={core.service_state}
+            onChange={e => setCore({ ...core, service_state: e.target.value })} placeholder="TX" maxLength={2} />
+        </div>
+        <Input label={t('helperDashboard.serviceRadius')} type="number" min="1" max="100"
+          value={core.service_radius_miles}
+          onChange={e => setCore({ ...core, service_radius_miles: e.target.value })} />
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="avail-now" checked={!!core.is_available_now}
+            onChange={e => setCore({ ...core, is_available_now: e.target.checked })}
+            className="accent-orange-500" />
+          <label htmlFor="avail-now" className="text-sm text-gray-300">{t('helperDashboard.availableNow')}</label>
+        </div>
+      </form>
+    );
+  } else if (section === 'hours') {
+    sectionBody = (
+      <div className="space-y-3">
+        {DAY_LABELS.map(day => {
+          const d = core.availability_json[day] || { closed: true, start: '09:00', end: '17:00' };
+          return (
+            <div key={day} className="flex items-center gap-3">
+              <button type="button" onClick={() => toggleDay(day)}
+                className={`w-24 text-[11px] font-semibold rounded-lg px-2 py-1.5 transition text-center ${d.closed ? 'bg-gray-800 text-gray-500' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-800'}`}>
+                {day.charAt(0).toUpperCase() + day.slice(1, 3)} {d.closed ? t('helperDashboard.dayOff') : t('helperDashboard.dayOpen')}
+              </button>
+              {!d.closed && (
+                <>
+                  <input type="time" value={d.start || '09:00'}
+                    onChange={e => setDayTime(day, 'start', e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
+                  <span className="text-gray-600 text-xs">{t('helperDashboard.to')}</span>
+                  <input type="time" value={d.end || '17:00'}
+                    onChange={e => setDayTime(day, 'end', e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
-
-      <Card>
-        <CardHeader title={t('helperDashboard.profileCoverTitle')} />
-        <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.profileCoverHint')}</p>
-        <CoverImageUpload
-          embedded
-          currentCoverUrl={coverImageUrl}
-          onUploadSuccess={(url) => setCoverImageUrl(url || null)}
-          onError={(msg) => {
-            const s = typeof msg === 'string' ? msg : String(msg ?? '');
-            if (s) toast.error(s);
-          }}
-        />
-      </Card>
-
-      {/* Section Visibility Controls */}
-      <Card>
-        <CardHeader title={t('helperDashboard.sectionVisibility')} />
-        <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.visibilityHint')}</p>
+    );
+  } else if (section === 'services') {
+    sectionBody = (
+      <>
+        {services.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noServices')}</p>}
+        <div className="space-y-2 mb-5">
+          {services.map(s => (
+            <div key={s.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+              {editingServiceId === s.id ? (
+                <form onSubmit={saveEditService} className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editServiceHeader')}</p>
+                    <div className="flex gap-2">
+                      <Btn type="button" variant="secondary" onClick={cancelEditService}>{t('common.cancel')}</Btn>
+                      <Btn type="submit">{t('common.save')}</Btn>
+                    </div>
+                  </div>
+                  <Input label={t('helperDashboard.serviceName')} value={editSvc.name}
+                    onChange={e => setEditSvc({ ...editSvc, name: e.target.value })}
+                    placeholder={t('helperDashboard.serviceNamePlaceholder')} required />
+                  <Textarea label={t('helperDashboard.serviceDesc')} rows={2} value={editSvc.description}
+                    onChange={e => setEditSvc({ ...editSvc, description: e.target.value })}
+                    placeholder={t('helperDashboard.serviceDescPlaceholder')} />
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input label={t('helperDashboard.priceLabel')} type="number" min="0" value={editSvc.price}
+                      onChange={e => setEditSvc({ ...editSvc, price: e.target.value })} />
+                    <Select label={t('helperDashboard.priceUnit')} value={editSvc.price_unit}
+                      onChange={e => setEditSvc({ ...editSvc, price_unit: e.target.value })}>
+                      <option value="flat">{t('helperDashboard.unitFlat')}</option>
+                      <option value="hour">{t('helperDashboard.unitHour')}</option>
+                      <option value="starting_at">{t('helperDashboard.unitStartingAt')}</option>
+                      <option value="quote">{t('helperDashboard.unitQuote')}</option>
+                    </Select>
+                    <Input label={t('helperDashboard.duration')} value={editSvc.duration}
+                      onChange={e => setEditSvc({ ...editSvc, duration: e.target.value })} placeholder={t('helperDashboard.durationPlaceholder')} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label={t('helperDashboard.category')} value={editSvc.category}
+                      onChange={e => setEditSvc({ ...editSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
+                    <div className="flex items-center gap-2 pt-5">
+                      <input type="checkbox" id={`popular-edit-${s.id}`} checked={editSvc.popular}
+                        onChange={e => setEditSvc({ ...editSvc, popular: e.target.checked })} className="accent-orange-500" />
+                      <label htmlFor={`popular-edit-${s.id}`} className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white">{s.name}</p>
+                    <p className="text-xs text-gray-500">{s.category} · ${s.price} / {s.price_unit}</p>
+                    {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
+                  </div>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <Btn variant="secondary" type="button" onClick={() => beginEditService(s)}>{t('common.edit')}</Btn>
+                    <Btn variant="danger" type="button" onClick={() => deleteService(s.id)}>{t('helperDashboard.delete')}</Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addService} className="space-y-3 border-t border-gray-800 pt-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addServiceHeader')}</p>
+          <Input label={t('helperDashboard.serviceName')} value={newSvc.name}
+            onChange={e => setNewSvc({ ...newSvc, name: e.target.value })}
+            placeholder={t('helperDashboard.serviceNamePlaceholder')} required />
+          <Textarea label={t('helperDashboard.serviceDesc')} rows={2} value={newSvc.description}
+            onChange={e => setNewSvc({ ...newSvc, description: e.target.value })}
+            placeholder={t('helperDashboard.serviceDescPlaceholder')} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label={t('helperDashboard.priceLabel')} type="number" min="0" value={newSvc.price}
+              onChange={e => setNewSvc({ ...newSvc, price: e.target.value })} />
+            <Select label={t('helperDashboard.priceUnit')} value={newSvc.price_unit}
+              onChange={e => setNewSvc({ ...newSvc, price_unit: e.target.value })}>
+              <option value="flat">{t('helperDashboard.unitFlat')}</option>
+              <option value="hour">{t('helperDashboard.unitHour')}</option>
+              <option value="starting_at">{t('helperDashboard.unitStartingAt')}</option>
+              <option value="quote">{t('helperDashboard.unitQuote')}</option>
+            </Select>
+            <Input label={t('helperDashboard.duration')} value={newSvc.duration}
+              onChange={e => setNewSvc({ ...newSvc, duration: e.target.value })} placeholder={t('helperDashboard.durationPlaceholder')} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('helperDashboard.category')} value={newSvc.category}
+              onChange={e => setNewSvc({ ...newSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
+            <div className="flex items-center gap-2 pt-5">
+              <input type="checkbox" id="popular" checked={newSvc.popular}
+                onChange={e => setNewSvc({ ...newSvc, popular: e.target.checked })} className="accent-orange-500" />
+              <label htmlFor="popular" className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
+            </div>
+          </div>
+          <Btn type="submit">{t('helperDashboard.addServiceBtn')}</Btn>
+        </form>
+      </>
+    );
+  } else if (section === 'faqs') {
+    sectionBody = (
+      <>
+        {faqs.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noFaqs')}</p>}
+        <div className="space-y-2 mb-5">
+          {faqs.map(f => (
+            <div key={f.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+              {editingFaqId === f.id ? (
+                <form onSubmit={saveEditFaq} className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editFaqHeader')}</p>
+                    <div className="flex gap-2">
+                      <Btn type="button" variant="secondary" onClick={cancelEditFaq}>{t('common.cancel')}</Btn>
+                      <Btn type="submit">{t('common.save')}</Btn>
+                    </div>
+                  </div>
+                  <Input label={t('helperDashboard.questionLabel')} value={editFaq.question}
+                    onChange={e => setEditFaq({ ...editFaq, question: e.target.value })}
+                    placeholder={t('helperDashboard.questionPlaceholder')} required />
+                  <Textarea label={t('helperDashboard.answerLabel')} rows={3} value={editFaq.answer}
+                    onChange={e => setEditFaq({ ...editFaq, answer: e.target.value })} required />
+                </form>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-sm font-semibold text-white">{f.question}</p>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <Btn variant="secondary" type="button" onClick={() => beginEditFaq(f)}>{t('common.edit')}</Btn>
+                      <Btn variant="danger" type="button" onClick={() => deleteFaq(f.id)}>{t('helperDashboard.delete')}</Btn>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{f.answer}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addFaq} className="space-y-3 border-t border-gray-800 pt-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addFaqHeader')}</p>
+          <Input label={t('helperDashboard.questionLabel')} value={newFaq.question}
+            onChange={e => setNewFaq({ ...newFaq, question: e.target.value })}
+            placeholder={t('helperDashboard.questionPlaceholder')} required />
+          <Textarea label={t('helperDashboard.answerLabel')} rows={3} value={newFaq.answer}
+            onChange={e => setNewFaq({ ...newFaq, answer: e.target.value })} required />
+          <Btn type="submit">{t('helperDashboard.addFaqBtn')}</Btn>
+        </form>
+      </>
+    );
+  } else if (section === 'policies') {
+    sectionBody = (
+      <>
+        {policies.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noPolicies')}</p>}
+        <div className="space-y-2 mb-5">
+          {policies.map(p => (
+            <div key={p.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+              {editingPolicyId === p.id ? (
+                <form onSubmit={saveEditPolicy} className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editPolicyHeader')}</p>
+                    <div className="flex gap-2">
+                      <Btn type="button" variant="secondary" onClick={cancelEditPolicy}>{t('common.cancel')}</Btn>
+                      <Btn type="submit">{t('common.save')}</Btn>
+                    </div>
+                  </div>
+                  <Input label={t('helperDashboard.policyTitle')} value={editPol.title}
+                    onChange={e => setEditPol({ ...editPol, title: e.target.value })}
+                    placeholder={t('helperDashboard.policyTitlePlaceholder')} required />
+                  <Textarea label={t('helperDashboard.policyDetails')} rows={3} value={editPol.content}
+                    onChange={e => setEditPol({ ...editPol, content: e.target.value })} required />
+                  <Select label={t('helperDashboard.iconLabel')} value={editPol.icon}
+                    onChange={e => setEditPol({ ...editPol, icon: e.target.value })}>
+                    <option value="calendar-x">{t('helperDashboard.iconCancellation')}</option>
+                    <option value="credit-card">{t('helperDashboard.iconPayment')}</option>
+                    <option value="shield-check">{t('helperDashboard.iconSafetyGuarantee')}</option>
+                    <option value="shield">{t('helperDashboard.iconGeneral')}</option>
+                  </Select>
+                </form>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-sm font-semibold text-white">{p.title}</p>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <Btn variant="secondary" type="button" onClick={() => beginEditPolicy(p)}>{t('common.edit')}</Btn>
+                      <Btn variant="danger" type="button" onClick={() => deletePolicy(p.id)}>{t('helperDashboard.delete')}</Btn>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{p.content}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addPolicy} className="space-y-3 border-t border-gray-800 pt-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPolicyHeader')}</p>
+          <Input label={t('helperDashboard.policyTitle')} value={newPol.title}
+            onChange={e => setNewPol({ ...newPol, title: e.target.value })}
+            placeholder={t('helperDashboard.policyTitlePlaceholder')} required />
+          <Textarea label={t('helperDashboard.policyDetails')} rows={3} value={newPol.content}
+            onChange={e => setNewPol({ ...newPol, content: e.target.value })} required />
+          <Select label={t('helperDashboard.iconLabel')} value={newPol.icon}
+            onChange={e => setNewPol({ ...newPol, icon: e.target.value })}>
+            <option value="calendar-x">{t('helperDashboard.iconCancellation')}</option>
+            <option value="credit-card">{t('helperDashboard.iconPayment')}</option>
+            <option value="shield-check">{t('helperDashboard.iconSafetyGuarantee')}</option>
+            <option value="shield">{t('helperDashboard.iconGeneral')}</option>
+          </Select>
+          <Btn type="submit">{t('helperDashboard.addPolicyBtn')}</Btn>
+        </form>
+      </>
+    );
+  } else if (section === 'gallery') {
+    sectionBody = (
+      <>
+        {gallery.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noPhotos')}</p>}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+          {gallery.map(g => (
+            <div key={g.id} className="relative group rounded-xl overflow-hidden bg-gray-800 border border-gray-700 aspect-square flex items-center justify-center">
+              {!failedImages[g.id] ? (
+                <img src={g.url} alt={g.caption || 'Work photo'} className="w-full h-full object-cover"
+                  onError={() => setFailedImages(p => ({ ...p, [g.id]: true }))} />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400 text-xs text-center p-2">
+                  <span>{t('helperDashboard.imageLoadError') || 'Image failed to load'}</span>
+                </div>
+              )}
+              <button onClick={() => deleteImage(g.id)}
+                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">
+                ×
+              </button>
+              {g.caption && (
+                <p className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">{g.caption}</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addImage} className="space-y-3 border-t border-gray-800 pt-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPhotoHeader')}</p>
+          <Input label={t('helperDashboard.imageUrl')} type="url" value={newImg.url}
+            onChange={e => setNewImg({ ...newImg, url: e.target.value })}
+            placeholder={t('helperDashboard.imageUrlPlaceholder')} required disabled={uploadingImage} />
+          <Input label={t('helperDashboard.captionLabel')} value={newImg.caption}
+            onChange={e => setNewImg({ ...newImg, caption: e.target.value })}
+            placeholder={t('helperDashboard.captionPlaceholder')} disabled={uploadingImage} />
+          <Btn type="submit" disabled={uploadingImage}>{uploadingImage ? t('helperDashboard.uploading') || 'Uploading...' : t('helperDashboard.addPhotoBtn')}</Btn>
+        </form>
+      </>
+    );
+  } else if (section === 'visibility') {
+    sectionBody = (
+      <>
+        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-white">{t('helperDashboard.profileCompleteness')}</span>
+            <span className={`text-sm font-bold ${pct === 100 ? 'text-emerald-400' : pct >= 60 ? 'text-orange-400' : 'text-red-400'}`}>{pct}%</span>
+          </div>
+          <ProgressBar pct={pct} color={pct === 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-orange-500' : 'bg-red-500'} />
+        </div>
         <div className="space-y-2">
           {[
             { key: 'show_services', label: t('helperDashboard.sectionServices') },
@@ -361,6 +747,7 @@ export default function EditProfileTab() {
             <div key={key} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/40">
               <label className="text-sm font-medium text-gray-300">{label}</label>
               <button
+                type="button"
                 onClick={() => toggleVisibility(key)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   visibility[key] ? 'bg-emerald-600' : 'bg-gray-700'
@@ -375,356 +762,32 @@ export default function EditProfileTab() {
             </div>
           ))}
         </div>
-      </Card>
+      </>
+    );
+  }
 
-      {/* Completeness */}
-      <Card>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-white">{t('helperDashboard.profileCompleteness')}</span>
-          <span className={`text-sm font-bold ${pct === 100 ? 'text-emerald-400' : pct >= 60 ? 'text-orange-400' : 'text-red-400'}`}>{pct}%</span>
-        </div>
-        <ProgressBar pct={pct} color={pct === 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-orange-500' : 'bg-red-500'} />
-        {MISSING_KEYS.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {MISSING_KEYS.map(label => (
-              <span key={label} className="text-[11px] text-gray-500 bg-gray-800 rounded-lg px-2 py-1">
-                {t('helperDashboard.missingLabel', { label })}
-              </span>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Section nav */}
-      <div className="flex gap-2 flex-wrap">
-        {SECTIONS.map(s => (
-          <button key={s.id} onClick={() => setSection(s.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${section === s.id ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Basic Info ──────────────────────────────────────────── */}
-      {section === 'core' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.sectionBasicInfo')} />
-          <form onSubmit={saveCore} className="space-y-4">
-            <Input label={t('helperDashboard.tagline')} value={core.profile_headline}
-              onChange={e => setCore({ ...core, profile_headline: e.target.value })}
-              placeholder={t('helperDashboard.taglinePlaceholder')} maxLength={280} />
-            <Textarea label={t('helperDashboard.bio')} rows={5} value={core.bio_long}
-              onChange={e => setCore({ ...core, bio_long: e.target.value })}
-              placeholder={t('helperDashboard.bioPlaceholder')} maxLength={1500} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input label={t('helperDashboard.minRate')} type="number" min="0" value={core.hourly_rate_min}
-                onChange={e => setCore({ ...core, hourly_rate_min: e.target.value })} placeholder="45" />
-              <Input label={t('helperDashboard.maxRate')} type="number" min="0" value={core.hourly_rate_max}
-                onChange={e => setCore({ ...core, hourly_rate_max: e.target.value })} placeholder="85" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label={t('helperDashboard.city')} value={core.service_city}
-                onChange={e => setCore({ ...core, service_city: e.target.value })} placeholder="Austin" />
-              <Input label={t('helperDashboard.state')} value={core.service_state}
-                onChange={e => setCore({ ...core, service_state: e.target.value })} placeholder="TX" maxLength={2} />
-            </div>
-            <Input label={t('helperDashboard.serviceRadius')} type="number" min="1" max="100"
-              value={core.service_radius_miles}
-              onChange={e => setCore({ ...core, service_radius_miles: e.target.value })} />
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="avail-now" checked={!!core.is_available_now}
-                onChange={e => setCore({ ...core, is_available_now: e.target.checked })}
-                className="accent-orange-500" />
-              <label htmlFor="avail-now" className="text-sm text-gray-300">{t('helperDashboard.availableNow')}</label>
-            </div>
-            <Btn type="submit" disabled={saving}>{saving ? t('helperDashboard.saving') : t('helperDashboard.saveBasicInfo')}</Btn>
-          </form>
-        </Card>
-      )}
-
-      {/* ── Availability ────────────────────────────────────────── */}
-      {section === 'hours' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.businessHours')} />
-          <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.hoursHint')}</p>
-          <div className="space-y-3 mb-4">
-            {DAY_LABELS.map(day => {
-              const d = core.availability_json[day] || { closed: true, start: '09:00', end: '17:00' };
-              return (
-                <div key={day} className="flex items-center gap-3">
-                  <button type="button" onClick={() => toggleDay(day)}
-                    className={`w-24 text-[11px] font-semibold rounded-lg px-2 py-1.5 transition text-center ${d.closed ? 'bg-gray-800 text-gray-500' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-800'}`}>
-                    {day.charAt(0).toUpperCase() + day.slice(1, 3)} {d.closed ? t('helperDashboard.dayOff') : t('helperDashboard.dayOpen')}
-                  </button>
-                  {!d.closed && (
-                    <>
-                      <input type="time" value={d.start || '09:00'}
-                        onChange={e => setDayTime(day, 'start', e.target.value)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
-                      <span className="text-gray-600 text-xs">{t('helperDashboard.to')}</span>
-                      <input type="time" value={d.end || '17:00'}
-                        onChange={e => setDayTime(day, 'end', e.target.value)}
-                        className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white focus:border-orange-500 focus:outline-none" />
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <Btn onClick={() => saveCore()} disabled={saving}>{saving ? t('helperDashboard.saving') : t('helperDashboard.saveHours')}</Btn>
-        </Card>
-      )}
-
-      {/* ── Services ────────────────────────────────────────────── */}
-      {section === 'services' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.servicePricing')} />
-          {services.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noServices')}</p>}
-          <div className="space-y-2 mb-5">
-            {services.map(s => (
-              <div key={s.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
-                {editingServiceId === s.id ? (
-                  <form onSubmit={saveEditService} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editServiceHeader')}</p>
-                      <div className="flex gap-2">
-                        <Btn type="button" variant="secondary" onClick={cancelEditService}>{t('common.cancel')}</Btn>
-                        <Btn type="submit">{t('common.save')}</Btn>
-                      </div>
-                    </div>
-                    <Input label={t('helperDashboard.serviceName')} value={editSvc.name}
-                      onChange={e => setEditSvc({ ...editSvc, name: e.target.value })}
-                      placeholder={t('helperDashboard.serviceNamePlaceholder')} required />
-                    <Textarea label={t('helperDashboard.serviceDesc')} rows={2} value={editSvc.description}
-                      onChange={e => setEditSvc({ ...editSvc, description: e.target.value })}
-                      placeholder={t('helperDashboard.serviceDescPlaceholder')} />
-                    <div className="grid grid-cols-3 gap-3">
-                      <Input label={t('helperDashboard.priceLabel')} type="number" min="0" value={editSvc.price}
-                        onChange={e => setEditSvc({ ...editSvc, price: e.target.value })} />
-                      <Select label={t('helperDashboard.priceUnit')} value={editSvc.price_unit}
-                        onChange={e => setEditSvc({ ...editSvc, price_unit: e.target.value })}>
-                        <option value="flat">{t('helperDashboard.unitFlat')}</option>
-                        <option value="hour">{t('helperDashboard.unitHour')}</option>
-                        <option value="starting_at">{t('helperDashboard.unitStartingAt')}</option>
-                        <option value="quote">{t('helperDashboard.unitQuote')}</option>
-                      </Select>
-                      <Input label={t('helperDashboard.duration')} value={editSvc.duration}
-                        onChange={e => setEditSvc({ ...editSvc, duration: e.target.value })} placeholder={t('helperDashboard.durationPlaceholder')} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input label={t('helperDashboard.category')} value={editSvc.category}
-                        onChange={e => setEditSvc({ ...editSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
-                      <div className="flex items-center gap-2 pt-5">
-                        <input type="checkbox" id={`popular-edit-${s.id}`} checked={editSvc.popular}
-                          onChange={e => setEditSvc({ ...editSvc, popular: e.target.checked })} className="accent-orange-500" />
-                        <label htmlFor={`popular-edit-${s.id}`} className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
-                      </div>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-white">{s.name}</p>
-                      <p className="text-xs text-gray-500">{s.category} · ${s.price} / {s.price_unit}</p>
-                      {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
-                    </div>
-                    <div className="flex flex-shrink-0 gap-2">
-                      <Btn variant="secondary" type="button" onClick={() => beginEditService(s)}>{t('common.edit')}</Btn>
-                      <Btn variant="danger" type="button" onClick={() => deleteService(s.id)}>{t('helperDashboard.delete')}</Btn>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={addService} className="space-y-3 border-t border-gray-800 pt-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addServiceHeader')}</p>
-            <Input label={t('helperDashboard.serviceName')} value={newSvc.name}
-              onChange={e => setNewSvc({ ...newSvc, name: e.target.value })}
-              placeholder={t('helperDashboard.serviceNamePlaceholder')} required />
-            <Textarea label={t('helperDashboard.serviceDesc')} rows={2} value={newSvc.description}
-              onChange={e => setNewSvc({ ...newSvc, description: e.target.value })}
-              placeholder={t('helperDashboard.serviceDescPlaceholder')} />
-            <div className="grid grid-cols-3 gap-3">
-              <Input label={t('helperDashboard.priceLabel')} type="number" min="0" value={newSvc.price}
-                onChange={e => setNewSvc({ ...newSvc, price: e.target.value })} />
-              <Select label={t('helperDashboard.priceUnit')} value={newSvc.price_unit}
-                onChange={e => setNewSvc({ ...newSvc, price_unit: e.target.value })}>
-                <option value="flat">{t('helperDashboard.unitFlat')}</option>
-                <option value="hour">{t('helperDashboard.unitHour')}</option>
-                <option value="starting_at">{t('helperDashboard.unitStartingAt')}</option>
-                <option value="quote">{t('helperDashboard.unitQuote')}</option>
-              </Select>
-              <Input label={t('helperDashboard.duration')} value={newSvc.duration}
-                onChange={e => setNewSvc({ ...newSvc, duration: e.target.value })} placeholder={t('helperDashboard.durationPlaceholder')} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label={t('helperDashboard.category')} value={newSvc.category}
-                onChange={e => setNewSvc({ ...newSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
-              <div className="flex items-center gap-2 pt-5">
-                <input type="checkbox" id="popular" checked={newSvc.popular}
-                  onChange={e => setNewSvc({ ...newSvc, popular: e.target.checked })} className="accent-orange-500" />
-                <label htmlFor="popular" className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
-              </div>
-            </div>
-            <Btn type="submit">{t('helperDashboard.addServiceBtn')}</Btn>
-          </form>
-        </Card>
-      )}
-
-      {/* ── FAQs ────────────────────────────────────────────────── */}
-      {section === 'faqs' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.faqsTitle')} />
-          {faqs.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noFaqs')}</p>}
-          <div className="space-y-2 mb-5">
-            {faqs.map(f => (
-              <div key={f.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
-                {editingFaqId === f.id ? (
-                  <form onSubmit={saveEditFaq} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editFaqHeader')}</p>
-                      <div className="flex gap-2">
-                        <Btn type="button" variant="secondary" onClick={cancelEditFaq}>{t('common.cancel')}</Btn>
-                        <Btn type="submit">{t('common.save')}</Btn>
-                      </div>
-                    </div>
-                    <Input label={t('helperDashboard.questionLabel')} value={editFaq.question}
-                      onChange={e => setEditFaq({ ...editFaq, question: e.target.value })}
-                      placeholder={t('helperDashboard.questionPlaceholder')} required />
-                    <Textarea label={t('helperDashboard.answerLabel')} rows={3} value={editFaq.answer}
-                      onChange={e => setEditFaq({ ...editFaq, answer: e.target.value })} required />
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-semibold text-white">{f.question}</p>
-                      <div className="flex flex-shrink-0 gap-2">
-                        <Btn variant="secondary" type="button" onClick={() => beginEditFaq(f)}>{t('common.edit')}</Btn>
-                        <Btn variant="danger" type="button" onClick={() => deleteFaq(f.id)}>{t('helperDashboard.delete')}</Btn>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{f.answer}</p>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={addFaq} className="space-y-3 border-t border-gray-800 pt-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addFaqHeader')}</p>
-            <Input label={t('helperDashboard.questionLabel')} value={newFaq.question}
-              onChange={e => setNewFaq({ ...newFaq, question: e.target.value })}
-              placeholder={t('helperDashboard.questionPlaceholder')} required />
-            <Textarea label={t('helperDashboard.answerLabel')} rows={3} value={newFaq.answer}
-              onChange={e => setNewFaq({ ...newFaq, answer: e.target.value })} required />
-            <Btn type="submit">{t('helperDashboard.addFaqBtn')}</Btn>
-          </form>
-        </Card>
-      )}
-
-      {/* ── Policies ────────────────────────────────────────────── */}
-      {section === 'policies' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.policiesTitle')} />
-          {policies.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noPolicies')}</p>}
-          <div className="space-y-2 mb-5">
-            {policies.map(p => (
-              <div key={p.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
-                {editingPolicyId === p.id ? (
-                  <form onSubmit={saveEditPolicy} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editPolicyHeader')}</p>
-                      <div className="flex gap-2">
-                        <Btn type="button" variant="secondary" onClick={cancelEditPolicy}>{t('common.cancel')}</Btn>
-                        <Btn type="submit">{t('common.save')}</Btn>
-                      </div>
-                    </div>
-                    <Input label={t('helperDashboard.policyTitle')} value={editPol.title}
-                      onChange={e => setEditPol({ ...editPol, title: e.target.value })}
-                      placeholder={t('helperDashboard.policyTitlePlaceholder')} required />
-                    <Textarea label={t('helperDashboard.policyDetails')} rows={3} value={editPol.content}
-                      onChange={e => setEditPol({ ...editPol, content: e.target.value })} required />
-                    <Select label={t('helperDashboard.iconLabel')} value={editPol.icon}
-                      onChange={e => setEditPol({ ...editPol, icon: e.target.value })}>
-                      <option value="calendar-x">{t('helperDashboard.iconCancellation')}</option>
-                      <option value="credit-card">{t('helperDashboard.iconPayment')}</option>
-                      <option value="shield-check">{t('helperDashboard.iconSafetyGuarantee')}</option>
-                      <option value="shield">{t('helperDashboard.iconGeneral')}</option>
-                    </Select>
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-semibold text-white">{p.title}</p>
-                      <div className="flex flex-shrink-0 gap-2">
-                        <Btn variant="secondary" type="button" onClick={() => beginEditPolicy(p)}>{t('common.edit')}</Btn>
-                        <Btn variant="danger" type="button" onClick={() => deletePolicy(p.id)}>{t('helperDashboard.delete')}</Btn>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{p.content}</p>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={addPolicy} className="space-y-3 border-t border-gray-800 pt-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPolicyHeader')}</p>
-            <Input label={t('helperDashboard.policyTitle')} value={newPol.title}
-              onChange={e => setNewPol({ ...newPol, title: e.target.value })}
-              placeholder={t('helperDashboard.policyTitlePlaceholder')} required />
-            <Textarea label={t('helperDashboard.policyDetails')} rows={3} value={newPol.content}
-              onChange={e => setNewPol({ ...newPol, content: e.target.value })} required />
-            <Select label={t('helperDashboard.iconLabel')} value={newPol.icon}
-              onChange={e => setNewPol({ ...newPol, icon: e.target.value })}>
-              <option value="calendar-x">{t('helperDashboard.iconCancellation')}</option>
-              <option value="credit-card">{t('helperDashboard.iconPayment')}</option>
-              <option value="shield-check">{t('helperDashboard.iconSafetyGuarantee')}</option>
-              <option value="shield">{t('helperDashboard.iconGeneral')}</option>
-            </Select>
-            <Btn type="submit">{t('helperDashboard.addPolicyBtn')}</Btn>
-          </form>
-        </Card>
-      )}
-
-      {/* ── Gallery ─────────────────────────────────────────────── */}
-      {section === 'gallery' && (
-        <Card>
-          <CardHeader title={t('helperDashboard.workPhotos')} />
-          <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.photosHint')}</p>
-          {gallery.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noPhotos')}</p>}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-            {gallery.map(g => (
-              <div key={g.id} className="relative group rounded-xl overflow-hidden bg-gray-800 border border-gray-700 aspect-square flex items-center justify-center">
-                {!failedImages[g.id] ? (
-                  <img src={g.url} alt={g.caption || 'Work photo'} className="w-full h-full object-cover"
-                    onError={() => setFailedImages(p => ({ ...p, [g.id]: true }))} />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400 text-xs text-center p-2">
-                    <span>{t('helperDashboard.imageLoadError') || 'Image failed to load'}</span>
-                  </div>
-                )}
-                <button onClick={() => deleteImage(g.id)}
-                  className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">
-                  ×
-                </button>
-                {g.caption && (
-                  <p className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">{g.caption}</p>
-                )}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={addImage} className="space-y-3 border-t border-gray-800 pt-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPhotoHeader')}</p>
-            <Input label={t('helperDashboard.imageUrl')} type="url" value={newImg.url}
-              onChange={e => setNewImg({ ...newImg, url: e.target.value })}
-              placeholder={t('helperDashboard.imageUrlPlaceholder')} required disabled={uploadingImage} />
-            <Input label={t('helperDashboard.captionLabel')} value={newImg.caption}
-              onChange={e => setNewImg({ ...newImg, caption: e.target.value })}
-              placeholder={t('helperDashboard.captionPlaceholder')} disabled={uploadingImage} />
-            <Btn type="submit" disabled={uploadingImage}>{uploadingImage ? t('helperDashboard.uploading') || 'Uploading...' : t('helperDashboard.addPhotoBtn')}</Btn>
-          </form>
-        </Card>
-      )}
-    </div>
+  return (
+    <ProfileStudioShell
+      title={t('helperDashboard.editProfile')}
+      subtitle={t('helperDashboard.editProfileDesc')}
+      sections={SECTIONS}
+      activeSection={section}
+      onSectionChange={setSection}
+      dirty={dirty}
+      saving={saving}
+      onSave={() => saveCore()}
+      onDiscard={discardCore}
+      saveLabel={saveLabel}
+      hideSave={hideSave}
+      preview={preview}
+      headerExtra={headerExtra}
+      readinessPill={{
+        label: t('helperDashboard.profileCompleteness') + ` · ${pct}%`,
+        ready: pct === 100,
+      }}
+      panelHint={panelHints[section]}
+    >
+      {sectionBody}
+    </ProfileStudioShell>
   );
 }

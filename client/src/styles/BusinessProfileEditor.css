@@ -573,7 +573,3 @@
   margin-top: 0;
 }
 
-.bpe-studio .ps-header-extra .bpe-status,
-.bpe-studio .ps-header-extra .bpe-ghost {
-  /* reuse existing status/ghost chrome in the studio header */
-}
