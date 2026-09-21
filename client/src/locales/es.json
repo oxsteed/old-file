@@ -15578,6 +15578,7 @@
     "hintPolicies": "Cancelación, pago y otras políticas que los clientes deben conocer.",
     "jumpToSection": "Ir a {{section}}",
     "ratesMeta": "{{rates}}/h",
-    "radiusMeta": "Radio de {{miles}} mi"
+    "radiusMeta": "Radio de {{miles}} mi",
+    "unsavedLeave": "Tienes cambios sin guardar. ¿Salir de esta sección de todos modos?"
   }
 }

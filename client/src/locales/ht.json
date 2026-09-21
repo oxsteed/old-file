@@ -15578,6 +15578,7 @@
     "hintPolicies": "Anilasyon, peman, ak lòt règ kliyan yo dwe konnen.",
     "jumpToSection": "Ale nan {{section}}",
     "ratesMeta": "{{rates}}/èdtan",
-    "radiusMeta": "Reyon {{miles}} mi"
+    "radiusMeta": "Reyon {{miles}} mi",
+    "unsavedLeave": "Ou gen chanjman ki pa anrejistre. Kite seksyon sa a kanmenm?"
   }
 }

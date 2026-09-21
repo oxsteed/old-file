@@ -15260,6 +15260,7 @@
     "hintPolicies": "Cancellation, payment, and other policies customers should know.",
     "jumpToSection": "Go to {{section}}",
     "ratesMeta": "{{rates}}/hr",
-    "radiusMeta": "{{miles}} mi radius"
+    "radiusMeta": "{{miles}} mi radius",
+    "unsavedLeave": "You have unsaved changes. Leave this section anyway?"
   }
 }
