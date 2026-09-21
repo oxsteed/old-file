@@ -2313,6 +2313,32 @@
       "tax": "الضريبة %",
       "validUntil": "صالح حتى",
       "send": "مشاركة في المحادثة"
+    },
+    "popShare": {
+      "title": "مشاركة إثبات الدفع",
+      "button": "دفع",
+      "amount": "المبلغ",
+      "method": "طريقة الدفع",
+      "methodPh": "مثل Venmo أو Zelle أو بطاقة",
+      "txn": "معرّف المعاملة",
+      "paidOn": "تاريخ الدفع",
+      "notes": "ملاحظات",
+      "file": "صورة أو PDF للإيصال",
+      "send": "مشاركة في المحادثة",
+      "failed": "تعذر مشاركة إثبات الدفع."
+    },
+    "agreementShare": {
+      "title": "مشاركة اتفاقية",
+      "button": "اتفاقية",
+      "titleLabel": "العنوان",
+      "titlePh": "مثل شروط الخدمة",
+      "titleRequired": "العنوان مطلوب.",
+      "terms": "الشروط",
+      "termsPh": "الصق أو اكتب الشروط…",
+      "requiredBeforeSchedule": "يتطلب القبول قبل الجدولة",
+      "file": "ملف العقد (اختياري)",
+      "send": "مشاركة في المحادثة",
+      "failed": "تعذر مشاركة الاتفاقية."
     }
   },
   "dashboard": {
@@ -6336,6 +6362,48 @@
         "scheduled": "مجدول",
         "withdrawn": "مسحوب",
         "converted": "محوّل"
+      },
+      "popEyebrow": "إثبات الدفع",
+      "popCardAria": "إثبات الدفع",
+      "popLoading": "جارٍ تحميل إثبات الدفع…",
+      "popLoadError": "تعذر تحميل إثبات الدفع.",
+      "popConfirmError": "تعذر تحديث إثبات الدفع.",
+      "popDownloadError": "تعذر تنزيل المرفق.",
+      "popDownload": "تنزيل",
+      "popConfirm": "تأكيد",
+      "popReject": "رفض",
+      "popRejectReason": "سبب الرفض (اختياري)",
+      "popMethod": "الطريقة",
+      "popTxn": "معرّف المعاملة",
+      "popPaidOn": "تاريخ الدفع",
+      "popLinkedQuote": "عرض مرتبط",
+      "popStatus": {
+        "submitted": "مُرسل",
+        "confirmed": "مؤكد",
+        "rejected": "مرفوض"
+      },
+      "agreementEyebrow": "اتفاقية",
+      "agreementFallbackTitle": "اتفاقية الخدمة",
+      "agreementCardAria": "اتفاقية: {{title}}",
+      "agreementLoading": "جارٍ تحميل الاتفاقية…",
+      "agreementLoadError": "تعذر تحميل الاتفاقية.",
+      "agreementRespondError": "تعذر تحديث الاتفاقية.",
+      "agreementDownloadError": "تعذر تنزيل الملف.",
+      "agreementDownload": "تنزيل",
+      "agreementAcknowledge": "إقرار",
+      "agreementAccept": "قبول",
+      "agreementDecline": "رفض",
+      "agreementDeclineReason": "السبب (اختياري)",
+      "agreementVerifyToRespond": "تحقق للرد",
+      "agreementVersion": "الإصدار {{version}}",
+      "agreementRequiredBeforeSchedule": "يجب القبول قبل الجدولة",
+      "agreementStatus": {
+        "draft": "مسودة",
+        "shared": "مشاركة",
+        "acknowledged": "مُقَرّ",
+        "accepted": "مقبولة",
+        "declined": "مرفوضة",
+        "superseded": "مستبدلة"
       }
     }
   },

@@ -2313,6 +2313,32 @@
       "tax": "Tax %",
       "validUntil": "Valid until",
       "send": "Share in chat"
+    },
+    "popShare": {
+      "title": "Share proof of payment",
+      "button": "POP",
+      "amount": "Amount",
+      "method": "Payment method",
+      "methodPh": "e.g. Venmo, Zelle, card",
+      "txn": "Transaction ID",
+      "paidOn": "Payment date",
+      "notes": "Notes",
+      "file": "Receipt image or PDF",
+      "send": "Share in chat",
+      "failed": "Could not share proof of payment."
+    },
+    "agreementShare": {
+      "title": "Share an agreement",
+      "button": "Agreement",
+      "titleLabel": "Title",
+      "titlePh": "e.g. Service terms",
+      "titleRequired": "Title is required.",
+      "terms": "Terms",
+      "termsPh": "Paste or write the terms…",
+      "requiredBeforeSchedule": "Require acceptance before scheduling",
+      "file": "Contract file (optional)",
+      "send": "Share in chat",
+      "failed": "Could not share the agreement."
     }
   },
   "dashboard": {
@@ -6336,6 +6362,48 @@
         "scheduled": "Scheduled",
         "withdrawn": "Withdrawn",
         "converted": "Converted"
+      },
+      "popEyebrow": "Proof of payment",
+      "popCardAria": "Proof of payment",
+      "popLoading": "Loading proof of payment…",
+      "popLoadError": "Could not load this proof of payment.",
+      "popConfirmError": "Could not update proof of payment.",
+      "popDownloadError": "Could not download attachment.",
+      "popDownload": "Download",
+      "popConfirm": "Confirm",
+      "popReject": "Reject",
+      "popRejectReason": "Reason for rejection (optional)",
+      "popMethod": "Method",
+      "popTxn": "Transaction ID",
+      "popPaidOn": "Paid on",
+      "popLinkedQuote": "Linked quote",
+      "popStatus": {
+        "submitted": "Submitted",
+        "confirmed": "Confirmed",
+        "rejected": "Rejected"
+      },
+      "agreementEyebrow": "Agreement",
+      "agreementFallbackTitle": "Service agreement",
+      "agreementCardAria": "Agreement: {{title}}",
+      "agreementLoading": "Loading agreement…",
+      "agreementLoadError": "Could not load this agreement.",
+      "agreementRespondError": "Could not update the agreement.",
+      "agreementDownloadError": "Could not download agreement file.",
+      "agreementDownload": "Download",
+      "agreementAcknowledge": "Acknowledge",
+      "agreementAccept": "Accept",
+      "agreementDecline": "Decline",
+      "agreementDeclineReason": "Reason (optional)",
+      "agreementVerifyToRespond": "Verify to respond",
+      "agreementVersion": "Version {{version}}",
+      "agreementRequiredBeforeSchedule": "Must be accepted before scheduling",
+      "agreementStatus": {
+        "draft": "Draft",
+        "shared": "Shared",
+        "acknowledged": "Acknowledged",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "superseded": "Superseded"
       }
     }
   },

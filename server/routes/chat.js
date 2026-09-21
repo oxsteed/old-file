@@ -24,6 +24,8 @@ const logger = require('../utils/logger');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const chatQuotes = require('../controllers/chatQuotesController');
+const chatPop = require('../controllers/chatProofOfPaymentController');
+const chatAgreements = require('../controllers/chatAgreementsController');
 
 const {
   extractGuestAuth,
@@ -97,6 +99,19 @@ router.get('/quotes/:kind/:id', chatLimiter, optionalAuth, chatQuotes.getQuote);
 router.post('/quotes/:kind/:id/respond', chatLimiter, optionalAuth, chatQuotes.respondQuote);
 router.post('/quotes/:kind/:id/revise', chatLimiter, authenticate, chatQuotes.reviseQuote);
 router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.scheduleFromQuote);
+
+// ── In-chat proof of payment + agreements ────────────────────────────────────
+router.post('/pop/share', chatLimiter, optionalAuth, upload.single('file'), validateFileUpload, chatPop.sharePop);
+router.get('/pop/:id', chatLimiter, optionalAuth, chatPop.getPop);
+router.get('/pop/:id/download', chatLimiter, optionalAuth, chatPop.downloadPop);
+router.post('/pop/:id/confirm', chatLimiter, authenticate, chatPop.confirmPop);
+
+router.post('/agreements/share', chatLimiter, authenticate, upload.single('file'), validateFileUpload, chatAgreements.shareAgreement);
+router.get('/agreements/:id', chatLimiter, optionalAuth, chatAgreements.getAgreement);
+router.get('/agreements/:id/download', chatLimiter, optionalAuth, chatAgreements.downloadAgreement);
+router.post('/agreements/:id/respond', chatLimiter, optionalAuth, chatAgreements.respondAgreement);
+router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('file'), validateFileUpload, chatAgreements.reviseAgreement);
+
 
 // POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
 router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);

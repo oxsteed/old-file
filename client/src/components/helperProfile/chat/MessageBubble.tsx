@@ -5,7 +5,11 @@ import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfil
 import api from '../../../api/axios';
 import AutoTranslatedMessage from '../../AutoTranslatedMessage';
 import QuoteCard from './QuoteCard';
+import ProofOfPaymentCard from './ProofOfPaymentCard';
+import AgreementCard from './AgreementCard';
 import { parseQuoteMarker, stripQuoteMarkers } from './messengerQuotes.js';
+import { parsePopMarker, stripPopMarkers } from './messengerPop.js';
+import { parseAgreementMarker, stripAgreementMarkers } from './messengerAgreements.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -180,9 +184,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           }`}>
             {(() => {
               const quoteParsed = parseQuoteMarker(message.content);
-              const displayText = quoteParsed
-                ? stripQuoteMarkers(message.content)
-                : message.content;
+              const popParsed = parsePopMarker(message.content);
+              const agreementParsed = parseAgreementMarker(message.content);
+              let displayText = message.content;
+              if (quoteParsed) displayText = stripQuoteMarkers(displayText);
+              if (popParsed) displayText = stripPopMarkers(displayText);
+              if (agreementParsed) displayText = stripAgreementMarkers(displayText);
               return (
                 <>
                   {displayText ? (
@@ -203,6 +210,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         guestAuthHeaders={guestAuthHeaders}
                         onAccepted={onQuoteAccepted}
                         onDeclined={onQuoteDeclined}
+                        onRequestVerify={onQuoteRequestVerify}
+                      />
+                    </div>
+                  ) : null}
+                  {popParsed ? (
+                    <div className="mt-2">
+                      <ProofOfPaymentCard
+                        markerText={message.content}
+                        isProvider={isProviderView}
+                        guestAuthHeaders={guestAuthHeaders}
+                      />
+                    </div>
+                  ) : null}
+                  {agreementParsed ? (
+                    <div className="mt-2">
+                      <AgreementCard
+                        markerText={message.content}
+                        isProvider={isProviderView}
+                        isAuthenticated={isAuthenticated}
+                        guestVerified={guestVerified}
+                        guestAuthHeaders={guestAuthHeaders}
                         onRequestVerify={onQuoteRequestVerify}
                       />
                     </div>

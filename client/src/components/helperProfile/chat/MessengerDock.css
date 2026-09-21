@@ -1000,3 +1000,109 @@
   font-size: 0.75rem;
   cursor: pointer;
 }
+
+
+/* In-chat POP / agreement cards + share panels */
+.messenger-artifact-card {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  background: rgba(15, 23, 42, 0.04);
+  max-width: 22rem;
+}
+.messenger-artifact-card .artifact-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.messenger-artifact-card .artifact-status {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-weight: 600;
+}
+.messenger-artifact-card .status-submitted,
+.messenger-artifact-card .status-shared { background: #fef3c7; color: #92400e; }
+.messenger-artifact-card .status-confirmed,
+.messenger-artifact-card .status-accepted,
+.messenger-artifact-card .status-acknowledged { background: #dcfce7; color: #166534; }
+.messenger-artifact-card .status-rejected,
+.messenger-artifact-card .status-declined,
+.messenger-artifact-card .status-superseded { background: #fee2e2; color: #991b1b; }
+.messenger-artifact-card .artifact-amount,
+.messenger-artifact-card .artifact-title { font-weight: 700; font-size: 0.95rem; }
+.messenger-artifact-card .artifact-meta { font-size: 0.75rem; color: #64748b; margin-top: 0.15rem; }
+.messenger-artifact-card .artifact-meta.warn { color: #b45309; }
+.messenger-artifact-card .artifact-terms {
+  white-space: pre-wrap;
+  font-size: 0.75rem;
+  margin-top: 0.4rem;
+  max-height: 10rem;
+  overflow: auto;
+  background: rgba(148, 163, 184, 0.12);
+  padding: 0.4rem;
+  border-radius: 8px;
+}
+.messenger-artifact-card .artifact-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+.artifact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.artifact-btn.primary { background: #ea580c; color: #fff; border-color: #ea580c; }
+.artifact-btn.danger { color: #b91c1c; }
+.artifact-input {
+  flex: 1 1 100%;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 8px;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.75rem;
+}
+.artifact-error { color: #b91c1c; font-size: 0.75rem; margin-top: 0.35rem; }
+.messenger-share-panel {
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+  background: #0f172a08;
+  padding: 0.75rem;
+}
+.messenger-share-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.messenger-share-close { margin-left: auto; background: transparent; border: 0; cursor: pointer; }
+.messenger-share-panel-body label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+.messenger-share-panel-body input,
+.messenger-share-panel-body textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+.artifact-check { display: flex !important; align-items: center; gap: 0.4rem; }
+.artifact-check input { width: auto !important; }
+.messages-thread-actions .messages-quote-share-btn + .messages-quote-share-btn { margin-left: 0.25rem; }

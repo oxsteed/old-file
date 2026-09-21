@@ -2313,6 +2313,32 @@
       "tax": "Impuesto %",
       "validUntil": "Válido hasta",
       "send": "Compartir en el chat"
+    },
+    "popShare": {
+      "title": "Compartir comprobante de pago",
+      "button": "Pago",
+      "amount": "Monto",
+      "method": "Método de pago",
+      "methodPh": "p. ej. Venmo, Zelle, tarjeta",
+      "txn": "ID de transacción",
+      "paidOn": "Fecha de pago",
+      "notes": "Notas",
+      "file": "Imagen o PDF del recibo",
+      "send": "Compartir en el chat",
+      "failed": "No se pudo compartir el comprobante."
+    },
+    "agreementShare": {
+      "title": "Compartir un acuerdo",
+      "button": "Acuerdo",
+      "titleLabel": "Título",
+      "titlePh": "p. ej. Términos del servicio",
+      "titleRequired": "El título es obligatorio.",
+      "terms": "Términos",
+      "termsPh": "Pega o escribe los términos…",
+      "requiredBeforeSchedule": "Requerir aceptación antes de programar",
+      "file": "Archivo del contrato (opcional)",
+      "send": "Compartir en el chat",
+      "failed": "No se pudo compartir el acuerdo."
     }
   },
   "dashboard": {
@@ -6336,6 +6362,48 @@
         "scheduled": "Programado",
         "withdrawn": "Retirado",
         "converted": "Convertido"
+      },
+      "popEyebrow": "Comprobante de pago",
+      "popCardAria": "Comprobante de pago",
+      "popLoading": "Cargando comprobante…",
+      "popLoadError": "No se pudo cargar el comprobante.",
+      "popConfirmError": "No se pudo actualizar el comprobante.",
+      "popDownloadError": "No se pudo descargar el archivo.",
+      "popDownload": "Descargar",
+      "popConfirm": "Confirmar",
+      "popReject": "Rechazar",
+      "popRejectReason": "Motivo del rechazo (opcional)",
+      "popMethod": "Método",
+      "popTxn": "ID de transacción",
+      "popPaidOn": "Pagado el",
+      "popLinkedQuote": "Cotización vinculada",
+      "popStatus": {
+        "submitted": "Enviado",
+        "confirmed": "Confirmado",
+        "rejected": "Rechazado"
+      },
+      "agreementEyebrow": "Acuerdo",
+      "agreementFallbackTitle": "Acuerdo de servicio",
+      "agreementCardAria": "Acuerdo: {{title}}",
+      "agreementLoading": "Cargando acuerdo…",
+      "agreementLoadError": "No se pudo cargar el acuerdo.",
+      "agreementRespondError": "No se pudo actualizar el acuerdo.",
+      "agreementDownloadError": "No se pudo descargar el archivo.",
+      "agreementDownload": "Descargar",
+      "agreementAcknowledge": "Reconocer",
+      "agreementAccept": "Aceptar",
+      "agreementDecline": "Rechazar",
+      "agreementDeclineReason": "Motivo (opcional)",
+      "agreementVerifyToRespond": "Verifica para responder",
+      "agreementVersion": "Versión {{version}}",
+      "agreementRequiredBeforeSchedule": "Debe aceptarse antes de programar",
+      "agreementStatus": {
+        "draft": "Borrador",
+        "shared": "Compartido",
+        "acknowledged": "Reconocido",
+        "accepted": "Aceptado",
+        "declined": "Rechazado",
+        "superseded": "Reemplazado"
       }
     }
   },

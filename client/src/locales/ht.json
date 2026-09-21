@@ -2398,6 +2398,32 @@
       "tax": "Takx %",
       "validUntil": "Valab jiska",
       "send": "Pataje nan chat"
+    },
+    "popShare": {
+      "title": "Pataje prèv peman",
+      "button": "Peman",
+      "amount": "Montan",
+      "method": "Metòd peman",
+      "methodPh": "egzanp Venmo, Zelle, kat",
+      "txn": "ID tranzaksyon",
+      "paidOn": "Dat peman",
+      "notes": "Nòt",
+      "file": "Imaj oswa PDF resi",
+      "send": "Pataje nan chat la",
+      "failed": "Pa t kapab pataje prèv peman."
+    },
+    "agreementShare": {
+      "title": "Pataje yon akò",
+      "button": "Akò",
+      "titleLabel": "Tit",
+      "titlePh": "egzanp Kondisyon sèvis",
+      "titleRequired": "Tit obligatwa.",
+      "terms": "Kondisyon",
+      "termsPh": "Kole oswa ekri kondisyon yo…",
+      "requiredBeforeSchedule": "Mande akseptasyon anvan pwogramasyon",
+      "file": "Fichye kontra (opsyonèl)",
+      "send": "Pataje nan chat la",
+      "failed": "Pa t kapab pataje akò a."
     }
   },
   "dashboard": {
@@ -6336,6 +6362,48 @@
         "scheduled": "Pwograme",
         "withdrawn": "Retire",
         "converted": "Konvèti"
+      },
+      "popEyebrow": "Prèv peman",
+      "popCardAria": "Prèv peman",
+      "popLoading": "Ap chaje prèv peman…",
+      "popLoadError": "Pa t kapab chaje prèv peman sa a.",
+      "popConfirmError": "Pa t kapab mete prèv peman ajou.",
+      "popDownloadError": "Pa t kapab telechaje dokiman an.",
+      "popDownload": "Telechaje",
+      "popConfirm": "Konfime",
+      "popReject": "Refize",
+      "popRejectReason": "Rezon refi (opsyonèl)",
+      "popMethod": "Metòd",
+      "popTxn": "ID tranzaksyon",
+      "popPaidOn": "Peye nan",
+      "popLinkedQuote": "Devi ki lyé",
+      "popStatus": {
+        "submitted": "Soumèt",
+        "confirmed": "Konfime",
+        "rejected": "Refize"
+      },
+      "agreementEyebrow": "Akò",
+      "agreementFallbackTitle": "Akò sèvis",
+      "agreementCardAria": "Akò: {{title}}",
+      "agreementLoading": "Ap chaje akò…",
+      "agreementLoadError": "Pa t kapab chaje akò a.",
+      "agreementRespondError": "Pa t kapab mete akò a ajou.",
+      "agreementDownloadError": "Pa t kapab telechaje fichye a.",
+      "agreementDownload": "Telechaje",
+      "agreementAcknowledge": "Rekonèt",
+      "agreementAccept": "Aksepte",
+      "agreementDecline": "Refize",
+      "agreementDeclineReason": "Rezon (opsyonèl)",
+      "agreementVerifyToRespond": "Verifye pou reponn",
+      "agreementVersion": "Vèsyon {{version}}",
+      "agreementRequiredBeforeSchedule": "Fòk aksepte anvan ou pwograme",
+      "agreementStatus": {
+        "draft": "Brouyon",
+        "shared": "Pataje",
+        "acknowledged": "Rekonèt",
+        "accepted": "Aksepte",
+        "declined": "Refize",
+        "superseded": "Ranplase"
       }
     }
   },

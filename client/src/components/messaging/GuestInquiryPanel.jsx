@@ -1,10 +1,16 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail, ArrowLeft, Send, Loader2, FileText } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Loader2, FileText, Receipt, ScrollText } from 'lucide-react';
 import QuoteCard from '../helperProfile/chat/QuoteCard';
 import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
+import PopSharePanel from '../helperProfile/chat/PopSharePanel';
+import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
+import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
+import AgreementCard from '../helperProfile/chat/AgreementCard';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
+import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
+import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +44,8 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [showQuoteShare, setShowQuoteShare] = useState(false);
+  const [showPopShare, setShowPopShare] = useState(false);
+  const [showAgreementShare, setShowAgreementShare] = useState(false);
   const bottomRef = useRef(null);
 
   const inquiryUuid = useMemo(() => {
@@ -303,12 +311,23 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                   {(() => {
                     const raw = m.message || m.content || '';
                     const quoteParsed = parseQuoteMarker(raw);
-                    const body = quoteParsed ? stripQuoteMarkers(raw) : raw;
+                    const popParsed = parsePopMarker(raw);
+                    const agreementParsed = parseAgreementMarker(raw);
+                    let body = raw;
+                    if (quoteParsed) body = stripQuoteMarkers(body);
+                    if (popParsed) body = stripPopMarkers(body);
+                    if (agreementParsed) body = stripAgreementMarkers(body);
                     return (
                       <>
                         {body ? <p className="messages-guest-bubble-body">{body}</p> : null}
                         {quoteParsed ? (
                           <QuoteCard markerText={raw} isProvider isAuthenticated guestVerified={false} />
+                        ) : null}
+                        {popParsed ? (
+                          <ProofOfPaymentCard markerText={raw} isProvider />
+                        ) : null}
+                        {agreementParsed ? (
+                          <AgreementCard markerText={raw} isProvider isAuthenticated />
                         ) : null}
                       </>
                     );
@@ -319,7 +338,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             <div ref={bottomRef} />
           </div>
 
-          <div className="messages-guest-composer-tools" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <div className="messages-guest-composer-tools" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="messages-quote-share-btn"
@@ -327,6 +346,22 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             >
               <FileText size={14} aria-hidden />
               {t('messages.quoteShare.button')}
+            </button>
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowPopShare(true)}
+            >
+              <Receipt size={14} aria-hidden />
+              {t('messages.popShare.button')}
+            </button>
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowAgreementShare(true)}
+            >
+              <ScrollText size={14} aria-hidden />
+              {t('messages.agreementShare.button')}
             </button>
           </div>
           {showQuoteShare && (
@@ -349,6 +384,46 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                   }]);
                 }
                 setShowQuoteShare(false);
+              }}
+            />
+          )}
+          {showPopShare && (
+            <PopSharePanel
+              open={showPopShare}
+              onClose={() => setShowPopShare(false)}
+              guestSessionId={inquiryUuid}
+              onShared={(data) => {
+                if (data?.message) {
+                  setMessages((prev) => [...prev, {
+                    id: data.message.id || `pop-${Date.now()}`,
+                    sender_type: 'helper',
+                    sender_name: '',
+                    message: data.message.message || data.message.content,
+                    content: data.message.message || data.message.content,
+                    created_at: data.message.created_at || new Date().toISOString(),
+                  }]);
+                }
+                setShowPopShare(false);
+              }}
+            />
+          )}
+          {showAgreementShare && (
+            <AgreementSharePanel
+              open={showAgreementShare}
+              onClose={() => setShowAgreementShare(false)}
+              guestSessionId={inquiryUuid}
+              onShared={(data) => {
+                if (data?.message) {
+                  setMessages((prev) => [...prev, {
+                    id: data.message.id || `agr-${Date.now()}`,
+                    sender_type: 'helper',
+                    sender_name: '',
+                    message: data.message.message || data.message.content,
+                    content: data.message.message || data.message.content,
+                    created_at: data.message.created_at || new Date().toISOString(),
+                  }]);
+                }
+                setShowAgreementShare(false);
               }}
             />
           )}

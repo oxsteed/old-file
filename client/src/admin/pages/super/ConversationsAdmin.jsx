@@ -27,7 +27,7 @@ function timeAgo(iso) {
 
 // ─── Thread detail panel ──────────────────────────────────────────────────────
 
-function ThreadDetail({ conv, onStatusChange, actionBusy }) {
+function ThreadDetail({ conv, onStatusChange, actionBusy, breakGlassReason }) {
   const [thread,   setThread]   = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
@@ -36,10 +36,17 @@ function ThreadDetail({ conv, onStatusChange, actionBusy }) {
   const messagesEndRef = useRef(null);
 
   const loadThread = useCallback(async () => {
+    if (!breakGlassReason || String(breakGlassReason).trim().length < 10) {
+      setError('Break-glass reason required (min 10 characters).');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const { data } = await adminApi.get(`/admin/super/conversations/${conv.id}`);
+      const { data } = await adminApi.get(`/admin/super/conversations/${conv.id}`, {
+        params: { reason: breakGlassReason },
+      });
       setThread(data);
     } catch (err) {
       console.error('Failed to load thread:', err);
@@ -47,7 +54,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy }) {
     } finally {
       setLoading(false);
     }
-  }, [conv.id]);
+  }, [conv.id, breakGlassReason]);
 
   useEffect(() => { loadThread(); }, [loadThread]);
   useEffect(() => {
@@ -94,7 +101,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy }) {
       <div className="px-5 py-2 bg-yellow-900/30 border-b border-yellow-700/30 flex items-center gap-2">
         <AlertTriangle size={13} className="text-yellow-400 shrink-0" />
         <p className="text-yellow-300 text-xs">
-          Every conversation viewed here is audit-logged.
+          Break-glass access — reason logged: “{breakGlassReason}”. Telegram cloud-chat model (not E2EE).
         </p>
       </div>
 
@@ -208,6 +215,7 @@ function ThreadDetail({ conv, onStatusChange, actionBusy }) {
         ))}
         <div ref={messagesEndRef} />
       </div>
+      <LinkedArtifacts thread={thread} />
     </div>
   );
 }
@@ -245,11 +253,68 @@ function ConvRow({ conv, selected, onClick }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+function LinkedArtifacts({ thread }) {
+  if (!thread) return null;
+  const pops = thread.proof_of_payments || [];
+  const agreements = thread.agreements || [];
+  const quotes = thread.quotes || [];
+  const bookings = thread.bookings || [];
+  if (!pops.length && !agreements.length && !quotes.length && !bookings.length) return null;
+  return (
+    <div className="px-5 py-3 border-t border-gray-800 bg-gray-950/60 text-xs text-gray-300 space-y-2">
+      <p className="text-gray-400 font-semibold uppercase tracking-wide">Linked artifacts</p>
+      {quotes.length > 0 && (
+        <div>
+          <span className="text-orange-300">Quotes ({quotes.length})</span>
+          <ul className="mt-1 space-y-1">
+            {quotes.slice(0, 8).map((q) => (
+              <li key={`${q.kind}-${q.id}`}>{q.kind} · {q.title || q.id} · {q.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {pops.length > 0 && (
+        <div>
+          <span className="text-orange-300">Proof of payment ({pops.length})</span>
+          <ul className="mt-1 space-y-1">
+            {pops.slice(0, 8).map((p) => (
+              <li key={p.id}>{(p.amount_cents / 100).toFixed(2)} {p.currency} · {p.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {agreements.length > 0 && (
+        <div>
+          <span className="text-orange-300">Agreements ({agreements.length})</span>
+          <ul className="mt-1 space-y-1">
+            {agreements.slice(0, 8).map((a) => (
+              <li key={a.id}>{a.title} · v{a.version} · {a.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {bookings.length > 0 && (
+        <div>
+          <span className="text-orange-300">Bookings ({bookings.length})</span>
+          <ul className="mt-1 space-y-1">
+            {bookings.slice(0, 8).map((b) => (
+              <li key={b.id}>{b.service_name || b.id} · {b.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ConversationsAdmin() {
   const [convs,      setConvs]      = useState([]);
   const [total,      setTotal]      = useState(0);
   const [loading,    setLoading]    = useState(true);
   const [selected,   setSelected]   = useState(null); // conv object
+  const [breakGlassReason, setBreakGlassReason] = useState('');
+  const [pendingConv, setPendingConv] = useState(null);
+  const [reasonDraft, setReasonDraft] = useState('');
   const [showDetail, setShowDetail] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [error,      setError]      = useState('');
@@ -298,7 +363,19 @@ export default function ConversationsAdmin() {
   };
 
   const openConv = (conv) => {
-    setSelected(conv);
+    setPendingConv(conv);
+    setReasonDraft('');
+  };
+
+  const confirmBreakGlass = () => {
+    const reason = reasonDraft.trim();
+    if (reason.length < 10) {
+      toast.error('Enter a break-glass reason (at least 10 characters).');
+      return;
+    }
+    setBreakGlassReason(reason);
+    setSelected(pendingConv);
+    setPendingConv(null);
     setShowDetail(true);
   };
 
@@ -417,10 +494,11 @@ export default function ConversationsAdmin() {
               </button>
             </div>
             <ThreadDetail
-              key={selected.id}
+              key={`${selected.id}:${breakGlassReason}`}
               conv={selected}
               onStatusChange={handleStatusChange}
               actionBusy={actionBusy}
+              breakGlassReason={breakGlassReason}
             />
           </>
         ) : (
@@ -430,6 +508,46 @@ export default function ConversationsAdmin() {
           </div>
         )}
       </div>
+
+      {pendingConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-xl border border-yellow-700/40 bg-gray-900 p-5 shadow-xl">
+            <div className="mb-3 flex items-center gap-2 text-yellow-300">
+              <AlertTriangle size={16} />
+              <h2 className="font-semibold text-white">Break-glass access</h2>
+            </div>
+            <p className="mb-3 text-sm text-gray-400">
+              Viewing helper/customer threads requires a logged reason (Telegram cloud-chat model — not E2EE).
+            </p>
+            <p className="mb-2 text-xs text-gray-500">
+              {pendingConv.customer_name} ↔ {pendingConv.helper_name}
+            </p>
+            <textarea
+              className="mb-3 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+              rows={3}
+              value={reasonDraft}
+              onChange={(e) => setReasonDraft(e.target.value)}
+              placeholder="Why do you need access? (min 10 characters)"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300"
+                onClick={() => setPendingConv(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-medium text-white"
+                onClick={confirmBreakGlass}
+              >
+                Open with audit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

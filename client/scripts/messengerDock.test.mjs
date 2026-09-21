@@ -675,3 +675,55 @@ test('buildShareMessageContent and request-changes template', () => {
   assert.match(buildRequestChangesMessage({ title: 'Fix', reason: 'too high' }), /too high/);
   assert.match(formatCents(1999, 'en'), /19\.99|\$19/);
 });
+
+
+import {
+  buildPopMarker,
+  parsePopMarker,
+  stripPopMarkers,
+} from '../src/components/helperProfile/chat/messengerPop.js';
+import {
+  buildAgreementMarker,
+  parseAgreementMarker,
+  canCustomerRespondToAgreement,
+  stripAgreementMarkers,
+} from '../src/components/helperProfile/chat/messengerAgreements.js';
+
+test('POP marker round-trip', () => {
+  const marker = buildPopMarker({
+    id: 'pop1',
+    status: 'submitted',
+    amountCents: 4200,
+    paymentMethod: 'Cash App',
+    transactionId: 'tx1',
+    paidOn: '2026-09-21',
+    quoteKind: 'business',
+    quoteId: '9',
+  });
+  const parsed = parsePopMarker(`POP\n${marker}`);
+  assert.equal(parsed.id, 'pop1');
+  assert.equal(parsed.amountCents, 4200);
+  assert.equal(parsed.paymentMethod, 'Cash App');
+  assert.equal(stripPopMarkers(`A\n${marker}\nB`).includes('[pop:'), false);
+});
+
+test('Agreement marker + respond gate', () => {
+  const marker = buildAgreementMarker({
+    id: 'ag1',
+    token: 't',
+    status: 'shared',
+    version: 1,
+    title: 'Terms',
+  });
+  const parsed = parseAgreementMarker(marker);
+  assert.equal(parsed.title, 'Terms');
+  assert.equal(
+    canCustomerRespondToAgreement({ status: 'shared' }, { isAuthenticated: true }).ok,
+    true,
+  );
+  assert.equal(
+    canCustomerRespondToAgreement({ status: 'shared' }, { isAuthenticated: false, guestVerified: false }).reason,
+    'verify_required',
+  );
+  assert.equal(stripAgreementMarkers(`X\n${marker}`).includes('[agreement:'), false);
+});

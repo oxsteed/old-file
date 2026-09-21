@@ -2313,6 +2313,32 @@
       "tax": "Taxe %",
       "validUntil": "Valable jusqu’au",
       "send": "Partager dans le chat"
+    },
+    "popShare": {
+      "title": "Partager une preuve de paiement",
+      "button": "Paiement",
+      "amount": "Montant",
+      "method": "Mode de paiement",
+      "methodPh": "ex. Venmo, Zelle, carte",
+      "txn": "ID de transaction",
+      "paidOn": "Date de paiement",
+      "notes": "Notes",
+      "file": "Image ou PDF du reçu",
+      "send": "Partager dans le chat",
+      "failed": "Impossible de partager la preuve de paiement."
+    },
+    "agreementShare": {
+      "title": "Partager un accord",
+      "button": "Accord",
+      "titleLabel": "Titre",
+      "titlePh": "ex. Conditions de service",
+      "titleRequired": "Le titre est obligatoire.",
+      "terms": "Conditions",
+      "termsPh": "Collez ou rédigez les conditions…",
+      "requiredBeforeSchedule": "Exiger l'acceptation avant la planification",
+      "file": "Fichier du contrat (facultatif)",
+      "send": "Partager dans le chat",
+      "failed": "Impossible de partager l'accord."
     }
   },
   "dashboard": {
@@ -6336,6 +6362,48 @@
         "scheduled": "Planifié",
         "withdrawn": "Retiré",
         "converted": "Converti"
+      },
+      "popEyebrow": "Preuve de paiement",
+      "popCardAria": "Preuve de paiement",
+      "popLoading": "Chargement de la preuve…",
+      "popLoadError": "Impossible de charger la preuve de paiement.",
+      "popConfirmError": "Impossible de mettre à jour la preuve.",
+      "popDownloadError": "Impossible de télécharger la pièce jointe.",
+      "popDownload": "Télécharger",
+      "popConfirm": "Confirmer",
+      "popReject": "Rejeter",
+      "popRejectReason": "Motif du rejet (facultatif)",
+      "popMethod": "Méthode",
+      "popTxn": "ID de transaction",
+      "popPaidOn": "Payé le",
+      "popLinkedQuote": "Devis lié",
+      "popStatus": {
+        "submitted": "Soumis",
+        "confirmed": "Confirmé",
+        "rejected": "Rejeté"
+      },
+      "agreementEyebrow": "Accord",
+      "agreementFallbackTitle": "Accord de service",
+      "agreementCardAria": "Accord : {{title}}",
+      "agreementLoading": "Chargement de l'accord…",
+      "agreementLoadError": "Impossible de charger l'accord.",
+      "agreementRespondError": "Impossible de mettre à jour l'accord.",
+      "agreementDownloadError": "Impossible de télécharger le fichier.",
+      "agreementDownload": "Télécharger",
+      "agreementAcknowledge": "Accuser réception",
+      "agreementAccept": "Accepter",
+      "agreementDecline": "Refuser",
+      "agreementDeclineReason": "Motif (facultatif)",
+      "agreementVerifyToRespond": "Vérifiez pour répondre",
+      "agreementVersion": "Version {{version}}",
+      "agreementRequiredBeforeSchedule": "Doit être accepté avant la planification",
+      "agreementStatus": {
+        "draft": "Brouillon",
+        "shared": "Partagé",
+        "acknowledged": "Accusé",
+        "accepted": "Accepté",
+        "declined": "Refusé",
+        "superseded": "Remplacé"
       }
     }
   },

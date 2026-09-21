@@ -19,6 +19,8 @@ const {
   toPublicQuoteCard,
   toChatStatus,
 } = require('../services/chatQuotes');
+const { checkScheduleAgreementGate } = require('../services/chatAgreements');
+
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
@@ -806,6 +808,18 @@ exports.scheduleFromQuote = async (req, res, next) => {
       if (!userId && !guest) return bad(res, 401, 'Sign in or verify as guest', 'verify_required');
       return bad(res, 403, 'Not allowed', 'forbidden');
     }
+
+    // Optional: block schedule until required agreements are accepted
+    {
+      const gate = await checkScheduleAgreementGate(pool, {
+        conversationId: quote.conversation_id,
+        guestSessionId: quote.guest_session_id,
+      });
+      if (gate.blocked) {
+        return bad(res, 409, 'Accept the required agreement before scheduling', 'agreement_required');
+      }
+    }
+
 
     const body = req.body || {};
     const date = String(body.requestedDate || body.date || '').slice(0, 10);

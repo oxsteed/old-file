@@ -155,8 +155,10 @@ router.get('/users/:userId/support-tickets', requireAdmin, superCtrl.getUserSupp
 // Conversations (super-admin only - every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
 router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
+router.post('/super/conversations/:id/break-glass', requireSuperAdmin, convAdminCtrl.breakGlass);
 router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
+router.get('/super/guest-inquiries/:id',        requireSuperAdmin, convAdminCtrl.getGuestInquiry);
 
 // Admin account management - delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);

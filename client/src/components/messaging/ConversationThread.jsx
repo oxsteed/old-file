@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip, Receipt, ScrollText } from 'lucide-react';
 import { useConversationChat } from '../../hooks/useConversationChat';
 import AutoTranslatedMessage from '../AutoTranslatedMessage';
 import MessageReactions from '../MessageReactions';
@@ -10,8 +10,14 @@ import ConversationComposer from './ConversationComposer';
 import { parseInlineAttachments, attachmentLabel, isImageAttachment } from '../../utils/messageAttachments';
 import QuoteCard from '../helperProfile/chat/QuoteCard';
 import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
+import PopSharePanel from '../helperProfile/chat/PopSharePanel';
+import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
+import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
+import AgreementCard from '../helperProfile/chat/AgreementCard';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
+import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
+import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 
@@ -50,6 +56,8 @@ export default function ConversationThread({
   const [editText, setEditText] = useState('');
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [showQuoteShare, setShowQuoteShare] = useState(false);
+  const [showPopShare, setShowPopShare] = useState(false);
+  const [showAgreementShare, setShowAgreementShare] = useState(false);
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
@@ -194,6 +202,26 @@ export default function ConversationThread({
           )}
           <button
             type="button"
+            className="messages-quote-share-btn"
+            onClick={() => setShowPopShare(true)}
+            title={t('messages.popShare.title')}
+          >
+            <Receipt size={14} aria-hidden />
+            <span className="hide-sm">{t('messages.popShare.button')}</span>
+          </button>
+          {role === 'helper' && (
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowAgreementShare(true)}
+              title={t('messages.agreementShare.title')}
+            >
+              <ScrollText size={14} aria-hidden />
+              <span className="hide-sm">{t('messages.agreementShare.button')}</span>
+            </button>
+          )}
+          <button
+            type="button"
             onClick={toggleTranslate}
             aria-pressed={translateEnabled}
             title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
@@ -263,9 +291,12 @@ export default function ConversationThread({
                   <div className={`messages-bubble ${isMe ? 'mine' : 'theirs'}${msg._failed ? ' failed' : ''}${msg._pending ? ' pending' : ''}`}>
                     {(() => {
                       const quoteParsed = parseQuoteMarker(msg.content);
-                      const displayText = quoteParsed
-                        ? stripQuoteMarkers(parsed.text || msg.content)
-                        : parsed.text;
+                      const popParsed = parsePopMarker(msg.content);
+                      const agreementParsed = parseAgreementMarker(msg.content);
+                      let displayText = parsed.text || msg.content || '';
+                      if (quoteParsed) displayText = stripQuoteMarkers(displayText);
+                      if (popParsed) displayText = stripPopMarkers(displayText);
+                      if (agreementParsed) displayText = stripAgreementMarkers(displayText);
                       return (
                         <>
                           {displayText ? (
@@ -289,6 +320,19 @@ export default function ConversationThread({
                                   setShowQuoteSchedule(true);
                                 }
                               }}
+                            />
+                          ) : null}
+                          {popParsed ? (
+                            <ProofOfPaymentCard
+                              markerText={msg.content}
+                              isProvider={role === 'helper'}
+                            />
+                          ) : null}
+                          {agreementParsed ? (
+                            <AgreementCard
+                              markerText={msg.content}
+                              isProvider={role === 'helper'}
+                              isAuthenticated
                             />
                           ) : null}
                         </>
@@ -408,6 +452,24 @@ export default function ConversationThread({
             }
             setShowQuoteShare(false);
           }}
+        />
+      )}
+      {showPopShare && (
+        <PopSharePanel
+          open={showPopShare}
+          onClose={() => setShowPopShare(false)}
+          conversationId={conversationId}
+          businessId={businessId}
+          onShared={() => setShowPopShare(false)}
+        />
+      )}
+      {showAgreementShare && (
+        <AgreementSharePanel
+          open={showAgreementShare}
+          onClose={() => setShowAgreementShare(false)}
+          conversationId={conversationId}
+          businessId={businessId}
+          onShared={() => setShowAgreementShare(false)}
         />
       )}
 <ConversationComposer
