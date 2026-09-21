@@ -1097,7 +1097,7 @@ export default function BusinessProfilePage() {
 
             <FAQSection faqs={faqs} />
 
-            {/* Bottom padding for mobile CTA bar + FAB + iOS home indicator */}
+            {/* Bottom padding for mobile CTA bar + launcher + iOS home indicator */}
             <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
 

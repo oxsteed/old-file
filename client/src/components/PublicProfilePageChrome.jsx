@@ -1,8 +1,8 @@
 /**
  * Shared shell UI for public helper/business profile pages
- * (skeleton, error, mobile chat drawer, section nav, back-to-top).
+ * (skeleton, error, section nav, back-to-top).
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ArrowUp } from 'lucide-react';
 
@@ -44,68 +44,6 @@ export function ProfileError({ message, onRetry, headline = undefined }) {
       >
         {t('helperProfile.chrome.tryAgain')}
       </button>
-    </div>
-  );
-}
-
-export function MobileChatDrawer({ open, onClose, children }) {
-  const { t } = useTranslation();
-  const drawerRef = useRef(null);
-  const touchStartY = useRef(0);
-  const touchCurrentY = useRef(0);
-  const isDragging = useRef(false);
-
-  useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [open]);
-
-  const handleHandleTouchStart = (e) => {
-    isDragging.current = true;
-    touchStartY.current = e.touches[0].clientY;
-    touchCurrentY.current = e.touches[0].clientY;
-  };
-
-  const handleHandleTouchMove = (e) => {
-    if (!isDragging.current) return;
-    touchCurrentY.current = e.touches[0].clientY;
-    const delta = touchCurrentY.current - touchStartY.current;
-    if (delta > 0 && drawerRef.current) {
-      drawerRef.current.style.transform = `translateY(${delta}px)`;
-    }
-  };
-
-  const handleHandleTouchEnd = () => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    const delta = touchCurrentY.current - touchStartY.current;
-    if (delta > 80) {
-      onClose();
-    } else if (drawerRef.current) {
-      drawerRef.current.style.transform = '';
-    }
-  };
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label={t('helperProfile.chrome.chat')}>
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} aria-hidden="true" />
-      <div
-        ref={drawerRef}
-        className="relative mt-auto bg-white dark:bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl transition-transform duration-300"
-        style={{ height: 'min(72dvh, 640px)' }}
-      >
-        <div
-          className="flex justify-center pt-3 pb-1 flex-shrink-0 cursor-pointer"
-          onTouchStart={handleHandleTouchStart}
-          onTouchMove={handleHandleTouchMove}
-          onTouchEnd={handleHandleTouchEnd}
-          onClick={onClose}
-        >
-          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" aria-hidden="true" />
-        </div>
-        <div className="flex-1 overflow-hidden px-3 pb-3">{children}</div>
-      </div>
     </div>
   );
 }
