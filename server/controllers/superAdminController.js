@@ -2644,12 +2644,19 @@ exports.sendAdminMessage = async (req, res) => {
   try {
     const { userId } = req.params;
     const { content } = req.body;
+    const clientMessageId = req.get?.('Idempotency-Key')
+      || req.body?.clientMessageId
+      || req.body?.client_message_id
+      || null;
 
     if (!content?.trim()) {
       return res.status(400).json({ error: 'Message content is required.' });
     }
     if (content.length > 4000) {
       return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
+    }
+    if (clientMessageId && !UUID_RE.test(String(clientMessageId).trim())) {
+      return res.status(400).json({ error: 'clientMessageId must be a valid UUID' });
     }
 
     // Verify target user exists, is not an admin, and is not soft-deleted (scheduled deletion
@@ -2669,7 +2676,7 @@ exports.sendAdminMessage = async (req, res) => {
     // All conversation + message writes in one transaction to prevent
     // orphaned conversations on failure and race-condition duplicates.
     const client = await db.connect();
-    let conversationId, msgRows;
+    let conversationId, msgRows, replayed = false;
     try {
       await client.query('BEGIN');
 
@@ -2699,17 +2706,30 @@ exports.sendAdminMessage = async (req, res) => {
 
       // Insert the message
       const result = await client.query(`
-        INSERT INTO messages (conversation_id, sender_id, content, message_type)
-        VALUES ($1, $2, $3, 'system')
+        INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+        VALUES ($1, $2, $3, 'system', $4)
+        ON CONFLICT (conversation_id, client_message_id)
+        WHERE client_message_id IS NOT NULL DO NOTHING
         RETURNING id, created_at
-      `, [conversationId, adminId, content.trim()]);
+      `, [conversationId, adminId, content.trim(), clientMessageId]);
       msgRows = result.rows;
+      replayed = !msgRows[0] && Boolean(clientMessageId);
+      if (!msgRows[0] && clientMessageId) {
+        const existingMessage = await client.query(`
+          SELECT id, created_at FROM messages
+          WHERE conversation_id = $1 AND client_message_id = $2
+        `, [conversationId, clientMessageId]);
+        msgRows = existingMessage.rows;
+      }
+      if (!msgRows[0]) throw new Error('Message insert did not return a row');
 
       // Update conversation timestamp
-      await client.query(
-        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [conversationId]
-      );
+      if (!replayed) {
+        await client.query(
+          `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [conversationId]
+        );
+      }
 
       await client.query('COMMIT');
     } catch (txErr) {
@@ -2719,40 +2739,43 @@ exports.sendAdminMessage = async (req, res) => {
       client.release();
     }
 
-    // Push real-time event to target user
-    socketService.broadcastToUser(targetId, 'new_message', {
-      conversation_id: conversationId,
-      message: {
-        id:              msgRows[0].id,
+    if (!replayed) {
+      // Push real-time event to target user
+      socketService.broadcastToUser(targetId, 'new_message', {
         conversation_id: conversationId,
-        sender_id:       adminId,
-        content:         content.trim(),
-        message_type:    'system',
-        is_read:         false,
-        created_at:      msgRows[0].created_at,
-      },
-      sender: {
-        id:         req.user.id,
-        first_name: req.user.first_name,
-        last_name:  req.user.last_name,
-        role:       req.user.role,
-      },
-    });
+        message: {
+          id:              msgRows[0].id,
+          conversation_id: conversationId,
+          sender_id:       adminId,
+          content:         content.trim(),
+          message_type:    'system',
+          is_read:         false,
+          created_at:      msgRows[0].created_at,
+        },
+        sender: {
+          id:         req.user.id,
+          first_name: req.user.first_name,
+          last_name:  req.user.last_name,
+          role:       req.user.role,
+        },
+      });
 
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'admin_message_sent',
-      targetType: 'user',
-      targetId,
-      description: `Admin message sent to ${targetRows[0].email}`,
-      after: { conversation_id: conversationId, message_id: msgRows[0].id, preview: content.slice(0, 100) },
-      req,
-    });
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'admin_message_sent',
+        targetType: 'user',
+        targetId,
+        description: `Admin message sent to ${targetRows[0].email}`,
+        after: { conversation_id: conversationId, message_id: msgRows[0].id, preview: content.slice(0, 100) },
+        req,
+      });
+    }
 
-    res.status(201).json({
+    res.status(replayed ? 200 : 201).json({
       conversation_id: conversationId,
       message_id:      msgRows[0].id,
       created_at:      msgRows[0].created_at,
+      ...(replayed ? { idempotent: true } : {}),
     });
   } catch (err) {
     logger.error('sendAdminMessage error', { err });

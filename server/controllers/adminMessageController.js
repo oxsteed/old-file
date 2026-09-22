@@ -17,6 +17,16 @@ const socketService  = require('../services/socketService');
 const { logAdminAction } = require('../services/auditService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getClientMessageId(req) {
+  return req.get?.('Idempotency-Key')
+    || req.body?.clientMessageId
+    || req.body?.client_message_id
+    || null;
+}
+
 /**
  * GET /api/admin/messages/conversations
  * Returns all conversations that have at least one admin participant.
@@ -178,9 +188,13 @@ exports.send = async (req, res) => {
     const adminId  = req.user.id;
     const { userId } = req.params;
     const rawContent = (req.body.content || '').trim();
+    const clientMessageId = getClientMessageId(req);
 
     if (!rawContent) return res.status(400).json({ error: 'Message content is required.' });
     if (rawContent.length > 4000) return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
+    if (clientMessageId && !UUID_RE.test(String(clientMessageId).trim())) {
+      return res.status(400).json({ error: 'clientMessageId must be a valid UUID' });
+    }
 
     const content = sanitizeMessage(rawContent);
 
@@ -196,7 +210,7 @@ exports.send = async (req, res) => {
     }
 
     const client = await db.connect();
-    let conversationId, msgRow;
+    let conversationId, msgRow, replayed = false;
     try {
       await client.query('BEGIN');
 
@@ -220,16 +234,31 @@ exports.send = async (req, res) => {
       }
 
       const { rows: inserted } = await client.query(
-        `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-         VALUES ($1, $2, $3, 'system') RETURNING id, created_at`,
-        [conversationId, adminId, content]
+        `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+         VALUES ($1, $2, $3, 'system', $4)
+         ON CONFLICT (conversation_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
+         RETURNING id, created_at`,
+        [conversationId, adminId, content, clientMessageId]
       );
       msgRow = inserted[0];
+      replayed = !msgRow && Boolean(clientMessageId);
+      if (!msgRow && clientMessageId) {
+        const { rows: existingMessage } = await client.query(
+          `SELECT id, created_at FROM messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientMessageId]
+        );
+        msgRow = existingMessage[0];
+      }
+      if (!msgRow) throw new Error('Message insert did not return a row');
 
-      await client.query(
-        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [conversationId]
-      );
+      if (!replayed) {
+        await client.query(
+          `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [conversationId]
+        );
+      }
 
       await client.query('COMMIT');
     } catch (txErr) {
@@ -252,42 +281,45 @@ exports.send = async (req, res) => {
       sender_role:       req.user.role,
     };
 
-    // Standard inbox event (user's MessagesPage picks this up)
-    socketService.broadcastToUser(userId, 'message:new', {
-      conversationId,
-      message: { ...messagePayload, sender_name: 'OxSteed Admin' },
-    });
+    if (!replayed) {
+      // Standard inbox event (user's MessagesPage picks this up)
+      socketService.broadcastToUser(userId, 'message:new', {
+        conversationId,
+        message: { ...messagePayload, sender_name: 'OxSteed Admin' },
+      });
 
-    // Dedicated admin:message event so user can show a distinct notification
-    socketService.broadcastToUser(userId, 'admin:message', {
-      conversationId,
-      message: messagePayload,
-      admin: {
-        id:         adminId,
-        first_name: req.user.first_name,
-        last_name:  req.user.last_name,
-        role:       req.user.role,
-      },
-    });
+      // Dedicated admin:message event so user can show a distinct notification
+      socketService.broadcastToUser(userId, 'admin:message', {
+        conversationId,
+        message: messagePayload,
+        admin: {
+          id:         adminId,
+          first_name: req.user.first_name,
+          last_name:  req.user.last_name,
+          role:       req.user.role,
+        },
+      });
 
-    await logAdminAction({
-      adminId,
-      action:      'admin_message_sent',
-      targetType:  'user',
-      targetId:    userId,
-      description: `Admin message sent to ${targetRows[0].email}`,
-      after: {
-        conversation_id: conversationId,
-        message_id:      msgRow.id,
-        preview:         content.slice(0, 100),
-      },
-      req,
-    });
+      await logAdminAction({
+        adminId,
+        action:      'admin_message_sent',
+        targetType:  'user',
+        targetId:    userId,
+        description: `Admin message sent to ${targetRows[0].email}`,
+        after: {
+          conversation_id: conversationId,
+          message_id:      msgRow.id,
+          preview:         content.slice(0, 100),
+        },
+        req,
+      });
+    }
 
-    res.status(201).json({
+    res.status(replayed ? 200 : 201).json({
       conversation_id: conversationId,
       message_id:      msgRow.id,
       created_at:      msgRow.created_at,
+      ...(replayed ? { idempotent: true } : {}),
     });
   } catch (err) {
     logger.error('adminMessages.send error', { err: err.message });
