@@ -3,11 +3,12 @@
  * Modal for customers/helpers to submit disputes against jobs
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
+import { createMessageRequestId } from '../lib/messageRequestId';
 
 interface DisputeSubmissionModalProps {
   jobId: string | number;
@@ -38,6 +39,7 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pendingRequestRef = useRef<{ clientRequestId: string; fingerprint: string } | null>(null);
 
   const { data: jobData } = useQuery({
     queryKey: ['job', jobId],
@@ -59,13 +61,26 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await api.post(`/disputes/jobs/${jobId}`, {
+      const payload = {
         reason: selectedReason,
         description: description.trim(),
+      };
+      const fingerprint = JSON.stringify(payload);
+      const pending = pendingRequestRef.current;
+      const clientRequestId = pending?.fingerprint === fingerprint
+        ? pending.clientRequestId
+        : createMessageRequestId();
+      pendingRequestRef.current = { clientRequestId, fingerprint };
+      await api.post(`/disputes/jobs/${jobId}`, {
+        ...payload,
+        clientRequestId,
+      }, {
+        headers: { 'Idempotency-Key': clientRequestId },
       });
 
       setSelectedReason('');
       setDescription('');
+      pendingRequestRef.current = null;
       onSuccess?.();
       onClose();
     } catch (err: any) {

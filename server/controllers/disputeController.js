@@ -4,6 +4,7 @@ const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 const { AppError }          = require('../middleware/errorHandler');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { getClientRequestId } = require('../utils/idempotency');
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -36,6 +37,13 @@ exports.openDispute = async (req, res, next) => {
     const userId = req.user.id;
     const { jobId } = req.params;
     const { reason, description, job_type } = req.body;
+    const clientRequestId = getClientRequestId(req);
+
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed', {
+        clientRequestId: 'Must be a valid UUID',
+      });
+    }
 
     const fields = {};
     if (!jobId) {
@@ -78,7 +86,7 @@ exports.openDispute = async (req, res, next) => {
     const openedByRole = req.user.role === 'helper' ? 'helper' : 'customer';
 
     // Create dispute atomically with race condition prevention
-    const dispute = await withTransaction(db, async (client) => {
+    const result = await withTransaction(db, async (client) => {
       // Lock the job row to prevent concurrent disputes
       const { rows: jobLockRows } = await client.query(
         'SELECT id, title, status, client_id, assigned_helper_id FROM jobs WHERE id = $1 FOR UPDATE',
@@ -87,6 +95,23 @@ exports.openDispute = async (req, res, next) => {
 
       if (!jobLockRows.length) {
         throw new AppError('Job not found', 404, 'not_found');
+      }
+
+      // Recover a committed request before applying the normal one-dispute
+      // conflict rule. This is the response-loss path for a client retry.
+      if (clientRequestId) {
+        const { rows: replayRows } = await client.query(
+          `SELECT d.*, st.ticket_number AS support_ticket_number
+             FROM disputes d
+             LEFT JOIN support_tickets st ON st.id = d.support_ticket_id
+            WHERE d.job_id = $1 AND d.client_request_id = $2
+            LIMIT 1`,
+          [jobId, clientRequestId]
+        );
+
+        if (replayRows[0]) {
+          return { dispute: replayRows[0], replayed: true };
+        }
       }
 
       // Check for existing disputes AFTER locking
@@ -100,16 +125,45 @@ exports.openDispute = async (req, res, next) => {
       }
 
       // Create dispute
-      const { rows: disputeRows } = await client.query(`
-        INSERT INTO disputes (
-          job_id, job_type, opened_by, opened_by_name,
-          opened_by_role, reason, description, status
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-        RETURNING *
-      `, [
-        jobId, job_type || 'standard', userId, userName,
-        openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN
-      ]);
+      const { rows: disputeRows } = await client.query(
+        clientRequestId
+          ? `INSERT INTO disputes (
+               job_id, job_type, opened_by, opened_by_name,
+               opened_by_role, reason, description, status, client_request_id
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             ON CONFLICT (job_id, client_request_id)
+             WHERE client_request_id IS NOT NULL DO NOTHING
+             RETURNING *`
+          : `INSERT INTO disputes (
+               job_id, job_type, opened_by, opened_by_name,
+               opened_by_role, reason, description, status
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             RETURNING *`,
+        clientRequestId
+          ? [
+              jobId, job_type || 'standard', userId, userName,
+              openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN,
+              clientRequestId,
+            ]
+          : [
+              jobId, job_type || 'standard', userId, userName,
+              openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN,
+            ],
+      );
+
+      if (!disputeRows.length && clientRequestId) {
+        const { rows: replayRows } = await client.query(
+          `SELECT d.*, st.ticket_number AS support_ticket_number
+             FROM disputes d
+             LEFT JOIN support_tickets st ON st.id = d.support_ticket_id
+            WHERE d.job_id = $1 AND d.client_request_id = $2
+            LIMIT 1`,
+          [jobId, clientRequestId]
+        );
+        if (replayRows[0]) {
+          return { dispute: replayRows[0], replayed: true };
+        }
+      }
 
       if (!disputeRows.length) {
         throw new AppError('Failed to create dispute', 500, 'processing_error');
@@ -145,6 +199,7 @@ exports.openDispute = async (req, res, next) => {
           '',
           description.trim(),
         ].join('\n'),
+        clientRequestId,
       });
 
       await client.query(
@@ -185,31 +240,35 @@ exports.openDispute = async (req, res, next) => {
         }
       }
 
-      return dispute;
+      return { dispute, replayed: false };
     }, 'open_dispute');
 
-    // Notify admins AFTER successful dispute creation (outside transaction)
-    try {
-      const { rows: adminRows } = await db.query(
-        `SELECT id FROM users WHERE role IN ('admin', 'super_admin') AND is_active = true`
-      );
-      await Promise.allSettled(
-        adminRows.map(admin =>
-          sendNotification({
-            userId: admin.id,
-            type: 'dispute_opened',
-            title: 'New Dispute Opened',
-            message: `${userName} opened a dispute for job ${jobId}. Reason: ${reason}`,
-            metadata: { disputeId: dispute.id, jobId, supportTicketId: dispute.support_ticket_id }
-          })
-        )
-      );
-    } catch (notifErr) {
-      logger.error('Failed to send dispute notification:', notifErr);
-      // Don't fail the response if notifications fail
+    const dispute = result.dispute;
+
+    if (!result.replayed) {
+      // Notify admins AFTER successful dispute creation (outside transaction)
+      try {
+        const { rows: adminRows } = await db.query(
+          `SELECT id FROM users WHERE role IN ('admin', 'super_admin') AND is_active = true`
+        );
+        await Promise.allSettled(
+          adminRows.map(admin =>
+            sendNotification({
+              userId: admin.id,
+              type: 'dispute_opened',
+              title: 'New Dispute Opened',
+              message: `${userName} opened a dispute for job ${jobId}. Reason: ${reason}`,
+              metadata: { disputeId: dispute.id, jobId, supportTicketId: dispute.support_ticket_id }
+            })
+          )
+        );
+      } catch (notifErr) {
+        logger.error('Failed to send dispute notification:', notifErr);
+        // Don't fail the response if notifications fail
+      }
     }
 
-    res.status(201).json({
+    res.status(result.replayed ? 200 : 201).json({
       dispute,
       ticket: dispute.support_ticket_id
         ? {
@@ -218,7 +277,8 @@ exports.openDispute = async (req, res, next) => {
             status: 'open',
           }
         : null,
-      message: 'Dispute opened successfully.'
+      message: 'Dispute opened successfully.',
+      idempotent: result.replayed,
     });
   } catch (err) {
     next(err);

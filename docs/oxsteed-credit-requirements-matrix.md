@@ -991,6 +991,22 @@ touched. Remaining evidence is exact 200% zoom, authenticated browser checks
 under multiple live time zones, publication and post-publication restore, live
 provider delivery, and unattended/off-device backup operations.
 
+Communication retry-safety checkpoint (2026-09-22 UTC): dispute opening now
+accepts a validated request key, stores it with a job-scoped unique index, and
+recovers a committed dispute before the existing one-open-dispute conflict
+rule. The linked support ticket receives the same key, so a response-loss retry
+cannot create a second ticket, initial support message, escrow hold, or admin
+notification. The dispute hook and submission modal retain the key across a
+failed retry and rotate it when the submitted payload changes. The focused
+dispute/report/messaging suite passed `9/9`, the linked-ticket suite passed,
+the full server regression passed `195/195` suites and `1,351/1,351` tests,
+and `client/npm run build:ci` passed through locale verification, TypeScript,
+and Vite. The build emitted only the existing dynamic-import and large-chunk
+warnings. Exact live publication remains blocked by unavailable GitHub
+credentials; the next engineering action is to audit dispute evidence uploads
+and any remaining support-entry creation paths for the same retry contract,
+then publish through the approved deployment identity.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

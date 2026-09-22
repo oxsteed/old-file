@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import api from '../api/axios';
+import { createMessageRequestId } from '../lib/messageRequestId';
 
 export default function useDisputes() {
   const [disputes, setDisputes] = useState([]);
   const [dispute, setDispute] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const pendingDisputeRef = useRef(new Map());
 
   // Get all disputes for the current user
   const fetchMyDisputes = useCallback(async () => {
@@ -43,8 +45,22 @@ export default function useDisputes() {
   const openDispute = useCallback(async (jobId, disputeData) => {
     setLoading(true);
     setError(null);
+    const payload = { ...(disputeData || {}) };
+    const suppliedRequestId = payload.clientRequestId || null;
+    delete payload.clientRequestId;
+    const fingerprint = JSON.stringify(payload);
+    const pending = pendingDisputeRef.current.get(String(jobId));
+    const clientRequestId = suppliedRequestId
+      || (pending?.fingerprint === fingerprint ? pending.clientRequestId : createMessageRequestId());
+    pendingDisputeRef.current.set(String(jobId), { clientRequestId, fingerprint });
     try {
-      const { data } = await api.post(`/disputes/jobs/${jobId}`, disputeData);
+      const { data } = await api.post(`/disputes/jobs/${jobId}`, {
+        ...payload,
+        clientRequestId,
+      }, {
+        headers: { 'Idempotency-Key': clientRequestId },
+      });
+      pendingDisputeRef.current.delete(String(jobId));
       return data;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to open dispute');
