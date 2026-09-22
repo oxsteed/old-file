@@ -26,6 +26,18 @@ function bad(res, status, error, code, extra = {}) {
   return res.status(status).json({ error, code: code || 'error', ...extra });
 }
 
+function getClientRequestId(req) {
+  const value = req.get?.('Idempotency-Key')
+    || req.body?.clientRequestId
+    || req.body?.client_request_id
+    || null;
+  if (!value) return null;
+  const id = String(value).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : false;
+}
+
 async function loadQuote(kind, id) {
   if (kind === 'business') {
     const { rows } = await pool.query('SELECT * FROM business_quotes WHERE id = $1', [id]);
@@ -98,17 +110,38 @@ async function assertGuestInquiryAccess(userId, guestSessionId) {
   return rows[0] || null;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, isProfileChat }) {
+async function postConversationMessage({
+  conversationId,
+  senderId,
+  content,
+  senderName,
+  isProfileChat,
+  clientMessageId = null,
+}) {
   const { rows } = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-     VALUES ($1, $2, $3, 'text') RETURNING *`,
-    [conversationId, senderId, content],
+    `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+     VALUES ($1, $2, $3, 'text', $4)
+     ON CONFLICT (conversation_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [conversationId, senderId, content, clientMessageId],
   );
+  let messageRow = rows[0];
+  const replayed = !messageRow && Boolean(clientMessageId);
+  if (!messageRow && clientMessageId) {
+    const replay = await pool.query(
+      'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+      [conversationId, clientMessageId],
+    );
+    messageRow = replay.rows[0];
+  }
+  if (!messageRow) throw new Error('Failed to create quote chat message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   await pool.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
   );
-  const message = { ...rows[0], sender_name: senderName };
+  const message = { ...messageRow, sender_name: senderName };
   socketService.broadcastToConversation(conversationId, 'message:new', {
     conversationId,
     message,
@@ -123,15 +156,29 @@ async function postConversationMessage({ conversationId, senderId, content, send
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderName, content, helperId }) {
+async function postGuestMessage({ guestSessionId, senderName, content, helperId, clientMessageId = null }) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
-       (session_id, sender_type, sender_name, message, created_at)
-     VALUES ($1, 'helper', $2, $3, CURRENT_TIMESTAMP)
+       (session_id, sender_type, sender_name, message, client_message_id, created_at)
+     VALUES ($1, 'helper', $2, $3, $4, CURRENT_TIMESTAMP)
+     ON CONFLICT (session_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderName, content],
+    [guestSessionId, senderName, content, clientMessageId],
   );
-  const msg = rows[0];
+  let msg = rows[0];
+  const replayed = !msg && Boolean(clientMessageId);
+  if (!msg && clientMessageId) {
+    const replay = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1 AND client_message_id = $2`,
+      [guestSessionId, clientMessageId],
+    );
+    msg = replay.rows[0];
+  }
+  if (!msg) throw new Error('Failed to create guest quote message');
+  if (replayed) return msg;
   const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
   try {
     if (typeof socketService.broadcastGuestChatMessage === 'function') {
@@ -219,6 +266,10 @@ exports.shareQuote = async (req, res, next) => {
     const body = req.body || {};
     const kind = String(body.kind || body.quoteKind || '').toLowerCase();
     if (!QUOTE_KINDS.has(kind)) return bad(res, 400, 'kind must be business or helper', 'validation_failed');
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
 
     const conversationId = body.conversationId || body.conversation_id || null;
     const guestSessionId = body.guestSessionId || body.guest_session_id || null;
@@ -255,8 +306,40 @@ exports.shareQuote = async (req, res, next) => {
     });
     if (!access.ok) return bad(res, access.status, access.error, 'forbidden');
 
+    if (clientRequestId) {
+      const { rows: existingShares } = await pool.query(
+        `SELECT * FROM chat_quote_shares
+          WHERE shared_by = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [userId, clientRequestId],
+      );
+      const existingShare = existingShares[0];
+      if (existingShare) {
+        const existingQuote = await loadQuote(kind, existingShare.quote_id);
+        if (existingQuote) {
+          const existingCard = toPublicQuoteCard(kind, existingQuote);
+          const existingMarker = buildQuoteMarker({
+            kind,
+            id: existingQuote.id,
+            token: existingQuote.token,
+            status: existingQuote.status,
+            totalCents: existingQuote.total_cents,
+            title: existingQuote.title || existingCard.title,
+            validUntil: existingQuote.valid_until,
+            version: existingQuote.version,
+          });
+          return res.status(200).json({
+            quote: existingCard,
+            marker: existingMarker,
+            message: existingShare.message_id ? { id: existingShare.message_id } : null,
+            idempotent: true,
+          });
+        }
+      }
+    }
+
     let quote = null;
-    const quoteId = body.quoteId || body.quote_id || null;
+    let quoteId = body.quoteId || body.quote_id || null;
 
     if (quoteId) {
       quote = await loadQuote(kind, quoteId);
@@ -284,41 +367,82 @@ exports.shareQuote = async (req, res, next) => {
 
       if (kind === 'business') {
         const bid = body.businessId ?? businessId;
-        const { rows } = await pool.query(
-          `INSERT INTO business_quotes
+        if (clientRequestId) {
+          const { rows: existingQuotes } = await pool.query(
+            'SELECT * FROM business_quotes WHERE business_id = $1 AND client_request_id = $2 LIMIT 1',
+            [bid, clientRequestId],
+          );
+          quote = existingQuotes[0] || null;
+          quoteId = quote?.id || null;
+        }
+        if (!quote) {
+          const { rows } = await pool.query(
+            `INSERT INTO business_quotes
              (business_id, client_name, client_email, title, line_items, subtotal_cents, tax_rate, total_cents,
-              valid_until, token, status, conversation_id, guest_session_id, created_by, version)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'sent',$11,$12,$13,1)
-           RETURNING *`,
-          [
-            bid, clientName, clientEmail, title, JSON.stringify(normalized.items),
-            subtotal, taxRate, total, validUntil, token,
-            conversationId, guestSessionId, userId,
-          ],
-        );
-        quote = rows[0];
+              valid_until, token, status, conversation_id, guest_session_id, created_by, version, client_request_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'sent',$11,$12,$13,1,$14)
+             ON CONFLICT (business_id, client_request_id)
+             WHERE client_request_id IS NOT NULL DO NOTHING
+             RETURNING *`,
+            [
+              bid, clientName, clientEmail, title, JSON.stringify(normalized.items),
+              subtotal, taxRate, total, validUntil, token,
+              conversationId, guestSessionId, userId, clientRequestId,
+            ],
+          );
+          quote = rows[0] || null;
+          if (!quote && clientRequestId) {
+            const { rows: replay } = await pool.query(
+              'SELECT * FROM business_quotes WHERE business_id = $1 AND client_request_id = $2 LIMIT 1',
+              [bid, clientRequestId],
+            );
+            quote = replay[0] || null;
+            quoteId = quote?.id || null;
+          }
+        }
       } else {
-        const { rows } = await pool.query(
-          `INSERT INTO helper_quotes
+        const hid = access.helperId || userId;
+        if (clientRequestId) {
+          const { rows: existingQuotes } = await pool.query(
+            'SELECT * FROM helper_quotes WHERE helper_id = $1 AND client_request_id = $2 LIMIT 1',
+            [hid, clientRequestId],
+          );
+          quote = existingQuotes[0] || null;
+          quoteId = quote?.id || null;
+        }
+        if (!quote) {
+          const { rows } = await pool.query(
+            `INSERT INTO helper_quotes
              (job_id, helper_id, line_items, tax_rate, subtotal_cents, tax_cents, total_cents,
               notes, status, valid_until, conversation_id, guest_session_id, client_user_id,
-              client_name, client_email, title, token, version)
-           VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,'sent',$9,$10,$11,$12,$13,$14,$15,$16,1)
+              client_name, client_email, title, token, version, client_request_id)
+           VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,'sent',$9,$10,$11,$12,$13,$14,$15,$16,1,$17)
+           ON CONFLICT (helper_id, client_request_id)
+           WHERE client_request_id IS NOT NULL DO NOTHING
            RETURNING *`,
-          [
-            body.job_id || body.jobId || null,
-            access.helperId || userId,
-            JSON.stringify(normalized.items),
-            taxRate / 100, // helper table historically stores 0–1
-            subtotal, tax, total,
-            body.notes || null,
-            validUntil,
-            conversationId, guestSessionId,
-            body.client_user_id || body.clientUserId || null,
-            clientName, clientEmail, title, token,
-          ],
-        );
-        quote = rows[0];
+            [
+              body.job_id || body.jobId || null,
+              hid,
+              JSON.stringify(normalized.items),
+              taxRate / 100, // helper table historically stores 0–1
+              subtotal, tax, total,
+              body.notes || null,
+              validUntil,
+              conversationId, guestSessionId,
+              body.client_user_id || body.clientUserId || null,
+              clientName, clientEmail, title, token, clientRequestId,
+            ],
+          );
+          quote = rows[0] || null;
+          if (!quote && clientRequestId) {
+            const { rows: replay } = await pool.query(
+              'SELECT * FROM helper_quotes WHERE helper_id = $1 AND client_request_id = $2 LIMIT 1',
+              [hid, clientRequestId],
+            );
+            quote = replay[0] || null;
+            quoteId = quote?.id || null;
+          }
+        }
       }
     }
 
@@ -384,6 +508,7 @@ exports.shareQuote = async (req, res, next) => {
         content,
         senderName,
         isProfileChat: !conv?.job_id,
+        clientMessageId: clientRequestId,
       });
     } else if (guestSessionId) {
       message = await postGuestMessage({
@@ -391,29 +516,42 @@ exports.shareQuote = async (req, res, next) => {
         senderName,
         content,
         helperId: access.helperId || helperId,
+        clientMessageId: clientRequestId,
       });
     }
 
-    await pool.query(
-      `INSERT INTO chat_quote_shares
-         (quote_kind, quote_id, conversation_id, guest_session_id, message_id, shared_by, status_at_share)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        kind,
-        String(quote.id),
-        conversationId,
-        guestSessionId,
-        message?.id != null ? String(message.id) : null,
-        userId,
-        toChatStatus(kind, quote.status),
-      ],
-    ).catch((e) => logger.warn('[chatQuotes] share audit insert failed', { error: e.message }));
+    let shareCreated = true;
+    try {
+      const { rows: shareRows } = await pool.query(
+        `INSERT INTO chat_quote_shares
+           (quote_kind, quote_id, conversation_id, guest_session_id, message_id, shared_by, status_at_share, client_request_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (shared_by, client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
+         RETURNING id`,
+        [
+          kind,
+          String(quote.id),
+          conversationId,
+          guestSessionId,
+          message?.id != null ? String(message.id) : null,
+          userId,
+          toChatStatus(kind, quote.status),
+          clientRequestId,
+        ],
+      );
+      shareCreated = shareRows.length > 0;
+    } catch (e) {
+      if (clientRequestId) throw e;
+      logger.warn('[chatQuotes] share audit insert failed', { error: e.message });
+    }
 
-    return res.status(201).json({
+    return res.status(shareCreated ? 201 : 200).json({
       quote: card,
       marker,
       message,
       content,
+      idempotent: !shareCreated,
     });
   } catch (err) {
     next(err);

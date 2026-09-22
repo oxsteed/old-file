@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Loader2, Plus, Send, X } from 'lucide-react';
 import api from '../../../api/axios';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import { formatCents } from './messengerQuotes.js';
 import './MessengerDock.css';
 
@@ -33,6 +34,7 @@ export default function QuoteSharePanel({
   const [validUntil, setValidUntil] = useState('');
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState(null);
+  const pendingRequestIdRef = useRef(null);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -50,6 +52,7 @@ export default function QuoteSharePanel({
   }, [kind, businessId]);
 
   useEffect(() => {
+    if (!open) pendingRequestIdRef.current = null;
     if (open) {
       loadList();
       setTab('pick');
@@ -104,7 +107,11 @@ export default function QuoteSharePanel({
         payload.valid_until = validUntil || undefined;
       }
 
+      const clientRequestId = pendingRequestIdRef.current || createMessageRequestId();
+      pendingRequestIdRef.current = clientRequestId;
+      payload.clientRequestId = clientRequestId;
       const { data } = await api.post('/chat/quotes/share', payload);
+      pendingRequestIdRef.current = null;
       onShared?.(data);
       onClose?.();
     } catch (err) {
