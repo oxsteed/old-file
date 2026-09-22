@@ -15,6 +15,7 @@ jest.mock('../utils/logger', () => ({
 jest.mock('../services/socketService', () => ({
   broadcastToUser: jest.fn(),
   broadcastToConversation: jest.fn(),
+  broadcastToBusinessCalendar: jest.fn(),
   io: null,
 }));
 
@@ -293,5 +294,76 @@ describe('bookingRequestLifecycle', () => {
     expect(lifecycle.canProviderRespond({ status: 'pending' }).ok).toBe(true);
     expect(lifecycle.canCustomerRespond({ status: 'counter_proposed' }).ok).toBe(true);
     expect(lifecycle.INBOX_STATUSES).toEqual(['pending', 'counter_proposed']);
+  });
+
+  test('emitBookingEvent fans out to business calendar room + other members', async () => {
+    const booking = {
+      id: 'br-biz',
+      helper_id: 'owner-h',
+      customer_id: 'c1',
+      business_id: 'biz-1',
+      status: 'pending',
+      service_name: 'Cut',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+    };
+    // listBusinessMemberUserIds query
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 'owner-h' }, { id: 'member-2' }, { id: 'member-3' }],
+    });
+
+    await lifecycle.emitBookingEvent({ booking, event: 'requested', actorId: 'c1' });
+
+    expect(socketService.broadcastToBusinessCalendar).toHaveBeenCalledWith(
+      'biz-1',
+      'booking:updated',
+      expect.objectContaining({ bookingId: 'br-biz', businessId: 'biz-1', event: 'requested' }),
+    );
+    expect(socketService.broadcastToBusinessCalendar).toHaveBeenCalledWith(
+      'biz-1',
+      'booking:new',
+      expect.any(Object),
+    );
+    // helper + customer notified
+    expect(socketService.broadcastToUser).toHaveBeenCalledWith(
+      'owner-h',
+      'booking:new',
+      expect.any(Object),
+    );
+    expect(socketService.broadcastToUser).toHaveBeenCalledWith(
+      'c1',
+      'booking:updated',
+      expect.any(Object),
+    );
+    // other members get user-room fanout; helper not double-counted as extra loop target
+    expect(socketService.broadcastToUser).toHaveBeenCalledWith(
+      'member-2',
+      'booking:updated',
+      expect.any(Object),
+    );
+    expect(socketService.broadcastToUser).toHaveBeenCalledWith(
+      'member-3',
+      'booking:new',
+      expect.any(Object),
+    );
+  });
+
+  test('emitBookingEvent skips business fanout when business_id unset', async () => {
+    await lifecycle.emitBookingEvent({
+      booking: {
+        id: 'br-solo',
+        helper_id: 'h1',
+        customer_id: 'c1',
+        status: 'accepted',
+        service_name: 'Cut',
+        requested_date: '2026-09-22',
+        requested_start_time: '09:00:00',
+        requested_end_time: '10:00:00',
+      },
+      event: 'accepted',
+    });
+    expect(socketService.broadcastToBusinessCalendar).not.toHaveBeenCalled();
+    expect(pool.query).not.toHaveBeenCalled();
   });
 });

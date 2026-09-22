@@ -3862,7 +3862,13 @@
     "confirmCancel": "نعم، ألغِ",
     "jobCancelled": "تم إلغاء الوظيفة بنجاح",
     "bookingCancelled": "تم إلغاء طلب الحجز",
-    "cancelError": "تعذر الإلغاء. يرجى المحاولة مرة أخرى."
+    "cancelError": "تعذر الإلغاء. يرجى المحاولة مرة أخرى.",
+    "statusCounterProposed": "تم اقتراح وقت جديد",
+    "acceptCounter": "قبول الوقت",
+    "declineCounter": "رفض الوقت",
+    "counterAccepted": "تم قبول الوقت المقترح.",
+    "counterDeclined": "تم رفض الوقت المقترح.",
+    "errorCounterRespond": "فشل الرد على الوقت المقترح"
   },
   "helpersDir": {
     "title": "ابحث عن مساعد محلي",
@@ -9099,7 +9105,11 @@
     "statusCounterProposed": "عرض مضاد",
     "statusExpired": "منتهية",
     "openConversation": "فتح المحادثة",
-    "guestCustomer": "ضيف"
+    "guestCustomer": "ضيف",
+    "proposeTime": "اقتراح وقت مختلف",
+    "proposeDifferentTime": "اقترح وقتاً مختلفاً",
+    "bookingCounterProposed": "تم اقتراح وقت مختلف للعميل.",
+    "errorCounterProposing": "فشل اقتراح وقت مختلف"
   },
   "myBookings": {
     "unknownTool": "أداة غير معروفة",

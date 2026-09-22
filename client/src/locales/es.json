@@ -3862,7 +3862,13 @@
     "confirmCancel": "Sí, cancelar",
     "jobCancelled": "Trabajo cancelado exitosamente",
     "bookingCancelled": "Solicitud de reserva cancelada",
-    "cancelError": "No se pudo cancelar. Por favor intenta de nuevo."
+    "cancelError": "No se pudo cancelar. Por favor intenta de nuevo.",
+    "statusCounterProposed": "Nueva hora propuesta",
+    "acceptCounter": "Aceptar hora",
+    "declineCounter": "Rechazar hora",
+    "counterAccepted": "Hora propuesta aceptada.",
+    "counterDeclined": "Hora propuesta rechazada.",
+    "errorCounterRespond": "No se pudo responder a la hora propuesta"
   },
   "helpersDir": {
     "title": "Encuentra un ayudante local",
@@ -9096,7 +9102,11 @@
     "statusCounterProposed": "Contrapropuesta",
     "statusExpired": "Expirada",
     "openConversation": "Abrir conversación",
-    "guestCustomer": "Invitado"
+    "guestCustomer": "Invitado",
+    "proposeTime": "Proponer otra hora",
+    "proposeDifferentTime": "Proponer una hora diferente",
+    "bookingCounterProposed": "Se propuso otra hora al cliente.",
+    "errorCounterProposing": "No se pudo proponer otra hora"
   },
   "verifyEmail": {
     "title": "Verifica tu correo",

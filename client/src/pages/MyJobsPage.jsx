@@ -45,6 +45,8 @@ function useJobStatusLabel() {
         return t('myJobs.statusDeclined');
       case 'expired':
         return t('myJobs.statusExpired');
+      case 'counter_proposed':
+        return t('myJobs.statusCounterProposed', { defaultValue: 'New time proposed' });
       default:
         return t('myJobs.statusUnknown');
     }
@@ -177,6 +179,24 @@ export default function MyJobsPage() {
       setCanceling(false);
     }
   }, [cancelModal, fetchJobs, t]);
+
+  const handleCounterRespond = useCallback(async (bookingId, action) => {
+    try {
+      await api.post(`/bookings/${bookingId}/counter-propose/respond`, { action });
+      toast.success(
+        action === 'accept'
+          ? t('myJobs.counterAccepted', { defaultValue: 'Proposed time accepted.' })
+          : t('myJobs.counterDeclined', { defaultValue: 'Proposed time declined.' }),
+      );
+      fetchJobs();
+    } catch (err) {
+      console.error('counter respond failed', err);
+      toast.error(
+        err.response?.data?.error
+          || t('myJobs.errorCounterRespond', { defaultValue: 'Failed to respond to the proposed time' }),
+      );
+    }
+  }, [fetchJobs, t]);
 
   const isOpenStatus = (status) => OPEN_STATUSES.includes(status);
 
@@ -615,6 +635,8 @@ export default function MyJobsPage() {
             {bookingRequests.map(booking => {
               const statusColor = booking.status === 'pending'
                 ? 'bg-yellow-500/15 text-yellow-400'
+                : booking.status === 'counter_proposed'
+                  ? 'bg-orange-500/15 text-orange-400'
                 : booking.status === 'accepted'
                   ? 'bg-emerald-500/15 text-emerald-400'
                   : booking.status === 'completed'
@@ -687,13 +709,33 @@ export default function MyJobsPage() {
                             : t('myJobs.statusExpired')}
                         </span>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap justify-end">
                         <Link
                           to="/my-bookings"
                           className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition"
                         >
                           {t('common.view', { defaultValue: 'View' })}
                         </Link>
+                        {(booking.status === 'counter_proposed'
+                          || booking.canCustomerRespond
+                          || booking.can_customer_respond) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleCounterRespond(booking.id, 'accept')}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition"
+                            >
+                              {t('myJobs.acceptCounter', { defaultValue: 'Accept time' })}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCounterRespond(booking.id, 'decline')}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition"
+                            >
+                              {t('myJobs.declineCounter', { defaultValue: 'Decline time' })}
+                            </button>
+                          </>
+                        )}
                         {(booking.status === 'pending' || booking.status === 'accepted') && (
                           <button
                             onClick={() => setCancelModal({ type: 'booking', id: booking.id, isOpen: true })}

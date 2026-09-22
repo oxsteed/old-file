@@ -3947,7 +3947,13 @@
     "confirmCancel": "Wi, anile",
     "jobCancelled": "Travay anile avèk siksè",
     "bookingCancelled": "Demann rezalvason anile",
-    "cancelError": "Pwobyèm anilasyon. Tanpri eseye ankò."
+    "cancelError": "Pwobyèm anilasyon. Tanpri eseye ankò.",
+    "statusCounterProposed": "Nouvo lè pwopoze",
+    "acceptCounter": "Aksepte lè a",
+    "declineCounter": "Refize lè a",
+    "counterAccepted": "Lè yo pwopoze a aksepte.",
+    "counterDeclined": "Lè yo pwopoze a refize.",
+    "errorCounterRespond": "Echwe pou reponn a lè yo pwopoze a"
   },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
@@ -9096,7 +9102,11 @@
     "statusCounterProposed": "Kont-pwopozisyon",
     "statusExpired": "Ekspire",
     "openConversation": "Louvri konvèsasyon",
-    "guestCustomer": "Envite"
+    "guestCustomer": "Envite",
+    "proposeTime": "Pwopoze yon lòt lè",
+    "proposeDifferentTime": "Pwopoze yon lòt orè",
+    "bookingCounterProposed": "Yo pwopoze yon lòt lè bay kliyan an.",
+    "errorCounterProposing": "Echwe pou pwopoze yon lòt lè"
   },
   "verifyEmail": {
     "title": "Verifye imèl ou",

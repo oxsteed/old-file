@@ -3862,7 +3862,13 @@
     "confirmCancel": "Yes, cancel",
     "jobCancelled": "Job cancelled successfully",
     "bookingCancelled": "Booking request cancelled",
-    "cancelError": "Failed to cancel. Please try again."
+    "cancelError": "Failed to cancel. Please try again.",
+    "statusCounterProposed": "New time proposed",
+    "acceptCounter": "Accept time",
+    "declineCounter": "Decline time",
+    "counterAccepted": "Proposed time accepted.",
+    "counterDeclined": "Proposed time declined.",
+    "errorCounterRespond": "Failed to respond to the proposed time"
   },
   "helpersDir": {
     "title": "Find a Local Helper",
@@ -9067,7 +9073,11 @@
     "statusCounterProposed": "Counter proposed",
     "statusExpired": "Expired",
     "openConversation": "Open conversation",
-    "guestCustomer": "Guest"
+    "guestCustomer": "Guest",
+    "proposeTime": "Propose different time",
+    "proposeDifferentTime": "Propose a different time",
+    "bookingCounterProposed": "Different time proposed to the customer.",
+    "errorCounterProposing": "Failed to propose a different time"
   },
   "myBookings": {
     "unknownTool": "Unknown tool",

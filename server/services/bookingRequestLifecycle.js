@@ -327,6 +327,39 @@ async function syncAppointmentTimes(booking, date, start, end) {
   return rows[0] || null;
 }
 
+/**
+ * Active owner + members for a business (for user-room fanout without spam).
+ * Dedupes ids; caller should exclude already-notified helper/customer.
+ */
+async function listBusinessMemberUserIds(businessId) {
+  if (!businessId) return [];
+  const { rows } = await pool
+    .query(
+      `SELECT b.user_id AS id
+         FROM businesses b
+        WHERE b.id = $1 AND b.is_active = TRUE AND b.user_id IS NOT NULL
+       UNION
+       SELECT bm.member_id AS id
+         FROM business_members bm
+         JOIN businesses b ON b.id = bm.business_id AND b.is_active = TRUE
+        WHERE bm.business_id = $1
+          AND bm.status = 'active'
+          AND bm.member_id IS NOT NULL`,
+      [businessId],
+    )
+    .catch(() => ({ rows: [] }));
+  return [...new Set(rows.map((r) => r.id).filter(Boolean).map(String))];
+}
+
+function emitToUserRooms(userId, event, payload) {
+  if (!userId) return;
+  socketService.broadcastToUser(userId, 'booking:updated', payload);
+  socketService.broadcastToUser(userId, 'booking:chat_updated', payload);
+  if (event === 'requested') {
+    socketService.broadcastToUser(userId, 'booking:new', payload);
+  }
+}
+
 async function emitBookingEvent({ booking, event, actorId = null }) {
   const card = toPublicBookingRequestCard(booking);
   if (!card) return;
@@ -338,18 +371,17 @@ async function emitBookingEvent({ booking, event, actorId = null }) {
     actorId,
     conversationId: booking.conversation_id || null,
     guestSessionId: booking.guest_session_id || null,
+    businessId: booking.business_id || null,
   };
   try {
+    const notified = new Set();
     if (booking.helper_id) {
-      socketService.broadcastToUser(booking.helper_id, 'booking:updated', payload);
-      socketService.broadcastToUser(booking.helper_id, 'booking:chat_updated', payload);
-      if (event === 'requested') {
-        socketService.broadcastToUser(booking.helper_id, 'booking:new', payload);
-      }
+      emitToUserRooms(booking.helper_id, event, payload);
+      notified.add(String(booking.helper_id));
     }
     if (booking.customer_id) {
-      socketService.broadcastToUser(booking.customer_id, 'booking:updated', payload);
-      socketService.broadcastToUser(booking.customer_id, 'booking:chat_updated', payload);
+      emitToUserRooms(booking.customer_id, event, payload);
+      notified.add(String(booking.customer_id));
     }
     if (booking.conversation_id && typeof socketService.broadcastToConversation === 'function') {
       socketService.broadcastToConversation(booking.conversation_id, 'booking:chat_updated', payload);
@@ -362,6 +394,22 @@ async function emitBookingEvent({ booking, event, actorId = null }) {
         );
       } catch {
         /* optional */
+      }
+    }
+    // Business-scoped bookings: room + member user rooms (skip helper/customer already notified).
+    if (booking.business_id) {
+      if (typeof socketService.broadcastToBusinessCalendar === 'function') {
+        socketService.broadcastToBusinessCalendar(booking.business_id, 'booking:updated', payload);
+        socketService.broadcastToBusinessCalendar(booking.business_id, 'booking:chat_updated', payload);
+        if (event === 'requested') {
+          socketService.broadcastToBusinessCalendar(booking.business_id, 'booking:new', payload);
+        }
+      }
+      const memberIds = await listBusinessMemberUserIds(booking.business_id);
+      for (const mid of memberIds) {
+        if (notified.has(String(mid))) continue;
+        emitToUserRooms(mid, event, payload);
+        notified.add(String(mid));
       }
     }
   } catch (e) {
@@ -683,6 +731,7 @@ module.exports = {
   cancelLinkedAppointment,
   syncAppointmentTimes,
   emitBookingEvent,
+  listBusinessMemberUserIds,
   acceptBookingRequest,
   declineBookingRequest,
   proposeBookingTime,

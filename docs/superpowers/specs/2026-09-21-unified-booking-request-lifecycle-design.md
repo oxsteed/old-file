@@ -70,7 +70,7 @@ Do not invent a second ledger. Prefer extending this table (already has
 - `counter_proposed` visible on calendar with conversation deep-link when set.
 - Jest for lifecycle + both route surfaces; `verify:i18n` if UI strings change.
 
-## Residuals (post-1babc6b8)
+## Residuals (post-1babc6b8 / post-78c6a6ad)
 
 **Closed — calendar provider authz parity.** Calendar wrappers
 (`/bookings/incoming`, `/:id/accept|decline`, `/:id/counter-propose`, and
@@ -80,15 +80,24 @@ chat: helper owner, business owner/member, conversation helper/business,
 guest-inquiry provider). `listIncomingForProvider` returns helper-owned
 **and** business/conversation/guest-scoped inbox rows for those actors.
 
+**Closed — business socket fanout.** When `booking.business_id` is set,
+`emitBookingEvent` also emits to `business_{id}_calendar` and to other
+active owner/member user rooms (skipping helper/customer already notified).
+Unrelated users are not contacted.
+
+**Closed — calendar provider counter-propose UI.** `BookingRequestsPanel`
+wires **Propose different time** via `MessengerAvailabilityPicker` +
+`POST /bookings/:id/counter-propose` (provider-only; i18n en/es/fr/ht/ar).
+
+**Closed — signed-in customer counter-respond on My Jobs / bookings tab.**
+Accept/Decline for `counter_proposed` calls
+`POST /bookings/:id/counter-propose/respond` (`customer_id` authz).
+
 **Intentional remaining residuals**
 
-- Socket fanout still targets `helper_id` + `customer_id` (+ conversation /
-  guest rooms), not every business member individually. Calendar panels
-  refresh for the acting user; full business-wide fanout is out of scope.
-- `BookingRequestsPanel` UI still exposes accept/decline only (no in-panel
-  counter-propose form); the `/bookings/:id/counter-propose` API is parity-
-  authorized for business providers when a client calls it.
-- Customer respond on calendar (`counter-propose/respond`) remains
-  `customer_id`-only; guest customer respond stays on the messenger path
-  (guest token), which is intentional.
+- Guest customer respond stays messenger-only (guest token path); no
+  calendar guest counter-respond UI.
+- Full calendar rewrite, E2EE, Business Hub Team threads remain non-goals.
+- Legacy `counter_*` columns stay readable/synced; status enum is
+  authoritative.
 

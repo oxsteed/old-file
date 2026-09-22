@@ -4,9 +4,13 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useSocket } from '../../hooks/useSocket';
+import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
+import { buildProposeBookingPayload } from '../helperProfile/chat/messengerBookingRequests.js';
+import '../helperProfile/chat/MessengerDock.css';
 
 /**
- * BookingRequestsPanel — thin client over shared /bookings/incoming + accept/decline.
+ * BookingRequestsPanel — thin client over shared /bookings/incoming +
+ * accept / decline / counter-propose (provider).
  * Shows pending + counter_proposed (messenger + calendar origins).
  */
 export default function BookingRequestsPanel({ compact = true, onBookingConfirmed }) {
@@ -14,6 +18,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   const { socket } = useSocket();
   const [bookingRequests, setBookingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [proposingBooking, setProposingBooking] = useState(null);
 
   const loadBookingRequests = useCallback(async () => {
     setLoading(true);
@@ -75,6 +80,37 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     }
   };
 
+  const handleProposeSlot = async (slot) => {
+    if (!proposingBooking?.id) return;
+    const bookingId = proposingBooking.id;
+    try {
+      const payload = buildProposeBookingPayload(slot) || {
+        requestedDate: slot.date,
+        requestedStartTime: String(slot.start).length === 5 ? `${slot.start}:00` : slot.start,
+        requestedEndTime: String(slot.end).length === 5 ? `${slot.end}:00` : slot.end,
+        startIso: slot.startIso,
+        endIso: slot.endIso,
+        timezone: slot.timezone,
+      };
+      await api.post(`/bookings/${bookingId}/counter-propose`, payload);
+      toast.success(
+        t('calendar.bookingCounterProposed', {
+          defaultValue: 'Different time proposed to the customer.',
+        }),
+      );
+      setProposingBooking(null);
+      loadBookingRequests();
+      onBookingConfirmed?.();
+    } catch (err) {
+      console.error('Error counter-proposing booking:', err);
+      toast.error(
+        t('calendar.errorCounterProposing', {
+          defaultValue: 'Failed to propose a different time',
+        }),
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="booking-requests-loading">
@@ -122,10 +158,23 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
             booking={booking}
             onConfirm={() => handleConfirmBooking(booking.id)}
             onDecline={() => handleDeclineBooking(booking.id)}
+            onPropose={() => setProposingBooking(booking)}
             t={t}
           />
         ))}
       </div>
+
+      {proposingBooking ? (
+        <div className="booking-propose-picker-wrap">
+          <MessengerAvailabilityPicker
+            helperId={proposingBooking.helperId || proposingBooking.helper_id || null}
+            businessId={proposingBooking.businessId || proposingBooking.business_id || null}
+            open
+            onClose={() => setProposingBooking(null)}
+            onSelectSlot={handleProposeSlot}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -148,7 +197,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, onConfirm, onDecline, t }) {
+function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, t }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -170,6 +219,7 @@ function CalendarBookingRequestCard({ booking, onConfirm, onDecline, t }) {
   const conversationId = booking.conversationId || booking.conversation_id;
   const source = booking.source || 'direct';
   const canRespond = booking.canRespond !== false;
+  const canPropose = canRespond && (booking.helperId || booking.helper_id || booking.businessId || booking.business_id);
 
   const formatDateDisplay = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '—';
@@ -278,6 +328,18 @@ function CalendarBookingRequestCard({ booking, onConfirm, onDecline, t }) {
           >
             ✕ {t('calendar.decline', { defaultValue: 'Decline' })}
           </button>
+          {canPropose ? (
+            <button
+              type="button"
+              className="btn-propose"
+              onClick={onPropose}
+              title={t('calendar.proposeDifferentTime', {
+                defaultValue: 'Propose a different time',
+              })}
+            >
+              ↻ {t('calendar.proposeTime', { defaultValue: 'Propose different time' })}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

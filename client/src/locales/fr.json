@@ -3862,7 +3862,13 @@
     "confirmCancel": "Oui, annuler",
     "jobCancelled": "Mission annulée avec succès",
     "bookingCancelled": "Demande de réservation annulée",
-    "cancelError": "Impossible d'annuler. Veuillez réessayer."
+    "cancelError": "Impossible d'annuler. Veuillez réessayer.",
+    "statusCounterProposed": "Nouveau créneau proposé",
+    "acceptCounter": "Accepter l'horaire",
+    "declineCounter": "Refuser l'horaire",
+    "counterAccepted": "Horaire proposé accepté.",
+    "counterDeclined": "Horaire proposé refusé.",
+    "errorCounterRespond": "Échec de la réponse à l'horaire proposé"
   },
   "helpersDir": {
     "title": "Trouvez un prestataire local",
@@ -9096,7 +9102,11 @@
     "statusCounterProposed": "Contre-proposition",
     "statusExpired": "Expirée",
     "openConversation": "Ouvrir la conversation",
-    "guestCustomer": "Invité"
+    "guestCustomer": "Invité",
+    "proposeTime": "Proposer un autre horaire",
+    "proposeDifferentTime": "Proposer un autre créneau",
+    "bookingCounterProposed": "Un autre horaire a été proposé au client.",
+    "errorCounterProposing": "Échec de la proposition d'un autre horaire"
   },
   "verifyEmail": {
     "title": "Vérifiez votre e-mail",
