@@ -1268,9 +1268,16 @@ const replyGuestInquiryMessage = async (req, res) => {
     const userId = req.user.id;
     const inquiryId = String(req.params.id || '').replace(/^guest-/i, '');
     const message = String(req.body?.message || req.body?.content || '').trim();
+    const clientMessageId = req.body?.clientMessageId
+      || req.body?.client_message_id
+      || req.get?.('Idempotency-Key')
+      || null;
     if (!inquiryId) return res.status(400).json({ error: 'Invalid inquiry id' });
     if (!message) return res.status(400).json({ error: 'Message is required' });
     if (message.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      return res.status(400).json({ error: 'clientMessageId must be a valid UUID', code: 'validation_failed' });
+    }
 
     const session = await assertGuestInquiryAccess(userId, inquiryId);
 
@@ -1281,65 +1288,86 @@ const replyGuestInquiryMessage = async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO guest_profile_chat_messages
-         (session_id, sender_type, sender_name, message, created_at)
-       VALUES ($1, 'helper', $2, $3, CURRENT_TIMESTAMP)
+         (session_id, sender_type, sender_name, message, created_at, client_message_id)
+       VALUES ($1, 'helper', $2, $3, CURRENT_TIMESTAMP, $4)
+       ON CONFLICT (session_id, client_message_id)
+       WHERE client_message_id IS NOT NULL
+       DO NOTHING
        RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-      [inquiryId, senderName, message]
+      [inquiryId, senderName, message, clientMessageId]
     );
-    const msg = rows[0];
+    let msg = rows[0];
+    const replayed = !msg && Boolean(clientMessageId);
+    if (replayed) {
+      const existing = await pool.query(
+        `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+         WHERE session_id = $1 AND client_message_id = $2
+         LIMIT 1`,
+        [inquiryId, clientMessageId]
+      );
+      msg = existing.rows[0];
+      if (!msg) return res.status(409).json({ error: 'Message retry could not be resolved', code: 'idempotency_conflict' });
+    }
 
-    await pool.query(
-      `UPDATE guest_profile_chat_inbound
-       SET last_helper_message_at = CURRENT_TIMESTAMP,
-           helper_messages_count = COALESCE(helper_messages_count, 0) + 1,
-           last_activity_at = CURRENT_TIMESTAMP,
-           session_status = CASE
-             WHEN session_status IN (
-               'waiting_for_helper',
-               'ai_fallback_pending',
-               'ai_support_active',
-               'helper_takeover_requested'
-             ) THEN 'helper_assigned'
-             ELSE session_status
-           END
-       WHERE id = $1`,
-      [inquiryId]
-    ).catch(async () => {
+    if (!replayed) {
       await pool.query(
         `UPDATE guest_profile_chat_inbound
-         SET last_activity_at = CURRENT_TIMESTAMP
+         SET last_helper_message_at = CURRENT_TIMESTAMP,
+             helper_messages_count = COALESCE(helper_messages_count, 0) + 1,
+             last_activity_at = CURRENT_TIMESTAMP,
+             session_status = CASE
+               WHEN session_status IN (
+                 'waiting_for_helper',
+                 'ai_fallback_pending',
+                 'ai_support_active',
+                 'helper_takeover_requested'
+               ) THEN 'helper_assigned'
+               ELSE session_status
+             END
          WHERE id = $1`,
         [inquiryId]
-      ).catch(() => {});
-    });
+      ).catch(async () => {
+        await pool.query(
+          `UPDATE guest_profile_chat_inbound
+           SET last_activity_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [inquiryId]
+        ).catch(() => {});
+      });
+    }
 
     const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
-    broadcastGuestChatMessage(inquiryId, {
-      messageId: msg.id,
-      senderType: 'helper',
-      senderName,
-      message,
-      createdAt,
-    });
+    if (!replayed) {
+      broadcastGuestChatMessage(inquiryId, {
+        messageId: msg.id,
+        senderType: 'helper',
+        senderName,
+        message,
+        createdAt,
+      });
+    }
 
     // Also nudge the helper's own sockets (inbox badge / open thread refresh)
-    try {
-      socketService.broadcastToUser(session.helper_id, 'profile_chat:new_message', {
-        guestInquiry: true,
-        guestInquiryId: inquiryId,
-        guestSessionId: inquiryId,
-        message: {
-          id: msg.id,
-          content: message,
-          sender_type: 'helper',
-          sender_name: senderName,
-          created_at: createdAt,
-        },
-        senderName,
-      });
-    } catch { /* ignore */ }
+    if (!replayed) {
+      try {
+        socketService.broadcastToUser(session.helper_id, 'profile_chat:new_message', {
+          guestInquiry: true,
+          guestInquiryId: inquiryId,
+          guestSessionId: inquiryId,
+          message: {
+            id: msg.id,
+            content: message,
+            sender_type: 'helper',
+            sender_name: senderName,
+            created_at: createdAt,
+          },
+          senderName,
+        });
+      } catch { /* ignore */ }
+    }
 
-    res.status(201).json({
+    res.status(replayed ? 200 : 201).json({
       id: msg.id,
       session_id: inquiryId,
       sender_type: 'helper',
@@ -1347,6 +1375,7 @@ const replyGuestInquiryMessage = async (req, res) => {
       message,
       content: message,
       created_at: createdAt,
+      idempotent: replayed,
     });
   } catch (error) {
     if (error.status === 404) return res.status(404).json({ error: 'Not found' });

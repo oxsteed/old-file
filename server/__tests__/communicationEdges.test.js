@@ -15,6 +15,9 @@ jest.mock('../services/notificationService', () => ({
 
 const disputeController = require('../controllers/disputeController');
 const foodController = require('../controllers/foodController');
+const socketService = require('../services/socketService');
+socketService.broadcastGuestChatMessage = jest.fn();
+const messageController = require('../controllers/messageController');
 
 function buildDisputeApp() {
   const app = express();
@@ -48,7 +51,27 @@ function buildFoodApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+function buildGuestInquiryReplyApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '00000000-0000-4000-8000-000000000123',
+      first_name: 'Test',
+      email: 'helper@example.com',
+    };
+    next();
+  });
+  app.post('/api/messages/guest-inquiries/:id/messages', messageController.replyGuestInquiryMessage);
+  app.use(errorHandler);
+  return app;
+}
+
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+  socketService.broadcastToUser = jest.fn();
+});
 
 describe('communication edge idempotency', () => {
   test('replays a dispute message without inserting a second row', async () => {
@@ -128,5 +151,38 @@ describe('communication edge idempotency', () => {
     expect(second.status).toBe(200);
     expect(second.body.message).toEqual(record);
     expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO food_restaurant_customer_messages/.test(sql))).toHaveLength(1);
+  });
+
+  test('replays a helper reply to a guest inquiry without updating or broadcasting twice', async () => {
+    const clientMessageId = '00000000-0000-4000-8000-000000000323';
+    const inserted = {
+      id: 19,
+      session_id: 'guest-session-1',
+      sender_type: 'helper',
+      sender_name: 'Test',
+      message: 'I can help with that.',
+      created_at: '2026-09-22T12:00:00.000Z',
+    };
+    const session = { helper_id: '00000000-0000-4000-8000-000000000123' };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [session] })
+      .mockResolvedValueOnce({ rows: [inserted] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [session] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [inserted] });
+
+    const app = buildGuestInquiryReplyApp();
+    const body = { message: inserted.message, clientMessageId };
+    const first = await request(app).post('/api/messages/guest-inquiries/guest-session-1/messages').send(body);
+    const second = await request(app).post('/api/messages/guest-inquiries/guest-session-1/messages').send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(expect.objectContaining({ id: inserted.id, idempotent: true }));
+    expect(socketService.broadcastGuestChatMessage).toHaveBeenCalledTimes(1);
+    expect(socketService.broadcastToUser).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE guest_profile_chat_inbound/.test(sql))).toHaveLength(1);
   });
 });

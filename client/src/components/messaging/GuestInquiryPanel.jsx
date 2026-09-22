@@ -15,6 +15,7 @@ import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helper
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
 
@@ -34,6 +35,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const pendingMessageIdRef = useRef(null);
   const [sendError, setSendError] = useState('');
   const [showQuoteShare, setShowQuoteShare] = useState(false);
   const [showPopShare, setShowPopShare] = useState(false);
@@ -186,14 +188,18 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
     event?.preventDefault?.();
     const text = draft.trim();
     if (!text || !inquiryUuid || sending) return;
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     setSending(true);
     setSendError('');
     try {
       const { data } = await api.post(`/messages/guest-inquiries/${inquiryUuid}/messages`, {
         message: text,
+        clientMessageId,
       });
       setMessages((prev) => [...prev, data]);
       setDraft('');
+      pendingMessageIdRef.current = null;
     } catch (err) {
       setSendError(
         err?.response?.data?.error || t('messages.guestInquirySendError'),
