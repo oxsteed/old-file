@@ -11,6 +11,18 @@ const GUEST_TOKEN_SECRET = String(
   process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'development-only-guest-chat-secret'
 ).trim();
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function getClientMessageId(req, bodyValue) {
+  return (typeof req.get === 'function' ? req.get('Idempotency-Key') : null)
+    || req.headers?.['idempotency-key']
+    || bodyValue
+    || null;
+}
+
 function createGuestToken(sessionId) {
   const expiresAt = Math.floor(Date.now() / 1000) + GUEST_TOKEN_TTL_SECONDS;
   const payload = `${sessionId}.${expiresAt}`;
@@ -75,7 +87,13 @@ async function requireGuestChatStaff(req) {
  */
 async function createGuestSession(req, res, next) {
   try {
-    const { guestName, guestEmail, message, consentMonitoring = false } = req.body;
+    const { guestName, guestEmail, message, consentMonitoring = false, clientMessageId: bodyClientMessageId } = req.body;
+    const clientMessageId = getClientMessageId(req, bodyClientMessageId);
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed', {
+        clientMessageId: 'Must be a valid UUID',
+      });
+    }
 
     // Validate inputs
     if (!guestName || !guestName.trim()) {
@@ -90,26 +108,44 @@ async function createGuestSession(req, res, next) {
 
     let sessionId;
     let messageId;
+    let replayed = false;
 
     await withChatTransaction(async (client) => {
+      if (clientMessageId) {
+        const existing = await client.query(
+          `SELECT id FROM guest_profile_chat_inbound WHERE client_request_id = $1 LIMIT 1`,
+          [clientMessageId]
+        );
+        if (existing.rows[0]) {
+          sessionId = existing.rows[0].id;
+          const existingMessage = await client.query(
+            `SELECT id FROM guest_profile_chat_messages
+             WHERE session_id = $1 AND client_message_id = $2 LIMIT 1`,
+            [sessionId, clientMessageId]
+          );
+          messageId = existingMessage.rows[0]?.id || null;
+          replayed = true;
+          return;
+        }
+      }
       sessionId = uuidv4();
 
       // Create guest session
       const { rows: [session] } = await client.query(
         `INSERT INTO guest_profile_chat_inbound
-         (id, guest_name, guest_email, session_status, helper_response_deadline, guest_consent_monitoring, consent_requested_at, created_at)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '5 minutes', $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         (id, guest_name, guest_email, session_status, helper_response_deadline, guest_consent_monitoring, consent_requested_at, created_at, client_request_id)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '5 minutes', $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $6)
          RETURNING *`,
-        [sessionId, guestName, guestEmail, 'waiting_for_helper', consentMonitoring]
+        [sessionId, guestName, guestEmail, 'waiting_for_helper', consentMonitoring, clientMessageId]
       );
 
       // Insert initial guest message
       const { rows: [msg] } = await client.query(
         `INSERT INTO guest_profile_chat_messages
-         (session_id, sender_type, sender_name, message, created_at)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+         (session_id, sender_type, sender_name, message, created_at, client_message_id)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
          RETURNING id`,
-        [sessionId, 'guest', guestName, message]
+        [sessionId, 'guest', guestName, message, clientMessageId]
       );
 
       messageId = msg.id;
@@ -126,21 +162,24 @@ async function createGuestSession(req, res, next) {
     logger.info('Guest chat session created', { sessionId, consentMonitoring });
 
     // Broadcast new session to online helpers and admins
-    broadcastNewGuestSession({
-      sessionId,
-      guestName,
-      guestEmail,
-      createdAt: new Date().toISOString(),
-      deadlineMinutes: 5,
-      initialMessage: message
-    });
+    if (!replayed) {
+      broadcastNewGuestSession({
+        sessionId,
+        guestName,
+        guestEmail,
+        createdAt: new Date().toISOString(),
+        deadlineMinutes: 5,
+        initialMessage: message
+      });
+    }
 
-    res.status(201).json({
+    res.status(replayed ? 200 : 201).json({
       sessionId,
       messageId,
       guestToken: createGuestToken(sessionId),
       status: 'waiting_for_helper',
-      deadlineMinutes: 5
+      deadlineMinutes: 5,
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);
@@ -155,7 +194,13 @@ async function sendGuestMessage(req, res, next) {
   try {
     const { sessionId } = req.params;
     requireGuestSessionToken(req, sessionId);
-    const { message } = req.body;
+    const { message, clientMessageId: bodyClientMessageId } = req.body;
+    const clientMessageId = getClientMessageId(req, bodyClientMessageId);
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed', {
+        clientMessageId: 'Must be a valid UUID',
+      });
+    }
 
     if (!message || !message.trim()) {
       throw new AppError('Message is required', 400, 'validation_failed', { message: 'Message is required' });
@@ -165,6 +210,7 @@ async function sendGuestMessage(req, res, next) {
     }
 
     let messageId;
+    let replayed = false;
 
     await withChatTransaction(async (client) => {
       // Get session with lock
@@ -192,26 +238,40 @@ async function sendGuestMessage(req, res, next) {
         // Insert message directly
         const { rows: [msg] } = await client.query(
           `INSERT INTO guest_profile_chat_messages
-           (session_id, sender_type, sender_name, message, created_at)
-           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+           (session_id, sender_type, sender_name, message, created_at, client_message_id)
+           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+           ON CONFLICT (session_id, client_message_id)
+           WHERE client_message_id IS NOT NULL
+           DO NOTHING
            RETURNING id`,
-          [sessionId, 'guest', session.guest_name, message]
+          [sessionId, 'guest', session.guest_name, message, clientMessageId]
         );
-        messageId = msg.id;
+        messageId = msg?.id || null;
+        if (!messageId && clientMessageId) {
+          const existingMessage = await client.query(
+            `SELECT id FROM guest_profile_chat_messages
+             WHERE session_id = $1 AND client_message_id = $2 LIMIT 1`,
+            [sessionId, clientMessageId]
+          );
+          messageId = existingMessage.rows[0]?.id || null;
+          replayed = Boolean(messageId);
+        }
       } else {
         // Message was queued, no messageId yet
         messageId = null;
       }
 
-      // Update session activity
-      await client.query(
-        `UPDATE guest_profile_chat_inbound
-         SET last_guest_message_at = CURRENT_TIMESTAMP,
-             guest_messages_count = guest_messages_count + 1,
-             last_activity_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [sessionId]
-      );
+      if (!replayed) {
+        // Update session activity only for a newly committed message.
+        await client.query(
+          `UPDATE guest_profile_chat_inbound
+           SET last_guest_message_at = CURRENT_TIMESTAMP,
+               guest_messages_count = guest_messages_count + 1,
+               last_activity_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [sessionId]
+        );
+      }
     }, 'send_guest_message');
 
     logger.info('Guest message sent', {
@@ -220,7 +280,7 @@ async function sendGuestMessage(req, res, next) {
     });
 
     // Broadcast message to helpers/admins monitoring this session
-    if (messageId) {
+    if (messageId && !replayed) {
       broadcastGuestChatMessage(sessionId, {
         messageId,
         senderType: 'guest',
@@ -230,10 +290,11 @@ async function sendGuestMessage(req, res, next) {
       });
     }
 
-    res.json({
+    res.status(replayed ? 200 : 201).json({
       messageId,
       queued: messageId === null,
-      sessionId
+      sessionId,
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);
@@ -335,7 +396,13 @@ async function helperClaimSession(req, res, next) {
 async function sendHelperMessage(req, res, next) {
   try {
     const { sessionId } = req.params;
-    const { message } = req.body;
+    const { message, clientMessageId: bodyClientMessageId } = req.body;
+    const clientMessageId = getClientMessageId(req, bodyClientMessageId);
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed', {
+        clientMessageId: 'Must be a valid UUID',
+      });
+    }
     await requireGuestChatStaff(req);
     const helperId = req.user.id;
 
@@ -351,6 +418,7 @@ async function sendHelperMessage(req, res, next) {
     }
 
     let messageId;
+    let replayed = false;
 
     await withChatTransaction(async (client) => {
       // Get session with lock
@@ -376,23 +444,37 @@ async function sendHelperMessage(req, res, next) {
       // Insert message
       const { rows: [msg] } = await client.query(
         `INSERT INTO guest_profile_chat_messages
-         (session_id, sender_type, sender_name, message, created_at)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+         (session_id, sender_type, sender_name, message, created_at, client_message_id)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+         ON CONFLICT (session_id, client_message_id)
+         WHERE client_message_id IS NOT NULL
+         DO NOTHING
          RETURNING id`,
-        [sessionId, 'helper', req.user.first_name, message]
+        [sessionId, 'helper', req.user.first_name, message, clientMessageId]
       );
 
-      messageId = msg.id;
+      messageId = msg?.id || null;
+      if (!messageId && clientMessageId) {
+        const existingMessage = await client.query(
+          `SELECT id FROM guest_profile_chat_messages
+           WHERE session_id = $1 AND client_message_id = $2 LIMIT 1`,
+          [sessionId, clientMessageId]
+        );
+        messageId = existingMessage.rows[0]?.id || null;
+        replayed = Boolean(messageId);
+      }
 
-      // Update session activity
-      await client.query(
-        `UPDATE guest_profile_chat_inbound
-         SET last_helper_message_at = CURRENT_TIMESTAMP,
-             helper_messages_count = helper_messages_count + 1,
-             last_activity_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [sessionId]
-      );
+      if (!replayed) {
+        // Update session activity only for a newly committed message.
+        await client.query(
+          `UPDATE guest_profile_chat_inbound
+           SET last_helper_message_at = CURRENT_TIMESTAMP,
+               helper_messages_count = helper_messages_count + 1,
+               last_activity_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [sessionId]
+        );
+      }
     }, 'send_helper_message');
 
     logger.info('Helper message sent', {
@@ -401,17 +483,20 @@ async function sendHelperMessage(req, res, next) {
     });
 
     // Broadcast message to admins and guests monitoring this session
-    broadcastGuestChatMessage(sessionId, {
-      messageId,
-      senderType: 'helper',
-      senderName: req.user.first_name,
-      message,
-      createdAt: new Date().toISOString()
-    });
+    if (!replayed) {
+      broadcastGuestChatMessage(sessionId, {
+        messageId,
+        senderType: 'helper',
+        senderName: req.user.first_name,
+        message,
+        createdAt: new Date().toISOString()
+      });
+    }
 
-    res.json({
+    res.status(replayed ? 200 : 201).json({
       messageId,
-      sessionId
+      sessionId,
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);

@@ -16,6 +16,11 @@ const { getUserFinancialContext, formatFinancialContextForAI } = require('../ser
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 // BCP-47 code → English name, covering all languages LibreTranslate exposes
 const LANGUAGE_NAMES = {
   af: 'Afrikaans', sq: 'Albanian', am: 'Amharic', ar: 'Arabic', hy: 'Armenian',
@@ -588,7 +593,18 @@ exports.profileChatMessage = async (req, res, next) => {
       guestName,
       guestEmail,
       guestPhone,
+      clientMessageId: bodyClientMessageId,
     } = req.body;
+
+    const clientMessageId = (typeof req.get === 'function' ? req.get('Idempotency-Key') : null)
+      || req.headers?.['idempotency-key']
+      || bodyClientMessageId
+      || null;
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed', {
+        clientMessageId: 'Must be a valid UUID',
+      });
+    }
 
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
       throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
@@ -725,19 +741,40 @@ exports.profileChatMessage = async (req, res, next) => {
       const content = String(lastMsg.content || '').trim().slice(0, 2000);
       if (!content) throw new AppError('Empty message', 400, 'validation_failed', { content: 'Message cannot be empty' });
 
-      const msgRow = await pool.query(
-        `INSERT INTO messages (conversation_id, sender_id, content)
-         VALUES ($1, $2, $3) RETURNING *`,
-        [conversationId, userId, content]
+      const insertedMessage = await pool.query(
+        `INSERT INTO messages (conversation_id, sender_id, content, client_message_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (conversation_id, client_message_id)
+         WHERE client_message_id IS NOT NULL
+         DO NOTHING
+         RETURNING *`,
+        [conversationId, userId, content, clientMessageId]
       );
-      await pool.query(
-        `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
-        [conversationId]
-      );
+      let message = insertedMessage.rows[0];
+      const replayed = !message && Boolean(clientMessageId);
+      if (replayed) {
+        const existingMessage = await pool.query(
+          `SELECT * FROM messages
+           WHERE conversation_id = $1 AND client_message_id = $2
+           LIMIT 1`,
+          [conversationId, clientMessageId]
+        );
+        message = existingMessage.rows[0];
+        if (!message) {
+          throw new AppError('Message retry could not be resolved', 409, 'idempotency_conflict');
+        }
+      }
+
+      if (!replayed) {
+        await pool.query(
+          `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
+          [conversationId]
+        );
+      }
 
       // Phase 1a: mirror into business_conversations / business_messages so the
       // business workspace inbox shows the same thread. Fire-and-forget.
-      if (resolvedBusinessId) {
+      if (resolvedBusinessId && !replayed) {
         try {
           const senderRowRes = await pool.query(
             'SELECT first_name, last_name, email FROM users WHERE id = $1',
@@ -778,21 +815,24 @@ exports.profileChatMessage = async (req, res, next) => {
 
       const socketPayload = {
         conversationId,
-        message:      msgRow.rows[0],
+        message,
         senderName:   sender ? `${sender.first_name} ${sender.last_name}` : 'A customer',
         senderAvatar: sender?.profile_photo_url || null,
       };
 
       // Notify the business owner AND all online reps, not just resolvedHelperId.
-      const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
-      notifyTargets.forEach(targetId => {
-        socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
-      });
+      if (!replayed) {
+        const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
+        notifyTargets.forEach(targetId => {
+          socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
+        });
+      }
 
-      return res.json({
+      return res.status(replayed ? 200 : 201).json({
         type:           'live',
         conversationId,
-        message:        msgRow.rows[0],
+        message,
+        idempotent: replayed,
         helperOnline:   true,
         providerOnline: true,
         aiFailed: false,
@@ -806,31 +846,53 @@ exports.profileChatMessage = async (req, res, next) => {
       const content = String(lastMsg.content || '').trim().slice(0, 2000);
       if (!content) throw new AppError('Empty message', 400, 'validation_failed', { content: 'Message cannot be empty' });
 
-      await pool.query(
-        `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
-         VALUES ($1, 'guest', $2, $3)`,
-        [verifiedGuestSession.id, verifiedGuestSession.guest_name, content]
+      const insertedGuestMessage = await pool.query(
+        `INSERT INTO guest_profile_chat_messages
+         (session_id, sender_type, sender_name, message, client_message_id)
+         VALUES ($1, 'guest', $2, $3, $4)
+         ON CONFLICT (session_id, client_message_id)
+         WHERE client_message_id IS NOT NULL
+         DO NOTHING
+         RETURNING id`,
+        [verifiedGuestSession.id, verifiedGuestSession.guest_name, content, clientMessageId]
       );
-      await pool.query(
-        `UPDATE guest_profile_chat_inbound
-         SET message = COALESCE(message, $2),
-             last_guest_message_at = NOW(),
-             last_activity_at = NOW(),
-             guest_messages_count = COALESCE(guest_messages_count, 0) + 1
-         WHERE id = $1`,
-        [verifiedGuestSession.id, content]
-      ).catch(() => pool.query(
-        `UPDATE guest_profile_chat_inbound
-         SET message = COALESCE(message, $2)
-         WHERE id = $1`,
-        [verifiedGuestSession.id, content]
-      ));
+      let guestMessageId = insertedGuestMessage.rows[0]?.id || null;
+      const replayed = !guestMessageId && Boolean(clientMessageId);
+      if (replayed) {
+        const existingGuestMessage = await pool.query(
+          `SELECT id FROM guest_profile_chat_messages
+           WHERE session_id = $1 AND client_message_id = $2
+           LIMIT 1`,
+          [verifiedGuestSession.id, clientMessageId]
+        );
+        guestMessageId = existingGuestMessage.rows[0]?.id || null;
+        if (!guestMessageId) {
+          throw new AppError('Guest message retry could not be resolved', 409, 'idempotency_conflict');
+        }
+      }
+      if (!replayed) {
+        await pool.query(
+          `UPDATE guest_profile_chat_inbound
+           SET message = COALESCE(message, $2),
+               last_guest_message_at = NOW(),
+               last_activity_at = NOW(),
+               guest_messages_count = COALESCE(guest_messages_count, 0) + 1
+           WHERE id = $1`,
+          [verifiedGuestSession.id, content]
+        ).catch(() => pool.query(
+          `UPDATE guest_profile_chat_inbound
+           SET message = COALESCE(message, $2)
+           WHERE id = $1`,
+          [verifiedGuestSession.id, content]
+        ));
+      }
 
       const socketPayload = {
         conversationId: null,
         guestInquiry: true,
         guestSessionId: verifiedGuestSession.id,
         message: {
+          id: guestMessageId,
           content,
           sender_type: 'guest',
           sender_name: verifiedGuestSession.guest_name,
@@ -841,18 +903,22 @@ exports.profileChatMessage = async (req, res, next) => {
         guestEmail: verifiedGuestSession.guest_email,
       };
       const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
-      notifyTargets.forEach((targetId) => {
-        socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
-      });
+      if (!replayed) {
+        notifyTargets.forEach((targetId) => {
+          socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
+        });
+      }
       // Also emit into guest_session_* so multi-tab guests / parity listeners update.
       try {
-        broadcastGuestChatMessage(verifiedGuestSession.id, {
-          messageId: null,
-          senderType: 'guest',
-          senderName: verifiedGuestSession.guest_name,
-          message: content,
-          createdAt: new Date().toISOString(),
-        });
+        if (!replayed) {
+          broadcastGuestChatMessage(verifiedGuestSession.id, {
+            messageId: guestMessageId,
+            senderType: 'guest',
+            senderName: verifiedGuestSession.guest_name,
+            message: content,
+            createdAt: new Date().toISOString(),
+          });
+        }
       } catch (e) {
         logger.warn('[ProfileChat] guest session broadcast failed', { error: e.message });
       }
@@ -865,6 +931,8 @@ exports.profileChatMessage = async (req, res, next) => {
         aiFailed: false,
         suggestedAction: null,
         mode: 'guest_live',
+        messageId: guestMessageId,
+        idempotent: replayed,
       });
     }
 

@@ -55,6 +55,7 @@ import {
   resolveProviderPresenceTransition,
 } from './profileChatRouting.js';
 import { resolveDockChatChrome } from '../../messaging/messengerShellState';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import '../../messaging/SharedMessengerShell.css';
 
 
@@ -254,6 +255,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [escalationOpen, setEscalationOpen] = useState(false);
   const prevHelperStatusRef = useRef<string | null>(null);
   const autoRetryLiveRef = useRef(false);
+  const pendingProfileMessageIdRef = useRef<string | null>(null);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -563,6 +565,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const applyAiFailureRouting = useCallback(async ({
     data,
     userMsg,
+    clientMessageId,
     destinationOverride,
   }: {
     data?: {
@@ -576,6 +579,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       threadId?: string | null;
     } | null;
     userMsg: ChatMessage;
+    clientMessageId?: string;
     destinationOverride?: ChatDestination;
   }) => {
     const providerOnline = Boolean(
@@ -646,6 +650,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             guestEmail: guestEmail.trim(),
             guestSessionId: verifiedGuest?.sessionId,
           } : {}),
+          ...(clientMessageId ? { clientMessageId } : {}),
           language: localStorage.getItem('oxs:language') || 'en',
           messages: [...session.timeline, userMsg]
             .filter(i => i.itemType === 'message')
@@ -748,6 +753,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const msgContent = attachment
       ? `${text ? text + '\n' : ''}[attachment:${attachment.url}|${attachment.name}|${attachment.mimeType}]`
       : text;
+    const clientMessageId = pendingProfileMessageIdRef.current || createMessageRequestId();
+    pendingProfileMessageIdRef.current = clientMessageId;
 
     const userMsg: ChatMessage = {
       id:         `msg-${Date.now()}`,
@@ -782,6 +789,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           guestEmail: guestEmail.trim(),
           guestSessionId: verifiedGuest?.sessionId,
         } : {}),
+        clientMessageId,
         ...(threadId ? { threadId } : {}),
         language: localStorage.getItem('oxs:language') || 'en',
         messages: [...session.timeline, userMsg]
@@ -796,7 +804,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }, guestHeaders ? { headers: guestHeaders } : undefined);
 
       if (data?.aiFailed || data?.type === 'ai_error') {
-        await applyAiFailureRouting({ data, userMsg });
+        await applyAiFailureRouting({ data, userMsg, clientMessageId });
+        pendingProfileMessageIdRef.current = null;
         return;
       }
 
@@ -881,6 +890,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           timeline: [...prev.timeline, aiMsg, ...events],
         }));
       }
+      pendingProfileMessageIdRef.current = null;
     } catch (err: unknown) {
       const axiosData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
       await applyAiFailureRouting({
@@ -893,7 +903,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai',
         },
         userMsg,
+        clientMessageId,
       });
+      pendingProfileMessageIdRef.current = null;
     } finally {
       setSending(false);
     }
