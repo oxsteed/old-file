@@ -106,6 +106,7 @@ function PublicGuestSupport({ t, handoff }) {
   const typingTimerRef = useRef(null);
   const stickToBottomRef = useRef(true);
   const pendingMessageIdRef = useRef(null);
+  const pendingRequestIdRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!conversationId || !token) return;
@@ -186,7 +187,10 @@ function PublicGuestSupport({ t, handoff }) {
   const start = async (event) => {
     event.preventDefault(); setBusy(true); setError('');
     try {
-      const response = await api.post('/support/public/conversations', { visitorName: name, visitorEmail: email, message });
+      const clientRequestId = pendingRequestIdRef.current || createMessageRequestId();
+      pendingRequestIdRef.current = clientRequestId;
+      const response = await api.post('/support/public/conversations', { visitorName: name, visitorEmail: email, message, clientRequestId });
+      pendingRequestIdRef.current = null;
       setConversationId(response.data.conversationId); sessionStorage.setItem('oxs:guest-support-id', response.data.conversationId); setStep('verify');
     } catch (err) { setError(err.response?.data?.error || t('support.escalation.ticketError', { defaultValue: 'Could not start support.' })); }
     finally { setBusy(false); }
@@ -439,7 +443,7 @@ function PublicGuestSupport({ t, handoff }) {
     </section>
   );
   if (step === 'verify') return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.verifyTitle', { defaultValue: 'Check your email' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.verifyBody', { defaultValue: 'Enter the six-digit code we sent to your email address.' })}</p><form onSubmit={verify} className="mt-6 space-y-4"><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} required className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder="000000" />{error && <p className="text-red-300">{error}</p>}<button disabled={busy || code.length !== 6} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.verifyButton', { defaultValue: 'Verify and continue' })}</button><button type="button" onClick={resend} disabled={busy} className="w-full rounded-xl border border-slate-700 py-3 text-slate-200 disabled:opacity-50">{t('support.escalation.resendCode', { defaultValue: 'Resend code' })}</button></form></section>);
-  return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
+  return shell(<section className="rounded-[28px] border border-slate-700 bg-slate-900 p-6 text-white"><h1 className="text-3xl font-bold">{t('support.escalation.guestTitle', { defaultValue: 'Talk to OxSteed Support' })}</h1><p className="mt-2 text-slate-300">{t('support.escalation.guestBody', { defaultValue: 'Start a secure support conversation without signing in.' })}</p><form onSubmit={start} className="mt-6 space-y-4"><input required value={name} onChange={(e) => { setName(e.target.value); pendingRequestIdRef.current = null; }} maxLength={255} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.namePlaceholder', { defaultValue: 'Your name' })} /><input required type="email" value={email} onChange={(e) => { setEmail(e.target.value); pendingRequestIdRef.current = null; }} maxLength={320} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.emailPlaceholder', { defaultValue: 'Email address' })} /><textarea required value={message} onChange={(e) => { setMessage(e.target.value); pendingRequestIdRef.current = null; }} maxLength={5000} rows={6} className="w-full rounded-xl bg-slate-800 px-4 py-3" placeholder={t('support.escalation.messagePlaceholder', { defaultValue: 'How can we help?' })} />{error && <p className="text-red-300">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-orange-600 py-3 font-semibold disabled:opacity-50">{t('support.escalation.startButton', { defaultValue: 'Start support conversation' })}</button></form></section>);
 }
 
 function normalizeSupportMessages(messages = []) {

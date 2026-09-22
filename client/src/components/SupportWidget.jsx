@@ -8,15 +8,6 @@ import { useCapabilities } from '../hooks/useCapabilities';
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
 
-const SUGGESTIONS = [
-  'How do I post a job?',
-  'How do direct payments work?',
-  'How do I become a verified helper?',
-  'How does restaurant credit work?',
-  'How do I dispute a payment?',
-  'How does bidding work?',
-];
-
 // Pages that get the proactive auto-open trigger after 45s
 const PROACTIVE_PATHS = ['/post-job', '/helpers'];
 const PROACTIVE_DELAY_MS = 45_000;
@@ -26,9 +17,9 @@ function isHelperPublicProfilePath(pathname) {
   return /^\/helpers\/[^/]+\/?$/.test(pathname || '');
 }
 
-function formatTime(iso) {
+function formatTime(iso, locale) {
   const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString(locale || undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 function loadHistory() {
@@ -129,13 +120,13 @@ function playPing() {
 }
 
 // ── 10. Export transcript ─────────────────────────────────────────────────────
-function exportTranscript(messages) {
+function exportTranscript(messages, locale) {
   const lines = messages.map(m => {
     const who = m.role === 'user' ? 'You' : 'OxSteed AI';
-    const time = new Date(m.ts).toLocaleString();
+    const time = new Date(m.ts).toLocaleString(locale || undefined);
     return `[${time}] ${who}:\n${m.content}`;
   });
-  const text = `OxSteed AI Support Transcript\nExported: ${new Date().toLocaleString()}\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}`;
+  const text = `OxSteed AI Support Transcript\nExported: ${new Date().toLocaleString(locale || undefined)}\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}`;
   const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -151,7 +142,7 @@ function exportTranscript(messages) {
 function AISupportWidget() {
   const location = useLocation();
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   // 8. Welcome-back: show different greeting if prior history exists
@@ -168,6 +159,14 @@ function AISupportWidget() {
   const [copied,       setCopied]       = useState(null);
   const [unread,       setUnread]       = useState(0);
   const [isMobile,     setIsMobile]     = useState(false);
+  const suggestions = [
+    t('supportWidget.suggestionPostJob'),
+    t('supportWidget.suggestionPayments'),
+    t('supportWidget.suggestionHelper'),
+    t('supportWidget.suggestionCredit'),
+    t('supportWidget.suggestionDispute'),
+    t('supportWidget.suggestionBidding'),
+  ];
 
   // Close floating widget when navigating to a helper profile (in-page chat replaces it)
   useEffect(() => {
@@ -403,18 +402,18 @@ function AISupportWidget() {
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-gray-900"/>
                 </div>
                 <div>
-                  <p className="font-semibold text-white text-sm leading-none">OxSteed Platform Support</p>
-                  <p className="text-[10px] text-green-400 mt-0.5">Platform AI · usually instant</p>
+                  <p className="font-semibold text-white text-sm leading-none">{t('supportWidget.assistantTitle')}</p>
+                  <p className="text-[10px] text-green-400 mt-0.5">{t('supportWidget.assistantStatus')}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-1">
-                {/* 3. Talk to human */}
+                {/* Keep the human-support path visually distinct from the AI assistant. */}
                 <button
                   onClick={() => handleEscalate()}
-                  title="Talk to a human"
+                  title={t('supportWidget.contactHuman')}
                   className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded-lg hover:bg-gray-800"
-                  aria-label="Talk to a human"
+                  aria-label={t('supportWidget.contactHumanAria')}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
@@ -425,10 +424,10 @@ function AISupportWidget() {
                 {/* 10. Export transcript */}
                 {messages.length > 1 && (
                   <button
-                    onClick={() => exportTranscript(messages)}
-                    title="Download transcript"
+                    onClick={() => exportTranscript(messages, i18n.language)}
+                    title={t('supportWidget.exportTranscript')}
                     className="p-1.5 text-gray-500 hover:text-gray-300 transition rounded-lg hover:bg-gray-800"
-                    aria-label="Export transcript"
+                    aria-label={t('supportWidget.exportTranscript')}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -442,9 +441,9 @@ function AISupportWidget() {
                 {messages.length > 1 && (
                   <button
                     onClick={handleClearChat}
-                    title="Clear conversation"
+                    title={t('supportWidget.clearConversation')}
                     className="p-1.5 text-gray-500 hover:text-gray-300 transition rounded-lg hover:bg-gray-800"
-                    aria-label="Clear chat"
+                    aria-label={t('supportWidget.clearConversation')}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6"/>
@@ -536,7 +535,7 @@ function AISupportWidget() {
                                 <polyline points="1 4 1 10 7 10"/>
                                 <path d="M3.51 15a9 9 0 1 0 .49-3.07"/>
                               </svg>
-                              Retry
+                              {t('supportWidget.retry')}
                             </button>
                           )}
 
@@ -546,19 +545,19 @@ function AISupportWidget() {
                               <button
                                 onClick={() => handleCopy(m.content, i)}
                                 className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1"
-                                title="Copy response"
+                                title={t('supportWidget.copyResponse')}
                               >
                                 {copied === i
-                                  ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Copied</>
-                                  : <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy</>
+                                  ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> {t('supportWidget.copied')}</>
+                                  : <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> {t('supportWidget.copy')}</>
                                 }
                               </button>
 
                               {/* Thumbs up */}
                               <button
                                 onClick={() => handleFeedback(i, 'up')}
-                                title="Helpful"
-                                aria-label="Helpful"
+                                title={t('supportWidget.helpful')}
+                                aria-label={t('supportWidget.helpful')}
                                 className={`transition flex items-center ${m.feedback === 'up' ? 'text-green-400' : 'opacity-0 group-hover:opacity-100 text-gray-600 hover:text-green-400'}`}
                               >
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill={m.feedback === 'up' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -570,8 +569,8 @@ function AISupportWidget() {
                               {/* Thumbs down */}
                               <button
                                 onClick={() => handleFeedback(i, 'down')}
-                                title="Not helpful"
-                                aria-label="Not helpful"
+                                title={t('supportWidget.notHelpful')}
+                                aria-label={t('supportWidget.notHelpful')}
                                 className={`transition flex items-center ${m.feedback === 'down' ? 'text-red-400' : 'opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400'}`}
                               >
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill={m.feedback === 'down' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -609,7 +608,7 @@ function AISupportWidget() {
                 {/* Suggestion chips */}
                 {showSuggestions && (
                   <div className="px-4 pb-2 flex flex-wrap gap-1.5 flex-shrink-0">
-                    {SUGGESTIONS.map(s => (
+                    {suggestions.map(s => (
                       <button
                         key={s}
                         onClick={() => send(s)}
@@ -647,7 +646,7 @@ function AISupportWidget() {
                     type="submit"
                     disabled={loading || !input.trim()}
                     className="flex-shrink-0 p-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition disabled:opacity-40 active:scale-95"
-                    aria-label="Send message"
+                    aria-label={t('supportWidget.sendMessage')}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <line x1="22" y1="2" x2="11" y2="13"/>
@@ -659,14 +658,14 @@ function AISupportWidget() {
                 {/* Footer */}
                 <div className="px-4 pb-3 text-center flex-shrink-0">
                   <p className="text-[10px] text-gray-600">
-                    AI responses may be inaccurate.{' '}
+                    {t('supportWidget.footerNotice')}{' '}
                     <button
                       onClick={() => handleEscalate()}
                       className="text-orange-500/70 hover:text-orange-400 underline transition"
                     >
-                      Talk to a human
+                      {t('supportWidget.contactHuman')}
                     </button>
-                    {' '}or email{' '}
+                    {' '}{t('supportWidget.emailSupport')}{' '}
                     <a href="mailto:support@oxsteed.com" className="text-orange-500/70 hover:text-orange-500 underline transition">
                       support@oxsteed.com
                     </a>

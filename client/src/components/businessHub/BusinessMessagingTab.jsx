@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Archive, Plus, Search, Send } from 'lucide-react';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 import ConversationThread from '../messaging/ConversationThread';
 import ConversationList from '../messaging/ConversationList';
 import {
@@ -24,12 +25,14 @@ export function BusinessMessagingTab({ businessId }) {
   const [dealConversations, setDealConversations] = useState([]);
   const [selectedDealId, setSelectedDealId] = useState(null);
   const [dealsLoading, setDealsLoading] = useState(false);
+  const [dealLoadError, setDealLoadError] = useState(false);
   const [dealSearch, setDealSearch] = useState('');
 
   const loadDeals = useCallback(async () => {
     if (!businessId) return;
     try {
       setDealsLoading(true);
+      setDealLoadError(false);
       const { data } = await api.get('/messages/conversations', {
         params: { business_id: businessId },
       });
@@ -41,7 +44,7 @@ export function BusinessMessagingTab({ businessId }) {
       setDealConversations(list);
     } catch {
       toast.error(t('businessMessaging.toastLoadConversationsFailed'));
-      setDealConversations([]);
+      setDealLoadError(true);
     } finally {
       setDealsLoading(false);
     }
@@ -76,12 +79,17 @@ export function BusinessMessagingTab({ businessId }) {
   const [conversationType, setConversationType] = useState('all');
   const [teamSearch, setTeamSearch] = useState('');
   const [teamLoading, setTeamLoading] = useState(false);
+  const [teamLoadError, setTeamLoadError] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [teamSending, setTeamSending] = useState(false);
+  const [teamSendError, setTeamSendError] = useState('');
+  const pendingTeamMessageIdRef = useRef(null);
 
   const loadTeam = useCallback(async () => {
     if (!businessId) return;
     try {
       setTeamLoading(true);
+      setTeamLoadError(false);
       const response = await api.get(`/businesses/${businessId}/messages`, {
         params: {
           type: conversationType === 'all' ? undefined : conversationType,
@@ -97,7 +105,7 @@ export function BusinessMessagingTab({ businessId }) {
       setTeamConversations(list);
     } catch {
       toast.error(t('businessMessaging.toastLoadConversationsFailed'));
-      setTeamConversations([]);
+      setTeamLoadError(true);
     } finally {
       setTeamLoading(false);
     }
@@ -118,17 +126,25 @@ export function BusinessMessagingTab({ businessId }) {
   };
 
   const sendTeamMessage = async () => {
-    if (!messageText.trim() || !selectedTeam) return;
+    if (!messageText.trim() || !selectedTeam || teamSending) return;
+    const clientMessageId = pendingTeamMessageIdRef.current || createMessageRequestId();
     try {
+      setTeamSending(true);
+      setTeamSendError('');
       const response = await api.post(
         `/businesses/${businessId}/messages/${selectedTeam.id}`,
-        { content: messageText, message_type: 'text' },
+        { content: messageText, message_type: 'text', clientMessageId },
       );
       setTeamMessages((prev) => [...(Array.isArray(prev) ? prev : []), response.data]);
       setMessageText('');
+      pendingTeamMessageIdRef.current = null;
       loadTeam();
     } catch {
+      pendingTeamMessageIdRef.current = clientMessageId;
+      setTeamSendError(t('businessMessaging.toastSendFailed'));
       toast.error(t('businessMessaging.toastSendFailed'));
+    } finally {
+      setTeamSending(false);
     }
   };
 
@@ -192,6 +208,14 @@ export function BusinessMessagingTab({ businessId }) {
             <div className="bmt-header">
               <h3>{t('businessMessaging.dealsTitle')}</h3>
             </div>
+            {dealLoadError && (
+              <div className="messages-inline-alert" role="alert">
+                <p>{t('businessMessaging.toastLoadConversationsFailed')}</p>
+                <button type="button" onClick={loadDeals} disabled={dealsLoading}>
+                  {t('messages.retry')}
+                </button>
+              </div>
+            )}
             <div className="bmt-search">
               <Search size={16} aria-hidden />
               <input
@@ -276,6 +300,14 @@ export function BusinessMessagingTab({ businessId }) {
                 aria-label={t('businessMessaging.searchAria')}
               />
             </div>
+            {teamLoadError && (
+              <div className="messages-inline-alert" role="alert">
+                <p>{t('businessMessaging.toastLoadConversationsFailed')}</p>
+                <button type="button" onClick={loadTeam} disabled={teamLoading}>
+                  {t('messages.retry')}
+                </button>
+              </div>
+            )}
             <ConversationList
               className="bmt-shared-list"
               items={teamConversations.map((conv) =>
@@ -382,21 +414,41 @@ export function BusinessMessagingTab({ businessId }) {
                   )}
                 </div>
                 <div className="messages-composer bmt-team-composer">
+                  {teamSendError ? (
+                    <div className="messages-inline-alert" role="alert">
+                      <span>{teamSendError}</span>
+                      <button type="button" onClick={sendTeamMessage} disabled={teamSending}>
+                        <Send size={13} aria-hidden />
+                        {t('messages.retry')}
+                      </button>
+                    </div>
+                  ) : null}
                   <input
                     type="text"
                     className="messages-composer-input"
                     value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
+                    onChange={(e) => {
+                      setMessageText(e.target.value);
+                      if (teamSendError) {
+                        setTeamSendError('');
+                        pendingTeamMessageIdRef.current = null;
+                      }
+                    }}
                     placeholder={t('businessMessaging.messagePlaceholder')}
                     aria-label={t('businessMessaging.messageAria')}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') sendTeamMessage();
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendTeamMessage();
+                      }
                     }}
+                    disabled={teamSending}
                   />
                   <button
                     type="button"
                     className="messages-composer-send"
                     onClick={sendTeamMessage}
+                    disabled={teamSending || !messageText.trim()}
                     aria-label={t('businessMessaging.send')}
                     title={t('businessMessaging.send')}
                   >

@@ -33,6 +33,11 @@ function normalizeMessageAttachments(value) {
   });
 }
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 /**
  * Guest profile inquiries (visitors without accounts) - guest_profile_chat_inbound.
  */
@@ -503,6 +508,16 @@ const sendMessage = async (req, res, next) => {
     const { conversationId } = req.params;
     const rawContent = (req.body.content || '').trim();
     const attachments = normalizeMessageAttachments(req.body.attachments);
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
+
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('Invalid client message id', 400, 'validation_failed', {
+        clientMessageId: 'Must be a valid UUID',
+      });
+    }
 
     const fields = {};
     if (!rawContent && attachments.length === 0) fields.content = 'Message content or attachment is required';
@@ -515,7 +530,7 @@ const sendMessage = async (req, res, next) => {
     const content = sanitizeMessage(rawContent);
 
     // Send message atomically with race condition prevention
-    const { messagePayload, conv } = await withTransaction(pool, async (client) => {
+    const { messagePayload, conv, replayed } = await withTransaction(pool, async (client) => {
       // Verify user is part of conversation and fetch metadata
       const convResult = await client.query(
         `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id, b.business_name
@@ -542,8 +557,10 @@ const sendMessage = async (req, res, next) => {
 
       // Insert message
       const msgResult = await client.query(
-        `INSERT INTO messages (conversation_id, sender_id, content, message_type, attachments)
-         VALUES ($1, $2, $3, $4, $5::jsonb)
+        `INSERT INTO messages (conversation_id, sender_id, content, message_type, attachments, client_message_id)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+         ON CONFLICT (conversation_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           conversationId,
@@ -551,11 +568,20 @@ const sendMessage = async (req, res, next) => {
           content,
           attachments.length > 0 && !content ? 'attachment' : 'text',
           JSON.stringify(attachments),
+          clientMessageId,
         ]
       );
 
       if (!msgResult.rows.length) {
-        throw new Error('Failed to create message');
+        const replayResult = await client.query(
+          `SELECT * FROM messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientMessageId]
+        );
+        if (!replayResult.rows.length) {
+          throw new Error('Failed to create message');
+        }
+        return { messagePayload: replayResult.rows[0], conv, replayed: true };
       }
 
       // Update conversation last_message_at (atomic within transaction)
@@ -564,7 +590,7 @@ const sendMessage = async (req, res, next) => {
         [conversationId]
       );
 
-      return { messagePayload: msgResult.rows[0], conv };
+      return { messagePayload: msgResult.rows[0], conv, replayed: false };
     }, 'send_message');
 
     if (!messagePayload) {
@@ -578,6 +604,12 @@ const sendMessage = async (req, res, next) => {
       ? business_name
       : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
     const fullMessagePayload = { ...messagePayload, sender_name: senderName };
+
+    // A retry with the same client ID returns the original message but must
+    // not fan out a second socket event or notification.
+    if (replayed) {
+      return res.status(200).json(fullMessagePayload);
+    }
 
     // Broadcast to the conversation room - both participants see it in real-time
     // if they currently have the thread open.

@@ -117,6 +117,7 @@ describe('message attachments', () => {
       '',
       'attachment',
       JSON.stringify([attachment]),
+      null,
     ]);
   });
 

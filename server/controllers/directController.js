@@ -63,6 +63,11 @@ function cleanText(value, maxLen = 255) {
   return value.trim().slice(0, maxLen);
 }
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function normalizeObject(value) {
   if (!value) return {};
   if (typeof value === 'string') {
@@ -1168,6 +1173,14 @@ exports.addMessage = async (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
 
+  const clientMessageId = req.get('Idempotency-Key')
+    || req.body.clientMessageId
+    || req.body.client_message_id
+    || null;
+  if (clientMessageId && !isUuid(clientMessageId)) {
+    return res.status(400).json({ error: 'clientMessageId must be a valid UUID' });
+  }
+
   try {
     const request = await loadRequestOr404(req.params.id);
     if (!request) {
@@ -1180,11 +1193,39 @@ exports.addMessage = async (req, res) => {
     const senderRole = isAdmin(req.user) ? actorRoleFromUser(req.user) : 'customer';
     const { rows } = await db.query(
       `INSERT INTO direct_request_messages
-         (quote_request_id, sender_user_id, sender_role, message)
-       VALUES ($1, $2, $3, $4)
+         (quote_request_id, sender_user_id, sender_role, message, client_message_id)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (quote_request_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
        RETURNING id, quote_request_id, sender_user_id, sender_role, message, created_at`,
-      [request.id, req.user.id, VALID_MESSAGE_ROLES.has(senderRole) ? senderRole : 'customer', message]
+      [request.id, req.user.id, VALID_MESSAGE_ROLES.has(senderRole) ? senderRole : 'customer', message, clientMessageId]
     );
+
+    let row = rows[0];
+    const replayed = !row && clientMessageId;
+    if (replayed) {
+      const replay = await db.query(
+        `SELECT id, quote_request_id, sender_user_id, sender_role, message, created_at
+           FROM direct_request_messages
+          WHERE quote_request_id = $1 AND client_message_id = $2`,
+        [request.id, clientMessageId]
+      );
+      row = replay.rows[0];
+      if (!row) return res.status(409).json({ error: 'Message retry could not be recovered' });
+    }
+
+    if (replayed) {
+      return res.status(200).json({
+        message: {
+          id: String(row.id),
+          quoteRequestId: String(row.quote_request_id),
+          senderUserId: row.sender_user_id ? String(row.sender_user_id) : null,
+          senderRole: row.sender_role,
+          message: row.message,
+          createdAt: row.created_at,
+        },
+      });
+    }
 
     await db.query('UPDATE quote_requests SET updated_at = NOW() WHERE id = $1', [request.id]);
     await appendEvent({
@@ -1199,12 +1240,12 @@ exports.addMessage = async (req, res) => {
 
     return res.status(201).json({
       message: {
-        id: String(rows[0].id),
-        quoteRequestId: String(rows[0].quote_request_id),
-        senderUserId: rows[0].sender_user_id ? String(rows[0].sender_user_id) : null,
-        senderRole: rows[0].sender_role,
-        message: rows[0].message,
-        createdAt: rows[0].created_at,
+        id: String(row.id),
+        quoteRequestId: String(row.quote_request_id),
+        senderUserId: row.sender_user_id ? String(row.sender_user_id) : null,
+        senderRole: row.sender_role,
+        message: row.message,
+        createdAt: row.created_at,
       },
     });
   } catch (err) {

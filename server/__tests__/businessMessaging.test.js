@@ -94,4 +94,23 @@ describe('business hub messaging tab', () => {
     expect(insertSql).toMatch(/first_name/);
     expect(insertSql).not.toMatch(/display_name/);
   });
+
+  test('replays a team message by client ID without updating the conversation twice', async () => {
+    const clientMessageId = '22222222-2222-4222-8222-222222222222';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-2', content: 'On my way', client_message_id: clientMessageId }] });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/messages/conv-1')
+      .set('Idempotency-Key', clientMessageId)
+      .send({ content: 'On my way', message_type: 'text' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.client_message_id).toBe(clientMessageId);
+    expect(mockQuery.mock.calls[2][0]).toContain('client_message_id');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE business_conversations/.test(sql))).toBe(false);
+  });
 });

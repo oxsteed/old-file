@@ -113,8 +113,8 @@ export async function getDirectRequestMessages(id) {
   return response.data;
 }
 
-export async function sendDirectMessage(id, message) {
-  const response = await api.post(`/direct/requests/${id}/messages`, { message });
+export async function sendDirectMessage(id, message, clientMessageId) {
+  const response = await api.post(`/direct/requests/${id}/messages`, { message, clientMessageId });
   return response.data;
 }
 

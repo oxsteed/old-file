@@ -106,7 +106,7 @@ export default function ConversationThread({
 
   const {
     messages, fetchMessages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
-    newMessage, loading, sending, notFound, otherTyping, showSeen, lastSentByMe,
+    newMessage, loading, loadError, sending, notFound, otherTyping, showSeen, lastSentByMe,
     stickToBottom, messagesEndRef, threadRef, inputRef,
     handleInputChange, handleBlur, sendMessage, retryMessage,
     handleThreadScroll, scrollToLatest, user,
@@ -256,6 +256,18 @@ export default function ConversationThread({
           </button>
         </div>
       </header>
+
+      {loadError && (
+        <div className="messages-inline-alert" role="alert">
+          <p>{t('messages.loadFailed')}</p>
+          <div className="messages-inline-alert-actions">
+            <button type="button" onClick={fetchMessages} disabled={loading}>
+              {t('messages.retry')}
+            </button>
+            <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
+          </div>
+        </div>
+      )}
 
       {role === 'helper' ? (
         <ProviderMessengerToolbar

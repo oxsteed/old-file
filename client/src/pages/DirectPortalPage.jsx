@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
+import { createMessageRequestId } from '../lib/messageRequestId';
 import DirectCatalogLanding from './DirectCatalogLanding';
 import {
   acceptDirectRequest,
@@ -1213,6 +1214,8 @@ export function DirectSupportPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const pendingMessageIdRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
@@ -1257,12 +1260,17 @@ export function DirectSupportPage() {
   const handleSend = async () => {
     const next = message.trim();
     if (!next || !selectedId) return;
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     setSending(true);
+    setSendError('');
     try {
-      await sendDirectMessage(selectedId, next);
+      await sendDirectMessage(selectedId, next, clientMessageId);
+      pendingMessageIdRef.current = null;
       setMessage('');
       await load();
     } catch (error) {
+      setSendError(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
       toast.error(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
     } finally {
       setSending(false);
@@ -1316,7 +1324,8 @@ export function DirectSupportPage() {
                 </div>
               </div>
               <div className="grid gap-3">
-                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('directPortal.support.messagePlaceholder', { defaultValue: 'Type your message to the OxSteed team...' })} />
+                <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (sendError) { setSendError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.messagePlaceholder', { defaultValue: 'Type your message to the OxSteed team...' })} />
+                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                 <div className="flex flex-wrap gap-3">
                   <button type="button" onClick={handleSend} disabled={sending || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
                     <Send size={15} /> {sending ? t('directPortal.support.sending', { defaultValue: 'Sending…' }) : t('directPortal.support.send', { defaultValue: 'Send' })}
@@ -1508,6 +1517,8 @@ function DirectCasePage({ mode }) {
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageError, setMessageError] = useState('');
+  const pendingMessageIdRef = useRef(null);
   const [proofForm, setProofForm] = useState({
     paymentMethod: 'cash',
     paymentReference: '',
@@ -1651,13 +1662,18 @@ function DirectCasePage({ mode }) {
 
   const submitMessage = async () => {
     if (!id || !message.trim()) return;
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     setActionBusy(true);
+    setMessageError('');
     try {
-      await sendDirectMessage(id, message.trim());
+      await sendDirectMessage(id, message.trim(), clientMessageId);
+      pendingMessageIdRef.current = null;
       setMessage('');
       await load();
       toast.success(t('directPortal.case.messages.messageSent', { defaultValue: 'Message sent.' }));
     } catch (error) {
+      setMessageError(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
       toast.error(error?.response?.data?.error || t('directPortal.support.errors.send', { defaultValue: 'Could not send message.' }));
     } finally {
       setActionBusy(false);
@@ -1909,7 +1925,8 @@ function DirectCasePage({ mode }) {
                     </div>
                   ))}
                 </div>
-                <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t('directPortal.support.supportPlaceholder', { defaultValue: 'Send a message to OxSteed support…' })} />
+                <Textarea rows={4} value={message} onChange={(e) => { setMessage(e.target.value); if (messageError) { setMessageError(''); pendingMessageIdRef.current = null; } }} placeholder={t('directPortal.support.supportPlaceholder', { defaultValue: 'Send a message to OxSteed support…' })} />
+                {messageError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{messageError}</div><button type="button" onClick={submitMessage} disabled={actionBusy || !message.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                 <button type="button" onClick={submitMessage} disabled={actionBusy || !message.trim()} className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
                   <Send size={15} /> {t('directPortal.support.send', { defaultValue: 'Send' })}
                 </button>

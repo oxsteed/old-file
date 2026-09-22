@@ -86,6 +86,11 @@ function notifyUser(userId, event, data) {
   try { socketService.broadcastToUser(userId, event, data); } catch { /* socket not ready */ }
 }
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
 
 /**
@@ -96,6 +101,13 @@ function notifyUser(userId, event, data) {
 exports.submitSupportRequest = async (req, res, next) => {
   try {
     const { name, email, subject, message, category = 'general', priority = 'normal', sender_language = 'en' } = req.body;
+    const clientRequestId = req.get('Idempotency-Key')
+      || req.body.clientRequestId
+      || req.body.client_request_id
+      || null;
+    if (clientRequestId && !isUuid(clientRequestId)) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
 
     const fields = {};
     if (!name?.trim()) fields.name = 'Name is required';
@@ -136,8 +148,10 @@ exports.submitSupportRequest = async (req, res, next) => {
 
     const ticketRes = await client.query(
       `INSERT INTO support_tickets
-         (user_id, name, email, subject, category, priority, status, source)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget')
+         (user_id, name, email, subject, category, priority, status, source, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7)
+       ON CONFLICT (client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
       [
         userId,
@@ -146,16 +160,31 @@ exports.submitSupportRequest = async (req, res, next) => {
         (subject?.trim() || 'Support Request').slice(0, 500),
         safeCategory,
         safePriority,
+        clientRequestId,
       ]
     );
-    const ticket = ticketRes.rows[0];
+    let ticket = ticketRes.rows[0];
+    if (!ticket && clientRequestId) {
+      const replay = await client.query(
+        `SELECT * FROM support_tickets WHERE client_request_id = $1`,
+        [clientRequestId]
+      );
+      ticket = replay.rows[0];
+      if (!ticket) throw new AppError('Support request retry could not be recovered', 409, 'support_request_retry_failed');
+      await client.query('COMMIT');
+      return res.status(200).json({
+        ticket_id: ticket.id,
+        ticket_number: ticket.ticket_number,
+        message: 'Your support request has already been received.',
+      });
+    }
 
     await client.query(
       `INSERT INTO support_messages
          (ticket_id, sender_id, sender_name, sender_email, content,
-          sender_language, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, $6, false, false)`,
-      [ticket.id, userId, name.trim(), email.trim().toLowerCase(), message.trim(), safeLanguage]
+          sender_language, is_internal, is_from_admin, client_message_id)
+       VALUES ($1, $2, $3, $4, $5, $6, false, false, $7)`,
+      [ticket.id, userId, name.trim(), email.trim().toLowerCase(), message.trim(), safeLanguage, clientRequestId]
     );
 
     await client.query('COMMIT');
@@ -270,6 +299,13 @@ exports.getMyTicket = async (req, res, next) => {
 exports.replyToMyTicket = async (req, res, next) => {
   try {
     const { content, sender_language = 'en' } = req.body;
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
+    }
     if (!content?.trim()) {
       throw new AppError('Message content is required', 400, 'validation_failed', { content: 'Message content cannot be empty' });
     }
@@ -295,11 +331,25 @@ exports.replyToMyTicket = async (req, res, next) => {
 
     const { rows: [msg] } = await db.query(
       `INSERT INTO support_messages
-         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, $6, false, false)
+         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin, client_message_id)
+       VALUES ($1, $2, $3, $4, $5, $6, false, false, $7)
+       ON CONFLICT (ticket_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [ticket.id, req.user.id, ticket.name, ticket.email, content.trim(), safeLanguage]
+      [ticket.id, req.user.id, ticket.name, ticket.email, content.trim(), safeLanguage, clientMessageId]
     );
+
+    let messageRow = msg;
+    const replayed = !messageRow && clientMessageId;
+    if (replayed) {
+      const replay = await db.query(
+        `SELECT * FROM support_messages WHERE ticket_id = $1 AND client_message_id = $2`,
+        [ticket.id, clientMessageId]
+      );
+      messageRow = replay.rows[0];
+      if (!messageRow) throw new AppError('Message retry could not be recovered', 409, 'message_retry_failed');
+      return res.status(200).json({ message: messageRow });
+    }
 
     // Move back to in_progress if waiting on user response
     if (ticket.status === 'waiting_user') {
@@ -327,7 +377,7 @@ exports.replyToMyTicket = async (req, res, next) => {
       });
     }
 
-    return res.status(201).json({ message: msg });
+    return res.status(201).json({ message: messageRow });
   } catch (err) {
     next(err);
   }

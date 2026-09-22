@@ -43,6 +43,56 @@
   color: #9da8bb;
 }
 
+.messages-inline-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+  font-size: 0.8rem;
+}
+
+.messages-inline-alert p {
+  margin: 0;
+}
+
+.messages-inline-alert button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(254, 202, 202, 0.35);
+  border-radius: 7px;
+  background: transparent;
+  color: #fee2e2;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.messages-inline-alert button:hover {
+  background: rgba(254, 202, 202, 0.1);
+}
+
+.messages-inline-alert-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.messages-inline-alert a {
+  color: #fed7aa;
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
 /* Thread chrome (safe to redeclare; hosts may also load MessagesPage.css) */
 .messages-thread {
   display: flex;

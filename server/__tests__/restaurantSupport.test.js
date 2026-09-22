@@ -18,6 +18,7 @@ function buildCustomerApp() {
     next();
   });
   app.post('/api/restaurants/support/cases', ctrl.createCase);
+  app.post('/api/restaurants/support/cases/:caseId/messages', ctrl.addCustomerMessage);
   app.use(errorHandler);
   return app;
 }
@@ -148,6 +149,29 @@ describe('restaurant support case backend', () => {
     expect(res.body.case.status).toBe('awaiting_customer');
     expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO restaurant_support_case_messages/);
     expect(mockQuery.mock.calls[4][0]).toMatch(/first_response_at = COALESCE/);
+  });
+
+  test('replays a committed customer case message without reopening the case twice', async () => {
+    const clientMessageId = '44444444-4444-4444-8444-444444444444';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: 9001,
+        customer_user_id: '00000000-0000-4000-8000-000000000123',
+        owner_type: 'restaurant',
+        status: 'awaiting_restaurant',
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, case_id: 9001, message: 'Following up', client_message_id: clientMessageId }] });
+
+    const res = await request(buildCustomerApp())
+      .post('/api/restaurants/support/cases/9001/messages')
+      .set('Idempotency-Key', clientMessageId)
+      .send({ message: 'Following up' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message.id).toBe(2);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_support_cases/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /restaurant_support_notification_events/.test(sql))).toBe(false);
   });
 
   test('does not attach a guest order to a support case without its tracking token', async () => {

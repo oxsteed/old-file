@@ -216,6 +216,48 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_messages/.test(sql))).toBe(true);
   });
 
+  test('replays a committed legacy support request without creating a second ticket', async () => {
+    const clientRequestId = '22222222-2222-4222-8222-222222222222';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', ticket_number: 1001 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/support/request')
+      .set('Idempotency-Key', clientRequestId)
+      .send({
+        name: 'Guest User',
+        email: 'guest@example.com',
+        subject: 'Inventory sync issue',
+        message: 'Inventory did not sync after retrying.',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ticket_id).toBe('ticket-1');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_messages/.test(sql))).toBe(false);
+  });
+
+  test('replays an authenticated ticket reply without changing ticket state twice', async () => {
+    const clientMessageId = '33333333-3333-4333-8333-333333333333';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...authUserRow() }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'waiting_user', assigned_to: null, ticket_number: 1001, subject: 'Help', name: 'Mobile', email: 'mobile@example.com' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1', ticket_id: 'ticket-1', content: 'Following up', client_message_id: clientMessageId }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/my-tickets/ticket-1/reply')
+      .set('Authorization', authHeader())
+      .send({ content: 'Following up', clientMessageId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message.id).toBe('message-1');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE support_tickets/.test(sql))).toBe(false);
+  });
+
   test('lists the signed-in user support tickets', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

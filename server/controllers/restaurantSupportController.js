@@ -124,6 +124,11 @@ function isSensitiveText(...parts) {
   return SENSITIVE_RE.test(parts.filter(Boolean).join(' '));
 }
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function routeIssue(issueType, { description, issueSubtype, cause, requestedResolution } = {}) {
   const sensitiveText = isSensitiveText(issueType, description, issueSubtype, cause, requestedResolution);
   switch (issueType) {
@@ -303,21 +308,41 @@ async function enqueueNotification(client, caseId, recipientType, eventType, pay
   );
 }
 
-async function addMessage(client, supportCase, { senderUserId, senderType, message, internalNote = false, language = 'en' }) {
+async function addMessage(client, supportCase, {
+  senderUserId,
+  senderType,
+  message,
+  internalNote = false,
+  language = 'en',
+  clientMessageId = null,
+  returnReplay = false,
+}) {
   const { rows: [row] } = await client.query(
     `INSERT INTO restaurant_support_case_messages
-       (case_id, sender_user_id, sender_type, message, internal_note, language)
-     VALUES ($1,$2,$3,$4,$5,$6)
+       (case_id, sender_user_id, sender_type, message, internal_note, language, client_message_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (case_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING *`,
-    [supportCase.id, senderUserId, senderType, message, internalNote, language]
+    [supportCase.id, senderUserId, senderType, message, internalNote, language, clientMessageId]
   );
+  const replayed = !row && clientMessageId;
+  if (replayed) {
+    const replay = await client.query(
+      `SELECT * FROM restaurant_support_case_messages
+        WHERE case_id = $1 AND client_message_id = $2`,
+      [supportCase.id, clientMessageId]
+    );
+    if (!replay.rows[0]) throw new AppError('Message retry could not be recovered', 409, 'message_retry_failed');
+    return returnReplay ? { row: replay.rows[0], replayed: true } : replay.rows[0];
+  }
   await logEvent(client, supportCase.id, {
     actorUserId: senderUserId,
     actorType: senderType,
     eventType: internalNote ? 'internal_note_added' : 'message_added',
     metadata: { messageId: row.id },
   });
-  return row;
+  return returnReplay ? { row, replayed: false } : row;
 }
 
 async function getCaseDetails(client, supportCase, view = 'customer') {
@@ -395,6 +420,13 @@ exports.createCase = async (req, res, next) => {
     const description = normalizeString(req.body.description || req.body.message, 5000);
     if (!issueType) throw new AppError('Validation failed', 400, 'validation_failed', { issueType: 'Supported issue type is required' });
     if (!description) throw new AppError('Validation failed', 400, 'validation_failed', { description: 'Description is required' });
+    const clientRequestId = req.get('Idempotency-Key')
+      || req.body.clientRequestId
+      || req.body.client_request_id
+      || null;
+    if (clientRequestId && !isUuid(clientRequestId)) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
 
     const result = await withTransaction(pool, async (client) => {
       const orderId = parsePositiveInt(req.body.orderId || req.body.order_id);
@@ -441,8 +473,10 @@ exports.createCase = async (req, res, next) => {
             title, description, status, priority, severity, owner_type, source, language,
             customer_locale, country_code, currency_code, requested_resolution,
             requested_refund_amount_cents, refund_status, credit_status, order_snapshot,
-            involved_order_items, is_escalated, escalated_at, escalation_reason, due_at, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24,$25,$26,$27,$28::jsonb)
+            involved_order_items, is_escalated, escalated_at, escalation_reason, due_at, metadata, client_request_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24,$25,$26,$27,$28::jsonb,$29)
+         ON CONFLICT (client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           publicCaseNumber(),
@@ -473,14 +507,25 @@ exports.createCase = async (req, res, next) => {
           route.escalationReason,
           route.dueAt,
           JSON.stringify({ lowerTrust: !order, customerAppVersion: req.body.appVersion || req.body.app_version || null }),
+          clientRequestId,
         ]
       );
+
+      if (!supportCase && clientRequestId) {
+        const replay = await client.query(
+          `SELECT * FROM restaurant_support_cases WHERE client_request_id = $1`,
+          [clientRequestId]
+        );
+        if (!replay.rows[0]) throw new AppError('Support case retry could not be recovered', 409, 'support_request_retry_failed');
+        return { case: replay.rows[0], replayed: true };
+      }
 
       await addMessage(client, supportCase, {
         senderUserId: req.user.id,
         senderType: 'customer',
         message: description,
         language,
+        clientMessageId: clientRequestId,
       });
       await logEvent(client, supportCase.id, {
         actorUserId: req.user.id,
@@ -507,13 +552,13 @@ exports.createCase = async (req, res, next) => {
           issueType,
         });
       }
-      return supportCase;
+      return { case: supportCase, replayed: false };
     }, 'restaurant_support_create_case');
 
-    res.status(201).json({
-      case: result,
-      expectedResponseTime: result.due_at,
-      reviewingParty: result.owner_type,
+    res.status(result.replayed ? 200 : 201).json({
+      case: result.case,
+      expectedResponseTime: result.case.due_at,
+      reviewingParty: result.case.owner_type,
     });
   } catch (err) {
     next(err);
@@ -552,14 +597,25 @@ exports.addCustomerMessage = async (req, res, next) => {
     const caseId = parsePositiveInt(req.params.caseId);
     const message = normalizeString(req.body.message || req.body.content, 5000);
     if (!message) throw new AppError('Validation failed', 400, 'validation_failed', { message: 'Message is required' });
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
+    }
     const result = await withTransaction(pool, async (client) => {
       const supportCase = await assertCaseCustomer(client, caseId, req.user.id);
-      const row = await addMessage(client, supportCase, {
+      const messageResult = await addMessage(client, supportCase, {
         senderUserId: req.user.id,
         senderType: 'customer',
         message,
         language: normalizeLanguage(req.body.language || req.user.preferred_language),
+        clientMessageId,
+        returnReplay: true,
       });
+      if (messageResult.replayed) return messageResult;
+      const row = messageResult.row;
       const nextStatus = supportCase.owner_type === 'restaurant' || supportCase.owner_type === 'shared'
         ? 'awaiting_restaurant'
         : supportCase.owner_type === 'runner' ? 'awaiting_runner' : 'awaiting_oxsteed';
@@ -570,9 +626,9 @@ exports.addCustomerMessage = async (req, res, next) => {
         [supportCase.id, nextStatus]
       );
       await enqueueNotification(client, supportCase.id, supportCase.owner_type === 'runner' ? 'runner' : supportCase.owner_type === 'oxsteed' ? 'oxsteed' : 'restaurant', 'customer_replied', { messageId: row.id });
-      return row;
+      return { row, replayed: false };
     }, 'restaurant_support_customer_message');
-    res.status(201).json({ message: result });
+    res.status(result.replayed ? 200 : 201).json({ message: result.row });
   } catch (err) {
     next(err);
   }
@@ -790,14 +846,25 @@ exports.restaurantRespond = async (req, res, next) => {
     const caseId = parsePositiveInt(req.params.caseId);
     const message = normalizeString(req.body.message || req.body.content, 5000);
     if (!message) throw new AppError('Validation failed', 400, 'validation_failed', { message: 'Message is required' });
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
+    }
     const result = await withTransaction(pool, async (client) => {
       const { supportCase } = await assertCaseRestaurant(client, caseId, restaurantId, req.user.id, { respond: true });
-      const row = await addMessage(client, supportCase, {
+      const messageResult = await addMessage(client, supportCase, {
         senderUserId: req.user.id,
         senderType: 'restaurant',
         message,
         language: normalizeLanguage(req.body.language),
+        clientMessageId,
+        returnReplay: true,
       });
+      if (messageResult.replayed) return { message: messageResult.row, replayed: true };
+      const row = messageResult.row;
       const { rows: [updated] } = await client.query(
         `UPDATE restaurant_support_cases
             SET status = 'awaiting_customer',
@@ -813,9 +880,9 @@ exports.restaurantRespond = async (req, res, next) => {
         metadata: { messageId: row.id },
       });
       await enqueueNotification(client, supportCase.id, 'customer', 'restaurant_responded', { messageId: row.id }, supportCase.customer_user_id);
-      return { updated, message: row };
+      return { updated, message: row, replayed: false };
     }, 'restaurant_support_restaurant_respond');
-    res.json({ case: result.updated, message: result.message });
+    res.json({ case: result.updated || null, message: result.message });
   } catch (err) {
     next(err);
   }

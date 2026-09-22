@@ -1768,11 +1768,25 @@ restoring Postgres passed readiness with `539/539` migrations, and retry
 restored the dashboard. The admin API verifier passed all 11 read surfaces,
 isolated readiness reported `railEnabled:false`, the admin failure contract
 regression passed `1/1`, and `client/npm run build:ci` passed. Current source
-identity is `content-97ca6a5e6c87b99f`. Next exact action: continue the
-remaining authenticated long-string, timezone/DST, and responsive checks
-without mutating production; record the unsupported exact 200% zoom capability
-as a limitation rather than a pass, then publish and repeat the checks against
-this source identity.
+identity is `content-2e9328951e1670de`. The current-source browser matrix now
+also passes English and Arabic RTL customer checks at `390x844`, `768x1024`,
+and `1440x900`, long customer/operator search strings without page overflow,
+and the client New York DST formatter cases (`4/4`); the server reconciliation
+DST suite passed `9/9`. A second fresh disposable fixture completed the
+five-locale customer matrix at `390x844`, `768x1024`, and `1440x900` with no
+horizontal overflow, and completed the authenticated financial journey:
+suspended-rail grant rejection with a visible failure alert, fixture-only rail
+enablement, synthetic grant, customer hold, and hold release with the balance
+restored. The later browser rail-suspend 403 followed the fixture Redis reset
+that invalidated the admin session; the current source rail contract tests
+passed `7/7`, direct fixture cleanup left the rail suspended, and the
+stale-session observation is excluded from product-defect counts. The fixture
+was removed and production remained untouched. Next exact action: repeat the
+authenticated checks with fresh sessions under at least two browser time zones,
+close or document the exact 200% zoom limitation, then publish the approved
+source identity and repeat readiness, restore, provider-delivery, and outage
+checks against that artifact. Do not enable or mutate production Credit as part
+of this engineering pass.
 
 Keep one compact current checkpoint in the progress index; avoid appending another
 large duplicate history to AGENTS.md after every small edit.

@@ -32,13 +32,20 @@ async function initiateSupportChat(req, res) {
       return res.status(400).json({ error: 'Email is required' });
     }
     const adminCount = await getOnlineAdminCount();
+
+    // The legacy live-chat tables require an authenticated customer_id and
+    // sender_id. Guests use the verified support escalation flow instead of
+    // reaching a guaranteed database failure.
+    if (!userId) {
+      return handleTicketEscalation(req, res, visitorName, visitorEmail, message, null);
+    }
     
     if (adminCount > 0) {
       // Route to live admin support
       return handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, message);
     } else {
       // No admins online - escalate to support ticket
-      return handleTicketEscalation(req, res, visitorName, visitorEmail, message);
+      return handleTicketEscalation(req, res, visitorName, visitorEmail, message, userId);
     }
   } catch (err) {
     logger.error('initiateSupport Chat error', { message: err.message, stack: err.stack });
@@ -64,7 +71,7 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
 
     if (!admin) {
       // No active admin found, escalate to ticket
-      return handleTicketEscalation(req, res, visitorName, visitorEmail, message);
+      return handleTicketEscalation(req, res, visitorName, visitorEmail, message, userId);
     }
 
     // Create a support conversation
@@ -80,9 +87,9 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
     // Insert the initial message
     await pool.query(
       `INSERT INTO messages (
-        conversation_id, sender_id, sender_name, content, created_at
-      ) VALUES ($1, $2, $3, $4, NOW())`,
-      [conv.id, userId || null, visitorName, message]
+        conversation_id, sender_id, content
+      ) VALUES ($1, $2, $3)`,
+      [conv.id, userId, message]
     );
 
     // Notify all online admins about new support chat
@@ -105,30 +112,30 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
   } catch (err) {
     logger.error('handleLiveAdminChat error', { message: err.message });
     // Fall back to ticket escalation if chat creation fails
-    handleTicketEscalation(req, res, visitorName, visitorEmail, message);
+    handleTicketEscalation(req, res, visitorName, visitorEmail, message, userId);
   }
 }
 
 /**
  * Handle support ticket escalation
  */
-async function handleTicketEscalation(req, res, visitorName, visitorEmail, message) {
+async function handleTicketEscalation(req, res, visitorName, visitorEmail, message, userId = null) {
   try {
     // Create support ticket
     const { rows: [ticket] } = await pool.query(
       `INSERT INTO support_tickets (
-        status, priority, created_at, source, visitor_name, visitor_email
-      ) VALUES ('open', 'medium', NOW(), 'chat_widget', $1, $2)
+        user_id, name, email, subject, category, status, priority, source
+      ) VALUES ($1, $2, $3, 'Support request', 'general', 'open', 'normal', 'widget')
       RETURNING id, ticket_number`,
-      [visitorName, visitorEmail]
+      [userId, visitorName, visitorEmail]
     );
 
     // Insert initial ticket message
     await pool.query(
       `INSERT INTO support_messages (
-        ticket_id, sender_type, sender_name, message, is_internal, created_at
-      ) VALUES ($1, 'visitor', $2, $3, FALSE, NOW())`,
-      [ticket.id, visitorName, message]
+        ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin
+      ) VALUES ($1, $2, $3, $4, $5, FALSE, FALSE)`,
+      [ticket.id, userId, visitorName, visitorEmail, message]
     );
 
 // Send email notification to support inbox + every admin/super_admin
@@ -177,6 +184,10 @@ async function sendSupportMessage(req, res) {
     const { conversationId, message } = req.body;
     const userId = req.user?.id;
 
+    if (!userId) {
+      return res.status(401).json({ error: 'Sign in to continue a live support chat' });
+    }
+
     if (!conversationId || !message || !message.trim()) {
       return res.status(400).json({ error: 'Conversation ID and message are required' });
     }
@@ -195,10 +206,10 @@ async function sendSupportMessage(req, res) {
     // Insert message
     const { rows: [msg] } = await pool.query(
       `INSERT INTO messages (
-        conversation_id, sender_id, sender_name, content, created_at
-      ) VALUES ($1, $2, $3, $4, NOW())
+        conversation_id, sender_id, content
+      ) VALUES ($1, $2, $3)
       RETURNING id, content, created_at`,
-      [conversationId, userId, req.user?.first_name || 'Support Team', message]
+      [conversationId, userId, message]
     );
 
     // Update conversation last_message_at

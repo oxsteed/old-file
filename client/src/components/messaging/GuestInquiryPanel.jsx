@@ -21,17 +21,6 @@ import { useSocket } from '../../hooks/useSocket';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function readStoredInquiry(storageKey) {
-  if (!storageKey) return null;
-  try {
-    const raw = sessionStorage.getItem(storageKey);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -40,6 +29,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const { socket } = useSocket();
   const rawId = inquiryId || params.inquiryId;
   const [fetchError, setFetchError] = useState(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [draft, setDraft] = useState('');
@@ -56,17 +46,14 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
     return UUID_RE.test(stripped) ? stripped : null;
   }, [rawId]);
 
-  const storageKey = inquiryUuid ? `oxs:guest-inquiry:${inquiryUuid}` : null;
-
-  const [payload, setPayload] = useState(() => readStoredInquiry(storageKey));
-  const [loading, setLoading] = useState(() => !readStoredInquiry(storageKey)?.guestEmail);
+  const [payload, setPayload] = useState(null);
+  const [loading, setLoading] = useState(Boolean(inquiryUuid));
 
   useEffect(() => {
-    const stored = readStoredInquiry(storageKey);
-    setPayload(stored);
+    setPayload(null);
     setFetchError(null);
-    setLoading(Boolean(inquiryUuid) && !stored?.guestEmail);
-  }, [inquiryUuid, storageKey]);
+    setLoading(Boolean(inquiryUuid));
+  }, [inquiryUuid]);
 
   useEffect(() => {
     if (!inquiryUuid) {
@@ -74,10 +61,6 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
       return undefined;
     }
     if (!user) {
-      setLoading(false);
-      return undefined;
-    }
-    if (payload?.guestEmail) {
       setLoading(false);
       return undefined;
     }
@@ -93,9 +76,6 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
           createdAt: data.last_message_at || data.created_at,
         };
         setPayload(next);
-        try {
-          sessionStorage.setItem(storageKey, JSON.stringify(next));
-        } catch { /* quota */ }
         setFetchError(null);
       } catch (e) {
         if (!cancelled) setFetchError(e?.response?.status === 403 ? 'forbidden' : 'error');
@@ -106,7 +86,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
     return () => {
       cancelled = true;
     };
-  }, [inquiryUuid, user, payload?.guestEmail, storageKey]);
+  }, [inquiryUuid, user, retryNonce]);
 
   const loadMessages = useCallback(async () => {
     if (!inquiryUuid || !user) return;
@@ -266,7 +246,12 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
       ) : !payload ? (
         <div className="messages-guest-card">
           <h1>{t('messages.guestInquiryUnavailable')}</h1>
-          <p>{t('messages.guestInquiryUnavailableHint')}</p>
+          <p>{fetchError === 'error' ? t('messages.loadFailed') : t('messages.guestInquiryUnavailableHint')}</p>
+          {fetchError === 'error' && (
+            <button type="button" onClick={() => setRetryNonce((value) => value + 1)}>
+              {t('messages.retry')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="messages-guest-card messages-guest-card--live" style={{ position: 'relative' }}>

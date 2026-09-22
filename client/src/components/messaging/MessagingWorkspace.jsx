@@ -46,6 +46,7 @@ export default function MessagingWorkspace({ role = 'auto' }) {
 
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sideFilter, setSideFilter] = useState('all');
@@ -91,6 +92,7 @@ export default function MessagingWorkspace({ role = 'auto' }) {
 
   const fetchConversations = useCallback(async () => {
     try {
+      setLoadError('');
       const params = businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
       const [convRes, guestRes] = await Promise.all([
         api.get(`/messages/conversations${params}`),
@@ -106,10 +108,11 @@ export default function MessagingWorkspace({ role = 'auto' }) {
       setConversations(merged);
     } catch (err) {
       console.error('Failed to load conversations:', err);
+      setLoadError(err.response?.data?.error || t('messages.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [businessFilter]);
+  }, [businessFilter, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -204,17 +207,6 @@ export default function MessagingWorkspace({ role = 'auto' }) {
     });
     if (isGuestConversation(conv)) {
       const uuid = String(convId).replace(/^guest-/i, '');
-      try {
-        sessionStorage.setItem(
-          `oxs:guest-inquiry:${uuid}`,
-          JSON.stringify({
-            guestName: conv.other_user_name,
-            guestEmail: conv.guest_email,
-            message: conv.guest_message_full || conv.last_message,
-            createdAt: conv.last_message_at || conv.created_at,
-          })
-        );
-      } catch {}
       navigate(`/helper/messages/guest/${uuid}`);
       return;
     }
@@ -333,10 +325,26 @@ export default function MessagingWorkspace({ role = 'auto' }) {
 
         <div className="messages-workspace">
           <div className="messages-inbox-pane">
+            {loadError && (
+              <div className="messages-inline-alert" role="alert">
+                <p>{loadError}</p>
+                <button type="button" onClick={() => fetchConversations()} disabled={loading}>
+                  <RefreshCw size={14} />
+                  {t('messages.retry')}
+                </button>
+              </div>
+            )}
             {loading || starting ? (
               <div className="messages-loading">
                 <div className="messages-spinner" />
                 <p>{starting ? t('messages.startingConversation') : t('common.loading')}</p>
+              </div>
+            ) : conversations.length === 0 && loadError ? (
+              <div className="messages-empty compact">
+                <MessageSquare size={30} />
+                <h2>{t('messages.loadFailedTitle')}</h2>
+                <p>{t('messages.loadFailedHint')}</p>
+                <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
               </div>
             ) : conversations.length === 0 ? (
               showHelperInbox ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
@@ -471,6 +479,7 @@ function EmptyMessages({ t }) {
           <Link to="/helpers">{t('messages.empty.findHelper')}</Link>
           <Link to="/post-job">{t('messages.postJob')}</Link>
           <Link to="/planned-needs">{t('messages.empty.planFutureWork')}</Link>
+          <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
         </div>
       </div>
       <div className="messages-empty-side">
@@ -503,6 +512,7 @@ function EmptyHelperInbox({ t }) {
         <div className="messages-empty-actions">
           <Link to="/dashboard/edit-profile">{t('messages.improveProfile')}</Link>
           <Link to="/jobs">{t('messages.findJobs')}</Link>
+          <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
         </div>
       </div>
       <div className="messages-empty-side">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, BadgeAlert, Clock3, MessageSquare, RefreshCw, Send, Ticket } from 'lucide-react';
@@ -7,6 +7,7 @@ import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../hooks/useAuth';
 import { formatDateTime } from '../lib/format';
+import { createMessageRequestId } from '../lib/messageRequestId';
 
 function normalizeTicket(responseData) {
   return responseData?.data || responseData || null;
@@ -48,6 +49,8 @@ export default function SupportTicketDetailPage() {
   const [error, setError] = useState('');
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyError, setReplyError] = useState('');
+  const pendingMessageIdRef = useRef(null);
 
   const loadTicket = async () => {
     try {
@@ -75,16 +78,22 @@ export default function SupportTicketDetailPage() {
       toast.error(t('support.replyRequired', { defaultValue: 'Please write a reply first.' }));
       return;
     }
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     try {
       setSending(true);
+      setReplyError('');
       await api.post(`/support/my-tickets/${ticketId}/reply`, {
         content: reply.trim(),
         sender_language: localStorage.getItem('oxs:language') || 'en',
+        clientMessageId,
       });
+      pendingMessageIdRef.current = null;
       setReply('');
       toast.success(t('support.replySent', { defaultValue: 'Reply sent.' }));
       await loadTicket();
     } catch (err) {
+      setReplyError(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to send reply.' }));
       toast.error(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to send reply.' }));
     } finally {
       setSending(false);
@@ -242,11 +251,12 @@ export default function SupportTicketDetailPage() {
                 <div className="space-y-3">
                   <textarea
                     value={reply}
-                    onChange={(e) => setReply(e.target.value)}
+                    onChange={(e) => { setReply(e.target.value); if (replyError) { setReplyError(''); pendingMessageIdRef.current = null; } }}
                     rows={5}
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-orange-400/60"
                     placeholder={t('support.replyPlaceholder', { defaultValue: 'Write your reply…' })}
                   />
+                  {replyError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{replyError}</div><button type="button" onClick={handleReply} disabled={sending || !reply.trim()} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                   <button
                     type="button"
                     onClick={handleReply}

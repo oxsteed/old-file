@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -17,6 +17,7 @@ import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../hooks/useAuth';
 import { formatDateTime } from '../lib/format';
+import { createMessageRequestId } from '../lib/messageRequestId';
 
 function normalizeCase(responseData) {
   return responseData?.data || responseData || null;
@@ -75,6 +76,8 @@ export default function RestaurantSupportCasePage() {
   const [message, setMessage] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const pendingMessageIdRef = useRef(null);
 
   const loadCase = async () => {
     try {
@@ -109,11 +112,17 @@ export default function RestaurantSupportCasePage() {
     }
     try {
       setSending(true);
+      setSendError('');
       if (message.trim()) {
+        const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+        pendingMessageIdRef.current = clientMessageId;
         await api.post(`/restaurants/support/cases/${caseId}/messages`, {
           message: message.trim(),
           language: localStorage.getItem('oxs:language') || 'en',
+          clientMessageId,
         });
+        pendingMessageIdRef.current = null;
+        setMessage('');
       }
       if (attachmentUrl.trim()) {
         await api.post(`/restaurants/support/cases/${caseId}/attachments`, {
@@ -123,10 +132,10 @@ export default function RestaurantSupportCasePage() {
         });
       }
       toast.success(t('support.replySent', { defaultValue: 'Saved.' }));
-      setMessage('');
       setAttachmentUrl('');
       await loadCase();
     } catch (err) {
+      setSendError(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to save update.' }));
       toast.error(err.response?.data?.error || t('support.replyError', { defaultValue: 'Failed to save update.' }));
     } finally {
       setSending(false);
@@ -295,11 +304,12 @@ export default function RestaurantSupportCasePage() {
               <div className="space-y-3">
                 <textarea
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => { setMessage(e.target.value); if (sendError) { setSendError(''); pendingMessageIdRef.current = null; } }}
                   rows={4}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none placeholder:text-slate-500 focus:border-orange-400/60"
                   placeholder={t('support.replyPlaceholder', { defaultValue: 'Add a message for the restaurant or OxSteed team…' })}
                 />
+                {sendError && <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-200"><div>{sendError}</div><button type="button" onClick={handleSubmit} disabled={sending || (!message.trim() && !attachmentUrl.trim())} className="mt-2 inline-flex items-center gap-2 font-semibold text-white underline disabled:opacity-60"><RefreshCw size={14} /> {t('common.retry', { defaultValue: 'Retry' })}</button></div>}
                 <input
                   value={attachmentUrl}
                   onChange={(e) => setAttachmentUrl(e.target.value)}

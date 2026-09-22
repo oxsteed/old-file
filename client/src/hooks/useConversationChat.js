@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from './useSocket';
 import { loadMessageDraft, saveMessageDraft, clearMessageDraft } from '../utils/messageDrafts';
 import { toStoredAttachment } from '../utils/messageAttachments';
+import { createMessageRequestId } from '../lib/messageRequestId';
 
 const TYPING_EMIT_COOLDOWN = 2000;
 const TYPING_AUTO_CLEAR_MS = 5000; // clear indicator if no stop event received (e.g. disconnect)
@@ -28,6 +29,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const [helperId, setHelperId] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
@@ -45,12 +47,14 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   // Tracks temp IDs for in-flight optimistic messages (FIFO Set). When the
   // socket echo of our own message arrives, we swap the oldest temp bubble out.
   const pendingTempRef = useRef(new Set());
+  const pendingClientMessageRef = useRef(new Map());
 
   const { user } = useAuth();
   const { socket, connected, joinConversation, leaveConversation } = useSocket();
 
   useEffect(() => {
     setLoading(true);
+    setLoadError(false);
     setNotFound(false);
     setMessages([]);
     setOtherName('');
@@ -66,6 +70,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     stickToBottomRef.current = true;
     messageIdsRef.current = new Set();
     pendingTempRef.current = new Set();
+    pendingClientMessageRef.current = new Map();
     setNewMessage(loadMessageDraft(conversationId));
   }, [conversationId]);
 
@@ -82,6 +87,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       return;
     }
     try {
+      setLoadError(false);
       const res = await api.get(`/messages/conversations/${conversationId}`);
       const data = Array.isArray(res.data) ? res.data : [];
       messageIdsRef.current = new Set(data.map((m) => m.id));
@@ -91,6 +97,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     } catch (err) {
       if (err.response?.status === 403 || err.response?.status === 404) {
         setNotFound(true);
+      } else {
+        setLoadError(true);
       }
       console.error('[useConversationChat] fetch error:', err);
     } finally {
@@ -173,6 +181,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   // Replace a temp (optimistic) message with the real server-confirmed one.
   // Also removes the tempId from the dedup set so the real message can be added.
   const replaceTempMessage = useCallback((tempId, realMessage) => {
+    for (const [clientMessageId, pendingTempId] of pendingClientMessageRef.current.entries()) {
+      if (pendingTempId === tempId) pendingClientMessageRef.current.delete(clientMessageId);
+    }
     messageIdsRef.current.delete(tempId);
     if (realMessage && !messageIdsRef.current.has(realMessage.id)) {
       messageIdsRef.current.add(realMessage.id);
@@ -196,10 +207,14 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       // If this is our own message echoed back from the server (via socket broadcast),
       // and we already have a pending optimistic bubble for it, swap it out cleanly.
       if (message.sender_id === user?.id) {
-        const hasTempForThis = pendingTempRef.current.size > 0;
+        const clientMessageId = message.client_message_id || message.clientMessageId;
+        const mappedTempId = clientMessageId
+          ? pendingClientMessageRef.current.get(clientMessageId)
+          : null;
+        const hasTempForThis = mappedTempId || pendingTempRef.current.size > 0;
         if (hasTempForThis) {
-          // Find the oldest pending temp message (FIFO) and replace it.
-          const [tempId] = pendingTempRef.current;
+          // Prefer the durable client ID; retain FIFO only for older clients.
+          const [tempId] = mappedTempId ? [mappedTempId] : pendingTempRef.current;
           pendingTempRef.current.delete(tempId);
           replaceTempMessage(tempId, message);
           return;
@@ -342,11 +357,12 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const handleBlur = () => stopTypingEmit();
 
   // ── Send ──────────────────────────────────────────────────────
-  const sendContent = useCallback(async (content, tempId, attachments = []) => {
+  const sendContent = useCallback(async (content, tempId, attachments = [], clientMessageId) => {
     try {
       const res = await api.post(`/messages/conversations/${conversationId}`, {
         content,
         attachments,
+        clientMessageId,
       });
       pendingTempRef.current.delete(tempId);
       replaceTempMessage(tempId, res.data);
@@ -372,6 +388,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setStickToBottom(true);
 
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const clientMessageId = createMessageRequestId();
     const optimisticMsg = {
       id: tempId,
       content: text,
@@ -381,14 +398,16 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       created_at: new Date().toISOString(),
       _pending: true,
       _failed: false,
+      _clientMessageId: clientMessageId,
     };
     messageIdsRef.current.add(tempId);
     pendingTempRef.current.add(tempId);
+    pendingClientMessageRef.current.set(clientMessageId, tempId);
     setMessages((prev) => [...prev, optimisticMsg]);
     setSending(false);
     inputRef.current?.focus();
 
-    await sendContent(text, tempId, storedAttachments);
+    await sendContent(text, tempId, storedAttachments, clientMessageId);
   }, [newMessage, sending, stopTypingEmit, conversationId, user, sendContent]);
 
   const handleSend = useCallback(async (e) => {
@@ -409,7 +428,14 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       });
     });
     if (msg?.content || (msg?.attachments || []).length) {
-      await sendContent(msg.content || '', tempId, msg.attachments || []);
+      const clientMessageId = msg._clientMessageId || createMessageRequestId();
+      if (!msg._clientMessageId) {
+        setMessages((prev) => prev.map((item) => item.id === tempId
+          ? { ...item, _clientMessageId: clientMessageId }
+          : item));
+      }
+      pendingClientMessageRef.current.set(clientMessageId, tempId);
+      await sendContent(msg.content || '', tempId, msg.attachments || [], clientMessageId);
     }
   }, [sendContent]);
 
@@ -437,6 +463,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     businessId,
     newMessage,
     loading,
+    loadError,
     sending,
     notFound,
     otherTyping,

@@ -17,7 +17,8 @@ router.post('/initiate', generalLimiter, initiateSupportChat);
 
 /**
  * POST /api/support-chat/messages
- * Send a message in an active support chat (authenticated or as guest)
+ * Send a message in an active support chat (authenticated users only).
+ * Guests use POST /support-chat/initiate to create a support ticket.
  */
 router.post('/messages', conversationMessageLimiter, sendSupportMessage);
 

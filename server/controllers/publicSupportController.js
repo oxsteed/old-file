@@ -64,6 +64,13 @@ async function createGuestConversation(req, res) {
   let client;
   try {
     const { visitorName, visitorEmail, message } = req.body || {};
+    const clientRequestId = req.get('Idempotency-Key')
+      || req.body?.clientRequestId
+      || req.body?.client_request_id
+      || null;
+    if (clientRequestId && !CLIENT_MESSAGE_ID_PATTERN.test(clientRequestId)) {
+      return sendValidationError(res, { clientRequestId: 'Must be a UUID v4 request identifier' });
+    }
     const category = 'general';
     const priority = 'normal';
     const name = String(visitorName || '').trim();
@@ -77,12 +84,29 @@ async function createGuestConversation(req, res) {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO support_conversations
-        (business_id, customer_id, guest_name, guest_email, subject, description, category, priority, channel, status, last_channel_message_at)
-       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'web_chat', 'pending_verification', CURRENT_TIMESTAMP)
+        (business_id, customer_id, guest_name, guest_email, subject, description, category, priority, channel, status, last_channel_message_at, client_request_id)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'web_chat', 'pending_verification', CURRENT_TIMESTAMP, $8)
+       ON CONFLICT (client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING id`,
-      [businessId, name, email, `${category} support request`, content, category, priority]
+      [businessId, name, email, `${category} support request`, content, category, priority, clientRequestId]
     );
-    const conversationId = rows[0].id;
+    let conversationId = rows[0]?.id;
+    if (!conversationId && clientRequestId) {
+      const replay = await client.query(
+        `SELECT id, guest_email FROM support_conversations WHERE client_request_id = $1`,
+        [clientRequestId]
+      );
+      if (!replay.rows[0]) return sendError(res, 409, 'Support request retry could not be recovered');
+      conversationId = replay.rows[0].id;
+      await client.query('COMMIT');
+      return res.status(200).json({
+        success: true,
+        conversationId,
+        verificationRequired: true,
+        email: String(replay.rows[0].guest_email || email).replace(/^(.{2}).+(@.*)$/, '$1***$2'),
+      });
+    }
     await client.query(
       `INSERT INTO support_conversation_messages
         (conversation_id, sender_id, message_type, content, channel, is_agent)

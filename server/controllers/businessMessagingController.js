@@ -10,6 +10,11 @@ function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
 }
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 async function assertBusinessAccess(req, businessId) {
   if (req.business && String(req.business.id) === String(businessId)) return true;
   const access = await canAccessBusinessTeam(req.user.id, businessId);
@@ -112,10 +117,20 @@ async function sendMessage(req, res, next) {
   try {
     const { businessId, conversationId } = req.params;
     const { content, message_type = 'text', attachments = [] } = req.body;
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
     await assertBusinessAccess(req, businessId);
 
     if (!content || content.trim().length === 0) {
       return next(new AppError('Message content is required', 400, 'validation_failed'));
+    }
+    if (content.trim().length > 4000) {
+      return next(new AppError('Message too long (max 4000 characters)', 400, 'validation_failed'));
+    }
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      return next(new AppError('Invalid client message id', 400, 'validation_failed'));
     }
 
     const convCheck = await pool.query(
@@ -128,15 +143,29 @@ async function sendMessage(req, res, next) {
 
     const msgResult = await pool.query(
       `INSERT INTO business_messages
-         (conversation_id, sender_id, sender_name, sender_type, content, message_type)
+         (conversation_id, sender_id, sender_name, sender_type, content, message_type, client_message_id)
        VALUES (
          $1, $2,
          (SELECT ${senderNameSql('u')} FROM users u WHERE u.id = $2),
-         'team_member', $3, $4
+         'team_member', $3, $4, $5
        )
+       ON CONFLICT (conversation_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [conversationId, req.user.id, content, message_type]
+      [conversationId, req.user.id, content.trim(), message_type, clientMessageId]
     );
+
+    if (!msgResult.rows.length) {
+      const replay = await pool.query(
+        `SELECT * FROM business_messages
+         WHERE conversation_id = $1 AND client_message_id = $2`,
+        [conversationId, clientMessageId]
+      );
+      if (!replay.rows.length) {
+        return next(new AppError('Failed to send message', 500));
+      }
+      return res.status(200).json(replay.rows[0]);
+    }
 
     await pool.query(
       'UPDATE business_conversations SET last_message_at = NOW() WHERE id = $1',
