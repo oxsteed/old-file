@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Calculator, ChevronDown, Globe, Paperclip, Receipt } from 'lucide-react';
@@ -43,6 +43,7 @@ import {
 import '../helperProfile/chat/MessengerDock.css';
 import './SharedMessengerShell.css';
 import api from '../../api/axios';
+import { createMessageRequestId } from '../../lib/messageRequestId';
 import toast from 'react-hot-toast';
 
 function formatTime(ts) {
@@ -89,6 +90,7 @@ export default function ConversationThread({
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [proposingBookingId, setProposingBookingId] = useState(null);
+  const pendingBookingRequestIdRef = useRef(null);
   const [reportUserOpen, setReportUserOpen] = useState(false);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
     try { return localStorage.getItem('oxs:msg-translate') !== 'off'; } catch { return true; }
@@ -570,7 +572,11 @@ export default function ConversationThread({
                     toast.error(t('helperProfile.messenger.slotBookingFailed'));
                     return;
                   }
+                  const clientRequestId = pendingBookingRequestIdRef.current || createMessageRequestId();
+                  pendingBookingRequestIdRef.current = clientRequestId;
+                  body.clientRequestId = clientRequestId;
                   const { data } = await api.post('/chat/booking-requests', body);
+                  pendingBookingRequestIdRef.current = null;
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                   try {
                     window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {

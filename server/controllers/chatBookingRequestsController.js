@@ -27,6 +27,18 @@ function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
 }
 
+function getClientRequestId(req) {
+  const value = req.get?.('Idempotency-Key')
+    || req.body?.clientRequestId
+    || req.body?.client_request_id
+    || null;
+  if (!value) return null;
+  const id = String(value).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : false;
+}
+
 async function loadBooking(id) {
   if (!id) return null;
   const { rows } = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [id]);
@@ -68,17 +80,31 @@ async function canViewBooking(req, booking) {
   return false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, clientMessageId }) {
   const { rows } = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-     VALUES ($1, $2, $3, 'text') RETURNING *`,
-    [conversationId, senderId, content],
+    `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+     VALUES ($1, $2, $3, 'text', $4)
+     ON CONFLICT (conversation_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [conversationId, senderId, content, clientMessageId || null],
   );
+  let messageRow = rows[0];
+  const replayed = !messageRow && Boolean(clientMessageId);
+  if (!messageRow && clientMessageId) {
+    const replay = await pool.query(
+      'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+      [conversationId, clientMessageId],
+    );
+    messageRow = replay.rows[0];
+  }
+  if (!messageRow) throw new Error('Failed to create booking chat message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   await pool.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
   );
-  const message = { ...rows[0], sender_name: senderName };
+  const message = { ...messageRow, sender_name: senderName };
   socketService.broadcastToConversation(conversationId, 'message:new', {
     conversationId,
     message,
@@ -91,15 +117,28 @@ async function postConversationMessage({ conversationId, senderId, content, send
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderType, senderName, content, helperId }) {
+async function postGuestMessage({ guestSessionId, senderType, senderName, content, helperId, clientMessageId }) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
-       (session_id, sender_type, sender_name, message, created_at)
-     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       (session_id, sender_type, sender_name, message, client_message_id, created_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+     ON CONFLICT (session_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderType || 'helper', senderName, content],
+    [guestSessionId, senderType || 'helper', senderName, content, clientMessageId || null],
   );
-  const msg = rows[0];
+  let msg = rows[0];
+  if (!msg && clientMessageId) {
+    const replay = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1 AND client_message_id = $2`,
+      [guestSessionId, clientMessageId],
+    );
+    msg = replay.rows[0];
+  }
+  if (!msg) throw new Error('Failed to create booking guest message');
+  if (rows.length === 0) return msg;
   const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
   const payload = {
     guestInquiry: true,
@@ -177,6 +216,7 @@ async function postStatusToThread({
   actorName,
   reason = '',
   senderType = 'helper',
+  clientMessageId = null,
 }) {
   const content = buildStatusMessage({ booking, event, reason });
   if (!content) return null;
@@ -187,6 +227,7 @@ async function postStatusToThread({
         senderId: actorId,
         content,
         senderName: actorName || 'Provider',
+        clientMessageId,
       });
     } catch (e) {
       logger.warn('[chatBookingRequests] conversation status post failed', { error: e.message });
@@ -200,6 +241,7 @@ async function postStatusToThread({
         senderName: actorName || 'Provider',
         content,
         helperId: booking.helper_id,
+        clientMessageId,
       });
     } catch (e) {
       logger.warn('[chatBookingRequests] guest status post failed', { error: e.message });
@@ -583,6 +625,10 @@ exports.createChatBookingRequest = async (req, res, next) => {
 
     const body = req.body || {};
     const conversationId = body.conversationId || body.conversation_id || null;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
     if (!conversationId) {
       return bad(res, 400, 'conversationId is required', 'validation_failed');
     }
@@ -657,73 +703,105 @@ exports.createChatBookingRequest = async (req, res, next) => {
     const description = String(body.description || '').trim().slice(0, 2000) || null;
     const source = String(body.source || 'messenger_inbox_schedule').trim().slice(0, 64);
     const hours = 24;
-    const bookingId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
     // Provider scheduling on behalf of customer → counter_proposed (customer Accept/Decline).
     // Customer-originated requests stay pending for the provider.
     const initialStatus = isProvider ? 'counter_proposed' : 'pending';
-    const { rows } = await pool.query(
-      `INSERT INTO booking_requests (
+    let booking = null;
+    let replayed = false;
+    if (clientRequestId) {
+      const existing = await pool.query(
+        'SELECT * FROM booking_requests WHERE conversation_id = $1 AND client_request_id = $2',
+        [conversationId, clientRequestId],
+      );
+      booking = existing.rows[0] || null;
+      replayed = Boolean(booking);
+    }
+
+    if (!booking) {
+      const bookingId = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      const { rows } = await pool.query(
+        `INSERT INTO booking_requests (
          id, customer_id, helper_id, business_id, service_name, requested_date,
          requested_start_time, requested_end_time, service_location,
          description, expires_at, confirmation_hours,
-         conversation_id, guest_session_id, source, service_id, timezone, status
+         conversation_id, guest_session_id, source, service_id, timezone, status,
+         client_request_id
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, $10, $11,
-         $12, NULL, $13, $14, $15, $16
-       ) RETURNING *`,
-      [
-        bookingId,
-        customerId,
-        helperId,
-        businessId || null,
-        serviceName,
-        date,
-        start.length === 5 ? `${start}:00` : start,
-        end.length === 5 ? `${end}:00` : end,
-        description,
-        expiresAt,
-        hours,
-        conversationId,
-        source,
-        serviceId != null ? String(serviceId) : null,
-        timezone,
-        initialStatus,
-      ],
-    );
-    const booking = rows[0];
+         $12, NULL, $13, $14, $15, $16, $17
+       )
+       ON CONFLICT (conversation_id, client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
+       RETURNING *`,
+        [
+          bookingId,
+          customerId,
+          helperId,
+          businessId || null,
+          serviceName,
+          date,
+          start.length === 5 ? `${start}:00` : start,
+          end.length === 5 ? `${end}:00` : end,
+          description,
+          expiresAt,
+          hours,
+          conversationId,
+          source,
+          serviceId != null ? String(serviceId) : null,
+          timezone,
+          initialStatus,
+          clientRequestId,
+        ],
+      );
+      booking = rows[0] || null;
+      if (!booking && clientRequestId) {
+        const replay = await pool.query(
+          'SELECT * FROM booking_requests WHERE conversation_id = $1 AND client_request_id = $2',
+          [conversationId, clientRequestId],
+        );
+        booking = replay.rows[0] || null;
+        replayed = true;
+      }
+    }
+    if (!booking) throw new Error('Failed to create booking request');
 
     const actorName =
       [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') ||
       (isProvider ? 'Provider' : 'Customer');
     await postStatusToThread({
       booking,
-      event: isProvider ? 'counter_proposed' : 'requested',
+      event: booking.status === 'counter_proposed' ? 'counter_proposed' : 'requested',
       actorId: userId,
       actorName,
+      clientMessageId: clientRequestId,
     });
-    await bookingLifecycle.emitBookingEvent({ booking, event: 'requested', actorId: userId });
+    if (!replayed) await bookingLifecycle.emitBookingEvent({ booking, event: 'requested', actorId: userId });
 
-    try {
+    if (!replayed) try {
       socketService.broadcastToUser(helperId, 'booking:requested', { booking });
       if (customerId && String(customerId) !== String(userId)) {
         socketService.broadcastToUser(customerId, 'booking:requested', { booking });
       }
     } catch { /* ignore */ }
 
-    return res.status(201).json({
+    const responseDate = booking.requested_date || date;
+    const responseStart = booking.requested_start_time || start;
+    const responseEnd = booking.requested_end_time || end;
+    return res.status(replayed ? 200 : 201).json({
       success: true,
       booking: toPublicBookingRequestCard(booking),
       marker: buildBookingRequestMarker({
         id: booking.id,
         status: booking.status,
-        date,
-        start,
-        end,
-        serviceName,
-        serviceId,
+        date: responseDate,
+        start: responseStart,
+        end: responseEnd,
+        serviceName: booking.service_name || serviceName,
+        serviceId: booking.service_id || serviceId,
       }),
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);

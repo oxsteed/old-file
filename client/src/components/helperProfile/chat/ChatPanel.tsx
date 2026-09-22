@@ -256,6 +256,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const prevHelperStatusRef = useRef<string | null>(null);
   const autoRetryLiveRef = useRef(false);
   const pendingProfileMessageIdRef = useRef<string | null>(null);
+  const pendingBookingRequestIdRef = useRef<string | null>(null);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -1699,6 +1700,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     serviceName: slot.serviceName,
                     timezone: tz,
                   });
+                  const clientRequestId = pendingBookingRequestIdRef.current || createMessageRequestId();
+                  pendingBookingRequestIdRef.current = clientRequestId;
                   const { data } = await api.post('/chat/booking-requests', {
                     conversationId,
                     helperId,
@@ -1713,7 +1716,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     timezone: tz,
                     description: textMsg || undefined,
                     source: 'messenger_provider_schedule',
+                    clientRequestId,
                   });
+                  pendingBookingRequestIdRef.current = null;
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                   try {
                     window.dispatchEvent(new CustomEvent('oxs:booking-chat-updated', {
