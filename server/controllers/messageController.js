@@ -3,7 +3,6 @@ const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
-const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
@@ -530,7 +529,13 @@ const sendMessage = async (req, res, next) => {
     const content = sanitizeMessage(rawContent);
 
     // Send message atomically with race condition prevention
-    const { messagePayload, conv, replayed } = await withTransaction(pool, async (client) => {
+    const {
+      messagePayload,
+      conv,
+      replayed,
+      repIds = [],
+      senderName: resultSenderName,
+    } = await withTransaction(pool, async (client) => {
       // Verify user is part of conversation and fetch metadata
       const convResult = await client.query(
         `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id, b.business_name
@@ -559,6 +564,9 @@ const sendMessage = async (req, res, next) => {
       }
 
       const conv = convResult.rows[0];
+      const senderName = (conv.business_id && conv.business_name)
+        ? conv.business_name
+        : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
 
       // Insert message
       const msgResult = await client.query(
@@ -586,7 +594,7 @@ const sendMessage = async (req, res, next) => {
         if (!replayResult.rows.length) {
           throw new Error('Failed to create message');
         }
-        return { messagePayload: replayResult.rows[0], conv, replayed: true };
+        return { messagePayload: replayResult.rows[0], conv, replayed: true, senderName };
       }
 
       // Update conversation last_message_at (atomic within transaction)
@@ -595,7 +603,60 @@ const sendMessage = async (req, res, next) => {
         [conversationId]
       );
 
-      return { messagePayload: msgResult.rows[0], conv, replayed: false };
+      let repIds = [];
+      if (conv.business_id) {
+        const repsResult = await client.query(
+          `SELECT member_id FROM business_members
+             WHERE business_id = $1 AND status = 'active'`,
+          [conv.business_id]
+        );
+        repIds = repsResult.rows.map(row => row.member_id).filter(id => id !== userId);
+      }
+
+      const notificationRecipients = new Set();
+      const addRecipient = (recipientId) => {
+        if (recipientId && String(recipientId) !== String(userId)) notificationRecipients.add(recipientId);
+      };
+      if (userId === conv.customer_id) addRecipient(conv.helper_id);
+      else if (userId === conv.helper_id) addRecipient(conv.customer_id);
+      else {
+        addRecipient(conv.customer_id);
+        addRecipient(conv.helper_id);
+      }
+      for (const repId of repIds) {
+        if (String(repId) !== String(conv.helper_id)) addRecipient(repId);
+      }
+
+      const messagePreview = content.length > 100 ? `${content.slice(0, 97)}...` : content;
+      for (const recipientId of notificationRecipients) {
+        await client.query(
+          `INSERT INTO message_notification_outbox
+             (message_id, conversation_id, recipient_id, payload)
+           VALUES ($1, $2, $3, $4::jsonb)
+           ON CONFLICT (message_id, recipient_id) DO NOTHING`,
+          [
+            msgResult.rows[0].id,
+            conversationId,
+            recipientId,
+            JSON.stringify({
+              conversationId,
+              messageId: msgResult.rows[0].id,
+              senderName,
+              body: messagePreview,
+              actionUrl: `/messages/${conversationId}`,
+            }),
+          ]
+        );
+      }
+
+      return {
+        messagePayload: msgResult.rows[0],
+        conv,
+        replayed: false,
+        repIds,
+        notificationRecipients: [...notificationRecipients],
+        senderName,
+      };
     }, 'send_message');
 
     if (!messagePayload) {
@@ -605,9 +666,9 @@ const sendMessage = async (req, res, next) => {
     // When messaging in a business-context conversation, the sender appears as the business
     // (applies to the owner AND any active representatives)
     const { business_id, business_name, customer_id, helper_id } = conv;
-    const senderName = (business_id && business_name)
+    const senderName = resultSenderName || ((business_id && business_name)
       ? business_name
-      : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
+      : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim());
     const fullMessagePayload = { ...messagePayload, sender_name: senderName };
 
     // A retry with the same client ID returns the original message but must
@@ -640,17 +701,6 @@ const sendMessage = async (req, res, next) => {
     // Notify the appropriate recipient(s) via their personal room so inbox pages
     // update even when they're not currently in the conversation thread.
 
-    // Collect all active rep IDs for this business conversation
-    let repIds = [];
-    if (business_id) {
-      const repsRes = await pool.query(
-        `SELECT member_id FROM business_members
-         WHERE business_id = $1 AND status = 'active'`,
-        [business_id]
-      );
-      repIds = repsRes.rows.map(r => r.member_id).filter(id => id !== userId);
-    }
-
     if (userId === customer_id) {
       // Customer sent - notify the helper/owner
       socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: fullMessagePayload });
@@ -669,46 +719,6 @@ const sendMessage = async (req, res, next) => {
         socketService.broadcastToUser(repId, 'message:new', { conversationId, message: fullMessagePayload });
       }
     }
-
-    // Send notifications based on user preferences (async, non-blocking)
-    setImmediate(async () => {
-      try {
-        const notifData = { conversationId, senderName };
-        const msgPreview = content.length > 100 ? content.slice(0, 97) + '…' : content;
-        const notificationPayload = {
-          type: 'new_message',
-          title: 'New message from ' + senderName,
-          body: msgPreview,
-          data: notifData,
-          action_url: `/messages/${conversationId}`,
-        };
-
-        // Determine which users to notify
-        const toNotify = [];
-        if (userId === customer_id) {
-          toNotify.push(helper_id);
-        } else if (userId === helper_id) {
-          toNotify.push(customer_id);
-        } else {
-          // Rep sent - notify customer and owner
-          toNotify.push(customer_id, helper_id);
-        }
-
-        // Add other reps (excluding sender and owner)
-        for (const repId of repIds) {
-          if (repId !== userId && repId !== helper_id && !toNotify.includes(repId)) {
-            toNotify.push(repId);
-          }
-        }
-
-        // Send all notifications in parallel
-        await Promise.all(
-          toNotify.map(userId => sendNotification({ userId, ...notificationPayload }))
-        );
-      } catch (err) {
-        logger.error('Failed to send chat notifications', { err: err.message, conversationId });
-      }
-    });
 
     res.status(201).json(fullMessagePayload);
   } catch (error) {

@@ -84,3 +84,23 @@ test('disables an unregistered Expo token in the current mobile token registry',
   expect(cleanupCall[0]).not.toContain('helper_profiles');
   expect(cleanupCall[1]).toEqual(['ExponentPushToken[test-token]']);
 });
+
+test('reuses an existing delivery-keyed notification without broadcasting twice', async () => {
+  db.query
+    .mockResolvedValueOnce({ rows: [prefs] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 'notification-existing', is_push_sent: true, is_email_sent: false }] });
+
+  const result = await sendNotification({
+    userId: 'customer-1',
+    type: 'new_message',
+    title: 'New message',
+    body: 'Hello',
+    idempotencyKey: 'message:message-1:customer-1',
+  });
+
+  expect(result).toEqual({ success: true, notificationId: 'notification-existing' });
+  expect(db.query.mock.calls[1][0]).toContain('delivery_key');
+  expect(db.query.mock.calls[2][0]).toContain('WHERE delivery_key = $1');
+  expect(require('../services/socketService').broadcastToUser).not.toHaveBeenCalled();
+});

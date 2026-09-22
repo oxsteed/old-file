@@ -1099,6 +1099,24 @@ blocked by unavailable GitHub credentials; the next engineering action is to
 audit message delivery fan-out and notification side effects after idempotent
 replays and downstream failures.
 
+Message notification durability checkpoint (2026-09-22 UTC): direct message
+delivery now enqueues one durable recipient intent inside the message
+transaction, while socket fan-out remains immediate. Migration
+`555_message_notification_outbox.sql` adds stale-lock-aware pending/sending/
+failed state, bounded retries, a unique `(message_id, recipient_id)` key, and
+delivery keys for in-app notifications. The scheduled outbox worker claims
+records with the existing distributed job-lock pattern, retries provider
+failures, and reuses a delivery-keyed notification row without broadcasting a
+duplicate in-app event. Focused outbox, notification-service, and direct-message
+tests passed `9/9`; the full server run passed `196/197` suites and
+`1,362/1,363` tests because an unrelated `foodWallet` test timed out under the
+full-suite load, and that exact test passed in isolation (`1/1`, `1.16s`).
+`git diff --check` passed. This package is server-only, so the last client CI
+build remains valid from the preceding communication package. Exact live
+publication remains blocked by unavailable GitHub credentials; the next exact
+action is to audit support-channel and external-message delivery adapters for
+the same post-commit loss and duplicate-delivery risks.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

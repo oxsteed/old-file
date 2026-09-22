@@ -24,7 +24,8 @@ exports.sendNotification = async ({
   body,
   data       = {},
   action_url = null,
-  pushToken  = null
+  pushToken  = null,
+  idempotencyKey = null,
 }) => {
   try {
     // Get user prefs
@@ -53,6 +54,9 @@ exports.sendNotification = async ({
     const finalBody = translationBody
       ? [translationBody, body].filter(Boolean).join(' ')
       : (body || translationBody);
+    const deliveryKey = idempotencyKey
+      ? String(idempotencyKey).trim().slice(0, 255)
+      : null;
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
@@ -68,26 +72,45 @@ exports.sendNotification = async ({
     const prefKey    = `in_app_${type.replace(':', '_')}`;
     const inAppEnabled = prefs[prefKey] !== false; // default true
     let notifId = null;
+    let notificationRow = null;
     if (inAppEnabled) {
       const { rows } = await db.query(`
         INSERT INTO notifications
-          (user_id, type, title, body, data, action_url)
-        VALUES ($1,$2,$3,$4,$5,$6)
-        RETURNING id
-      `, [userId, type, finalTitle, finalBody, JSON.stringify(data), action_url]);
-      notifId = rows[0].id;
+          (user_id, type, title, body, data, action_url, delivery_key)
+        VALUES ($1,$2,$3,$4,$5,$6,$7)
+        ON CONFLICT (delivery_key)
+        WHERE delivery_key IS NOT NULL DO NOTHING
+        RETURNING id, is_push_sent, is_email_sent
+      `, [userId, type, finalTitle, finalBody, JSON.stringify(data), action_url, deliveryKey]);
+      notificationRow = rows[0] || null;
+      if (!notificationRow && deliveryKey) {
+        const { rows: existingRows } = await db.query(
+          `SELECT id, is_push_sent, is_email_sent
+             FROM notifications
+            WHERE delivery_key = $1
+            LIMIT 1`,
+          [deliveryKey]
+        );
+        notificationRow = existingRows[0] || null;
+      }
+      if (!notificationRow) {
+        throw new Error('Notification row could not be resolved');
+      }
+      notifId = notificationRow.id;
 
       // ── 2. Real-time via Socket.IO ──────────────────────────
-      broadcastToUser(userId, 'notification:new', {
-        id: notifId, type, title: finalTitle, body: finalBody, data, action_url,
-        created_at: new Date().toISOString()
-      });
+      if (rows[0]) {
+        broadcastToUser(userId, 'notification:new', {
+          id: notifId, type, title: finalTitle, body: finalBody, data, action_url,
+          created_at: new Date().toISOString()
+        });
+      }
     }
 
     // ── 3. Push notification (Expo - native mobile) ───────────
     const pushKey     = `push_${type.replace(':', '_')}`;
     const pushEnabled = prefs[pushKey] !== false && !inQuietHours;
-    if (token && pushEnabled && Expo.isExpoPushToken(token)) {
+    if (token && pushEnabled && !notificationRow?.is_push_sent && Expo.isExpoPushToken(token)) {
       await sendPushNotification(token, finalTitle, finalBody, data, notifId);
       if (notifId) {
         await db.query(
@@ -100,7 +123,7 @@ exports.sendNotification = async ({
     // ── 3b. Web Push (browser, VAPID) ─────────────────────────
     // Master toggle (web_push_enabled) + per-event `push_*` pref.
     const webPushEnabled = prefs.web_push_enabled !== false && !inQuietHours;
-    if (pushEnabled && webPushEnabled && webPushService.isConfigured()) {
+    if (pushEnabled && webPushEnabled && !notificationRow?.is_push_sent && webPushService.isConfigured()) {
       try {
         const result = await webPushService.sendToUser(userId, {
           id: notifId,
@@ -124,7 +147,7 @@ exports.sendNotification = async ({
     }
 
     // ── 3c. Native Mobile Push (APNs / FCM) ───────────────────
-    if (pushEnabled && !inQuietHours && mobilePushService.isConfigured()) {
+    if (pushEnabled && !inQuietHours && !notificationRow?.is_push_sent && mobilePushService.isConfigured()) {
       try {
         const result = await mobilePushService.sendToUser(userId, {
           notifId,
@@ -175,7 +198,7 @@ exports.sendNotification = async ({
     ]);
     const emailAllowed = userEmail && emailTypes.includes(type)
       && (transactionalEmailTypes.has(type) ? true : !emailPrefOff);
-    if (emailAllowed) {
+    if (emailAllowed && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
       await sendEmailNotification({
