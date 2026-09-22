@@ -14,6 +14,8 @@ const socketService = require('../services/socketService');
 const { logAdminAction } = require('../services/auditService');
 const adminMessageController = require('../controllers/adminMessageController');
 const superAdminController = require('../controllers/superAdminController');
+const supportController = require('../controllers/supportController');
+const mainAppController = require('../controllers/mainAppController');
 
 const ADMIN_ID = '00000000-0000-4000-8000-000000000101';
 const USER_ID = '00000000-0000-4000-8000-000000000102';
@@ -40,6 +42,30 @@ function requestDouble(body = {}) {
     get: jest.fn((name) => name === 'Idempotency-Key' ? body.headerKey || undefined : undefined),
     ip: '127.0.0.1',
     headers: {},
+  };
+}
+
+function supportRequestDouble(body = {}) {
+  return {
+    user: {
+      id: ADMIN_ID,
+      first_name: 'Admin',
+      last_name: 'Owner',
+      email: 'admin@example.com',
+      role: 'super_admin',
+    },
+    isSuper: true,
+    params: { ticketId: 'ticket-1' },
+    body,
+    get: jest.fn((name) => name === 'Idempotency-Key' ? body.headerKey || undefined : undefined),
+  };
+}
+
+function mainAppRequestDouble(body = {}) {
+  return {
+    user: { id: USER_ID, email: 'user@example.com' },
+    body,
+    get: jest.fn((name) => name === 'Idempotency-Key' ? body.headerKey || undefined : undefined),
   };
 }
 
@@ -122,5 +148,62 @@ describe('super-admin messaging idempotency', () => {
     expect(socketService.broadcastToUser).toHaveBeenCalledTimes(1);
     expect(logAdminAction).toHaveBeenCalledTimes(1);
     expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE conversations SET last_message_at/.test(sql))).toHaveLength(1);
+  });
+});
+
+describe('support reply and report idempotency', () => {
+  test('replays an admin ticket reply without changing ticket state or notifying twice', async () => {
+    const body = { content: 'We are looking into this.', clientMessageId: REQUEST_ID };
+    const ticket = {
+      id: 'ticket-1', ticket_number: 1001, status: 'open', user_id: USER_ID,
+      name: 'User One', email: 'user@example.com', subject: 'Help',
+      assigned_to: null, first_response_at: null,
+    };
+    const message = { id: 'support-message-1', content: body.content };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [ticket] })
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] }) // ticket update
+      .mockResolvedValueOnce({ rows: [ticket] })
+      .mockResolvedValueOnce({ rows: [] }) // duplicate message insert
+      .mockResolvedValueOnce({ rows: [message] }); // existing message lookup
+
+    const firstRes = responseDouble();
+    await supportController.adminReply(supportRequestDouble(body), firstRes);
+    const retryRes = responseDouble();
+    await supportController.adminReply(supportRequestDouble(body), retryRes);
+
+    expect(firstRes.status).toHaveBeenCalledWith(201);
+    expect(retryRes.status).toHaveBeenCalledWith(200);
+    expect(retryRes.json).toHaveBeenCalledWith({ message, idempotent: true });
+    expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE support_tickets SET/.test(sql))).toHaveLength(1);
+  });
+
+  test('replays a main-app support report without creating a second ticket or message', async () => {
+    const body = { details: 'The dashboard is not loading.', clientRequestId: REQUEST_ID };
+    const ticket = {
+      id: 'ticket-2', ticket_number: 1002, status: 'open', priority: 'normal',
+      created_at: '2026-09-22T12:00:00.000Z',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ first_name: 'User', last_name: 'One', email: 'user@example.com' }] })
+      .mockResolvedValueOnce({ rows: [ticket] })
+      .mockResolvedValueOnce({ rows: [] }) // initial message
+      .mockResolvedValueOnce({ rows: [{ first_name: 'User', last_name: 'One', email: 'user@example.com' }] })
+      .mockResolvedValueOnce({ rows: [] }) // duplicate ticket insert
+      .mockResolvedValueOnce({ rows: [ticket] }); // existing ticket lookup
+
+    const firstRes = responseDouble();
+    await mainAppController.createSupportReport(mainAppRequestDouble(body), firstRes, jest.fn());
+    const retryRes = responseDouble();
+    await mainAppController.createSupportReport(mainAppRequestDouble(body), retryRes, jest.fn());
+
+    expect(firstRes.status).toHaveBeenCalledWith(201);
+    expect(retryRes.status).toHaveBeenCalledWith(200);
+    expect(retryRes.json).toHaveBeenCalledWith(expect.objectContaining({ idempotent: true }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO support_tickets/.test(sql))).toHaveLength(2);
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO support_messages/.test(sql))).toHaveLength(1);
   });
 });

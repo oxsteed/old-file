@@ -67,6 +67,18 @@ function normalizeCurrency(value) {
   return String(value || 'USD').toUpperCase();
 }
 
+function getClientRequestId(req) {
+  const value = req.get?.('Idempotency-Key')
+    || req.body?.clientRequestId
+    || req.body?.client_request_id
+    || null;
+  if (!value) return null;
+  const id = String(value).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : false;
+}
+
 function parsePositiveCents(value) {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -2918,6 +2930,10 @@ exports.requestDataExport = async (req, res, next) => {
 
 exports.createSupportReport = async (req, res, next) => {
   try {
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return res.status(400).json({ error: { code: 'validation_failed', message: 'clientRequestId must be a valid UUID' } });
+    }
     const category = String(req.body.category || 'general').trim();
     const details = String(req.body.details || req.body.description || '').trim();
     if (!details) {
@@ -2936,8 +2952,10 @@ exports.createSupportReport = async (req, res, next) => {
 
     const ticketResult = await pool.query(
       `INSERT INTO support_tickets
-        (user_id, name, email, subject, category, priority, source, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, 'direct', $7)
+        (user_id, name, email, subject, category, priority, source, metadata, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'direct', $7, $8)
+       ON CONFLICT (client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING id, ticket_number, status, priority, created_at`,
       [
         req.user.id,
@@ -2947,15 +2965,37 @@ exports.createSupportReport = async (req, res, next) => {
         category.toLowerCase().replace(/\s+/g, '_'),
         priority,
         JSON.stringify({ app: 'oxsteed-main-ios', category }),
+        clientRequestId,
       ]
     );
-    const ticket = ticketResult.rows[0];
+    let ticket = ticketResult.rows[0];
+    if (!ticket && clientRequestId) {
+      const replay = await pool.query(
+        `SELECT id, ticket_number, status, priority, created_at
+           FROM support_tickets WHERE client_request_id = $1`,
+        [clientRequestId]
+      );
+      ticket = replay.rows[0];
+      if (!ticket) return res.status(409).json({ error: { code: 'retry_recovery_failed', message: 'Support report retry could not be recovered.' } });
+      return res.status(200).json({
+        idempotent: true,
+        ticket: {
+          id: String(ticket.id),
+          ticketNumber: Number(ticket.ticket_number),
+          status: ticket.status,
+          priority: ticket.priority,
+          createdAt: toIso(ticket.created_at),
+        },
+      });
+    }
 
     await pool.query(
       `INSERT INTO support_messages
-        (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, FALSE, FALSE)`,
-      [ticket.id, req.user.id, name, email, details]
+        (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin, client_message_id)
+       VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, $6)
+       ON CONFLICT (ticket_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING`,
+      [ticket.id, req.user.id, name, email, details, clientRequestId]
     );
 
     res.status(201).json({

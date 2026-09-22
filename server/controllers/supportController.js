@@ -671,7 +671,14 @@ exports.updatePriority = async (req, res) => {
 exports.adminReply = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const { content, is_internal = false, sender_language = 'en' } = req.body;
+  const clientMessageId = req.get('Idempotency-Key')
+    || req.body.clientMessageId
+    || req.body.client_message_id
+    || null;
   if (!content?.trim()) return res.status(400).json({ error: 'Content is required.' });
+  if (clientMessageId && !isUuid(clientMessageId)) {
+    return res.status(400).json({ error: 'clientMessageId must be a valid UUID' });
+  }
 
   // Validate language code (admin reply is assumed to be in English unless specified)
   const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
@@ -703,11 +710,27 @@ exports.adminReply = async (req, res) => {
 
     const { rows: [msg] } = await db.query(
       `INSERT INTO support_messages
-         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin, client_message_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8)
+       ON CONFLICT (ticket_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [ticket.id, req.user.id, adminName, req.user.email, content.trim(), safeLanguage, Boolean(is_internal)]
+      [ticket.id, req.user.id, adminName, req.user.email, content.trim(), safeLanguage, Boolean(is_internal), clientMessageId]
     );
+    const replayed = !msg && Boolean(clientMessageId);
+    let message = msg;
+    if (!message && clientMessageId) {
+      const { rows: replayRows } = await db.query(
+        `SELECT * FROM support_messages WHERE ticket_id = $1 AND client_message_id = $2`,
+        [ticket.id, clientMessageId]
+      );
+      message = replayRows[0];
+      if (!message) return res.status(409).json({ error: 'Message retry could not be recovered' });
+    }
+
+    if (replayed) {
+      return res.status(200).json({ message, idempotent: true });
+    }
 
     // Build UPDATE SET clause
     const sets = ['updated_at = NOW()'];
@@ -775,7 +798,7 @@ exports.adminReply = async (req, res) => {
       isInternal: is_internal,
     });
 
-    return res.status(201).json({ message: msg });
+    return res.status(201).json({ message });
   } catch (err) {
     logger.error('adminReply error', { err });
     return res.status(500).json({ error: 'Failed to send reply.' });
