@@ -19,32 +19,37 @@ router.get('/export', authenticate, async (req, res) => {
     const userId = req.user.id;
     // Gather all user data across tables
     const userResult = await pool.query(
-      `SELECT id, name, email, phone, role, city, state, zip_code,
-              bio, skills, hourly_rate, availability, profile_photo_url,
-              subscription_tier, created_at, updated_at
-       FROM users WHERE id = $1`,
-      [userId]
+      `SELECT id, email, phone, first_name, last_name, role,
+              subscription_status, email_verified, is_active, is_banned,
+              preferred_language, city, state, zip_code, created_at,
+              updated_at, deleted_at
+       FROM users WHERE ${userIdEq('id')}`,
+      [String(userId)]
     );
     const jobsResult = await pool.query(
-      `SELECT id, title, description, category, budget, status, created_at
-       FROM jobs WHERE customer_id = $1 OR helper_id = $1`,
-      [userId]
+      `SELECT id, client_id, assigned_helper_id, title, description,
+              category_name, job_type, budget_min, budget_max, job_value,
+              status, created_at, updated_at
+       FROM jobs
+       WHERE ${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')}`,
+      [String(userId)]
     );
     const bidsResult = await pool.query(
       `SELECT id, job_id, amount, message, status, created_at
-       FROM bids WHERE helper_id = $1`,
-      [userId]
+       FROM bids WHERE ${userIdEq('helper_id')}`,
+      [String(userId)]
     );
     const reviewsResult = await pool.query(
       `SELECT id, job_id, rating, comment, created_at
-       FROM reviews WHERE reviewer_id = $1 OR reviewee_id = $1`,
-      [userId]
+       FROM reviews
+       WHERE ${userIdEq('reviewer_id')} OR ${userIdEq('reviewee_id')}`,
+      [String(userId)]
     );
     const consentsResult = await pool.query(
       `SELECT consent_type, version, accepted_at
-       FROM user_consents WHERE user_id = $1
+       FROM user_consents WHERE ${userIdEq('user_id')}
        ORDER BY accepted_at DESC`,
-      [userId]
+      [String(userId)]
     );
     const exportData = {
       exportDate: new Date().toISOString(),
@@ -55,11 +60,6 @@ router.get('/export', authenticate, async (req, res) => {
       reviews: reviewsResult.rows,
       consents: consentsResult.rows,
     };
-    // Remove sensitive fields
-    if (exportData.user) {
-      delete exportData.user.password_hash;
-      delete exportData.user.otp_secret;
-    }
     res.setHeader('Content-Type', 'application/json');
     res.setHeader(
       'Content-Disposition',
@@ -67,8 +67,22 @@ router.get('/export', authenticate, async (req, res) => {
     );
     res.json(exportData);
   } catch (err) {
-    logger.error('Privacy data export failed', { message: err.message });
-    res.status(500).json({ error: 'Failed to export data. Please try again.' });
+    const requestId = req.correlationId
+      || req.id
+      || req.requestId
+      || req.headers['x-request-id']
+      || null;
+    logger.error('Privacy data export failed', {
+      message: err.message,
+      code: err.code,
+      userId: req.user?.id,
+      requestId,
+    });
+    res.status(500).json({
+      code: 'DATA_EXPORT_FAILED',
+      error: 'Failed to export data. Please try again.',
+      requestId,
+    });
   }
 });
 // DELETE /api/privacy/delete-account - CCPA right to delete (user self-initiated)

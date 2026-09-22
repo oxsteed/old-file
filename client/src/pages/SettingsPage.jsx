@@ -768,10 +768,17 @@ export default function SettingsPage() {
               const a = document.createElement('a');
               a.href = url;
               a.download = 'my-data.json';
+              document.body.appendChild(a);
               a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
               toast.success(t('settings.privacy.exportSuccess'));
             })
-            .catch(() => toast.error(t('settings.privacy.exportFailed')));
+            .catch((err) => {
+              const message = err?.response?.data?.error || t('settings.privacy.exportFailed');
+              const requestId = err?.response?.data?.requestId;
+              toast.error(requestId ? `${message} (${requestId})` : message);
+            });
         }}
       >
         {t('settings.privacy.exportBtn')}
