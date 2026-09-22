@@ -2448,6 +2448,10 @@ exports.createDisputeRefund = async (req, res, next) => {
       });
     }
     const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return res.status(400).json({ error: { code: 'validation_failed', message: 'clientRequestId must be a valid UUID' } });
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -2484,13 +2488,16 @@ exports.createDisputeRefund = async (req, res, next) => {
           '',
           details,
         ].filter(Boolean).join('\n'),
+        clientRequestId,
       });
 
       const { rows } = await client.query(
         `INSERT INTO main_app_payment_disputes
           (user_id, source_type, source_id, transaction_reference, reason, details, refund_method,
-           requested_refund_cents, currency_code, support_ticket_uuid, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           requested_refund_cents, currency_code, support_ticket_uuid, metadata, client_request_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
          RETURNING id, source_type, source_id, transaction_reference, reason, details, refund_method,
                    requested_refund_cents, currency_code, status, support_ticket_uuid, opened_at, resolved_at`,
         [
@@ -2509,21 +2516,40 @@ exports.createDisputeRefund = async (req, res, next) => {
             supportTicketId: supportTicket.id,
             supportTicketNumber: supportTicket.ticket_number,
           }),
+          clientRequestId,
         ]
       );
+      let dispute = rows[0];
+      let replayed = Boolean(supportTicket.replayed);
+      if (!dispute && clientRequestId) {
+        const existing = await client.query(
+          `SELECT id, source_type, source_id, transaction_reference, reason, details, refund_method,
+                  requested_refund_cents, currency_code, status, support_ticket_uuid, opened_at, resolved_at
+             FROM main_app_payment_disputes
+            WHERE user_id = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [req.user.id, clientRequestId],
+        );
+        dispute = existing.rows[0];
+        replayed = Boolean(dispute) || replayed;
+      }
+      if (!dispute) {
+        throw new AppError('Refund request could not be created or recovered', 500, 'processing_error');
+      }
       await client.query('COMMIT');
-      res.status(201).json({
+      res.status(replayed ? 200 : 201).json({
         contract: {
           version: 'main-refund-disputes-v1',
           generatedAt: new Date().toISOString(),
           refundProcessedByThisEndpoint: false,
         },
-        dispute: rows[0],
+        dispute,
         ticket: {
           id: supportTicket.id,
           ticketNumber: supportTicket.ticket_number,
           status: supportTicket.status,
         },
+        idempotent: replayed,
       });
     } catch (innerErr) {
       await client.query('ROLLBACK').catch(() => {});

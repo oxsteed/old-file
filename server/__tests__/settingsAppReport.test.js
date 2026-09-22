@@ -72,4 +72,33 @@ describe('settings app report endpoint', () => {
     expect(res.status).toBe(400);
     expect(res.body.fields.details).toBe('Required');
   });
+
+  test('replays a report without creating a second ticket or message', async () => {
+    const clientRequestId = '11111111-1111-4111-8111-111111111111';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', ticket_number: 'SUP-100' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    const res = await request(buildApp())
+      .post('/api/settings/app-report')
+      .set('Idempotency-Key', clientRequestId)
+      .send({ details: 'The Settings export button failed.' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.idempotent).toBe(true);
+    expect(res.body.ticket_id).toBe('ticket-1');
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO support_messages/.test(sql))).toHaveLength(0);
+  });
+
+  test('rejects an invalid report idempotency key', async () => {
+    const res = await request(buildApp())
+      .post('/api/settings/app-report')
+      .set('Idempotency-Key', 'not-a-uuid')
+      .send({ details: 'The Settings export button failed.' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+  });
 });

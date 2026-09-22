@@ -34,6 +34,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { getClientRequestId } = require('../utils/idempotency');
 const { resolveOrderItemModifiers } = require('./foodController');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
@@ -3093,6 +3094,10 @@ exports.reportDeviceIssue = async (req, res, next) => {
     if (!description) {
       throw new AppError('Validation failed', 400, 'validation_failed', { description: 'Description is required' });
     }
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
     const { rows: [restaurant] } = await pool.query(
       `SELECT id, display_name, business_id
          FROM food_restaurants
@@ -3119,11 +3124,13 @@ exports.reportDeviceIssue = async (req, res, next) => {
         platform: req.body.platform || device.platform || null,
       },
       initialMessage: description,
+      clientRequestId,
     }), 'restaurant_device_report_issue');
-    res.status(201).json({
+    res.status(ticket.replayed ? 200 : 201).json({
       ticket,
       supportTicket: ticket,
       message: 'Device issue reported.',
+      idempotent: Boolean(ticket.replayed),
     });
   } catch (err) {
     next(err);

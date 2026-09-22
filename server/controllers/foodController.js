@@ -13,6 +13,7 @@ const emailService = require('../services/emailService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const {
   reserveInventoryForOrder,
@@ -5877,6 +5878,10 @@ exports.createRestaurantReport = async (req, res, next) => {
       });
     }
     const description = normalizeString(req.body.description || req.body.message, 2500);
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
 
     const { rows: [restaurant] } = await pool.query(
       `SELECT id, business_id, display_name, status
@@ -5897,7 +5902,7 @@ exports.createRestaurantReport = async (req, res, next) => {
     const reporterEmail = userProfile?.email || req.user.email || 'support@oxsteed.com';
     const reportPriority = ['food_safety', 'fraud', 'inappropriate'].includes(reason) ? 'high' : 'normal';
 
-    const { record, ticket } = await withTransaction(pool, async (client) => {
+    const result = await withTransaction(pool, async (client) => {
       const supportTicket = await createLinkedSupportTicket(client, {
         userId: req.user.id,
         name: reporterName,
@@ -5919,12 +5924,15 @@ exports.createRestaurantReport = async (req, res, next) => {
           '',
           description || 'No additional details provided.',
         ].join('\n'),
+        clientRequestId,
       });
 
       const { rows: [report] } = await client.query(
         `INSERT INTO food_restaurant_reports
-           (restaurant_id, business_id, reporter_user_id, reason, description, metadata, support_ticket_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+           (restaurant_id, business_id, reporter_user_id, reason, description, metadata, support_ticket_id, client_request_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
          RETURNING id, restaurant_id, business_id, reason, description, status, support_ticket_id, created_at`,
         [
           restaurant.id,
@@ -5938,21 +5946,37 @@ exports.createRestaurantReport = async (req, res, next) => {
             supportTicketId: String(supportTicket.id),
           }),
           supportTicket.id,
+          clientRequestId,
         ]
       );
 
-      return { record: report, ticket: supportTicket };
+      let record = report;
+      let replayed = Boolean(supportTicket.replayed);
+      if (!record && clientRequestId) {
+        const existing = await client.query(
+          `SELECT id, restaurant_id, business_id, reason, description, status, support_ticket_id, created_at
+             FROM food_restaurant_reports
+            WHERE reporter_user_id = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [req.user.id, clientRequestId],
+        );
+        record = existing.rows[0];
+        replayed = Boolean(record) || replayed;
+      }
+      if (!record) throw new AppError('Restaurant report could not be created or recovered', 500, 'processing_error');
+      return { record, ticket: supportTicket, replayed };
     }, 'create_restaurant_report_with_support_ticket');
 
-    res.status(201).json({
-      report: record,
-      ticket: ticket ? {
-        id: String(ticket.id),
-        ticketNumber: Number(ticket.ticket_number),
-        status: ticket.status,
-        priority: ticket.priority,
-        createdAt: ticket.created_at,
+    res.status(result?.replayed ? 200 : 201).json({
+      report: result.record,
+      ticket: result.ticket ? {
+        id: String(result.ticket.id),
+        ticketNumber: Number(result.ticket.ticket_number),
+        status: result.ticket.status,
+        priority: result.ticket.priority,
+        createdAt: result.ticket.created_at,
       } : null,
+      idempotent: Boolean(result?.replayed),
     });
   } catch (err) {
     if (isMissingRelationError(err)) {
