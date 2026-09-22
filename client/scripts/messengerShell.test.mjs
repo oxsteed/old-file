@@ -136,3 +136,29 @@ test('Business Hub Messages uses the unified helper messaging workspace', async 
   assert.ok(src.includes("import MessagingWorkspace from '../components/messaging/MessagingWorkspace';"));
   assert.ok(src.includes('<MessagingWorkspace role="helper" businessId={bizId} embedded />'));
 });
+
+test('provider chat tools stay shared across helper and business routes', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const workspace = await readFile(
+    join(root, 'src/components/messaging/MessagingWorkspace.jsx'),
+    'utf8',
+  );
+  const thread = await readFile(
+    join(root, 'src/components/messaging/ConversationThread.jsx'),
+    'utf8',
+  );
+  const toolbar = await readFile(
+    join(root, 'src/components/messaging/ProviderMessengerToolbar.jsx'),
+    'utf8',
+  );
+  assert.ok(workspace.includes('providerMode={helperRoute}'));
+  assert.ok(thread.includes('providerMode = role === \'helper\''));
+  assert.ok(thread.includes('{canUseProviderTools ? ('));
+  assert.ok(toolbar.includes('onClick={onQuote}'));
+  assert.ok(toolbar.includes('onClick={onPaymentRequest}'));
+  assert.ok(toolbar.includes('onClick={onAgreement}'));
+  assert.ok(toolbar.includes('onClick={onSchedule}'));
+});

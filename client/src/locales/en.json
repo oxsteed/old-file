@@ -2359,7 +2359,7 @@
     },
     "paymentRequestShare": {
       "title": "Request payment",
-      "button": "Request $",
+      "button": "Payment",
       "amount": "Amount",
       "amountRequired": "Enter a valid amount.",
       "memo": "Memo",

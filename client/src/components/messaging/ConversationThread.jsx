@@ -74,11 +74,13 @@ function MessageAttachments({ attachments }) {
 export default function ConversationThread({
   conversationId,
   role = 'customer',
+  providerMode = role === 'helper',
   onBack,
   onArchive,
   onRestore,
 }) {
   const { t } = useTranslation();
+  const canUseProviderTools = providerMode;
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showAdvisor, setShowAdvisor] = useState(false);
@@ -107,7 +109,7 @@ export default function ConversationThread({
   };
 
   const chat = useConversationChat(conversationId, {
-    listenProfileChat: role === 'helper',
+    listenProfileChat: canUseProviderTools,
   });
 
   const {
@@ -258,7 +260,7 @@ export default function ConversationThread({
             </button>
           ) : null}
           {/* Provider deal chips live only in ProviderMessengerToolbar (no header duplicate). */}
-          {role !== 'helper' ? (
+          {!canUseProviderTools ? (
             <button
               type="button"
               className="messages-thread-action-icon"
@@ -309,7 +311,7 @@ export default function ConversationThread({
         </div>
       )}
 
-      {role === 'helper' ? (
+      {canUseProviderTools ? (
         <ProviderMessengerToolbar
           onQuote={() => setShowQuoteShare(true)}
           onPaymentRequest={() => setShowPaymentRequestShare(true)}
@@ -395,7 +397,7 @@ export default function ConversationThread({
                           {quoteParsed ? (
                             <QuoteCard
                               markerText={msg.content}
-                              isProvider={role === 'helper'}
+                              isProvider={canUseProviderTools}
                               isAuthenticated
                               guestVerified={false}
                               conversationId={conversationId}
@@ -413,7 +415,7 @@ export default function ConversationThread({
                           {popParsed ? (
                             <ProofOfPaymentCard
                               markerText={msg.content}
-                              isProvider={role === 'helper'}
+                              isProvider={canUseProviderTools}
                               onRefundRequest={(target) => {
                                 setRefundTarget(target);
                                 setShowCreditRefund(true);
@@ -424,7 +426,7 @@ export default function ConversationThread({
                             <PaymentRequestCard
                               markerText={msg.content}
                               conversationId={conversationId}
-                              isProvider={role === 'helper'}
+                              isProvider={canUseProviderTools}
                               isAuthenticated
                               payeeBusinessId={businessId}
                               payeeHelperId={helperId}
@@ -433,14 +435,14 @@ export default function ConversationThread({
                           {agreementParsed ? (
                             <AgreementCard
                               markerText={msg.content}
-                              isProvider={role === 'helper'}
+                              isProvider={canUseProviderTools}
                               isAuthenticated
                             />
                           ) : null}
                           {bookingReqParsed ? (
                             <BookingRequestCard
                               markerText={msg.content}
-                              isProvider={role === 'helper'}
+                              isProvider={canUseProviderTools}
                               isAuthenticated
                               conversationId={conversationId}
                               onProposeTime={({ booking }) => {

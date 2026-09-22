@@ -549,6 +549,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
               <ConversationThread
                 conversationId={conversationId}
                 role={threadRole}
+                providerMode={helperRoute}
                 onBack={closeThread}
                 onArchive={selectedConversation && !selectedConversation.archived_at
                   ? () => archiveConversation(conversationId)
