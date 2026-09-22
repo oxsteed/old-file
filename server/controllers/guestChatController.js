@@ -135,9 +135,30 @@ async function createGuestSession(req, res, next) {
         `INSERT INTO guest_profile_chat_inbound
          (id, guest_name, guest_email, session_status, helper_response_deadline, guest_consent_monitoring, consent_requested_at, created_at, client_request_id)
          VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '5 minutes', $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $6)
+         ON CONFLICT (client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [sessionId, guestName, guestEmail, 'waiting_for_helper', consentMonitoring, clientMessageId]
       );
+
+      if (!session && clientMessageId) {
+        const replaySession = await client.query(
+          `SELECT id FROM guest_profile_chat_inbound WHERE client_request_id = $1 LIMIT 1`,
+          [clientMessageId]
+        );
+        if (!replaySession.rows[0]) {
+          throw new AppError('Guest chat retry could not be recovered', 409, 'idempotency_conflict');
+        }
+        sessionId = replaySession.rows[0].id;
+        const replayMessage = await client.query(
+          `SELECT id FROM guest_profile_chat_messages
+           WHERE session_id = $1 AND client_message_id = $2 LIMIT 1`,
+          [sessionId, clientMessageId]
+        );
+        messageId = replayMessage.rows[0]?.id || null;
+        replayed = true;
+        return;
+      }
 
       // Insert initial guest message
       const { rows: [msg] } = await client.query(

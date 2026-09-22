@@ -15,6 +15,7 @@ jest.mock('../services/websocketService', () => ({
 const {
   createGuestToken,
   verifyGuestToken,
+  createGuestSession,
   helperClaimSession,
   sendHelperMessage,
 } = require('../controllers/guestChatController');
@@ -61,6 +62,36 @@ describe('security hardening boundaries', () => {
     expect(next.mock.calls[0][0]).toEqual(expect.objectContaining({ status: 403, code: 'forbidden' }));
     expect(next.mock.calls[1][0]).toEqual(expect.objectContaining({ status: 403, code: 'forbidden' }));
     expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  test('legacy guest-chat session creation recovers a concurrent retry', async () => {
+    const clientMessageId = '33333333-3333-4333-8333-333333333333';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'session-1' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    const res = responseDouble();
+    await createGuestSession({
+      get: (header) => header === 'Idempotency-Key' ? clientMessageId : null,
+      headers: {},
+      body: {
+        guestName: 'Emile',
+        guestEmail: 'emile@example.com',
+        message: 'I need help with my account.',
+      },
+    }, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session-1',
+      messageId: 'message-1',
+      idempotent: true,
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO guest_profile_chat_messages/.test(sql))).toBe(false);
   });
 
   test('legacy routing conversation reads deny unrelated signed-in users', async () => {
