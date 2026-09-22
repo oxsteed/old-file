@@ -16,6 +16,7 @@ const {
   TERMINAL_CONVERSATION_STATUS_SQL,
   isTerminalConversationStatus,
 } = require('../services/supportConversationTerminal');
+const { getClientRequestId } = require('../utils/idempotency');
 
 async function canViewConversation(conversation, user) {
   if (!conversation || !user) return false;
@@ -314,6 +315,10 @@ exports.createConversation = async (req, res) => {
     const normalizedPriority = typeof priority === 'string' ? priority.trim().toLowerCase() : 'normal';
     const normalizedVisitorName = typeof visitorName === 'string' ? visitorName.trim().slice(0, 255) : '';
     const normalizedVisitorEmail = typeof visitorEmail === 'string' ? visitorEmail.trim().slice(0, 255) : '';
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return sendValidationError(res, { clientRequestId: 'Must be a valid UUID' });
+    }
     const validCategories = new Set(['billing', 'technical', 'sales', 'account', 'general', 'support_request', 'escalation']);
     const validPriorities = new Set(['low', 'normal', 'high', 'urgent']);
 
@@ -336,7 +341,14 @@ exports.createConversation = async (req, res) => {
 
     // Create the durable conversation and first message before routing. Both
     // customer and admin surfaces read these same tables.
-    const conversationQuery = `
+    const conversationQuery = clientRequestId ? `
+      INSERT INTO support_conversations (
+        customer_id, business_id, subject, description, category, priority, status, created_at, client_request_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW(), $7)
+      ON CONFLICT (client_request_id)
+      WHERE client_request_id IS NOT NULL DO NOTHING
+      RETURNING id, created_at, status, agent_id
+    ` : `
       INSERT INTO support_conversations (
         customer_id, business_id, subject, description, category, priority, status, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW())
@@ -359,10 +371,36 @@ exports.createConversation = async (req, res) => {
         normalizedMessage,
         normalizedCategory,
         normalizedPriority,
+        ...(clientRequestId ? [clientRequestId] : []),
       ]);
 
+      if (!conversationResult.rows[0] && clientRequestId) {
+        const existing = await client.query(
+          `SELECT id, created_at, status, agent_id
+             FROM support_conversations
+            WHERE customer_id = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [customerId, clientRequestId],
+        );
+        if (!existing.rows[0]) throw new Error('Support conversation retry could not be recovered');
+        return { ...existing.rows[0], replayed: true };
+      }
+
       const ticketId = conversationResult.rows[0].id;
-      await client.query(messageQuery, [ticketId, customerId, normalizedMessage]);
+      const openingMessageQuery = clientRequestId ? `
+        INSERT INTO support_conversation_messages
+        (conversation_id, sender_id, content, message_type, is_agent, created_at, client_message_id)
+        VALUES ($1, $2, $3, 'text', false, NOW(), $4)
+        ON CONFLICT (conversation_id, client_message_id)
+        WHERE client_message_id IS NOT NULL DO NOTHING
+        RETURNING id
+      ` : messageQuery;
+      await client.query(openingMessageQuery, [
+        ticketId,
+        customerId,
+        normalizedMessage,
+        ...(clientRequestId ? [clientRequestId] : []),
+      ]);
       await client.query(
         `UPDATE support_conversations
          SET message_count = 1, customer_message_count = 1, updated_at = NOW()
@@ -370,10 +408,19 @@ exports.createConversation = async (req, res) => {
         [ticketId]
       );
 
-      return conversationResult.rows[0];
+      return { ...conversationResult.rows[0], replayed: false };
     }, 'create_support_conversation');
 
     const ticketId = createdConversation.id;
+
+    if (createdConversation.replayed) {
+      return res.status(200).json({
+        ticketId,
+        routedTo: createdConversation.agent_id ? 'agent' : 'queue',
+        resumed: true,
+        idempotent: true,
+      });
+    }
 
     // Layer 1-3 Routing
     const routing = await SupportRoutingService.routeTicket({

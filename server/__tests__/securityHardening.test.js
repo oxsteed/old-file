@@ -179,4 +179,29 @@ describe('security hardening boundaries', () => {
       priority: 'normal',
     }));
   });
+
+  test('recovers a retried routing conversation before creating another message or route', async () => {
+    const clientRequestId = '44444444-4444-4444-8444-444444444444';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', status: 'waiting_for_agent', agent_id: null }], rowCount: 1 });
+
+    const res = responseDouble();
+    await supportRoutingController.createConversation({
+      get: (header) => header === 'Idempotency-Key' ? clientRequestId : null,
+      user: { id: 'customer-1' },
+      params: { businessId: 42 },
+      body: { message: 'Need help', category: 'technical', priority: 'normal' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ticketId: 'ticket-1',
+      routedTo: 'queue',
+      resumed: true,
+      idempotent: true,
+    });
+    expect(SupportRoutingService.routeTicket).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
 });
