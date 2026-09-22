@@ -1079,7 +1079,17 @@ exports.guestProfileChatSession = async (req, res, next) => {
       guestName: rawName,
       guestEmail: rawEmail,
       message: rawMessage,
+      clientRequestId: bodyClientRequestId,
     } = req.body || {};
+    const clientRequestId = (typeof req.get === 'function' ? req.get('Idempotency-Key') : null)
+      || req.headers?.['idempotency-key']
+      || bodyClientRequestId
+      || null;
+    if (clientRequestId && !isUuid(clientRequestId)) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed', {
+        clientRequestId: 'Must be a valid UUID',
+      });
+    }
 
     let resolvedHelperId = rawHelperId;
     let resolvedBusinessId = businessId ? parseInt(businessId, 10) || null : null;
@@ -1130,14 +1140,52 @@ exports.guestProfileChatSession = async (req, res, next) => {
       throw new AppError('Guest messaging is disabled for this helper', 403, 'forbidden');
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO guest_profile_chat_inbound (helper_id, business_id, guest_name, guest_email, message)
-       VALUES ($1, $2, $3, $4, $5)
+    const { rows: insertedRows } = await pool.query(
+      `INSERT INTO guest_profile_chat_inbound
+         (helper_id, business_id, guest_name, guest_email, message, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (client_request_id)
+       WHERE client_request_id IS NOT NULL
+       DO NOTHING
        RETURNING id, created_at`,
-      [resolvedHelperId, resolvedBusinessId, guestName, guestEmail, message]
+      [resolvedHelperId, resolvedBusinessId, guestName, guestEmail, message, clientRequestId]
     );
 
-    const row = rows[0];
+    let row = insertedRows[0];
+    const replayed = !row && Boolean(clientRequestId);
+    if (replayed) {
+      const existing = await pool.query(
+        `SELECT id, created_at
+         FROM guest_profile_chat_inbound
+         WHERE client_request_id = $1
+         LIMIT 1`,
+        [clientRequestId]
+      );
+      row = existing.rows[0];
+      if (!row) throw new AppError('Guest inquiry retry could not be resolved', 409, 'idempotency_conflict');
+    }
+
+    if (replayed) {
+      const jwt = require('jsonwebtoken');
+      const guestToken = jwt.sign(
+        {
+          guestEmail,
+          guestName,
+          helperId: resolvedHelperId,
+          businessId: resolvedBusinessId,
+          inquiryId: row.id,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+      return res.status(200).json({
+        ok: true,
+        id: row.id,
+        token: guestToken,
+        idempotent: true,
+        message: 'Your message was already sent. You can check back here for replies.',
+      });
+    }
 
     const guestPayload = {
       conversationId: null,

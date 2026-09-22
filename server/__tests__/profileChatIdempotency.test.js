@@ -24,6 +24,7 @@ function buildApp() {
     next();
   });
   app.post('/api/chat/profile-message', chatController.profileChatMessage);
+  app.post('/api/chat/sessions/guest', chatController.guestProfileChatSession);
   app.use((error, _req, res, _next) => {
     res.status(error.status || 500).json({ error: error.message, code: error.code });
   });
@@ -88,5 +89,35 @@ describe('profile chat delivery', () => {
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('replays a public guest inquiry without sending duplicate notifications', async () => {
+    const requestId = '22222222-2222-4222-8222-222222222222';
+    mockQuery
+      // First request: contact gate, inquiry insert, helper lookup, helper name.
+      .mockResolvedValueOnce({ rows: [{ allow_guest_contact: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-inquiry-1', created_at: '2026-09-22T12:00:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Helper', last_name: 'One' }] })
+      // Retry: contact gate, conflict, original inquiry.
+      .mockResolvedValueOnce({ rows: [{ allow_guest_contact: true }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'guest-inquiry-1', created_at: '2026-09-22T12:00:00.000Z' }] });
+
+    const app = buildApp();
+    const body = {
+      helperId: 'helper-1',
+      guestName: 'Guest One',
+      guestEmail: 'guest@example.com',
+      message: 'Can you help?',
+      clientRequestId: requestId,
+    };
+    const first = await request(app).post('/api/chat/sessions/guest').send(body);
+    const retry = await request(app).post('/api/chat/sessions/guest').send(body);
+
+    expect(first.status).toBe(201);
+    expect(retry.status).toBe(200);
+    expect(retry.body).toEqual(expect.objectContaining({ id: 'guest-inquiry-1', idempotent: true }));
+    expect(socketService.broadcastToUser).toHaveBeenCalledTimes(1);
   });
 });
