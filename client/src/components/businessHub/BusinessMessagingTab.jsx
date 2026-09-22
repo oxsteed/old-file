@@ -4,7 +4,9 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Archive, Plus, Search, Send } from 'lucide-react';
 import ConversationThread from '../messaging/ConversationThread';
+import ConversationList from '../messaging/ConversationList';
 import '../../styles/BusinessMessagingTab.css';
+import '../messaging/SharedMessengerShell.css';
 
 /**
  * Business Hub messaging workspace.
@@ -182,7 +184,7 @@ export function BusinessMessagingTab({ businessId }) {
 
       {mode === 'deals' ? (
         <>
-          <div className="bmt-conversations-list">
+          <div className="bmt-conversations-list bmt-deals-list">
             <div className="bmt-header">
               <h3>{t('businessMessaging.dealsTitle')}</h3>
             </div>
@@ -196,30 +198,21 @@ export function BusinessMessagingTab({ businessId }) {
                 aria-label={t('businessMessaging.searchAria')}
               />
             </div>
-            {dealsLoading ? (
-              <p className="bmt-empty">{t('common.loading')}</p>
-            ) : filteredDeals.length === 0 ? (
-              <p className="bmt-empty">{t('businessMessaging.dealsEmpty')}</p>
-            ) : (
-              <ul className="bmt-list">
-                {filteredDeals.map((conv) => (
-                  <li key={conv.id}>
-                    <button
-                      type="button"
-                      className={`bmt-conversation-item ${selectedDealId === conv.id ? 'active' : ''}`}
-                      onClick={() => setSelectedDealId(conv.id)}
-                    >
-                      <div className="bmt-conversation-name">
-                        {conv.other_user_name || conv.customer_name || t('businessMessaging.customer')}
-                      </div>
-                      <div className="bmt-conversation-preview">
-                        {conv.last_message_preview || conv.last_message || ''}
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ConversationList
+              className="bmt-shared-list"
+              items={filteredDeals}
+              selectedId={selectedDealId}
+              onSelect={(conv) => setSelectedDealId(conv.id)}
+              loading={dealsLoading}
+              empty={(
+                <p className="bmt-empty">
+                  {dealConversations.length === 0
+                    ? t('businessMessaging.dealsEmpty')
+                    : t('messages.shell.filteredEmpty')}
+                </p>
+              )}
+              ariaLabel={t('businessMessaging.dealsTitle')}
+            />
           </div>
           <div className="bmt-thread-pane">
             {selectedDealId ? (
@@ -229,8 +222,9 @@ export function BusinessMessagingTab({ businessId }) {
                 onBack={() => setSelectedDealId(null)}
               />
             ) : (
-              <div className="bmt-empty-thread">
+              <div className="bmt-empty-thread messages-thread-empty">
                 <p>{t('businessMessaging.selectDeal')}</p>
+                <p className="bmt-empty-hint">{t('messages.shell.selectDealHint')}</p>
               </div>
             )}
           </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronDown, FileText, Globe, Paperclip, Receipt, ScrollText, Wallet } from 'lucide-react';
+import { ArrowLeft, Calculator, ChevronDown, Globe, Paperclip, Receipt } from 'lucide-react';
 import { useConversationChat } from '../../hooks/useConversationChat';
 import AutoTranslatedMessage from '../AutoTranslatedMessage';
 import MessageReactions from '../MessageReactions';
@@ -18,6 +18,7 @@ import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import BookingRequestCard from '../helperProfile/chat/BookingRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
 import ProviderMessengerToolbar from './ProviderMessengerToolbar';
+import MessageBubbleActions from './MessageBubbleActions';
 import ConversationContactDrawer from './ConversationContactDrawer';
 import CreditRefundPanel from '../helperProfile/chat/CreditRefundPanel';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
@@ -39,6 +40,7 @@ import {
   resolveClientTimezone,
 } from '../helperProfile/chat/messengerAvailability.js';
 import '../helperProfile/chat/MessengerDock.css';
+import './SharedMessengerShell.css';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -215,66 +217,42 @@ export default function ConversationThread({
           </div>
         </div>
         <div className="messages-thread-actions">
-          {role === 'helper' && (
+          {/* Provider deal chips live only in ProviderMessengerToolbar (no header duplicate). */}
+          {role !== 'helper' ? (
             <button
               type="button"
-              className="messages-quote-share-btn"
-              onClick={() => setShowQuoteShare(true)}
-              title={t('messages.quoteShare.title')}
+              className="messages-thread-action-icon"
+              onClick={() => setShowPopShare(true)}
+              aria-label={t('messages.popShare.title')}
+              title={t('messages.popShare.title')}
             >
-              <FileText size={14} aria-hidden />
-              <span className="hide-sm">{t('messages.quoteShare.button')}</span>
+              <Receipt size={16} aria-hidden />
+              <span className="visually-hidden">{t('messages.popShare.button')}</span>
             </button>
-          )}
+          ) : null}
           <button
             type="button"
-            className="messages-quote-share-btn"
-            onClick={() => setShowPopShare(true)}
-            title={t('messages.popShare.title')}
-          >
-            <Receipt size={14} aria-hidden />
-            <span className="hide-sm">{t('messages.popShare.button')}</span>
-          </button>
-          {role === 'helper' && (
-            <button
-              type="button"
-              className="messages-quote-share-btn"
-              onClick={() => setShowAgreementShare(true)}
-              title={t('messages.agreementShare.title')}
-            >
-              <ScrollText size={14} aria-hidden />
-              <span className="hide-sm">{t('messages.agreementShare.button')}</span>
-            </button>
-          )}
-          {role === 'helper' && (
-            <button
-              type="button"
-              className="messages-quote-share-btn"
-              onClick={() => setShowPaymentRequestShare(true)}
-              title={t('messages.paymentRequestShare.title')}
-            >
-              <Wallet size={14} aria-hidden />
-              <span className="hide-sm">{t('messages.paymentRequestShare.button')}</span>
-            </button>
-          )}
-          <button
-            type="button"
+            className={`messages-thread-action-icon${translateEnabled ? ' on' : ''}`}
             onClick={toggleTranslate}
             aria-pressed={translateEnabled}
+            aria-label={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
             title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
-            className={translateEnabled ? 'on' : ''}
           >
-            <Globe size={14} aria-hidden />
-            <span className="hide-sm">
+            <Globe size={16} aria-hidden />
+            <span className="visually-hidden">
               {translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
             </span>
           </button>
           <button
             type="button"
+            className={`messages-thread-action-icon${showAdvisor ? ' on' : ''}`}
             onClick={() => setShowAdvisor((value) => !value)}
-            title={t('financialAdvisor.title')}
+            aria-label={t('messages.shell.aiAdvisorAria')}
+            title={t('messages.shell.aiAdvisorAria')}
+            aria-pressed={showAdvisor}
           >
-            {t('financialAdvisor.buttonLabel')}
+            <Calculator size={16} aria-hidden />
+            <span className="visually-hidden">{t('messages.shell.aiAdvisorAria')}</span>
           </button>
         </div>
       </header>
@@ -449,25 +427,13 @@ export default function ConversationThread({
                     {isLastFromMe && !msg._pending && !msg._failed && (
                       <span className="seen">{t('messages.seen')}</span>
                     )}
-                    <div className="messages-bubble-actions">
-                      <button
-                        type="button"
-                        onClick={() => navigator.clipboard.writeText(parsed.text || msg.content || '')}
-                        aria-label={t('messages.copyMessage')}
-                      >
-                        {t('messages.copy')}
-                      </button>
-                      {isMe && (
-                        <>
-                          <button type="button" onClick={() => handleEditMessage(msg.id)}>
-                            {t('common.edit')}
-                          </button>
-                          <button type="button" onClick={() => handleDeleteMessage(msg.id)}>
-                            {t('common.delete')}
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    <MessageBubbleActions
+                      onCopy={() => navigator.clipboard.writeText(parsed.text || msg.content || '')}
+                      onEdit={() => handleEditMessage(msg.id)}
+                      onDelete={() => handleDeleteMessage(msg.id)}
+                      canEdit={isMe}
+                      canDelete={isMe}
+                    />
                   </div>
                 </>
               )}

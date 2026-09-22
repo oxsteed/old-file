@@ -2376,6 +2376,15 @@
       "bookings": "Linked bookings",
       "none": "None",
       "loadFailed": "Could not load contact details."
+    },
+    "shell": {
+      "messageActionsAria": "Message actions",
+      "aiAdvisorAria": "AI finance calculator",
+      "summaryAria": "Inbox summary",
+      "moreActions": "More",
+      "listEmpty": "No conversations yet.",
+      "filteredEmpty": "No conversations match your search.",
+      "selectDealHint": "Pick a customer deal on the left to open quotes, POP, agreements, and schedule tools."
     }
   },
   "dashboard": {

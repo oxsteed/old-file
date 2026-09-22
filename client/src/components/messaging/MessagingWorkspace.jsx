@@ -28,8 +28,11 @@ import {
   hasHelperInboxWork,
 } from '../../utils/inboxRole';
 import ConversationThread from './ConversationThread';
+import ConversationList from './ConversationList';
 import GuestInquiryPanel from './GuestInquiryPanel';
+import { resolveShellChrome } from './messengerShellState';
 import '../../pages/MessagesPage.css';
+import './SharedMessengerShell.css';
 
 export default function MessagingWorkspace({ role = 'auto' }) {
   const { t } = useTranslation();
@@ -221,6 +224,7 @@ export default function MessagingWorkspace({ role = 'auto' }) {
   const closeThread = () => navigate(basePath);
   const selectedConversation = conversations.find((conv) => String(conv.id) === String(selectedId));
   const threadRole = conversationSide(userId, selectedConversation);
+  const chrome = resolveShellChrome({ hasThread, compact: true });
 
   return (
     <PageShell hideFooter>
@@ -230,29 +234,28 @@ export default function MessagingWorkspace({ role = 'auto' }) {
         noIndex
       />
       <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}`}>
-        <header className="messages-hero compact">
+        <header className="messages-hero compact shell-compact">
           <div>
             <p className="messages-kicker">
               {dualRole ? t('messages.unifiedKicker') : showHelperInbox ? t('messages.helperKicker') : t('messages.kicker')}
             </p>
             <h1>{dualRole ? t('messages.unifiedTitle') : showHelperInbox ? t('messages.helperTitle') : t('messages.title')}</h1>
           </div>
-          <div className="messages-hero-stats">
-            <div>
-              <span>{conversations.length}</span>
-              <small>{t('messages.stats.conversations')}</small>
+          {chrome.showCompactSummary && (
+            <div className="messages-shell-summary" aria-label={t('messages.shell.summaryAria')}>
+              <span className="messages-shell-summary-chip">
+                {conversations.length} {t('messages.stats.conversations')}
+              </span>
+              <span className="messages-shell-summary-chip">
+                {unreadCount} {showHelperInbox ? t('messages.stats.needsReply') : t('messages.stats.unread')}
+              </span>
+              {showHelperInbox ? (
+                <span className="messages-shell-summary-chip">
+                  {guestCount} {t('messages.stats.guestLeads')}
+                </span>
+              ) : null}
             </div>
-            <div>
-              <span>{unreadCount}</span>
-              <small>{showHelperInbox ? t('messages.stats.needsReply') : t('messages.stats.unread')}</small>
-            </div>
-            {showHelperInbox && (
-              <div>
-                <span>{guestCount}</span>
-                <small>{t('messages.stats.guestLeads')}</small>
-              </div>
-            )}
-          </div>
+          )}
         </header>
 
         <section className="messages-toolbar" aria-label={t('messages.toolsAriaLabel')}>
@@ -310,14 +313,21 @@ export default function MessagingWorkspace({ role = 'auto' }) {
               ))}
             </select>
           )}
-          <div className="messages-actions">
+          <div className="messages-actions shell-demoted">
             <button type="button" onClick={fetchConversations} disabled={loading}>
               <RefreshCw size={15} />
               {t('messages.refresh')}
             </button>
-            {showHelperInbox && <Link to="/dashboard/edit-profile">{t('messages.improveProfile')}</Link>}
-            <Link to="/helpers">{t('messages.findHelpers')}</Link>
-            <Link to="/post-job">{t('messages.postJob')}</Link>
+            <details className="messages-more-details">
+              <summary>{t('messages.shell.moreActions')}</summary>
+              <div className="messages-more-menu" role="menu">
+                {showHelperInbox && (
+                  <Link to="/dashboard/edit-profile" role="menuitem">{t('messages.improveProfile')}</Link>
+                )}
+                <Link to="/helpers" role="menuitem">{t('messages.findHelpers')}</Link>
+                <Link to="/post-job" role="menuitem">{t('messages.postJob')}</Link>
+              </div>
+            </details>
           </div>
         </section>
 
@@ -345,13 +355,15 @@ export default function MessagingWorkspace({ role = 'auto' }) {
                 </p>
               </div>
             ) : (
-              <section className="messages-panel" aria-label={t('messages.conversationListAriaLabel')}>
-                {filteredConversations.map((conv) => {
+              <ConversationList
+                items={filteredConversations}
+                selectedId={selectedId}
+                onSelect={handleOpen}
+                getUnread={(conv) => parseInt(conv.unread_count, 10) > 0 || newInbound.has(String(conv.id))}
+                renderItem={(conv, { isActive, unread }) => {
                   const isNew = newInbound.has(String(conv.id));
-                  const unread = parseInt(conv.unread_count, 10) > 0 || isNew;
                   const badge = isNew && !parseInt(conv.unread_count, 10) ? t('messages.newBadge') : conv.unread_count;
                   const isGuestRow = isGuestConversation(conv);
-                  const isActive = String(selectedId) === String(conv.id);
                   const side = conversationSide(userId, conv);
                   const helperSide = side === 'helper';
                   return (
@@ -359,7 +371,7 @@ export default function MessagingWorkspace({ role = 'auto' }) {
                       key={conv.id}
                       type="button"
                       onClick={() => handleOpen(conv)}
-                      className={`messages-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
+                      className={`messages-row sms-conversation-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
                       aria-current={isActive ? 'page' : undefined}
                     >
                       <div className={`messages-avatar${helperSide ? ' helper' : ''}`}>
@@ -393,8 +405,8 @@ export default function MessagingWorkspace({ role = 'auto' }) {
                       {unread && <span className="messages-unread">{badge}</span>}
                     </button>
                   );
-                })}
-              </section>
+                }}
+              />
             )}
           </div>
 

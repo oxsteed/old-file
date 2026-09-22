@@ -2461,6 +2461,15 @@
       "bookings": "Rezervasyon ki lye",
       "none": "Okenn",
       "loadFailed": "Pa t kapab chaje detay kontak."
+    },
+    "shell": {
+      "messageActionsAria": "Aksyon mesaj",
+      "aiAdvisorAria": "Kalkilatè finansye IA",
+      "summaryAria": "Rezime bwat resepsyon",
+      "moreActions": "Plis",
+      "listEmpty": "Poko gen konvèsasyon.",
+      "filteredEmpty": "Pa gen konvèsasyon ki matche ak rechèch ou.",
+      "selectDealHint": "Chwazi yon tranzaksyon kliyan sou gòch la pou louvri quote, POP, akò ak zouti orè."
     }
   },
   "dashboard": {

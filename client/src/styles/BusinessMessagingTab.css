@@ -1,5 +1,6 @@
 .bmt-messaging-container {
   display: flex;
+  flex-wrap: wrap;
   min-height: 560px;
   height: min(70vh, 720px);
   background: var(--app-bg);
@@ -443,4 +444,43 @@ html.dark .bmt-messaging-container {
   .bmt-message-view {
     height: 300px;
   }
+}
+
+
+.bmt-empty-hint {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted-text, #94a3b8);
+}
+
+.bmt-mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color, #1f2937);
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.bmt-thread-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+  background: var(--card-bg, #0f172a);
+}
+
+.bmt-empty-thread {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-text, #94a3b8);
+}
+
+.bmt-shared-list .messages-row {
+  border-radius: 8px;
 }

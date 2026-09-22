@@ -2376,6 +2376,15 @@
       "bookings": "Reservas vinculadas",
       "none": "Ninguno",
       "loadFailed": "No se pudieron cargar los datos de contacto."
+    },
+    "shell": {
+      "messageActionsAria": "Acciones del mensaje",
+      "aiAdvisorAria": "Calculadora financiera con IA",
+      "summaryAria": "Resumen de la bandeja",
+      "moreActions": "Más",
+      "listEmpty": "Aún no hay conversaciones.",
+      "filteredEmpty": "Ninguna conversación coincide con tu búsqueda.",
+      "selectDealHint": "Elige un trato de cliente a la izquierda para abrir cotizaciones, POP, acuerdos y herramientas de agenda."
     }
   },
   "dashboard": {

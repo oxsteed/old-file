@@ -2376,6 +2376,15 @@
       "bookings": "Réservations liées",
       "none": "Aucun",
       "loadFailed": "Impossible de charger les coordonnées."
+    },
+    "shell": {
+      "messageActionsAria": "Actions du message",
+      "aiAdvisorAria": "Calculateur financier IA",
+      "summaryAria": "Résumé de la boîte de réception",
+      "moreActions": "Plus",
+      "listEmpty": "Aucune conversation pour le moment.",
+      "filteredEmpty": "Aucune conversation ne correspond à votre recherche.",
+      "selectDealHint": "Choisissez une affaire client à gauche pour ouvrir devis, POP, accords et planification."
     }
   },
   "dashboard": {

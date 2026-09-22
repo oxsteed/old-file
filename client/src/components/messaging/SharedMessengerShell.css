@@ -1,0 +1,359 @@
+/* Shared Messenger Shell — thread/list/toolbar styles that must load on every host
+   (global /messages AND Business Hub Deals). Fixes smashed CopyEditDelete when
+   MessagesPage.css is not imported by the parent. */
+
+.sms-conversation-list,
+.messages-panel.sms-conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.sms-conversation-row.messages-row,
+.messages-row.sms-conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: start;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sms-conversation-row.messages-row:hover,
+.sms-conversation-row.messages-row.active {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.sms-conversation-row.messages-row.unread strong {
+  color: #fff;
+}
+
+.sms-list-loading,
+.sms-list-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #9da8bb;
+}
+
+/* Thread chrome (safe to redeclare; hosts may also load MessagesPage.css) */
+.messages-thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: rgba(2, 6, 23, 0.35);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.messages-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.messages-thread-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.messages-thread-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  text-decoration: none;
+}
+
+.messages-thread-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.messages-thread-actions button,
+.messages-thread-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.28);
+  color: #9da8bb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.messages-thread-actions button.on,
+.messages-thread-actions button:hover,
+.messages-thread-action-icon.on,
+.messages-thread-action-icon:hover {
+  color: #dbeafe;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.messages-thread-action-icon span.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Single provider tools row — never duplicate in header */
+.provider-messenger-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.provider-messenger-toolbar .messages-quote-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgb(55 65 81);
+  background: rgb(30 41 59);
+  color: rgb(226 232 240);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.provider-messenger-toolbar .messages-quote-share-btn:hover {
+  border-color: rgba(249, 115, 22, 0.45);
+  color: #fff;
+}
+
+/* Bubble actions: spaced controls + resilient separators */
+.messages-bubble-actions {
+  display: inline-flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem !important;
+  margin-inline-start: 0.25rem;
+}
+
+.messages-bubble-action-btn {
+  background: none;
+  border: 0;
+  color: #8390a5;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.45rem;
+  min-height: 28px;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
+.messages-bubble-action-btn:hover,
+.messages-bubble-action-btn:focus-visible {
+  color: #fff;
+  background: rgba(148, 163, 184, 0.12);
+  outline: none;
+}
+
+.messages-bubble-action-sep {
+  color: #64748b;
+  user-select: none;
+  pointer-events: none;
+  font-size: 0.7rem;
+  padding: 0 0.1rem;
+}
+
+.messages-bubble-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  color: #718099;
+  font-size: 0.72rem;
+}
+
+.messages-thread-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  min-height: 180px;
+}
+
+.messages-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: min(100%, 32rem);
+}
+
+.messages-bubble-wrap.mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.messages-bubble-wrap.theirs {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.messages-bubble {
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.messages-bubble.mine {
+  background: #2563eb;
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+
+.messages-bubble.theirs {
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  border-bottom-left-radius: 6px;
+}
+
+/* Compact page chrome helpers for MessagingWorkspace */
+.messages-hero.shell-compact {
+  padding: 12px 16px;
+  gap: 10px;
+}
+
+.messages-hero.shell-compact h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.messages-shell-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.messages-shell-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.messages-actions.shell-demoted {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.messages-actions.shell-demoted .messages-more-details {
+  position: relative;
+}
+
+.messages-actions.shell-demoted .messages-more-details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  color: #9da8bb;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.messages-actions.shell-demoted .messages-more-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.messages-actions.shell-demoted .messages-more-menu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #0f172a;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.messages-actions.shell-demoted .messages-more-menu a {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.messages-actions.shell-demoted .messages-more-menu a:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+/* Business Hub embed: give thread pane room */
+.bmt-thread-pane .messages-thread {
+  min-height: 480px;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+
+.bmt-thread-pane .messages-thread-head {
+  padding-inline: 12px;
+}
+
+.bmt-deals-list .sms-conversation-list {
+  padding: 4px;
+}
+
+@media (max-width: 980px) {
+  .provider-messenger-toolbar .hide-sm,
+  .messages-thread-actions .hide-sm {
+    display: none;
+  }
+}
