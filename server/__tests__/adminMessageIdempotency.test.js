@@ -118,6 +118,27 @@ describe('admin messaging idempotency', () => {
     expect(mockQuery.mock.calls.filter(([sql]) => /client_message_id/.test(sql))).toHaveLength(3);
   });
 
+  test('recovers a conversation created concurrently before sending the first message', async () => {
+    const body = { content: 'Please review your support request.', clientMessageId: REQUEST_ID };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, first_name: 'User', last_name: 'One', email: 'user@example.com', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // no conversation before the race
+      .mockResolvedValueOnce({ rows: [] }) // another request won the insert
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-raced' }] }) // raced conversation lookup
+      .mockResolvedValueOnce({ rows: [MESSAGE] }) // message insert
+      .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = responseDouble();
+    await adminMessageController.send(requestDouble(body), res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ conversation_id: 'conversation-raced' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /ON CONFLICT DO NOTHING/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /FROM conversations/.test(sql))).toHaveLength(2);
+  });
+
   test('rejects malformed request identifiers before touching the database', async () => {
     const res = responseDouble();
     await adminMessageController.send(requestDouble({ content: 'Hello', clientMessageId: 'not-a-uuid' }), res);
@@ -148,6 +169,27 @@ describe('super-admin messaging idempotency', () => {
     expect(socketService.broadcastToUser).toHaveBeenCalledTimes(1);
     expect(logAdminAction).toHaveBeenCalledTimes(1);
     expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE conversations SET last_message_at/.test(sql))).toHaveLength(1);
+  });
+
+  test('recovers a super-admin conversation created concurrently before sending', async () => {
+    const body = { content: 'A status update from support.', headerKey: REQUEST_ID };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, first_name: 'User', last_name: 'One', email: 'user@example.com', role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // no conversation before the race
+      .mockResolvedValueOnce({ rows: [] }) // another request won the insert
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-raced' }] }) // raced conversation lookup
+      .mockResolvedValueOnce({ rows: [MESSAGE] }) // message insert
+      .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = responseDouble();
+    await superAdminController.sendAdminMessage(requestDouble(body), res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ conversation_id: 'conversation-raced' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /ON CONFLICT DO NOTHING/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /FROM conversations/.test(sql))).toHaveLength(2);
   });
 });
 

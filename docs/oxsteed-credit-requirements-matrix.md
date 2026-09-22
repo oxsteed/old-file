@@ -1059,6 +1059,19 @@ Exact live publication remains blocked by unavailable GitHub credentials; the
 next engineering action is to audit the remaining inbound support adapters and
 webhook/notification side effects for replay and failure recovery.
 
+Admin messaging first-thread race checkpoint (2026-09-22 UTC): the regular
+admin and Super Admin message send controllers now use conflict-safe first
+conversation inserts and refetch the concurrent winner before inserting the
+message. This closes the missing-row race that row locks alone cannot protect
+on a first send, while preserving the existing scoped conversation uniqueness
+and message idempotency contracts. The focused admin-idempotency, support-route,
+and communication-edge suite passed `90/90`; the full server regression passed
+`196/196` suites and `1,357/1,357` tests. This package is server-only, so the
+last client CI build remains valid from the preceding communication package.
+Exact live publication remains blocked by unavailable GitHub credentials; the
+next engineering action is to audit the remaining guest-claim and inbound
+support adapters for first-write and duplicate-notification recovery.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

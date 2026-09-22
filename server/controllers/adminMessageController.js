@@ -227,11 +227,24 @@ exports.send = async (req, res) => {
       } else {
         const { rows: newConv } = await client.query(
           `INSERT INTO conversations (customer_id, helper_id, job_id, status)
-           VALUES ($1, $2, NULL, 'active') RETURNING id`,
+           VALUES ($1, $2, NULL, 'active')
+           ON CONFLICT DO NOTHING
+           RETURNING id`,
           [adminId, userId]
         );
-        conversationId = newConv[0].id;
+        conversationId = newConv[0]?.id;
+        if (!conversationId) {
+          const { rows: raced } = await client.query(
+            `SELECT id FROM conversations
+             WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+             LIMIT 1 FOR UPDATE`,
+            [adminId, userId]
+          );
+          conversationId = raced[0]?.id;
+        }
       }
+
+      if (!conversationId) throw new Error('Failed to resolve admin conversation');
 
       const { rows: inserted } = await client.query(
         `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)

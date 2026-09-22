@@ -2699,10 +2699,22 @@ exports.sendAdminMessage = async (req, res) => {
         const { rows: newConv } = await client.query(`
           INSERT INTO conversations (customer_id, helper_id, job_id, status)
           VALUES ($1, $2, NULL, 'active')
+          ON CONFLICT DO NOTHING
           RETURNING id
         `, [adminId, targetId]);
-        conversationId = newConv[0].id;
+        conversationId = newConv[0]?.id;
+        if (!conversationId) {
+          const { rows: raced } = await client.query(`
+            SELECT id FROM conversations
+            WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+            LIMIT 1
+            FOR UPDATE
+          `, [adminId, targetId]);
+          conversationId = raced[0]?.id;
+        }
       }
+
+      if (!conversationId) throw new Error('Failed to resolve admin conversation');
 
       // Insert the message
       const result = await client.query(`
