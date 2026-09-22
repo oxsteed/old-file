@@ -1072,6 +1072,20 @@ Exact live publication remains blocked by unavailable GitHub credentials; the
 next engineering action is to audit the remaining guest-claim and inbound
 support adapters for first-write and duplicate-notification recovery.
 
+Guest claim conversation-race checkpoint (2026-09-22 UTC): authenticated guest
+inquiry claiming now uses a conflict-safe conversation insert and refetches the
+unique conversation winner when separate guest sessions for the same
+customer/helper pair converge concurrently. The existing session row lock still
+prevents the same inquiry from being claimed twice, while distinct inquiries
+can safely append to the shared thread. The focused profile-chat,
+communication-edge, and Business-Hub bridge suite passed `14/14`; the full
+server regression passed `196/196` suites and `1,358/1,358` tests. This package
+is server-only, so the last client CI build remains valid from the preceding
+communication package. Exact live publication remains blocked by unavailable
+GitHub credentials; the next engineering action is to audit message delivery
+fan-out and notification side effects after idempotent replays and downstream
+failures.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

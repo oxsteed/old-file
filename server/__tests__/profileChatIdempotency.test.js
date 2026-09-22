@@ -20,11 +20,12 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = { id: 'customer-1' };
+    req.user = { id: 'customer-1', email: 'customer@example.com' };
     next();
   });
   app.post('/api/chat/profile-message', chatController.profileChatMessage);
   app.post('/api/chat/sessions/guest', chatController.guestProfileChatSession);
+  app.post('/api/chat/sessions/guest/claim', chatController.claimGuestProfileChatSessions);
   app.use((error, _req, res, _next) => {
     res.status(error.status || 500).json({ error: error.message, code: error.code });
   });
@@ -39,6 +40,37 @@ beforeEach(() => {
 });
 
 describe('profile chat delivery', () => {
+  test('recovers a shared conversation when two guest claims converge concurrently', async () => {
+    const session = {
+      id: 'guest-session-1',
+      helper_id: 'helper-1',
+      business_id: null,
+      guest_name: 'Guest One',
+      guest_email: 'customer@example.com',
+      message: 'Can you help?',
+      created_at: '2026-09-22T12:00:00.000Z',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Customer', last_name: 'One', email: session.guest_email }] })
+      .mockResolvedValueOnce({ rows: [session] })
+      .mockResolvedValueOnce({ rows: [] }) // no conversation before the race
+      .mockResolvedValueOnce({ rows: [] }) // another claim inserted it first
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-shared' }] })
+      .mockResolvedValueOnce({ rows: [{ sender_type: 'guest', sender_name: session.guest_name, message: session.message, created_at: session.created_at }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }] })
+      .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+      .mockResolvedValueOnce({ rows: [] }); // mark inquiry claimed
+
+    const res = await request(buildApp()).post('/api/chat/sessions/guest/claim');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({ count: 1 }));
+    expect(res.body.claimed[0]).toEqual(expect.objectContaining({ conversationId: 'conversation-shared' }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversations/.test(sql) && /ON CONFLICT DO NOTHING/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /FROM conversations/.test(sql) && /FOR UPDATE/.test(sql))).toBe(true);
+  });
+
   test('replays a guest messenger booking before creating another appointment or mirror message', async () => {
     const requestId = '33333333-3333-4333-8333-333333333333';
     const booking = {

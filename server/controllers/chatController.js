@@ -1402,11 +1402,30 @@ exports.claimGuestProfileChatSessions = async (req, res, next) => {
           const { rows: insertedConversations } = await client.query(
             `INSERT INTO conversations (customer_id, helper_id, job_id, business_id, last_message_at)
              VALUES ($1, $2, NULL, $3, NOW())
+             ON CONFLICT DO NOTHING
              RETURNING id`,
             [userId, session.helper_id, session.business_id || null]
           );
-          conversationId = insertedConversations[0].id;
+          conversationId = insertedConversations[0]?.id;
+          if (!conversationId) {
+            const { rows: concurrentConversations } = await client.query(
+              `SELECT id
+                 FROM conversations
+                WHERE customer_id = $1
+                  AND helper_id = $2
+                  AND job_id IS NULL
+                  AND (
+                    (business_id = $3)
+                    OR (business_id IS NULL AND $3 IS NULL)
+                  )
+                LIMIT 1
+                FOR UPDATE`,
+              [userId, session.helper_id, session.business_id || null]
+            );
+            conversationId = concurrentConversations[0]?.id;
+          }
         }
+        if (!conversationId) throw new AppError('Failed to resolve claimed conversation', 500, 'processing_error');
 
         const { rows: guestMessages } = await client.query(
           `SELECT sender_type, sender_name, message, created_at
