@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
 function parsePositiveInt(value) {
@@ -79,8 +80,8 @@ exports.getPublicKioskConfig = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-    const { rows: restaurants } = await pool.query(
-      `SELECT fr.id
+    const visibilitySql = `
+      SELECT fr.id
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
@@ -90,9 +91,34 @@ exports.getPublicKioskConfig = async (req, res, next) => {
           AND b.is_listed = TRUE
           AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
-          AND b.deleted_at IS NULL`,
-      [restaurantId]
-    );
+          AND b.deleted_at IS NULL`;
+    const baselineSql = `
+      SELECT fr.id
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused')
+          AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
+          AND b.deleted_at IS NULL`;
+    let restaurants;
+    try {
+      ({ rows: restaurants } = await pool.query(visibilitySql, [restaurantId]));
+    } catch (queryErr) {
+      const missingCol = queryErr && (
+        queryErr.code === '42703'
+        || /column .* does not exist/i.test(String(queryErr.message || ''))
+      );
+      if (!missingCol) throw queryErr;
+      logger.warn('getPublicKioskConfig: discovery_status missing; using baseline visibility', {
+        restaurantId,
+        err: queryErr.message,
+        code: queryErr.code,
+      });
+      ({ rows: restaurants } = await pool.query(baselineSql, [restaurantId]));
+    }
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     res.json({ kioskConfig: await loadKioskConfig(restaurantId) });
   } catch (err) {

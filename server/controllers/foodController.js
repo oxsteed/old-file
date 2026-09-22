@@ -3960,12 +3960,34 @@ exports.updateRestaurant = async (req, res, next) => {
 
     params.push(restaurantId);
     const restaurant = await withTransaction(pool, async (client) => {
-      const { rows: [updated] } = await client.query(
-        `UPDATE food_restaurants SET ${sets.join(', ')}, updated_at = NOW()
-          WHERE id = $${params.length}
-          RETURNING *`,
-        params
-      );
+      let updated;
+      try {
+        ({ rows: [updated] } = await client.query(
+          `UPDATE food_restaurants SET ${sets.join(', ')}, updated_at = NOW()
+            WHERE id = $${params.length}
+            RETURNING *`,
+          params
+        ));
+      } catch (updateErr) {
+        const missingCol = updateErr && (
+          updateErr.code === '42703'
+          || /column .* does not exist/i.test(String(updateErr.message || ''))
+        );
+        const discoverySet = sets.some((s) => s.startsWith('discovery_status'));
+        if (!missingCol || !discoverySet) throw updateErr;
+        logger.warn('updateRestaurant: discovery_status missing; retrying without it', {
+          restaurantId,
+          err: updateErr.message,
+          code: updateErr.code,
+        });
+        const fallbackSets = sets.filter((s) => !s.startsWith('discovery_status'));
+        ({ rows: [updated] } = await client.query(
+          `UPDATE food_restaurants SET ${fallbackSets.join(', ')}, updated_at = NOW()
+            WHERE id = $${params.length}
+            RETURNING *`,
+          params
+        ));
+      }
 
       if (status === 'active') {
         const { rows: [readiness] } = await client.query(

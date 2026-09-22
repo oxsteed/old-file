@@ -661,12 +661,33 @@ async function completeBusinessOnboarding(req, res, next) {
         [access.id]
       );
       if (published.business_kind === 'restaurant') {
-        await client.query(
-          `UPDATE food_restaurants
-              SET status = 'active', discovery_status = 'visible', updated_at = NOW()
-            WHERE business_id = $1`,
-          [access.id]
-        );
+        try {
+          await client.query(
+            `UPDATE food_restaurants
+                SET status = 'active', discovery_status = 'visible', updated_at = NOW()
+              WHERE business_id = $1`,
+            [access.id]
+          );
+        } catch (frErr) {
+          // discovery_status arrives in migration 351; publish must still succeed
+          // on lagged DBs so workspace linking remains usable.
+          const missingCol = frErr && (
+            frErr.code === '42703'
+            || /column .* does not exist/i.test(String(frErr.message || ''))
+          );
+          if (!missingCol) throw frErr;
+          logger.warn('completeBusinessOnboarding: discovery_status missing; activating restaurant without it', {
+            businessId: access.id,
+            err: frErr.message,
+            code: frErr.code,
+          });
+          await client.query(
+            `UPDATE food_restaurants
+                SET status = 'active', updated_at = NOW()
+              WHERE business_id = $1`,
+            [access.id]
+          );
+        }
       } else {
         await client.query(
           `UPDATE business_service_profiles
