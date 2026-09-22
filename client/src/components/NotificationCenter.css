@@ -118,7 +118,7 @@ html:not(.dark) .notification-center {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
 }
-html:not(.dark) .notification-header h3 { color: #111827; }
+html:not(.dark) .notification-header h3 { color: var(--color-text, #111827); }
 html:not(.dark) .notification-item {
   background: #ffffff;
   border-color: #e5e7eb;
@@ -131,10 +131,10 @@ html:not(.dark) .notification-item.unread {
   background: #eff6ff;
   border-color: rgba(108, 99, 255, 0.25);
 }
-html:not(.dark) .notification-message { color: #374151; }
+html:not(.dark) .notification-message { color: var(--color-text, #374151); }
 html:not(.dark) .notification-item.unread .notification-message {
-  color: #111827;
+  color: var(--color-text, #111827);
 }
-html:not(.dark) .notification-time { color: #9ca3af; }
-html:not(.dark) .no-notifications { color: #6b7280; }
-html:not(.dark) .notification-center-loading { color: #6b7280; }
+html:not(.dark) .notification-time,
+html:not(.dark) .notification-center-loading { color: var(--color-text-muted, #475569); }
+html:not(.dark) .no-notifications { color: var(--color-text-muted, #475569); }

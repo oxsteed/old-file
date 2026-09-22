@@ -1279,3 +1279,177 @@
   border-color: rgba(148, 163, 184, 0.18);
   background: rgba(15, 23, 42, 0.55);
 }
+
+/* Keep the profile chat dock readable when the surrounding page is light. */
+html:not(.dark) .messenger-launcher {
+  border-color: var(--color-border-strong);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md), 0 0 0 1px rgb(249 115 22 / 0.12);
+}
+
+html:not(.dark) .messenger-launcher__kicker,
+html:not(.dark) .messenger-dock__subtitle,
+html:not(.dark) .messenger-dock__disclaimer,
+html:not(.dark) .messenger-invite-card__body,
+html:not(.dark) .messenger-guest-gate__body,
+html:not(.dark) .messenger-guest-gate__label {
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-dock {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+html:not(.dark) .messenger-dock__header,
+html:not(.dark) .messenger-dock__footer {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+
+html:not(.dark) .messenger-dock__handle-bar {
+  background: var(--color-border-strong);
+}
+
+html:not(.dark) .messenger-dock__close {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-dock__close:hover,
+html:not(.dark) .messenger-guest-gate__secondary:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-invite-card,
+html:not(.dark) .messenger-guest-gate {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+
+html:not(.dark) .messenger-invite-card__title,
+html:not(.dark) .messenger-guest-gate__title {
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-guest-gate__input,
+html:not(.dark) .messenger-availability__slot,
+html:not(.dark) .messenger-availability__service,
+html:not(.dark) .messenger-quote-card__reason textarea,
+html:not(.dark) .quote-share-panel__form input,
+html:not(.dark) .messenger-booking-card__reason textarea {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-guest-gate__secondary,
+html:not(.dark) .messenger-availability__date,
+html:not(.dark) .messenger-availability-toggle,
+html:not(.dark) .messages-quote-share-btn,
+html:not(.dark) .messenger-booking-card__btn,
+html:not(.dark) .messenger-quote-card__btn--secondary {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-availability,
+html:not(.dark) .messenger-quote-card,
+html:not(.dark) .messenger-booking-card,
+html:not(.dark) .quote-share-panel {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+html:not(.dark) .messenger-availability__title,
+html:not(.dark) .messenger-quote-card__title,
+html:not(.dark) .messenger-booking-card__title,
+html:not(.dark) .messenger-quote-card__total strong,
+html:not(.dark) .messenger-booking-card__when {
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-availability__hint,
+html:not(.dark) .messenger-availability__status,
+html:not(.dark) .messenger-quote-card__lines li,
+html:not(.dark) .messenger-quote-card__valid,
+html:not(.dark) .messenger-booking-card__note,
+html:not(.dark) .messenger-booking-card__hint,
+html:not(.dark) .quote-share-panel__muted,
+html:not(.dark) .quote-share-panel__form label,
+html:not(.dark) .quote-share-panel__pick-main small {
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-availability__date.is-active,
+html:not(.dark) .messenger-availability__date[aria-selected="true"],
+html:not(.dark) .messenger-availability__service.is-active,
+html:not(.dark) .messenger-availability__service[aria-selected="true"],
+html:not(.dark) .quote-share-panel__tabs button.is-active {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+html:not(.dark) .messenger-quote-card__badge,
+html:not(.dark) .messenger-booking-card__badge {
+  background: var(--color-surface-3);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-quote-card__total,
+html:not(.dark) .quote-share-panel__head,
+html:not(.dark) .quote-share-panel__foot {
+  border-color: var(--color-border);
+}
+
+html:not(.dark) .messenger-quote-card__btn--ghost,
+html:not(.dark) .quote-share-panel__cancel,
+html:not(.dark) .quote-share-panel__close {
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-dock .chat-panel--dock .messages-thread-action-icon,
+html:not(.dark) .messenger-dock .chat-panel--dock .relative > button.w-full,
+html:not(.dark) .messenger-dock .chat-panel--dock .provider-messenger-toolbar {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-dock .chat-panel--dock .messages-thread-action-icon:hover,
+html:not(.dark) .messenger-dock .chat-panel--dock .messages-thread-action-icon[aria-pressed='true'] {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-artifact-card,
+html:not(.dark) .messenger-share-panel {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messenger-artifact-card .artifact-card-head,
+html:not(.dark) .messenger-artifact-card .artifact-meta,
+html:not(.dark) .messenger-share-panel-body label {
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messenger-artifact-card .artifact-terms,
+html:not(.dark) .messenger-share-panel-body input,
+html:not(.dark) .messenger-share-panel-body textarea,
+html:not(.dark) .artifact-input {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
