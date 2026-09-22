@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, ScrollText, Send, X } from 'lucide-react';
 import api from '../../../api/axios';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import './MessengerDock.css';
 
 export default function AgreementSharePanel({
@@ -19,6 +20,7 @@ export default function AgreementSharePanel({
   const [file, setFile] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState(null);
+  const pendingRequestIdRef = useRef(null);
 
   if (!open) return null;
 
@@ -30,6 +32,8 @@ export default function AgreementSharePanel({
     setSharing(true);
     setError(null);
     try {
+      const clientRequestId = pendingRequestIdRef.current || createMessageRequestId();
+      pendingRequestIdRef.current = clientRequestId;
       const fd = new FormData();
       if (conversationId) fd.append('conversationId', conversationId);
       if (guestSessionId) fd.append('guestSessionId', guestSessionId);
@@ -38,8 +42,11 @@ export default function AgreementSharePanel({
       if (body.trim()) fd.append('body_text', body.trim());
       fd.append('required_before_schedule', requiredBeforeSchedule ? 'true' : 'false');
       if (file) fd.append('file', file);
-      const { data } = await api.post('/chat/agreements/share', fd);
+      const { data } = await api.post('/chat/agreements/share', fd, {
+        headers: { 'Idempotency-Key': clientRequestId },
+      });
       onShared?.(data);
+      pendingRequestIdRef.current = null;
       onClose?.();
     } catch (err) {
       setError(err?.response?.data?.error || t('messages.agreementShare.failed'));

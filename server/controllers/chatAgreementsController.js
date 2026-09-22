@@ -35,17 +35,43 @@ function hashIp(ip) {
   return crypto.createHash('sha256').update(String(ip)).digest('hex').slice(0, 64);
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName }) {
+function getClientRequestId(req) {
+  const value = req.get?.('Idempotency-Key')
+    || req.body?.clientRequestId
+    || req.body?.client_request_id
+    || null;
+  if (!value) return null;
+  const id = String(value).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : false;
+}
+
+async function postConversationMessage({ conversationId, senderId, content, senderName, clientMessageId }) {
   const { rows } = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-     VALUES ($1, $2, $3, 'text') RETURNING *`,
-    [conversationId, senderId, content],
+    `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+     VALUES ($1, $2, $3, 'text', $4)
+     ON CONFLICT (conversation_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [conversationId, senderId, content, clientMessageId || null],
   );
+  let messageRow = rows[0];
+  const replayed = !messageRow && Boolean(clientMessageId);
+  if (!messageRow && clientMessageId) {
+    const replay = await pool.query(
+      'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+      [conversationId, clientMessageId],
+    );
+    messageRow = replay.rows[0];
+  }
+  if (!messageRow) throw new Error('Failed to create agreement chat message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   await pool.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
   );
-  const message = { ...rows[0], sender_name: senderName };
+  const message = { ...messageRow, sender_name: senderName };
   socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
   socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
     conversationId,
@@ -55,15 +81,28 @@ async function postConversationMessage({ conversationId, senderId, content, send
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderName, content, helperId, senderType = 'helper' }) {
+async function postGuestMessage({ guestSessionId, senderName, content, helperId, senderType = 'helper', clientMessageId }) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
-       (session_id, sender_type, sender_name, message, created_at)
-     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       (session_id, sender_type, sender_name, message, client_message_id, created_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+     ON CONFLICT (session_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderType, senderName, content],
+    [guestSessionId, senderType, senderName, content, clientMessageId || null],
   );
-  const msg = rows[0];
+  let msg = rows[0];
+  if (!msg && clientMessageId) {
+    const replay = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1 AND client_message_id = $2`,
+      [guestSessionId, clientMessageId],
+    );
+    msg = replay.rows[0];
+  }
+  if (!msg) throw new Error('Failed to create agreement guest message');
+  if (rows.length === 0) return msg;
   const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
   try {
     socketService.io?.to?.(`guest_session_${guestSessionId}`)?.emit?.('profile_chat:new_message', {
@@ -169,13 +208,14 @@ async function assertCanViewAgreement(req, row) {
   return { ok: false };
 }
 
-async function postAgreementMessage(ctx, content, senderName, userId) {
+async function postAgreementMessage(ctx, content, senderName, userId, clientMessageId) {
   if (ctx.conversationId) {
     return postConversationMessage({
       conversationId: ctx.conversationId,
       senderId: userId,
       content,
       senderName,
+      clientMessageId,
     });
   }
   if (ctx.guestSessionId) {
@@ -185,6 +225,7 @@ async function postAgreementMessage(ctx, content, senderName, userId) {
       content,
       helperId: ctx.helperId,
       senderType: 'helper',
+      clientMessageId,
     });
   }
   return null;
@@ -198,6 +239,10 @@ exports.shareAgreement = async (req, res, next) => {
     const conversationId = req.body.conversationId || req.body.conversation_id || null;
     const guestSessionId = req.body.guestSessionId || req.body.guest_session_id || null;
     const businessId = req.body.businessId || req.body.business_id || null;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
 
     const access = await assertProviderCanShare(userId, {
       conversationId,
@@ -214,11 +259,22 @@ exports.shareAgreement = async (req, res, next) => {
     });
     if (normalized.error) return bad(res, 400, normalized.error, 'validation_failed');
 
-    let attachmentKey = req.body.attachment_key || req.body.attachmentKey || null;
+    let agreement = null;
+    let replayed = false;
+    if (clientRequestId) {
+      const existing = await pool.query(
+        'SELECT * FROM chat_agreements WHERE shared_by = $1 AND client_request_id = $2',
+        [userId, clientRequestId],
+      );
+      agreement = existing.rows[0] || null;
+      replayed = Boolean(agreement);
+    }
+
+    let attachmentKey = agreement?.attachment_key || req.body.attachment_key || req.body.attachmentKey || null;
     let attachmentName = req.body.attachment_name || req.body.attachmentName || null;
     let attachmentMime = req.body.attachment_mime || req.body.attachmentMime || null;
     let attachmentSize = req.body.attachment_size || req.body.attachmentSize || null;
-    if (req.file) {
+    if (req.file && !agreement) {
       if (!ALLOWED_AGREEMENT_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for agreements', 'invalid_file_type');
       }
@@ -230,32 +286,47 @@ exports.shareAgreement = async (req, res, next) => {
       attachmentSize = req.file.size;
     }
 
-    const token = newAgreementToken();
     const senderName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Provider';
-    const { rows } = await pool.query(
-      `INSERT INTO chat_agreements (
-         conversation_id, guest_session_id, business_id, helper_id,
-         title, body_text, version, token, status, required_before_schedule,
-         attachment_key, attachment_name, attachment_mime, attachment_size, shared_by
-       ) VALUES ($1,$2,$3,$4,$5,$6,1,$7,'shared',$8,$9,$10,$11,$12,$13)
-       RETURNING *`,
-      [
-        access.conversationId || null,
-        access.guestSessionId || null,
-        access.businessId || null,
-        access.helperId || userId,
-        normalized.title,
-        normalized.bodyText,
-        token,
-        normalized.requiredBeforeSchedule,
-        attachmentKey,
-        attachmentName,
-        attachmentMime,
-        attachmentSize,
-        userId,
-      ],
-    );
-    const agreement = rows[0];
+    if (!agreement) {
+      const token = newAgreementToken();
+      const { rows } = await pool.query(
+        `INSERT INTO chat_agreements (
+           conversation_id, guest_session_id, business_id, helper_id,
+           title, body_text, version, token, status, required_before_schedule,
+           attachment_key, attachment_name, attachment_mime, attachment_size, shared_by,
+           client_request_id
+         ) VALUES ($1,$2,$3,$4,$5,$6,1,$7,'shared',$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (shared_by, client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [
+          access.conversationId || null,
+          access.guestSessionId || null,
+          access.businessId || null,
+          access.helperId || userId,
+          normalized.title,
+          normalized.bodyText,
+          token,
+          normalized.requiredBeforeSchedule,
+          attachmentKey,
+          attachmentName,
+          attachmentMime,
+          attachmentSize,
+          userId,
+          clientRequestId,
+        ],
+      );
+      agreement = rows[0] || null;
+      if (!agreement && clientRequestId) {
+        const replay = await pool.query(
+          'SELECT * FROM chat_agreements WHERE shared_by = $1 AND client_request_id = $2',
+          [userId, clientRequestId],
+        );
+        agreement = replay.rows[0] || null;
+        replayed = true;
+      }
+    }
+    if (!agreement) throw new Error('Failed to create agreement');
     const marker = buildAgreementMarker({
       id: agreement.id,
       token: agreement.token,
@@ -268,7 +339,14 @@ exports.shareAgreement = async (req, res, next) => {
       title: agreement.title,
       preface: req.body.preface,
     });
-    const message = await postAgreementMessage(access, content, senderName, userId);
+    const messageContext = replayed
+      ? {
+        conversationId: agreement.conversation_id,
+        guestSessionId: agreement.guest_session_id,
+        helperId: agreement.helper_id,
+      }
+      : access;
+    const message = await postAgreementMessage(messageContext, content, senderName, userId, clientRequestId);
     if (message) {
       await pool.query('UPDATE chat_agreements SET message_id = $1, updated_at = NOW() WHERE id = $2', [
         String(message.id),
@@ -277,10 +355,11 @@ exports.shareAgreement = async (req, res, next) => {
     }
 
     logger.info('[chatAgreements] shared', { agreement: redactAgreementForLog(agreement) });
-    return res.status(201).json({
+    return res.status(replayed ? 200 : 201).json({
       agreement: toPublicAgreementCard(agreement),
       message,
       marker,
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);

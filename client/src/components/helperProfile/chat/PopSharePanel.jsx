@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Receipt, Send, X } from 'lucide-react';
 import api from '../../../api/axios';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import './MessengerDock.css';
 
 export default function PopSharePanel({
@@ -24,6 +25,7 @@ export default function PopSharePanel({
   const [file, setFile] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState(null);
+  const pendingRequestIdRef = useRef(null);
 
   if (!open) return null;
 
@@ -31,6 +33,8 @@ export default function PopSharePanel({
     setSharing(true);
     setError(null);
     try {
+      const clientRequestId = pendingRequestIdRef.current || createMessageRequestId();
+      pendingRequestIdRef.current = clientRequestId;
       const fd = new FormData();
       if (conversationId) fd.append('conversationId', conversationId);
       if (guestSessionId) fd.append('guestSessionId', guestSessionId);
@@ -44,9 +48,13 @@ export default function PopSharePanel({
       if (quoteId) fd.append('quote_id', quoteId);
       if (file) fd.append('file', file);
       const { data } = await api.post('/chat/pop/share', fd, {
-        headers: guestAuthHeaders || undefined,
+        headers: {
+          ...(guestAuthHeaders || {}),
+          'Idempotency-Key': clientRequestId,
+        },
       });
       onShared?.(data);
+      pendingRequestIdRef.current = null;
       onClose?.();
     } catch (err) {
       setError(err?.response?.data?.error || t('messages.popShare.failed'));

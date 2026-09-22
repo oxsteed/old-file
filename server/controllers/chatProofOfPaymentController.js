@@ -25,17 +25,43 @@ function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName }) {
+function getClientRequestId(req) {
+  const value = req.get?.('Idempotency-Key')
+    || req.body?.clientRequestId
+    || req.body?.client_request_id
+    || null;
+  if (!value) return null;
+  const id = String(value).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : false;
+}
+
+async function postConversationMessage({ conversationId, senderId, content, senderName, clientMessageId }) {
   const { rows } = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-     VALUES ($1, $2, $3, 'text') RETURNING *`,
-    [conversationId, senderId, content],
+    `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+     VALUES ($1, $2, $3, 'text', $4)
+     ON CONFLICT (conversation_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [conversationId, senderId, content, clientMessageId || null],
   );
+  let messageRow = rows[0];
+  const replayed = !messageRow && Boolean(clientMessageId);
+  if (!messageRow && clientMessageId) {
+    const replay = await pool.query(
+      'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+      [conversationId, clientMessageId],
+    );
+    messageRow = replay.rows[0];
+  }
+  if (!messageRow) throw new Error('Failed to create proof-of-payment chat message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   await pool.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
   );
-  const message = { ...rows[0], sender_name: senderName };
+  const message = { ...messageRow, sender_name: senderName };
   socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
   socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
     conversationId,
@@ -45,15 +71,28 @@ async function postConversationMessage({ conversationId, senderId, content, send
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderName, content, helperId, senderType = 'helper' }) {
+async function postGuestMessage({ guestSessionId, senderName, content, helperId, senderType = 'helper', clientMessageId }) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
-       (session_id, sender_type, sender_name, message, created_at)
-     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       (session_id, sender_type, sender_name, message, client_message_id, created_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+     ON CONFLICT (session_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderType, senderName, content],
+    [guestSessionId, senderType, senderName, content, clientMessageId || null],
   );
-  const msg = rows[0];
+  let msg = rows[0];
+  if (!msg && clientMessageId) {
+    const replay = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1 AND client_message_id = $2`,
+      [guestSessionId, clientMessageId],
+    );
+    msg = replay.rows[0];
+  }
+  if (!msg) throw new Error('Failed to create proof-of-payment guest message');
+  if (rows.length === 0) return msg;
   const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
   try {
     socketService.io?.to?.(`guest_session_${guestSessionId}`)?.emit?.('profile_chat:new_message', {
@@ -128,6 +167,10 @@ exports.sharePop = async (req, res, next) => {
 
     const conversationId = req.body.conversationId || req.body.conversation_id || null;
     const guestSessionId = req.body.guestSessionId || req.body.guest_session_id || null;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
     if (!conversationId && !guestSessionId) {
       return bad(res, 400, 'conversationId or guestSessionId required', 'validation_failed');
     }
@@ -165,12 +208,29 @@ exports.sharePop = async (req, res, next) => {
       }
     }
 
+    let pop = null;
+    let replayed = false;
+    if (clientRequestId) {
+      const existing = userId
+        ? await pool.query(
+          'SELECT * FROM chat_proof_of_payments WHERE submitted_by = $1 AND client_request_id = $2',
+          [userId, clientRequestId],
+        )
+        : await pool.query(
+          `SELECT * FROM chat_proof_of_payments
+            WHERE submitted_by IS NULL AND guest_session_id = $1 AND client_request_id = $2`,
+          [guestSessionId, clientRequestId],
+        );
+      pop = existing.rows[0] || null;
+      replayed = Boolean(pop);
+    }
+
     let attachmentKey = req.body.attachment_key || req.body.attachmentKey || null;
     let attachmentName = req.body.attachment_name || req.body.attachmentName || null;
     let attachmentMime = req.body.attachment_mime || req.body.attachmentMime || null;
     let attachmentSize = req.body.attachment_size || req.body.attachmentSize || null;
 
-    if (req.file) {
+    if (req.file && !pop) {
       if (!ALLOWED_POP_MIMES.has(req.file.mimetype)) {
         return bad(res, 400, 'File type not allowed for proof of payment', 'invalid_file_type');
       }
@@ -185,39 +245,59 @@ exports.sharePop = async (req, res, next) => {
       }
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO chat_proof_of_payments (
-         conversation_id, guest_session_id, business_id, helper_id,
-         quote_kind, quote_id, booking_request_id,
-         amount_cents, currency, payment_method, transaction_id, paid_on, notes,
-         attachment_key, attachment_name, attachment_mime, attachment_size,
-         submitted_by, submitted_by_guest, status
-       ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'submitted'
-       ) RETURNING *`,
-      [
-        conversationId,
-        guestSessionId,
-        businessId,
-        helperId || null,
-        normalized.quoteKind,
-        normalized.quoteId,
-        normalized.bookingRequestId,
-        normalized.amountCents,
-        normalized.currency,
-        normalized.paymentMethod,
-        normalized.transactionId,
-        normalized.paidOn,
-        normalized.notes,
-        attachmentKey,
-        attachmentName,
-        attachmentMime,
-        attachmentSize,
-        userId || null,
-        Boolean(guest && !userId),
-      ],
-    );
-    const pop = rows[0];
+    if (!pop) {
+      const { rows } = await pool.query(
+        `INSERT INTO chat_proof_of_payments (
+           conversation_id, guest_session_id, business_id, helper_id,
+           quote_kind, quote_id, booking_request_id,
+           amount_cents, currency, payment_method, transaction_id, paid_on, notes,
+           attachment_key, attachment_name, attachment_mime, attachment_size,
+           submitted_by, submitted_by_guest, status, client_request_id
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'submitted',$20
+         )
+         ON CONFLICT DO NOTHING
+         RETURNING *`,
+        [
+          conversationId,
+          guestSessionId,
+          businessId,
+          helperId || null,
+          normalized.quoteKind,
+          normalized.quoteId,
+          normalized.bookingRequestId,
+          normalized.amountCents,
+          normalized.currency,
+          normalized.paymentMethod,
+          normalized.transactionId,
+          normalized.paidOn,
+          normalized.notes,
+          attachmentKey,
+          attachmentName,
+          attachmentMime,
+          attachmentSize,
+          userId || null,
+          Boolean(guest && !userId),
+          clientRequestId,
+        ],
+      );
+      pop = rows[0] || null;
+      if (!pop && clientRequestId) {
+        const replay = userId
+          ? await pool.query(
+            'SELECT * FROM chat_proof_of_payments WHERE submitted_by = $1 AND client_request_id = $2',
+            [userId, clientRequestId],
+          )
+          : await pool.query(
+            `SELECT * FROM chat_proof_of_payments
+              WHERE submitted_by IS NULL AND guest_session_id = $1 AND client_request_id = $2`,
+            [guestSessionId, clientRequestId],
+          );
+        pop = replay.rows[0] || null;
+        replayed = true;
+      }
+    }
+    if (!pop) throw new Error('Failed to create proof of payment');
     const marker = buildPopMarker({
       id: pop.id,
       status: pop.status,
@@ -236,25 +316,30 @@ exports.sharePop = async (req, res, next) => {
     });
 
     let message = null;
-    if (conversationId) {
+    const messageConversationId = replayed ? pop.conversation_id : conversationId;
+    const messageGuestSessionId = replayed ? pop.guest_session_id : guestSessionId;
+    const messageHelperId = replayed ? pop.helper_id : helperId;
+    if (messageConversationId) {
       message = await postConversationMessage({
-        conversationId,
+        conversationId: messageConversationId,
         senderId: userId,
         content,
         senderName,
+        clientMessageId: clientRequestId,
       });
       await pool.query('UPDATE chat_proof_of_payments SET message_id = $1, updated_at = NOW() WHERE id = $2', [
         String(message.id),
         pop.id,
       ]);
-    } else if (guestSessionId) {
-      const senderType = userId ? 'helper' : 'guest';
+    } else if (messageGuestSessionId) {
+      const senderType = pop.submitted_by_guest ? 'guest' : userId ? 'helper' : 'guest';
       message = await postGuestMessage({
-        guestSessionId,
+        guestSessionId: messageGuestSessionId,
         senderName,
         content,
-        helperId,
+        helperId: messageHelperId,
         senderType,
+        clientMessageId: clientRequestId,
       });
       await pool.query('UPDATE chat_proof_of_payments SET message_id = $1, updated_at = NOW() WHERE id = $2', [
         String(message.id),
@@ -263,10 +348,11 @@ exports.sharePop = async (req, res, next) => {
     }
 
     logger.info('[chatPop] shared', { pop: redactPopForLog(pop) });
-    return res.status(201).json({
+    return res.status(replayed ? 200 : 201).json({
       pop: toPublicPopCard(pop),
       message,
       marker,
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);
