@@ -15,9 +15,12 @@ jest.mock('../services/notificationService', () => ({
 
 const disputeController = require('../controllers/disputeController');
 const foodController = require('../controllers/foodController');
+const reportingController = require('../controllers/reportingController');
+const reviewModerationController = require('../controllers/reviewModerationController');
 const socketService = require('../services/socketService');
 socketService.broadcastGuestChatMessage = jest.fn();
 const messageController = require('../controllers/messageController');
+const messageRoutes = require('../routes/messages');
 
 function buildDisputeApp() {
   const app = express();
@@ -67,6 +70,51 @@ function buildGuestInquiryReplyApp() {
   return app;
 }
 
+function buildUserReportApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '00000000-0000-4000-8000-000000000123',
+      role: 'customer',
+    };
+    next();
+  });
+  app.post('/api/reports', reportingController.submitReport);
+  app.use(errorHandler);
+  return app;
+}
+
+function buildReviewReportApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '00000000-0000-4000-8000-000000000123',
+      role: 'customer',
+    };
+    next();
+  });
+  app.post('/api/reviews/:reviewId/report', reviewModerationController.reportReview);
+  app.use(errorHandler);
+  return app;
+}
+
+function buildContentReportApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '00000000-0000-4000-8000-000000000123',
+      role: 'customer',
+    };
+    next();
+  });
+  app.post('/api/messages/report', messageRoutes.submitContentReport);
+  app.use(errorHandler);
+  return app;
+}
+
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
@@ -74,6 +122,101 @@ beforeEach(() => {
 });
 
 describe('communication edge idempotency', () => {
+  test('replays a user abuse report without creating another report', async () => {
+    const clientRequestId = '00000000-0000-4000-8000-000000000324';
+    const report = {
+      id: 71,
+      reporter_id: '00000000-0000-4000-8000-000000000123',
+      reported_user_id: '00000000-0000-4000-8000-000000000124',
+      reason: 'harassment',
+      status: 'submitted',
+      created_at: '2026-09-22T12:00:00.000Z',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: report.reported_user_id }] })
+      .mockResolvedValueOnce({ rows: [report] })
+      .mockResolvedValueOnce({ rows: [{ id: report.reported_user_id }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [report] });
+
+    const app = buildUserReportApp();
+    const body = {
+      reportedUserId: report.reported_user_id,
+      reason: report.reason,
+      description: 'Repeated abusive messages were sent during the conversation.',
+    };
+    const first = await request(app).post('/api/reports').set('Idempotency-Key', clientRequestId).send(body);
+    const second = await request(app).post('/api/reports').set('Idempotency-Key', clientRequestId).send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(expect.objectContaining({ idempotent: true }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO job_user_reports/.test(sql))).toHaveLength(2);
+  });
+
+  test('replays a review report without incrementing moderation counters twice', async () => {
+    const clientRequestId = '00000000-0000-4000-8000-000000000325';
+    const report = {
+      id: 72,
+      review_id: '00000000-0000-4000-8000-000000000125',
+      reported_by: '00000000-0000-4000-8000-000000000123',
+      reason: 'spam',
+      description: 'This review is unrelated promotional content.',
+      status: 'open',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: report.review_id, helper_id: '00000000-0000-4000-8000-000000000126' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [report] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: report.review_id, helper_id: '00000000-0000-4000-8000-000000000126' }] })
+      .mockResolvedValueOnce({ rows: [report] });
+
+    const app = buildReviewReportApp();
+    const body = { reason: report.reason, description: report.description };
+    const first = await request(app)
+      .post(`/api/reviews/${report.review_id}/report`)
+      .set('Idempotency-Key', clientRequestId)
+      .send(body);
+    const second = await request(app)
+      .post(`/api/reviews/${report.review_id}/report`)
+      .set('Idempotency-Key', clientRequestId)
+      .send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(expect.objectContaining({ idempotent: true }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE product_reviews SET report_count/.test(sql))).toHaveLength(1);
+  });
+
+  test('replays a content report without creating another moderation record', async () => {
+    const clientRequestId = '00000000-0000-4000-8000-000000000326';
+    const report = { id: 'content-report-1' };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [report] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [report] });
+
+    const app = buildContentReportApp();
+    const body = {
+      reportedUserId: '00000000-0000-4000-8000-000000000124',
+      contentType: 'profile',
+      reason: 'harassment',
+      description: 'This profile is targeting other users.',
+    };
+    const first = await request(app).post('/api/messages/report').set('Idempotency-Key', clientRequestId).send(body);
+    const second = await request(app).post('/api/messages/report').set('Idempotency-Key', clientRequestId).send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(expect.objectContaining({ reportId: report.id, idempotent: true }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO content_reports/.test(sql))).toHaveLength(2);
+  });
+
   test('replays a dispute message without inserting a second row', async () => {
     const clientMessageId = '00000000-0000-4000-8000-000000000321';
     const dispute = { id: 7, opened_by: '00000000-0000-4000-8000-000000000123' };

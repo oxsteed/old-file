@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
+const { getClientRequestId } = require('../utils/idempotency');
 
 const REPORT_REASONS = Object.freeze({
   FALSE_REVIEW: 'false_review',
@@ -37,6 +38,10 @@ exports.reportReview = async (req, res, next) => {
     const userId = req.user.id;
     const { reviewId } = req.params;
     const { reason, description } = req.body;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { clientRequestId: 'Must be a valid UUID' });
+    }
 
     const fields = {};
     if (!REPORT_REASON_VALUES.includes(reason)) {
@@ -66,6 +71,23 @@ exports.reportReview = async (req, res, next) => {
       throw new AppError('You cannot report your own review', 400, 'validation_failed');
     }
 
+    if (clientRequestId) {
+      const { rows: keyedReports } = await pool.query(
+        `SELECT * FROM review_reports
+          WHERE review_id = $1 AND reported_by = $2 AND client_request_id = $3
+          LIMIT 1`,
+        [reviewId, userId, clientRequestId],
+      );
+      if (keyedReports[0]) {
+        return res.status(200).json({
+          success: true,
+          data: keyedReports[0],
+          idempotent: true,
+          message: 'Review reported. Thank you for helping keep our community safe.',
+        });
+      }
+    }
+
     // Check for duplicate pending report from same user
     const { rows: existingReports } = await pool.query(
       `SELECT id FROM review_reports
@@ -79,13 +101,36 @@ exports.reportReview = async (req, res, next) => {
 
     // Create report
     const { rows: reportRows } = await pool.query(
-      `INSERT INTO review_reports (review_id, reported_by, reason, description, status, submitted_at)
-       VALUES ($1, $2, $3, $4, 'open', NOW())
+      `INSERT INTO review_reports (review_id, reported_by, reason, description, status, submitted_at, client_request_id)
+       VALUES ($1, $2, $3, $4, 'open', NOW(), $5)
+       ON CONFLICT (reported_by, client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [reviewId, userId, reason, description.trim()]
+      [reviewId, userId, reason, description.trim(), clientRequestId]
     );
 
-    const report = reportRows[0];
+    let report = reportRows[0];
+    let replayed = false;
+    if (!report && clientRequestId) {
+      const { rows: existingRows } = await pool.query(
+        `SELECT * FROM review_reports
+          WHERE reported_by = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [userId, clientRequestId],
+      );
+      report = existingRows[0];
+      replayed = Boolean(report);
+    }
+    if (!report) throw new AppError('Review report retry could not be recovered', 409, 'report_retry_failed');
+
+    if (replayed) {
+      return res.status(200).json({
+        success: true,
+        data: report,
+        idempotent: true,
+        message: 'Review reported. Thank you for helping keep our community safe.',
+      });
+    }
 
     // Increment report count on review
     await pool.query(
@@ -118,6 +163,7 @@ exports.reportReview = async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: report,
+      idempotent: false,
       message: 'Review reported. Thank you for helping keep our community safe.'
     });
   } catch (err) {

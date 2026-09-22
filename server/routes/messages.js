@@ -6,6 +6,7 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { getClientRequestId } = require('../utils/idempotency');
 const ID_PATTERN = /^(?:[1-9][0-9]*|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const {
   getConversations,
@@ -157,9 +158,14 @@ router.get('/users/blocked', async (req, res) => {
 // POST /api/messages/report - Report a user or piece of content
 // contentType: 'user' | 'message' | 'job' | 'review' | 'profile'
 // reason: 'spam' | 'harassment' | 'fraud' | 'inappropriate' | 'other'
-router.post('/report', strictLimiter, async (req, res) => {
+async function submitContentReport(req, res) {
   const reporterId = req.user.id;
   const { reportedUserId, contentType, contentId, reason, description } = req.body;
+  const clientRequestId = getClientRequestId(req);
+
+  if (clientRequestId === false) {
+    return res.status(400).json({ error: 'Idempotency key must be a valid UUID' });
+  }
 
   const validTypes   = ['user', 'message', 'job', 'review', 'profile'];
   const validReasons = ['spam', 'harassment', 'fraud', 'inappropriate', 'other'];
@@ -190,10 +196,10 @@ router.post('/report', strictLimiter, async (req, res) => {
   const targetType = contentType === 'profile' ? 'user' : contentType;
 
   try {
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO content_reports
          (reporter_id, reported_user_id, content_type, content_id,
-          target_type, target_id, reason, description)
+          target_type, target_id, reason, description, client_request_id)
        VALUES (
          $1, $2, $3, $4, $5,
          CASE
@@ -201,8 +207,11 @@ router.post('/report', strictLimiter, async (req, res) => {
              THEN $4::uuid
            ELSE NULL
          END,
-         $6, $7
-       )`,
+         $6, $7, $8
+       )
+       ON CONFLICT (reporter_id, client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
+       RETURNING id`,
       [
         reporterId,
         reportedUserId || null,
@@ -211,14 +220,38 @@ router.post('/report', strictLimiter, async (req, res) => {
         targetType,
         reason,
         description || null,
+        clientRequestId,
       ]
     );
+    let report = result.rows[0];
+    let replayed = false;
+    if (!report && clientRequestId) {
+      const existing = await pool.query(
+        `SELECT id FROM content_reports
+          WHERE reporter_id = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [reporterId, clientRequestId],
+      );
+      report = existing.rows[0];
+      replayed = Boolean(report);
+    }
+    if (!report) {
+      return res.status(409).json({ error: 'Report retry could not be recovered' });
+    }
     logger.info('Content reported', { reporterId, reportedUserId, contentType, reason });
-    res.json({ success: true, message: 'Report submitted. Our team will review it.' });
+    res.status(replayed ? 200 : 201).json({
+      success: true,
+      reportId: report.id,
+      idempotent: replayed,
+      message: 'Report submitted. Our team will review it.',
+    });
   } catch (err) {
     logger.error('Content report error', { message: err.message });
     res.status(500).json({ error: 'Failed to submit report' });
   }
-});
+}
+
+router.post('/report', strictLimiter, submitContentReport);
 
 module.exports = router;
+module.exports.submitContentReport = submitContentReport;

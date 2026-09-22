@@ -7,6 +7,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { sendValidationError, sendError } = require('../utils/apiError');
+const { getClientRequestId } = require('../utils/idempotency');
 
 /**
  * Submit a report against another user
@@ -16,6 +17,10 @@ async function submitReport(req, res) {
   try {
     const { reportedUserId, reason, description, evidenceUrls, jobId, conversationId } = req.body;
     const reporterId = req.user.id;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return sendValidationError(res, { clientRequestId: 'Must be a valid UUID' });
+    }
 
     // Validation
     if (!reportedUserId) {
@@ -52,13 +57,28 @@ async function submitReport(req, res) {
     const result = await pool.query(
       `INSERT INTO job_user_reports (
         reporter_id, reported_user_id, reason, description, evidence_urls,
-        job_id, conversation_id, status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted', CURRENT_TIMESTAMP)
+        job_id, conversation_id, status, created_at, client_request_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted', CURRENT_TIMESTAMP, $8)
+      ON CONFLICT (reporter_id, client_request_id)
+      WHERE client_request_id IS NOT NULL DO NOTHING
       RETURNING id, reporter_id, reported_user_id, reason, status, created_at`,
-      [reporterId, reportedUserId, reason, description, evidenceUrls || null, jobId || null, conversationId || null]
+      [reporterId, reportedUserId, reason, description, evidenceUrls || null, jobId || null, conversationId || null, clientRequestId]
     );
 
-    const report = result.rows[0];
+    let report = result.rows[0];
+    let replayed = false;
+    if (!report && clientRequestId) {
+      const existing = await pool.query(
+        `SELECT id, reporter_id, reported_user_id, reason, status, created_at
+           FROM job_user_reports
+          WHERE reporter_id = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [reporterId, clientRequestId],
+      );
+      report = existing.rows[0];
+      replayed = Boolean(report);
+    }
+    if (!report) throw new AppError('Report retry could not be recovered', 409, 'report_retry_failed');
     logger.info('User report submitted', {
       reportId: report.id,
       reporterId,
@@ -66,8 +86,9 @@ async function submitReport(req, res) {
       reason
     });
 
-    res.status(201).json({
+    res.status(replayed ? 200 : 201).json({
       success: true,
+      idempotent: replayed,
       data: {
         id: report.id,
         reportedUserId: report.reported_user_id,
