@@ -1178,7 +1178,7 @@ function BusinessHubInner() {
   // Messaging is available to every active business member. Keep this
   // separate from profile-edit permissions so representatives can respond to
   // customers without gaining access to business configuration.
-  const canAccessMessages = ['owner', 'manager', 'representative'].includes(currentRole);
+  const canAccessMessages = ['owner', 'manager', 'representative', 'support_agent', 'employee'].includes(currentRole);
   const canViewFinanceHub = currentRole !== 'representative';
   const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');

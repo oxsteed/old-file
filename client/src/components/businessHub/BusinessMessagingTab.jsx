@@ -131,11 +131,22 @@ export function BusinessMessagingTab({ businessId }) {
     const handleBusinessMessage = (payload) => {
       if (payload?.business_id && String(payload.business_id) !== String(businessId)) return;
       if (mode === 'deals') loadDeals();
-      else loadTeam();
+      else {
+        loadTeam();
+        if (payload?.conversation_id && selectedTeam?.id
+          && String(payload.conversation_id) === String(selectedTeam.id)) {
+          api.get(`/businesses/${businessId}/messages/${selectedTeam.id}`)
+            .then((response) => {
+              setSelectedTeam(response.data);
+              setTeamMessages(Array.isArray(response.data?.messages) ? response.data.messages : []);
+            })
+            .catch(() => {});
+        }
+      }
     };
     socket.on('business_inbox:message', handleBusinessMessage);
     return () => socket.off('business_inbox:message', handleBusinessMessage);
-  }, [socket, businessId, mode, loadDeals, loadTeam]);
+  }, [socket, businessId, mode, selectedTeam?.id, loadDeals, loadTeam]);
 
   const openTeam = async (conversationId) => {
     try {
@@ -191,6 +202,7 @@ export function BusinessMessagingTab({ businessId }) {
       setTeamAttachment({
         file_name: uploaded.name,
         file_url: uploaded.key ? `private://${uploaded.key}` : uploaded.url,
+        display_url: uploaded.url,
         file_size_bytes: uploaded.size,
         file_type: uploaded.mimeType,
       });
@@ -481,7 +493,7 @@ export function BusinessMessagingTab({ businessId }) {
                                 {msg.attachments.map((attachment) => (
                                   <a
                                     key={attachment.id || attachment.file_url}
-                                    href={attachment.file_url}
+                                    href={attachment.display_url || attachment.file_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
