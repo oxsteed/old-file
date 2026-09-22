@@ -577,3 +577,68 @@
 .chat-panel__empty--dock {
   color: #9da8bb;
 }
+
+/* The shell is shared by standalone and embedded messaging surfaces. Keep
+   controls and status text legible when the host page is in light mode. */
+html:not(.dark) :where(
+  .messages-thread,
+  .provider-messenger-toolbar,
+  .messages-composer,
+  .chat-panel__composer--dock .bg-gray-900
+) {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+html:not(.dark) :where(
+  .messages-thread-name,
+  .messages-bubble-action-btn,
+  .messages-bubble-meta,
+  .messages-thread-empty,
+  .messages-composer-tool,
+  .messages-pending-attachment,
+  .bmt-team-msg-author,
+  .bmt-team-empty-messages,
+  .chat-panel__empty--dock
+) {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) :where(
+  .messages-thread-actions button,
+  .messages-composer-tool,
+  .messages-composer-input,
+  .provider-messenger-toolbar .messages-quote-share-btn
+) {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-bubble.theirs {
+  background: var(--color-surface-2) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) :where(
+  .messages-bubble-action-btn:hover,
+  .messages-composer-tool:hover:not(:disabled),
+  .provider-messenger-toolbar .messages-quote-share-btn:hover
+) {
+  background: var(--color-primary-bg) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-actions.shell-demoted .messages-more-menu {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-md);
+}
+
+html:not(.dark) .messages-actions.shell-demoted .messages-more-menu a {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-actions.shell-demoted .messages-more-menu a:hover {
+  background: var(--color-primary-bg);
+}

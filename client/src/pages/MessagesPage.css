@@ -1007,6 +1007,158 @@
   align-self: flex-start;
 }
 
+/* Keep the messenger readable when the app switches away from its dark-first
+   palette. This also covers the embedded Business Hub workspace. */
+html:not(.dark) .messages-page {
+  background:
+    linear-gradient(135deg, rgba(234, 88, 12, 0.07), rgba(37, 99, 235, 0.04) 42%, transparent 70%),
+    var(--color-bg);
+  color: var(--color-text);
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-hero h1,
+  .messages-empty h2,
+  .messages-thread-name,
+  .messages-thread-empty h2,
+  .messages-guest-card h1,
+  .messages-empty-side h3,
+  .messages-guide-item h3,
+  .messages-row-top strong
+) {
+  color: var(--color-text);
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-hero p:last-child,
+  .messages-empty p,
+  .messages-guide-item p,
+  .messages-row-top span,
+  .messages-business,
+  .messages-preview,
+  .messages-loading,
+  .messages-thread-empty,
+  .messages-thread-note,
+  .messages-guest-time,
+  .messages-guest-card p
+) {
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-hero-stats div,
+  .messages-toolbar,
+  .messages-panel,
+  .messages-empty,
+  .messages-loading,
+  .messages-guide,
+  .messages-thread-pane,
+  .messages-guest-card
+) {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-empty-side,
+  .messages-guide-item,
+  .messages-guest-card,
+  .messages-search,
+  .messages-business-select,
+  .messages-thread-actions button,
+  .messages-composer-row textarea,
+  .messages-edit-box textarea,
+  .messages-starters button,
+  .messages-pending-attachment
+) {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-search input,
+  .messages-composer-row textarea,
+  .messages-edit-box textarea
+) {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-row:hover,
+  .messages-row.active,
+  .messages-row.unread
+) {
+  background: var(--color-primary-bg) !important;
+}
+
+html:not(.dark) .messages-page .messages-avatar {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #1d4ed8;
+}
+
+html:not(.dark) .messages-page .messages-avatar.helper {
+  background: rgba(234, 88, 12, 0.1);
+  border-color: rgba(234, 88, 12, 0.3);
+  color: #c2410c;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-thread,
+  .messages-bubble.theirs,
+  .messages-typing,
+  .messages-jump-latest
+) {
+  background: var(--color-surface-2) !important;
+}
+
+html:not(.dark) .messages-page .messages-bubble.theirs {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-thread-head,
+  .messages-thread-actions button,
+  .messages-composer,
+  .messages-composer-row textarea,
+  .messages-guest-card-head
+) {
+  border-color: var(--color-border) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-thread-actions button,
+  .messages-back,
+  .messages-composer-tools button,
+  .messages-bubble-actions button,
+  .messages-bubble-meta,
+  .messages-composer-tools,
+  .messages-pending-attachment
+) {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .messages-page :where(
+  .messages-thread-actions button:hover,
+  .messages-back:hover,
+  .messages-composer-tools button:hover,
+  .messages-bubble-actions button:hover,
+  .messages-starters button:hover
+) {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page .messages-actions :where(a, button),
+html:not(.dark) .messages-page .messages-empty-actions a,
+html:not(.dark) .messages-page .messages-learn-link {
+  color: var(--color-primary);
+}
+
+html:not(.dark) .messages-page .messages-guest-message {
+  color: var(--color-text) !important;
+}
+
 .mobile-only {
   display: none;
 }
