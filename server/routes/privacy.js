@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const archiver = require('archiver');
 const crypto = require('crypto');
 const pool = require('../db');
 const { columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
@@ -13,6 +14,84 @@ const socketService = require('../services/socketService');
  * Provides data export, account deletion, and data portability
  * endpoints required by California and other state privacy laws.
  */
+
+const EXPORT_CSV_COLUMNS = {
+  user: [
+    'id', 'email', 'phone', 'first_name', 'last_name', 'role',
+    'subscription_status', 'email_verified', 'is_active', 'is_banned',
+    'preferred_language', 'city', 'state', 'zip_code', 'created_at',
+    'updated_at', 'deleted_at',
+  ],
+  jobs: [
+    'id', 'client_id', 'assigned_helper_id', 'title', 'description',
+    'category_name', 'job_type', 'budget_min', 'budget_max', 'job_value',
+    'status', 'created_at', 'updated_at',
+  ],
+  bids: ['id', 'job_id', 'amount', 'message', 'status', 'created_at'],
+  reviews: ['id', 'job_id', 'rating', 'comment', 'created_at'],
+  consents: ['consent_type', 'version', 'accepted_at'],
+};
+
+function csvCell(value) {
+  const raw = value === null || value === undefined
+    ? ''
+    : typeof value === 'object'
+      ? JSON.stringify(value)
+      : String(value);
+  // Prevent spreadsheet formula execution when user-generated text is opened.
+  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+function rowsToCsv(rows, columns) {
+  const lines = [columns.map(csvCell).join(',')];
+  for (const row of rows) {
+    lines.push(columns.map((column) => csvCell(row[column])).join(','));
+  }
+  return `\ufeff${lines.join('\r\n')}\r\n`;
+}
+
+function buildExportArchive(exportData) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('data', (chunk) => chunks.push(chunk));
+    archive.on('error', reject);
+    archive.on('end', () => resolve(Buffer.concat(chunks)));
+
+    archive.append(JSON.stringify(exportData, null, 2), { name: 'data.json' });
+    archive.append(rowsToCsv(exportData.user ? [exportData.user] : [], EXPORT_CSV_COLUMNS.user), { name: 'user.csv' });
+    for (const [name, columns] of Object.entries(EXPORT_CSV_COLUMNS)) {
+      if (name === 'user') continue;
+      archive.append(rowsToCsv(exportData[name], columns), { name: `${name}.csv` });
+    }
+    archive.append(
+      [
+        'OxSteed personal data export',
+        '============================',
+        '',
+        `Generated: ${exportData.exportDate}`,
+        'Format: ZIP archive containing JSON and CSV representations.',
+        '',
+        'Files:',
+        '- data.json: complete structured export for machine processing.',
+        '- user.csv: account profile fields included in the export.',
+        '- jobs.csv: jobs where you are the client or assigned helper.',
+        '- bids.csv: bids submitted by you.',
+        '- reviews.csv: reviews you wrote or received.',
+        '- consents.csv: recorded consent history.',
+        '',
+        'Security:',
+        '- Credentials, passwords, authentication tokens, and payment secrets are excluded.',
+        '- Keep this archive private because it contains personal account data.',
+        '',
+      ].join('\n'),
+      { name: 'README.txt' },
+    );
+    archive.finalize().catch(reject);
+  });
+}
+
 // GET /api/privacy/export - Export all user data (CCPA right to know)
 router.get('/export', authenticate, async (req, res) => {
   try {
@@ -60,12 +139,14 @@ router.get('/export', authenticate, async (req, res) => {
       reviews: reviewsResult.rows,
       consents: consentsResult.rows,
     };
-    res.setHeader('Content-Type', 'application/json');
+    const archiveBuffer = await buildExportArchive(exportData);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Length', archiveBuffer.length);
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="oxsteed-data-export-${userId}-${Date.now()}.json"`
+      `attachment; filename="oxsteed-data-export-${userId}-${Date.now()}.zip"`
     );
-    res.json(exportData);
+    res.end(archiveBuffer);
   } catch (err) {
     const requestId = req.correlationId
       || req.id

@@ -760,25 +760,30 @@ export default function SettingsPage() {
       )}
       <button
         className="sp-btn sp-btn-ghost"
-        onClick={() => {
-          api.get('/privacy/export')
-            .then(r => {
-              const blob = new Blob([JSON.stringify(r.data, null, 2)]);
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'my-data.json';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(url);
-              toast.success(t('settings.privacy.exportSuccess'));
-            })
-            .catch((err) => {
-              const message = err?.response?.data?.error || t('settings.privacy.exportFailed');
-              const requestId = err?.response?.data?.requestId;
-              toast.error(requestId ? `${message} (${requestId})` : message);
-            });
+        onClick={async () => {
+          try {
+            const response = await api.get('/privacy/export', { responseType: 'blob' });
+            const contentDisposition = response.headers?.['content-disposition'] || '';
+            const filename = contentDisposition.match(/filename="([^"]+)"/i)?.[1] || 'oxsteed-data-export.zip';
+            const blob = response.data;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            toast.success(t('settings.privacy.exportSuccess'));
+          } catch (err) {
+            let payload = err?.response?.data;
+            if (payload instanceof Blob) {
+              try { payload = JSON.parse(await payload.text()); } catch { payload = null; }
+            }
+            const message = payload?.error || t('settings.privacy.exportFailed');
+            const requestId = payload?.requestId;
+            toast.error(requestId ? `${message} (${requestId})` : message);
+          }
         }}
       >
         {t('settings.privacy.exportBtn')}

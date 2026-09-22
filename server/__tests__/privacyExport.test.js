@@ -25,6 +25,12 @@ function authHeader() {
   return `Bearer ${token}`;
 }
 
+function binaryParser(response, callback) {
+  const chunks = [];
+  response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+  response.on('end', () => callback(null, Buffer.concat(chunks)));
+}
+
 beforeEach(() => {
   resetMocks();
   tokenRevocationService.isRevoked.mockResolvedValue(false);
@@ -52,12 +58,15 @@ describe('GET /api/privacy/export', () => {
 
     const response = await request(buildApp())
       .get('/api/privacy/export')
-      .set('Authorization', authHeader());
+      .set('Authorization', authHeader())
+      .buffer(true)
+      .parse(binaryParser);
 
     expect(response.status).toBe(200);
-    expect(response.headers['content-disposition']).toContain('oxsteed-data-export-');
-    expect(response.body.user).toMatchObject({ first_name: 'Export', last_name: 'Tester' });
-    expect(response.body.jobs).toEqual([{ id: 'job-1', client_id: USER_ID }]);
+    expect(response.headers['content-type']).toMatch(/application\/zip/);
+    expect(response.headers['content-disposition']).toMatch(/oxsteed-data-export-.*\.zip/);
+    expect(Buffer.isBuffer(response.body)).toBe(true);
+    expect(response.body.subarray(0, 2).toString()).toBe('PK');
 
     const exportSql = mockQuery.mock.calls.slice(1).map(([sql]) => sql).join('\n');
     expect(exportSql).toContain('first_name');
