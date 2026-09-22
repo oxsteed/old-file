@@ -8,6 +8,7 @@ const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { getClientRequestId } = require('../utils/idempotency');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
 function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
@@ -169,16 +170,26 @@ async function sendMessage(req, res, next) {
   try {
     const { businessId, conversationId } = req.params;
     const { content, message_type = 'text', attachments = [] } = req.body;
+    const normalizedContent = typeof content === 'string' ? content.trim() : '';
+    const normalizedAttachments = Array.isArray(attachments)
+      ? attachments.filter((attachment) => (
+        attachment
+        && typeof attachment.file_url === 'string'
+        && attachment.file_url.trim()
+        && typeof attachment.file_name === 'string'
+        && attachment.file_name.trim()
+      )).slice(0, 10)
+      : [];
     const clientMessageId = req.get('Idempotency-Key')
       || req.body.clientMessageId
       || req.body.client_message_id
       || null;
     await assertBusinessAccess(req, businessId);
 
-    if (!content || content.trim().length === 0) {
-      return next(new AppError('Message content is required', 400, 'validation_failed'));
+    if (!normalizedContent && normalizedAttachments.length === 0) {
+      return next(new AppError('Message content or attachment is required', 400, 'validation_failed'));
     }
-    if (content.trim().length > 4000) {
+    if (normalizedContent.length > 4000) {
       return next(new AppError('Message too long (max 4000 characters)', 400, 'validation_failed'));
     }
     if (clientMessageId && !isUuid(clientMessageId)) {
@@ -205,7 +216,7 @@ async function sendMessage(req, res, next) {
          ON CONFLICT (conversation_id, client_message_id)
          WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING *`,
-        [conversationId, req.user.id, content.trim(), message_type, clientMessageId]
+        [conversationId, req.user.id, normalizedContent, message_type, clientMessageId]
       );
 
       if (!msgResult.rows.length) {
@@ -225,8 +236,8 @@ async function sendMessage(req, res, next) {
         [conversationId]
       );
 
-      if (Array.isArray(attachments) && attachments.length > 0) {
-        for (const att of attachments) {
+      if (normalizedAttachments.length > 0) {
+        for (const att of normalizedAttachments) {
           await client.query(
             'INSERT INTO business_message_attachments (message_id, file_name, file_url, file_size_bytes, file_type) VALUES ($1, $2, $3, $4, $5)',
             [msgResult.rows[0].id, att.file_name, att.file_url, att.file_size_bytes, att.file_type]
@@ -244,7 +255,7 @@ async function sendMessage(req, res, next) {
         message_id: message.id,
         sender_id: req.user.id,
         sender_name: message.sender_name || null,
-        content: content.trim().slice(0, 280),
+        content: normalizedContent.slice(0, 280),
         created_at: message.created_at || new Date().toISOString(),
       });
     }
@@ -254,6 +265,38 @@ async function sendMessage(req, res, next) {
     if (error instanceof AppError) return next(error);
     logger.error('Error sending message', { error: error.message, conversationId: req.params.conversationId });
     next(new AppError('Failed to send message', 500));
+  }
+}
+
+async function uploadAttachment(req, res, next) {
+  try {
+    const { businessId, conversationId } = req.params;
+    await assertBusinessAccess(req, businessId);
+
+    if (!req.file) {
+      return next(new AppError('No file provided', 400, 'validation_failed'));
+    }
+
+    const conversation = await pool.query(
+      'SELECT id FROM business_conversations WHERE id = $1 AND business_id = $2',
+      [conversationId, businessId],
+    );
+    if (!conversation.rows.length) {
+      return next(new AppError('Conversation not found', 404, 'not_found'));
+    }
+
+    const { buffer, originalname, mimetype, size } = req.file;
+    const key = await uploadFile(buffer, 'business-message-attachments', originalname, mimetype);
+    const url = await getSignedDownloadUrl(key, 3600);
+    return res.json({ url, key, name: originalname, size, mimeType: mimetype });
+  } catch (error) {
+    if (error instanceof AppError) return next(error);
+    logger.error('Error uploading business message attachment', {
+      error: error.message,
+      businessId: req.params.businessId,
+      conversationId: req.params.conversationId,
+    });
+    return next(new AppError('Upload failed', 500));
   }
 }
 
@@ -333,6 +376,7 @@ module.exports = {
   getConversations,
   getConversation,
   sendMessage,
+  uploadAttachment,
   createConversation,
   archiveConversation,
 };

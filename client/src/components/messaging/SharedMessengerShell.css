@@ -420,6 +420,65 @@
   flex-shrink: 0;
 }
 
+.bmt-team-composer {
+  flex-wrap: wrap;
+}
+
+.messages-composer-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 9px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.messages-composer-tool:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.messages-composer-tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.messages-pending-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 100%;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.messages-pending-attachment button {
+  display: inline-flex;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.messages-bubble-files {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.messages-bubble-files a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: underline;
+}
+
 .messages-composer-input {
   flex: 1;
   min-height: 40px;

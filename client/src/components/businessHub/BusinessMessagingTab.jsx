@@ -2,8 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Archive, Plus, Search, Send } from 'lucide-react';
+import { Archive, Loader2, Paperclip, Plus, Search, Send, X } from 'lucide-react';
 import { createMessageRequestId } from '../../lib/messageRequestId';
+import { useAuth } from '../../hooks/useAuth';
+import { uploadBusinessMessageAttachment } from '../../api/businessMessaging';
+import { attachmentLabel } from '../../utils/messageAttachments';
 import ConversationThread from '../messaging/ConversationThread';
 import ConversationList from '../messaging/ConversationList';
 import { useSocket } from '../../hooks/useSocket';
@@ -22,6 +25,7 @@ import '../messaging/SharedMessengerShell.css';
  */
 export function BusinessMessagingTab({ businessId }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { socket } = useSocket();
   const [mode, setMode] = useState('deals');
 
@@ -86,8 +90,11 @@ export function BusinessMessagingTab({ businessId }) {
   const [showNewModal, setShowNewModal] = useState(false);
   const [teamSending, setTeamSending] = useState(false);
   const [teamSendError, setTeamSendError] = useState('');
+  const [teamAttachment, setTeamAttachment] = useState(null);
+  const [teamUploading, setTeamUploading] = useState(false);
   const pendingTeamMessageIdRef = useRef(null);
   const pendingTeamConversationRef = useRef(null);
+  const teamFileInputRef = useRef(null);
 
   const loadTeam = useCallback(async () => {
     if (!businessId) return;
@@ -142,17 +149,27 @@ export function BusinessMessagingTab({ businessId }) {
   };
 
   const sendTeamMessage = async () => {
-    if (!messageText.trim() || !selectedTeam || teamSending) return;
+    if ((!messageText.trim() && !teamAttachment) || !selectedTeam || teamSending || teamUploading) return;
     const clientMessageId = pendingTeamMessageIdRef.current || createMessageRequestId();
+    const pendingAttachment = teamAttachment;
     try {
       setTeamSending(true);
       setTeamSendError('');
       const response = await api.post(
         `/businesses/${businessId}/messages/${selectedTeam.id}`,
-        { content: messageText, message_type: 'text', clientMessageId },
+        {
+          content: messageText,
+          message_type: 'text',
+          attachments: pendingAttachment ? [pendingAttachment] : [],
+          clientMessageId,
+        },
       );
-      setTeamMessages((prev) => [...(Array.isArray(prev) ? prev : []), response.data]);
+      setTeamMessages((prev) => [
+        ...(Array.isArray(prev) ? prev : []),
+        { ...response.data, attachments: pendingAttachment ? [pendingAttachment] : [] },
+      ]);
       setMessageText('');
+      setTeamAttachment(null);
       pendingTeamMessageIdRef.current = null;
       loadTeam();
     } catch {
@@ -161,6 +178,28 @@ export function BusinessMessagingTab({ businessId }) {
       toast.error(t('businessMessaging.toastSendFailed'));
     } finally {
       setTeamSending(false);
+    }
+  };
+
+  const handleTeamAttachment = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !selectedTeam || teamUploading) return;
+    setTeamUploading(true);
+    try {
+      const uploaded = await uploadBusinessMessageAttachment(businessId, selectedTeam.id, file);
+      setTeamAttachment({
+        file_name: uploaded.name,
+        file_url: uploaded.url,
+        file_size_bytes: uploaded.size,
+        file_type: uploaded.mimeType,
+      });
+    } catch {
+      toast.error(t('businessMessaging.toastAttachmentUploadFailed', {
+        defaultValue: 'Attachment upload failed.',
+      }));
+    } finally {
+      setTeamUploading(false);
     }
   };
 
@@ -428,16 +467,34 @@ export function BusinessMessagingTab({ businessId }) {
                       <p>{t('businessMessaging.noMessages')}</p>
                     </div>
                   ) : (
-                    (Array.isArray(teamMessages) ? teamMessages : []).map((msg) => (
-                      <div key={msg.id} className="messages-bubble-wrap theirs">
-                        <div className="messages-bubble theirs">
-                          <div className="bmt-team-msg-author">
-                            {msg.sender_name || msg.sender_id}
+                    (Array.isArray(teamMessages) ? teamMessages : []).map((msg) => {
+                      const ownMessage = user?.id != null && String(msg.sender_id) === String(user.id);
+                      return (
+                        <div key={msg.id} className={`messages-bubble-wrap ${ownMessage ? 'mine' : 'theirs'}`}>
+                          <div className={`messages-bubble ${ownMessage ? 'mine' : 'theirs'}`}>
+                            <div className="bmt-team-msg-author">
+                              {ownMessage ? t('messages.you', { defaultValue: 'You' }) : (msg.sender_name || msg.sender_id)}
+                            </div>
+                            {msg.content ? <div>{msg.content}</div> : null}
+                            {Array.isArray(msg.attachments) && msg.attachments.length > 0 ? (
+                              <div className="messages-bubble-files">
+                                {msg.attachments.map((attachment) => (
+                                  <a
+                                    key={attachment.id || attachment.file_url}
+                                    href={attachment.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Paperclip size={14} aria-hidden />
+                                    {attachmentLabel({ name: attachment.file_name })}
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
-                          <div>{msg.content}</div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
                 <div className="messages-composer bmt-team-composer">
@@ -450,6 +507,37 @@ export function BusinessMessagingTab({ businessId }) {
                       </button>
                     </div>
                   ) : null}
+                  {teamAttachment ? (
+                    <div className="messages-pending-attachment">
+                      <Paperclip size={16} aria-hidden />
+                      <span>{teamAttachment.file_name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setTeamAttachment(null)}
+                        aria-label={t('common.remove')}
+                      >
+                        <X size={14} aria-hidden />
+                      </button>
+                    </div>
+                  ) : null}
+                  <input
+                    ref={teamFileInputRef}
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={handleTeamAttachment}
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    className="messages-composer-tool"
+                    onClick={() => teamFileInputRef.current?.click()}
+                    disabled={teamUploading || teamSending}
+                    aria-label={t('messages.attachFile')}
+                    title={t('messages.attachFile')}
+                  >
+                    {teamUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} aria-hidden />}
+                  </button>
                   <input
                     type="text"
                     className="messages-composer-input"
@@ -469,13 +557,13 @@ export function BusinessMessagingTab({ businessId }) {
                         sendTeamMessage();
                       }
                     }}
-                    disabled={teamSending}
+                    disabled={teamSending || teamUploading}
                   />
                   <button
                     type="button"
                     className="messages-composer-send"
                     onClick={sendTeamMessage}
-                    disabled={teamSending || !messageText.trim()}
+                    disabled={teamSending || teamUploading || (!messageText.trim() && !teamAttachment)}
                     aria-label={t('businessMessaging.send')}
                     title={t('businessMessaging.send')}
                   >

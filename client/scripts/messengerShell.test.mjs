@@ -141,6 +141,8 @@ test('Business Hub Team tab reuses ConversationList + shell thread chrome', asyn
   assert.ok(src.includes("t('messages.shell.selectTeamHint')"));
   assert.ok(src.includes("business_inbox:message"));
   assert.ok(src.includes('unread_count'));
+  assert.ok(src.includes('uploadBusinessMessageAttachment'));
+  assert.ok(src.includes('ownMessage'));
   // Team API path preserved
   assert.ok(src.includes('`/businesses/${businessId}/messages`'));
 });

@@ -21,6 +21,7 @@ function buildApp(user = OWNER) {
   app.get('/api/businesses/:businessId/messages', ctrl.getConversations);
   app.post('/api/businesses/:businessId/messages', ctrl.createConversation);
   app.get('/api/businesses/:businessId/messages/:conversationId', ctrl.getConversation);
+  app.post('/api/businesses/:businessId/messages/:conversationId/attachments', ctrl.uploadAttachment);
   app.post('/api/businesses/:businessId/messages/:conversationId', ctrl.sendMessage);
   app.use(errorHandler);
   return app;
@@ -164,6 +165,29 @@ describe('business hub messaging tab', () => {
     expect(retry.status).toBe(200);
     expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO business_message_attachments/.test(sql))).toHaveLength(1);
     expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE business_conversations/.test(sql))).toHaveLength(1);
+  });
+
+  test('rejects an empty team message unless it has an attachment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/messages/conv-1')
+      .send({ content: '', attachments: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('requires a file before uploading a business attachment', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/messages/conv-1/attachments');
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
   });
 
   test('replays a conversation creation without creating a duplicate thread', async () => {

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const enforceBookingRules = require('../middleware/enforceBookingRules');
 const businessMessagingController = require('../controllers/businessMessagingController');
 const businessServicesController = require('../controllers/businessServicesController');
@@ -16,6 +18,7 @@ router.get ('/:businessId/messages',                                       requi
 router.post('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.createConversation);
 router.get ('/:businessId/messages/assignments/list',                      requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.listAssignments);
 router.get ('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversation);
+router.post('/:businessId/messages/:conversationId/attachments',            requireAuth, requireBusinessAccess({ minRole: 'any' }),     upload.single('file'), validateFileUpload, businessMessagingController.uploadAttachment);
 router.post('/:businessId/messages/:conversationId',                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.sendMessage);
 router.post('/:businessId/messages/:conversationId/archive',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.archiveConversation);
 router.post('/:businessId/messages/:conversationId/claim',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessConversationAssignmentController.claimConversation);
