@@ -18,6 +18,7 @@ import api from '../api/axios';
 import { getMyBusinesses } from '../api/vortex';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 
 const ROLE_CONFIG = {
   business_manager: {
@@ -379,6 +380,8 @@ export default function BusinessRoleDashboardBase({ mode }) {
             )}
           </aside>
         </section>
+
+        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.businessRole} />
       </main>
       <Footer />
     </div>

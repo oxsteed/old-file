@@ -19,6 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import {
   Wrench, Package, Clock, DollarSign, Star, TrendingUp,
   CheckCircle2, AlertCircle, Plus, ArrowRight,
@@ -294,6 +295,10 @@ export default function ToolOwnerDashboard() {
           </div>
         </section>
       </main>
+
+      <div className="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-6 lg:px-8">
+        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.toolOwner} />
+      </div>
       <Footer />
     </div>
   );

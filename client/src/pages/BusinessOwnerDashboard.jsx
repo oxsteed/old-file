@@ -20,6 +20,7 @@ import api from '../api/axios';
 import { getMyBusinesses } from '../api/vortex';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import {
   Building2, Plus, Users, Calendar, MessageSquare, UtensilsCrossed,
@@ -469,6 +470,8 @@ export default function BusinessOwnerDashboard() {
             </Link>
           </section>
         )}
+
+        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.businessOwner} />
       </main>
       <Footer />
     </div>

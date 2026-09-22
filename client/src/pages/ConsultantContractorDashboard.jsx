@@ -19,6 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import PlatformApprovalBanner from '../components/PlatformApprovalBanner';
 import { useTranslation } from 'react-i18next';
 import { formatCents, formatNumber } from '../lib/format';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 
 const STATUS_OPTIONS = [
   ['assigned', 'consultantContractorDashboard.referralStatus.assigned', 'Assigned'],
@@ -557,6 +558,8 @@ export default function ConsultantContractorDashboard() {
               </div>
             </div>
           </section>
+
+          <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.consultant} className="mt-6" />
         </div>
       </div>
     </PageShell>

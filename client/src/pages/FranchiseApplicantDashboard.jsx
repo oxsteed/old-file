@@ -16,6 +16,7 @@ import {
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { ALL_COUNTRIES } from '../lib/countries';
 
 const STATUS_PROGRESS = {
@@ -329,6 +330,10 @@ export default function FranchiseApplicantDashboard() {
           </section>
         )}
       </main>
+
+      <div className="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-6 lg:px-8">
+        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.franchise} />
+      </div>
       <Footer />
     </div>
   );

@@ -25,6 +25,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import {
   HeartPulse, Car, Home, Wallet, Target, ListChecks,
   CalendarClock, Lightbulb, ArrowRight, Wrench, Hammer, Sparkles,
@@ -528,6 +529,10 @@ export default function LifeDashboard() {
           </Link>
         </div>
       </main>
+
+      <div className="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-6 lg:px-8">
+        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.life} />
+      </div>
 
       <Footer />
     </div>

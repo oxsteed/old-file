@@ -21,6 +21,7 @@ import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components
 import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -2259,6 +2260,8 @@ export default function HelperDashboard() {
         )}
 
       </main>
+
+      <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.helper} className="mx-4 mb-6 lg:mx-auto lg:w-full lg:max-w-6xl" />
 
       {/* ════════════════════ MODALS ════════════════════ */}
 
