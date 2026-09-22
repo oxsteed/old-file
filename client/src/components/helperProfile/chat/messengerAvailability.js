@@ -303,6 +303,7 @@ export function resolveClientTimezone(date = new Date()) {
  * @param {string|null} [options.endIso]
  * @param {string} [options.timezone]
  * @param {string|null} [options.guestSessionId]
+ * @param {string|null} [options.clientRequestId]
  * @param {string} [options.description]
  * @returns {object|null}
  */
@@ -318,6 +319,7 @@ export function buildMessengerBookingPayload({
   endIso = null,
   timezone = '',
   guestSessionId = null,
+  clientRequestId = null,
   description = '',
 } = {}) {
   const d = String(date || '').slice(0, 10);
@@ -337,6 +339,7 @@ export function buildMessengerBookingPayload({
     endIso: endIso || `${d}T${e}:00`,
     timezone: tz,
     guestSessionId: guestSessionId || undefined,
+    clientRequestId: clientRequestId || undefined,
     description: String(description || '').trim().slice(0, 2000) || undefined,
   };
 }

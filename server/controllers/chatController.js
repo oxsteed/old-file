@@ -1675,6 +1675,14 @@ exports.resendGuestProfileChatCode = async (req, res, next) => {
 exports.createMessengerGuestBooking = async (req, res, next) => {
   try {
     const body = req.body || {};
+    const rawClientRequestId = req.get?.('Idempotency-Key')
+      || body.clientRequestId
+      || body.client_request_id
+      || null;
+    const clientRequestId = rawClientRequestId ? String(rawClientRequestId).trim() : null;
+    if (clientRequestId && !isUuid(clientRequestId)) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed');
+    }
     let verifiedGuestSession = req.guestSession || null;
     if (!verifiedGuestSession && !req.user?.id) {
       const { token, sessionId } = guestProfileVerify.extractGuestAuth(req);
@@ -1707,6 +1715,44 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
     }
     if (verifiedGuestSession && !guestProfileVerify.tokenMatchesProfile(verifiedGuestSession, { helperId, businessId })) {
       throw new AppError('Guest session does not match this profile', 403, 'forbidden');
+    }
+
+    if (verifiedGuestSession?.id && clientRequestId) {
+      const { rows: existingRows } = await pool.query(
+        `SELECT * FROM booking_requests
+          WHERE guest_session_id = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [verifiedGuestSession.id, clientRequestId],
+      );
+      const existingBooking = existingRows[0];
+      if (existingBooking) {
+        let appointment = null;
+        if (existingBooking.appointment_id) {
+          const { rows: appointmentRows } = await pool.query(
+            'SELECT * FROM appointments WHERE id = $1 LIMIT 1',
+            [existingBooking.appointment_id],
+          );
+          appointment = appointmentRows[0] || null;
+        }
+        return res.status(200).json({
+          success: true,
+          type: 'appointment',
+          appointmentId: appointment?.id || existingBooking.appointment_id || null,
+          appointment,
+          bookingId: existingBooking.id,
+          booking: existingBooking,
+          marker: chatBookingReqCtl.buildBookingRequestMarker({
+            id: existingBooking.id,
+            status: existingBooking.status,
+            date: existingBooking.requested_date,
+            start: existingBooking.requested_start_time,
+            end: existingBooking.requested_end_time,
+            serviceName: existingBooking.service_name,
+            serviceId: existingBooking.service_id,
+          }),
+          idempotent: true,
+        });
+      }
     }
 
     const serviceName = String(body.serviceName || body.service_name || 'Service request').trim().slice(0, 200);
@@ -1855,6 +1901,7 @@ const bookingId = require('crypto').randomUUID();
         timezone,
         description: action.customer_notes,
         appointmentId: appointment.id,
+        clientRequestId,
         source: 'messenger_picker',
         conversationId: body.conversationId || body.conversation_id || null,
       });
@@ -1882,10 +1929,14 @@ const bookingId = require('crypto').randomUUID();
         ? `${marker}\nBooking request: ${serviceName} · ${date} ${start}–${end}`
         : `Booking request: ${serviceName} · ${date} ${start}–${end}`;
       try {
-        await pool.query(
-          `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
-           VALUES ($1, 'guest', $2, $3)`,
-          [verifiedGuestSession.id, guestName || 'Guest', summary]
+        const { rows: mirrorRows } = await pool.query(
+          `INSERT INTO guest_profile_chat_messages
+             (session_id, sender_type, sender_name, message, client_message_id)
+           VALUES ($1, 'guest', $2, $3, $4)
+           ON CONFLICT (session_id, client_message_id)
+           WHERE client_message_id IS NOT NULL DO NOTHING
+           RETURNING id`,
+          [verifiedGuestSession.id, guestName || 'Guest', summary, clientRequestId]
         );
         const socketPayload = {
           conversationId: null,
@@ -1901,7 +1952,9 @@ const bookingId = require('crypto').randomUUID();
           guestEmail,
           bookingId: bookingRow?.id || null,
         };
-        socketService.broadcastToUser(helperId, 'profile_chat:new_message', socketPayload);
+        if (mirrorRows.length) {
+          socketService.broadcastToUser(helperId, 'profile_chat:new_message', socketPayload);
+        }
       } catch (e) {
         logger.warn('[MessengerBooking] guest message mirror failed', { error: e.message });
       }

@@ -39,6 +39,79 @@ beforeEach(() => {
 });
 
 describe('profile chat delivery', () => {
+  test('replays a guest messenger booking before creating another appointment or mirror message', async () => {
+    const requestId = '33333333-3333-4333-8333-333333333333';
+    const booking = {
+      id: 'booking-1',
+      appointment_id: 44,
+      guest_session_id: 'guest-session-1',
+      helper_id: 'helper-1',
+      business_id: 7,
+      service_name: 'Ceiling fan installation',
+      service_id: 'service-1',
+      requested_date: '2026-09-25',
+      requested_start_time: '10:00:00',
+      requested_end_time: '11:00:00',
+      status: 'pending',
+    };
+    const appointment = { id: 44, status: 'requested' };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // agreement gate
+      .mockResolvedValueOnce({ rows: [booking] })
+      .mockResolvedValueOnce({ rows: [appointment] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [booking] })
+      .mockResolvedValueOnce({ rows: [appointment] });
+
+    const req = {
+      body: {
+        helperId: 'helper-1',
+        businessId: 7,
+        clientRequestId: requestId,
+        requestedDate: '2026-09-25',
+        requestedStartTime: '10:00',
+        requestedEndTime: '11:00',
+      },
+      guestSession: {
+        id: 'guest-session-1',
+        helper_id: 'helper-1',
+        business_id: 7,
+        guest_name: 'Guest One',
+        guest_email: 'guest@example.com',
+      },
+      user: null,
+      get: jest.fn(() => undefined),
+    };
+    const first = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    const retry = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await chatController.createMessengerGuestBooking(req, first, jest.fn());
+    await chatController.createMessengerGuestBooking(req, retry, jest.fn());
+
+    expect(first.status).toHaveBeenCalledWith(200);
+    expect(retry.status).toHaveBeenCalledWith(200);
+    expect(retry.json).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: booking.id,
+      appointmentId: appointment.id,
+      idempotent: true,
+    }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO appointments/.test(sql))).toHaveLength(0);
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO guest_profile_chat_messages/.test(sql))).toHaveLength(0);
+  });
+
+  test('rejects a malformed guest booking request id before touching the database', async () => {
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    await chatController.createMessengerGuestBooking({
+      body: { clientRequestId: 'booking-retry-1' },
+      user: null,
+      get: jest.fn(() => undefined),
+    }, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'validation_failed' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('replays a committed live message without duplicate side effects', async () => {
     mockQuery
       // First request: availability, conversation, insert, timestamp, sender.

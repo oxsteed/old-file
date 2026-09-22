@@ -1789,6 +1789,10 @@ const textMsg = buildSlotRequestMessage({
               });
               if (!textMsg) return;
               setShowAvailability(false);
+              const clientRequestId = isGuest
+                ? (pendingBookingRequestIdRef.current || createMessageRequestId())
+                : null;
+              if (clientRequestId) pendingBookingRequestIdRef.current = clientRequestId;
 
               const payload = buildMessengerBookingPayload({
                 helperId,
@@ -1802,6 +1806,7 @@ const textMsg = buildSlotRequestMessage({
                 endIso: slot.endIso,
                 timezone: tz,
                 guestSessionId: readGuestVerifiedSession(helperId, businessId)?.sessionId,
+                clientRequestId,
                 description: textMsg,
               });
 
@@ -1845,6 +1850,7 @@ const textMsg = buildSlotRequestMessage({
                     appointmentId: data?.appointmentId || data?.appointment?.id,
                     bookingId: data?.bookingId,
                   };
+                  pendingBookingRequestIdRef.current = null;
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                 }
               } catch (err: any) {
