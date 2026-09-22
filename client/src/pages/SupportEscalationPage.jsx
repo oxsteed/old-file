@@ -524,6 +524,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
   const typingTimerRef = useRef(null);
   const stickToBottomRef = useRef(true);
   const pendingMessageIdRef = useRef(null);
+  const pendingRoutingRequestIdRef = useRef(null);
 
   useEffect(() => {
     ticketIdRef.current = ticketId;
@@ -900,6 +901,10 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
     setTicketSubmitting(true);
     try {
+      const clientRequestId = ticketId
+        ? null
+        : (pendingRoutingRequestIdRef.current || createMessageRequestId());
+      if (clientRequestId) pendingRoutingRequestIdRef.current = clientRequestId;
       const response = ticketId
         ? await api.post(`/support/conversations/${ticketId}/message`, { message: ticketMessage, clientMessageId: createMessageRequestId() })
         : await api.post('/support-routing/conversations', {
@@ -909,6 +914,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
           message: ticketMessage,
           category: 'support_request',
           priority: 'normal',
+          clientRequestId,
         });
 
       localStorage.setItem('oxs:visitorName', visitorName);
@@ -916,6 +922,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
       setSuccessTicketId(ticketId || response.data.ticketId);
       setPhase('success');
+      pendingRoutingRequestIdRef.current = null;
     } catch (err) {
       console.error('Ticket error:', err);
       toast.error(t('support.escalation.ticketError'));
