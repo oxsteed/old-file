@@ -1,0 +1,32 @@
+'use strict';
+
+const { mockQuery, resetMocks } = require('./setup');
+const { mirrorMessage } = require('../services/businessConversationSync');
+
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+});
+
+describe('business conversation mirroring', () => {
+  test('recovers an existing mirrored message without broadcasting twice', async () => {
+    const messageId = '00000000-0000-4000-8000-000000000327';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: messageId }] });
+
+    const result = await mirrorMessage({
+      businessConversationId: '00000000-0000-4000-8000-000000000328',
+      senderId: '00000000-0000-4000-8000-000000000123',
+      senderType: 'customer',
+      content: 'Can you help with my order?',
+      legacyMessageId: '00000000-0000-4000-8000-000000000329',
+      clientMessageId: '00000000-0000-4000-8000-000000000330',
+    });
+
+    expect(result).toBe(messageId);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(mockQuery.mock.calls[0][0]).toContain('ON CONFLICT (conversation_id, client_message_id)');
+    expect(mockQuery.mock.calls[1][0]).toContain('SELECT id FROM business_messages');
+  });
+});

@@ -774,7 +774,7 @@ exports.profileChatMessage = async (req, res, next) => {
 
       // Phase 1a: mirror into business_conversations / business_messages so the
       // business workspace inbox shows the same thread. Fire-and-forget.
-      if (resolvedBusinessId && !replayed) {
+      if (resolvedBusinessId) {
         try {
           const senderRowRes = await pool.query(
             'SELECT first_name, last_name, email FROM users WHERE id = $1',
@@ -799,6 +799,7 @@ exports.profileChatMessage = async (req, res, next) => {
               content,
               messageType: 'text',
               legacyMessageId: msgRow.rows[0] && msgRow.rows[0].id,
+              clientMessageId,
             });
           }
         } catch (mirrorErr) {

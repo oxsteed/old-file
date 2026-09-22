@@ -139,6 +139,7 @@ async function ensureBusinessConversation(args) {
  * @param {string} args.content
  * @param {'text'|'system'|'action'} [args.messageType='text']
  * @param {string|null} [args.legacyMessageId]
+ * @param {string|null} [args.clientMessageId]
  * @returns {Promise<string|null>}
  */
 async function mirrorMessage(args) {
@@ -151,6 +152,7 @@ async function mirrorMessage(args) {
     content,
     messageType = 'text',
     legacyMessageId = null,
+    clientMessageId = null,
   } = args || {};
 
   if (!businessConversationId) return null;
@@ -160,8 +162,10 @@ async function mirrorMessage(args) {
     const inserted = await pool.query(
       `INSERT INTO business_messages
          (conversation_id, sender_id, sender_name, sender_email, sender_type,
-          content, message_type, legacy_message_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          content, message_type, legacy_message_id, client_message_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (conversation_id, client_message_id)
+       WHERE client_message_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
         businessConversationId,
@@ -172,8 +176,25 @@ async function mirrorMessage(args) {
         String(content).slice(0, 10000),
         messageType,
         legacyMessageId,
+        clientMessageId,
       ]
     );
+    let messageId = inserted.rows[0] && inserted.rows[0].id;
+    let replayed = false;
+    if (!messageId && clientMessageId) {
+      const existing = await pool.query(
+        `SELECT id FROM business_messages
+          WHERE conversation_id = $1 AND client_message_id = $2
+          LIMIT 1`,
+        [businessConversationId, clientMessageId],
+      );
+      messageId = existing.rows[0] && existing.rows[0].id;
+      replayed = Boolean(messageId);
+    }
+    if (!messageId) return null;
+
+    if (replayed) return messageId;
+
     await pool.query(
       `UPDATE business_conversations
          SET last_message_at = NOW(), updated_at = NOW()
@@ -191,7 +212,7 @@ async function mirrorMessage(args) {
       if (businessId) {
         socketService.broadcastToBusinessInbox(businessId, 'business_inbox:message', {
           conversation_id: businessConversationId,
-          message_id: inserted.rows[0] && inserted.rows[0].id,
+          message_id: messageId,
           sender_type: senderType,
           sender_name: senderName,
           content: String(content).slice(0, 280),
@@ -201,7 +222,7 @@ async function mirrorMessage(args) {
     } catch (broadcastErr) {
       logger.warn('inbox broadcast failed', { err: broadcastErr && broadcastErr.message });
     }
-    return inserted.rows[0] ? inserted.rows[0].id : null;
+    return messageId;
   } catch (err) {
     logger.warn('mirrorMessage failed', {
       err: err && err.message,

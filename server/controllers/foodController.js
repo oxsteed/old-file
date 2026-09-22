@@ -5775,7 +5775,7 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
     }, 'create_restaurant_customer_message');
     const { record, conversationId, chatMessageId } = result;
 
-    if (!result?.replayed && conversationId && restaurant.business_id) {
+    if (conversationId && restaurant.business_id) {
       const businessConversationId = await ensureBusinessConversation({
         businessId: restaurant.business_id,
         legacyConversationId: conversationId,
@@ -5796,6 +5796,7 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
         content: chatContent,
         messageType: 'text',
         legacyMessageId: chatMessageId,
+        clientMessageId,
       });
     }
 
