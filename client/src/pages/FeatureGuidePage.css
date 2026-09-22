@@ -571,3 +571,139 @@
     padding: 14px 14px 16px;
   }
 }
+
+/* Keep the feature guide readable as a complete light-mode surface. The
+   global light-mode utility remap intentionally makes headings dark, so the
+   hero and its supporting dark-first components need matching light fills. */
+html:not(.dark) .feature-guide-page {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .feature-guide-hero {
+  border-bottom-color: #dbe4ef !important;
+  background:
+    linear-gradient(135deg, #fff7ed 0%, #ffffff 56%, #eff6ff 100%) !important;
+}
+
+html:not(.dark) .feature-guide-hero h1 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .feature-guide-hero p:last-child {
+  color: #475569 !important;
+}
+
+html:not(.dark) .feature-guide-hero-actions a:not(:first-child) {
+  border-color: #fdba74 !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  color: #c2410c !important;
+}
+
+html:not(.dark) .feature-guide-hero-actions a:not(:first-child):hover {
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+}
+
+html:not(.dark) .feature-guide-search {
+  border-color: #dbe4ef !important;
+  background: #ffffff !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+html:not(.dark) .feature-guide-search svg {
+  color: #64748b !important;
+}
+
+html:not(.dark) .feature-guide-search input {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .feature-guide-search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .feature-guide-toc p {
+  color: #64748b !important;
+}
+
+html:not(.dark) .feature-guide-toc a {
+  color: #475569 !important;
+}
+
+html:not(.dark) .feature-guide-toc a:hover,
+html:not(.dark) .feature-guide-toc a.active {
+  background: #fff7ed !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .feature-guide-toc small {
+  color: #64748b !important;
+}
+
+html:not(.dark) .feature-guide-path-card ol,
+html:not(.dark) .feature-guide-detail-grid ul {
+  color: #475569 !important;
+}
+
+html:not(.dark) .feature-guide-flow span {
+  border-color: #fed7aa !important;
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+}
+
+html:not(.dark) .feature-guide-examples span,
+html:not(.dark) .feature-guide-tags span {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .feature-guide-category-row a {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+}
+
+html:not(.dark) .feature-guide-category-row a:hover {
+  border-color: #fb923c !important;
+  color: #c2410c !important;
+}
+
+html:not(.dark) .feature-guide-results {
+  color: #475569 !important;
+}
+
+html:not(.dark) .feature-guide-section {
+  border-bottom-color: #dbe4ef !important;
+}
+
+html:not(.dark) .feature-guide-tabs-block {
+  border-color: #dbe4ef !important;
+  background: #f8fafc !important;
+}
+
+html:not(.dark) .feature-guide-tabs-title,
+html:not(.dark) .feature-guide-detail-grid h3 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .feature-guide-tabs-intro,
+html:not(.dark) .feature-guide-tab-desc {
+  color: #64748b !important;
+}
+
+html:not(.dark) .feature-guide-tab-card {
+  border-color: #dbe4ef !important;
+  background: #ffffff !important;
+}
+
+html:not(.dark) .feature-guide-actions a {
+  border-color: #fdba74 !important;
+  background: #ffffff !important;
+  color: #c2410c !important;
+}
+
+html:not(.dark) .feature-guide-actions a:hover {
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+}
