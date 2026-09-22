@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Calculator, ChevronDown, Globe, Paperclip, Receipt } from 'lucide-react';
+import { Archive, ArrowLeft, Calculator, ChevronDown, Globe, Paperclip, Receipt, RotateCcw } from 'lucide-react';
 import { useConversationChat } from '../../hooks/useConversationChat';
 import AutoTranslatedMessage from '../AutoTranslatedMessage';
 import MessageReactions from '../MessageReactions';
@@ -75,6 +75,8 @@ export default function ConversationThread({
   conversationId,
   role = 'customer',
   onBack,
+  onArchive,
+  onRestore,
 }) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = useState(null);
@@ -231,6 +233,30 @@ export default function ConversationThread({
           </div>
         </div>
         <div className="messages-thread-actions">
+          {onArchive ? (
+            <button
+              type="button"
+              className="messages-thread-action-icon"
+              onClick={onArchive}
+              aria-label={t('messages.archive')}
+              title={t('messages.archive')}
+            >
+              <Archive size={16} aria-hidden />
+              <span className="visually-hidden">{t('messages.archive')}</span>
+            </button>
+          ) : null}
+          {onRestore ? (
+            <button
+              type="button"
+              className="messages-thread-action-icon"
+              onClick={onRestore}
+              aria-label={t('messages.restore')}
+              title={t('messages.restore')}
+            >
+              <RotateCcw size={16} aria-hidden />
+              <span className="visually-hidden">{t('messages.restore')}</span>
+            </button>
+          ) : null}
           {/* Provider deal chips live only in ProviderMessengerToolbar (no header duplicate). */}
           {role !== 'helper' ? (
             <button

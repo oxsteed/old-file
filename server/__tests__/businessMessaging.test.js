@@ -23,6 +23,7 @@ function buildApp(user = OWNER) {
   app.get('/api/businesses/:businessId/messages/:conversationId', ctrl.getConversation);
   app.post('/api/businesses/:businessId/messages/:conversationId/attachments', ctrl.uploadAttachment);
   app.post('/api/businesses/:businessId/messages/:conversationId', ctrl.sendMessage);
+  app.post('/api/businesses/:businessId/messages/:conversationId/restore', ctrl.restoreConversation);
   app.use(errorHandler);
   return app;
 }
@@ -188,6 +189,32 @@ describe('business hub messaging tab', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('includes archived conversations only when explicitly requested', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] });
+
+    const res = await request(buildApp()).get('/api/businesses/1/messages?include_archived=true&archived_only=true');
+    expect(res.status).toBe(200);
+    const listSql = mockQuery.mock.calls[1][0];
+    expect(listSql).toContain("bc.status = 'archived'");
+  });
+
+  test('restores an archived business conversation', async () => {
+    const restored = { id: 'conv-archived', business_id: 1, status: 'active' };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [restored] });
+
+    const res = await request(buildApp())
+      .post('/api/businesses/1/messages/conv-archived/restore');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(restored);
+    expect(mockQuery.mock.calls[1][0]).toContain("status = 'active'");
+    expect(mockQuery.mock.calls[1][0]).toContain("status = 'archived'");
   });
 
   test('replays a conversation creation without creating a duplicate thread', async () => {

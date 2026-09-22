@@ -31,10 +31,22 @@ async function assertBusinessAccess(req, businessId) {
 async function getConversations(req, res, next) {
   try {
     const { businessId } = req.params;
-    const { type = 'all', search = '', limit = 50, offset = 0 } = req.query;
+    const {
+      type = 'all',
+      search = '',
+      limit = 50,
+      offset = 0,
+      include_archived: includeArchived = 'false',
+      archived_only: archivedOnly = 'false',
+    } = req.query;
     await assertBusinessAccess(req, businessId);
 
-    const filters = ['bc.business_id = $1', "bc.status IN ('active', 'resolved')"];
+    const statusFilter = archivedOnly === 'true'
+      ? "bc.status = 'archived'"
+      : includeArchived === 'true'
+        ? "bc.status IN ('active', 'resolved', 'archived')"
+        : "bc.status IN ('active', 'resolved')";
+    const filters = ['bc.business_id = $1', statusFilter];
     const filterParams = [businessId, req.user.id];
     if (type !== 'all') {
       filters.push(`bc.conversation_type = $${filterParams.length + 1}`);
@@ -74,7 +86,7 @@ async function getConversations(req, res, next) {
     params.push(parseInt(limit, 10), parseInt(offset, 10));
 
     const result = await pool.query(query, params);
-    const totalFilters = ['business_id = $1', "status IN ('active', 'resolved')"];
+    const totalFilters = ['business_id = $1', statusFilter.replace('bc.', '')];
     const totalParams = [businessId];
     if (type !== 'all') {
       totalFilters.push(`conversation_type = $${totalParams.length + 1}`);
@@ -384,6 +396,29 @@ async function archiveConversation(req, res, next) {
   }
 }
 
+async function restoreConversation(req, res, next) {
+  try {
+    const { businessId, conversationId } = req.params;
+    await assertBusinessAccess(req, businessId);
+
+    const result = await pool.query(
+      `UPDATE business_conversations
+       SET status = 'active', updated_at = NOW()
+       WHERE id = $1 AND business_id = $2 AND status = 'archived'
+       RETURNING *`,
+      [conversationId, businessId],
+    );
+    if (!result.rows.length) {
+      return next(new AppError('Archived conversation not found', 404, 'not_found'));
+    }
+    return res.json(result.rows[0]);
+  } catch (error) {
+    if (error instanceof AppError) return next(error);
+    logger.error('Error restoring conversation', { error: error.message, conversationId: req.params.conversationId });
+    return next(new AppError('Failed to restore conversation', 500));
+  }
+}
+
 module.exports = {
   getConversations,
   getConversation,
@@ -391,4 +426,5 @@ module.exports = {
   uploadAttachment,
   createConversation,
   archiveConversation,
+  restoreConversation,
 };

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
+  Archive,
   Briefcase,
   Building2,
   CalendarDays,
@@ -34,17 +35,22 @@ import { resolveShellChrome } from './messengerShellState';
 import '../../pages/MessagesPage.css';
 import './SharedMessengerShell.css';
 
-export default function MessagingWorkspace({ role = 'auto' }) {
+export default function MessagingWorkspace({ role = 'auto', businessId = null, embedded = false }) {
   const { t } = useTranslation();
   const { user, isHelper: accountIsHelper } = useAuth();
   const location = useLocation();
-  const helperRoute = location.pathname.startsWith('/helper/messages') || role === 'helper';
-  const basePath = helperRoute ? '/helper/messages' : '/messages';
-  const { conversationId, inquiryId } = useParams();
+  const helperRoute = Boolean(businessId) || location.pathname.startsWith('/helper/messages') || role === 'helper';
+  const basePath = businessId ? `/business/${businessId}/workspace/messages` : helperRoute ? '/helper/messages' : '/messages';
+  const { conversationId: routeConversationId, inquiryId } = useParams();
   const navigate = useNavigate();
   const { socket } = useSocket();
 
+  const [embeddedConversationId, setEmbeddedConversationId] = useState(null);
+  const [embeddedInquiryId, setEmbeddedInquiryId] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [archivedConversations, setArchivedConversations] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedLoading, setArchivedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
@@ -55,16 +61,19 @@ export default function MessagingWorkspace({ role = 'auto' }) {
   const [managedBusinesses, setManagedBusinesses] = useState([]);
   const [starting, setStarting] = useState(false);
 
-  const selectedGuestId = inquiryId || (String(conversationId || '').startsWith('guest-')
+  const conversationId = embedded ? embeddedConversationId : routeConversationId;
+  const selectedInquiryId = embedded ? embeddedInquiryId : inquiryId;
+  const selectedGuestId = selectedInquiryId || (String(conversationId || '').startsWith('guest-')
     ? String(conversationId).replace(/^guest-/i, '')
     : null);
   const selectedId = selectedGuestId ? `guest-${selectedGuestId}` : conversationId || null;
-  const hasThread = Boolean(conversationId || inquiryId);
+  const hasThread = Boolean(conversationId || selectedInquiryId);
   const userId = user?.id || null;
   const showHelperInbox = hasHelperInboxWork(userId, conversations, accountIsHelper || helperRoute);
   const dualRole = showHelperInbox && conversations.some((conv) => conversationSide(userId, conv) === 'customer');
 
   useEffect(() => {
+    if (businessId) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -88,15 +97,19 @@ export default function MessagingWorkspace({ role = 'auto' }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [businessId]);
 
   const fetchConversations = useCallback(async () => {
     try {
       setLoadError('');
-      const params = businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
+      const params = businessId
+        ? { business_id: businessId }
+        : businessFilter !== 'all'
+          ? { business_id: businessFilter }
+          : undefined;
       const [convRes, guestRes] = await Promise.all([
-        api.get(`/messages/conversations${params}`),
-        api.get(`/messages/guest-inquiries${params}`).catch(() => ({ data: [] })),
+        api.get('/messages/conversations', { params }),
+        api.get('/messages/guest-inquiries', { params }).catch(() => ({ data: [] })),
       ]);
       const convList = Array.isArray(convRes.data) ? convRes.data : [];
       const guestList = Array.isArray(guestRes.data) ? guestRes.data : [];
@@ -112,7 +125,27 @@ export default function MessagingWorkspace({ role = 'auto' }) {
     } finally {
       setLoading(false);
     }
-  }, [businessFilter, t]);
+  }, [businessId, businessFilter, t]);
+
+  const fetchArchived = useCallback(async () => {
+    try {
+      setArchivedLoading(true);
+      if (businessId) {
+        const { data } = await api.get('/messages/conversations', {
+          params: { business_id: businessId, include_archived: 'true' },
+        });
+        const conversations = Array.isArray(data?.conversations) ? data.conversations : Array.isArray(data) ? data : [];
+        setArchivedConversations(conversations.filter((conversation) => conversation.archived_at));
+      } else {
+        const { data } = await api.get('/messages/archived', { params: { limit: 100, offset: 0 } });
+        setArchivedConversations(Array.isArray(data?.archived) ? data.archived : []);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('messages.loadFailed'));
+    } finally {
+      setArchivedLoading(false);
+    }
+  }, [businessId, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -198,6 +231,16 @@ export default function MessagingWorkspace({ role = 'auto' }) {
     });
   }, [conversations, query, filter, sideFilter, newInbound, userId]);
 
+  const filteredArchivedConversations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return archivedConversations;
+    return archivedConversations.filter((conv) => [
+      conv.other_user_name,
+      conv.job_title,
+      conv.conversation_business_name,
+    ].filter(Boolean).join(' ').toLowerCase().includes(q));
+  }, [archivedConversations, query]);
+
   const handleOpen = (conv) => {
     const convId = conv.id;
     setNewInbound((prev) => {
@@ -207,25 +250,70 @@ export default function MessagingWorkspace({ role = 'auto' }) {
     });
     if (isGuestConversation(conv)) {
       const uuid = String(convId).replace(/^guest-/i, '');
-      navigate(`/helper/messages/guest/${uuid}`);
+      if (embedded) {
+        setEmbeddedConversationId(null);
+        setEmbeddedInquiryId(uuid);
+      } else {
+        navigate(`/helper/messages/guest/${uuid}`);
+      }
       return;
     }
-    navigate(`${basePath}/${convId}`);
+    if (embedded) {
+      setEmbeddedInquiryId(null);
+      setEmbeddedConversationId(String(convId));
+    } else {
+      navigate(`${basePath}/${convId}`);
+    }
   };
 
-  const closeThread = () => navigate(basePath);
-  const selectedConversation = conversations.find((conv) => String(conv.id) === String(selectedId));
+  const restoreArchived = async (conversationId) => {
+    try {
+      await api.post(`/messages/conversations/${conversationId}/restore`);
+      toast.success(t('messages.restored'));
+      await Promise.all([fetchArchived(), fetchConversations()]);
+      if (String(selectedId) === String(conversationId)) {
+        if (embedded) {
+          setEmbeddedConversationId(null);
+          setEmbeddedInquiryId(null);
+        }
+        else navigate(basePath);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('messages.restoreFailed', { defaultValue: 'Failed to restore conversation' }));
+    }
+  };
+
+  const archiveConversation = async (conversationId) => {
+    try {
+      await api.post(`/messages/conversations/${conversationId}/archive`);
+      toast.success(t('messages.archived'));
+      await fetchConversations();
+      if (String(selectedId) === String(conversationId)) {
+        if (embedded) {
+          setEmbeddedConversationId(null);
+          setEmbeddedInquiryId(null);
+        }
+        else navigate(basePath);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('messages.archiveFailed', { defaultValue: 'Failed to archive conversation' }));
+    }
+  };
+
+  const closeThread = () => {
+    if (embedded) {
+      setEmbeddedConversationId(null);
+      setEmbeddedInquiryId(null);
+    }
+    else navigate(basePath);
+  };
+  const selectedConversation = [...conversations, ...archivedConversations]
+    .find((conv) => String(conv.id) === String(selectedId));
   const threadRole = conversationSide(userId, selectedConversation);
   const chrome = resolveShellChrome({ hasThread, compact: true });
 
-  return (
-    <PageShell hideFooter>
-      <PageMeta
-        title={dualRole ? t('messages.unifiedMetaTitle') : showHelperInbox ? t('messages.helperMetaTitle') : t('messages.title')}
-        description={dualRole ? t('messages.unifiedMetaDesc') : showHelperInbox ? t('messages.helperMetaDesc') : t('messages.metaDesc')}
-        noIndex
-      />
-      <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}`}>
+  const workspaceContent = (
+    <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}`}>
         <header className="messages-hero compact shell-compact">
           <div>
             <p className="messages-kicker">
@@ -290,7 +378,7 @@ export default function MessagingWorkspace({ role = 'auto' }) {
               </button>
             </div>
           )}
-          {managedBusinesses.length > 0 && (
+          {!businessId && managedBusinesses.length > 0 && (
             <select
               value={businessFilter}
               onChange={(e) => {
@@ -306,6 +394,19 @@ export default function MessagingWorkspace({ role = 'auto' }) {
             </select>
           )}
           <div className="messages-actions shell-demoted">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showArchived;
+                setShowArchived(next);
+                if (next) fetchArchived();
+              }}
+              aria-pressed={showArchived}
+              title={t('messages.viewArchived')}
+            >
+              <Archive size={15} />
+              {t('messages.viewArchived')}
+            </button>
             <button type="button" onClick={fetchConversations} disabled={loading}>
               <RefreshCw size={15} />
               {t('messages.refresh')}
@@ -334,7 +435,26 @@ export default function MessagingWorkspace({ role = 'auto' }) {
                 </button>
               </div>
             )}
-            {loading || starting ? (
+            {showArchived ? (
+              archivedLoading ? (
+                <div className="messages-loading">
+                  <div className="messages-spinner" />
+                  <p>{t('common.loading')}</p>
+                </div>
+              ) : filteredArchivedConversations.length === 0 ? (
+                <div className="messages-empty compact">
+                  <Archive size={30} />
+                  <h2>{t('messages.noArchivedConversations')}</h2>
+                </div>
+              ) : (
+                <ConversationList
+                  items={filteredArchivedConversations}
+                  selectedId={selectedId}
+                  onSelect={handleOpen}
+                  ariaLabel={t('messages.viewArchived')}
+                />
+              )
+            ) : loading || starting ? (
               <div className="messages-loading">
                 <div className="messages-spinner" />
                 <p>{starting ? t('messages.startingConversation') : t('common.loading')}</p>
@@ -430,6 +550,12 @@ export default function MessagingWorkspace({ role = 'auto' }) {
                 conversationId={conversationId}
                 role={threadRole}
                 onBack={closeThread}
+                onArchive={selectedConversation && !selectedConversation.archived_at
+                  ? () => archiveConversation(conversationId)
+                  : undefined}
+                onRestore={selectedConversation?.archived_at
+                  ? () => restoreArchived(conversationId)
+                  : undefined}
               />
             ) : (
               <div className="messages-thread-empty desktop-only">
@@ -460,8 +586,22 @@ export default function MessagingWorkspace({ role = 'auto' }) {
             )}
           </section>
         )}
-      </div>
-    </PageShell>
+    </div>
+  );
+
+  return (
+    <>
+      <PageMeta
+        title={dualRole ? t('messages.unifiedMetaTitle') : showHelperInbox ? t('messages.helperMetaTitle') : t('messages.title')}
+        description={dualRole ? t('messages.unifiedMetaDesc') : showHelperInbox ? t('messages.helperMetaDesc') : t('messages.metaDesc')}
+        noIndex
+      />
+      {embedded ? (
+        <div className="messages-embedded-workspace">{workspaceContent}</div>
+      ) : (
+        <PageShell hideFooter>{workspaceContent}</PageShell>
+      )}
+    </>
   );
 }
 

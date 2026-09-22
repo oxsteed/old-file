@@ -124,28 +124,15 @@ test('normalizeTeamConversationItem maps Team API rows for ConversationList', as
   assert.equal(subjectOnly.other_user_name, 'Ops');
 });
 
-test('Business Hub Team tab reuses ConversationList + shell thread chrome', async () => {
+test('Business Hub Messages uses the unified helper messaging workspace', async () => {
   const { readFile } = await import('node:fs/promises');
   const { fileURLToPath } = await import('node:url');
   const { dirname, join } = await import('node:path');
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const src = await readFile(
-    join(root, 'src/components/businessHub/BusinessMessagingTab.jsx'),
+    join(root, 'src/pages/BusinessHubPage.jsx'),
     'utf8',
   );
-  assert.ok(src.includes('normalizeTeamConversationItem'));
-  assert.ok(src.includes('ConversationList'));
-  assert.ok(src.includes('bmt-team-thread'));
-  assert.ok(src.includes('messages-thread-head'));
-  assert.ok(src.includes('messages-composer'));
-  assert.ok(src.includes("t('messages.shell.selectTeamHint')"));
-  assert.ok(src.includes("business_inbox:message"));
-  assert.ok(src.includes('unread_count'));
-  assert.ok(src.includes('uploadBusinessMessageAttachment'));
-  assert.ok(src.includes('ownMessage'));
-  assert.ok(src.includes('private://${uploaded.key}'));
-  assert.ok(src.includes('display_url || attachment.file_url'));
-  assert.ok(src.includes('selectedTeam?.id'));
-  // Team API path preserved
-  assert.ok(src.includes('`/businesses/${businessId}/messages`'));
+  assert.ok(src.includes("import MessagingWorkspace from '../components/messaging/MessagingWorkspace';"));
+  assert.ok(src.includes('<MessagingWorkspace role="helper" businessId={bizId} embedded />'));
 });
