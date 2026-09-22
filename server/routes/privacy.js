@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const archiver = require('archiver');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const pool = require('../db');
 const { columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
+const { sendOTPEmail } = require('../utils/email');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const socketService = require('../services/socketService');
 /**
@@ -92,10 +94,170 @@ function buildExportArchive(exportData) {
   });
 }
 
+const EXPORT_VERIFICATION_TTL_MINUTES = 15;
+const EXPORT_VERIFICATION_MAX_ATTEMPTS = 5;
+const EXPORT_VERIFICATION_SECRET = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'export-verification-secret';
+
+function hashExportVerificationValue(value) {
+  return crypto.createHmac('sha256', EXPORT_VERIFICATION_SECRET).update(String(value)).digest('hex');
+}
+
+function valuesMatch(left, right) {
+  const a = Buffer.from(String(left || ''), 'utf8');
+  const b = Buffer.from(String(right || ''), 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function maskEmail(email) {
+  const [local = '', domain = ''] = String(email || '').split('@');
+  if (!local || !domain) return 'your email address';
+  const visible = local.length <= 2 ? local.slice(0, 1) : `${local.slice(0, 2)}***`;
+  return `${visible}@${domain}`;
+}
+
+function requestIdFor(req) {
+  return req.correlationId || req.id || req.requestId || req.headers['x-request-id'] || null;
+}
+
+function verificationError(res, status, code, error, extra = {}) {
+  return res.status(status).json({ code, error, ...extra });
+}
+
+// POST /api/privacy/export/verification/request
+// Password verification happens before an email code is issued.
+router.post('/export/verification/request', authenticate, async (req, res) => {
+  try {
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    if (!password) {
+      return verificationError(res, 400, 'EXPORT_PASSWORD_REQUIRED', 'Enter your current password to continue.');
+    }
+
+    const { rows } = await pool.query(
+      'SELECT email, password_hash, preferred_language FROM users WHERE id = $1 AND deleted_at IS NULL',
+      [req.user.id],
+    );
+    const user = rows[0];
+    if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
+      return verificationError(res, 401, 'EXPORT_PASSWORD_INVALID', 'Incorrect password.');
+    }
+
+    const challengeToken = crypto.randomBytes(32).toString('hex');
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const challengeId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + EXPORT_VERIFICATION_TTL_MINUTES * 60 * 1000);
+
+    await pool.query(
+      `DELETE FROM privacy_export_verifications
+       WHERE user_id = $1 AND consumed_at IS NULL`,
+      [req.user.id],
+    );
+    await pool.query(
+      `INSERT INTO privacy_export_verifications
+         (id, user_id, challenge_token_hash, code_hash, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [challengeId, req.user.id, hashExportVerificationValue(challengeToken), hashExportVerificationValue(code), expiresAt],
+    );
+
+    const emailResult = await sendOTPEmail(user.email, code, user.preferred_language);
+    if (!emailResult || emailResult.success === false) {
+      await pool.query('DELETE FROM privacy_export_verifications WHERE id = $1', [challengeId]);
+      return verificationError(res, 503, 'EXPORT_VERIFICATION_UNAVAILABLE', 'We could not send the verification code. Please try again later.');
+    }
+
+    return res.json({
+      challengeToken,
+      emailHint: maskEmail(user.email),
+      expiresAt: expiresAt.toISOString(),
+    });
+  } catch (err) {
+    logger.error('Privacy export verification request failed', {
+      message: err.message,
+      userId: req.user?.id,
+      requestId: requestIdFor(req),
+    });
+    return verificationError(res, 500, 'EXPORT_VERIFICATION_FAILED', 'Unable to start export verification. Please try again.');
+  }
+});
+
+// POST /api/privacy/export/verification/verify
+router.post('/export/verification/verify', authenticate, async (req, res) => {
+  try {
+    const challengeToken = typeof req.body?.challengeToken === 'string' ? req.body.challengeToken : '';
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    if (!/^[a-f0-9]{64}$/i.test(challengeToken) || !/^\d{6}$/.test(code)) {
+      return verificationError(res, 400, 'EXPORT_CODE_INVALID', 'Enter the six-digit code from your email.');
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, code_hash, expires_at, attempts, locked_until, verified_at, consumed_at
+       FROM privacy_export_verifications
+       WHERE user_id = $1 AND challenge_token_hash = $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id, hashExportVerificationValue(challengeToken)],
+    );
+    const verification = rows[0];
+    if (!verification || verification.consumed_at || verification.verified_at) {
+      return verificationError(res, 400, 'EXPORT_CODE_INVALID', 'That verification request is no longer valid. Start again.');
+    }
+    if (new Date(verification.expires_at) <= new Date()) {
+      return verificationError(res, 400, 'EXPORT_CODE_EXPIRED', 'That verification code has expired. Start again.');
+    }
+    if (verification.locked_until && new Date(verification.locked_until) > new Date()) {
+      return verificationError(res, 429, 'EXPORT_CODE_LOCKED', 'Too many incorrect codes. Start a new verification request later.');
+    }
+
+    const codeValid = valuesMatch(verification.code_hash, hashExportVerificationValue(code));
+    if (!codeValid) {
+      const nextAttempts = Number(verification.attempts || 0) + 1;
+      await pool.query(
+        `UPDATE privacy_export_verifications
+         SET attempts = $2,
+             locked_until = CASE WHEN $2 >= $3 THEN NOW() + interval '15 minutes' ELSE locked_until END
+         WHERE id = $1`,
+        [verification.id, nextAttempts, EXPORT_VERIFICATION_MAX_ATTEMPTS],
+      );
+      if (nextAttempts >= EXPORT_VERIFICATION_MAX_ATTEMPTS) {
+        return verificationError(res, 429, 'EXPORT_CODE_LOCKED', 'Too many incorrect codes. Start a new verification request later.');
+      }
+      return verificationError(res, 400, 'EXPORT_CODE_INVALID', 'That verification code is incorrect.');
+    }
+
+    const exportToken = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `UPDATE privacy_export_verifications
+       SET export_token_hash = $2, verified_at = NOW()
+       WHERE id = $1 AND consumed_at IS NULL AND verified_at IS NULL`,
+      [verification.id, hashExportVerificationValue(exportToken)],
+    );
+    return res.json({ exportToken, expiresAt: new Date(verification.expires_at).toISOString() });
+  } catch (err) {
+    logger.error('Privacy export code verification failed', {
+      message: err.message,
+      userId: req.user?.id,
+      requestId: requestIdFor(req),
+    });
+    return verificationError(res, 500, 'EXPORT_VERIFICATION_FAILED', 'Unable to verify the export code. Please try again.');
+  }
+});
+
 // GET /api/privacy/export - Export all user data (CCPA right to know)
 router.get('/export', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
+    const exportToken = req.get('X-Export-Verification-Token');
+    if (!exportToken) {
+      return verificationError(res, 403, 'EXPORT_VERIFICATION_REQUIRED', 'Verify your password and email code before exporting data.');
+    }
+    const { rows: verificationRows } = await pool.query(
+      `SELECT id FROM privacy_export_verifications
+       WHERE user_id = $1 AND export_token_hash = $2
+         AND verified_at IS NOT NULL AND consumed_at IS NULL AND expires_at > NOW()
+       LIMIT 1`,
+      [userId, hashExportVerificationValue(exportToken)],
+    );
+    if (!verificationRows[0]) {
+      return verificationError(res, 403, 'EXPORT_VERIFICATION_REQUIRED', 'Verify your password and email code before exporting data.');
+    }
     // Gather all user data across tables
     const userResult = await pool.query(
       `SELECT id, email, phone, first_name, last_name, role,
@@ -140,6 +302,16 @@ router.get('/export', authenticate, async (req, res) => {
       consents: consentsResult.rows,
     };
     const archiveBuffer = await buildExportArchive(exportData);
+    const consumed = await pool.query(
+      `UPDATE privacy_export_verifications
+       SET consumed_at = NOW()
+       WHERE id = $1 AND consumed_at IS NULL
+       RETURNING id`,
+      [verificationRows[0].id],
+    );
+    if (!consumed.rows[0]) {
+      return verificationError(res, 403, 'EXPORT_VERIFICATION_REQUIRED', 'This export authorization has already been used. Start again.');
+    }
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Length', archiveBuffer.length);
     res.setHeader(
@@ -148,11 +320,7 @@ router.get('/export', authenticate, async (req, res) => {
     );
     res.end(archiveBuffer);
   } catch (err) {
-    const requestId = req.correlationId
-      || req.id
-      || req.requestId
-      || req.headers['x-request-id']
-      || null;
+    const requestId = requestIdFor(req);
     logger.error('Privacy data export failed', {
       message: err.message,
       code: err.code,

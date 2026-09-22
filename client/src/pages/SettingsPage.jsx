@@ -164,6 +164,14 @@ export default function SettingsPage() {
   const [allowScheduling, setAllowScheduling] = useState(true);
   const [allowLiveChat, setAllowLiveChat] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(null);
+  const [exportVerification, setExportVerification] = useState({
+    step: 'idle',
+    password: '',
+    code: '',
+    challengeToken: '',
+    emailHint: '',
+    submitting: false,
+  });
 
   const { subscription, loading: subLoading } = useSubscription();
 
@@ -265,6 +273,86 @@ export default function SettingsPage() {
       toast.error(err.response?.data?.error || t('settings.privacy.updateFailed'));
     }
     setPrivacySaving(null);
+  };
+
+  const resetExportVerification = () => {
+    setExportVerification({
+      step: 'idle',
+      password: '',
+      code: '',
+      challengeToken: '',
+      emailHint: '',
+      submitting: false,
+    });
+  };
+
+  const exportErrorMessage = async (err) => {
+    let payload = err?.response?.data;
+    if (payload instanceof Blob) {
+      try { payload = JSON.parse(await payload.text()); } catch { payload = null; }
+    }
+    const message = payload?.error || t('settings.privacy.exportFailed');
+    return payload?.requestId ? `${message} (${payload.requestId})` : message;
+  };
+
+  const requestExportCode = async (event) => {
+    event.preventDefault();
+    if (!exportVerification.password) {
+      toast.error(t('settings.privacy.passwordRequired', { defaultValue: 'Enter your current password.' }));
+      return;
+    }
+    setExportVerification((current) => ({ ...current, submitting: true }));
+    try {
+      const { data } = await api.post('/privacy/export/verification/request', {
+        password: exportVerification.password,
+      });
+      setExportVerification((current) => ({
+        ...current,
+        step: 'code',
+        password: '',
+        challengeToken: data.challengeToken,
+        emailHint: data.emailHint || 'your email address',
+        submitting: false,
+      }));
+      toast.success(t('settings.privacy.codeSent', { defaultValue: 'A verification code was sent to your email.' }));
+    } catch (err) {
+      setExportVerification((current) => ({ ...current, submitting: false }));
+      toast.error(await exportErrorMessage(err));
+    }
+  };
+
+  const verifyAndDownloadExport = async (event) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(exportVerification.code.trim())) {
+      toast.error(t('settings.privacy.codeRequired', { defaultValue: 'Enter the six-digit code from your email.' }));
+      return;
+    }
+    setExportVerification((current) => ({ ...current, submitting: true }));
+    try {
+      const { data } = await api.post('/privacy/export/verification/verify', {
+        challengeToken: exportVerification.challengeToken,
+        code: exportVerification.code.trim(),
+      });
+      const response = await api.get('/privacy/export', {
+        responseType: 'blob',
+        headers: { 'X-Export-Verification-Token': data.exportToken },
+      });
+      const contentDisposition = response.headers?.['content-disposition'] || '';
+      const filename = contentDisposition.match(/filename="([^"]+)"/i)?.[1] || 'oxsteed-data-export.zip';
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      resetExportVerification();
+      toast.success(t('settings.privacy.exportSuccess'));
+    } catch (err) {
+      setExportVerification((current) => ({ ...current, submitting: false }));
+      toast.error(await exportErrorMessage(err));
+    }
   };
 
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -758,36 +846,72 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-      <button
-        className="sp-btn sp-btn-ghost"
-        onClick={async () => {
-          try {
-            const response = await api.get('/privacy/export', { responseType: 'blob' });
-            const contentDisposition = response.headers?.['content-disposition'] || '';
-            const filename = contentDisposition.match(/filename="([^"]+)"/i)?.[1] || 'oxsteed-data-export.zip';
-            const blob = response.data;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 0);
-            toast.success(t('settings.privacy.exportSuccess'));
-          } catch (err) {
-            let payload = err?.response?.data;
-            if (payload instanceof Blob) {
-              try { payload = JSON.parse(await payload.text()); } catch { payload = null; }
-            }
-            const message = payload?.error || t('settings.privacy.exportFailed');
-            const requestId = payload?.requestId;
-            toast.error(requestId ? `${message} (${requestId})` : message);
-          }
-        }}
-      >
-        {t('settings.privacy.exportBtn')}
-      </button>
+      {exportVerification.step === 'idle' && (
+        <button
+          className="sp-btn sp-btn-ghost"
+          type="button"
+          onClick={() => setExportVerification((current) => ({ ...current, step: 'password' }))}
+        >
+          {t('settings.privacy.exportBtn')}
+        </button>
+      )}
+      {exportVerification.step === 'password' && (
+        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={requestExportCode}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {t('settings.privacy.verifyTitle', { defaultValue: 'Verify before exporting' })}
+          </p>
+          <p className="text-sm mt-1 mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            {t('settings.privacy.verifyPasswordDesc', { defaultValue: 'Enter your current password. We will then email you a one-time code.' })}
+          </p>
+          <input
+            className="sp-input w-full mb-3"
+            type="password"
+            autoComplete="current-password"
+            value={exportVerification.password}
+            onChange={(event) => setExportVerification((current) => ({ ...current, password: event.target.value }))}
+            placeholder={t('settings.privacy.currentPassword', { defaultValue: 'Current password' })}
+            disabled={exportVerification.submitting}
+          />
+          <div className="flex gap-2">
+            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting}>
+              {t('settings.privacy.sendCode', { defaultValue: 'Send email code' })}
+            </button>
+            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting}>
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </button>
+          </div>
+        </form>
+      )}
+      {exportVerification.step === 'code' && (
+        <form className="mt-4 p-4 rounded-lg border border-[var(--border-color,#334155)]" onSubmit={verifyAndDownloadExport}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {t('settings.privacy.enterCodeTitle', { defaultValue: 'Enter your email code' })}
+          </p>
+          <p className="text-sm mt-1 mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            {t('settings.privacy.enterCodeDesc', { defaultValue: 'We sent a six-digit code to {{email}}. It expires in 15 minutes.', email: exportVerification.emailHint })}
+          </p>
+          <input
+            className="sp-input w-full mb-3"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            value={exportVerification.code}
+            onChange={(event) => setExportVerification((current) => ({ ...current, code: event.target.value.replace(/\D/g, '') }))}
+            placeholder="123456"
+            disabled={exportVerification.submitting}
+          />
+          <div className="flex gap-2">
+            <button className="sp-btn sp-btn-primary" type="submit" disabled={exportVerification.submitting}>
+              {exportVerification.submitting ? t('settings.privacy.exporting', { defaultValue: 'Verifying...' }) : t('settings.privacy.verifyAndExport', { defaultValue: 'Verify and export' })}
+            </button>
+            <button className="sp-btn sp-btn-ghost" type="button" onClick={resetExportVerification} disabled={exportVerification.submitting}>
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 
