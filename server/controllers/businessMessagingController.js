@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
+const { getClientRequestId } = require('../utils/idempotency');
 
 function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
@@ -193,6 +194,10 @@ async function createConversation(req, res, next) {
   try {
     const { businessId } = req.params;
     const { conversation_type, customer_email, subject, customer_name, customer_phone } = req.body;
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return next(new AppError('Invalid client request id', 400, 'validation_failed'));
+    }
     await assertBusinessAccess(req, businessId);
 
     if (!['team', 'customer'].includes(conversation_type)) {
@@ -205,13 +210,29 @@ async function createConversation(req, res, next) {
 
     const result = await pool.query(
       `INSERT INTO business_conversations
-       (business_id, conversation_type, customer_email, customer_name, customer_phone, subject, created_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (business_id, conversation_type, customer_email, customer_name, customer_phone, subject, created_by_id, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (business_id, created_by_id, client_request_id)
+       WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [businessId, conversation_type, customer_email || null, customer_name || null, customer_phone || null, subject || null, req.user.id]
+      [businessId, conversation_type, customer_email || null, customer_name || null, customer_phone || null, subject || null, req.user.id, clientRequestId]
     );
 
-    res.status(201).json(result.rows[0]);
+    let conversation = result.rows[0];
+    let replayed = false;
+    if (!conversation && clientRequestId) {
+      const existing = await pool.query(
+        `SELECT * FROM business_conversations
+          WHERE business_id = $1 AND created_by_id = $2 AND client_request_id = $3
+          LIMIT 1`,
+        [businessId, req.user.id, clientRequestId],
+      );
+      conversation = existing.rows[0];
+      replayed = Boolean(conversation);
+    }
+    if (!conversation) return next(new AppError('Conversation retry could not be recovered', 409, 'conversation_retry_failed'));
+
+    res.status(replayed ? 200 : 201).json({ ...conversation, idempotent: replayed });
   } catch (error) {
     if (error instanceof AppError) return next(error);
     logger.error('Error creating conversation', { error: error.message, businessId: req.params.businessId });

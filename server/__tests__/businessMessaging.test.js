@@ -113,4 +113,37 @@ describe('business hub messaging tab', () => {
     expect(mockQuery.mock.calls[2][0]).toContain('client_message_id');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE business_conversations/.test(sql))).toBe(false);
   });
+
+  test('replays a conversation creation without creating a duplicate thread', async () => {
+    const clientRequestId = '33333333-3333-4333-8333-333333333333';
+    const conversation = {
+      id: 'conv-2',
+      business_id: 1,
+      conversation_type: 'customer',
+      created_by_id: OWNER.id,
+      client_request_id: clientRequestId,
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [conversation] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [conversation] });
+
+    const app = buildApp();
+    const body = { conversation_type: 'customer', customer_email: 'customer@example.com', subject: 'Order question' };
+    const first = await request(app)
+      .post('/api/businesses/1/messages')
+      .set('Idempotency-Key', clientRequestId)
+      .send(body);
+    const second = await request(app)
+      .post('/api/businesses/1/messages')
+      .set('Idempotency-Key', clientRequestId)
+      .send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(expect.objectContaining({ id: conversation.id, idempotent: true }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO business_conversations/.test(sql))).toHaveLength(2);
+  });
 });

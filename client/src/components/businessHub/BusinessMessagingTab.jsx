@@ -84,6 +84,7 @@ export function BusinessMessagingTab({ businessId }) {
   const [teamSending, setTeamSending] = useState(false);
   const [teamSendError, setTeamSendError] = useState('');
   const pendingTeamMessageIdRef = useRef(null);
+  const pendingTeamConversationRef = useRef(null);
 
   const loadTeam = useCallback(async () => {
     if (!businessId) return;
@@ -160,15 +161,23 @@ export function BusinessMessagingTab({ businessId }) {
   };
 
   const createTeamConversation = async (type, data) => {
+    const payload = { conversation_type: type, ...data };
+    const fingerprint = JSON.stringify(payload);
+    const pending = pendingTeamConversationRef.current;
+    const clientRequestId = pending?.fingerprint === fingerprint
+      ? pending.id
+      : createMessageRequestId();
     try {
       await api.post(`/businesses/${businessId}/messages`, {
-        conversation_type: type,
-        ...data,
+        clientRequestId,
+        ...payload,
       });
       toast.success(t('businessMessaging.toastCreated'));
       setShowNewModal(false);
+      pendingTeamConversationRef.current = null;
       loadTeam();
     } catch {
+      pendingTeamConversationRef.current = { id: clientRequestId, fingerprint };
       toast.error(t('businessMessaging.toastCreateFailed'));
     }
   };
