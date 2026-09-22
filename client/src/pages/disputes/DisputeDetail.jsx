@@ -27,13 +27,14 @@ export default function DisputeDetail() {
   const [messageSendError, setMessageSendError] = useState(null);
   const messagesEndRef           = useRef(null);
   const pendingMessageIdRef      = useRef(null);
+  const pendingEvidenceRequestRef = useRef(null);
 
   const fetchDispute = async () => {
     try {
       const { data } = await api.get(`/disputes/${disputeId}`);
       setDispute(data.dispute);
-      setEvidence(data.evidence);
-      setMessages(data.messages);
+      setEvidence(Array.isArray(data.evidence) ? data.evidence : []);
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
     } catch (err) {
       setError(t('disputes.detail.notFound'));
     } finally {
@@ -48,7 +49,9 @@ export default function DisputeDetail() {
     if (!socket) return;
     socket.on('dispute:message', ({ disputeId: dId, message: msg }) => {
       if (dId === disputeId) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => prev.some(item => String(item.id) === String(msg?.id))
+          ? prev
+          : [...prev, msg]);
       }
     });
     return () => socket.off('dispute:message');
@@ -90,14 +93,30 @@ export default function DisputeDetail() {
     setError(null);
     try {
       const form = new FormData();
+      const filesFingerprint = evFiles.map(file => ({
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified,
+      }));
+      const fingerprint = JSON.stringify({ content: evText.trim(), files: filesFingerprint });
+      const pending = pendingEvidenceRequestRef.current;
+      const clientRequestId = pending?.fingerprint === fingerprint
+        ? pending.clientRequestId
+        : createMessageRequestId();
+      pendingEvidenceRequestRef.current = { clientRequestId, fingerprint };
       if (evText.trim()) form.append('content', evText.trim());
       evFiles.forEach(f => form.append('files', f));
+      form.append('clientRequestId', clientRequestId);
 
       await api.post(`/disputes/${disputeId}/evidence`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Idempotency-Key': clientRequestId,
+        }
       });
       setEvText('');
       setEvFiles([]);
+      pendingEvidenceRequestRef.current = null;
       fetchDispute();
     } catch (err) {
       setError(err.response?.data?.error || t('disputes.detail.failedEvidence'));

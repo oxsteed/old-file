@@ -8,6 +8,7 @@ export default function useDisputes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const pendingDisputeRef = useRef(new Map());
+  const pendingEvidenceRef = useRef(new Map());
 
   // Get all disputes for the current user
   const fetchMyDisputes = useCallback(async () => {
@@ -74,13 +75,27 @@ export default function useDisputes() {
   const submitEvidence = useCallback(async (disputeId, files, description) => {
     setLoading(true);
     setError(null);
+    const safeFiles = Array.isArray(files) ? files : [];
+    const fingerprint = JSON.stringify({
+      description: String(description || '').trim(),
+      files: safeFiles.map(file => ({ name: file?.name, size: file?.size, lastModified: file?.lastModified })),
+    });
+    const pending = pendingEvidenceRef.current.get(String(disputeId));
+    const clientRequestId = pending?.fingerprint === fingerprint
+      ? pending.clientRequestId
+      : createMessageRequestId();
+    pendingEvidenceRef.current.set(String(disputeId), { clientRequestId, fingerprint });
     try {
       const formData = new FormData();
-      if (description) formData.append('description', description);
-      files.forEach(file => formData.append('files', file));
+      if (description) formData.append('content', description);
+      safeFiles.forEach(file => formData.append('files', file));
       const { data } = await api.post(`/disputes/${disputeId}/evidence`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Idempotency-Key': clientRequestId,
+        },
       });
+      pendingEvidenceRef.current.delete(String(disputeId));
       return data;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit evidence');

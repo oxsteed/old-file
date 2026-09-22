@@ -5,6 +5,7 @@ const { withTransaction }   = require('../utils/transaction');
 const { AppError }          = require('../middleware/errorHandler');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { getClientRequestId } = require('../utils/idempotency');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -29,6 +30,27 @@ const DISPUTE_REASON_VALUES = Object.freeze(Object.values(DISPUTE_REASONS));
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function evidenceTypeForFile(file) {
+  if (String(file?.mimetype || '').startsWith('image/')) return 'image';
+  if (String(file?.mimetype || '').startsWith('video/')) return 'video';
+  return 'document';
+}
+
+async function presentEvidenceRows(rows) {
+  return Promise.all(rows.map(async (row) => {
+    const privateReference = String(row.file_url || '');
+    if (!privateReference.startsWith('private://')) return row;
+
+    try {
+      const signedUrl = await getSignedDownloadUrl(privateReference.slice('private://'.length), 900);
+      return { ...row, file_url: signedUrl || null };
+    } catch (error) {
+      logger.warn('Failed to sign dispute evidence URL', { evidenceId: row.id, error: error.message });
+      return { ...row, file_url: null };
+    }
+  }));
 }
 
 // ─── OPEN DISPUTE ─────────────────────────────────────────────
@@ -315,7 +337,32 @@ exports.getDispute = async (req, res, next) => {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
-    res.json({ dispute });
+    const [evidenceResult, messagesResult] = await Promise.all([
+      db.query(
+        `SELECT de.*, u.first_name || ' ' || u.last_name AS submitted_by_name
+           FROM dispute_evidence de
+           LEFT JOIN users u ON u.id = de.submitted_by
+          WHERE de.dispute_id = $1
+          ORDER BY de.created_at ASC, de.id ASC`,
+        [disputeId]
+      ),
+      db.query(
+        `SELECT dm.*, u.first_name || ' ' || u.last_name AS sender_name,
+                u.role AS sender_role
+           FROM dispute_messages dm
+           LEFT JOIN users u ON u.id = dm.sender_id
+          WHERE dm.dispute_id = $1
+            AND ($2 = TRUE OR dm.is_admin_only = FALSE)
+          ORDER BY dm.created_at ASC, dm.id ASC`,
+        [disputeId, isAdmin]
+      ),
+    ]);
+
+    res.json({
+      dispute,
+      evidence: await presentEvidenceRows(evidenceResult.rows),
+      messages: messagesResult.rows,
+    });
   } catch (err) {
     next(err);
   }
@@ -343,18 +390,31 @@ exports.getMyDisputes = async (req, res, next) => {
   }
 };
 
-// ─── SUBMIT EVIDENCE (text only, stored in disputes table) ─────
+// ─── SUBMIT EVIDENCE ──────────────────────────────────────────
 exports.submitEvidence = async (req, res, next) => {
+  const uploadedKeys = [];
   try {
     const userId = req.user.id;
     const { disputeId } = req.params;
-    const { evidence } = req.body;
+    const evidenceText = String(req.body?.evidence ?? req.body?.content ?? '').trim();
+    const files = Array.isArray(req.files) ? req.files : [];
+    const clientRequestId = getClientRequestId(req);
     const isAdmin = ['admin','super_admin'].includes(req.user.role);
 
-    const fields = {};
-    if (!evidence?.trim()) fields.evidence = 'Evidence cannot be empty';
-    if (Object.keys(fields).length) {
-      throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed', {
+        clientRequestId: 'Must be a valid UUID',
+      });
+    }
+    if (!evidenceText && files.length === 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        evidence: 'Evidence text or at least one file is required',
+      });
+    }
+    if (evidenceText.length > 5000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        evidence: 'Evidence must be 5000 characters or fewer',
+      });
     }
 
     // Verify dispute exists and user has access
@@ -373,21 +433,114 @@ exports.submitEvidence = async (req, res, next) => {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
-    // Determine which evidence field to update based on role
-    const userRole = req.user.role;
-    const field = userRole === 'helper' ? 'evidence_helper' : 'evidence_poster';
+    const submitterRole = isAdmin ? 'admin' : req.user.role === 'helper' ? 'helper' : 'client';
+    if (clientRequestId) {
+      const { rows: existingRows } = await db.query(
+        `SELECT * FROM dispute_evidence
+          WHERE dispute_id = $1 AND submitted_by = $2 AND client_request_id = $3
+          ORDER BY created_at ASC, id ASC`,
+        [disputeId, userId, clientRequestId]
+      );
+      if (existingRows.length) {
+        return res.status(200).json({
+          message: 'Evidence submitted successfully.',
+          disputeId,
+          evidence: await presentEvidenceRows(existingRows),
+          idempotent: true,
+        });
+      }
+    }
 
-    await db.query(
-      `UPDATE disputes SET ${field} = $1 WHERE id = $2`,
-      [evidence.trim(), disputeId]
-    );
+    const parts = [];
+    if (evidenceText) {
+      parts.push({
+        type: 'text',
+        content: evidenceText,
+        fileUrl: null,
+        fileName: null,
+        part: 'text',
+      });
+    }
 
-    res.json({
+    for (const [index, file] of files.entries()) {
+      const extension = String(file.originalname || '').match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || '';
+      const storageKey = clientRequestId
+        ? `disputes/${disputeId}/${clientRequestId}/file-${index}${extension}`
+        : null;
+      const storedKey = await uploadFile(
+        storageKey || file.buffer,
+        storageKey ? file.buffer : 'disputes',
+        storageKey ? file.mimetype : file.originalname,
+        storageKey ? undefined : file.mimetype,
+      );
+      uploadedKeys.push({ key: storedKey, deterministic: Boolean(clientRequestId) });
+      parts.push({
+        type: evidenceTypeForFile(file),
+        content: null,
+        fileUrl: `private://${storedKey}`,
+        fileName: String(file.originalname || 'evidence').slice(0, 255),
+        part: `file:${index}`,
+      });
+    }
+
+    const result = await withTransaction(db, async (client) => {
+      // Serialize keyed submissions so a simultaneous retry observes all
+      // parts after the first request commits.
+      await client.query('SELECT id FROM disputes WHERE id = $1 FOR UPDATE', [disputeId]);
+
+      if (clientRequestId) {
+        const { rows: replayRows } = await client.query(
+          `SELECT * FROM dispute_evidence
+            WHERE dispute_id = $1 AND submitted_by = $2 AND client_request_id = $3
+            ORDER BY created_at ASC, id ASC`,
+          [disputeId, userId, clientRequestId]
+        );
+        if (replayRows.length) return { rows: replayRows, replayed: true };
+      }
+
+      const insertedRows = [];
+      for (const part of parts) {
+        const query = clientRequestId
+          ? `INSERT INTO dispute_evidence
+               (dispute_id, submitted_by, submitter_role, type, content, file_url, file_name, client_request_id, submission_part)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             ON CONFLICT (dispute_id, submitted_by, client_request_id, submission_part)
+             WHERE client_request_id IS NOT NULL DO NOTHING
+             RETURNING *`
+          : `INSERT INTO dispute_evidence
+               (dispute_id, submitted_by, submitter_role, type, content, file_url, file_name)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)
+             RETURNING *`;
+        const values = clientRequestId
+          ? [disputeId, userId, submitterRole, part.type, part.content, part.fileUrl, part.fileName, clientRequestId, part.part]
+          : [disputeId, userId, submitterRole, part.type, part.content, part.fileUrl, part.fileName];
+        const { rows } = await client.query(query, values);
+        insertedRows.push(...rows);
+      }
+      return { rows: insertedRows, replayed: false };
+    }, 'submit_dispute_evidence');
+
+    const evidenceRows = result.rows.length
+      ? result.rows
+      : (await db.query(
+        `SELECT * FROM dispute_evidence
+          WHERE dispute_id = $1 AND submitted_by = $2 AND client_request_id = $3
+          ORDER BY created_at ASC, id ASC`,
+        [disputeId, userId, clientRequestId]
+      )).rows;
+
+    res.status(result.replayed ? 200 : 201).json({
       message: 'Evidence submitted successfully.',
-      field,
-      disputeId
+      disputeId,
+      evidence: await presentEvidenceRows(evidenceRows),
+      idempotent: result.replayed,
     });
   } catch (err) {
+    for (const uploaded of uploadedKeys) {
+      if (!uploaded.deterministic) {
+        await deleteFile(uploaded.key).catch(() => {});
+      }
+    }
     next(err);
   }
 };

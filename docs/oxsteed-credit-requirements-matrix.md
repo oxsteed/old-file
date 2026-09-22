@@ -999,13 +999,28 @@ cannot create a second ticket, initial support message, escrow hold, or admin
 notification. The dispute hook and submission modal retain the key across a
 failed retry and rotate it when the submitted payload changes. The focused
 dispute/report/messaging suite passed `9/9`, the linked-ticket suite passed,
-the full server regression passed `195/195` suites and `1,351/1,351` tests,
-and `client/npm run build:ci` passed through locale verification, TypeScript,
+the prior full server regression passed `195/195` suites and `1,351/1,351`
+tests, and `client/npm run build:ci` passed through locale verification, TypeScript,
 and Vite. The build emitted only the existing dynamic-import and large-chunk
 warnings. Exact live publication remains blocked by unavailable GitHub
 credentials; the next engineering action is to audit dispute evidence uploads
 and any remaining support-entry creation paths for the same retry contract,
 then publish through the approved deployment identity.
+
+Dispute evidence communication checkpoint (2026-09-22 UTC): the dispute detail
+contract now returns evidence and participant-visible messages, private evidence
+references are converted to short-lived signed download URLs, and multipart
+submissions accept the client field used by both dispute UI paths. Migration
+`554_dispute_evidence_submission_idempotency.sql` adds per-submission replay
+keys, preserves deterministic file names for safe retries, and replaces the
+legacy finalization trigger that referenced invalid `OLD` and `description`
+fields. The focused evidence/open-dispute/communication suite passed `9/9`;
+the client CI build passed. A full server run passed `195` suites and `1,352`
+tests but hit one 15-second timeout in the unrelated rate-limit suite; that
+suite was rerun independently and passed `4/4` in `0.66s`. The package is
+ready to commit. Exact live publication remains blocked by unavailable GitHub
+credentials; the next engineering action is to audit the remaining support
+conversation creation paths for concurrent duplicate prevention.
 
 ## Completion Gate
 
