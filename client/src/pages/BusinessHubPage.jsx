@@ -10,7 +10,7 @@ import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import RoleMenu from '../components/businessHub/RoleMenu';
 import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
 import BusinessClientsTab from '../components/businessHub/BusinessClientsTab';
-import { BusinessMessagingTab } from '../components/businessHub/BusinessMessagingTab';
+import MessagingWorkspace from '../components/messaging/MessagingWorkspace';
 import { AppointmentCalendarView } from '../components/businessHub/AppointmentCalendarView';
 import { BusinessServicesTab } from '../components/businessHub/BusinessServicesTab';
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
@@ -2016,7 +2016,7 @@ function BusinessHubInner() {
             {/* ── Messages tab ─────────────────────────────────────── */}
             {tab === 'messages' && bizId && canAccessMessages && (
               <TabErrorBoundary label={t('businessHub.tabMessagesLabel', { defaultValue: 'Messages' })} resetKey="messages">
-                <BusinessMessagingTab businessId={bizId} />
+                <MessagingWorkspace role="helper" businessId={bizId} embedded />
               </TabErrorBoundary>
             )}
 
