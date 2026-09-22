@@ -1086,6 +1086,19 @@ GitHub credentials; the next engineering action is to audit message delivery
 fan-out and notification side effects after idempotent replays and downstream
 failures.
 
+Business Hub attachment atomicity checkpoint (2026-09-22 UTC): Business Hub
+message creation now writes the message, conversation timestamp, and all
+attachments through one transaction. A failed attachment write therefore rolls
+back the message instead of leaving a partial thread that a retry cannot repair;
+successful idempotent replays return the original message without duplicating
+attachments or timestamps. The focused Business Hub messaging suite passed
+`7/7`; the full server regression passed `196/196` suites and `1,359/1,359`
+tests. This package is server-only, so the last client CI build remains valid
+from the preceding communication package. Exact live publication remains
+blocked by unavailable GitHub credentials; the next engineering action is to
+audit message delivery fan-out and notification side effects after idempotent
+replays and downstream failures.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

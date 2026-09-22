@@ -6,6 +6,7 @@ const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { getClientRequestId } = require('../utils/idempotency');
+const { withTransaction } = require('../utils/transaction');
 
 function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
@@ -142,47 +143,51 @@ async function sendMessage(req, res, next) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
     }
 
-    const msgResult = await pool.query(
-      `INSERT INTO business_messages
-         (conversation_id, sender_id, sender_name, sender_type, content, message_type, client_message_id)
-       VALUES (
-         $1, $2,
-         (SELECT ${senderNameSql('u')} FROM users u WHERE u.id = $2),
-         'team_member', $3, $4, $5
-       )
-       ON CONFLICT (conversation_id, client_message_id)
-       WHERE client_message_id IS NOT NULL DO NOTHING
-       RETURNING *`,
-      [conversationId, req.user.id, content.trim(), message_type, clientMessageId]
-    );
-
-    if (!msgResult.rows.length) {
-      const replay = await pool.query(
-        `SELECT * FROM business_messages
-         WHERE conversation_id = $1 AND client_message_id = $2`,
-        [conversationId, clientMessageId]
+    const { message, replayed } = await withTransaction(pool, async (client) => {
+      const msgResult = await client.query(
+        `INSERT INTO business_messages
+           (conversation_id, sender_id, sender_name, sender_type, content, message_type, client_message_id)
+         VALUES (
+           $1, $2,
+           (SELECT ${senderNameSql('u')} FROM users u WHERE u.id = $2),
+           'team_member', $3, $4, $5
+         )
+         ON CONFLICT (conversation_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [conversationId, req.user.id, content.trim(), message_type, clientMessageId]
       );
-      if (!replay.rows.length) {
-        return next(new AppError('Failed to send message', 500));
-      }
-      return res.status(200).json(replay.rows[0]);
-    }
 
-    await pool.query(
-      'UPDATE business_conversations SET last_message_at = NOW() WHERE id = $1',
-      [conversationId]
-    );
-
-    if (Array.isArray(attachments) && attachments.length > 0) {
-      for (const att of attachments) {
-        await pool.query(
-          'INSERT INTO business_message_attachments (message_id, file_name, file_url, file_size_bytes, file_type) VALUES ($1, $2, $3, $4, $5)',
-          [msgResult.rows[0].id, att.file_name, att.file_url, att.file_size_bytes, att.file_type]
+      if (!msgResult.rows.length) {
+        const replay = await client.query(
+          `SELECT * FROM business_messages
+           WHERE conversation_id = $1 AND client_message_id = $2`,
+          [conversationId, clientMessageId]
         );
+        if (!replay.rows.length) {
+          throw new AppError('Failed to send message', 500);
+        }
+        return { message: replay.rows[0], replayed: true };
       }
-    }
 
-    res.status(201).json(msgResult.rows[0]);
+      await client.query(
+        'UPDATE business_conversations SET last_message_at = NOW() WHERE id = $1',
+        [conversationId]
+      );
+
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        for (const att of attachments) {
+          await client.query(
+            'INSERT INTO business_message_attachments (message_id, file_name, file_url, file_size_bytes, file_type) VALUES ($1, $2, $3, $4, $5)',
+            [msgResult.rows[0].id, att.file_name, att.file_url, att.file_size_bytes, att.file_type]
+          );
+        }
+      }
+
+      return { message: msgResult.rows[0], replayed: false };
+    }, 'send_business_message');
+
+    res.status(replayed ? 200 : 201).json(message);
   } catch (error) {
     if (error instanceof AppError) return next(error);
     logger.error('Error sending message', { error: error.message, conversationId: req.params.conversationId });

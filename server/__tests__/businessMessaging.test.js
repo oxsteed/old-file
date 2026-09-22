@@ -114,6 +114,42 @@ describe('business hub messaging tab', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE business_conversations/.test(sql))).toBe(false);
   });
 
+  test('commits message attachments with the message and does not add them on replay', async () => {
+    const clientMessageId = '44444444-4444-4444-8444-444444444444';
+    const attachment = {
+      file_name: 'receipt.pdf',
+      file_url: 'https://cdn.example.com/receipt.pdf',
+      file_size_bytes: 1024,
+      file_type: 'application/pdf',
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-3', content: 'See the receipt', client_message_id: clientMessageId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, content: 'See the receipt', client_message_id: clientMessageId }] });
+
+    const app = buildApp();
+    const body = { content: 'See the receipt', attachments: [attachment] };
+    const first = await request(app)
+      .post('/api/businesses/1/messages/conv-1')
+      .set('Idempotency-Key', clientMessageId)
+      .send(body);
+    const retry = await request(app)
+      .post('/api/businesses/1/messages/conv-1')
+      .set('Idempotency-Key', clientMessageId)
+      .send(body);
+
+    expect(first.status).toBe(201);
+    expect(retry.status).toBe(200);
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO business_message_attachments/.test(sql))).toHaveLength(1);
+    expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE business_conversations/.test(sql))).toHaveLength(1);
+  });
+
   test('replays a conversation creation without creating a duplicate thread', async () => {
     const clientRequestId = '33333333-3333-4333-8333-333333333333';
     const conversation = {
