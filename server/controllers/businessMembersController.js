@@ -4,6 +4,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { ownedBusiness, canAccessBusinessTeam } = require('../utils/businessOwnership');
+const { enrichBusinessesWithRestaurantFields } = require('../utils/businessListRestaurantEnrichment');
 
 // ── GET /api/businesses/:id/members ──────────────────────────────────────────
 // Owner lists all members (active + pending) for their business.
@@ -240,17 +241,13 @@ async function declineInvitation(req, res) {
 // Used in the Business Hub so representatives see businesses they manage.
 async function listManagedBusinesses(req, res) {
   try {
+    // Same hardening as listBusinesses: core query never depends on food_restaurants.
     const { rows } = await pool.query(
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
          b.website, b.phone, b.logo_url, b.is_active, b.is_listed,
          b.business_kind, b.business_mode, b.setup_status,
          b.currency_code, b.address_country,
-         fr.id AS restaurant_id,
-         fr.status AS restaurant_status,
-         fr.discovery_status AS restaurant_discovery_status,
-         fr.accepts_online_orders AS restaurant_accepts_online_orders,
-         fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now,
          bm.role,
          bm.accepted_at,
          u.first_name AS owner_first_name,
@@ -258,13 +255,6 @@ async function listManagedBusinesses(req, res) {
        FROM business_members bm
        JOIN businesses b ON b.id = bm.business_id
        JOIN users u      ON u.id = bm.owner_id
-       LEFT JOIN LATERAL (
-         SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
-           FROM food_restaurants
-          WHERE business_id = b.id
-          ORDER BY id
-          LIMIT 1
-       ) fr ON TRUE
        WHERE bm.member_id = $1
          AND bm.status    = 'active'
          AND b.deleted_at IS NULL
@@ -272,9 +262,16 @@ async function listManagedBusinesses(req, res) {
       [req.user.id]
     );
 
-    return res.json({ businesses: rows });
+    const businesses = await enrichBusinessesWithRestaurantFields(pool, rows, {
+      logLabel: 'listManagedBusinesses',
+    });
+    return res.json({ businesses });
   } catch (err) {
-    logger.error('listManagedBusinesses error', { err: err.message });
+    logger.error('listManagedBusinesses error', {
+      err: err && err.message,
+      code: err && err.code,
+      detail: err && err.detail,
+    });
     return res.status(500).json({ error: 'Failed to load managed businesses' });
   }
 }

@@ -11,6 +11,7 @@ import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { navLinksForMode } from '../utils/modeAccess';
+import { businessHubLandingPath, readLastBusinessHubId } from '../utils/businessProfileForm';
 import '../styles/BusinessSwitcher.css';
 
 const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
@@ -54,6 +55,7 @@ export default function Navbar() {
   const dashboardPath = routeForMode(currentMode);
   const navLinks = navLinksForMode(user);
   const showBusinessHub = !!user && navLinks.showBusinessHub;
+  const businessHubTo = businessHubLandingPath(readLastBusinessHubId());
 
   useEffect(() => {
     if (!user) return;
@@ -212,7 +214,7 @@ export default function Navbar() {
                 <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
                 {showBusinessHub && (
                   <NavLink
-                    to="/business-hub"
+                    to={businessHubTo}
                     active={isActive('/business-hub') || location.pathname.startsWith('/business/')}
                   >{t('nav.business')}</NavLink>
                 )}
@@ -287,7 +289,7 @@ export default function Navbar() {
                         <>
                           <Link
                             role="menuitem"
-                            to="/business-hub"
+                            to={businessHubTo}
                             className="ox-nav-resource-option"
                             onClick={() => setResourcesMenuOpen(false)}
                           >
@@ -413,7 +415,7 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                {showBusinessHub && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
+                {showBusinessHub && <MobileNavLink to={businessHubTo} onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
                 {SHOW_LEGACY_NAV_RESOURCES && isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}

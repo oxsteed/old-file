@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
 import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { businessWorkspacePath } from '../utils/businessProfileForm';
+import { businessWorkspacePath, BUSINESS_HUB_LAST_ID_LS_KEY } from '../utils/businessProfileForm';
 
-const LS_KEY = 'oxs:bh:lastBusinessId';
+const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
 
 /**
  * Global business switcher for the navbar.

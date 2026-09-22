@@ -91,11 +91,13 @@ import {
   businessFromEditorResponse,
   businessWorkspacePath,
   emptyBusinessAnalytics,
+  BUSINESS_HUB_LAST_ID_LS_KEY,
+  resolveBusinessHubSeedId,
 } from '../utils/businessProfileForm';
 import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEditor';
 import '../styles/BusinessHubPage.css';
 
-const LS_KEY = 'oxs:bh:lastBusinessId';
+const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
 
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {
@@ -258,6 +260,9 @@ function BusinessHubInner() {
   }, []);
 
   // ── load businesses (owned + managed) ───────────────────────────────────
+  // /business-hub has no route id — seed from oxs:bh:lastBusinessId the same
+  // way /business/:id/workspace seeds from routeBusinessId, so a list 500
+  // (e.g. food_restaurants join lag) does not dead-end the hub.
   const loadBusinesses = useCallback(async () => {
     setLoadingBiz(true);
     try {
@@ -282,10 +287,14 @@ function BusinessHubInner() {
           ...managedTagged.filter(b => !seen.has(String(b.id))),
         ],
       );
-      // Direct workspace URLs (/business/:id/workspace) must still open a
-      // just-created draft even if the list endpoint lags or 500s.
-      if (routeBusinessId && !merged.some((b) => String(b.id) === routeBusinessId)) {
-        const fetched = await seedBusinessFromId(routeBusinessId);
+      const savedLs = localStorage.getItem(LS_KEY);
+      const seedId = resolveBusinessHubSeedId({
+        routeBusinessId,
+        lastBusinessId: savedLs,
+      });
+      // Workspace URL or stored last id: seed via getBusiness when list misses/fails.
+      if (seedId && !merged.some((b) => String(b.id) === String(seedId))) {
+        const fetched = await seedBusinessFromId(seedId);
         if (fetched) merged = mergeBusinessList(merged, [fetched]);
       }
       setBusinesses(merged);
@@ -302,15 +311,16 @@ function BusinessHubInner() {
         setMembers([]);
         setVortexTokens([]);
         setAccessCodes([]);
+        // Fatal toast only when nothing is seedable / list empty after seed attempt.
         if (listFailed && !createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
       } else {
         // URL param (routeBusinessId) wins; fall back to localStorage, then first owned.
         const fromUrl = routeBusinessId && merged.find(b => String(b.id) === routeBusinessId) ? routeBusinessId : null;
-        const saved = localStorage.getItem(LS_KEY);
-        const fromLs = saved && merged.find(b => String(b.id) === String(saved)) ? String(saved) : null;
+        const fromLs = savedLs && merged.find(b => String(b.id) === String(savedLs)) ? String(savedLs) : null;
         const chosen = fromUrl || fromLs || String(merged[0].id);
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
+        // List failed but seed/LS kept hub usable — no fatal toast.
       }
     } catch {
       if (!createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
@@ -364,6 +374,20 @@ function BusinessHubInner() {
       navigate(desiredPath, { replace: true, state: location.state });
     }
   }, [bizId, tab, routeBusinessId, navigate, location.state]);
+
+  // Legacy /business-hub alias → canonical /business/:id/workspace once we
+  // have a resolved bizId (from list, LS seed, or create). Keep hub URL while
+  // ?create= is open so the wizard still mounts on the alias route.
+  useEffect(() => {
+    if (routeBusinessId) return;
+    if (loadingBiz) return;
+    if (!bizId) return;
+    if (searchParams.get('create')) return;
+    const desiredPath = businessWorkspacePath(bizId, tab);
+    if (window.location.pathname !== desiredPath) {
+      navigate(desiredPath, { replace: true, state: location.state });
+    }
+  }, [routeBusinessId, loadingBiz, bizId, tab, searchParams, navigate, location.state]);
 
   // ── load tab data when bizId or tab changes ──────────────────────────────
   const loadOverview = useCallback(async () => {
@@ -704,9 +728,7 @@ function BusinessHubInner() {
     setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null); setTradesOpsData(null); setBeautyOpsData(null); setCreativeOpsData(null); setProfessionalOpsData(null); setContinuityOpsData(null);
     setMembersLoading(true);
     setMembers([]);
-    if (routeBusinessId) {
-      navigate(businessWorkspacePath(id, tab), { replace: true, state: location.state });
-    }
+    navigate(businessWorkspacePath(id, tab), { replace: true, state: location.state });
   }
 
   // ── modal helpers ─────────────────────────────────────────────────────────

@@ -66,6 +66,48 @@ export function businessWorkspacePath(businessId, tab = 'overview') {
   return `/business/${id}/workspace/${encodeURIComponent(String(tab))}`;
 }
 
+/** localStorage key for last Business Hub / workspace selection. */
+export const BUSINESS_HUB_LAST_ID_LS_KEY = 'oxs:bh:lastBusinessId';
+
+/**
+ * Pick an id to seed via getBusiness when the owned/managed list misses it.
+ * Route workspace id wins; otherwise the stored last-business id (legacy hub).
+ */
+export function resolveBusinessHubSeedId({ routeBusinessId, lastBusinessId } = {}) {
+  const route = routeBusinessId != null && String(routeBusinessId).trim() !== ''
+    ? String(routeBusinessId)
+    : null;
+  if (route) return route;
+  const last = lastBusinessId != null && String(lastBusinessId).trim() !== ''
+    ? String(lastBusinessId)
+    : null;
+  return last;
+}
+
+/**
+ * Navbar / bookmarks: prefer /business/:id/workspace when we know a last id,
+ * else keep the /business-hub alias (which redirects once a biz is resolved).
+ */
+export function businessHubLandingPath(lastBusinessId, tab = 'overview') {
+  if (lastBusinessId == null || String(lastBusinessId).trim() === '') {
+    return '/business-hub';
+  }
+  return businessWorkspacePath(lastBusinessId, tab);
+}
+
+export function readLastBusinessHubId(storage) {
+  const store = storage
+    || (typeof globalThis !== 'undefined' && globalThis.localStorage)
+    || null;
+  if (!store || typeof store.getItem !== 'function') return null;
+  try {
+    const value = store.getItem(BUSINESS_HUB_LAST_ID_LS_KEY);
+    return value != null && String(value).trim() !== '' ? String(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function emptyBusinessAnalytics(businessId) {
   return {
     business_id: businessId,

@@ -16,6 +16,7 @@ const {
   normalizeBusinessCategory,
   withBusinessCapabilities,
 } = require('../services/businessCategories');
+const { enrichBusinessesWithRestaurantFields } = require('../utils/businessListRestaurantEnrichment');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -118,6 +119,9 @@ function normalizeCurrency(value, country) {
 }
 
 // ── List user's businesses ────────────────────────────────────────────────────
+// Core list does NOT JOIN food_restaurants (migration lag / missing columns
+// previously 500'd this while GET /businesses/:id still worked). Restaurant
+// summary fields are attached best-effort afterward.
 async function listBusinesses(req, res, next) {
   try {
     const { rows } = await pool.query(
@@ -126,26 +130,22 @@ async function listBusinesses(req, res, next) {
               description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
               is_listed, tax_rate, logo_url, created_at,
-              COALESCE(businesses.active_template, 'default') AS active_template,
-              fr.id AS restaurant_id,
-              fr.status AS restaurant_status,
-              fr.discovery_status AS restaurant_discovery_status,
-              fr.accepts_online_orders AS restaurant_accepts_online_orders,
-              fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now
+              COALESCE(businesses.active_template, 'default') AS active_template
        FROM businesses
-       LEFT JOIN LATERAL (
-         SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
-           FROM food_restaurants
-          WHERE business_id = businesses.id
-          ORDER BY id
-          LIMIT 1
-       ) fr ON TRUE
        WHERE user_id = $1 AND deleted_at IS NULL
        ORDER BY is_primary DESC, created_at ASC`,
       [req.user.id]
     );
-    return res.json({ businesses: rows.map(withBusinessCapabilities) });
+    const enriched = await enrichBusinessesWithRestaurantFields(pool, rows, {
+      logLabel: 'listBusinesses',
+    });
+    return res.json({ businesses: enriched.map(withBusinessCapabilities) });
   } catch (err) {
+    logger.error('listBusinesses error', {
+      err: err && err.message,
+      code: err && err.code,
+      detail: err && err.detail,
+    });
     next(err);
   }
 }

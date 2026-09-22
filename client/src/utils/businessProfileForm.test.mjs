@@ -8,6 +8,10 @@ import {
   businessFromEditorResponse,
   businessWorkspacePath,
   emptyBusinessAnalytics,
+  BUSINESS_HUB_LAST_ID_LS_KEY,
+  resolveBusinessHubSeedId,
+  businessHubLandingPath,
+  readLastBusinessHubId,
 } from './businessProfileForm.js';
 
 test('profile form fallback and unpublished businesses stay off the public profile', () => {
@@ -45,4 +49,19 @@ test('workspace overview path and editor payload keep a draft reachable', () => 
   assert.equal(analytics.invoices.outstanding_total, 0);
   assert.equal(analytics.jobs.completed_6m, 0);
   assert.deepEqual(analytics.mtd, { revenue: 0, expenses: 0, profit: 0 });
+});
+
+test('hub seed id and landing path prefer lastBusinessId over bare /business-hub', () => {
+  assert.equal(resolveBusinessHubSeedId({ routeBusinessId: '7', lastBusinessId: '1' }), '7');
+  assert.equal(resolveBusinessHubSeedId({ routeBusinessId: null, lastBusinessId: '1' }), '1');
+  assert.equal(resolveBusinessHubSeedId({}), null);
+  assert.equal(businessHubLandingPath(null), '/business-hub');
+  assert.equal(businessHubLandingPath('1'), '/business/1/workspace');
+  assert.equal(businessHubLandingPath('1', 'profile'), '/business/1/workspace/profile');
+  const store = {
+    data: { [BUSINESS_HUB_LAST_ID_LS_KEY]: '42' },
+    getItem(k) { return this.data[k] ?? null; },
+  };
+  assert.equal(readLastBusinessHubId(store), '42');
+  assert.equal(BUSINESS_HUB_LAST_ID_LS_KEY, 'oxs:bh:lastBusinessId');
 });

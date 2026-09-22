@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-09-21 — `/business-hub` list vs workspace-by-id
+
+**Symptom:** Logged-in users hitting `/business-hub` could toast `Failed to load businesses` while `/business/1/workspace` (same `BusinessHubPage`) worked.
+
+**Root cause (prod hypothesis, mitigated in code):** `GET /api/businesses` (`listBusinesses`) used to `LEFT JOIN food_restaurants` and select `discovery_status` / `is_accepting_orders_now`. `getBusiness` / `loadBusinessEditorRow` does **not** join that table. Migration lag or a missing column/table 500s the list while by-id workspace still seeds via `seedBusinessFromId`.
+
+**Mitigations:**
+1. Core list (+ managed list) no longer depends on `food_restaurants`; restaurant_* fields attach in a best-effort second query (warn + nulls on failure).
+2. `/business-hub` seeds from `oxs:bh:lastBusinessId` like workspace seeds from route id; suppresses fatal load toast when seed succeeds; replace-navigates to `/business/:id/workspace`. Route `/business-hub` kept as alias. Navbar Business link prefers the workspace landing path when LS has a last id.
+
+
 ## 1. Executive Summary
 
 The codebase is **further along than CLAUDE.md indicates**. A wave of recent migrations (181–218) added substantial per-business infrastructure that isn't reflected in the project status notes. The schema for all four target systems exists. **The dominant gap pattern is not "missing tables" — it is "parallel systems that aren't wired together."**
