@@ -608,11 +608,19 @@ html:not(.dark) :where(
   .messages-thread-actions button,
   .messages-composer-tool,
   .messages-composer-input,
-  .provider-messenger-toolbar .messages-quote-share-btn
+  .provider-messenger-toolbar .messages-quote-share-btn,
+  .messages-shell-summary-chip,
+  .messages-actions.shell-demoted > button,
+  .messages-actions.shell-demoted .messages-more-details > summary
 ) {
   background: var(--color-surface-2) !important;
   border-color: var(--color-border) !important;
   color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-shell-summary-chip {
+  border: 1px solid var(--color-border) !important;
+  font-weight: 700;
 }
 
 html:not(.dark) .messages-bubble.theirs {
@@ -623,10 +631,23 @@ html:not(.dark) .messages-bubble.theirs {
 html:not(.dark) :where(
   .messages-bubble-action-btn:hover,
   .messages-composer-tool:hover:not(:disabled),
-  .provider-messenger-toolbar .messages-quote-share-btn:hover
+  .provider-messenger-toolbar .messages-quote-share-btn:hover,
+  .messages-actions.shell-demoted > button:hover,
+  .messages-actions.shell-demoted .messages-more-details > summary:hover
 ) {
   background: var(--color-primary-bg) !important;
-  color: var(--color-text) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+html:not(.dark) :where(
+  .messages-shell-summary-chip,
+  .messages-filter button,
+  .messages-actions.shell-demoted > button,
+  .messages-actions.shell-demoted .messages-more-details > summary
+):focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px;
 }
 
 html:not(.dark) .messages-actions.shell-demoted .messages-more-menu {

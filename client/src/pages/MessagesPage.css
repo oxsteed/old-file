@@ -1155,6 +1155,19 @@ html:not(.dark) .messages-page .messages-learn-link {
   color: var(--color-primary);
 }
 
+html:not(.dark) .messages-page .messages-filter button {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+html:not(.dark) .messages-page .messages-filter button.active,
+html:not(.dark) .messages-page .messages-filter button:hover {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 html:not(.dark) .messages-page .messages-guest-message {
   color: var(--color-text) !important;
 }
