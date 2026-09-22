@@ -977,7 +977,8 @@ describe('support routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(expect.objectContaining({ ticketId: 'conversation-1', idempotent: true }));
-    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_queue/.test(sql))).toBe(false);
+    const queueRepair = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_queue/.test(sql));
+    expect(queueRepair?.[0]).toContain('NOT EXISTS');
   });
 
   test('reads durable knowledge-base articles for support admins', async () => {

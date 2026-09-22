@@ -176,48 +176,67 @@ async function createConversation(req, res) {
       slaResolutionTarget = new Date(now.getTime() + sla.resolution_target_hours * 3600000);
     }
 
-    // Create conversation
-    const result = await query(
-      clientRequestId
-        ? `INSERT INTO support_conversations
-           (business_id, customer_id, subject, description, category, priority,
-            channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target, client_request_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9, $10)
-           ON CONFLICT (client_request_id)
-           WHERE client_request_id IS NOT NULL DO NOTHING
-           RETURNING *`
-        : `INSERT INTO support_conversations
-           (business_id, customer_id, subject, description, category, priority,
-            channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9)
-           RETURNING *`,
-      [
-        businessId,
-        req.user.id,
-        subject,
-        description || null,
-        category || 'general',
-        priority || 'normal',
-        channel,
-        slaFirstResponseTarget,
-        slaResolutionTarget,
-        ...(clientRequestId ? [clientRequestId] : []),
-      ]
-    );
-
-    let conversation = result.rows[0];
-    let replayed = false;
-    if (!conversation && clientRequestId) {
-      const existing = await query(
-        `SELECT * FROM support_conversations
-          WHERE customer_id = $1 AND client_request_id = $2
-          LIMIT 1`,
-        [req.user.id, clientRequestId],
+    const { conversation, replayed } = await withTransaction(pool, async (client) => {
+      // Create conversation and queue it in the same transaction. A response
+      // loss must never leave a durable conversation without a queue entry.
+      const result = await client.query(
+        clientRequestId
+          ? `INSERT INTO support_conversations
+             (business_id, customer_id, subject, description, category, priority,
+              channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target, client_request_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9, $10)
+             ON CONFLICT (client_request_id)
+             WHERE client_request_id IS NOT NULL DO NOTHING
+             RETURNING *`
+          : `INSERT INTO support_conversations
+             (business_id, customer_id, subject, description, category, priority,
+              channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9)
+             RETURNING *`,
+        [
+          businessId,
+          req.user.id,
+          subject,
+          description || null,
+          category || 'general',
+          priority || 'normal',
+          channel,
+          slaFirstResponseTarget,
+          slaResolutionTarget,
+          ...(clientRequestId ? [clientRequestId] : []),
+        ]
       );
-      conversation = existing.rows[0];
-      replayed = Boolean(conversation);
-    }
-    if (!conversation) throw new Error('Support conversation retry could not be recovered');
+
+      let conversation = result.rows[0];
+      let replayed = false;
+      if (!conversation && clientRequestId) {
+        const existing = await client.query(
+          `SELECT * FROM support_conversations
+            WHERE customer_id = $1 AND client_request_id = $2
+            LIMIT 1
+            FOR UPDATE`,
+          [req.user.id, clientRequestId],
+        );
+        conversation = existing.rows[0];
+        replayed = Boolean(conversation);
+      }
+      if (!conversation) throw new Error('Support conversation retry could not be recovered');
+
+      // Repair a queue entry only when this conversation has never had one.
+      // This handles a response-loss retry without resurrecting a deliberately
+      // removed queue item or adding a second active item.
+      await client.query(
+        `INSERT INTO support_queue
+           (business_id, conversation_id, priority, status)
+         SELECT $1, $2, $3, 'waiting'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM support_queue WHERE conversation_id = $2
+         )`,
+        [businessId, conversation.id, priority || 'normal']
+      );
+
+      return { conversation, replayed };
+    }, 'create_support_conversation_with_queue');
 
     if (replayed) {
       return res.status(200).json({
@@ -228,14 +247,6 @@ async function createConversation(req, res) {
         idempotent: true,
       });
     }
-
-    // Add to queue
-    await query(
-      `INSERT INTO support_queue
-       (business_id, conversation_id, priority, status)
-       VALUES ($1, $2, $3, 'waiting')`,
-      [businessId, conversation.id, priority || 'normal']
-    );
 
     logger.info('Support conversation created', {
       conversationId: conversation.id,

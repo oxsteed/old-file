@@ -1048,6 +1048,17 @@ publication remains blocked by unavailable GitHub credentials; the next
 engineering action is to audit the remaining support conversation and
 escalation creation paths for duplicate side effects after retries.
 
+Support conversation queue-atomicity checkpoint (2026-09-22 UTC): the standard
+support conversation endpoint now creates the conversation and its first queue
+entry in one transaction. Idempotent retries lock and recover the existing
+conversation, repair a queue entry only when no queue history exists, and do
+not resurrect a deliberately removed queue item. The focused support routes,
+live support, legacy support chat, and guest support suite passed `117/117`;
+the full server regression passed `196/196` suites and `1,355/1,355` tests.
+Exact live publication remains blocked by unavailable GitHub credentials; the
+next engineering action is to audit the remaining inbound support adapters and
+webhook/notification side effects for replay and failure recovery.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been
