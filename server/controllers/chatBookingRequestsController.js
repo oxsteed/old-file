@@ -21,6 +21,7 @@ const {
   normalizeDate,
   toChatStatus,
 } = require('../services/chatBookingRequests');
+const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 
 function bad(res, status, error, code = 'error', extra = {}) {
@@ -337,32 +338,21 @@ exports.acceptBookingRequest = async (req, res, next) => {
     if (!(await isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can accept this booking', 'forbidden');
     }
-    const gate = canProviderRespond(booking);
-    if (!gate.ok) return bad(res, 409, `Cannot accept: ${gate.reason}`, gate.reason);
 
-    const { rows } = await pool.query(
-      `UPDATE booking_requests
-          SET status = 'accepted',
-              accepted_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP,
-              helper_response_reason = NULL
-        WHERE id = $1 AND status IN ('pending', 'expired', 'counter_proposed')
-        RETURNING *`,
-      [booking.id],
-    );
-    if (!rows[0]) return bad(res, 409, 'Booking is no longer pending', 'invalid_status');
-    let updated = rows[0];
-
-    let appointment = null;
+    let result;
     try {
-      appointment = await confirmOrCreateAppointment(updated, updated.helper_id);
-      if (appointment?.id && !updated.appointment_id) {
-        updated = { ...updated, appointment_id: appointment.id };
-      }
+      result = await bookingLifecycle.acceptBookingRequest({
+        booking,
+        actorId: userId,
+        actorType: 'helper',
+        appointmentSource: 'messenger_accept',
+      });
     } catch (e) {
-      logger.warn('[chatBookingRequests] appointment confirm/create failed', { error: e.message });
+      return bad(res, e.status || 409, e.message || `Cannot accept: ${e.code}`, e.code || 'invalid_status');
     }
 
+    const updated = result.booking;
+    const appointment = result.appointment;
     const actorName =
       [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
     await postStatusToThread({
@@ -371,7 +361,6 @@ exports.acceptBookingRequest = async (req, res, next) => {
       actorId: userId,
       actorName,
     });
-    await emitBookingEvent({ booking: updated, event: 'accepted', actorId: userId });
 
     return res.json({
       success: true,
@@ -383,6 +372,7 @@ exports.acceptBookingRequest = async (req, res, next) => {
     next(err);
   }
 };
+
 
 /**
  * POST /api/chat/booking-requests/:id/decline
@@ -398,30 +388,21 @@ exports.declineBookingRequest = async (req, res, next) => {
     if (!(await isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can decline this booking', 'forbidden');
     }
-    const gate = canProviderRespond(booking);
-    if (!gate.ok) return bad(res, 409, `Cannot decline: ${gate.reason}`, gate.reason);
 
     const reason = String(req.body?.reason || req.body?.decline_reason || '').trim().slice(0, 500) || null;
-
-    const { rows } = await pool.query(
-      `UPDATE booking_requests
-          SET status = 'declined',
-              declined_at = CURRENT_TIMESTAMP,
-              helper_response_reason = $2,
-              updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND status IN ('pending', 'expired', 'counter_proposed')
-        RETURNING *`,
-      [booking.id, reason],
-    );
-    if (!rows[0]) return bad(res, 409, 'Booking is no longer pending', 'invalid_status');
-    const updated = rows[0];
-
+    let result;
     try {
-      await cancelLinkedAppointment(updated, updated.helper_id);
+      result = await bookingLifecycle.declineBookingRequest({
+        booking,
+        actorId: userId,
+        actorType: 'helper',
+        reason,
+      });
     } catch (e) {
-      logger.warn('[chatBookingRequests] appointment cancel failed', { error: e.message });
+      return bad(res, e.status || 409, e.message || `Cannot decline: ${e.code}`, e.code || 'invalid_status');
     }
 
+    const updated = result.booking;
     const actorName =
       [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
     await postStatusToThread({
@@ -429,9 +410,8 @@ exports.declineBookingRequest = async (req, res, next) => {
       event: 'declined',
       actorId: userId,
       actorName,
-      reason,
+      reason: reason || '',
     });
-    await emitBookingEvent({ booking: updated, event: 'declined', actorId: userId });
 
     return res.json({
       success: true,
@@ -441,6 +421,7 @@ exports.declineBookingRequest = async (req, res, next) => {
     next(err);
   }
 };
+
 
 /**
  * POST /api/chat/booking-requests/:id/customer-accept
@@ -453,53 +434,38 @@ exports.customerAcceptBookingRequest = async (req, res, next) => {
 
     const authz = await isCustomerForBooking(req, booking);
     if (!authz.ok) {
-      if (authz.reason === 'verify_required') {
-        return bad(res, 401, 'Sign in or verify as guest', 'verify_required');
-      }
       if (authz.reason === 'provider_cannot_customer_respond') {
         return bad(res, 403, 'Provider cannot use customer-accept; use /accept', 'forbidden');
       }
       return bad(res, 403, 'Only the customer or verified guest can accept this time', 'forbidden');
     }
 
-    const gate = canCustomerRespond(booking);
-    if (!gate.ok) return bad(res, 409, `Cannot accept: ${gate.reason}`, gate.reason);
-
-    const { rows } = await pool.query(
-      `UPDATE booking_requests
-          SET status = 'accepted',
-              accepted_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP,
-              helper_response_reason = NULL
-        WHERE id = $1 AND status = 'counter_proposed'
-        RETURNING *`,
-      [booking.id],
-    );
-    if (!rows[0]) return bad(res, 409, 'Booking is no longer awaiting customer response', 'invalid_status');
-    let updated = rows[0];
-
-    let appointment = null;
+    let result;
     try {
-      appointment = await confirmOrCreateAppointment(updated, updated.helper_id);
-      if (appointment?.id && !updated.appointment_id) {
-        updated = { ...updated, appointment_id: appointment.id };
-      }
+      result = await bookingLifecycle.customerAcceptBookingRequest({
+        booking,
+        actorId: authz.userId || authz.guest?.id || null,
+        actorType: authz.via === 'guest' ? 'guest' : 'customer',
+        appointmentSource: 'messenger_customer_accept',
+      });
     } catch (e) {
-      logger.warn('[chatBookingRequests] customer-accept appointment failed', { error: e.message });
+      return bad(res, e.status || 409, e.message || `Cannot accept: ${e.code}`, e.code || 'invalid_status');
     }
 
-    const userId = authz.userId || req.user?.id || null;
-    const actorName = userId
-      ? [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer'
-      : (authz.guest?.guest_name || 'Guest');
+    const updated = result.booking;
+    const appointment = result.appointment;
+    const userId = authz.userId || null;
+    const actorName =
+      authz.via === 'guest'
+        ? (authz.guest?.guest_name || authz.guest?.name || 'Guest')
+        : ([req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer');
     await postStatusToThread({
       booking: updated,
       event: 'accepted',
       actorId: userId,
       actorName,
-      senderType: 'guest',
+      senderType: 'customer',
     });
-    await emitBookingEvent({ booking: updated, event: 'accepted', actorId: userId });
 
     return res.json({
       success: true,
@@ -512,10 +478,6 @@ exports.customerAcceptBookingRequest = async (req, res, next) => {
   }
 };
 
-/**
- * POST /api/chat/booking-requests/:id/customer-decline
- * Body: { reason?: string }
- */
 exports.customerDeclineBookingRequest = async (req, res, next) => {
   try {
     const booking = await loadBooking(req.params.id);
@@ -523,52 +485,39 @@ exports.customerDeclineBookingRequest = async (req, res, next) => {
 
     const authz = await isCustomerForBooking(req, booking);
     if (!authz.ok) {
-      if (authz.reason === 'verify_required') {
-        return bad(res, 401, 'Sign in or verify as guest', 'verify_required');
-      }
       if (authz.reason === 'provider_cannot_customer_respond') {
         return bad(res, 403, 'Provider cannot use customer-decline; use /decline', 'forbidden');
       }
       return bad(res, 403, 'Only the customer or verified guest can decline this time', 'forbidden');
     }
 
-    const gate = canCustomerRespond(booking);
-    if (!gate.ok) return bad(res, 409, `Cannot decline: ${gate.reason}`, gate.reason);
-
     const reason = String(req.body?.reason || req.body?.decline_reason || '').trim().slice(0, 500) || null;
-
-    const { rows } = await pool.query(
-      `UPDATE booking_requests
-          SET status = 'declined',
-              declined_at = CURRENT_TIMESTAMP,
-              helper_response_reason = $2,
-              updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND status = 'counter_proposed'
-        RETURNING *`,
-      [booking.id, reason],
-    );
-    if (!rows[0]) return bad(res, 409, 'Booking is no longer awaiting customer response', 'invalid_status');
-    const updated = rows[0];
-
+    let result;
     try {
-      await cancelLinkedAppointment(updated, updated.helper_id);
+      result = await bookingLifecycle.customerDeclineBookingRequest({
+        booking,
+        actorId: authz.userId || authz.guest?.id || null,
+        actorType: authz.via === 'guest' ? 'guest' : 'customer',
+        reason,
+      });
     } catch (e) {
-      logger.warn('[chatBookingRequests] customer-decline appointment cancel failed', { error: e.message });
+      return bad(res, e.status || 409, e.message || `Cannot decline: ${e.code}`, e.code || 'invalid_status');
     }
 
-    const userId = authz.userId || req.user?.id || null;
-    const actorName = userId
-      ? [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer'
-      : (authz.guest?.guest_name || 'Guest');
+    const updated = result.booking;
+    const userId = authz.userId || null;
+    const actorName =
+      authz.via === 'guest'
+        ? (authz.guest?.guest_name || authz.guest?.name || 'Guest')
+        : ([req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer');
     await postStatusToThread({
       booking: updated,
       event: 'declined',
       actorId: userId,
       actorName,
-      reason,
-      senderType: 'guest',
+      reason: reason || '',
+      senderType: 'customer',
     });
-    await emitBookingEvent({ booking: updated, event: 'declined', actorId: userId });
 
     return res.json({
       success: true,
@@ -579,11 +528,6 @@ exports.customerDeclineBookingRequest = async (req, res, next) => {
   }
 };
 
-/**
- * POST /api/chat/booking-requests/:id/propose
- * Provider counter-offer: update requested times, keep pending (counter_proposed).
- * Body: { requestedDate, requestedStartTime, requestedEndTime, note? }
- */
 exports.proposeBookingTime = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -594,8 +538,6 @@ exports.proposeBookingTime = async (req, res, next) => {
     if (!(await isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can propose a different time', 'forbidden');
     }
-    const gate = canProviderRespond(booking);
-    if (!gate.ok) return bad(res, 409, `Cannot propose: ${gate.reason}`, gate.reason);
 
     const agreementGate = await checkScheduleAgreementGate(pool, {
       conversationId: booking.conversation_id,
@@ -615,82 +557,29 @@ exports.proposeBookingTime = async (req, res, next) => {
     const date = normalizeDate(body.requestedDate || body.date);
     const start = normalizeClock(body.requestedStartTime || body.start);
     const end = normalizeClock(body.requestedEndTime || body.end);
-    if (!date || !start || !end) {
-      return bad(res, 400, 'requestedDate, start, and end are required', 'validation_failed');
-    }
-    if (start >= end) {
-      return bad(res, 400, 'End time must be after start time', 'validation_failed');
-    }
     const note = String(body.note || body.reason || '').trim().slice(0, 500) || null;
 
-    // counter_proposed may not be in older CHECK constraints — fall back to pending if needed
-    let updated;
+    let result;
     try {
-      const { rows } = await pool.query(
-        `UPDATE booking_requests
-            SET requested_date = $2,
-                requested_start_time = $3,
-                requested_end_time = $4,
-                status = 'counter_proposed',
-                helper_response_reason = $5,
-                updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1 AND status IN ('pending', 'expired', 'counter_proposed')
-          RETURNING *`,
-        [
-          booking.id,
-          date,
-          start.length === 5 ? `${start}:00` : start,
-          end.length === 5 ? `${end}:00` : end,
-          note,
-        ],
-      );
-      updated = rows[0];
+      result = await bookingLifecycle.proposeBookingTime({
+        booking,
+        actorId: userId,
+        actorType: 'helper',
+        date,
+        start,
+        end,
+        note,
+      });
     } catch (e) {
-      if (e.code === '23514') {
-        const { rows } = await pool.query(
-          `UPDATE booking_requests
-              SET requested_date = $2,
-                  requested_start_time = $3,
-                  requested_end_time = $4,
-                  status = 'pending',
-                  helper_response_reason = $5,
-                  updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1 AND status IN ('pending', 'expired')
-            RETURNING *`,
-          [
-            booking.id,
-            date,
-            start.length === 5 ? `${start}:00` : start,
-            end.length === 5 ? `${end}:00` : end,
-            note,
-          ],
-        );
-        updated = rows[0];
-      } else {
-        throw e;
-      }
-    }
-    if (!updated) return bad(res, 409, 'Booking is no longer pending', 'invalid_status');
-
-    // Keep linked appointment in sync when present
-    if (updated.appointment_id) {
-      try {
-        const startDate = new Date(`${date}T${start}:00`);
-        const endDate = new Date(`${date}T${end}:00`);
-        await pool.query(
-          `UPDATE appointments
-              SET scheduled_start_time = $2,
-                  scheduled_end_time = $3,
-                  status = 'requested',
-                  updated_at = NOW()
-            WHERE id = $1 AND helper_id = $4`,
-          [updated.appointment_id, startDate, endDate, updated.helper_id],
-        );
-      } catch (e) {
-        logger.warn('[chatBookingRequests] appointment reschedule failed', { error: e.message });
-      }
+      return bad(
+        res,
+        e.status || 409,
+        e.message || `Cannot propose: ${e.code}`,
+        e.code || 'invalid_status',
+      );
     }
 
+    const updated = result.booking;
     const actorName =
       [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
     await postStatusToThread({
@@ -698,9 +587,8 @@ exports.proposeBookingTime = async (req, res, next) => {
       event: 'counter_proposed',
       actorId: userId,
       actorName,
-      reason: note,
+      reason: note || '',
     });
-    await emitBookingEvent({ booking: updated, event: 'counter_proposed', actorId: userId });
 
     return res.json({
       success: true,
@@ -711,22 +599,6 @@ exports.proposeBookingTime = async (req, res, next) => {
   }
 };
 
-/**
- * Helper used by messenger create paths to attach chat linkage + return marker.
- * Not an HTTP handler.
- */
-
-/**
- * POST /api/chat/booking-requests
- * Inbox / ChatPanel Schedule with no quote: create a durable booking_request,
- * post [booking_req:…] marker into the conversation, emit sockets.
- * Customer or provider (schedules on behalf of conversation customer) may call.
- * Body: {
- *   conversationId, helperId?, businessId?, serviceId?, serviceName?,
- *   requestedDate, requestedStartTime, requestedEndTime,
- *   startIso?, endIso?, timezone?, description?, source?
- * }
- */
 exports.createChatBookingRequest = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -854,7 +726,7 @@ exports.createChatBookingRequest = async (req, res, next) => {
       actorId: userId,
       actorName,
     });
-    await emitBookingEvent({ booking, event: 'requested', actorId: userId });
+    await bookingLifecycle.emitBookingEvent({ booking, event: 'requested', actorId: userId });
 
     try {
       socketService.broadcastToUser(helperId, 'booking:requested', { booking });
@@ -974,3 +846,6 @@ exports.buildBookingRequestMarker = buildBookingRequestMarker;
 exports.parseBookingRequestMarker = parseBookingRequestMarker;
 exports.toPublicBookingRequestCard = toPublicBookingRequestCard;
 exports.toChatStatus = toChatStatus;
+
+/** Used by calendar bookings controller for cross-surface chat status posts. */
+exports.postStatusToThreadForLifecycle = postStatusToThread;

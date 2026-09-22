@@ -9095,7 +9095,11 @@
     "requestedOn": "طلب على",
     "requestsWaiting": "{{count}} الطلب (الطلبات) قيد الانتظار",
     "statusPending": "قيد الانتظار",
-    "unknownCustomer": "عميل غير معروف"
+    "unknownCustomer": "عميل غير معروف",
+    "statusCounterProposed": "عرض مضاد",
+    "statusExpired": "منتهية",
+    "openConversation": "فتح المحادثة",
+    "guestCustomer": "ضيف"
   },
   "myBookings": {
     "unknownTool": "أداة غير معروفة",

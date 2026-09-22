@@ -9092,7 +9092,11 @@
     "requestedOn": "Mande sou",
     "requestsWaiting": "{{count}} demann (yo) ap tann",
     "statusPending": "annatant",
-    "unknownCustomer": "Kliyan enkoni"
+    "unknownCustomer": "Kliyan enkoni",
+    "statusCounterProposed": "Kont-pwopozisyon",
+    "statusExpired": "Ekspire",
+    "openConversation": "Louvri konvèsasyon",
+    "guestCustomer": "Envite"
   },
   "verifyEmail": {
     "title": "Verifye imèl ou",

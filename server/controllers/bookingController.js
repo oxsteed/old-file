@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { uuidv4 } = require('../utils/uuid');
 const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
+const bookingLifecycle = require('../services/bookingRequestLifecycle');
 
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
@@ -207,7 +208,7 @@ const bookingId = uuidv4();
         hours,
         conversationId || null,
         guestSessionId || null,
-        source || (conversationId || guestSessionId ? 'messenger_picker' : 'direct'),
+        source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
         serviceId != null ? String(serviceId) : null,
         timezone || null,
       ]
@@ -308,34 +309,18 @@ exports.getMyBookingRequests = async (req, res) => {
 exports.getIncomingBookingRequests = async (req, res) => {
   try {
     const helperId = req.user.id;
-    const { status = 'pending' } = req.query;
-
-    // JOIN users to get customer display name for the helper's inbox view
-    let query = `
-      SELECT br.*,
-             u.first_name || ' ' || u.last_name AS customer_name,
-             u.profile_photo_url AS customer_avatar
-      FROM booking_requests br
-      JOIN users u ON u.id = br.customer_id
-      WHERE br.helper_id = $1`;
-    const params = [helperId];
-
-    if (status) {
-      query += ` AND br.status = $${params.length + 1}`;
-      params.push(status);
+    const { status, statuses } = req.query;
+    let statusList;
+    if (statuses) {
+      statusList = String(statuses)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
-
-    query += ' ORDER BY br.created_at DESC';
-
-    const result = await pool.query(query, params);
-    const rows = [];
-    for (const row of result.rows) {
-      const transformed = transformBooking(row);
-      // Attach customer identity fields (not part of transformBooking)
-      transformed.customerName = row.customer_name || null;
-      transformed.customerAvatar = row.customer_avatar || null;
-      rows.push(transformed);
-    }
+    const rows = await bookingLifecycle.listIncomingForProvider(helperId, {
+      status: statusList ? undefined : status,
+      statuses: statusList,
+    });
 
     res.json({
       success: true,
@@ -347,52 +332,61 @@ exports.getIncomingBookingRequests = async (req, res) => {
   }
 };
 
+
 exports.acceptBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const helperId = req.user.id;
 
-    const result = await pool.query(
-      'SELECT * FROM booking_requests WHERE id = $1',
-      [bookingId]
-    );
-
-    if (result.rows.length === 0) {
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-
-    const booking = result.rows[0];
-
-    if (booking.helper_id !== helperId) {
+    if (String(booking.helper_id) !== String(helperId)) {
       return sendError(res, 403, 'Only the assigned helper can respond to this booking');
     }
 
-    if (booking.status !== 'pending' && booking.status !== 'expired') {
-      return sendError(res, 400, `Cannot accept a ${booking.status} booking request`);
+    let result;
+    try {
+      result = await bookingLifecycle.acceptBookingRequest({
+        booking,
+        actorId: helperId,
+        actorType: 'helper',
+        appointmentSource: 'calendar_accept',
+      });
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot accept booking', e.code);
     }
 
-    const updatedResult = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status IN ('pending', 'expired')
-       RETURNING *`,
-      [bookingId]
-    );
-
-    if (!updatedResult.rows.length) {
-      return sendError(res, 400, 'Booking is no longer pending');
-    }
-
-    const updated = updatedResult.rows[0];
-
-    await logBookingAudit(bookingId, 'accepted', helperId, 'helper', 'pending', 'accepted');
+    const updated = result.booking;
     await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'accepted');
+
+    // Post chat status when linked to a conversation (glue: calendar → messenger)
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName =
+            [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: 'accepted',
+            actorId: helperId,
+            actorName,
+          });
+        }
+      } catch (e) {
+        logger.warn('Calendar accept chat status post skipped', { error: e.message });
+      }
+    }
 
     logger.info('Booking request accepted', { bookingId, helperId });
 
     res.json({
       success: true,
       data: transformBooking(updated),
+      appointmentId: result.appointment?.id || updated.appointment_id || null,
     });
   } catch (err) {
     logger.error('Error accepting booking request', { error: err.message });
@@ -400,48 +394,55 @@ exports.acceptBookingRequest = async (req, res) => {
   }
 };
 
+
 exports.declineBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const helperId = req.user.id;
-    const { reason } = req.body;
+    const { reason } = req.body || {};
 
-    const result = await pool.query(
-      'SELECT * FROM booking_requests WHERE id = $1',
-      [bookingId]
-    );
-
-    if (result.rows.length === 0) {
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-
-    const booking = result.rows[0];
-
-    if (booking.helper_id !== helperId) {
+    if (String(booking.helper_id) !== String(helperId)) {
       return sendError(res, 403, 'Only the assigned helper can respond to this booking');
     }
 
-    if (booking.status !== 'pending' && booking.status !== 'expired') {
-      return sendError(res, 400, `Cannot decline a ${booking.status} booking request`);
+    let result;
+    try {
+      result = await bookingLifecycle.declineBookingRequest({
+        booking,
+        actorId: helperId,
+        actorType: 'helper',
+        reason: reason || null,
+      });
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot decline booking', e.code);
     }
 
-    const updatedResult = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'declined', declined_at = CURRENT_TIMESTAMP,
-           helper_response_reason = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status IN ('pending', 'expired')
-       RETURNING *`,
-      [bookingId, reason || null]
-    );
-
-    if (!updatedResult.rows.length) {
-      return sendError(res, 400, 'Booking is no longer pending');
-    }
-
-    const updated = updatedResult.rows[0];
-
-    await logBookingAudit(bookingId, 'declined', helperId, 'helper', 'pending', 'declined');
+    const updated = result.booking;
     await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'declined');
+
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName =
+            [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: 'declined',
+            actorId: helperId,
+            actorName,
+            reason: reason || '',
+          });
+        }
+      } catch (e) {
+        logger.warn('Calendar decline chat status post skipped', { error: e.message });
+      }
+    }
 
     logger.info('Booking request declined', { bookingId, helperId });
 
@@ -454,6 +455,7 @@ exports.declineBookingRequest = async (req, res) => {
     sendError(res, 500, 'Failed to decline booking request');
   }
 };
+
 
 /**
  * Customer cancels pending or accepted booking (pending → cancelled, accepted → accepted_cancelled)
@@ -853,93 +855,164 @@ exports.counterProposeBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const helperId = req.user.id;
-    const { counter_date, counter_start_time, counter_end_time, counter_message } = req.body || {};
+    const body = req.body || {};
+    const counter_date = body.counter_date || body.requestedDate || body.date;
+    const counter_start_time = body.counter_start_time || body.requestedStartTime || body.start;
+    const counter_end_time = body.counter_end_time || body.requestedEndTime || body.end;
+    const counter_message = body.counter_message || body.note || body.reason || null;
+
     const errors = {};
     if (!counter_date) errors.counter_date = 'Date is required';
     if (!counter_start_time) errors.counter_start_time = 'Start time is required';
     if (!counter_end_time) errors.counter_end_time = 'End time is required';
-    if (counter_start_time && counter_end_time && counter_start_time >= counter_end_time) {
+    if (
+      counter_start_time &&
+      counter_end_time &&
+      String(counter_start_time) >= String(counter_end_time)
+    ) {
       errors.counter_end_time = 'End time must be after start time';
     }
     if (Object.keys(errors).length) return sendValidationError(res, errors);
 
-    const existing = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
-    const booking = existing.rows[0];
+    const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) return sendError(res, 404, 'Booking request not found');
     if (String(booking.helper_id) !== String(helperId)) {
       return sendError(res, 403, 'Only the assigned helper can counter-propose this booking');
     }
-    if (booking.status !== 'pending') return sendError(res, 400, `Cannot counter-propose a ${booking.status} booking`);
 
-    const updated = await pool.query(
-      `UPDATE booking_requests
-          SET counter_proposed_at = now(),
-              counter_date = $2,
-              counter_start_time = $3,
-              counter_end_time = $4,
-              counter_message = $5,
-              counter_status = 'pending',
-              updated_at = now()
-        WHERE id = $1
-        RETURNING *`,
-      [bookingId, counter_date, counter_start_time, counter_end_time, counter_message || null]
-    );
-    await logBookingAudit(bookingId, 'counter_proposed', helperId, 'helper', booking.status, booking.status);
-    await sendNotification({
-      userId: booking.customer_id,
-      type: 'booking_counter_proposed',
-      body: `${booking.service_name} — ${counter_date} ${counter_start_time}-${counter_end_time}`,
-      data: { bookingId },
-      action_url: '/my-bookings',
-    }).catch((err) => logger.warn('Failed counter-propose notification', { error: err.message }));
-    res.json({ booking: transformBooking(updated.rows[0]), message: 'Counter-proposal sent' });
+    let result;
+    try {
+      result = await bookingLifecycle.proposeBookingTime({
+        booking,
+        actorId: helperId,
+        actorType: 'helper',
+        date: counter_date,
+        start: counter_start_time,
+        end: counter_end_time,
+        note: counter_message,
+      });
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot counter-propose', e.code);
+    }
+
+    const updated = result.booking;
+    if (updated.customer_id) {
+      await sendNotification({
+        userId: updated.customer_id,
+        type: 'booking_counter_proposed',
+        body: `${updated.service_name} — ${counter_date} ${counter_start_time}-${counter_end_time}`,
+        data: { bookingId },
+        action_url: '/my-bookings',
+      }).catch((err) => logger.warn('Failed counter-propose notification', { error: err.message }));
+    }
+
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName =
+            [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: 'counter_proposed',
+            actorId: helperId,
+            actorName,
+            reason: counter_message || '',
+          });
+        }
+      } catch (e) {
+        logger.warn('Calendar counter-propose chat status post skipped', { error: e.message });
+      }
+    }
+
+    res.json({ booking: transformBooking(updated), message: 'Counter-proposal sent' });
   } catch (err) {
     logger.error('Error counter-proposing booking', { error: err.message });
     sendError(res, 500, 'Failed to send counter-proposal');
   }
 };
 
+
 exports.respondToCounterPropose = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const customerId = req.user.id;
     const action = String(req.body?.action || '').toLowerCase();
-    if (!['accept', 'decline'].includes(action)) return sendValidationError(res, { action: 'Use accept or decline' });
+    if (!['accept', 'decline'].includes(action)) {
+      return sendValidationError(res, { action: 'Use accept or decline' });
+    }
 
-    const existing = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
-    const booking = existing.rows[0];
+    const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) return sendError(res, 404, 'Booking request not found');
     if (String(booking.customer_id) !== String(customerId)) {
       return sendError(res, 403, 'Only the customer can respond to this counter-proposal');
     }
-    if (booking.counter_status !== 'pending') return sendError(res, 400, 'No pending counter-proposal');
 
-    const accepted = action === 'accept';
-    const updated = await pool.query(
-      `UPDATE booking_requests
-          SET requested_date = CASE WHEN $2 THEN counter_date ELSE requested_date END,
-              requested_start_time = CASE WHEN $2 THEN counter_start_time ELSE requested_start_time END,
-              requested_end_time = CASE WHEN $2 THEN counter_end_time ELSE requested_end_time END,
-              counter_status = $3,
-              updated_at = now()
-        WHERE id = $1
-        RETURNING *`,
-      [bookingId, accepted, accepted ? 'accepted' : 'declined']
-    );
-    await logBookingAudit(bookingId, accepted ? 'counter_accepted' : 'counter_declined', customerId, 'customer', booking.status, booking.status);
+    let result;
+    try {
+      if (action === 'accept') {
+        result = await bookingLifecycle.customerAcceptBookingRequest({
+          booking,
+          actorId: customerId,
+          actorType: 'customer',
+          appointmentSource: 'calendar_customer_accept',
+        });
+      } else {
+        result = await bookingLifecycle.customerDeclineBookingRequest({
+          booking,
+          actorId: customerId,
+          actorType: 'customer',
+          reason: req.body?.reason || null,
+        });
+      }
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot respond to counter-proposal', e.code);
+    }
+
+    const updated = result.booking;
     await sendNotification({
       userId: booking.helper_id,
-      type: accepted ? 'booking_counter_accepted' : 'booking_counter_declined',
-      body: `${booking.service_name} — ${accepted ? 'counter-proposal accepted' : 'counter-proposal declined'}`,
+      type: action === 'accept' ? 'booking_counter_accepted' : 'booking_counter_declined',
+      body: `${booking.service_name} — ${
+        action === 'accept' ? 'counter-proposal accepted' : 'counter-proposal declined'
+      }`,
       data: { bookingId },
       action_url: '/calendar?tab=bookingRequests',
     }).catch((err) => logger.warn('Failed counter response notification', { error: err.message }));
-    res.json({ booking: transformBooking(updated.rows[0]), message: accepted ? 'Counter-proposal accepted' : 'Counter-proposal declined' });
+
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName =
+            [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Customer';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: action === 'accept' ? 'accepted' : 'declined',
+            actorId: customerId,
+            actorName,
+            senderType: 'customer',
+          });
+        }
+      } catch (e) {
+        logger.warn('Calendar counter-respond chat status post skipped', { error: e.message });
+      }
+    }
+
+    res.json({
+      booking: transformBooking(updated),
+      message:
+        action === 'accept' ? 'Counter-proposal accepted' : 'Counter-proposal declined',
+      appointmentId: result.appointment?.id || updated.appointment_id || null,
+    });
   } catch (err) {
     logger.error('Error responding to counter-proposal', { error: err.message });
     sendError(res, 500, 'Failed to respond to counter-proposal');
   }
 };
+
 
 function timeFromTimestamptz(ts) {
   const d = new Date(ts);
@@ -992,7 +1065,12 @@ function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges) {
 }
 
 function transformBooking(booking) {
-  return {
+  // Prefer shared calendar shape when row already transformed / has snake_case DB fields
+  if (booking && booking.customerId != null && booking.conversationId !== undefined) {
+    return booking;
+  }
+  const base = bookingLifecycle.toCalendarBooking(booking);
+  return base || {
     id: booking.id,
     customerId: booking.customer_id,
     helperId: booking.helper_id,
@@ -1009,6 +1087,10 @@ function transformBooking(booking) {
     declinedAt: booking.declined_at,
     helperResponseReason: booking.helper_response_reason,
     convertedToJobId: booking.converted_to_job_id,
+    conversationId: booking.conversation_id || null,
+    guestSessionId: booking.guest_session_id || null,
+    appointmentId: booking.appointment_id != null ? String(booking.appointment_id) : null,
+    source: booking.source || 'direct',
     counter_proposed_at: booking.counter_proposed_at,
     counter_date: booking.counter_date,
     counter_start_time: booking.counter_start_time,

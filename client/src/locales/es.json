@@ -9092,7 +9092,11 @@
     "requestedOn": "Solicitado el",
     "requestsWaiting": "{{count}} solicitud(es) en espera",
     "statusPending": "Pendiente",
-    "unknownCustomer": "Cliente desconocido"
+    "unknownCustomer": "Cliente desconocido",
+    "statusCounterProposed": "Contrapropuesta",
+    "statusExpired": "Expirada",
+    "openConversation": "Abrir conversación",
+    "guestCustomer": "Invitado"
   },
   "verifyEmail": {
     "title": "Verifica tu correo",
