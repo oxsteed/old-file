@@ -9,8 +9,30 @@ import '../../styles/PublicProfileSummaryCard.css';
  * `coverOverlay`, `actions` (identity-band CTAs beside/under title),
  * `belowTitle`, `footer`.
  *
- * @param {'helper'|'business'} variant
- * @param {'studio'|'public'} surface — studio = dark preview chrome; public = CSS-var theme
+ * @param {object} props
+ * @param {'helper'|'business'} [props.variant]
+ * @param {'studio'|'public'} [props.surface] — studio = dark preview chrome; public = CSS-var theme
+ * @param {string|null} [props.cover]
+ * @param {string|null} [props.avatar]
+ * @param {string} [props.name]
+ * @param {string} [props.tagline]
+ * @param {string} [props.typeLabel]
+ * @param {string} [props.meta]
+ * @param {string} [props.contact]
+ * @param {string} [props.about]
+ * @param {boolean|null} [props.availableNow]
+ * @param {string} [props.ratingLabel]
+ * @param {string} [props.emptyName]
+ * @param {string} [props.emptyTagline]
+ * @param {string} [props.emptyPlace]
+ * @param {string} [props.availableNowLabel]
+ * @param {string} [props.notAvailableNowLabel]
+ * @param {string} [props.ariaLabel]
+ * @param {*} [props.coverOverlay]
+ * @param {*} [props.actions]
+ * @param {*} [props.belowTitle]
+ * @param {*} [props.footer]
+ * @param {string} [props.className]
  */
 export default function PublicProfileSummaryCard({
   variant = 'helper',

@@ -344,7 +344,7 @@ async function loadConversionTransactions(client, conversion) {
   };
 }
 
-async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUnits, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {} }) {
+async function convertCustomerCreditInTransaction(client, { customerId, quoteId, sourceAmountMinorUnits, idempotencyKey, actorUserId, correlationId, requestIp, metadata = {} }) {
   const actor = normalizeString(actorUserId, 160);
   if (!actor || String(actor) !== String(customerId)) throw new AppError('The Credit conversion actor must be the customer converting the balance', 403, 'credit_conversion_actor_required');
   const normalizedCustomerId = String(customerId);
@@ -352,52 +352,51 @@ async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUni
   const sourceAmount = parseAmount(sourceAmountMinorUnits, 'sourceAmountMinorUnits');
   const key = requireIdempotencyKey(idempotencyKey);
 
-  return withTransaction(pool, async (client) => {
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-conversion:${normalizedCustomerId}:${key}`]);
-    const { rows: existingRows } = await client.query(
-      `SELECT * FROM oxsteed_credit_currency_conversions WHERE idempotency_key = $1 FOR UPDATE`,
-      [key]
-    );
-    if (existingRows[0]) {
-      const existing = existingRows[0];
-      assertQuoteReplayMatches(existing, { quote_id: normalizedQuoteId, customer_id: normalizedCustomerId, source_amount_minor_units: sourceAmount });
-      return { conversion: formatCurrencyConversion(existing, await loadConversionTransactions(client, existing)), replayed: true };
-    }
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-conversion:${normalizedCustomerId}:${key}`]);
+  const { rows: existingRows } = await client.query(
+    `SELECT * FROM oxsteed_credit_currency_conversions WHERE idempotency_key = $1 FOR UPDATE`,
+    [key]
+  );
+  if (existingRows[0]) {
+    const existing = existingRows[0];
+    assertQuoteReplayMatches(existing, { quote_id: normalizedQuoteId, customer_id: normalizedCustomerId, source_amount_minor_units: sourceAmount });
+    return { conversion: formatCurrencyConversion(existing, await loadConversionTransactions(client, existing)), replayed: true };
+  }
 
-    await assertCreditRailEnabled(client);
-    const { rows: quoteRows } = await client.query(
-      `SELECT * FROM oxsteed_credit_currency_quotes WHERE id = $1 FOR UPDATE`,
-      [normalizedQuoteId]
-    );
-    const quote = quoteRows[0];
-    if (!quote) throw new AppError('Currency quote not found', 404, 'credit_conversion_quote_not_found');
-    if (quote.status !== 'open') throw new AppError('Currency quote is no longer available', 409, 'credit_conversion_quote_unavailable');
-    if (new Date(quote.expires_at) <= new Date()) {
-      await client.query(`UPDATE oxsteed_credit_currency_quotes SET status = 'expired', updated_at = NOW() WHERE id = $1`, [normalizedQuoteId]);
-      throw new AppError('Currency quote has expired', 409, 'credit_conversion_quote_expired');
-    }
-    if (Number(quote.source_amount_minor_units) !== sourceAmount) throw new AppError('Conversion amount does not match the currency quote', 409, 'credit_conversion_quote_amount_mismatch');
+  await assertCreditRailEnabled(client);
+  const { rows: quoteRows } = await client.query(
+    `SELECT * FROM oxsteed_credit_currency_quotes WHERE id = $1 FOR UPDATE`,
+    [normalizedQuoteId]
+  );
+  const quote = quoteRows[0];
+  if (!quote) throw new AppError('Currency quote not found', 404, 'credit_conversion_quote_not_found');
+  if (quote.status !== 'open') throw new AppError('Currency quote is no longer available', 409, 'credit_conversion_quote_unavailable');
+  if (new Date(quote.expires_at) <= new Date()) {
+    await client.query(`UPDATE oxsteed_credit_currency_quotes SET status = 'expired', updated_at = NOW() WHERE id = $1`, [normalizedQuoteId]);
+    throw new AppError('Currency quote has expired', 409, 'credit_conversion_quote_expired');
+  }
+  if (Number(quote.source_amount_minor_units) !== sourceAmount) throw new AppError('Conversion amount does not match the currency quote', 409, 'credit_conversion_quote_amount_mismatch');
 
-    const feeAmount = Number(quote.fee_amount_minor_units || 0);
-    if (sourceAmount + feeAmount > MAX_TRANSACTION_CENTS) throw new AppError('Conversion source amount plus fee exceeds the transaction limit', 409, 'credit_conversion_transaction_limit');
-    await assertDailyConversionCapacity(client, { customerId: normalizedCustomerId, currencyCode: quote.source_currency_code, sourceAmount });
-    const sourceWallet = await ensureAccount(client, { accountType: 'customer_wallet', customerId: normalizedCustomerId, currencyCode: quote.source_currency_code });
-    const sourceTreasury = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: quote.source_currency_code });
-    const targetTreasury = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: quote.target_currency_code });
-    const targetWallet = await ensureAccount(client, { accountType: 'customer_wallet', customerId: normalizedCustomerId, currencyCode: quote.target_currency_code });
-    const conversionId = crypto.randomUUID();
-    const common = {
-      customerId: normalizedCustomerId,
-      actorType: 'user',
-      actorUserId: actor,
-      referenceType: 'currency_conversion',
-      referenceId: conversionId,
-      correlationId,
-      requestIp,
-      description: `OxSteed Credit currency conversion ${quote.source_currency_code} to ${quote.target_currency_code}`,
-      metadata: { ...normalizeMetadata(metadata), quoteId: String(quote.id), provider: quote.provider, providerQuoteReference: quote.provider_quote_reference },
-    };
-    const debitResult = await postJournalTransaction(client, {
+  const feeAmount = Number(quote.fee_amount_minor_units || 0);
+  if (sourceAmount + feeAmount > MAX_TRANSACTION_CENTS) throw new AppError('Conversion source amount plus fee exceeds the transaction limit', 409, 'credit_conversion_transaction_limit');
+  await assertDailyConversionCapacity(client, { customerId: normalizedCustomerId, currencyCode: quote.source_currency_code, sourceAmount });
+  const sourceWallet = await ensureAccount(client, { accountType: 'customer_wallet', customerId: normalizedCustomerId, currencyCode: quote.source_currency_code });
+  const sourceTreasury = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: quote.source_currency_code });
+  const targetTreasury = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: quote.target_currency_code });
+  const targetWallet = await ensureAccount(client, { accountType: 'customer_wallet', customerId: normalizedCustomerId, currencyCode: quote.target_currency_code });
+  const conversionId = crypto.randomUUID();
+  const common = {
+    customerId: normalizedCustomerId,
+    actorType: 'user',
+    actorUserId: actor,
+    referenceType: 'currency_conversion',
+    referenceId: conversionId,
+    correlationId,
+    requestIp,
+    description: `OxSteed Credit currency conversion ${quote.source_currency_code} to ${quote.target_currency_code}`,
+    metadata: { ...normalizeMetadata(metadata), quoteId: String(quote.id), provider: quote.provider, providerQuoteReference: quote.provider_quote_reference },
+  };
+  const debitResult = await postJournalTransaction(client, {
       ...common,
       transactionType: 'conversion_debit',
       debitAccountId: sourceWallet.id,
@@ -405,10 +404,10 @@ async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUni
       amountCents: sourceAmount,
       currencyCode: quote.source_currency_code,
       idempotencyKey: `oxsteed-conversion:${conversionId}:debit`,
-    });
-    let feeResult = null;
-    if (feeAmount > 0) {
-      feeResult = await postJournalTransaction(client, {
+  });
+  let feeResult = null;
+  if (feeAmount > 0) {
+    feeResult = await postJournalTransaction(client, {
         ...common,
         transactionType: 'conversion_fee',
         debitAccountId: sourceWallet.id,
@@ -416,9 +415,9 @@ async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUni
         amountCents: feeAmount,
         currencyCode: quote.source_currency_code,
         idempotencyKey: `oxsteed-conversion:${conversionId}:fee`,
-      });
-    }
-    const creditResult = await postJournalTransaction(client, {
+    });
+  }
+  const creditResult = await postJournalTransaction(client, {
       ...common,
       actorType: 'system',
       actorUserId: null,
@@ -428,8 +427,8 @@ async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUni
       amountCents: Number(quote.target_amount_minor_units),
       currencyCode: quote.target_currency_code,
       idempotencyKey: `oxsteed-conversion:${conversionId}:credit`,
-    });
-    const { rows: conversionRows } = await client.query(
+  });
+  const { rows: conversionRows } = await client.query(
       `INSERT INTO oxsteed_credit_currency_conversions
         (id, customer_id, quote_id, source_currency_code, target_currency_code,
          source_amount_minor_units, target_amount_minor_units, fee_amount_minor_units,
@@ -438,17 +437,24 @@ async function convertCustomerCredit({ customerId, quoteId, sourceAmountMinorUni
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)
        RETURNING *`,
       [conversionId, normalizedCustomerId, quote.id, quote.source_currency_code, quote.target_currency_code, sourceAmount, quote.target_amount_minor_units, feeAmount, debitResult.transaction.id, feeResult?.transaction.id || null, creditResult.transaction.id, key, actor, correlationId || null, requestIp || null, JSON.stringify(normalizeMetadata(metadata))]
-    );
-    await client.query(`UPDATE oxsteed_credit_currency_quotes SET status = 'consumed', consumed_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'open'`, [quote.id]);
-    return {
-      conversion: formatCurrencyConversion(conversionRows[0], {
-        debit: debitResult.transaction,
-        fee: feeResult?.transaction || null,
-        credit: creditResult.transaction,
-      }),
-      replayed: false,
-    };
-  }, 'credit_convert_currency');
+  );
+  await client.query(`UPDATE oxsteed_credit_currency_quotes SET status = 'consumed', consumed_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'open'`, [quote.id]);
+  return {
+    conversion: formatCurrencyConversion(conversionRows[0], {
+      debit: debitResult.transaction,
+      fee: feeResult?.transaction || null,
+      credit: creditResult.transaction,
+    }),
+    replayed: false,
+  };
+}
+
+async function convertCustomerCredit(args) {
+  return withTransaction(
+    pool,
+    (client) => convertCustomerCreditInTransaction(client, args),
+    'credit_convert_currency'
+  );
 }
 
 module.exports = {
@@ -463,5 +469,6 @@ module.exports = {
   assertDailyConversionCapacity,
   createCurrencyQuote,
   getCurrencyQuote,
+  convertCustomerCreditInTransaction,
   convertCustomerCredit,
 };

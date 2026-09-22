@@ -29,3 +29,29 @@ test('keeps restaurant-wallet timestamps tied to the selected language', () => {
   assert.notEqual(english, french);
   assert.equal(formatCreditDateTime('', 'Indisponible', 'fr-FR'), 'Indisponible');
 });
+
+test('preserves skipped and repeated hours in the runtime timezone', () => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    assert.equal(
+      formatCreditDateTime('2026-03-08T06:30:00.000Z', 'Unavailable', 'en-US'),
+      'Mar 8, 2026, 1:30 AM',
+    );
+    assert.equal(
+      formatCreditDateTime('2026-03-08T07:30:00.000Z', 'Unavailable', 'en-US'),
+      'Mar 8, 2026, 3:30 AM',
+    );
+    assert.equal(
+      formatCreditDateTime('2026-11-01T05:30:00.000Z', 'Unavailable', 'en-US'),
+      'Nov 1, 2026, 1:30 AM',
+    );
+    assert.equal(
+      formatCreditDateTime('2026-11-01T06:30:00.000Z', 'Unavailable', 'en-US'),
+      'Nov 1, 2026, 1:30 AM',
+    );
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});

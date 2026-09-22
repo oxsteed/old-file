@@ -60,4 +60,26 @@ describe('post-deploy readiness payload validation', () => {
       failures: ['productionConfiguration readiness check is not healthy'],
     });
   });
+
+  test('rejects a healthy payload from a different release when identity is supplied', () => {
+    const result = validateReadinessPayload(healthyPayload(), { expectedRelease: 'release-other' });
+
+    expect(result).toEqual({
+      ok: false,
+      failures: ['release mismatch: expected one of release-other, received release-2026-09-14'],
+    });
+  });
+
+  test('accepts the expected release identity', () => {
+    expect(validateReadinessPayload(healthyPayload(), { expectedRelease: 'release-2026-09-14' })).toEqual({
+      ok: true,
+      failures: [],
+    });
+  });
+
+  test('accepts either the commit or deterministic content identity', () => {
+    expect(validateReadinessPayload(healthyPayload(), {
+      expectedReleases: ['commit-2026-09-14', 'release-2026-09-14'],
+    })).toEqual({ ok: true, failures: [] });
+  });
 });

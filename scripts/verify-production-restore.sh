@@ -9,11 +9,21 @@ fi
 
 BACKUP_FILE="$1"
 APP_DB_CONTAINER="${APP_DB_CONTAINER:-postgres-twsam5aiyvm0w1l2jqxx9ih3}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-$ROOT_DIR/server/migrations}"
 
 [[ -s "$BACKUP_FILE" ]] || {
   echo "Backup dump is missing or empty: $BACKUP_FILE" >&2
   exit 1
 }
+
+[[ -d "$MIGRATIONS_DIR" ]] || {
+  echo "Migration source directory is missing: $MIGRATIONS_DIR" >&2
+  exit 1
+}
+
+expected_migrations="$(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -exec basename {} \; | sort)"
+expected_migration_count="$(printf '%s\n' "$expected_migrations" | awk 'NF { count += 1 } END { print count + 0 }')"
 
 export DOCKER_CONTEXT="${DOCKER_CONTEXT:-colima}"
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$APP_DB_CONTAINER" 2>/dev/null)" == "healthy" ]] || {
@@ -51,10 +61,18 @@ migration_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_
   exit 1
 }
 
+applied_migrations="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
+  'SELECT filename FROM _migrations ORDER BY filename')"
+if [[ "$applied_migrations" != "$expected_migrations" ]]; then
+  echo "Restored database migration set does not match the current source (found $migration_count, expected $expected_migration_count)." >&2
+  diff -u <(printf '%s\n' "$expected_migrations") <(printf '%s\n' "$applied_migrations") >&2 || true
+  exit 1
+fi
+
 credit_table_count="$(docker exec "$APP_DB_CONTAINER" psql -U "$DB_USER" -d "$TEMP_DB" -Atqc \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_settlement_reversals', 'oxsteed_credit_audit_events', 'oxsteed_credit_partner_ledgers', 'oxsteed_credit_partner_funding_records', 'oxsteed_credit_currency_quotes', 'oxsteed_credit_currency_conversions')")"
-[[ "$credit_table_count" == "11" ]] || {
-  echo "Restored database is missing required Credit tables (found $credit_table_count/11)" >&2
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('oxsteed_credit_accounts', 'oxsteed_credit_transactions', 'oxsteed_credit_transaction_entries', 'oxsteed_credit_holds', 'oxsteed_credit_settlements', 'oxsteed_credit_settlement_reversals', 'oxsteed_credit_audit_events', 'oxsteed_credit_partner_ledgers', 'oxsteed_credit_partner_funding_records', 'oxsteed_credit_currency_quotes', 'oxsteed_credit_currency_conversions', 'oxsteed_credit_cards')")"
+[[ "$credit_table_count" == "12" ]] || {
+  echo "Restored database is missing required Credit tables (found $credit_table_count/12)" >&2
   exit 1
 }
 

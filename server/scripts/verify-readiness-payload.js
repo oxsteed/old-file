@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-function validateReadinessPayload(payload) {
+function validateReadinessPayload(payload, { expectedRelease = '', expectedReleases = [] } = {}) {
   const failures = [];
+  const acceptedReleases = [...new Set([expectedRelease, ...expectedReleases].map((value) => String(value || '').trim()).filter(Boolean))];
   const checks = payload && typeof payload === 'object' ? payload.checks : null;
   const requireHealthy = (name) => {
     // Keep the missing top-level release error actionable instead of duplicating it.
@@ -12,6 +13,8 @@ function validateReadinessPayload(payload) {
   if (payload?.status !== 'ready') failures.push(`status=${payload?.status}`);
   if (typeof payload?.release !== 'string' || payload.release.trim() === '') {
     failures.push('release identifier is missing');
+  } else if (acceptedReleases.length > 0 && !acceptedReleases.includes(payload.release)) {
+    failures.push(`release mismatch: expected one of ${acceptedReleases.join(', ')}, received ${payload.release}`);
   }
 
   ['release', 'productionConfiguration', 'database', 'redis', 'creditLedger', 'creditRail', 'realtime', 'workers', 'traffic', 'shutdown']
@@ -31,12 +34,18 @@ function validateReadinessPayload(payload) {
 }
 
 if (require.main === module) {
+  const expectedReleases = process.argv
+    .filter((argument) => argument.startsWith('--expected-release='))
+    .map((argument) => argument.slice('--expected-release='.length).trim())
+    .filter(Boolean);
+  const configuredExpectedRelease = String(process.env.EXPECTED_RELEASE || '').trim();
+  if (configuredExpectedRelease) expectedReleases.push(configuredExpectedRelease);
   let input = '';
   process.stdin.setEncoding('utf8');
   process.stdin.on('data', (chunk) => { input += chunk; });
   process.stdin.on('end', () => {
     try {
-      const result = validateReadinessPayload(JSON.parse(input));
+      const result = validateReadinessPayload(JSON.parse(input), { expectedReleases });
       if (!result.ok) {
         console.error(`Post-deploy readiness validation failed: ${result.failures.join('; ')}`);
         process.exitCode = 1;

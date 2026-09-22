@@ -12,13 +12,21 @@ describe('deployment release identity wiring', () => {
     expect(dockerfile).toContain('ARG COMMIT_SHA');
     expect(dockerfile).toContain('ARG SOURCE_COMMIT');
     expect(dockerfile).toContain('release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}";');
-    expect(dockerfile).toContain('release="content-$(find server client -type f');
+    expect(dockerfile).toContain('release="$(node scripts/compute-content-release.cjs)"');
     expect(dockerfile).toContain('COPY --from=release-meta /release /app/server/.release');
     expect(dockerfile).toContain('VITE_SENTRY_RELEASE="$release"');
     expect(dockerfile).toContain('ENV COMMIT_SHA=${COMMIT_SHA}');
     expect(dockerfile).toContain('ENV SOURCE_COMMIT=${SOURCE_COMMIT}');
     expect(dockerfile).toContain('org.opencontainers.image.revision="${SOURCE_COMMIT}"');
     expect(dockerfile).toContain('org.opencontainers.image.version="${SENTRY_RELEASE}"');
+  });
+
+  test('provides a guarded post-deploy release identity check', () => {
+    const verifier = fs.readFileSync(path.join(repositoryRoot, 'server/scripts/verify-readiness-payload.js'), 'utf8');
+
+    expect(verifier).toContain('--expected-release=');
+    expect(verifier).toContain('EXPECTED_RELEASE');
+    expect(verifier).toContain('release mismatch: expected one of');
   });
 
   test('passes the release identity into the Coolify app build and runtime', () => {
@@ -187,6 +195,22 @@ describe('deployment release identity wiring', () => {
       expect(source).toContain('formatCreditDateTime');
       expect(source).not.toContain('Intl.DateTimeFormat(undefined');
     }
+
+    const customerDetail = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditCustomerDetail.jsx'), 'utf8');
+    const entitlements = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditEntitlements.jsx'), 'utf8');
+    const customerCredit = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/food/OxsteedCreditPage.jsx'), 'utf8');
+    const partnerManager = fs.readFileSync(path.join(repositoryRoot, 'client/src/pages/food/OxsteedCreditPartnerManager.jsx'), 'utf8');
+    const admin = fs.readFileSync(path.join(repositoryRoot, 'client/src/admin/pages/super/OxsteedCreditAdmin.jsx'), 'utf8');
+    expect(customerDetail).toContain('const language = typeof t === \'function\' ? t.lng : undefined;');
+    expect(customerDetail).toContain('formatCreditDateTime(value, fallback, language)');
+    expect(entitlements).toContain("formatCreditDateTime(value, value ? t('statusUnknown') : t('notAvailable'), t.lng)");
+    expect(customerCredit).toContain('localizeCreditOrderType');
+    expect(customerCredit).toContain('localizeCreditTransactionType');
+    expect(partnerManager).toContain('localizeCreditTransactionType');
+    expect(partnerManager).toContain('localizeCreditStatus');
+    expect(customerDetail).toContain('localizeCreditOrderTypes');
+    expect(admin).toContain('localizeCreditOrderTypes');
+    expect(entitlements).toContain('localizeCreditStatus(status, t)');
   });
 
   test('keeps the preserved restaurant wallet on exact currency parsing', () => {
@@ -308,7 +332,9 @@ describe('deployment release identity wiring', () => {
     expect(restoreScript).toContain('TEMP_DB');
     expect(restoreScript).toContain('oxsteed_credit_settlement_reversals');
     expect(restoreScript).toContain('oxsteed_credit_settlement_reversal_guard');
-    expect(restoreScript).toContain('== "11"');
+    expect(restoreScript).toContain('== "12"');
+    expect(restoreScript).toContain('expected_migrations');
+    expect(restoreScript).toContain('oxsteed_credit_cards');
     expect(restoreScript).toContain('== "5"');
     expect(restoreScript).toContain('credit_integrity_trigger_count');
     expect(restoreScript).toContain("tgenabled = 'D'");
@@ -463,6 +489,10 @@ describe('deployment release identity wiring', () => {
     expect(harness).toContain('docker compose');
     expect(harness).toContain('run_dependency_failure redis redis');
     expect(harness).toContain('run_dependency_failure postgres database');
+    expect(harness).toContain('verify-isolated-app-recovery.js');
+    expect(harness).toContain('CREDIT_TEST_OUTAGE_MODE=true');
+    expect(harness).toContain('node "$ROOT_DIR/server/scripts/verify-isolated-app-recovery.js" "$url" stopped');
+    expect(harness).toContain('node "$ROOT_DIR/server/scripts/verify-isolated-app-recovery.js" "$url" recovered');
     expect(harness).toContain('CREDIT_PERFORMANCE_TEST_MODE=true');
     expect(harness).toContain('CREDIT_PERFORMANCE_DURATION_MS');
     expect(harness).toContain('CREDIT_PERFORMANCE_PARTNERS');
@@ -473,6 +503,23 @@ describe('deployment release identity wiring', () => {
     expect(harness).toContain('for ((attempt = 1; attempt <= 60; attempt += 1))');
     expect(harness).toContain('sleep 1');
     expect(harness).toContain('The isolated app port was not published within 60 seconds.');
+  });
+
+  test('guards the isolated application outage verifier and checks a real read-only route', () => {
+    const verifier = fs.readFileSync(
+      path.join(repositoryRoot, 'server/scripts/verify-isolated-app-recovery.js'),
+      'utf8'
+    );
+
+    expect(verifier).toContain("env.CREDIT_TEST_OUTAGE_MODE !== 'true'");
+    expect(verifier).toContain("/^oxsteed-credit-test-[a-z0-9-]+$/");
+    expect(verifier).toContain("target.protocol !== 'http:'");
+    expect(verifier).toContain("new URL('/health', target)");
+    expect(verifier).toContain("new URL('/ready', target)");
+    expect(verifier).toContain("new URL('/api/direct/catalog', target)");
+    expect(verifier).toContain("catalogUrl.searchParams.set('limit', '24')");
+    expect(verifier).toContain('evaluateBoundedCatalogPayload');
+    expect(verifier).toContain("['stopped', 'recovered']");
   });
 
   test('provides a guarded real HTTP Stripe test-mode delivery verifier', () => {
@@ -489,6 +536,42 @@ describe('deployment release identity wiring', () => {
     expect(verifier).toContain('webhook_event_watermarks');
     expect(packageJson.scripts['verify:stripe-webhook-delivery']).toBe('node scripts/verify-stripe-webhook-delivery.js');
     expect(harness).toContain('provider) provider');
+    expect(harness).toContain('failure-injection) failure_injection');
+  });
+
+  test('guards real Credit failure injection to the disposable harness', () => {
+    const verifier = fs.readFileSync(
+      path.join(repositoryRoot, 'server/scripts/verify-credit-failure-injection.js'),
+      'utf8'
+    );
+    const packageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'server/package.json'), 'utf8'));
+
+    expect(verifier).toContain("process.env.CREDIT_FAILURE_INJECTION_TEST_MODE !== 'true'");
+    expect(verifier).toContain("/^oxsteed-credit-test-[a-z0-9-]+$/");
+    expect(verifier).toContain('throw new Error(`synthetic ${name} failure`)');
+    expect(verifier).toContain('purchaseWithCreditInTransaction');
+    expect(verifier).toContain('transferCreditInTransaction');
+    expect(verifier).toContain('adjustCustomerCreditInTransaction');
+    expect(verifier).toContain('captureCreditHoldInTransaction');
+    expect(verifier).toContain('refundCreditInTransaction');
+    expect(verifier).toContain('recordPartnerFundingInTransaction');
+    expect(verifier).toContain('convertCustomerCreditInTransaction');
+    expect(verifier).toContain('cashOutWithCardInTransaction');
+    expect(verifier).toContain('assertUnchanged');
+    expect(verifier).toContain('Rolled-back purchase transaction still exists.');
+    expect(verifier).toContain('Rolled-back transfer transaction still exists.');
+    expect(verifier).toContain('Rolled-back adjustment transaction still exists.');
+    expect(verifier).toContain('Rolled-back hold capture transaction still exists.');
+    expect(verifier).toContain('Rolled-back refund transaction still exists.');
+    expect(verifier).toContain('Rolled-back journal transaction still exists.');
+    expect(verifier).toContain('Partner funding rollback');
+    expect(verifier).toContain('partnerFundingSnapshot');
+    expect(verifier).toContain('Conversion record rollback');
+    expect(verifier).toContain('conversionSnapshot');
+    expect(verifier).toContain('Cash-out record rollback');
+    expect(verifier).toContain('cashOutSnapshot');
+    expect(verifier).toContain("railRows[0]?.is_enabled !== false");
+    expect(packageJson.scripts['verify:credit-failure-injection']).toBe('node scripts/verify-credit-failure-injection.js');
   });
 
   test('allows dynamic loopback origins only in non-production isolated environments', () => {

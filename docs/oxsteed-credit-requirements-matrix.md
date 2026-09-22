@@ -1,31 +1,28 @@
 # OxSteed Credit Requirements Matrix
 
-Updated 2026-09-16. This matrix is the engineering evidence gate for the
+Updated 2026-09-21. This matrix is the engineering evidence gate for the
 code-completion goal. A row marked `environment` is implemented in code but
 cannot be called production-ready until the listed isolated or live check has
 been run. Human licensing, custody, contracts, and provider approval belong in
 the separate launch handoff.
 
-Current evidence: the deployed application image from commit `a2e40ac` is
-healthy. Its in-container `/health`, `/api/health`, and `/ready` probes return
-`200`, and the `/ready` payload reports release `content-935664c28efad1a7`.
-Production Coolify now has protected backend and browser Sentry DSNs, with
-`SENTRY_ENABLED=true` and the existing privacy-safe PII settings preserved.
-The rebuilt container has both DSNs present, the frontend bundle contains the
-Sentry initialization marker, and the read-only production `verify:credit`
-command passes with all migration/integrity checks true and zero invalid
-balances, refunds, settlements, conversions, hashes, or expired holds. The
-Credit rail readiness check is healthy and now reports monitoring configured,
-but remains disabled as an emergency activation state; no live value movement
-was enabled by this pass.
-The live browser smoke check redirects unauthenticated `/oxsteed-credit` visits
-to the localized `/login` screen; no authenticated customer or operator
-workflow was run against production. Sentry follow-up also verified existing
-`oxsteed-backend` and `oxsteed-frontend` Error Monitors, account-level Issue
-Alert Notifications set to `On` with `Email` delivery, an older backend SQL
-aggregation issue, and catch-all ownership rules assigning both projects to the
-signed-in Sentry account. No synthetic production event was generated and no
-Credit activation was attempted.
+Latest read-only live evidence (2026-09-21 local / 2026-09-22 UTC):
+`https://oxsteed.com/ready` and `https://api.oxsteed.com/health` return `200`.
+The deployed release is `content-22d5628ed07a4bfa`, migrations are `539/539`
+with zero pending or unexpected files, and database, shared Redis, dedicated
+ledger key, realtime, workers, traffic, shutdown, and monitoring prerequisites
+all report healthy. The production Credit rail currently reports
+`enabled=true`; this is an observed operational state, not a claim that
+licensing, custody, provider, or human launch approvals are complete. Do not
+toggle it from this engineering pass. Unauthenticated Credit API requests
+return `401`, and the public five-locale Direct catalog verifier passed with
+`1020` services and `40` tools per locale in `219ms` or less. The local source
+candidate remains dirty and must not be described as identical to this live
+release until it is published through the approved path.
+
+The existing Sentry wiring and account-level alert configuration remain
+documented below. No synthetic production event was generated during this
+read-only recheck, and no live value movement was performed.
 
 Package C isolated evidence is separate from the live database: the clean
 Colima fixture applied migrations `522/522` with zero pending, passed the full
@@ -45,26 +42,26 @@ events, and resolved all 6 incidents after heartbeat recovery.
 | Requirement | Implementation evidence | Verification evidence | Status / remaining gap |
 | --- | --- | --- | --- |
 | Central authority ledger and immutable journal | `server/migrations/421_oxsteed_credit_foundation.sql`, `server/services/oxsteedCreditService.js` | current-source non-activating verifier transiently run inside the healthy Colima application container passed with zero invalid balances, entries, chains, or audit hashes; backend Credit tests | implemented; activation remains gated by production monitoring and redeployment of the patched verifier source |
-| Independent restaurant payable and reserve ledgers | `server/migrations/514_oxsteed_credit_partner_ledgers.sql`, forward fixes `517` and `518`, `server/services/oxsteedCreditPartnerLedgerService.js` | live non-activating verifier passed with zero invalid partner ledgers/funding records; partner-ledger unit tests; isolated PostgreSQL accounting drill verified reserve balance `1500` and payable/reserve separation; clean runner applied migrations `521/521` | implemented; external funding evidence remains an operator handoff; failure-injection evidence remains |
-| Funding and reserve release traceability | `oxsteed_credit_partner_funding_records`, admin ledger UI and routes | funding amount handoff regression; idempotent replay; isolated Colima treasury drill recorded 2 reserve entries and identical replay transaction | implemented; external transfer evidence must be supplied by operators; failure-injection evidence remains |
-| Loads, purchases, holds, captures, releases, refunds, transfers, and adjustments | `server/services/oxsteedCreditService.js` and Credit controllers | backend suite plus isolated PostgreSQL/Redis/API smoke on Colima: real login, isolated rail enable, `1000 USD` load, account read, and direct journal verification passed twice from fresh volumes; Package C isolated drill covered load, purchase, hold/capture, refund, transfer, and cross-restaurant denial; real race verifier covered capture/release, expiry/capture, refund/refund, issuance/conversion caps, settlement overlap, and two-restaurant permission contention with zero final reservation | implemented; broader failure-injection and browser workflow evidence remain |
+| Independent restaurant payable and reserve ledgers | `server/migrations/514_oxsteed_credit_partner_ledgers.sql`, forward fixes `517` and `518`, `server/services/oxsteedCreditPartnerLedgerService.js` | live non-activating verifier passed with zero invalid partner ledgers/funding records; partner-ledger unit tests; isolated PostgreSQL accounting drill verified reserve balance `1500` and payable/reserve separation; current-source Colima artifact applied migrations `539/539`; focused transaction-failure tests and fresh artifact `content-76ffe4a01bbc974e` real rollback probe passed with no partner ledger, account, funding, journal, or audit artifacts surviving | implemented; external funding evidence remains an operator handoff |
+| Funding and reserve release traceability | `oxsteed_credit_partner_funding_records`, admin ledger UI and routes | funding amount handoff regression; idempotent replay; isolated Colima treasury drill recorded 2 reserve entries and identical replay transaction; focused partner-funding rollback test; fresh artifact `content-76ffe4a01bbc974e` real partner-funding rollback probe passed with no downstream ledger, funding, journal, or audit write | implemented; external transfer evidence must be supplied by operators |
+| Loads, purchases, holds, captures, releases, refunds, transfers, and adjustments | `server/services/oxsteedCreditService.js` and Credit controllers | backend suite plus isolated PostgreSQL/Redis/API smoke on Colima: real login, isolated rail enable, `1000 USD` load, account read, and direct journal verification passed twice from fresh volumes; Package C isolated drill covered load, purchase, hold/capture, refund, transfer, and cross-restaurant denial; real race verifier covered capture/release, expiry/capture, refund/refund, issuance/conversion caps, settlement overlap, and two-restaurant permission contention with zero final reservation; fresh current-source Colima artifact `content-dff55cafe6c74935` ran guarded real rollback probes for purchase, transfer, adjustment, hold capture, refund, journal, partner funding, conversion, and card cash-out failure with unchanged account/hold/partner/quote/card state and no orphan transactions | implemented; authenticated browser workflow evidence remains |
 | Settlement, reversal, reconciliation, statements, disputes, and audit | Credit admin service, controllers, UI, and migrations `516_oxsteed_credit_settlement_reversal.sql` and `520_oxsteed_credit_settlement_evidence_trigger_branching.sql` | backend suite, reversal compensating-journal test, clean isolated settlement-overlap race with one committed settlement, current-source live verifier, and strengthened restore script | implemented in source; paid payout reversals require admin reason, recovery reference, idempotency, and append-only compensating journal evidence; failure-injection and end-to-end browser evidence remains; patched verifier source still requires redeployment for artifact-level proof |
-| Double-spend, limits, tenant isolation, and replay defense | advisory locks, account guards, idempotency and role middleware | isolated migration-516 `verify:credit-concurrency` passed: one concurrent spend committed, one rolled back, duplicate retry shared one transaction, and insufficient-funds failure left state unchanged; reusable isolated Colima smoke also passed twice with scoped teardown; Package C drill denied customer one at partner two and kept the legacy restaurant wallet separate; clean migration-runner fixture passed `521/521`; real races covered capture/release, expiry/capture, refund/refund, issuance-at-cap, conversion-at-cap, settlement overlap, two-restaurant permission contention, identical replay, and conflicting-key rejection | partial: broader failure-injection and browser evidence remain |
+| Double-spend, limits, tenant isolation, and replay defense | advisory locks, account guards, idempotency and role middleware | isolated migration-516 `verify:credit-concurrency` passed: one concurrent spend committed, one rolled back, duplicate retry shared one transaction, and insufficient-funds failure left state unchanged; reusable isolated Colima smoke also passed twice with scoped teardown; Package C drill denied customer one at partner two and kept the legacy restaurant wallet separate; clean migration-runner fixture passed `521/521`; real races covered capture/release, expiry/capture, refund/refund, issuance-at-cap, conversion-at-cap, settlement overlap, two-restaurant permission contention, identical replay, and conflicting-key rejection; current-source disposable purchase/transfer/adjustment/hold-capture/refund/partner-funding/conversion/cash-out rollback probes passed with zero orphan artifacts | partial: authenticated browser failure-path evidence remains |
 
 ## Product And International Support
 
 | Requirement | Implementation evidence | Verification evidence | Status / remaining gap |
 | --- | --- | --- | --- |
 | Customer, restaurant, and Super Admin workflows | `client/src/pages/food/OxsteedCreditPage.jsx`, `client/src/pages/food/OxsteedCreditPartnerManager.jsx`, `client/src/admin/pages/super/OxsteedCreditAdmin.jsx`, and the read-only Customer 360 detail panel; Customer 360 now keeps eligibility lookup failure distinct from an empty result, and profile/partner-ledger responses are request-scoped through the shared request guard | `client` typecheck/build, API/controller tests, stable admin and legacy restaurant-wallet mutation-key regressions, request-guard `3/3`, deployment wiring `21/21`, live unauthenticated route guard, rebuilt isolated browser customer journey: login, JPY balance/eligibility, `7` JPY authorization, release, receipt/history, and Arabic RTL rendering; guarded `CREDIT_TEST_ADMIN_MODE=true ... node scripts/verify-credit-admin-api.js` completed password-plus-TOTP authentication and all 11 Credit read surfaces with rail disabled; same-origin CUA browser completed synthetic Super Admin password-plus-TOTP login, dashboard navigation, and Credit console rendering on release `content-f48453f6de2348d9` with no warning/error console logs; rebuilt isolated fixture smoke passed after the loopback CORS safeguard; synthetic restaurant-owner browser journey rendered the Store tab and `restaurant-credit:901:USD` ledger with no customer identity, while a second owner with a tampered `business=901` query saw only restaurant `902` and `restaurant-credit:902:USD`; fresh operator tab had no warning/error console logs; continuation artifact `content-88c11f95a2cfbf0e` rendered the full Admin Credit console with the rail suspended; customer and Admin pages had no horizontal overflow at `390x844`, `768x1024`, or `1440x900`, and keyboard traversal reached the relevant Credit controls without warning/error logs | partial: 200% zoom, locale/timezone matrix, deeper operator mutation workflow, and failure-path browser evidence remain |
-| Direct catalog expansion, safe requestability, and tool coverage | `server/migrations/523_direct_catalog_expansion.sql` through `527_direct_catalog_tool_category_fk.sql`, repeatable generators, `server/services/directCatalogService.js`, public/admin catalog UI, and guarded catalog verifiers; exactly 1,000 additional services are distributed 200 per category, with 40 categorized supporting tools, five-locale metadata, quote-based USD pricing, availability, live/operational/non-bookable safeguards, unique slugs, conflict-safe inserts, review flags, and bounded public pagination/search; catalog cards carry a stable service slug into the quote form, and the server validates linked slugs against requestable catalog records before insertion; CI verifies the database inventory before publication, while the deployment workflow runs the bounded performance gate only with explicit live-target authorization | focused server catalog suite `29/29`; deployment-wiring, database-verifier, public-payload, and linked-request suites `65/65`; latest full backend `161/161` suites and `1,163/1,163` tests; client `build:ci`; fresh rebuilt Colima artifacts reached `527/527` with `unexpectedCount=0`, passed the real database verifier including exact 200-services/8-tools-per-category checks and the five-locale public API verifier, and passed isolated Arabic pagination/search/browser checks; bounded performance verifier passed 20 requests across all five categories and multiple offsets at concurrency 4 with p50 `71.24ms`, p95 `751.95ms`, max `804.42ms`, and `0` errors; a custom-format dump from a migration-527 artifact passed the restore verifier with all five catalog migrations, 1,000 services, 40 tools, the tool-category foreign key, complete locale/safety checks, and Credit integrity checks; five-locale i18n verification and the full client production build passed after the request-flow hardening | partial: current live image still reports `516/516`, omits `categorySlug` and `servicePagination`, and the source candidate is uncommitted; publish through the approved path, then repeat live API/browser/request-metadata/restore checks |
+| Direct catalog expansion, safe requestability, and tool coverage | `server/migrations/523_direct_catalog_expansion.sql` through `527_direct_catalog_tool_category_fk.sql`, repeatable generators, `server/services/directCatalogService.js`, public/admin catalog UI, and guarded catalog verifiers; exactly 1,000 additional services are distributed 200 per category, with 40 categorized supporting tools, five-locale metadata, quote-based USD pricing, availability, live/operational/non-bookable safeguards, unique slugs, conflict-safe inserts, review flags, and bounded public pagination/search; catalog cards carry a stable service slug into the quote form, and the server validates linked slugs against requestable catalog records before insertion; CI verifies the database inventory before publication, while the deployment workflow runs the bounded performance gate only with explicit live-target authorization | focused server catalog suite `29/29`; deployment-wiring, database-verifier, public-payload, and linked-request suites `65/65`; latest full backend `161/161` suites and `1,163/1,163` tests; client `build:ci`; current live release `content-22d5628ed07a4bfa` passed the read-only five-locale public verifier with `1020/40` per locale and returned category-scoped `categorySlug` and `servicePagination`; fresh current-source Colima artifacts reached `539/539` with `unexpectedCount=0`, passed the real database verifier including exact 200-services/8-tools-per-category checks and isolated Arabic pagination/search/browser checks; bounded isolated performance passed with zero errors; restore and quote-flow checks passed on disposable artifacts | partial: local source candidate remains uncommitted and live authenticated browser/request-metadata/post-publication restore checks still need the approved release identity; do not infer source/live identity from matching public output alone |
 Stable request-flow follow-up (2026-09-16): catalog cards now pass both `service` and validated `serviceSlug` query parameters; the quote form preserves the stable slug and readable name in request metadata and renders a localized selected-service status in all five catalogs. The public quote endpoint now verifies a supplied slug against active, published, live, operational catalog data inside the request transaction, canonicalizes the stored service name, rolls back unavailable links, rejects malformed and overlong slugs before database access, and preserves legacy requests without a slug. `directQuoteCatalogLink.test.js` passed `5/5`; the focused request/wiring suite passed `37/37`; the full backend regression passed `161/161` suites and `1,164/1,164` tests; `npm run verify:i18n` passed, `git diff --check` passed, and the full client `npm run build:ci` exited `0`. This remains source-only until publication and a live browser/API metadata recheck.
 Direct catalog coverage follow-up (2026-09-16): migration `528_direct_catalog_service_coverage.sql` fills only blank coverage fields for the generated services and published tools, using conservative guidance while leaving exact location eligibility to `direct_service_areas` and the quote flow. The generator and artifact regression now also fail closed on category skew, requiring exactly 200 generated services in each of the five categories. The final focused catalog/release suite passed `80/80` across 8 suites; the full backend passed `161/161` suites and `1,165/1,165` tests; client `build:ci`, locale verification, syntax checks, and `git diff --check` passed. Fresh Colima artifact `oxsteed-credit-test-20260916t05461789537604z-15063` reached `528/528`, passed database verification (`1000` services, `40` tools, `5` categories), public verification in all five locales (`1020/40` each, bounded page `229ms`), bounded performance (`20` requests, p50 `52.96ms`, p95 `134.51ms`, max `143.84ms`, zero errors), and the strengthened restore drill (`6` catalog migrations, coverage, FK, 11 Credit tables, 5 integrity triggers). The source remains unpublished; live API, browser, and post-publication restore checks remain required.
 
 Dynamic catalog and multi-service quote follow-up (2026-09-16): category-scoped catalog queries now filter tools by the selected category relationship, request links carry stable service UUIDs, and the quote page allows customers to add multiple requestable catalog services without replacing the primary service context. Migration `529_quote_request_catalog_services.sql` adds the foreign-keyed `quote_request_services` relation with duplicate protection; the API canonicalizes every selected ID against live category/service state, preserves ordered IDs and category snapshots in metadata, and includes selected names in operator/customer notifications. Regression coverage includes category tool scoping, UUID handoff, single- and multi-service canonicalization, invalid-ID rejection, migration structure, localized selector copy, restore checks, and deployment wiring. Source-only evidence is complete for this slice; publication and live browser/API/restore checks remain required.
 | Accessible loading, empty, failure, retry, and emergency controls | Credit page states, admin controls, rail status gates, visible admin retry path, and focused in-app dialogs for destructive/status actions; Customer 360 explicitly announces unavailable eligibility and offers retry instead of claiming no access; the customer Credit page now exits loading into a localized retryable alert and preserves previously loaded data during refresh failures | live localized login boundary and client build; source-level stale/failure guards are present; deployment wiring/focus contract passed `21/21`, including dialog keyboard containment, Escape close, focus restoration, selected-locale timestamp formatting, and enforced `:focus-visible` styling; rebuilt isolated authenticated browser stopped PostgreSQL, observed the Credit page's `role=alert` with `Retry` while its prior balance/limits remained visible, restored PostgreSQL, re-authenticated the synthetic customer, and observed normal Credit recovery with no alert | partial: 200% zoom inspection and deeper operator/admin failure-path browser evidence remain |
 | Currency precision and currency-isolated reporting | explicit minor-unit map and currency checks in `oxsteedCreditService.js`; exact client amount parser is used by OxSteed Credit and the preserved restaurant-wallet page; entitlement UI/API currency contract and locked-row mixed-currency guard | `node --test scripts/creditCurrency.test.mjs` passed 5/5; `oxsteedCreditAdminService.test.js` passed 41/41 including mixed-currency rejection; deployment wiring contract passed `21/21`, including the legacy-wallet exact-parser guard; server currency tests and verifier | implemented in source; authenticated browser form and per-market funding/settlement drill remain |
-| Cross-currency conversion safety | `server/migrations/515_oxsteed_credit_currency_conversions.sql`, `server/services/oxsteedCreditCurrencyConversionService.js`, quote/conversion API routes; customer quote reads expose terms only while Super Admin reads retain provider/audit fields | conversion unit tests, exact-rate idempotency regression test, customer quote redaction regression, isolated PostgreSQL quote-to-ledger drill, daily-cap advisory-lock regression test, and verifier | implemented; live migration and provider-backed sandbox drill remain |
-| Localization, time zones, and regional policy enforcement | localized customer/operator UI plus Credit admin entitlement, partner-ledger, action-dialog, Customer 360 entry/recovery states, and the preserved restaurant-wallet payment/transfer/request dialogs; `RestaurantCreditPage.jsx` uses the dedicated `restaurantWallet` namespace for visible labels, validation, recovery notices, and accessibility labels; shared `client/src/lib/creditDateTime.js` formats Credit timestamps using the selected app language while preserving the runtime timezone; shared `client/src/lib/creditStatus.js` prevents known lifecycle codes, including revocation, from leaking as raw UI text; injectable dev proxy supports repeatable isolated browser origins; non-production CORS accepts only loopback origins for dynamic isolated ports; same-origin realtime follows the published loopback origin when no explicit API URL is configured; server policy validation and ISO currency configuration | `445` Credit-key parity and surface checks across en/es/fr/ht/ar, including the restaurant-wallet and Super Admin entitlement pages; shared status contract `2/2` including revocation and unknown-state fallbacks, server localization checks, regional API tests, locale formatter `2/2`, client `build:ci` (Credit tests, i18n verifier, typecheck, and Vite bundle), deployment wiring `21/21`, `client` realtime URL regression `2/2`, and rebuilt isolated browser Arabic RTL Credit journey with localized controls/history/support; English operator Store journey rendered at a dynamic loopback port with a clean browser console | partial: complete browser locale, timezone/DST, long-string, and responsive matrix remains |
+| Cross-currency conversion safety | `server/migrations/515_oxsteed_credit_currency_conversions.sql`, `server/services/oxsteedCreditCurrencyConversionService.js`, quote/conversion API routes; customer quote reads expose terms only while Super Admin reads retain provider/audit fields | conversion unit tests, exact-rate idempotency regression test, customer quote redaction regression, isolated PostgreSQL quote-to-ledger drill, daily-cap advisory-lock regression test, guarded real rollback probe on current artifact `content-c48f1b024a258615` covering source/target wallets, three journal writes, conversion record, and quote status, and verifier | implemented; live migration and provider-backed sandbox drill remain |
+| Localization, time zones, and regional policy enforcement | localized customer/operator UI plus Credit admin entitlement, partner-ledger, action-dialog, Customer 360 entry/recovery states, customer/admin card issuance and management, and the preserved restaurant-wallet payment/transfer/request dialogs; `RestaurantCreditPage.jsx` uses the dedicated `restaurantWallet` namespace for visible labels, validation, recovery notices, and accessibility labels; shared `client/src/lib/creditDateTime.js` formats Credit timestamps using the selected app language while preserving the runtime timezone; shared `client/src/lib/creditStatus.js` prevents known lifecycle codes, including revocation, from leaking as raw UI text; injectable dev proxy supports repeatable isolated browser origins; non-production CORS accepts only loopback origins for dynamic isolated ports; same-origin realtime follows the published loopback origin when no explicit API URL is configured; server policy validation and ISO currency configuration | `1042` Credit-key parity and surface checks across en/es/fr/ht/ar, including the restaurant-wallet, Super Admin entitlement, and customer/admin card pages; shared status contract `2/2` including revocation and unknown-state fallbacks, server localization checks, regional API tests, locale formatter `2/2`, customer/admin card localization `2/2`, client `build:ci` (Credit tests, i18n verifier, typecheck, and Vite bundle), deployment wiring `21/21`, `client` realtime URL regression `2/2`, and rebuilt isolated browser Arabic RTL Credit journey with localized controls/history/support; English operator Store journey rendered at a dynamic loopback port with a clean browser console | partial: complete browser locale, timezone/DST, long-string, and responsive matrix remains |
 
 Continuation browser evidence (2026-09-15): the isolated English operator
 Store/Credit page had no horizontal overflow at `390x844`, `768x1024`, or
@@ -141,11 +138,22 @@ Credit activation setting was changed.
 | Requirement | Implementation evidence | Verification evidence | Status / remaining gap |
 | --- | --- | --- | --- |
 | Secrets, HMAC ledger integrity, authorization, and audit | Credit service secret validation, HMAC entries, role middleware, audit events | live non-activating verifier and deployed secret replacement/restart passed; protected backend/browser Sentry configuration and healthy redeploy verified; existing backend/frontend Error Monitors, account-level email Issue Alert Notifications, and catch-all ownership rules for the signed-in Sentry account verified; `server/__tests__/supportRoutes.test.js` passed `74/74`, including explicit `sa.id` grouping coverage for the prior `sa.user_id` SQL failure | implemented; controlled live event receipt remains an operational handoff item |
-| Provider adapters, webhooks, reconciliation, and outage handling | provider-specific adapters and webhook handlers in `server/`; payment worker claims jobs with visibility leases, atomically reclaims stale jobs after worker crashes, acknowledges already-completed duplicate claims, dead-letters unprocessable queue jobs, propagates Redis acknowledgment failures into retry/dead-letter handling, fails unmatched Stripe payment updates for retry/dead-letter handling, delegates notification delivery to the real fan-out service, uses `mobile_push_tokens` for current native-token cleanup, and moves exhausted provider jobs to a queue-specific dead-letter list with an atomic operator requeue command | contract fixtures, webhook receipt replay protection, worker notification success/failure tests, notification SQL regression, optional Stripe payload handling, unmatched-payment regression, duplicate-claim acknowledgment regression, unknown-processor dead-letter regression, acknowledgment-failure regression, queue failure-path tests, expired-lease reclamation, dead-letter preservation/requeue coverage, and guarded `server/scripts/verify-payment-queue-recovery.js` run against real Colima Redis with atomic enqueue, lease recovery, delayed retry, dead-letter replay, and duplicate suppression; rebuilt isolated app reclaimed 7 stale Credit notifications and marked 7 sent; live Stripe credentials are deployed; disposable Colima outage harness passed Redis and PostgreSQL stop/degrade/restart/readiness recovery without touching production | partial: provider sandbox/event-delivery and end-to-end outage runs remain |
-| Workers, diagnostics, health, and readiness | worker config, `/ready`, `/health`, verifier scripts; claimed duplicate jobs are acknowledged when their completion marker already exists, unknown claimed jobs are preserved for operator recovery, notification completion uses explicit PostgreSQL parameter types, and `workerMain` stops polling before graceful drain | worker lifecycle fake-timer regression, broader Credit backend checkpoint `7` suites/`186` tests, duplicate-claim acknowledgment regression, unknown-processor dead-letter regression, worker failure/retry contracts, notification/outbox tests `9/9`, readiness checks, real Redis queue recovery with stale lease reclamation and dead-letter replay, rebuilt artifact notification recovery, rebuilt-artifact local monitoring capture `ok=true`, `flushed=true`, and guarded `MONITORING_RECOVERY_TEST_MODE=true ... node scripts/verify-credit-monitoring-recovery.js` with 6 stale and 6 recovered incidents plus 2 local monitoring events; disposable Colima `bash scripts/credit-isolated-env.sh failures` passed expected `503 not_ready` dependency degradation and clean `200 ready` recovery for Redis and PostgreSQL; production Sentry configuration, existing backend/frontend monitors, account-level email alerts, catch-all ownership, and healthy redeploy verified | partial: live worker recovery observation and genuine production event receipt remain |
-| Reproducible build, migration upgrade, and release identification | Dockerfile, compose deployment, migration runner, deterministic image release metadata, and production release readiness gate | client `build:ci`, latest rebuilt isolated artifact release `content-88c11f95a2cfbf0e` with migration startup at `522/522` and zero pending, current-source live non-activating verifier; production Coolify redeploy produced release `content-935664c28efad1a7`, and the live `verify:credit` now passes after Sentry configuration; source generates a shared `content-<hash>` release when Coolify does not inject commit metadata | partial: explicit `SENTRY_RELEASE`, `COMMIT_SHA`, or `SOURCE_COMMIT` remains preferred for human-readable incident correlation |
-| Automated backup and tested restoration | complete Coolify snapshot runner `scripts/backup-coolify-production.sh`, manifest/checksum monitor, launchd templates, `scripts/install-production-backup-launchagents.sh`, and `scripts/verify-production-restore.sh`; runner pins the Colima context before health checks, supplies launchd-safe paths, and prevents overlapping runs with an atomic lock; monitor accepts only timestamp-shaped published snapshots, so orphaned `.incomplete.*` manifests cannot mask a valid backup; installer stages reviewed scripts outside macOS Documents privacy scope | runner syntax/plist/deployment wiring verified; hermetic `bash scripts/verify-local-backup-scheduler.sh` passed successful snapshot, monitor success, orphaned manifest, overlap lock, stale lock replacement, failed dump, corrupt checksum, retention, stale snapshot, and disk-space failure; installer successfully bootstrapped both current labels; loaded `com.oxsteed.production-backup` uses Colima and a 21600-second interval; a launchd `kickstart` completed with `runs=1`, `last exit code=0`, and published local snapshot `20260915T191849Z`; `bash scripts/check-production-backup.sh` passed for that snapshot and all five artifacts passed SHA-256 verification; the installed monitor returned `state=OK`; that snapshot was restored into a temporary Colima PostgreSQL database and `npm --prefix server run verify:restore` passed with 516 migrations, 11 Credit tables, 5 Credit integrity triggers, zero disabled required triggers, and the mutation probe; temporary performance state removed | partial: observe at least one unattended six-hour interval after the current install and configure the approved off-device copy when available |
+| Provider adapters, webhooks, reconciliation, and outage handling | provider-specific adapters and webhook handlers in `server/`; payment worker claims jobs with visibility leases, atomically reclaims stale jobs after worker crashes, acknowledges already-completed duplicate claims, dead-letters unprocessable queue jobs, propagates Redis acknowledgment failures into retry/dead-letter handling, fails unmatched Stripe payment updates for retry/dead-letter handling, delegates notification delivery to the real fan-out service, uses `mobile_push_tokens` for current native-token cleanup, and moves exhausted provider jobs to a queue-specific dead-letter list with an atomic operator requeue command | contract fixtures, webhook receipt replay protection, worker notification success/failure tests, notification SQL regression, optional Stripe payload handling, unmatched-payment regression, duplicate-claim acknowledgment regression, unknown-processor dead-letter regression, acknowledgment-failure regression, queue failure-path tests, expired-lease reclamation, dead-letter preservation/requeue coverage, and guarded `server/scripts/verify-payment-queue-recovery.js` run against real Colima Redis with atomic enqueue, lease recovery, delayed retry, dead-letter replay, and duplicate suppression; rebuilt isolated app reclaimed 7 stale Credit notifications and marked 7 sent; fresh current-source Colima artifact `content-1dbff90e09f14263` passed the real route-level `verify-stripe-webhook-delivery.js` probe with valid delivery, duplicate and stale suppression, invalid-signature rejection, two persisted receipts, and the newest-event watermark; live Stripe credentials are deployed; fresh current-source artifact `content-db770b1e03b83ca8` passed disposable Redis/PostgreSQL outage checks and an application stop/restart, including loopback liveness, readiness, dynamic-port rediscovery, and a bounded read-only catalog request; no production state was touched | partial: live provider event delivery and published-production outage observation remain |
+| Workers, diagnostics, health, and readiness | worker config, `/ready`, `/health`, verifier scripts; claimed duplicate jobs are acknowledged when their completion marker already exists, unknown claimed jobs are preserved for operator recovery, notification completion uses explicit PostgreSQL parameter types, and `workerMain` stops polling before graceful drain | worker lifecycle fake-timer regression, broader Credit backend checkpoint `7` suites/`186` tests, duplicate-claim acknowledgment regression, unknown-processor dead-letter regression, worker failure/retry contracts, notification/outbox tests `9/9`, readiness checks, real Redis queue recovery with stale lease reclamation and dead-letter replay, rebuilt artifact notification recovery, rebuilt-artifact local monitoring capture `ok=true`, `flushed=true`, and guarded `MONITORING_RECOVERY_TEST_MODE=true ... node scripts/verify-credit-monitoring-recovery.js` with 6 stale and 6 recovered incidents plus 2 local monitoring events; disposable Colima `bash scripts/credit-isolated-env.sh failures` passed expected `503 not_ready` dependency degradation, clean `200 ready` recovery for Redis and PostgreSQL, and application stop/restart recovery through `/health`, `/ready`, and the bounded catalog route; production Sentry configuration, existing backend/frontend monitors, account-level email alerts, catch-all ownership, and healthy redeploy verified | partial: live worker recovery observation and genuine production event receipt remain |
+| Reproducible build, migration upgrade, and release identification | Dockerfile, compose deployment, migration runner, `scripts/compute-content-release.cjs`, and production release readiness gate | `scripts/compute-content-release.test.cjs` passed `2/2`; the extracted calculator matches the prior `sha256sum` algorithm byte-for-byte on the current tree; an isolated Colima Docker `release-meta` build produced the same `content-5cf18d36ea828c79` identity; readiness validation now accepts only an explicitly supplied expected commit or deterministic content release; focused deployment/readiness wiring passed `40/40`; the deployment workflow computes the candidate content release and passes both accepted identities to post-deploy readiness; read-only production reported release `content-22d5628ed07a4bfa` with migrations `539/539` and zero pending | implemented in software; explicit `SENTRY_RELEASE`, `COMMIT_SHA`, or `SOURCE_COMMIT` remains preferred for human-readable incident correlation; current dirty source still needs a published release before it can be compared to production |
+| Automated backup and tested restoration | complete Coolify snapshot runner `scripts/backup-coolify-production.sh`, manifest/checksum monitor, launchd templates, `scripts/install-production-backup-launchagents.sh`, and `scripts/verify-production-restore.sh`; runner pins the Colima context before health checks, supplies launchd-safe paths, and prevents overlapping runs with an atomic lock; monitor accepts only timestamp-shaped published snapshots, so orphaned `.incomplete.*` manifests cannot mask a valid backup; installer stages reviewed scripts outside macOS Documents privacy scope | runner syntax/plist/deployment wiring verified; hermetic `bash scripts/verify-local-backup-scheduler.sh` passed successful snapshot, monitor success, orphaned manifest, overlap lock, stale lock replacement, failed dump, corrupt checksum, retention, stale snapshot, and disk-space failure; installer successfully bootstrapped both current labels; loaded `com.oxsteed.production-backup` uses Colima and a 21600-second interval; the fresh local snapshot `20260922T025200Z` passed SHA-256 verification and restored into a temporary Colima PostgreSQL database with `539/539` migrations, 12 Credit tables including `oxsteed_credit_cards`, 5 Credit integrity triggers, zero disabled required triggers, and the mutation probe; the previous `20260921T214419Z` snapshot was correctly rejected at `532/539`; temporary restore state was removed automatically | partial: observe at least one unattended six-hour interval after the current install and configure the approved off-device copy when available |
 | Performance and resource targets | bounded page sizes, transaction and export limits, retry controls, bounded PostgreSQL pool, single-connection fixture transactions, and explicit bounded-concurrency workload controls (`CREDIT_PERFORMANCE_READ_SAMPLES`, `CREDIT_PERFORMANCE_PURCHASES`, `CREDIT_PERFORMANCE_CONCURRENCY`, `CREDIT_PERFORMANCE_DURATION_MS`, `CREDIT_PERFORMANCE_PARTNERS`) | deployment wiring test passed `21/21`, covering fixture connection ownership, workload controls, partner routing, error-rate fields, duration controls, and process/container resource fields; fresh rebuilt Colima artifact `content-88c11f95a2cfbf0e` with migrations `522/522` and Redis `PONG` ran two isolated restaurant partners for 30-second read phases: `5960` account reads p95 `75.16ms`/`3000ms`, `1670` transaction reads p95 `222.44ms`/`2500ms`, and `1350` eligibility reads p95 `267.76ms`/`2000ms`; `48/48` purchases across two independent payable accounts p95 `4397.33ms`/`10000ms` at max concurrency `10`; every workload reported `0%` errors; all eight wallets ended at `9940` cents with zero reservations and both partner-payable ledgers ended at `240` cents with zero reservations; measured Node max-RSS delta was `12.5 MB`, container cgroup memory-current delta was `-34.59 MB`, peak delta `5.66 MB`, and CPU delta `14.92 s`; disposable project and volumes were removed after verification | partial: a live production-duration observation remains unavailable while the Credit rail is intentionally disabled; the isolated artifact-duration requirement is satisfied |
+
+Restore freshness checkpoint (2026-09-22 UTC): the strengthened verifier
+correctly rejected the previous local snapshot `20260921T214419Z` because it
+contained only migrations `532/532`. A fresh local snapshot
+`20260922T025200Z` was created after the current deployment and passed
+`npm --prefix server run verify:restore` with migrations `539`, six Direct
+catalog migrations, migration `529`, the relational quote table, 1,000 services,
+40 tools, the tool-category foreign key, 12 Credit tables, and five enabled
+Credit integrity triggers. The temporary restore database was removed during
+cleanup. The unattended six-hour observation and off-device copy remain launch
+handoffs.
 
 Provider ordering evidence (2026-09-15): Stripe webhook receipts now retain
 the provider object and event timestamp, while `webhook_event_watermarks` rejects
@@ -675,6 +683,271 @@ integrity triggers. The fixture and temporary restore database were removed;
 production remains unpublished and the live API has not been changed. Exact
 next action: publish through the approved path, then repeat the live API,
 browser quote-flow, migration, and restore gates without enabling Credit.
+
+Super Admin transaction and currency-surface localization checkpoint
+(2026-09-21): the main Credit console's currency summary and transaction-history
+filters, table headings, empty state, pagination, inspect action, and risk
+guardrail labels now use
+localized Credit keys across `en/es/fr/ht/ar`; the loaded-audit-event count and
+older-event notice were also moved out of English-only literals. Added
+`client/scripts/creditAdminLocalization.test.mjs` and wired it into
+`client npm run build:ci` so these labels cannot silently regress. Focused
+admin-localization test passed `1/1`, Credit locale parity/surface verification
+passed with `915` keys. The customer-wallet directory, grant/clawback/account-
+safety controls, partner lookup, and agreement builder are now localized too,
+including placeholders and menu/geographic restriction guidance. Added explicit
+JSDoc contracts and optional prop defaults for messenger availability helpers,
+chat artifact cards, and shared public-profile components; `client npm run
+typecheck` now passes. The complete `client npm run build:ci` gate also passes,
+including all focused regressions, i18n verification, TypeScript, and the Vite
+production bundle. The bundle still reports existing dynamic-import,
+CSS-property, and chunk-size warnings only. Exact next action: continue the
+remaining authenticated locale/timezone/DST, long-string, 200%-zoom, and
+deeper operator failure-path evidence, then publish and verify the current
+catalog/quote-flow release artifact without enabling Credit.
+
+Current-source isolated release checkpoint (2026-09-21): the disposable seed
+was corrected to give each synthetic restaurant its own business, matching the
+one-restaurant-per-business invariant enforced by migration `539` while keeping
+the multi-currency JPY/KWD cases. Fresh Colima artifact
+`oxsteed-credit-test-20260922t01581790042283z-44667` applied `539/539` migrations
+with zero pending or unexpected migrations and reached `200 ready` with Redis,
+the dedicated ledger key, workers, and the disabled Credit rail healthy. The
+live Direct Catalog verifier passed with `1,000` services, `40` tools, and `5`
+categories. Bounded catalog performance passed `20` requests at concurrency
+`4` with p50 `44.44ms`, p95 `206.99ms`, and max `328.23ms`. Redis and PostgreSQL
+outage checks each returned the expected `503` degraded readiness response and
+recovered to `200`; the disposable project, network, and volumes were removed.
+The same current-source artifact also passed accounting workflows, all race
+invariants with one-winner transitions and zero final reserved balance, guarded
+Stripe test-mode delivery (valid, duplicate, stale, and invalid-signature
+cases), and Credit performance with zero failed requests: account-read p95
+`218.86ms`, transaction-read p95 `288.64ms`, eligibility-read p95 `288.81ms`,
+purchase-write p95 `1759.65ms`, and `1.82MB` maximum process RSS increase.
+A separate fresh `539/539` artifact
+`oxsteed-credit-test-20260922t02191790043578z-47363` also passed the real Redis
+queue-recovery verifier: atomic enqueue, duplicate suppression, delayed retry
+promotion, stale-lease reclamation, active lease renewal, reclaimed-lease
+non-revival, dead-letter preservation, and dead-letter replay.
+The guarded Super Admin API verifier on fresh artifact
+`oxsteed-credit-test-20260922t02231790043807z-47936` passed password-plus-TOTP
+authentication and all 11 Credit read surfaces with `railEnabled=false`
+(`3` accounts, `4` partners, `5` agreements).
+Added `scripts/credit-isolated-seed.test.cjs` and wired it into CI; the focused
+fixture regression passed `1/1`, enforcing unique business ownership for
+restaurants and matching partner-to-restaurant business references.
+Exact next action: publish the current source through the approved release path
+and repeat live API, browser, request-metadata, restore, and monitoring checks;
+preserve the observed production rail state and do not toggle it from this
+engineering pass.
+
+Client build-warning cleanup checkpoint (2026-09-21): the production bundle
+warning caused by Tailwind interpreting chat marker documentation as an
+arbitrary `quote:` CSS utility was traced to five client-side marker comments.
+Those comments now describe the runtime fields without utility-like bracket
+syntax; runtime marker construction and parsing are unchanged. `client npm run
+build:ci` passed again with no malformed CSS-property warning. The remaining
+bundle advisories are the pre-existing ImpersonatePage dynamic/static import
+notice and large-chunk size notices. Deployment and isolated-fixture
+regressions passed `10/10`; the messenger regression passed `56/56`, the
+readiness payload/capability suites passed `17/17`, and `git diff --check`
+passed. Exact next action:
+continue the live release-path and remaining browser/restore/monitoring
+evidence gaps; preserve the observed production rail state and do not toggle it
+from this engineering pass.
+
+Credit card localization checkpoint (2026-09-22 UTC): the customer
+`OxsteedCreditCardsPage.jsx` and Super Admin `OxsteedCreditCards.jsx` surfaces
+now use the shared `credit.cards.*` namespace for page copy, statuses,
+fulfillment states, validation, errors, confirmations, one-time credential
+warnings, and operator actions. Added localized card keys to `en/es/fr/ht/ar`,
+added `client/scripts/creditCardsLocalization.test.mjs`, and wired it into
+`client npm run build:ci`. The focused card test passed `2/2`; Credit locale
+parity and surface verification passed with `1042` keys; the complete client
+build passed through focused tests, TypeScript, and Vite. The build retains
+only the pre-existing dynamic-import and large-chunk advisories. The same
+pass removed a duplicated customer nickname input. Exact next action: publish
+the current source through the approved release path, then repeat live
+browser locale/timezone/zoom and failure-path checks without toggling the
+observed Credit rail or performing financial mutations.
+
+Provider delivery checkpoint (2026-09-22 UTC): built fresh disposable Colima
+artifact `content-1dbff90e09f14263` with `539/539` migrations and `200 ready`,
+then ran `bash scripts/credit-isolated-env.sh provider`. The real loopback
+Stripe webhook route accepted a signed test-mode event, suppressed an exact
+duplicate, suppressed an older event for the same object, rejected a bad
+signature, persisted both receipt rows as processed, and advanced the object
+watermark only to the newest event. The Credit rail stayed disabled; the
+isolated project, network, and volumes were removed afterward. Exact next
+action: validate live provider event delivery and the end-to-end outage path
+against the approved published artifact without toggling Credit or performing
+financial mutations.
+
+Application outage recovery checkpoint (2026-09-22 UTC): added the guarded
+`server/scripts/verify-isolated-app-recovery.js` probe and wired it into
+`bash scripts/credit-isolated-env.sh failures`. The probe refuses production,
+non-loopback, non-test, and non-disposable project targets; it verifies that a
+stopped app refuses `/health`, then after restart verifies `200 /health`,
+`200 /ready`, and a bounded electrical catalog response. A fresh current-source
+Colima artifact `content-db770b1e03b83ca8` reached `539/539` migrations and
+passed Redis and PostgreSQL degraded-readiness recovery plus the full app
+stop/restart route check. The harness also rediscovered the dynamic published
+port after restart; focused server wiring and guard tests passed `36/36`.
+The isolated project, network, and volumes were removed afterward. Exact next
+action: repeat this recovery check on the approved published artifact and
+observe live provider delivery without toggling Credit or performing financial
+mutations.
+
+Transaction failure-injection checkpoint (2026-09-22 UTC): added
+`server/__tests__/creditTransactionFailureInjection.test.js` with the real
+transaction wrapper enabled. Synthetic journal failure during partner reserve
+funding and synthetic settlement-insert failure both propagated the original
+error, issued `ROLLBACK`, issued no `COMMIT`, and prevented downstream funding,
+settlement, and audit writes. The focused card, conversion, partner-ledger, and
+failure-injection suites passed `20/20` in the latest run. Exact next action:
+complete the authenticated browser mutation/failure-path checks without
+touching production balances.
+
+Disposable financial rollback checkpoint (2026-09-22 UTC): rebuilt the current
+source as artifact `content-dff55cafe6c74935` in a fresh Colima project with
+`539/539` migrations, seeded synthetic Credit accounts, and ran
+`bash scripts/credit-isolated-env.sh failure-injection`. The real service paths
+injected failures after purchase, transfer, adjustment, hold capture, refund,
+journal, partner-reserve funding, cross-currency conversion, and card cash-out
+writes; all nine errors propagated, customer account, existing target wallet,
+hold, conversion quote, and card state remained unchanged, the unused partner
+ledger and both partner accounts were removed by rollback, no
+funding/journal/audit/conversion/cash-out artifacts survived, and the Credit
+rail ended disabled. The disposable project, network, and volumes were
+removed afterward; production containers remained healthy. Remaining software
+evidence is the authenticated browser mutation/failure-path check; live
+provider delivery and published production outage observation remain
+launch-operations evidence.
+
+Admin localization gap checkpoint (2026-09-22 UTC): the Super Admin Credit
+console no longer renders partner-picker counts/help, the Find partners action,
+agreement example placeholders, partner fallback/status labels, or the
+restricted-stored-value operational boundary as English-only literals. Added
+the corresponding keys to `en/es/fr/ht/ar` and expanded
+`client/scripts/creditAdminLocalization.test.mjs`; the focused admin/card
+localization tests passed `3/3`, and `npm run verify:i18n` passed with `1055`
+Credit keys and exact locale parity. Remaining localization evidence is the
+authenticated browser locale/timezone/DST and long-string/responsive matrix,
+not a source translation gap.
+
+Admin derived-label localization checkpoint (2026-09-22 UTC): transaction
+types, customer/partner/system parties, agreement geography labels, Customer
+360 transaction/timestamp fallbacks, and failed-notification event, attempt,
+and recipient labels now use the Credit namespace instead of raw English or
+snake-case values. Added settlement, reserve, conversion, cash-out,
+unknown-transaction, not-posted, and notification-state translations to all
+five locales; the remaining settlement partner fallback now uses the same
+localized path. The focused admin/card localization tests passed `3/3`,
+`npm run verify:i18n` passed with `1074` exact-parity Credit keys, the full
+`client npm run build:ci` passed through TypeScript and Vite, the backend
+deployment/readiness wiring checks passed `42/42`, and
+`git diff --check` passed. Current source identity is
+`content-8229cd7f2cb928b3`. Remaining evidence is the authenticated browser
+locale/timezone/DST, long-string/responsive, and failure-path matrix.
+
+Admin operator-feedback localization checkpoint (2026-09-22 UTC): localized
+the remaining Super Admin agreement, partner-status, settlement, reversal,
+reconciliation, customer-adjustment, rail, notification, dispute, refund,
+wallet-selection, and CSV feedback paths. Added a 97-key feedback block in
+`en/es/fr/ht/ar` (95 new keys plus two existing keys moved out of duplicate
+definitions), added the wallet-selection key, and added regression guards
+against literal admin
+errors, notices, dialog titles, and fallback messages. The focused admin/card
+localization tests passed `3/3`; `npm run verify:i18n` passed with `1172`
+exact-parity Credit keys; the full `client npm run build:ci` passed through
+TypeScript and Vite; the deterministic release test passed `2/2`; and
+`git diff --check` passed. Current source identity is
+`content-d96e394ea72ac304`. Remaining evidence is authenticated browser
+locale/timezone/DST, long-string/200%-zoom/responsive checks, deeper operator
+failure-path browser checks, and publication against this source identity. The
+same regression guard verifies every literal admin section has a translation
+mapping and unknown worker names use a stable localized fallback.
+
+Admin timestamp locale checkpoint (2026-09-22 UTC): corrected the Super Admin
+Customer 360 and entitlement timestamp helpers to pass the selected app
+language into `formatCreditDateTime`, and corrected the remaining Customer 360
+dispute timestamp call that omitted the translator. This prevents those
+surfaces from silently formatting dates in the browser locale when the app is
+using another supported language. The focused client date-time and admin
+localization tests passed `4/4`; the backend deployment/readiness wiring suite
+passed `35/35`; the full client `npm run build:ci` passed through TypeScript and
+Vite; `npm run verify:i18n` passed with `1172` exact-parity Credit keys; and
+`git diff --check` passed. Current source identity is
+`content-d81b26fcd8ce6f19`. Remaining evidence is the authenticated browser
+locale/timezone/DST, long-string/200%-zoom/responsive checks, deeper operator
+failure-path browser checks, and publication against this source identity.
+
+Credit status and order-type label checkpoint (2026-09-22 UTC): centralized
+customer and operator rendering of order types and agreement lifecycle values
+through shared localized helpers. Known values such as `pickup`, `dine_in`,
+`delivery`, and `draft` now use the selected locale; unknown provider values
+fail closed to the localized unavailable label instead of exposing raw machine
+codes. The focused Credit status/date-time/admin localization checks passed
+`7/7`, the backend deployment/readiness wiring suite passed `35/35`, the full
+client `npm run build:ci` passed through TypeScript and Vite, exact locale
+parity passed with `1173` Credit keys across `en/es/fr/ht/ar`, and
+`git diff --check` passed. Current source identity is
+`content-e1480cf67ba9ad6a`. Remaining evidence is the authenticated browser
+locale/timezone/DST, long-string/200%-zoom/responsive checks, deeper operator
+failure-path browser checks, and publication against this source identity.
+
+Credit transaction-label checkpoint (2026-09-22 UTC): extended the shared
+label contract to customer transaction history and the restaurant partner
+manager. Known transaction types now use stable localized keys, while unknown
+transaction types resolve to `transactionUnknown`; disputed and reversed
+partner lifecycle states now use localized status keys instead of raw fallback
+text. The focused Credit status/date-time/admin localization checks passed
+`8/8`, the backend deployment/readiness wiring suite passed `35/35`, the full
+client `npm run build:ci` passed through TypeScript and Vite, exact locale
+parity remained `1173` Credit keys across `en/es/fr/ht/ar`, and
+`git diff --check` passed. Current source identity is
+`content-942f153d54734401`. Remaining evidence is the authenticated browser
+locale/timezone/DST, long-string/200%-zoom/responsive checks, deeper operator
+failure-path browser checks, and publication against this source identity.
+
+Authenticated browser and language-persistence checkpoint (2026-09-22 UTC):
+fixed `LanguageContext` so an explicit saved `oxs:language` choice is not
+overwritten by the authenticated user's server preference during the next
+`/auth/me` hydration. A focused regression test passed `2/2`. On a fresh
+disposable Colima fixture `oxsteed-credit-test-20260922t05531790056384z-82350`
+at loopback `http://127.0.0.1:32784`, the synthetic customer authenticated
+through the real password/signature boundary, selected Arabic, and retained
+Arabic RTL labels and controls after the delayed Credit account, limits,
+partner, and statement requests completed. The same fixture authenticated the
+synthetic Super Admin through password plus TOTP and rendered the real
+`/admin/super/oxsteed-credit` console with seeded wallets, four partners, five
+agreements, multi-currency balances, and a visibly suspended rail with the
+enable control disabled. `verify-credit-admin-api.js` passed all 11 read
+surfaces with `railEnabled:false`; the fixture readiness check passed `539/539`
+migrations with no pending or unexpected migrations; and the full client
+`npm run build:ci` passed through TypeScript, Vite, and exact `1173`-key locale
+parity. The isolated fixture was disposable and no production state or Credit
+financial mutation was touched. Remaining evidence is exact 200% zoom (not
+supported by the current browser control surface), complete timezone/DST and
+long-string/responsive coverage, deeper operator failure-path browser checks,
+and publication/live-provider checks against `content-97ca6a5e6c87b99f`.
+
+Authenticated operator failure-recovery checkpoint (2026-09-22 UTC): verified
+the Super Admin Credit console's database outage path in the same disposable
+Colima fixture. Stopping only fixture Postgres caused the real admin dashboard
+to show the localized `Unable to load OxSteed Credit administration` alert and
+`Retry dashboard` control, without presenting stale or partially trusted
+operator data. Restarting fixture Postgres passed the isolated readiness probe
+with HTTP 200, `539/539` migrations, and zero pending or unexpected
+migrations; clicking the retry control removed the error and restored the
+dashboard. Added regression assertions for the translated load error, assertive
+alert semantics, and quiet retry callback; `client/npm run
+test:credit-admin-localization` passed `1/1`, and `git diff --check` passed.
+No production service, Credit rail, ledger, wallet, or financial state was
+touched. Remaining evidence is authenticated timezone/DST, long-string,
+responsive, and exact 200% zoom coverage (the current browser control surface
+cannot set exact zoom), plus publication/live-provider checks against the
+current source identity `content-97ca6a5e6c87b99f`.
 
 ## Completion Gate
 

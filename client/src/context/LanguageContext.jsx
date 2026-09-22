@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import i18n, { LANGUAGES, detectInitialLanguage, ensureLanguageLoaded } from '../i18n';
 import api from '../api/axios';
+import { hasExplicitLanguagePreference } from '../lib/languagePreference';
 
 const LanguageContext = createContext(null);
 const SUPPORTED = new Set(LANGUAGES.map((item) => item.code));
@@ -103,6 +104,9 @@ export function LanguageProvider({ children }) {
 
   const syncLanguageFromServer = useCallback((code) => {
     if (!code) return;
+    // A local choice is an explicit user preference; do not let the next
+    // authenticated profile fetch silently overwrite it with the server copy.
+    if (hasExplicitLanguagePreference(typeof window !== 'undefined' ? window.localStorage : null)) return;
     const normalizedCode = normalizeLanguage(code);
     if (normalizedCode === language) return;
     localStorage.setItem('oxs:language', normalizedCode);

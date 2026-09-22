@@ -22,7 +22,7 @@ export default function PublicProfileMessenger({
   session,
   helperName,
   helperId,
-  businessId,
+  businessId = null,
   avatarUrl,
   avatarShape = 'round',
   isGuest = false,
@@ -31,10 +31,10 @@ export default function PublicProfileMessenger({
   destination,
   onDestinationChange,
   entityKind = 'helper',
-  launcherBottomOffset,
+  launcherBottomOffset = undefined,
   showLauncher = true,
   showInviteCard = false,
-  subtitle,
+  subtitle = '',
 }) {
   const { t } = useTranslation();
   const [guestContactSaved, setGuestContactSaved] = useState(false);

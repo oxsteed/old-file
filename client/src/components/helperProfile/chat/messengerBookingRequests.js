@@ -1,6 +1,7 @@
 /**
  * Pure helpers for in-messenger booking request cards.
- * Marker: [booking_req:ID|status|YYYY-MM-DD|HH:MM|HH:MM|name:ENC|svc:ID]
+ * Runtime marker fields: booking request id, status, date, start/end times,
+ * encoded name, and service id.
  */
 
 export function encodeBookingName(name) {

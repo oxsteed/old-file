@@ -9,6 +9,7 @@ import {
   listFoodRestaurantOxsteedCreditTransactions,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
+import { localizeCreditStatus, localizeCreditTransactionType } from '../../lib/creditStatus';
 
 function displayDate(value, language, unavailableText) {
   if (!value) return unavailableText;
@@ -16,22 +17,6 @@ function displayDate(value, language, unavailableText) {
   return Number.isNaN(date.getTime())
     ? unavailableText
     : new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
-
-function label(value, t) {
-  const normalized = String(value || 'activity').toLowerCase();
-  const translated = {
-    activity: 'partnerLabelActivity',
-    purchase: 'partnerLabelPurchase',
-    refund: 'partnerLabelRefund',
-    pending: 'partnerLabelPending',
-    approved: 'partnerLabelApproved',
-    paid: 'partnerLabelPaid',
-    disputed: 'partnerLabelDisputed',
-    voided: 'partnerLabelVoided',
-    reversed: 'partnerLabelReversed',
-  }[normalized];
-  return translated ? t(translated) : normalized.replaceAll('_', ' ');
 }
 
 function statusClass(value) {
@@ -131,7 +116,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
           <p className="fd-card-meta">{t('partnerActivityDescription')}</p>
         </div>
         <div className="fd-ox-credit-partner-actions">
-          {partnerStatus && <span className={statusClass(partnerStatus)}>{label(partnerStatus, t)}</span>}
+          {partnerStatus && <span className={statusClass(partnerStatus)}>{localizeCreditStatus(partnerStatus, t)}</span>}
           <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={downloadReport} disabled={loading || refreshing || downloading}>
             <Download size={14} /> {downloading ? t('preparingReport') : t('downloadReport')}
           </button>
@@ -152,7 +137,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
           </div>
 
           {ledger && <div className="fd-ox-credit-panel fd-ox-credit-ledger-panel">
-            <div className="fd-ox-credit-panel-title"><div><h3>{t('partnerLedgerTitle')}</h3><span>{ledger.ledgerCode} · {label(ledger.status, t)}</span></div><span className={statusClass(ledger.status)}>{label(ledger.status, t)}</span></div>
+            <div className="fd-ox-credit-panel-title"><div><h3>{t('partnerLedgerTitle')}</h3><span>{ledger.ledgerCode} · {localizeCreditStatus(ledger.status, t)}</span></div><span className={statusClass(ledger.status)}>{localizeCreditStatus(ledger.status, t)}</span></div>
             <div className="fd-ox-credit-summary">
               <div><WalletCards size={17} /><strong>{formatFoodMoney(ledger.payableAccount?.balanceCents, ledger.currencyCode)}</strong><span>{t('payableBalance')}</span></div>
               <div><ShieldCheck size={17} /><strong>{formatFoodMoney(ledger.reserveAccount?.balanceCents, ledger.currencyCode)}</strong><span>{t('reserveBalance')}</span></div>
@@ -170,8 +155,8 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                 <div className="fd-ox-credit-list">
                   {transactions.map((transaction) => (
                     <div key={transaction.id} className="fd-ox-credit-row">
-                      <div><strong>{label(transaction.transactionType, t)}</strong><span>{transaction.description || transaction.referenceType || t('ledgerEvent')}</span><small>{displayDate(transaction.postedAt || transaction.createdAt, i18n.language, t('notAvailable'))}</small></div>
-                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(transaction.amountCents, transaction.currencyCode || currency)}</strong><span className={statusClass(transaction.status)}>{label(transaction.status, t)}</span></div>
+                      <div><strong>{localizeCreditTransactionType(transaction.transactionType, t)}</strong><span>{transaction.description || transaction.referenceType || t('ledgerEvent')}</span><small>{displayDate(transaction.postedAt || transaction.createdAt, i18n.language, t('notAvailable'))}</small></div>
+                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(transaction.amountCents, transaction.currencyCode || currency)}</strong><span className={statusClass(transaction.status)}>{localizeCreditStatus(transaction.status, t)}</span></div>
                     </div>
                   ))}
                 </div>
@@ -203,7 +188,7 @@ export default function OxsteedCreditPartnerManager({ restaurant }) {
                   {settlements.map((settlement) => (
                     <div key={settlement.id} className="fd-ox-credit-row">
                       <div><strong>{displayDate(settlement.periodStart, i18n.language, t('notAvailable'))} – {displayDate(settlement.periodEnd, i18n.language, t('notAvailable'))}</strong><span>{t('settlementAmounts', { gross: formatFoodMoney(settlement.grossCents, settlement.currencyCode || currency), fees: formatFoodMoney(settlement.feeCents, settlement.currencyCode || currency) })}</span><small>{settlement.paymentReference || t('noPaymentReference')}</small></div>
-                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(settlement.netCents, settlement.currencyCode || currency)}</strong><span className={statusClass(settlement.status)}>{label(settlement.status, t)}</span></div>
+                      <div className="fd-ox-credit-row-amount"><strong>{formatFoodMoney(settlement.netCents, settlement.currencyCode || currency)}</strong><span className={statusClass(settlement.status)}>{localizeCreditStatus(settlement.status, t)}</span></div>
                     </div>
                   ))}
                 </div>

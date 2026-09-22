@@ -313,6 +313,8 @@ function verifyCreditTranslationSurface() {
     'src/pages/food/OxsteedCreditTransactionPage.jsx',
     'src/pages/food/OxsteedCreditPartnerManager.jsx',
     'src/pages/food/RestaurantCreditPage.jsx',
+    'src/pages/food/OxsteedCreditCardsPage.jsx',
+    'src/admin/pages/super/OxsteedCreditCards.jsx',
     'src/admin/pages/super/OxsteedCreditEntitlements.jsx',
     'src/admin/pages/super/OxsteedCreditAdmin.jsx',
   ];

@@ -7,12 +7,7 @@ ARG SENTRY_RELEASE
 ARG COMMIT_SHA
 ARG SOURCE_COMMIT
 RUN release="${SENTRY_RELEASE:-${COMMIT_SHA:-$SOURCE_COMMIT}}"; \
-    if [ -z "$release" ]; then \
-      release="content-$(find server client -type f \
-        ! -path '*/node_modules/*' ! -path '*/runtime/*' ! -path '*/dist/*' \
-        ! -name '.env' ! -name '.env.*' -print | sort | \
-        while IFS= read -r file; do sha256sum "$file"; done | sha256sum | cut -c1-16)"; \
-    fi; \
+    if [ -z "$release" ]; then release="$(node scripts/compute-content-release.cjs)"; fi; \
     printf '%s\n' "$release" > /release
 
 # Stage 2: Build client (Vite)

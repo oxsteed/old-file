@@ -1770,7 +1770,7 @@ async function purchaseWithCredit(args) {
   return withTransaction(pool, (client) => purchaseWithCreditInTransaction(client, args), 'credit_purchase');
 }
 
-async function transferCredit({ senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {} }) {
+async function transferCreditInTransaction(client, { senderCustomerId, recipientCustomerId, amountCents, currencyCode = CREDIT_CURRENCY, idempotencyKey, actorUserId, referenceType = 'customer_transfer', referenceId, correlationId, requestIp, description, metadata = {} }) {
   if (!CUSTOMER_TRANSFERS_ENABLED) throw new AppError('Customer-to-customer OxSteed Credit transfers are disabled', 403, 'credit_transfers_disabled');
   if (senderCustomerId === recipientCustomerId) throw new AppError('Cannot transfer credit to the same customer', 400, 'credit_transfer_same_customer');
   requireCustomerActor(actorUserId, senderCustomerId, 'The Credit transfer actor must be the customer sending the balance', 'credit_transfer_actor_required');
@@ -1778,51 +1778,16 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit transactions', 400, 'credit_idempotency_key_required');
-  return withTransaction(pool, async (client) => {
-    const existing = await findExistingTransferForReplay(client, {
-      senderCustomerId,
-      recipientCustomerId,
-      idempotencyKey: normalizedIdempotencyKey,
-    });
-    if (existing) {
-      return postJournalTransaction(client, {
-        transactionType: 'transfer',
-        debitAccountId: existing.debit_account_id,
-        creditAccountId: existing.credit_account_id,
-        customerId: senderCustomerId,
-        amountCents: amount,
-        currencyCode: currency,
-        idempotencyKey: normalizedIdempotencyKey,
-        actorType: 'user',
-        actorUserId,
-        referenceType,
-        referenceId,
-        correlationId,
-        requestIp,
-        description,
-        metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
-        existingTransaction: existing,
-      });
-    }
-    await assertCreditRailEnabled(client);
-    const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
-    const { rows: recipientRows } = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
-      [recipientCustomerId]
-    );
-    if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
-    await assertCustomerTransferCapacity(client, {
-      customerId: senderCustomerId,
-      amountCents: amount,
-      currencyCode: currency,
-    });
-    const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
-    const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
+  const existing = await findExistingTransferForReplay(client, {
+    senderCustomerId,
+    recipientCustomerId,
+    idempotencyKey: normalizedIdempotencyKey,
+  });
+  if (existing) {
     return postJournalTransaction(client, {
       transactionType: 'transfer',
-      debitAccountId: sender.id,
-      creditAccountId: recipient.id,
+      debitAccountId: existing.debit_account_id,
+      creditAccountId: existing.credit_account_id,
       customerId: senderCustomerId,
       amountCents: amount,
       currencyCode: currency,
@@ -1835,45 +1800,84 @@ async function transferCredit({ senderCustomerId, recipientCustomerId, amountCen
       requestIp,
       description,
       metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
+      existingTransaction: existing,
     });
-  }, 'credit_transfer');
+  }
+  await assertCreditRailEnabled(client);
+  const customerLockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-transfer:${customerLockKeys.join(':')}`]);
+  const { rows: recipientRows } = await client.query(
+    `SELECT id FROM users WHERE id = $1 AND role = 'customer' AND is_active = TRUE LIMIT 1`,
+    [recipientCustomerId]
+  );
+  if (!recipientRows[0]) throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
+  await assertCustomerTransferCapacity(client, {
+    customerId: senderCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+  });
+  const sender = await ensureAccount(client, { accountType: 'customer_wallet', customerId: senderCustomerId, currencyCode: currency });
+  const recipient = await ensureAccount(client, { accountType: 'customer_wallet', customerId: recipientCustomerId, currencyCode: currency });
+  return postJournalTransaction(client, {
+    transactionType: 'transfer',
+    debitAccountId: sender.id,
+    creditAccountId: recipient.id,
+    customerId: senderCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedIdempotencyKey,
+    actorType: 'user',
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    metadata: { ...normalizeMetadata(metadata), recipientCustomerId },
+  });
 }
 
-async function adjustCustomerCredit({ customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
+async function transferCredit(args) {
+  return withTransaction(pool, (client) => transferCreditInTransaction(client, args), 'credit_transfer');
+}
+
+async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
   if (direction === 'credit' && !normalizeString(referenceId, 160)) throw new AppError('A funding reference is required for positive administrative credit adjustments', 400, 'credit_funding_reference_required');
-  return withTransaction(pool, async (client) => {
-    const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
-    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
-    const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
-    if (!existing) {
-      requireAdministrativeActor(actorUserId, 'An identified administrator is required to adjust customer Credit', 'credit_adjustment_actor_required');
-    }
-    if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency, customerId);
-    return postJournalTransaction(client, {
-      transactionType: 'adjustment',
-      debitAccountId: direction === 'credit' ? treasuryAccount.id : customerAccount.id,
-      creditAccountId: direction === 'credit' ? customerAccount.id : treasuryAccount.id,
-      customerId,
-      amountCents: amount,
-      currencyCode: currency,
-      idempotencyKey,
-      actorType: 'admin',
-      actorUserId,
-      reason,
-      referenceType,
-      referenceId,
-      correlationId,
-      requestIp,
-      description: direction === 'credit' ? 'OxSteed Credit administrative grant' : 'OxSteed Credit administrative clawback',
-      metadata: { ...normalizeMetadata(metadata), direction },
-      bindIdempotencySemantics: true,
-    });
-  }, 'credit_adjust_customer');
+  const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
+  const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
+  const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
+  if (!existing) {
+    requireAdministrativeActor(actorUserId, 'An identified administrator is required to adjust customer Credit', 'credit_adjustment_actor_required');
+  }
+  if (!existing && direction === 'credit') await assertIssuanceCapacity(client, amount, currency, customerId);
+  return postJournalTransaction(client, {
+    transactionType: 'adjustment',
+    debitAccountId: direction === 'credit' ? treasuryAccount.id : customerAccount.id,
+    creditAccountId: direction === 'credit' ? customerAccount.id : treasuryAccount.id,
+    customerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey,
+    actorType: 'admin',
+    actorUserId,
+    reason,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description: direction === 'credit' ? 'OxSteed Credit administrative grant' : 'OxSteed Credit administrative clawback',
+    metadata: { ...normalizeMetadata(metadata), direction },
+    bindIdempotencySemantics: true,
+  });
+}
+
+async function adjustCustomerCredit(args) {
+  return withTransaction(pool, (client) => adjustCustomerCreditInTransaction(client, args), 'credit_adjust_customer');
 }
 
 async function updateCustomerCreditAccountStatus({ customerId, status, currencyCode = CREDIT_CURRENCY, actorUserId, reason, correlationId, requestIp }) {
@@ -2890,7 +2894,9 @@ module.exports = {
   postJournalTransaction,
   purchaseWithCreditInTransaction,
   purchaseWithCredit,
+  transferCreditInTransaction,
   transferCredit,
+  adjustCustomerCreditInTransaction,
   adjustCustomerCredit,
   updateCustomerCreditAccountStatus,
   createCreditHold,

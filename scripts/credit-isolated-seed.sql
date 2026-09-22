@@ -37,7 +37,9 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO businesses (id, user_id, business_name, business_type, is_primary, is_active)
 VALUES
   (901, '33333333-3333-4333-8333-333333333333', 'Credit Test Restaurant One LLC', 'llc', TRUE, TRUE),
-  (902, '44444444-4444-4444-8444-444444444444', 'Credit Test Restaurant Two LLC', 'llc', TRUE, TRUE)
+  (902, '44444444-4444-4444-8444-444444444444', 'Credit Test Restaurant Two LLC', 'llc', TRUE, TRUE),
+  (903, '33333333-3333-4333-8333-333333333333', 'Credit Test Restaurant Japan LLC', 'llc', FALSE, TRUE),
+  (904, '44444444-4444-4444-8444-444444444444', 'Credit Test Restaurant Kuwait LLC', 'llc', FALSE, TRUE)
 ON CONFLICT (id) DO UPDATE SET
   user_id = EXCLUDED.user_id,
   business_name = EXCLUDED.business_name,
@@ -50,8 +52,8 @@ INSERT INTO food_restaurants (
 VALUES
   (901, 901, '33333333-3333-4333-8333-333333333333', 'credit-test-one', 'Credit Test Restaurant One', 'Springfield', 'OH', 'US', 'America/New_York', 'USD', 'active'),
   (902, 902, '44444444-4444-4444-8444-444444444444', 'credit-test-two', 'Credit Test Restaurant Two', 'Springfield', 'OH', 'US', 'America/New_York', 'USD', 'active'),
-  (903, 901, '33333333-3333-4333-8333-333333333333', 'credit-test-japan', 'Credit Test Japan', 'Tokyo', '13', 'JP', 'Asia/Tokyo', 'JPY', 'active'),
-  (904, 902, '44444444-4444-4444-8444-444444444444', 'credit-test-kuwait', 'Credit Test Kuwait', 'Kuwait City', 'KU', 'KW', 'Asia/Kuwait', 'KWD', 'paused')
+  (903, 903, '33333333-3333-4333-8333-333333333333', 'credit-test-japan', 'Credit Test Japan', 'Tokyo', '13', 'JP', 'Asia/Tokyo', 'JPY', 'active'),
+  (904, 904, '44444444-4444-4444-8444-444444444444', 'credit-test-kuwait', 'Credit Test Kuwait', 'Kuwait City', 'KU', 'KW', 'Asia/Kuwait', 'KWD', 'paused')
 ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   status = EXCLUDED.status,
@@ -63,8 +65,8 @@ INSERT INTO oxsteed_credit_partners (
 VALUES
   (901, 901, 901, 'active', 'USD', '22222222-2222-4222-8222-222222222222'),
   (902, 902, 902, 'active', 'USD', '22222222-2222-4222-8222-222222222222'),
-  (903, 903, 901, 'active', 'JPY', '22222222-2222-4222-8222-222222222222'),
-  (904, 904, 902, 'suspended', 'KWD', '22222222-2222-4222-8222-222222222222')
+  (903, 903, 903, 'active', 'JPY', '22222222-2222-4222-8222-222222222222'),
+  (904, 904, 904, 'suspended', 'KWD', '22222222-2222-4222-8222-222222222222')
 ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   settlement_currency_code = EXCLUDED.settlement_currency_code;

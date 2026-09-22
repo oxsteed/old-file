@@ -8,10 +8,10 @@ import './MessengerDock.css';
 export default function ProofOfPaymentCard({
   markerText,
   initialPop = null,
-  popId: idProp,
+  popId: idProp = null,
   isProvider = false,
   guestAuthHeaders = null,
-  onStatusChange,
+  onStatusChange = null,
   onRefundRequest = null,
   compact = false,
 }) {

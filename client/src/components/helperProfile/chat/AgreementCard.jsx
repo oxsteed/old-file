@@ -8,13 +8,13 @@ import './MessengerDock.css';
 export default function AgreementCard({
   markerText,
   initialAgreement = null,
-  agreementId: idProp,
-  token: tokenProp,
+  agreementId: idProp = null,
+  token: tokenProp = '',
   isProvider = false,
   isAuthenticated = false,
   guestVerified = false,
   guestAuthHeaders = null,
-  onStatusChange,
+  onStatusChange = null,
   onRequestVerify,
   compact = false,
 }) {

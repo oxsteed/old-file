@@ -10,7 +10,7 @@ import './MessengerDock.css';
 export default function PaymentRequestCard({
   markerText,
   initialRequest = null,
-  requestId: idProp,
+  requestId: idProp = null,
   conversationId = null,
   isProvider = false,
   isAuthenticated = false,

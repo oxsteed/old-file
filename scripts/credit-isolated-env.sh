@@ -164,6 +164,14 @@ provider() {
   compose exec -T -e CREDIT_TEST_PROVIDER_MODE=true app node /app/server/scripts/verify-stripe-webhook-delivery.js
 }
 
+failure_injection() {
+  require_docker
+  load_state
+  seed
+  wait_ready "$(base_url)"
+  compose exec -T -e CREDIT_FAILURE_INJECTION_TEST_MODE=true app node /app/server/scripts/verify-credit-failure-injection.js
+}
+
 performance() {
   require_docker
   load_state
@@ -239,8 +247,34 @@ failures() {
 
   run_dependency_failure redis redis
   run_dependency_failure postgres database
+
+  compose stop app >/dev/null
+  if ! NODE_ENV=test CREDIT_TEST_OUTAGE_MODE=true CREDIT_TEST_PROJECT="$CREDIT_TEST_PROJECT" \
+    node "$ROOT_DIR/server/scripts/verify-isolated-app-recovery.js" "$url" stopped; then
+    compose start app >/dev/null || true
+    save_failure_artifacts
+    return 1
+  fi
+  if ! compose start app >/dev/null; then
+    save_failure_artifacts
+    return 1
+  fi
+  # The app publishes a dynamic loopback port; a stopped container may receive
+  # a different host port when it starts again.
+  url="$(base_url)"
+  if ! wait_ready "$url"; then
+    save_failure_artifacts
+    return 1
+  fi
+  if ! NODE_ENV=test CREDIT_TEST_OUTAGE_MODE=true CREDIT_TEST_PROJECT="$CREDIT_TEST_PROJECT" \
+    node "$ROOT_DIR/server/scripts/verify-isolated-app-recovery.js" "$url" recovered; then
+    save_failure_artifacts
+    return 1
+  fi
+  printf 'Recovered isolated application after an app-container outage and served the read-only catalog route.\n'
+
   suspend_isolated_rail
-  printf 'Isolated infrastructure recovery passed: Redis and PostgreSQL outages degraded readiness and recovered cleanly.\n'
+  printf 'Isolated infrastructure and application recovery passed: Redis and PostgreSQL outages degraded readiness, and the app restart recovered health, readiness, and catalog traffic.\n'
 }
 
 down() {
@@ -266,6 +300,7 @@ case "${1:-}" in
   races) races ;;
   queue-recovery) queue_recovery ;;
   provider) provider ;;
+  failure-injection) failure_injection ;;
   performance) performance ;;
   catalog) catalog ;;
   catalog-performance) catalog_performance ;;
@@ -273,7 +308,7 @@ case "${1:-}" in
   reset) reset ;;
   down|remove) down ;;
   *)
-    printf 'Usage: %s {start|seed|test|accounting|races|queue-recovery|provider|performance|catalog|catalog-performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
+    printf 'Usage: %s {start|seed|test|accounting|races|queue-recovery|provider|failure-injection|performance|catalog|catalog-performance|failures|reset|down}\n' "${BASH_SOURCE[0]}"
     exit 2
     ;;
 esac

@@ -237,6 +237,19 @@ export function resolveHelperSaveBar({
 /**
  * Normalize fields into the shared PublicProfileSummaryCard view-model.
  * Used by Studio preview and public pages so both surfaces stay aligned.
+ * @param {object} options
+ * @param {'helper'|'business'} [options.variant]
+ * @param {string|null} [options.cover]
+ * @param {string|null} [options.avatar]
+ * @param {*} [options.name]
+ * @param {*} [options.tagline]
+ * @param {*} [options.typeLabel]
+ * @param {*} [options.meta]
+ * @param {*} [options.contact]
+ * @param {*} [options.about]
+ * @param {boolean|null} [options.availableNow]
+ * @param {*} [options.ratingLabel]
+ * @returns {{variant: ('helper'|'business'), cover: (string|null), avatar: (string|null), name: string, tagline: string, typeLabel: string, meta: string, contact: string, about: string, availableNow: (boolean|null), ratingLabel: string}}
  */
 export function buildPublicProfileSummaryModel({
   variant = 'helper',
@@ -379,4 +392,3 @@ export function buildFullProfileHeaderSummaryModel({
     ratingLabel,
   });
 }
-

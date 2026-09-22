@@ -27,6 +27,7 @@
     "queue:replay-dead-letter": "node scripts/replay-payment-job.js",
     "verify:queue-recovery": "node scripts/verify-payment-queue-recovery.js",
     "verify:stripe-webhook-delivery": "node scripts/verify-stripe-webhook-delivery.js",
+    "verify:credit-failure-injection": "node scripts/verify-credit-failure-injection.js",
     "backup:production": "bash ../scripts/backup-coolify-production.sh",
     "verify:backup-scheduler": "bash ../scripts/verify-local-backup-scheduler.sh",
     "install:backup-scheduler": "bash ../scripts/install-production-backup-launchagents.sh",

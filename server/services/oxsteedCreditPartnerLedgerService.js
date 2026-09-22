@@ -218,7 +218,7 @@ function assertFundingReplayMatches(existing, requested) {
   }
 }
 
-async function recordPartnerFunding({ partnerId, currencyCode = null, amountCents, direction = 'fund', externalReference, idempotencyKey, actorUserId, reason, correlationId, requestIp, metadata = {} }) {
+async function recordPartnerFundingInTransaction(client, { partnerId, currencyCode = null, amountCents, direction = 'fund', externalReference, idempotencyKey, actorUserId, reason, correlationId, requestIp, metadata = {} }) {
   const normalizedPartnerId = parsePositiveInt(partnerId, 'partnerId');
   const amount = parseAmountCents(amountCents);
   const normalizedDirection = normalizeString(direction, 20)?.toLowerCase();
@@ -231,74 +231,80 @@ async function recordPartnerFunding({ partnerId, currencyCode = null, amountCent
   requireActor(actorUserId);
   const normalizedMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
 
-  return withTransaction(pool, async (client) => {
-    const { rows: existingRows } = await client.query(
+  const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_partner_funding_records WHERE idempotency_key = $1 FOR UPDATE`,
       [normalizedIdempotencyKey]
     );
-    const currency = currencyCode ? assertSupportedCreditCurrency(currencyCode) : null;
-    if (existingRows[0]) {
-      assertFundingReplayMatches(existingRows[0], {
-        partner_id: normalizedPartnerId,
-        direction: normalizedDirection,
-        amount_cents: amount,
-        currency_code: currency || existingRows[0].currency_code,
-        external_reference: normalizedReference,
-      });
-      return { record: formatFundingRecord(existingRows[0]), replayed: true };
-    }
-    await assertCreditRailEnabled(client);
-    const ledger = await ensurePartnerLedger(client, {
-      partnerId: normalizedPartnerId,
-      currencyCode: currency || undefined,
-      createdBy: actorUserId,
+  const currency = currencyCode ? assertSupportedCreditCurrency(currencyCode) : null;
+  if (existingRows[0]) {
+    assertFundingReplayMatches(existingRows[0], {
+      partner_id: normalizedPartnerId,
+      direction: normalizedDirection,
+      amount_cents: amount,
+      currency_code: currency || existingRows[0].currency_code,
+      external_reference: normalizedReference,
     });
-    if (ledger.ledger_status !== 'active') throw new AppError('Partner ledger is not active', 409, 'credit_partner_ledger_inactive');
-    const transactionType = normalizedDirection === 'fund' ? 'funding' : 'reserve_release';
-    const treasury = await ensureAccount(client, {
-      accountType: 'platform_treasury',
-      currencyCode: ledger.currency_code,
-    });
-    const transaction = await postJournalTransaction(client, {
-      transactionType,
-      debitAccountId: normalizedDirection === 'fund' ? treasury.id : ledger.reserve_account_id,
-      creditAccountId: normalizedDirection === 'fund' ? ledger.reserve_account_id : treasury.id,
-      amountCents: amount,
-      currencyCode: ledger.currency_code,
-      partnerId: normalizedPartnerId,
-      // Keep the internal transaction key within the schema limit even when a
-      // caller supplies a long idempotency key for the funding record.
-      idempotencyKey: `partner-funding:${crypto.createHash('sha256').update(normalizedIdempotencyKey).digest('hex')}`,
-      actorType: 'admin',
-      actorUserId,
-      referenceType: 'partner_funding',
-      referenceId: normalizedReference,
-      correlationId,
-      requestIp,
-      reason: normalizedReason,
-      description: normalizedDirection === 'fund' ? 'Restaurant Credit reserve funding' : 'Restaurant Credit reserve release',
-      metadata: { ...normalizedMetadata, direction: normalizedDirection, externalReference: normalizedReference },
-    });
-    if (!transaction?.transaction?.id) {
-      throw new AppError('Partner funding transaction could not be confirmed', 500, 'credit_partner_funding_transaction_failed');
-    }
-    const { rows } = await client.query(
-      `INSERT INTO oxsteed_credit_partner_funding_records
-         (partner_ledger_id, partner_id, reserve_account_id, transaction_id, direction,
-          amount_cents, currency_code, external_reference, idempotency_key, reason,
-          actor_user_id, correlation_id, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
-       RETURNING *`,
-      [ledger.ledger_id, normalizedPartnerId, ledger.reserve_account_id, transaction.transaction.id, normalizedDirection, amount, ledger.currency_code, normalizedReference, normalizedIdempotencyKey, normalizedReason, actorUserId, normalizeString(correlationId, 160), JSON.stringify(normalizedMetadata)]
-    );
-    await client.query(
-      `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state, metadata)
-       VALUES ($1, $2, $3, 'credit_partner_funding', $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
-      [`credit.partner_ledger.${normalizedDirection}`, actorUserId, normalizedPartnerId, String(rows[0].id), normalizedReason, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ transactionId: transaction.transaction.id, amountCents: amount, currencyCode: ledger.currency_code }), JSON.stringify(normalizedMetadata)]
-    );
-    return { record: formatFundingRecord(rows[0]), transaction: transaction.transaction, replayed: false };
-  }, 'credit_record_partner_funding');
+    return { record: formatFundingRecord(existingRows[0]), replayed: true };
+  }
+  await assertCreditRailEnabled(client);
+  const ledger = await ensurePartnerLedger(client, {
+    partnerId: normalizedPartnerId,
+    currencyCode: currency || undefined,
+    createdBy: actorUserId,
+  });
+  if (ledger.ledger_status !== 'active') throw new AppError('Partner ledger is not active', 409, 'credit_partner_ledger_inactive');
+  const transactionType = normalizedDirection === 'fund' ? 'funding' : 'reserve_release';
+  const treasury = await ensureAccount(client, {
+    accountType: 'platform_treasury',
+    currencyCode: ledger.currency_code,
+  });
+  const transaction = await postJournalTransaction(client, {
+    transactionType,
+    debitAccountId: normalizedDirection === 'fund' ? treasury.id : ledger.reserve_account_id,
+    creditAccountId: normalizedDirection === 'fund' ? ledger.reserve_account_id : treasury.id,
+    amountCents: amount,
+    currencyCode: ledger.currency_code,
+    partnerId: normalizedPartnerId,
+    // Keep the internal transaction key within the schema limit even when a
+    // caller supplies a long idempotency key for the funding record.
+    idempotencyKey: `partner-funding:${crypto.createHash('sha256').update(normalizedIdempotencyKey).digest('hex')}`,
+    actorType: 'admin',
+    actorUserId,
+    referenceType: 'partner_funding',
+    referenceId: normalizedReference,
+    correlationId,
+    requestIp,
+    reason: normalizedReason,
+    description: normalizedDirection === 'fund' ? 'Restaurant Credit reserve funding' : 'Restaurant Credit reserve release',
+    metadata: { ...normalizedMetadata, direction: normalizedDirection, externalReference: normalizedReference },
+  });
+  if (!transaction?.transaction?.id) {
+    throw new AppError('Partner funding transaction could not be confirmed', 500, 'credit_partner_funding_transaction_failed');
+  }
+  const { rows } = await client.query(
+    `INSERT INTO oxsteed_credit_partner_funding_records
+       (partner_ledger_id, partner_id, reserve_account_id, transaction_id, direction,
+        amount_cents, currency_code, external_reference, idempotency_key, reason,
+        actor_user_id, correlation_id, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+     RETURNING *`,
+    [ledger.ledger_id, normalizedPartnerId, ledger.reserve_account_id, transaction.transaction.id, normalizedDirection, amount, ledger.currency_code, normalizedReference, normalizedIdempotencyKey, normalizedReason, actorUserId, normalizeString(correlationId, 160), JSON.stringify(normalizedMetadata)]
+  );
+  await client.query(
+    `INSERT INTO oxsteed_credit_audit_events
+       (action_type, actor_user_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state, metadata)
+     VALUES ($1, $2, $3, 'credit_partner_funding', $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
+    [`credit.partner_ledger.${normalizedDirection}`, actorUserId, normalizedPartnerId, String(rows[0].id), normalizedReason, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ transactionId: transaction.transaction.id, amountCents: amount, currencyCode: ledger.currency_code }), JSON.stringify(normalizedMetadata)]
+  );
+  return { record: formatFundingRecord(rows[0]), transaction: transaction.transaction, replayed: false };
+}
+
+async function recordPartnerFunding(args) {
+  return withTransaction(
+    pool,
+    (client) => recordPartnerFundingInTransaction(client, args),
+    'credit_record_partner_funding'
+  );
 }
 
 module.exports = {
@@ -309,5 +315,6 @@ module.exports = {
   ensurePartnerLedger,
   getPartnerLedger,
   listPartnerFundingRecords,
+  recordPartnerFundingInTransaction,
   recordPartnerFunding,
 };

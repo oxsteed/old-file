@@ -31,21 +31,23 @@ Do not enable OxSteed Credit for real customers until all of the following are t
 
 ## Coolify Environment Repair
 
-The Coolify OxSteed application has been repaired and is currently healthy.
+The Coolify OxSteed application was read-only checked on 2026-09-21 local time
+and is currently healthy.
 Its production environment now contains non-placeholder database, JWT, and
-Stripe values, and the currently deployed container reports migration 516. The
-current source contains forward migrations 517 through 527, including the Direct
-catalog expansion. The next approved Coolify deploy must apply them before the
-latest source artifact can be verified. Do not copy values from this document into
-Coolify. Keep all credentials in Coolify's secret store and redeploy only after
-the values have been checked.
+Stripe values. The public readiness response reported release
+`content-22d5628ed07a4bfa`, migrations `539/539`, zero pending or unexpected
+migrations, and healthy database, Redis, Credit-ledger, worker, realtime, traffic,
+and shutdown checks. Do not copy credentials or release values from this document
+into Coolify. Keep all credentials in Coolify's secret store and redeploy only
+after the values have been checked.
 
-The live database may already contain catalog rows from migrations 523 through
-526 while the running image still reports 516 and serializes the older API shape.
-Treat that state as a release mismatch, not as proof that the source package is
-deployed. The source readiness check fails closed when applied migration records
-are newer than the running release. Do not activate Credit or perform destructive
-catalog edits until the intended image is published and the checks below agree.
+The local source candidate remains dirty and is not asserted to be the live
+artifact. A public response that happens to have the expected API shape is not
+source identity evidence. Treat any readiness release mismatch as a failed
+deployment verification, not as proof that the source package is deployed. The
+source readiness check fails closed when applied migration records are newer than
+the running release. Do not perform destructive catalog edits until the intended
+image and release identity are verified.
 
 The live `verify:credit` release check remains intentionally fail-closed until
 server error monitoring is configured with `SENTRY_DSN`; do not bypass that
@@ -140,9 +142,9 @@ npm run verify:credit
 ```
 
 The expected result is a healthy app container, readiness JSON with no pending
-migrations, and `verify:credit` reporting `ok: true`. After the next deploy the
-database must reach the latest source migration (`529`), with no unexpected
-applied migration records. The
+migrations, and `verify:credit` reporting `ok: true`. The database must match
+the complete migration filename set in the source checkout (currently through
+`539`), with no missing or unexpected applied migration records. The
 pre-migration dump is stored under
 `/Users/oxsteed/server-backups/production/`.
 
@@ -265,7 +267,9 @@ The first deployment should be treated as a controlled release. The GitHub
 Actions deployment job triggers Coolify only after the server and client checks
 pass. It then polls the public `/ready` endpoint and the API `/health` endpoint
 for up to five minutes. It also requires readiness JSON to report zero pending
-migrations, a healthy Credit ledger check, and a non-empty release identifier.
+migrations, a healthy Credit ledger check, and a release identifier matching the
+exact deployment commit or the deterministic content release computed from that
+checkout. This prevents a healthy stale image from passing the deployment gate.
 This is still a service and schema gate, not proof that every database
 invariant or external provider is configured. Coolify's predefined
 `SOURCE_COMMIT` value is accepted as a fallback, but enable Configuration >
@@ -273,9 +277,11 @@ Advanced > Include Source Commit in Build so the exact commit also reaches the
 Docker build and frontend release metadata. You may override it with
 `SENTRY_RELEASE` or `COMMIT_SHA`; these values must never contain a secret. If
 all three values are blank, the production image now generates a deterministic
-`content-<hash>` release from the application source and uses it for both the
-browser bundle and server readiness/Sentry initialization. An explicit commit
-identifier remains preferred for human-readable incident correlation.
+`content-<hash>` release with `scripts/compute-content-release.cjs` from the
+application source and uses it for both the browser bundle and server
+readiness/Sentry initialization. The deployment job verifies either that content
+release or the exact Git commit. An explicit commit identifier remains preferred
+for human-readable incident correlation.
 
 Run these commands from the server directory against the intended database:
 
@@ -485,7 +491,7 @@ For a restore drill:
 1. Restore a backup into an isolated database with production network access disabled.
 2. Apply any migrations required by the restored snapshot.
 3. Run `npm run verify:credit` against the isolated database.
-4. Run `npm --prefix server run verify:restore -- /path/to/oxsteed-db.dump` from the repository against the isolated Postgres service. The current verifier checks all six Direct catalog migrations, migration `529`, the relational `quote_request_services` table, 1,000 expansion services with coverage, 40 categorized tools with coverage, five-locale metadata, quote/non-bookable safeguards, and the tool-category foreign key. Repeat the drill against the first post-publication snapshot containing migration `529`.
+4. Run `npm --prefix server run verify:restore -- /path/to/oxsteed-db.dump` from the repository against the isolated Postgres service. The current verifier compares every restored `_migrations` filename with the source checkout, checks all required Credit tables including cards, checks all six Direct catalog migrations plus migration `529`, the relational `quote_request_services` table, 1,000 expansion services with coverage, 40 categorized tools with coverage, five-locale metadata, quote/non-bookable safeguards, and the tool-category foreign key. Repeat the drill against the first post-publication snapshot containing the complete current migration set.
 5. Compare account balances, transaction counts, entry counts, and the latest reconciliation result with the source environment.
 6. Record the test duration, restore point, rows verified, and any difference in the backup monitor.
 
@@ -498,6 +504,15 @@ cd /Users/oxsteed/Documents/GitHub/6
 npm --prefix server run verify:restore -- \
   /Users/oxsteed/server-backups/production/20260914T094542Z/oxsteed-db.dump
 ```
+
+Latest local recovery evidence (2026-09-22 UTC): the prior snapshot
+`20260921T214419Z` was correctly rejected because it contained only migrations
+`532/532`. A fresh local snapshot `20260922T025200Z` was created after the
+current deployment and passed `verify:restore` with migrations `539`, all six
+Direct catalog migrations, migration `529`, the relational quote table, 1,000
+services, 40 tools, the category foreign key, 12 Credit tables, and five enabled
+Credit integrity triggers. The temporary restore database was removed by the
+verifier cleanup trap.
 
 The verifier restores into a temporary database on the healthy Postgres
 container, checks that migrations and all required Credit tables are present,

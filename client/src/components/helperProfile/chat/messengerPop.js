@@ -1,6 +1,7 @@
 /**
  * Proof-of-payment markers for messenger.
- * [pop:id|status|amount_cents|method_enc|txn_enc|paid_on|quote_kind|quote_id]
+ * Runtime marker fields: proof-of-payment id, status, amount cents, encoded
+ * method, encoded transaction, paid date, quote kind, and quote id.
  */
 
 export const POP_STATUSES = ['submitted', 'confirmed', 'rejected'];

@@ -1,6 +1,7 @@
 /**
  * OxSteed Credit pay + payment-request markers for messenger.
- * [payment_req:id|amount_cents|currency|status|memo_enc|quote_kind|quote_id]
+ * Runtime marker fields: payment request id, amount cents, currency, status,
+ * encoded memo, quote kind, and quote id.
  */
 
 export const PAYMENT_REQ_STATUSES = ['open', 'paid', 'cancelled'];

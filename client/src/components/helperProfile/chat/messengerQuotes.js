@@ -1,6 +1,7 @@
 /**
  * Pure helpers for in-messenger quote cards / markers.
- * Marker: [quote:kind|id|token|status|total_cents|title_enc|valid_until|version]
+ * Runtime marker fields: quote kind, id, token, status, total cents, encoded
+ * title, valid-until date, and version.
  */
 
 export const QUOTE_KINDS = ['business', 'helper'];

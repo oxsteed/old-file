@@ -184,6 +184,17 @@ export function parseBookingSlotMarker(text) {
 
 /**
  * Human + machine chat payload for a chosen availability slot.
+ * @param {object} options
+ * @param {string} options.date
+ * @param {string} options.start
+ * @param {string} options.end
+ * @param {string} [options.providerName]
+ * @param {string} [options.locale]
+ * @param {(key: string, options?: object) => string} [options.t]
+ * @param {string|number|null} [options.serviceId]
+ * @param {string} [options.serviceName]
+ * @param {string} [options.timezone]
+ * @returns {string}
  */
 export function buildSlotRequestMessage({
   date,
@@ -280,6 +291,20 @@ export function resolveClientTimezone(date = new Date()) {
 
 /**
  * API payload for creating a pending booking/appointment from a messenger slot.
+ * @param {object} options
+ * @param {string|number|null} [options.helperId]
+ * @param {string|number|null} [options.businessId]
+ * @param {string|number|null} [options.serviceId]
+ * @param {string} [options.serviceName]
+ * @param {string} options.date
+ * @param {string} options.start
+ * @param {string} options.end
+ * @param {string|null} [options.startIso]
+ * @param {string|null} [options.endIso]
+ * @param {string} [options.timezone]
+ * @param {string|null} [options.guestSessionId]
+ * @param {string} [options.description]
+ * @returns {object|null}
  */
 export function buildMessengerBookingPayload({
   helperId = null,
@@ -316,6 +341,16 @@ export function buildMessengerBookingPayload({
   };
 }
 
+/**
+ * Localized confirmation content for a successfully submitted slot request.
+ * @param {object} options
+ * @param {string} options.whenLabel
+ * @param {string} [options.serviceName]
+ * @param {string|number|null} [options.bookingId]
+ * @param {string|number|null} [options.appointmentId]
+ * @param {(key: string, options?: object) => string} [options.t]
+ * @returns {string}
+ */
 export function buildSlotConfirmationContent({
   whenLabel,
   serviceName = '',

@@ -1,6 +1,6 @@
 /**
  * Agreement markers for messenger.
- * [agreement:id|token|status|version|title_enc]
+ * Runtime marker fields: agreement id, token, status, version, and encoded title.
  */
 
 export const AGREEMENT_STATUSES = [

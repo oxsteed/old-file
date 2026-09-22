@@ -633,62 +633,68 @@ async function assertCustomerCashOutCapacity(client, { customerId, amountCents, 
   }
 }
 
-async function cashOutWithCard({ credential, pin, kioskDeviceId, partnerId = null, amountCents, currencyCode = null, idempotencyKey, correlationId, requestIp, metadata = {} }) {
+async function cashOutWithCardInTransaction(client, { credential, pin, kioskDeviceId, partnerId = null, amountCents, currencyCode = null, idempotencyKey, correlationId, requestIp, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required to cash out', 400, 'credit_idempotency_key_required');
   if (!kioskDeviceId) throw new AppError('A kiosk device is required to cash out', 400, 'credit_cash_out_kiosk_required');
 
-  return withTransaction(pool, async (client) => {
-    const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
-    if (existing) {
-      if (existing.transaction_type !== 'cash_out') {
-        throw new AppError('Credit idempotency key was already used for a different transaction', 409, 'credit_idempotency_conflict');
-      }
-      return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
+  const existing = await getExistingTransaction(client, normalizedIdempotencyKey);
+  if (existing) {
+    if (existing.transaction_type !== 'cash_out') {
+      throw new AppError('Credit idempotency key was already used for a different transaction', 409, 'credit_idempotency_conflict');
     }
+    return { transaction: { ...formatTransaction(existing, await loadAccountEntries(client, existing.id)), replayed: true }, replayed: true };
+  }
 
-    const card = await resolveCardByCredential(client, credential);
-    await verifyCardPin(client, card, pin);
-    await assertCreditRailEnabled(client);
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-cashout:${card.customer_id}`]);
+  const card = await resolveCardByCredential(client, credential);
+  await verifyCardPin(client, card, pin);
+  await assertCreditRailEnabled(client);
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-cashout:${card.customer_id}`]);
 
-    const customerAccount = await findCustomerAccount(client, card.customer_id, currencyCode || CREDIT_CURRENCY, true);
-    if (!customerAccount) throw new AppError('OxSteed Credit account not found', 404, 'credit_customer_not_found');
-    const currency = assertSupportedCreditCurrency(currencyCode || customerAccount.currency_code);
+  const customerAccount = await findCustomerAccount(client, card.customer_id, currencyCode || CREDIT_CURRENCY, true);
+  if (!customerAccount) throw new AppError('OxSteed Credit account not found', 404, 'credit_customer_not_found');
+  const currency = assertSupportedCreditCurrency(currencyCode || customerAccount.currency_code);
 
-    await assertCustomerCashOutCapacity(client, { customerId: card.customer_id, amountCents: amount, currencyCode: currency });
-    const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
+  await assertCustomerCashOutCapacity(client, { customerId: card.customer_id, amountCents: amount, currencyCode: currency });
+  const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
 
-    const result = await postJournalTransaction(client, {
-      transactionType: 'cash_out',
-      debitAccountId: customerAccount.id,
-      creditAccountId: treasuryAccount.id,
-      amountCents: amount,
-      currencyCode: currency,
-      idempotencyKey: normalizedIdempotencyKey,
-      actorType: 'kiosk',
-      referenceType: 'credit_kiosk_cash_out',
-      referenceId: String(kioskDeviceId),
-      correlationId,
-      requestIp,
-      description: 'OxSteed Credit kiosk cash-out',
-      customerId: card.customer_id,
-      partnerId: null,
-      metadata: { ...normalizeMetadata(metadata), cardId: card.id, kioskDeviceId: String(kioskDeviceId), partnerId: partnerId ? String(partnerId) : null, cardLast4: card.credential_last4 },
-      existingTransaction: null,
-    });
+  const result = await postJournalTransaction(client, {
+    transactionType: 'cash_out',
+    debitAccountId: customerAccount.id,
+    creditAccountId: treasuryAccount.id,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedIdempotencyKey,
+    actorType: 'kiosk',
+    referenceType: 'credit_kiosk_cash_out',
+    referenceId: String(kioskDeviceId),
+    correlationId,
+    requestIp,
+    description: 'OxSteed Credit kiosk cash-out',
+    customerId: card.customer_id,
+    partnerId: null,
+    metadata: { ...normalizeMetadata(metadata), cardId: card.id, kioskDeviceId: String(kioskDeviceId), partnerId: partnerId ? String(partnerId) : null, cardLast4: card.credential_last4 },
+    existingTransaction: null,
+  });
 
-    await client.query(`UPDATE oxsteed_credit_cards SET last_used_at = NOW() WHERE id = $1`, [card.id]);
-    await client.query(
-      `INSERT INTO oxsteed_credit_audit_events
-         (action_type, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
-       VALUES ('credit.card.cash_out_completed', $1, 'credit_card', $2, $3, $4, $5::jsonb)`,
-      [card.customer_id, String(card.id), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: amount, currencyCode: currency, kioskDeviceId: String(kioskDeviceId) })]
-    );
+  await client.query(`UPDATE oxsteed_credit_cards SET last_used_at = NOW() WHERE id = $1`, [card.id]);
+  await client.query(
+    `INSERT INTO oxsteed_credit_audit_events
+       (action_type, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
+     VALUES ('credit.card.cash_out_completed', $1, 'credit_card', $2, $3, $4, $5::jsonb)`,
+    [card.customer_id, String(card.id), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: amount, currencyCode: currency, kioskDeviceId: String(kioskDeviceId) })]
+  );
 
-    return { ...result, card: formatCard({ ...card, last_used_at: new Date() }) };
-  }, 'credit_card_cash_out');
+  return { ...result, card: formatCard({ ...card, last_used_at: new Date() }) };
+}
+
+async function cashOutWithCard(args) {
+  return withTransaction(
+    pool,
+    (client) => cashOutWithCardInTransaction(client, args),
+    'credit_card_cash_out'
+  );
 }
 
 module.exports = {
@@ -710,6 +716,7 @@ module.exports = {
   listCustomerCards,
   adminListCards,
   redeemCardAtPartner,
+  cashOutWithCardInTransaction,
   cashOutWithCard,
   // Exported for tests / reuse.
   sha256Hex,
