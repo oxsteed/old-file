@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Building2, User, UserCheck, Copy, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
+import { Bot, Building2, User, UserCheck, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfile';
 import api from '../../../api/axios';
 import AutoTranslatedMessage from '../../AutoTranslatedMessage';
+import MessageBubbleActions from '../../messaging/MessageBubbleActions';
+import '../../messaging/SharedMessengerShell.css';
 import QuoteCard from './QuoteCard';
 import ProofOfPaymentCard from './ProofOfPaymentCard';
 import AgreementCard from './AgreementCard';
@@ -136,7 +138,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isAI = message.authorType?.includes('ai');
   const Icon = config?.icon;
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
-  const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showQuickRepliesMenu, setShowQuickRepliesMenu] = useState(false);
   const canEdit = currentUserId && message.authorType === 'user' && currentUserId === message.sender_id;
@@ -153,10 +154,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       // silent fail
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(t('helperProfile.chat.deleteConfirm'))) {
+      onDelete?.(message.id);
     }
   };
 
@@ -320,85 +325,60 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
         </div>
 
-        {/* Action buttons (copy, like/dislike, edit, delete) */}
-        {showActions && (
-          <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+        {/* Shared shell Copy | Edit | Delete (+ dock-only AI feedback on hover) */}
+        <div className={`flex flex-wrap items-center gap-2 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+          <MessageBubbleActions
+            onCopy={handleCopy}
+            onEdit={() => onEdit?.(message.id)}
+            onDelete={handleDelete}
+            canEdit={Boolean(canEdit)}
+            canDelete={Boolean(canEdit)}
+          />
+
+          {isAI && showActions && (
+            <div className="flex items-center gap-1">
               <button
-                onClick={handleCopy}
-                className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
-                title={copied ? t('helperProfile.chat.copied') : t('helperProfile.chat.copyMessage')}
-                aria-label={t('helperProfile.chat.copyMessage')}
+                type="button"
+                onClick={() => handleFeedback('up')}
+                className={`p-1 rounded-md transition-colors ${
+                  feedback === 'up'
+                    ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
+                }`}
+                title={t('helperProfile.chat.helpful')}
+                aria-label={t('helperProfile.chat.helpfulLabel')}
               >
-                <Copy className="w-3.5 h-3.5" />
+                <ThumbsUp className="w-3.5 h-3.5" />
               </button>
-
-              {isAI && (
-                <>
-                  <button
-                    onClick={() => handleFeedback('up')}
-                    className={`p-1 rounded-md transition-colors ${
-                      feedback === 'up'
-                        ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    title={t('helperProfile.chat.helpful')}
-                    aria-label={t('helperProfile.chat.helpfulLabel')}
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleFeedback('down')}
-                    className={`p-1 rounded-md transition-colors ${
-                      feedback === 'down'
-                        ? 'text-red-500 bg-red-100 dark:bg-red-900/30'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    title={t('helperProfile.chat.notHelpful')}
-                    aria-label={t('helperProfile.chat.notHelpfulLabel')}
-                  >
-                    <ThumbsDown className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setShowQuickRepliesMenu(!showQuickRepliesMenu)}
-                    className={`p-1 rounded-md transition-colors ${
-                      showQuickRepliesMenu
-                        ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
-                    }`}
-                    title={t('helperProfile.chat.quickReplies')}
-                    aria-label={t('helperProfile.chat.quickReplies')}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              )}
-
-              {canEdit && (
-                <>
-                  <button
-                    onClick={() => onEdit?.(message.id)}
-                    className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
-                    title={t('helperProfile.chat.editMessage')}
-                    aria-label={t('helperProfile.chat.editMessage')}
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(t('helperProfile.chat.deleteConfirm'))) {
-                        onDelete?.(message.id);
-                      }
-                    }}
-                    className="p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
-                    title={t('helperProfile.chat.deleteMessage')}
-                    aria-label={t('helperProfile.chat.deleteMessage')}
-                  >
-                    🗑️
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => handleFeedback('down')}
+                className={`p-1 rounded-md transition-colors ${
+                  feedback === 'down'
+                    ? 'text-red-500 bg-red-100 dark:bg-red-900/30'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
+                }`}
+                title={t('helperProfile.chat.notHelpful')}
+                aria-label={t('helperProfile.chat.notHelpfulLabel')}
+              >
+                <ThumbsDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowQuickRepliesMenu(!showQuickRepliesMenu)}
+                className={`p-1 rounded-md transition-colors ${
+                  showQuickRepliesMenu
+                    ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
+                }`}
+                title={t('helperProfile.chat.quickReplies')}
+                aria-label={t('helperProfile.chat.quickReplies')}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
+        </div>
 
         {/* Timestamp */}
         <time

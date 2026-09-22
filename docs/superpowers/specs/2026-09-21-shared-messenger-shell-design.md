@@ -28,7 +28,7 @@ Provider deal tools (quotes, POP, agreements, Request $, schedule, credit pay/re
 - E2EE messenger.
 - Replacing Team API / `business_conversations` with deal threads (Team tab stays as-is).
 - New chat transport, ledger, or quote/POP/agreement APIs.
-- Redesigning public-profile Messenger Dock (already separate).
+- Broader public-profile Messenger Dock redesign beyond shared action chrome (already separate).
 
 ## Surfaces
 
@@ -55,7 +55,7 @@ Keep existing hook (`useConversationChat`), cards, and share panels. Changes:
 
 ### `MessageBubbleActions`
 
-Small presentational control group: Copy always; Edit/Delete when own message. Explicit `display: inline-flex; gap`; middle-dot or pipe separators optional for resilience if CSS fails to load.
+Small presentational control group: Copy always; Edit/Delete when own message. Explicit `display: inline-flex; gap`; middle-dot or pipe separators optional for resilience if CSS fails to load. Used by inbox `ConversationThread` and profile-dock `helperProfile/chat/MessageBubble.tsx` (dock keeps AI thumbs / quick-reply extras separately).
 
 ### `ConversationComposer`
 
@@ -129,5 +129,5 @@ Prefer extract/refactor:
 ## Residuals (intentional)
 
 - Team tab UX polish beyond keeping it working.
-- Full redesign of MessageBubble.tsx (profile dock) — only inbox `ConversationThread` actions in this slice.
+- Profile-dock `MessageBubble` AI feedback / quick-reply chrome (thumbs, quick replies) remains dock-specific; Copy | Edit | Delete now reuses shared `MessageBubbleActions` + shell CSS.
 - E2EE; replacing Team API.

@@ -70,3 +70,22 @@ test('conversation display helpers', () => {
     'hi',
   );
 });
+
+test('profile-dock MessageBubble reuses shared MessageBubbleActions chrome', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const src = await readFile(
+    join(root, 'src/components/helperProfile/chat/MessageBubble.tsx'),
+    'utf8',
+  );
+  assert.ok(src.includes("from '../../messaging/MessageBubbleActions'"));
+  assert.ok(src.includes("SharedMessengerShell.css"));
+  assert.ok(src.includes('<MessageBubbleActions'));
+  assert.ok(src.includes("t('helperProfile.chat.deleteConfirm')"));
+  // No third parallel icon/emoji Copy-Edit-Delete chrome
+  assert.ok(!src.includes('Copy className'));
+  assert.ok(!src.includes('✏️'));
+  assert.ok(!src.includes('🗑️'));
+});
