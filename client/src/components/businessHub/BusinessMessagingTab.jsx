@@ -190,7 +190,7 @@ export function BusinessMessagingTab({ businessId }) {
       const uploaded = await uploadBusinessMessageAttachment(businessId, selectedTeam.id, file);
       setTeamAttachment({
         file_name: uploaded.name,
-        file_url: uploaded.url,
+        file_url: uploaded.key ? `private://${uploaded.key}` : uploaded.url,
         file_size_bytes: uploaded.size,
         file_type: uploaded.mimeType,
       });

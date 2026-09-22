@@ -155,9 +155,21 @@ async function getConversation(req, res, next) {
       [conversationId, parseInt(limit, 10), parseInt(offset, 10), req.user.id]
     );
 
+    const hydratedMessages = await Promise.all(messages.rows.map(async (message) => {
+      const attachments = await Promise.all((Array.isArray(message.attachments) ? message.attachments : []).map(async (attachment) => {
+        const storedUrl = String(attachment.file_url || '');
+        if (!storedUrl.startsWith('private://')) return attachment;
+        return {
+          ...attachment,
+          file_url: await getSignedDownloadUrl(storedUrl.slice('private://'.length), 3600),
+        };
+      }));
+      return { ...message, attachments };
+    }));
+
     res.json({
       ...convCheck.rows[0],
-      messages: messages.rows,
+      messages: hydratedMessages,
     });
   } catch (error) {
     if (error instanceof AppError) return next(error);
