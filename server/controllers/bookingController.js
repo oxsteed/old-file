@@ -252,11 +252,9 @@ exports.getBookingRequest = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (
-      userId &&
-      userId !== booking.customer_id &&
-      userId !== booking.helper_id
-    ) {
+    const isCustomer = userId && String(userId) === String(booking.customer_id);
+    const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
+    if (userId && !isCustomer && !isProvider) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
@@ -308,7 +306,7 @@ exports.getMyBookingRequests = async (req, res) => {
 
 exports.getIncomingBookingRequests = async (req, res) => {
   try {
-    const helperId = req.user.id;
+    const providerUserId = req.user.id;
     const { status, statuses } = req.query;
     let statusList;
     if (statuses) {
@@ -317,7 +315,7 @@ exports.getIncomingBookingRequests = async (req, res) => {
         .map((s) => s.trim())
         .filter(Boolean);
     }
-    const rows = await bookingLifecycle.listIncomingForProvider(helperId, {
+    const rows = await bookingLifecycle.listIncomingForProvider(providerUserId, {
       status: statusList ? undefined : status,
       statuses: statusList,
     });
@@ -336,21 +334,21 @@ exports.getIncomingBookingRequests = async (req, res) => {
 exports.acceptBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const helperId = req.user.id;
+    const actorId = req.user.id;
 
     const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (String(booking.helper_id) !== String(helperId)) {
-      return sendError(res, 403, 'Only the assigned helper can respond to this booking');
+    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider can accept this booking', 'forbidden');
     }
 
     let result;
     try {
       result = await bookingLifecycle.acceptBookingRequest({
         booking,
-        actorId: helperId,
+        actorId,
         actorType: 'helper',
         appointmentSource: 'calendar_accept',
       });
@@ -372,7 +370,7 @@ exports.acceptBookingRequest = async (req, res) => {
           await chatCtrl.postStatusToThreadForLifecycle({
             booking: updated,
             event: 'accepted',
-            actorId: helperId,
+            actorId,
             actorName,
           });
         }
@@ -381,7 +379,7 @@ exports.acceptBookingRequest = async (req, res) => {
       }
     }
 
-    logger.info('Booking request accepted', { bookingId, helperId });
+    logger.info('Booking request accepted', { bookingId, actorId });
 
     res.json({
       success: true,
@@ -398,22 +396,22 @@ exports.acceptBookingRequest = async (req, res) => {
 exports.declineBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const helperId = req.user.id;
+    const actorId = req.user.id;
     const { reason } = req.body || {};
 
     const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (String(booking.helper_id) !== String(helperId)) {
-      return sendError(res, 403, 'Only the assigned helper can respond to this booking');
+    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider can decline this booking', 'forbidden');
     }
 
     let result;
     try {
       result = await bookingLifecycle.declineBookingRequest({
         booking,
-        actorId: helperId,
+        actorId,
         actorType: 'helper',
         reason: reason || null,
       });
@@ -434,7 +432,7 @@ exports.declineBookingRequest = async (req, res) => {
           await chatCtrl.postStatusToThreadForLifecycle({
             booking: updated,
             event: 'declined',
-            actorId: helperId,
+            actorId,
             actorName,
             reason: reason || '',
           });
@@ -444,7 +442,7 @@ exports.declineBookingRequest = async (req, res) => {
       }
     }
 
-    logger.info('Booking request declined', { bookingId, helperId });
+    logger.info('Booking request declined', { bookingId, actorId });
 
     res.json({
       success: true,
@@ -546,8 +544,8 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (booking.helper_id !== helperId) {
-      return sendError(res, 403, 'Only the assigned helper can cancel this booking');
+    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider can cancel this booking', 'forbidden');
     }
 
     if (booking.status !== 'accepted') {
@@ -876,8 +874,8 @@ exports.counterProposeBooking = async (req, res) => {
 
     const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) return sendError(res, 404, 'Booking request not found');
-    if (String(booking.helper_id) !== String(helperId)) {
-      return sendError(res, 403, 'Only the assigned helper can counter-propose this booking');
+    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider can propose a different time', 'forbidden');
     }
 
     let result;

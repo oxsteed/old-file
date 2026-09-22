@@ -17,6 +17,11 @@ const {
   normalizeDate,
   buildStatusMessage,
 } = require('./chatBookingRequests');
+const {
+  assertConversationParticipant,
+  assertGuestInquiryAccess,
+  assertBusinessAccess,
+} = require('./chatThreadAccess');
 
 const INBOX_STATUSES = ['pending', 'counter_proposed'];
 const PROVIDER_RESPOND_STATUSES = ['pending', 'expired', 'counter_proposed'];
@@ -116,10 +121,53 @@ function toCalendarBooking(row) {
 }
 
 /**
- * List inbox rows for a provider user (helper_id match).
+ * Same provider authz as chat `/api/chat/booking-requests/*`:
+ * helper owner, business owner/member, conversation helper/business, guest inquiry provider.
+ */
+async function isProviderForBooking(userId, booking) {
+  if (!userId || !booking) return false;
+  if (booking.helper_id && String(booking.helper_id) === String(userId)) return true;
+  if (booking.business_id) {
+    const biz = await assertBusinessAccess(userId, booking.business_id);
+    if (biz) return true;
+  }
+  if (booking.conversation_id) {
+    const conv = await assertConversationParticipant(userId, booking.conversation_id);
+    if (conv && conv.helper_id && String(conv.helper_id) === String(userId)) return true;
+    if (conv?.business_id) {
+      const biz = await assertBusinessAccess(userId, conv.business_id);
+      if (biz) return true;
+    }
+  }
+  if (booking.guest_session_id) {
+    const guest = await assertGuestInquiryAccess(userId, booking.guest_session_id);
+    if (guest) return true;
+  }
+  return false;
+}
+
+/** Active business ids the user owns or is an active member of. */
+async function resolveProviderBusinessIds(userId) {
+  if (!userId) return [];
+  const { rows } = await pool
+    .query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_active = TRUE
+       UNION
+       SELECT bm.business_id AS id
+         FROM business_members bm
+         JOIN businesses b ON b.id = bm.business_id AND b.is_active = TRUE
+        WHERE bm.member_id = $1 AND bm.status = 'active'`,
+      [userId],
+    )
+    .catch(() => ({ rows: [] }));
+  return rows.map((r) => r.id).filter(Boolean);
+}
+
+/**
+ * List inbox rows for a provider actor (helper + business-scoped parity with chat).
  * Includes guest requests (LEFT JOIN users). Default: pending + counter_proposed.
  */
-async function listIncomingForProvider(helperId, { status, statuses } = {}) {
+async function listIncomingForProvider(providerUserId, { status, statuses } = {}) {
   let statusList;
   if (Array.isArray(statuses) && statuses.length) {
     statusList = statuses.map((s) => toChatStatus(s));
@@ -131,7 +179,8 @@ async function listIncomingForProvider(helperId, { status, statuses } = {}) {
     statusList = [...INBOX_STATUSES];
   }
 
-  const params = [helperId];
+  const businessIds = await resolveProviderBusinessIds(providerUserId);
+  const params = [providerUserId, businessIds];
   let statusClause = '';
   if (statusList) {
     statusClause = ` AND br.status = ANY($${params.length + 1}::text[])`;
@@ -144,7 +193,26 @@ async function listIncomingForProvider(helperId, { status, statuses } = {}) {
             u.profile_photo_url AS customer_avatar
        FROM booking_requests br
        LEFT JOIN users u ON u.id = br.customer_id
-      WHERE br.helper_id = $1
+      WHERE (
+        br.helper_id = $1
+        OR (br.business_id IS NOT NULL AND br.business_id = ANY($2::uuid[]))
+        OR EXISTS (
+          SELECT 1 FROM conversations c
+           WHERE c.id = br.conversation_id
+             AND (
+               c.helper_id = $1
+               OR (c.business_id IS NOT NULL AND c.business_id = ANY($2::uuid[]))
+             )
+        )
+        OR EXISTS (
+          SELECT 1 FROM guest_profile_chat_inbound g
+           WHERE g.id = br.guest_session_id
+             AND (
+               g.helper_id = $1
+               OR (g.business_id IS NOT NULL AND g.business_id = ANY($2::uuid[]))
+             )
+        )
+      )
       ${statusClause}
       ORDER BY br.created_at DESC`,
     params,
@@ -607,6 +675,8 @@ module.exports = {
   PROVIDER_RESPOND_STATUSES,
   loadBooking,
   expireIfStale,
+  isProviderForBooking,
+  resolveProviderBusinessIds,
   listIncomingForProvider,
   toCalendarBooking,
   confirmOrCreateAppointment,

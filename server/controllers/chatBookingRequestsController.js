@@ -6,7 +6,6 @@ const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const {
   assertConversationParticipant,
-  assertGuestInquiryAccess,
   assertBusinessAccess,
   resolveGuestFromRequest,
 } = require('../services/chatThreadAccess');
@@ -34,32 +33,10 @@ async function loadBooking(id) {
   return rows[0] || null;
 }
 
-async function isProviderForBooking(userId, booking) {
-  if (!userId || !booking) return false;
-  if (String(booking.helper_id) === String(userId)) return true;
-  if (booking.business_id) {
-    const biz = await assertBusinessAccess(userId, booking.business_id);
-    if (biz) return true;
-  }
-  if (booking.conversation_id) {
-    const conv = await assertConversationParticipant(userId, booking.conversation_id);
-    if (conv && String(conv.helper_id) === String(userId)) return true;
-    if (conv?.business_id) {
-      const biz = await assertBusinessAccess(userId, conv.business_id);
-      if (biz) return true;
-    }
-  }
-  if (booking.guest_session_id) {
-    const guest = await assertGuestInquiryAccess(userId, booking.guest_session_id);
-    if (guest) return true;
-  }
-  return false;
-}
-
 async function isCustomerForBooking(req, booking) {
   if (!booking) return { ok: false, reason: 'not_found' };
   const userId = req.user?.id;
-  if (userId && (await isProviderForBooking(userId, booking))) {
+  if (userId && (await bookingLifecycle.isProviderForBooking(userId, booking))) {
     return { ok: false, reason: 'provider_cannot_customer_respond' };
   }
   if (userId && booking.customer_id && String(booking.customer_id) === String(userId)) {
@@ -83,7 +60,7 @@ async function canViewBooking(req, booking) {
   const userId = req.user?.id;
   if (!booking) return false;
   if (userId && String(booking.customer_id) === String(userId)) return true;
-  if (userId && (await isProviderForBooking(userId, booking))) return true;
+  if (userId && (await bookingLifecycle.isProviderForBooking(userId, booking))) return true;
   const guest = await resolveGuestFromRequest(req);
   if (guest && booking.guest_session_id && String(guest.id) === String(booking.guest_session_id)) {
     return true;
@@ -335,7 +312,7 @@ exports.acceptBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await isProviderForBooking(userId, booking))) {
+    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can accept this booking', 'forbidden');
     }
 
@@ -385,7 +362,7 @@ exports.declineBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await isProviderForBooking(userId, booking))) {
+    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can decline this booking', 'forbidden');
     }
 
@@ -535,7 +512,7 @@ exports.proposeBookingTime = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await isProviderForBooking(userId, booking))) {
+    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can propose a different time', 'forbidden');
     }
 

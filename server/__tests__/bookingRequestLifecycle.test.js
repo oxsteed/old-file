@@ -51,47 +51,104 @@ describe('bookingRequestLifecycle', () => {
   });
 
   test('listIncomingForProvider defaults to pending + counter_proposed', async () => {
-    pool.query.mockResolvedValueOnce({
-      rows: [
-        {
-          id: 'a',
-          helper_id: 'h1',
-          customer_id: null,
-          service_name: 'Guest cut',
-          requested_date: '2026-09-22',
-          requested_start_time: '09:00',
-          requested_end_time: '10:00',
-          status: 'pending',
-          expires_at: new Date(Date.now() + 3600_000).toISOString(),
-          source: 'guest_chat',
-          customer_name: null,
-        },
-        {
-          id: 'b',
-          helper_id: 'h1',
-          customer_id: 'c1',
-          service_name: 'Paint',
-          requested_date: '2026-09-23',
-          requested_start_time: '11:00',
-          requested_end_time: '12:00',
-          status: 'counter_proposed',
-          expires_at: new Date(Date.now() + 3600_000).toISOString(),
-          conversation_id: 'conv-9',
-          source: 'messenger',
-          customer_name: 'Bob',
-        },
-      ],
-    });
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // resolveProviderBusinessIds
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'a',
+            helper_id: 'h1',
+            customer_id: null,
+            service_name: 'Guest cut',
+            requested_date: '2026-09-22',
+            requested_start_time: '09:00',
+            requested_end_time: '10:00',
+            status: 'pending',
+            expires_at: new Date(Date.now() + 3600_000).toISOString(),
+            source: 'guest_chat',
+            customer_name: null,
+          },
+          {
+            id: 'b',
+            helper_id: 'h1',
+            customer_id: 'c1',
+            service_name: 'Paint',
+            requested_date: '2026-09-23',
+            requested_start_time: '11:00',
+            requested_end_time: '12:00',
+            status: 'counter_proposed',
+            expires_at: new Date(Date.now() + 3600_000).toISOString(),
+            conversation_id: 'conv-9',
+            source: 'messenger',
+            customer_name: 'Bob',
+          },
+        ],
+      });
 
     const rows = await lifecycle.listIncomingForProvider('h1');
-    expect(pool.query).toHaveBeenCalled();
-    const sql = pool.query.mock.calls[0][0];
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    const bizSql = pool.query.mock.calls[0][0];
+    expect(bizSql).toMatch(/businesses/);
+    const sql = pool.query.mock.calls[1][0];
     expect(sql).toMatch(/LEFT JOIN users/);
-    expect(pool.query.mock.calls[0][1][0]).toBe('h1');
-    expect(pool.query.mock.calls[0][1][1]).toEqual(['pending', 'counter_proposed']);
+    expect(sql).toMatch(/br\.business_id = ANY/);
+    expect(pool.query.mock.calls[1][1][0]).toBe('h1');
+    expect(pool.query.mock.calls[1][1][1]).toEqual([]);
+    expect(pool.query.mock.calls[1][1][2]).toEqual(['pending', 'counter_proposed']);
     expect(rows).toHaveLength(2);
     expect(rows[0].source).toBe('guest_chat');
     expect(rows[1].conversationId).toBe('conv-9');
+  });
+
+  test('listIncomingForProvider includes business-scoped rows for members', async () => {
+    const bizId = '00000000-0000-4000-8000-000000000b01';
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: bizId }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'biz-br',
+            helper_id: 'owner-h',
+            business_id: bizId,
+            customer_id: 'c1',
+            service_name: 'Biz cut',
+            requested_date: '2026-09-22',
+            requested_start_time: '09:00',
+            requested_end_time: '10:00',
+            status: 'pending',
+            expires_at: new Date(Date.now() + 3600_000).toISOString(),
+            source: 'messenger',
+            customer_name: 'Cara',
+          },
+        ],
+      });
+
+    const rows = await lifecycle.listIncomingForProvider('member-1');
+    expect(pool.query.mock.calls[1][1][0]).toBe('member-1');
+    expect(pool.query.mock.calls[1][1][1]).toEqual([bizId]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].businessId).toBe(bizId);
+    expect(rows[0].canRespond).toBe(true);
+  });
+
+  test('isProviderForBooking allows business member via business_id', async () => {
+    const booking = {
+      id: 'br-biz',
+      helper_id: 'owner-h',
+      business_id: 'biz-1',
+      status: 'pending',
+    };
+    // assertBusinessAccess query
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 'biz-1', user_id: 'owner-h', business_name: 'Salon' }],
+    });
+    await expect(lifecycle.isProviderForBooking('member-1', booking)).resolves.toBe(true);
+    await expect(lifecycle.isProviderForBooking('member-1', { helper_id: 'other' })).resolves.toBe(
+      false,
+    );
+    await expect(lifecycle.isProviderForBooking('owner-h', { helper_id: 'owner-h' })).resolves.toBe(
+      true,
+    );
   });
 
   test('acceptBookingRequest updates status and emits booking:updated', async () => {
