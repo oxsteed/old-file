@@ -930,3 +930,41 @@ test('buildInboxScheduleBookingBody creates durable schedule payload', () => {
   assert.equal(body.serviceId, 7);
   assert.equal(body.source, 'messenger_inbox_schedule');
 });
+
+test('profile-dock ChatPanel uses icon-only secondary chrome in dock mode', async () => {
+  const { resolveDockChatChrome } = await import(
+    '../src/components/messaging/messengerShellState.js'
+  );
+  const chrome = resolveDockChatChrome({ dockMode: true });
+  assert.equal(chrome.showPanelTitle, false);
+  assert.equal(chrome.statusMode, 'icon');
+  assert.equal(chrome.secondaryMode, 'icon');
+
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const src = await readFile(
+    join(root, 'src/components/helperProfile/chat/ChatPanel.tsx'),
+    'utf8',
+  );
+  assert.ok(src.includes('resolveDockChatChrome'));
+  assert.ok(src.includes('SharedMessengerShell.css'));
+  assert.ok(src.includes('chat-panel__header--dock'));
+  assert.ok(src.includes('messages-thread-action-icon'));
+  assert.ok(src.includes('chat-panel__composer--dock'));
+  assert.ok(src.includes("t('messages.shell.dockSecondaryAria')"));
+});
+
+test('StatusBadge supports iconOnly mode for dock header', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const src = await readFile(
+    join(root, 'src/components/helperProfile/chat/StatusBadge.tsx'),
+    'utf8',
+  );
+  assert.ok(src.includes('iconOnly'));
+  assert.ok(src.includes('sr-only'));
+});

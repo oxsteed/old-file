@@ -1232,3 +1232,50 @@
 .messenger-booking-card__btn--ghost {
   background: transparent;
 }
+
+/* Align dock body chrome with Shared Messenger Shell */
+.messenger-dock .chat-panel--dock .chat-panel__header--dock {
+  border-bottom-color: rgba(148, 163, 184, 0.14);
+  padding-inline: 0.85rem;
+}
+
+.messenger-dock .chat-panel--dock .messages-thread-action-icon {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  background: rgba(2, 6, 23, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  color: #9da8bb;
+}
+
+.messenger-dock .chat-panel--dock .messages-thread-action-icon:hover,
+.messenger-dock .chat-panel--dock .messages-thread-action-icon[aria-pressed='true'] {
+  color: #dbeafe;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.messenger-dock .chat-panel--dock .provider-messenger-toolbar {
+  margin: 0;
+  border-radius: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.messenger-dock .chat-panel--dock .chat-panel__composer--dock {
+  flex-shrink: 0;
+}
+
+.messenger-dock .chat-panel--dock .chat-panel__empty--dock {
+  padding-block: 2.5rem;
+}
+
+.messenger-dock .chat-panel--dock .messages-bubble-actions {
+  gap: 0.5rem;
+}
+
+/* Destination control: keep compact so it doesn't fight dock header identity */
+.messenger-dock .chat-panel--dock .relative > button.w-full {
+  border-radius: 0.75rem;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+}

@@ -2384,7 +2384,9 @@
       "moreActions": "Plus",
       "listEmpty": "Aucune conversation pour le moment.",
       "filteredEmpty": "Aucune conversation ne correspond à votre recherche.",
-      "selectDealHint": "Choisissez une affaire client à gauche pour ouvrir devis, POP, accords et planification."
+      "selectDealHint": "Choisissez une affaire client à gauche pour ouvrir devis, POP, accords et planification.",
+      "selectTeamHint": "Choisissez un fil équipe ou client à gauche pour écrire dans la boîte du personnel.",
+      "dockSecondaryAria": "Outils de discussion"
     }
   },
   "dashboard": {

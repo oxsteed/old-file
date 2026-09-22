@@ -6,6 +6,8 @@ import type { ChatStatus } from '../../../types/helperProfile';
 interface StatusBadgeProps {
   status: ChatStatus;
   className?: string;
+  /** Icon + dot only (aria-label keeps full status text). Used in dock header. */
+  iconOnly?: boolean;
 }
 
 const CONFIG: Record<
@@ -39,7 +41,7 @@ const CONFIG: Record<
   },
 };
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => {
+const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '', iconOnly = false }) => {
   const { t } = useTranslation();
   const { icon: Icon, dot, badge } = CONFIG[status];
 
@@ -54,12 +56,13 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${badge} ${className}`}
+      className={`inline-flex items-center gap-1.5 ${iconOnly ? 'p-1.5' : 'px-2 py-0.5'} rounded-full text-xs font-medium border ${badge} ${className}`}
       aria-label={t('helperProfile.chat.statusLabel', { label })}
+      title={label}
     >
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} aria-hidden="true" />
       <Icon className="w-3 h-3" aria-hidden="true" />
-      {label}
+      {!iconOnly ? label : <span className="sr-only">{label}</span>}
     </span>
   );
 };

@@ -65,3 +65,40 @@ export function conversationPreview(conv) {
   if (!conv) return '';
   return conv.last_message_preview || conv.last_message || '';
 }
+
+/**
+ * Profile-dock ChatPanel chrome: demote jammed title/status labels in dock mode.
+ * Secondary controls stay icon-only (same language as ConversationThread header).
+ */
+export function resolveDockChatChrome({ dockMode = false } = {}) {
+  return {
+    showPanelTitle: !dockMode,
+    statusMode: dockMode ? 'icon' : 'full',
+    secondaryMode: 'icon',
+    demoteFooter: Boolean(dockMode),
+    compactHeader: Boolean(dockMode),
+  };
+}
+
+/**
+ * Map Team API rows onto ConversationList display fields without changing the API.
+ */
+export function normalizeTeamConversationItem(conv, typeLabel = '') {
+  if (!conv) return null;
+  const name =
+    conv.customer_name ||
+    conv.subject ||
+    typeLabel ||
+    conv.other_user_name ||
+    'Conversation';
+  return {
+    ...conv,
+    other_user_name: name,
+    last_message_preview:
+      conv.last_message_preview ||
+      conv.last_message ||
+      typeLabel ||
+      '',
+  };
+}
+

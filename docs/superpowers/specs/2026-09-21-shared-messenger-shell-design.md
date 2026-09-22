@@ -28,7 +28,7 @@ Provider deal tools (quotes, POP, agreements, Request $, schedule, credit pay/re
 - E2EE messenger.
 - Replacing Team API / `business_conversations` with deal threads (Team tab stays as-is).
 - New chat transport, ledger, or quote/POP/agreement APIs.
-- Broader public-profile Messenger Dock redesign beyond shared action chrome (already separate).
+- Broader public-profile Messenger Dock backend/transport redesign (chrome/layout parity with shell is in scope for residuals close-out).
 
 ## Surfaces
 
@@ -36,7 +36,7 @@ Provider deal tools (quotes, POP, agreements, Request $, schedule, credit pay/re
 |---|---|---|---|
 | `/messages`, `/helper/messages` | customer / helper / dual | `/messages/conversations` (+ guest inquiries) | `ConversationThread` |
 | Business Hub **Deals** | provider (`role="helper"`) | `/messages/conversations?business_id=` | same `ConversationThread` |
-| Business Hub **Team** | internal | `/businesses/:id/messages` | legacy team UI (unchanged API) |
+| Business Hub **Team** | internal | `/businesses/:id/messages` | legacy Team API + shared list/thread chrome (ConversationList + shell CSS; API unchanged) |
 
 ## Shared components
 
@@ -123,11 +123,17 @@ Prefer extract/refactor:
 - Business Hub open deal: Copy | Edit | Delete visibly spaced; one Quote/POP/Agreement/Request$/Schedule/Contact row; Translate/AI not jammed as long labels beside chips.
 - `/messages`: thread-first; stats/secondary CTAs demoted; no redundant double header noise when a thread is open.
 - Provider deal tools still open existing panels and call existing APIs.
-- Team inbox unchanged in API.
+- Team inbox unchanged in API; Team tab list/thread chrome matches Deals/shell patterns.
+- Profile dock header/composer/empty visually consistent with `/messages` shell (icon-only secondary).
 - `verify:i18n` green; messenger shell / dock tests green.
 
-## Residuals (intentional)
+## Residuals closed (this follow-up)
 
-- Team tab UX polish beyond keeping it working.
-- Profile-dock `MessageBubble` AI feedback / quick-reply chrome (thumbs, quick replies) remains dock-specific; Copy | Edit | Delete now reuses shared `MessageBubbleActions` + shell CSS.
-- E2EE; replacing Team API.
+- **Team tab UX**: Business Hub Team list/empty/header/composer now share ConversationList + SharedMessengerShell visual language with Deals (spaced header archive action, bubble/composer chrome). **Team API** (`/businesses/:id/messages`) unchanged — not replaced by deal threads.
+- **Profile-dock layout beyond action chrome**: ChatPanel dock header demotes jammed title/status labels to icon-only secondary controls (shell language); composer/empty/toolbar CSS aligned via SharedMessengerShell.css + MessengerDock.css so the dock does not look like a different product from `/messages`.
+
+## Residuals (intentional — still out of scope)
+
+- E2EE messenger.
+- Replacing Team API / `business_conversations` with deal threads.
+- Profile-dock AI feedback / quick-reply extras (thumbs, quick replies) remain dock-specific on top of shared Copy | Edit | Delete.

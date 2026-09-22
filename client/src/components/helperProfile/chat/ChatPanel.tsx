@@ -54,6 +54,9 @@ import {
   resolveAiFailureRouting,
   resolveProviderPresenceTransition,
 } from './profileChatRouting.js';
+import { resolveDockChatChrome } from '../../messaging/messengerShellState';
+import '../../messaging/SharedMessengerShell.css';
+
 
 interface ChatPanelProps {
   session: ChatSession;
@@ -973,6 +976,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // Whether to show the close button - always show it when variant is 'modal',
   // even if onClose is undefined (fall back to a no-op so the button is never invisible)
   const isDockMode = variant === 'dock';
+  const dockChrome = resolveDockChatChrome({ dockMode: isDockMode });
   const showCloseButton = variant === 'modal';
   const handleClose = onClose ?? (() => {});
 
@@ -1128,15 +1132,23 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       role="region"
     >
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className={`px-4 pt-4 pb-3 border-b border-gray-800 space-y-3 flex-shrink-0 ${isDockMode ? 'bg-transparent pt-3' : ''}`}>
-        {/* Title row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-brand-400" aria-hidden="true" />
-            <h2 className="text-sm font-semibold text-white">{t('messages.chat')}</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusBadge status={currentStatus} />
+      <div className={`chat-panel__header px-4 pt-4 pb-3 border-b border-gray-800 space-y-3 flex-shrink-0 ${isDockMode ? 'chat-panel__header--dock bg-transparent pt-2' : ''}`}>
+        {/* Title / secondary actions — dock: icon-only secondary (shell language) */}
+        <div className={`flex items-center justify-between gap-2 ${dockChrome.compactHeader ? 'chat-panel__title-row--compact' : ''}`}>
+          {dockChrome.showPanelTitle ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageCircle className="w-4 h-4 text-brand-400" aria-hidden="true" />
+              <h2 className="text-sm font-semibold text-white">{t('messages.chat')}</h2>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <StatusBadge status={currentStatus} iconOnly={dockChrome.statusMode === 'icon'} />
+            </div>
+          )}
+          <div className="messages-thread-actions chat-panel__secondary" role="toolbar" aria-label={t('messages.shell.dockSecondaryAria')}>
+            {dockChrome.showPanelTitle ? (
+              <StatusBadge status={currentStatus} />
+            ) : null}
             <button
               onClick={() => {
                 setSearchOpen((v) => {
@@ -1144,22 +1156,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   return !v;
                 });
               }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              className="messages-thread-action-icon"
               aria-label={t('helperProfile.chat.searchPlaceholder')}
               title={t('helperProfile.chat.searchPlaceholder')}
               type="button"
+              aria-pressed={searchOpen}
             >
               <Search className="w-4 h-4" aria-hidden="true" />
+              <span className="visually-hidden">{t('helperProfile.chat.searchPlaceholder')}</span>
             </button>
             {onExpand && !roomy && !isDockMode && (
               <button
                 onClick={onExpand}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                className="messages-thread-action-icon"
                 aria-label={t('helperProfile.chat.expandChat')}
                 title={t('helperProfile.chat.expandChat')}
                 type="button"
               >
                 <Maximize2 className="w-4 h-4" aria-hidden="true" />
+                <span className="visually-hidden">{t('helperProfile.chat.expandChat')}</span>
               </button>
             )}
             <button
@@ -1172,19 +1187,24 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   setThreadId(null);
                 }
               }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              className="messages-thread-action-icon"
               aria-label={t('messages.clearChat') || 'Clear chat'}
               title={t('messages.clearChat')}
+              type="button"
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
+              <span className="visually-hidden">{t('messages.clearChat') || 'Clear chat'}</span>
             </button>
             {showCloseButton && (
               <button
                 onClick={handleClose}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                className="messages-thread-action-icon"
                 aria-label={t('messages.closeChat')}
+                title={t('messages.closeChat')}
+                type="button"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
+                <span className="visually-hidden">{t('messages.closeChat')}</span>
               </button>
             )}
           </div>
@@ -1461,7 +1481,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           )}
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
             {displayTimeline.length === 0 && !sending ? (
-              <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center h-full min-h-[10rem]">
+              <div className={`messages-thread-empty chat-panel__empty ${isDockMode ? 'chat-panel__empty--dock' : ''} flex flex-col items-center justify-center gap-2 px-6 py-10 text-center h-full min-h-[10rem]`}>
                 <MessageCircle className="w-8 h-8 text-gray-600" aria-hidden="true" />
                 <p className="text-sm text-gray-300 font-medium">{t('messages.noMessagesStart')}</p>
                 <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
@@ -1886,6 +1906,7 @@ const textMsg = buildSlotRequestMessage({
           showRefund={Boolean(refundTarget)}
         />
       ) : null}
+      <div className={isDockMode ? 'chat-panel__composer chat-panel__composer--dock messages-composer-host' : 'chat-panel__composer'}>
       <MessageComposer
         status={composerStatus}
         onSend={handleSend}
@@ -1911,6 +1932,7 @@ const textMsg = buildSlotRequestMessage({
         }
         textareaRef={textareaRef}
       />
+      </div>
 
       {/* ── Footer ──────────────────────────────────────────── */}
       {!isDockMode && (

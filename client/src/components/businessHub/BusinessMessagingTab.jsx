@@ -5,6 +5,10 @@ import toast from 'react-hot-toast';
 import { Archive, Plus, Search, Send } from 'lucide-react';
 import ConversationThread from '../messaging/ConversationThread';
 import ConversationList from '../messaging/ConversationList';
+import {
+  conversationDisplayName,
+  normalizeTeamConversationItem,
+} from '../messaging/messengerShellState';
 import '../../styles/BusinessMessagingTab.css';
 import '../messaging/SharedMessengerShell.css';
 
@@ -231,23 +235,26 @@ export function BusinessMessagingTab({ businessId }) {
         </>
       ) : (
         <>
-          <div className="bmt-conversations-list">
+          <div className="bmt-conversations-list bmt-team-list">
             <div className="bmt-header">
               <h3>{t('businessMessaging.title')}</h3>
               <button
                 type="button"
                 onClick={() => setShowNewModal(true)}
-                className="bmt-btn-new"
+                className="bmt-btn-new messages-thread-action-icon"
                 aria-label={t('businessMessaging.newConversation')}
+                title={t('businessMessaging.newConversation')}
               >
-                <Plus size={18} />
+                <Plus size={18} aria-hidden />
               </button>
             </div>
-            <div className="bmt-type-filter">
+            <div className="bmt-type-filter" role="tablist" aria-label={t('businessMessaging.filterAll')}>
               {['all', 'team', 'customer'].map((type) => (
                 <button
                   key={type}
                   type="button"
+                  role="tab"
+                  aria-selected={conversationType === type}
                   onClick={() => setConversationType(type)}
                   className={`bmt-filter-btn ${conversationType === type ? 'active' : ''}`}
                 >
@@ -269,75 +276,138 @@ export function BusinessMessagingTab({ businessId }) {
                 aria-label={t('businessMessaging.searchAria')}
               />
             </div>
-            {teamLoading ? (
-              <p className="bmt-empty">{t('common.loading')}</p>
-            ) : teamConversations.length === 0 ? (
-              <p className="bmt-empty">{t('businessMessaging.empty')}</p>
-            ) : (
-              <ul className="bmt-list">
-                {teamConversations.map((conv) => (
-                  <li key={conv.id}>
-                    <button
-                      type="button"
-                      className={`bmt-conversation-item ${selectedTeam?.id === conv.id ? 'active' : ''}`}
-                      onClick={() => openTeam(conv.id)}
-                    >
-                      <div className="bmt-conversation-name">
-                        {conv.customer_name || conv.subject || typeLabel(conv.conversation_type)}
+            <ConversationList
+              className="bmt-shared-list"
+              items={teamConversations.map((conv) =>
+                normalizeTeamConversationItem(conv, typeLabel(conv.conversation_type)),
+              ).filter(Boolean)}
+              selectedId={selectedTeam?.id ?? null}
+              onSelect={(conv) => openTeam(conv.id)}
+              loading={teamLoading}
+              empty={(
+                <p className="bmt-empty sms-list-empty">
+                  {teamSearch.trim() || conversationType !== 'all'
+                    ? t('messages.shell.filteredEmpty')
+                    : t('businessMessaging.empty')}
+                </p>
+              )}
+              ariaLabel={t('businessMessaging.title')}
+              renderItem={(conv, { isActive, unread, onSelect }) => {
+                const name = conversationDisplayName(
+                  conv,
+                  t('businessMessaging.conversation'),
+                );
+                const chip = typeLabel(conv.conversation_type);
+                return (
+                  <button
+                    key={conv.id}
+                    type="button"
+                    onClick={() => onSelect?.(conv)}
+                    className={`messages-row sms-conversation-row${unread ? ' unread' : ''}${isActive ? ' active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <div className="messages-avatar">
+                      {(name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="messages-row-main">
+                      <div className="messages-row-top">
+                        <strong>{name}</strong>
+                        <span className={`bmt-type-chip bmt-type-chip--${conv.conversation_type || 'unknown'}`}>
+                          {chip}
+                        </span>
                       </div>
-                      <div className="bmt-conversation-meta">{typeLabel(conv.conversation_type)}</div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      <p className="messages-preview">
+                        {conv.last_message_preview || chip}
+                      </p>
+                    </div>
+                  </button>
+                );
+              }}
+            />
           </div>
           <div className="bmt-thread-pane">
             {selectedTeam ? (
-              <>
-                <div className="bmt-thread-header">
-                  <div>
-                    <h4>
-                      {selectedTeam.customer_name ||
+              <div className="messages-thread bmt-team-thread">
+                <header className="messages-thread-head">
+                  <div className="messages-thread-person">
+                    <div className="messages-avatar">
+                      {(
+                        selectedTeam.customer_name ||
                         selectedTeam.subject ||
-                        t('businessMessaging.conversation')}
-                    </h4>
-                    <span>{typeLabel(selectedTeam.conversation_type)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => archiveTeam(selectedTeam.id)}
-                    aria-label={t('businessMessaging.archive')}
-                  >
-                    <Archive size={16} />
-                  </button>
-                </div>
-                <div className="bmt-messages">
-                  {(Array.isArray(teamMessages) ? teamMessages : []).map((msg) => (
-                    <div key={msg.id} className="bmt-message">
-                      <div className="bmt-message-author">{msg.sender_name || msg.sender_id}</div>
-                      <div className="bmt-message-body">{msg.content}</div>
+                        t('businessMessaging.conversation')
+                      )
+                        .charAt(0)
+                        .toUpperCase()}
                     </div>
-                  ))}
+                    <div>
+                      <h2 className="messages-thread-name">
+                        {selectedTeam.customer_name ||
+                          selectedTeam.subject ||
+                          t('businessMessaging.conversation')}
+                      </h2>
+                      <p className="messages-business">
+                        {typeLabel(selectedTeam.conversation_type)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="messages-thread-actions">
+                    <button
+                      type="button"
+                      className="messages-thread-action-icon"
+                      onClick={() => archiveTeam(selectedTeam.id)}
+                      aria-label={t('businessMessaging.archive')}
+                      title={t('businessMessaging.archive')}
+                    >
+                      <Archive size={16} aria-hidden />
+                      <span className="visually-hidden">{t('businessMessaging.archive')}</span>
+                    </button>
+                  </div>
+                </header>
+                <div className="messages-thread-scroll bmt-team-messages">
+                  {(Array.isArray(teamMessages) ? teamMessages : []).length === 0 ? (
+                    <div className="messages-thread-empty bmt-team-empty-messages">
+                      <p>{t('businessMessaging.noMessages')}</p>
+                    </div>
+                  ) : (
+                    (Array.isArray(teamMessages) ? teamMessages : []).map((msg) => (
+                      <div key={msg.id} className="messages-bubble-wrap theirs">
+                        <div className="messages-bubble theirs">
+                          <div className="bmt-team-msg-author">
+                            {msg.sender_name || msg.sender_id}
+                          </div>
+                          <div>{msg.content}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <div className="bmt-composer">
+                <div className="messages-composer bmt-team-composer">
                   <input
                     type="text"
+                    className="messages-composer-input"
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder={t('businessMessaging.messagePlaceholder')}
+                    aria-label={t('businessMessaging.messageAria')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') sendTeamMessage();
                     }}
                   />
-                  <button type="button" onClick={sendTeamMessage} aria-label={t('businessMessaging.send')}>
-                    <Send size={16} />
+                  <button
+                    type="button"
+                    className="messages-composer-send"
+                    onClick={sendTeamMessage}
+                    aria-label={t('businessMessaging.send')}
+                    title={t('businessMessaging.send')}
+                  >
+                    <Send size={16} aria-hidden />
                   </button>
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="bmt-empty-thread">
+              <div className="bmt-empty-thread messages-thread-empty">
                 <p>{t('businessMessaging.selectConversation')}</p>
+                <p className="bmt-empty-hint">{t('messages.shell.selectTeamHint')}</p>
               </div>
             )}
           </div>

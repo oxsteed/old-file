@@ -2384,7 +2384,9 @@
       "moreActions": "More",
       "listEmpty": "No conversations yet.",
       "filteredEmpty": "No conversations match your search.",
-      "selectDealHint": "Pick a customer deal on the left to open quotes, POP, agreements, and schedule tools."
+      "selectDealHint": "Pick a customer deal on the left to open quotes, POP, agreements, and schedule tools.",
+      "selectTeamHint": "Pick a team or customer thread on the left to message your staff inbox.",
+      "dockSecondaryAria": "Chat tools"
     }
   },
   "dashboard": {
