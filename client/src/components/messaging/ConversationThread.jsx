@@ -524,6 +524,8 @@ export default function ConversationThread({
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                   fetchMessages?.();
                 } else if (schedulingQuote?.kind && schedulingQuote?.id) {
+                  const clientRequestId = pendingBookingRequestIdRef.current || createMessageRequestId();
+                  pendingBookingRequestIdRef.current = clientRequestId;
                   await api.post(`/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`, {
                     token: schedulingQuote.token,
                     helperId,
@@ -536,7 +538,9 @@ export default function ConversationThread({
                     startIso: slot.startIso,
                     endIso: slot.endIso,
                     timezone: slot.timezone,
+                    clientRequestId,
                   });
+                  pendingBookingRequestIdRef.current = null;
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                   fetchMessages?.();
                 } else {

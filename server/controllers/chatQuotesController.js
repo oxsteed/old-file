@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
@@ -156,15 +157,22 @@ async function postConversationMessage({
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderName, content, helperId, clientMessageId = null }) {
+async function postGuestMessage({
+  guestSessionId,
+  senderName,
+  content,
+  helperId,
+  senderType = 'helper',
+  clientMessageId = null,
+}) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
        (session_id, sender_type, sender_name, message, client_message_id, created_at)
-     VALUES ($1, 'helper', $2, $3, $4, CURRENT_TIMESTAMP)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
      ON CONFLICT (session_id, client_message_id)
      WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderName, content, clientMessageId],
+    [guestSessionId, senderType, senderName, content, clientMessageId],
   );
   let msg = rows[0];
   const replayed = !msg && Boolean(clientMessageId);
@@ -184,7 +192,7 @@ async function postGuestMessage({ guestSessionId, senderName, content, helperId,
     if (typeof socketService.broadcastGuestChatMessage === 'function') {
       socketService.broadcastGuestChatMessage(guestSessionId, {
         messageId: msg.id,
-        senderType: 'helper',
+        senderType,
         senderName,
         message: content,
         createdAt,
@@ -213,7 +221,7 @@ async function postGuestMessage({ guestSessionId, senderName, content, helperId,
         message: {
           id: msg.id,
           content,
-          sender_type: 'helper',
+          sender_type: senderType,
           sender_name: senderName,
           created_at: createdAt,
         },
@@ -253,6 +261,15 @@ async function emitQuoteStatusToThread({ conversationId, guestSessionId, helperI
   } catch (e) {
     logger.warn('[chatQuotes] status emit failed', { error: e.message });
   }
+}
+
+async function loadLinkedBooking(quote) {
+  if (!quote?.booking_request_id) return null;
+  const { rows } = await pool.query(
+    'SELECT * FROM booking_requests WHERE id = $1',
+    [quote.booking_request_id],
+  );
+  return rows[0] || null;
 }
 
 /**
@@ -619,6 +636,10 @@ exports.respondQuote = async (req, res, next) => {
     if (!RESPOND_ACTIONS.has(action)) {
       return bad(res, 400, 'action must be accept, decline, or request_changes', 'validation_failed');
     }
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
 
     const quote = await loadQuote(kind, req.params.id);
     if (!quote) return bad(res, 404, 'Quote not found', 'not_found');
@@ -658,7 +679,15 @@ exports.respondQuote = async (req, res, next) => {
       return bad(res, 403, 'Not allowed to respond to this quote', 'forbidden');
     }
 
-    const gate = canRespond(quote);
+    let replayed = false;
+    if (clientRequestId && String(quote.response_client_request_id || '') === String(clientRequestId)) {
+      if (String(quote.response_action || '') !== action) {
+        return bad(res, 409, 'Idempotency key is already used for another quote response', 'idempotency_conflict');
+      }
+      replayed = true;
+    }
+
+    const gate = replayed ? { ok: true } : canRespond(quote);
     if (!gate.ok) {
       return bad(res, 409, `Cannot respond: ${gate.reason}`, gate.reason);
     }
@@ -669,15 +698,35 @@ exports.respondQuote = async (req, res, next) => {
     else nextStatus = 'declined'; // decline + request_changes
 
     const table = kind === 'business' ? 'business_quotes' : 'helper_quotes';
-    const { rows } = await pool.query(
-      `UPDATE ${table}
-          SET status = $2, decline_reason = $3, updated_at = NOW()
-        WHERE id = $1 AND status = 'sent'
-        RETURNING *`,
-      [quote.id, nextStatus, action === 'accept' ? null : reason],
-    );
-    if (!rows[0]) return bad(res, 409, 'Quote already responded or unavailable', 'conflict');
-    const updated = rows[0];
+    let updated = replayed ? quote : null;
+    if (!updated) {
+      const { rows } = await pool.query(
+        `UPDATE ${table}
+            SET status = $2,
+                decline_reason = $3,
+                response_client_request_id = COALESCE($4, response_client_request_id),
+                response_action = COALESCE($5, response_action),
+                updated_at = NOW()
+          WHERE id = $1 AND status = 'sent'
+          RETURNING *`,
+        [quote.id, nextStatus, action === 'accept' ? null : reason, clientRequestId, action],
+      );
+      updated = rows[0] || null;
+      if (!updated && clientRequestId) {
+        const current = await loadQuote(kind, quote.id);
+        if (
+          current
+          && String(current.response_client_request_id || '') === String(clientRequestId)
+        ) {
+          if (String(current.response_action || '') !== action) {
+            return bad(res, 409, 'Idempotency key is already used for another quote response', 'idempotency_conflict');
+          }
+          updated = current;
+          replayed = true;
+        }
+      }
+    }
+    if (!updated) return bad(res, 409, 'Quote already responded or unavailable', 'conflict');
     const card = toPublicQuoteCard(kind, updated);
 
     const chatStatus = action === 'accept' ? 'accepted' : action === 'request_changes' ? 'declined' : 'declined';
@@ -703,40 +752,42 @@ exports.respondQuote = async (req, res, next) => {
           content: followUpMessage ? `${statusContent}\n${followUpMessage}` : statusContent,
           senderName: 'Customer',
           isProfileChat: true,
+          clientMessageId: clientRequestId,
         });
       } catch (e) {
         logger.warn('[chatQuotes] status message failed', { error: e.message });
       }
     } else if (updated.guest_session_id && guest) {
       try {
-        await pool.query(
-          `INSERT INTO guest_profile_chat_messages
-             (session_id, sender_type, sender_name, message, created_at)
-           VALUES ($1, 'guest', $2, $3, CURRENT_TIMESTAMP)`,
-          [
-            updated.guest_session_id,
-            guest.guest_name || 'Guest',
-            followUpMessage ? `${statusContent}\n${followUpMessage}` : statusContent,
-          ],
-        );
+        await postGuestMessage({
+          guestSessionId: updated.guest_session_id,
+          senderName: guest.guest_name || 'Guest',
+          content: followUpMessage ? `${statusContent}\n${followUpMessage}` : statusContent,
+          helperId: kind === 'helper' ? updated.helper_id : null,
+          senderType: 'guest',
+          clientMessageId: clientRequestId,
+        });
       } catch (e) {
         logger.warn('[chatQuotes] guest status message failed', { error: e.message });
       }
     }
 
-    await emitQuoteStatusToThread({
-      conversationId: updated.conversation_id,
-      guestSessionId: updated.guest_session_id,
-      helperId: kind === 'helper' ? updated.helper_id : null,
-      customerId: userId || null,
-      content: statusLabel,
-      meta: { quoteKind: kind, quoteId: String(updated.id), quoteStatus: chatStatus },
-    });
+    if (!replayed) {
+      await emitQuoteStatusToThread({
+        conversationId: updated.conversation_id,
+        guestSessionId: updated.guest_session_id,
+        helperId: kind === 'helper' ? updated.helper_id : null,
+        customerId: userId || null,
+        content: statusLabel,
+        meta: { quoteKind: kind, quoteId: String(updated.id), quoteStatus: chatStatus },
+      });
+    }
 
     return res.json({
       quote: card,
       action,
       openAvailability: action === 'accept',
+      idempotent: replayed,
     });
   } catch (err) {
     next(err);
@@ -915,6 +966,10 @@ exports.scheduleFromQuote = async (req, res, next) => {
   try {
     const kind = String(req.params.kind || '').toLowerCase();
     if (!QUOTE_KINDS.has(kind)) return bad(res, 400, 'Invalid kind');
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return bad(res, 400, 'clientRequestId must be a valid UUID', 'validation_failed');
+    }
     const quote = await loadQuote(kind, req.params.id);
     if (!quote) return bad(res, 404, 'Quote not found', 'not_found');
 
@@ -959,16 +1014,33 @@ exports.scheduleFromQuote = async (req, res, next) => {
     }
 
 
+    let booking = await loadLinkedBooking(quote);
+    let replayed = Boolean(booking);
+    if (!booking && clientRequestId) {
+      const scopeColumn = quote.conversation_id ? 'conversation_id' : 'guest_session_id';
+      const scopeValue = quote.conversation_id || quote.guest_session_id;
+      if (scopeValue) {
+        const { rows } = await pool.query(
+          `SELECT * FROM booking_requests
+            WHERE ${scopeColumn} = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [scopeValue, clientRequestId],
+        );
+        booking = rows[0] || null;
+        replayed = Boolean(booking);
+      }
+    }
+
     const body = req.body || {};
-    const date = String(body.requestedDate || body.date || '').slice(0, 10);
-    const start = String(body.requestedStartTime || body.start || '').slice(0, 8);
-    const end = String(body.requestedEndTime || body.end || '').slice(0, 8);
+    const date = String(body.requestedDate || body.date || booking?.requested_date || '').slice(0, 10);
+    const start = String(body.requestedStartTime || body.start || booking?.requested_start_time || '').slice(0, 8);
+    const end = String(body.requestedEndTime || body.end || booking?.requested_end_time || '').slice(0, 8);
     if (!date || !start || !end) {
       return bad(res, 400, 'requestedDate, start, and end are required', 'validation_failed');
     }
 
     const serviceName = String(
-      body.serviceName || body.service_name || quote.title || 'Quoted service',
+      body.serviceName || body.service_name || booking?.service_name || quote.title || 'Quoted service',
     ).trim().slice(0, 200);
     const description = [
       `source=quote_schedule`,
@@ -992,12 +1064,19 @@ exports.scheduleFromQuote = async (req, res, next) => {
     }
     if (!helperId) return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
 
-    let bookingId = null;
-    let appointmentId = null;
-    let booking = null;
+    if (booking?.quote_id && (
+      String(booking.quote_kind || '') !== kind
+      || String(booking.quote_id) !== String(quote.id)
+    )) {
+      return bad(res, 409, 'Idempotency key is already used for another quote schedule', 'idempotency_conflict');
+    }
 
-    if (userId && !guest) {
-      bookingId = require('crypto').randomUUID();
+    let bookingId = booking?.id || null;
+    let appointmentId = null;
+    if (booking?.appointment_id) appointmentId = booking.appointment_id;
+
+    if (userId && !guest && !booking) {
+      bookingId = crypto.randomUUID();
       const hours = 24;
       const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       const { rows } = await pool.query(
@@ -1005,8 +1084,10 @@ exports.scheduleFromQuote = async (req, res, next) => {
            id, customer_id, helper_id, business_id, service_name, requested_date,
            requested_start_time, requested_end_time, service_location,
            description, expires_at, confirmation_hours,
-           conversation_id, guest_session_id, quote_kind, quote_id, source
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+           conversation_id, guest_session_id, quote_kind, quote_id, source, client_request_id
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+         ON CONFLICT (conversation_id, client_request_id)
+         WHERE client_request_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           bookingId,
@@ -1026,13 +1107,26 @@ exports.scheduleFromQuote = async (req, res, next) => {
           kind,
           String(quote.id),
           'quote_schedule',
+          clientRequestId,
         ],
       );
       booking = rows[0];
+      if (!booking && clientRequestId) {
+        const replay = await pool.query(
+          `SELECT * FROM booking_requests
+            WHERE conversation_id = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [quote.conversation_id, clientRequestId],
+        );
+        booking = replay.rows[0] || null;
+        replayed = Boolean(booking);
+      }
+      if (!booking) return bad(res, 500, 'Could not create booking request', 'booking_failed');
+      bookingId = booking.id;
       try {
-        socketService.broadcastToUser(helperId, 'booking:requested', { booking: rows[0] });
+        if (!replayed) socketService.broadcastToUser(helperId, 'booking:requested', { booking });
       } catch { /* ignore */ }
-    } else {
+    } else if (!booking) {
       // Guest path — reuse messenger booking helper
       const startIso = body.startIso || `${date}T${start.length === 5 ? start + ':00' : start}`;
       const endIso = body.endIso || `${date}T${end.length === 5 ? end + ':00' : end}`;
@@ -1075,6 +1169,7 @@ exports.scheduleFromQuote = async (req, res, next) => {
           end,
           description,
           appointmentId,
+          clientRequestId,
           source: 'quote_schedule',
           conversationId: quote.conversation_id || null,
         });
@@ -1093,44 +1188,55 @@ exports.scheduleFromQuote = async (req, res, next) => {
       }
     }
 
+    if (!booking) return bad(res, 500, 'Could not create booking request', 'booking_failed');
+
     const table = kind === 'business' ? 'business_quotes' : 'helper_quotes';
-    await pool.query(
-      `UPDATE ${table}
-          SET booking_request_id = COALESCE($2, booking_request_id),
-              appointment_id = COALESCE($3, appointment_id),
-              updated_at = NOW()
-        WHERE id = $1`,
-      [quote.id, bookingId, appointmentId],
-    );
+    const linkedBookingId = booking.id || bookingId;
+    const linkedAppointmentId = appointmentId || booking.appointment_id || null;
+    if (
+      String(quote.booking_request_id || '') !== String(linkedBookingId || '')
+      || String(quote.appointment_id || '') !== String(linkedAppointmentId || '')
+    ) {
+      await pool.query(
+        `UPDATE ${table}
+            SET booking_request_id = COALESCE($2, booking_request_id),
+                appointment_id = COALESCE($3, appointment_id),
+                updated_at = NOW()
+          WHERE id = $1`,
+        [quote.id, linkedBookingId, linkedAppointmentId],
+      );
+    }
 
     const chatBookingReq = require('./chatBookingRequestsController');
-    const bookingMarker = bookingId
+    const bookingMarker = linkedBookingId
       ? chatBookingReq.buildBookingRequestMarker({
-          id: bookingId,
-          status: 'pending',
-          date,
-          start,
-          end,
-          serviceName,
+          id: linkedBookingId,
+          status: booking.status || 'pending',
+          date: booking.requested_date || date,
+          start: booking.requested_start_time || start,
+          end: booking.requested_end_time || end,
+          serviceName: booking.service_name || serviceName,
         })
       : '';
     const statusLabel = `Appointment requested from quote: ${quote.title || 'Quote'} · ${date} ${start}–${end}`;
     const threadContent = bookingMarker ? `${bookingMarker}
 ${statusLabel}` : statusLabel;
-    await emitQuoteStatusToThread({
-      conversationId: quote.conversation_id,
-      guestSessionId: quote.guest_session_id,
-      helperId,
-      customerId: userId || null,
-      content: threadContent,
-      meta: {
-        quoteKind: kind,
-        quoteId: String(quote.id),
-        quoteStatus: 'scheduled',
-        bookingId,
-        appointmentId,
-      },
-    });
+    if (!replayed) {
+      await emitQuoteStatusToThread({
+        conversationId: quote.conversation_id,
+        guestSessionId: quote.guest_session_id,
+        helperId,
+        customerId: userId || null,
+        content: threadContent,
+        meta: {
+          quoteKind: kind,
+          quoteId: String(quote.id),
+          quoteStatus: 'scheduled',
+          bookingId: linkedBookingId,
+          appointmentId: linkedAppointmentId,
+        },
+      });
+    }
 
     if (quote.conversation_id && userId) {
       try {
@@ -1141,16 +1247,29 @@ ${statusLabel}` : statusLabel;
 ${threadContent}`,
           senderName: 'Customer',
           isProfileChat: true,
+          clientMessageId: clientRequestId,
+        });
+      } catch { /* ignore */ }
+    } else if (quote.guest_session_id && guest) {
+      try {
+        await postGuestMessage({
+          guestSessionId: quote.guest_session_id,
+          senderName: guest.guest_name || 'Guest',
+          content: `[quote_status:${kind}|${quote.id}|scheduled]\n${threadContent}`,
+          helperId,
+          senderType: 'guest',
+          clientMessageId: clientRequestId,
         });
       } catch { /* ignore */ }
     }
 
-    return res.status(201).json({
+    return res.status(replayed ? 200 : 201).json({
       success: true,
-      bookingId,
-      appointmentId,
+      bookingId: linkedBookingId,
+      appointmentId: linkedAppointmentId,
       booking,
-      quote: toPublicQuoteCard(kind, { ...quote, booking_request_id: bookingId, appointment_id: appointmentId }),
+      quote: toPublicQuoteCard(kind, { ...quote, booking_request_id: linkedBookingId, appointment_id: linkedAppointmentId }),
+      idempotent: replayed,
     });
   } catch (err) {
     if (err.code === 'SCHEDULING_CONFLICT') {

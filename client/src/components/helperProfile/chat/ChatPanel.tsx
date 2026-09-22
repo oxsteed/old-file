@@ -1629,6 +1629,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
               if (schedulingQuote?.kind && schedulingQuote?.id) {
                 const verified = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
+                const clientRequestId = pendingBookingRequestIdRef.current || createMessageRequestId();
+                pendingBookingRequestIdRef.current = clientRequestId;
                 try {
                   const { data } = await api.post(
                     `/chat/quotes/${schedulingQuote.kind}/${schedulingQuote.id}/schedule`,
@@ -1644,6 +1646,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                       startIso: slot.startIso,
                       endIso: slot.endIso,
                       timezone: tz,
+                      clientRequestId,
                     },
                     verified
                       ? {
@@ -1654,6 +1657,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                         }
                       : undefined,
                   );
+                  pendingBookingRequestIdRef.current = null;
                   toast.success(t('helperProfile.messenger.slotBookingToast'));
                   const whenBits = `${slot.date} ${slot.start}–${slot.end}`;
                   const confirm: TimelineEvent = {

@@ -859,9 +859,20 @@ exports.createGuestChatBookingRequest = async function createGuestChatBookingReq
   timezone = null,
   description = null,
   appointmentId = null,
+  clientRequestId = null,
   source = 'messenger_picker',
   conversationId = null,
 }) {
+  if (guestSessionId && clientRequestId) {
+    const existing = await pool.query(
+      `SELECT * FROM booking_requests
+        WHERE guest_session_id = $1 AND client_request_id = $2
+        LIMIT 1`,
+      [guestSessionId, clientRequestId],
+    );
+    if (existing.rows[0]) return existing.rows[0];
+  }
+
   const bookingId = crypto.randomUUID();
   const hours = 24;
   const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
@@ -870,11 +881,14 @@ exports.createGuestChatBookingRequest = async function createGuestChatBookingReq
        id, customer_id, helper_id, business_id, service_name, requested_date,
        requested_start_time, requested_end_time, service_location,
        description, expires_at, confirmation_hours,
-       conversation_id, guest_session_id, appointment_id, source, service_id, timezone
+       conversation_id, guest_session_id, appointment_id, source, service_id, timezone, client_request_id
      ) VALUES (
        $1, NULL, $2, $3, $4, $5, $6, $7, NULL, $8, $9, $10,
-       $11, $12, $13, $14, $15, $16
-     ) RETURNING *`,
+       $11, $12, $13, $14, $15, $16, $17
+     )
+     ON CONFLICT (guest_session_id, client_request_id)
+     WHERE guest_session_id IS NOT NULL AND client_request_id IS NOT NULL DO NOTHING
+     RETURNING *`,
     [
       bookingId,
       helperId,
@@ -892,9 +906,20 @@ exports.createGuestChatBookingRequest = async function createGuestChatBookingReq
       source,
       serviceId != null ? String(serviceId) : null,
       timezone || null,
+      clientRequestId,
     ],
   );
-  return rows[0];
+  if (rows[0]) return rows[0];
+  if (guestSessionId && clientRequestId) {
+    const replay = await pool.query(
+      `SELECT * FROM booking_requests
+        WHERE guest_session_id = $1 AND client_request_id = $2
+        LIMIT 1`,
+      [guestSessionId, clientRequestId],
+    );
+    return replay.rows[0] || null;
+  }
+  return null;
 };
 
 exports.buildBookingRequestMarker = buildBookingRequestMarker;

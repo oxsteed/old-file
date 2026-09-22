@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, X, MessageSquare, Calendar, Loader2, AlertTriangle, Wallet } from 'lucide-react';
 import api from '../../../api/axios';
@@ -10,6 +10,7 @@ import {
   toChatQuoteStatus,
 } from './messengerQuotes.js';
 import PayWithCreditModal from './PayWithCreditModal.jsx';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import './MessengerDock.css';
 
 /**
@@ -55,6 +56,7 @@ export default function QuoteCard({
   const [reason, setReason] = useState('');
   const [showReason, setShowReason] = useState(false);
   const [showCreditPay, setShowCreditPay] = useState(false);
+  const pendingResponseRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!kind || !quoteId) return;
@@ -112,15 +114,22 @@ export default function QuoteCard({
     setBusy(true);
     setError(null);
     try {
+      const pending = pendingResponseRef.current;
+      const clientRequestId = pending?.action === action
+        ? pending.id
+        : createMessageRequestId();
+      pendingResponseRef.current = { action, id: clientRequestId };
       const { data } = await api.post(
         `/chat/quotes/${kind}/${quoteId}/respond`,
         {
           action,
           token: token || quote?.token,
           reason: action === 'request_changes' || action === 'decline' ? reason || undefined : undefined,
+          clientRequestId,
         },
         { headers: guestAuthHeaders || undefined },
       );
+      pendingResponseRef.current = null;
       setQuote(data.quote || { ...quote, status: action === 'accept' ? 'accepted' : 'declined' });
       onStatusChange?.(data.quote?.status || (action === 'accept' ? 'accepted' : 'declined'), data);
       if (action === 'accept') onAccepted?.(data);
