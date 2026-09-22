@@ -19,6 +19,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('./socketService');
+const { withTransaction } = require('../utils/transaction');
 
 /**
  * Find or create a `business_conversations` row of type 'customer' for the
@@ -51,71 +52,83 @@ async function ensureBusinessConversation(args) {
   if (!customerEmail && !customerId) return null;
 
   try {
-    // 1) If we have a legacy conversation id, prefer matching on that.
-    if (legacyConversationId) {
-      const existing = await pool.query(
-        `SELECT id FROM business_conversations
-         WHERE business_id = $1 AND legacy_conversation_id = $2
-         LIMIT 1`,
-        [businessId, legacyConversationId]
-      ).catch(() => ({ rows: [] }));
-      if (existing.rows[0]) return existing.rows[0].id;
-    }
+    const lockScope = `customer:${businessId}:${customerId || String(customerEmail).trim().toLowerCase()}`;
 
-    // 2) Fall back to matching by (business_id, customer_id) or (business_id, customer_email)
-    const byCustomer = await pool.query(
-      customerId
-        ? `SELECT id FROM business_conversations
-            WHERE business_id = $1 AND conversation_type = 'customer' AND customer_id = $2
-            ORDER BY last_message_at DESC NULLS LAST LIMIT 1`
-        : `SELECT id FROM business_conversations
-            WHERE business_id = $1 AND conversation_type = 'customer' AND customer_email = $2
-            ORDER BY last_message_at DESC NULLS LAST LIMIT 1`,
-      [businessId, customerId || customerEmail]
-    );
-    if (byCustomer.rows[0]) {
-      // Backfill legacy id if missing
-      if (legacyConversationId) {
-        await pool.query(
-          `UPDATE business_conversations
-             SET legacy_conversation_id = COALESCE(legacy_conversation_id, $1)
-           WHERE id = $2`,
-          [legacyConversationId, byCustomer.rows[0].id]
-        ).catch(() => {});
-      }
-      return byCustomer.rows[0].id;
-    }
-
-    // 3) Resolve a creator for the row (business_conversations.created_by_id is NOT NULL).
-    let creatorId = createdById;
-    if (!creatorId) {
-      const owner = await pool.query(
-        'SELECT user_id FROM businesses WHERE id = $1',
-        [businessId]
+    return await withTransaction(pool, async (client) => {
+      // The lookup and insert must share one connection. Otherwise two app
+      // replicas can both observe no row and create duplicate Business Hub
+      // threads for the same customer or legacy conversation.
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+        [`business-conversation-sync:${lockScope}`]
       );
-      creatorId = owner.rows[0] ? owner.rows[0].user_id : customerId;
-    }
-    if (!creatorId) return null;
 
-    // 4) Insert. customer_email is required by the CHECK constraint when type='customer'.
-    const inserted = await pool.query(
-      `INSERT INTO business_conversations
-         (business_id, conversation_type, customer_id, customer_name, customer_email, customer_phone,
-          created_by_id, subject, status, last_message_at, legacy_conversation_id)
-       VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7, 'active', NOW(), $8)
-       RETURNING id`,
-      [
-        businessId,
-        customerId,
-        customerName,
-        customerEmail || 'unknown@guest.local',
-        customerPhone,
-        creatorId,
-        subject,
-        legacyConversationId,
-      ]
-    );
-    return inserted.rows[0] ? inserted.rows[0].id : null;
+      // 1) If we have a legacy conversation id, prefer matching on that.
+      if (legacyConversationId) {
+        const existing = await client.query(
+          `SELECT id FROM business_conversations
+           WHERE business_id = $1 AND legacy_conversation_id = $2
+           LIMIT 1`,
+          [businessId, legacyConversationId]
+        ).catch(() => ({ rows: [] }));
+        if (existing.rows[0]) return existing.rows[0].id;
+      }
+
+      // 2) Fall back to matching by (business_id, customer_id) or (business_id, customer_email)
+      const byCustomer = await client.query(
+        customerId
+          ? `SELECT id FROM business_conversations
+              WHERE business_id = $1 AND conversation_type = 'customer' AND customer_id = $2
+              ORDER BY last_message_at DESC NULLS LAST LIMIT 1`
+          : `SELECT id FROM business_conversations
+              WHERE business_id = $1 AND conversation_type = 'customer' AND customer_email = $2
+              ORDER BY last_message_at DESC NULLS LAST LIMIT 1`,
+        [businessId, customerId || customerEmail]
+      );
+      if (byCustomer.rows[0]) {
+        // Backfill legacy id if missing
+        if (legacyConversationId) {
+          await client.query(
+            `UPDATE business_conversations
+               SET legacy_conversation_id = COALESCE(legacy_conversation_id, $1)
+             WHERE id = $2`,
+            [legacyConversationId, byCustomer.rows[0].id]
+          ).catch(() => {});
+        }
+        return byCustomer.rows[0].id;
+      }
+
+      // 3) Resolve a creator for the row (business_conversations.created_by_id is NOT NULL).
+      let creatorId = createdById;
+      if (!creatorId) {
+        const owner = await client.query(
+          'SELECT user_id FROM businesses WHERE id = $1',
+          [businessId]
+        );
+        creatorId = owner.rows[0] ? owner.rows[0].user_id : customerId;
+      }
+      if (!creatorId) return null;
+
+      // 4) Insert. customer_email is required by the CHECK constraint when type='customer'.
+      const inserted = await client.query(
+        `INSERT INTO business_conversations
+           (business_id, conversation_type, customer_id, customer_name, customer_email, customer_phone,
+            created_by_id, subject, status, last_message_at, legacy_conversation_id)
+         VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7, 'active', NOW(), $8)
+         RETURNING id`,
+        [
+          businessId,
+          customerId,
+          customerName,
+          customerEmail || 'unknown@guest.local',
+          customerPhone,
+          creatorId,
+          subject,
+          legacyConversationId,
+        ]
+      );
+      return inserted.rows[0] ? inserted.rows[0].id : null;
+    }, 'ensure_business_conversation');
   } catch (err) {
     logger.warn('ensureBusinessConversation failed', {
       err: err && err.message,

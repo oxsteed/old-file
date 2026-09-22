@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { mirrorMessage } = require('../services/businessConversationSync');
+const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 
 beforeEach(() => {
   resetMocks();
@@ -9,6 +9,27 @@ beforeEach(() => {
 });
 
 describe('business conversation mirroring', () => {
+  test('serializes legacy-link lookup and creation with a transaction advisory lock', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ user_id: '00000000-0000-4000-8000-000000000124' }] })
+      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-4000-8000-000000000331' }] });
+
+    const result = await ensureBusinessConversation({
+      businessId: 7,
+      legacyConversationId: '00000000-0000-4000-8000-000000000332',
+      customerId: '00000000-0000-4000-8000-000000000123',
+      customerEmail: 'customer@example.com',
+      customerName: 'Test Customer',
+    });
+
+    expect(result).toBe('00000000-0000-4000-8000-000000000331');
+    expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO business_conversations/.test(sql))).toBe(true);
+  });
+
   test('recovers an existing mirrored message without broadcasting twice', async () => {
     const messageId = '00000000-0000-4000-8000-000000000327';
     mockQuery

@@ -1022,6 +1022,20 @@ ready to commit. Exact live publication remains blocked by unavailable GitHub
 credentials; the next engineering action is to audit the remaining support
 conversation creation paths for concurrent duplicate prevention.
 
+Business Hub bridge concurrency checkpoint (2026-09-22 UTC):
+`ensureBusinessConversation` now runs its lookup, customer fallback, and insert
+on one transaction connection guarded by a PostgreSQL transaction-scoped
+advisory lock keyed to the business/customer identity. This prevents concurrent
+legacy chat, restaurant contact, and guest-claim flows from creating duplicate
+Business Hub customer threads before message mirroring. The focused
+Business-Hub/communication suite passed `14/14`; the full server regression
+passed `196/196` suites and `1,354/1,354` tests; and `client/npm run build:ci`
+passed through locale verification, TypeScript, and Vite with only the existing
+chunk/import warnings. Exact live publication remains blocked by unavailable
+GitHub credentials; the next engineering action is to audit remaining support
+conversation and escalation creation paths for the same concurrent retry and
+duplicate-notification risks.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been
