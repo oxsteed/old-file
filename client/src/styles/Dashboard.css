@@ -1,0 +1,134 @@
+/* Customer dashboard light-mode overrides for the launch surface. */
+html:not(.dark) .dashboard-page {
+  color: var(--color-text);
+}
+
+html:not(.dark) .dashboard-page-title {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .dashboard-page-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero {
+  box-shadow: var(--shadow-sm);
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero--skills {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 72%) !important;
+  border-color: #fed7aa !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero--food {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 72%) !important;
+  border-color: #a7f3d0 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero-title {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero-copy {
+  color: #475569 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero-secondary {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero-secondary:hover {
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-hero-secondary svg {
+  color: #475569 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-card {
+  background: #ffffff !important;
+  border-color: #dbe4ef !important;
+  box-shadow: var(--shadow-sm);
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-card:hover {
+  border-color: #fdba74 !important;
+  box-shadow: var(--shadow-md);
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-value {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-label {
+  color: #64748b !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-card svg:last-child {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-card:hover svg:last-child {
+  color: #ea580c !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-summary-loading {
+  background: #e2e8f0 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-panel {
+  background: #ffffff !important;
+  border-color: #dbe4ef !important;
+  box-shadow: var(--shadow-sm);
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-panel h3,
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-panel .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-panel .text-gray-500 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-panel .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-item {
+  background: #f8fafc !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-item:hover {
+  background: #f1f5f9 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-empty-state > div {
+  background: #ecfdf5 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-links {
+  background: #f8fafc !important;
+  border-color: #dbe4ef !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-links > span {
+  color: #64748b !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link {
+  color: #475569 !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link svg {
+  color: #64748b !important;
+}

@@ -13,6 +13,7 @@ import RecommendationFeed from '../components/RecommendationFeed';
 import { formatDate, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { formatFoodMoney, listMyFoodOrders, listMyFoodRestaurantWallets } from '../api/food';
+import '../styles/Dashboard.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -169,7 +170,7 @@ function LaunchCustomerDashboard({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="customer-launch-dashboard space-y-6">
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           <span>{t('dashboard.pulse.loadError')}</span>
@@ -177,31 +178,31 @@ function LaunchCustomerDashboard({
         </div>
       )}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="relative overflow-hidden rounded-3xl border border-orange-400/20 bg-gradient-to-br from-orange-500/20 via-gray-900 to-gray-950 p-6 sm:p-8">
+        <div className="customer-dashboard-hero customer-dashboard-hero--skills relative overflow-hidden rounded-3xl border border-orange-400/20 bg-gradient-to-br from-orange-500/20 via-gray-900 to-gray-950 p-6 sm:p-8">
           <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-orange-400/10 blur-2xl" />
           <p className="relative text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">{t('dashboard.customer.skillsEyebrow')}</p>
-          <h2 className="relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.skillsTitle')}</h2>
-          <p className="relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.skillsText')}</p>
+          <h2 className="customer-dashboard-hero-title relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.skillsTitle')}</h2>
+          <p className="customer-dashboard-hero-copy relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.skillsText')}</p>
           <div className="relative mt-6 flex flex-wrap gap-3">
             <Link to="/post-job" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400">
               <IcoPlus size={16} cls="text-white" /> {t('dashboard.postJob')}
             </Link>
-            <Link to="/helpers" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
+            <Link to="/helpers" className="customer-dashboard-hero-secondary inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
               <IcoSearch size={16} cls="text-gray-200" /> {t('dashboard.browseHelpers')}
             </Link>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 via-gray-900 to-gray-950 p-6 sm:p-8">
+        <div className="customer-dashboard-hero customer-dashboard-hero--food relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 via-gray-900 to-gray-950 p-6 sm:p-8">
           <div className="absolute -bottom-16 -right-10 h-44 w-44 rounded-full bg-emerald-400/10 blur-2xl" />
           <p className="relative text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-300">{t('dashboard.customer.foodEyebrow')}</p>
-          <h2 className="relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.foodTitle')}</h2>
-          <p className="relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.foodText')}</p>
+          <h2 className="customer-dashboard-hero-title relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.foodTitle')}</h2>
+          <p className="customer-dashboard-hero-copy relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.foodText')}</p>
           <div className="relative mt-6 flex flex-wrap gap-3">
             <Link to="/restaurants" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-gray-950 transition hover:bg-emerald-400">
               <IcoFork size={16} cls="text-gray-950" /> {t('dashboard.customer.browseRestaurants')}
             </Link>
-            <Link to="/orders" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
+            <Link to="/orders" className="customer-dashboard-hero-secondary inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
               <IcoClock size={16} cls="text-gray-200" /> {t('dashboard.customer.viewOrders')}
             </Link>
           </div>
@@ -210,19 +211,19 @@ function LaunchCustomerDashboard({
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label={t('dashboard.customer.statusSummary')}>
         {summaryCards.map(({ to, label, value, icon: Icon, tone }) => (
-          <Link key={to} to={to} className="group rounded-2xl border border-gray-700/40 bg-gray-900/60 p-4 transition hover:-translate-y-0.5 hover:border-gray-600">
+          <Link key={to} to={to} className="customer-dashboard-summary-card group rounded-2xl border border-gray-700/40 bg-gray-900/60 p-4 transition hover:-translate-y-0.5 hover:border-gray-600">
             <div className="flex items-center justify-between gap-3">
               <Icon size={18} cls={tone} />
               <IcoArrowR size={14} cls="text-gray-700 transition group-hover:text-gray-400" />
             </div>
-            {loading ? <div className="mt-4 h-8 w-12 animate-pulse rounded bg-gray-800" /> : <p className="mt-3 text-2xl font-black text-white">{value}</p>}
-            <p className="mt-1 text-xs font-medium text-gray-500">{label}</p>
+            {loading ? <div className="customer-dashboard-summary-loading mt-4 h-8 w-12 animate-pulse rounded bg-gray-800" /> : <p className="customer-dashboard-summary-value mt-3 text-2xl font-black text-white">{value}</p>}
+            <p className="customer-dashboard-summary-label mt-1 text-xs font-medium text-gray-500">{label}</p>
           </Link>
         ))}
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-4">
-        <Card className="min-h-[280px]">
+        <Card className="customer-dashboard-panel min-h-[280px]">
           <CardHeader
             icon={IcoZap}
             title={t('dashboard.customer.happeningTitle')}
@@ -233,7 +234,7 @@ function LaunchCustomerDashboard({
           ) : recentItems.length ? (
             <div className="space-y-2">
               {recentItems.map((item) => (
-                <Link key={item.id} to={item.to} className="group flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
+                <Link key={item.id} to={item.to} className="customer-dashboard-item group flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-950/70"><item.icon size={18} cls={item.tone} /></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-600">{item.kind}</p>
@@ -250,7 +251,7 @@ function LaunchCustomerDashboard({
               ))}
             </div>
           ) : (
-            <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
+            <div className="customer-dashboard-empty-state flex min-h-[190px] flex-col items-center justify-center text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-800/70"><IcoCheck size={24} cls="text-emerald-400" /></div>
               <h3 className="mt-4 font-bold text-white">{t('dashboard.customer.noActiveItems')}</h3>
               <p className="mt-1 max-w-sm text-sm text-gray-500">{t('dashboard.customer.noActiveItemsText')}</p>
@@ -258,7 +259,7 @@ function LaunchCustomerDashboard({
           )}
         </Card>
 
-        <Card className="min-h-[280px]">
+        <Card className="customer-dashboard-panel min-h-[280px]">
           <CardHeader
             icon={IcoWallet}
             title={t('dashboard.customer.restaurantCreditTitle')}
@@ -269,7 +270,7 @@ function LaunchCustomerDashboard({
           ) : wallets.length ? (
             <div className="space-y-2">
               {wallets.slice(0, 3).map((wallet) => (
-                <Link key={wallet.accountId || wallet.restaurantId} to={`/restaurant-credit?restaurantId=${wallet.restaurantId}`} className="flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
+                <Link key={wallet.accountId || wallet.restaurantId} to={`/restaurant-credit?restaurantId=${wallet.restaurantId}`} className="customer-dashboard-item flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-500/10">
                     {wallet.restaurantLogoUrl ? <img src={wallet.restaurantLogoUrl} alt="" className="h-full w-full object-cover" /> : <IcoFork size={18} cls="text-emerald-400" />}
                   </div>
@@ -280,7 +281,7 @@ function LaunchCustomerDashboard({
               <p className="pt-2 text-xs leading-5 text-gray-600">{t('dashboard.customer.creditScope')}</p>
             </div>
           ) : (
-            <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
+            <div className="customer-dashboard-empty-state flex min-h-[190px] flex-col items-center justify-center text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10"><IcoWallet size={24} cls="text-emerald-400" /></div>
               <h3 className="mt-4 font-bold text-white">{t('dashboard.customer.noCredit')}</h3>
               <p className="mt-1 max-w-xs text-sm text-gray-500">{t('dashboard.customer.noCreditText')}</p>
@@ -290,14 +291,14 @@ function LaunchCustomerDashboard({
         </Card>
       </section>
 
-      <nav className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-800 bg-gray-950/40 p-3" aria-label={t('dashboard.customer.quickLinks')}>
+      <nav className="customer-dashboard-quick-links flex flex-wrap items-center gap-2 rounded-2xl border border-gray-800 bg-gray-950/40 p-3" aria-label={t('dashboard.customer.quickLinks')}>
         <span className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">{t('dashboard.customer.quickLinks')}</span>
         {[
           { to: '/calendar', label: t('dashboard.customer.calendar'), icon: IcoCalendar },
           { to: '/activity', label: t('dashboard.recentActivity'), icon: IcoBell },
           { to: '/settings', label: t('dashboard.customer.accountSettings'), icon: IcoSettings },
         ].map(({ to, label, icon: Icon }) => (
-          <Link key={to} to={to} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}</Link>
+          <Link key={to} to={to} className="customer-dashboard-quick-link inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}</Link>
         ))}
       </nav>
     </div>
@@ -990,15 +991,15 @@ export default function Dashboard() {
 
   return (
     <PageShell>
-    <div className="min-h-screen text-white">
+    <div className="dashboard-page min-h-screen text-white">
       <PageMeta title={t('dashboard.metaTitle')} description={t('dashboard.metaDesc')} noIndex={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
-            <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+            <h1 className="dashboard-page-title text-4xl font-black text-white tracking-tight mb-2">
               {t('dashboard.welcome', { name: user?.first_name || 'there' })}
             </h1>
-            <p className="text-gray-400 font-medium">
+            <p className="dashboard-page-subtitle text-gray-400 font-medium">
               {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS ? t('dashboard.atAGlance') : t('dashboard.customer.subtitle')}
             </p>
           </div>
