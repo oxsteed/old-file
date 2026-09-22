@@ -58,6 +58,12 @@ const PRICE_LEVEL_ALIASES = {
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
 const FOOD_LOYALTY_MIN_REDEEM_POINTS = 100;
 const FOOD_LOYALTY_CENTS_PER_POINT = 1;
+
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 const FOOD_PAYMENT_MODE_ALIASES = {
   pay_at_counter: 'pay_at_restaurant',
   pay_at_restaurant: 'pay_at_restaurant',
@@ -5586,10 +5592,17 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
 
     const subject = normalizeString(req.body.subject, 160);
     const message = normalizeString(req.body.message || req.body.body, 2500);
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
     if (!message) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         message: 'Message is required',
       });
+    }
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
     }
 
     const { rows: [restaurant] } = await pool.query(
@@ -5616,7 +5629,27 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       && restaurant.owner_user_id
       && String(restaurant.owner_user_id) !== String(req.user.id);
 
-    const { record, conversationId, chatMessageId } = await withTransaction(pool, async (client) => {
+    const result = await withTransaction(pool, async (client) => {
+      if (clientMessageId) {
+        const { rows: replayRows } = await client.query(
+          `SELECT id, restaurant_id, business_id, customer_user_id, subject, message, status,
+                  conversation_id, chat_message_id, created_at
+             FROM food_restaurant_customer_messages
+            WHERE restaurant_id = $1
+              AND customer_user_id = $2
+              AND client_message_id = $3`,
+          [restaurant.id, req.user.id, clientMessageId]
+        );
+        if (replayRows[0]) {
+          return {
+            record: replayRows[0],
+            conversationId: replayRows[0].conversation_id,
+            chatMessageId: replayRows[0].chat_message_id,
+            replayed: true,
+          };
+        }
+      }
+
       let threadId = null;
       let messageId = null;
 
@@ -5665,12 +5698,23 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
         }
 
         const insertedMessage = await client.query(
-          `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-           VALUES ($1, $2, $3, 'text')
+          `INSERT INTO messages
+             (conversation_id, sender_id, content, message_type, client_message_id)
+           VALUES ($1, $2, $3, 'text', $4)
+           ON CONFLICT (conversation_id, client_message_id)
+           WHERE client_message_id IS NOT NULL DO NOTHING
            RETURNING id, conversation_id, sender_id, content, message_type, is_read, created_at`,
-          [threadId, req.user.id, chatContent]
+          [threadId, req.user.id, chatContent, clientMessageId]
         );
         messageId = insertedMessage.rows[0] && insertedMessage.rows[0].id;
+        if (!messageId && clientMessageId) {
+          const { rows: existingMessageRows } = await client.query(
+            `SELECT id FROM messages
+              WHERE conversation_id = $1 AND client_message_id = $2`,
+            [threadId, clientMessageId]
+          );
+          messageId = existingMessageRows[0] && existingMessageRows[0].id;
+        }
 
         await client.query(
           'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
@@ -5680,10 +5724,12 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
 
       const insertedRecord = await client.query(
         `INSERT INTO food_restaurant_customer_messages
-           (restaurant_id, business_id, customer_user_id, subject, message, metadata, conversation_id, chat_message_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           (restaurant_id, business_id, customer_user_id, subject, message, metadata, conversation_id, chat_message_id, client_message_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (restaurant_id, customer_user_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
          RETURNING id, restaurant_id, business_id, customer_user_id, subject, message, status,
-                   conversation_id, chat_message_id, created_at`,
+                   conversation_id, chat_message_id, client_message_id, created_at`,
         [
           restaurant.id,
           restaurant.business_id,
@@ -5696,17 +5742,39 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
           }),
           threadId,
           messageId,
+          clientMessageId,
         ]
       );
+
+      if (!insertedRecord.rows[0] && clientMessageId) {
+        const { rows: replayRows } = await client.query(
+          `SELECT id, restaurant_id, business_id, customer_user_id, subject, message, status,
+                  conversation_id, chat_message_id, client_message_id, created_at
+             FROM food_restaurant_customer_messages
+            WHERE restaurant_id = $1
+              AND customer_user_id = $2
+              AND client_message_id = $3`,
+          [restaurant.id, req.user.id, clientMessageId]
+        );
+        if (!replayRows[0]) throw new AppError('Restaurant message retry could not be recovered', 409, 'message_retry_failed');
+        return {
+          record: replayRows[0],
+          conversationId: replayRows[0].conversation_id,
+          chatMessageId: replayRows[0].chat_message_id,
+          replayed: true,
+        };
+      }
 
       return {
         record: insertedRecord.rows[0],
         conversationId: threadId,
         chatMessageId: messageId,
+        replayed: false,
       };
     }, 'create_restaurant_customer_message');
+    const { record, conversationId, chatMessageId } = result;
 
-    if (conversationId && restaurant.business_id) {
+    if (!result?.replayed && conversationId && restaurant.business_id) {
       const businessConversationId = await ensureBusinessConversation({
         businessId: restaurant.business_id,
         legacyConversationId: conversationId,
@@ -5730,7 +5798,7 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       });
     }
 
-    if (restaurant.owner_user_id && restaurant.owner_user_id !== req.user.id) {
+    if (!result?.replayed && restaurant.owner_user_id && restaurant.owner_user_id !== req.user.id) {
       if (conversationId && chatMessageId) {
         socketService.broadcastToConversation(conversationId, 'message:new', {
           conversationId,
@@ -5773,7 +5841,7 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       });
     }
 
-    res.status(201).json({
+    res.status(result?.replayed ? 200 : 201).json({
       message: record,
       conversation: conversationId ? { id: conversationId } : null,
       conversationId,

@@ -36,6 +36,22 @@ export const getFoodRestaurant = (restaurantId) =>
 export const getFoodQueueBoard = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/queue-board`).then((r) => r.data);
 
+export const sendFoodRestaurantMessage = (restaurantId, payload, options = {}) => {
+  const clientMessageId = options.clientMessageId
+    || options.client_message_id
+    || payload?.clientMessageId
+    || payload?.client_message_id;
+  return api.post(
+    `/food/restaurants/${restaurantId}/messages`,
+    payload,
+    clientMessageId ? { headers: { 'Idempotency-Key': clientMessageId } } : undefined
+  ).then((r) => ({
+    message: r.data?.message || null,
+    conversation: r.data?.conversation || null,
+    conversationId: r.data?.conversationId || null,
+  }));
+};
+
 // ── Customer ─────────────────────────────────────────────────────────────────
 export const placeFoodOrder = (restaurantId, payload, options = {}) => {
   const idempotencyKey = options.idempotencyKey

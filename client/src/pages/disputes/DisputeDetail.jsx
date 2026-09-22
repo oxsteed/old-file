@@ -5,6 +5,7 @@ import { Send, Upload, AlertTriangle } from 'lucide-react';
 import { useAuth }                     from '../../hooks/useAuth';
 import { useSocket }                   from '../../hooks/useSocket';
 import api                             from '../../api/axios';
+import { createMessageRequestId }       from '../../lib/messageRequestId';
 import Navbar                          from '../../components/Navbar';
 import Footer                          from '../../components/Footer';
 
@@ -23,7 +24,9 @@ export default function DisputeDetail() {
   const [submitting,setSubmitting] = useState(false);
   const [loading,   setLoading]  = useState(true);
   const [error,     setError]    = useState(null);
+  const [messageSendError, setMessageSendError] = useState(null);
   const messagesEndRef           = useRef(null);
+  const pendingMessageIdRef      = useRef(null);
 
   const fetchDispute = async () => {
     try {
@@ -60,13 +63,18 @@ export default function DisputeDetail() {
     e.preventDefault();
     if (!message.trim()) return;
     setSending(true);
+    setMessageSendError(null);
+    const clientMessageId = pendingMessageIdRef.current || createMessageRequestId();
+    pendingMessageIdRef.current = clientMessageId;
     try {
       await api.post(`/disputes/${disputeId}/messages`, {
-        message: message.trim()
+        message: message.trim(),
+        clientMessageId,
       });
       setMessage('');
+      pendingMessageIdRef.current = null;
     } catch (err) {
-      setError(err.response?.data?.error || t('disputes.detail.failedSend'));
+      setMessageSendError(err.response?.data?.error || t('disputes.detail.failedSend'));
     } finally {
       setSending(false);
     }
@@ -424,7 +432,7 @@ export default function DisputeDetail() {
                   <input
                     type="text"
                     value={message}
-                    onChange={e => setMessage(e.target.value)}
+                    onChange={e => { setMessage(e.target.value); setMessageSendError(null); }}
                     maxLength={1000}
                     placeholder={t('disputes.detail.typeMessage')}
                     className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
@@ -436,6 +444,14 @@ export default function DisputeDetail() {
                   >
                     <Send size={16} />
                   </button>
+                  {messageSendError && (
+                    <div className="flex items-center gap-2 text-xs text-red-500" role="alert">
+                      <span>{messageSendError}</span>
+                      <button type="submit" disabled={sending} className="font-semibold underline">
+                        {t('messages.retry')}
+                      </button>
+                    </div>
+                  )}
                 </form>
               )}
             </div>

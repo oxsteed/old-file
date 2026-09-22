@@ -3,8 +3,16 @@
  */
 
 /** Message action labels must never concatenate when CSS fails. */
-export function buildMessageActionItems({ canEdit = false, canDelete = false } = {}) {
+export function buildMessageActionItems({ canEdit = false, canDelete = false, canModerate = false } = {}) {
   const items = [{ id: 'copy', kind: 'action' }];
+  if (canModerate) {
+    items.push(
+      { id: 'sep-report', kind: 'sep' },
+      { id: 'report', kind: 'action' },
+      { id: 'sep-block', kind: 'sep' },
+      { id: 'block', kind: 'action' },
+    );
+  }
   if (canEdit) {
     items.push({ id: 'sep-edit', kind: 'sep' }, { id: 'edit', kind: 'action' });
   }
@@ -101,4 +109,3 @@ export function normalizeTeamConversationItem(conv, typeLabel = '') {
       '',
   };
 }
-

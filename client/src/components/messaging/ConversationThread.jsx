@@ -19,6 +19,7 @@ import BookingRequestCard from '../helperProfile/chat/BookingRequestCard';
 import PaymentRequestSharePanel from '../helperProfile/chat/PaymentRequestSharePanel';
 import ProviderMessengerToolbar from './ProviderMessengerToolbar';
 import MessageBubbleActions from './MessageBubbleActions';
+import ReportModal from '../ReportModal';
 import ConversationContactDrawer from './ConversationContactDrawer';
 import CreditRefundPanel from '../helperProfile/chat/CreditRefundPanel';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
@@ -88,6 +89,7 @@ export default function ConversationThread({
   const [showQuoteSchedule, setShowQuoteSchedule] = useState(false);
   const [schedulingQuote, setSchedulingQuote] = useState(null);
   const [proposingBookingId, setProposingBookingId] = useState(null);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
   const [translateEnabled, setTranslateEnabled] = useState(() => {
     try { return localStorage.getItem('oxs:msg-translate') !== 'off'; } catch { return true; }
   });
@@ -142,6 +144,16 @@ export default function ConversationThread({
       setEditText('');
     } catch (error) {
       console.error('Failed to edit message:', error);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!otherUserId || !window.confirm(t('messages.blockConfirm', { defaultValue: 'Block this person from messaging you?' }))) return;
+    try {
+      await api.post(`/messages/users/${otherUserId}/block`);
+      toast.success(t('messages.userBlocked', { defaultValue: 'User blocked.' }));
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('messages.blockFailed', { defaultValue: 'Could not block this user.' }));
     }
   };
 
@@ -443,8 +455,11 @@ export default function ConversationThread({
                       onCopy={() => navigator.clipboard.writeText(parsed.text || msg.content || '')}
                       onEdit={() => handleEditMessage(msg.id)}
                       onDelete={() => handleDeleteMessage(msg.id)}
+                      onReport={() => setReportUserOpen(true)}
+                      onBlock={handleBlockUser}
                       canEdit={isMe}
                       canDelete={isMe}
+                      canModerate={!isMe && Boolean(otherUserId)}
                     />
                   </div>
                 </>
@@ -461,6 +476,16 @@ export default function ConversationThread({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {reportUserOpen && otherUserId && (
+        <ReportModal
+          userId={otherUserId}
+          userName={otherName || t('messages.user', { defaultValue: 'this user' })}
+          conversationId={conversationId}
+          onClose={() => setReportUserOpen(false)}
+          onSuccess={() => setReportUserOpen(false)}
+        />
+      )}
 
       {!stickToBottom && (
         <button type="button" className="messages-jump-latest" onClick={() => scrollToLatest('smooth')}>

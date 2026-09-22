@@ -8,12 +8,15 @@ export default function MessageBubbleActions({
   onCopy,
   onEdit,
   onDelete,
+  onReport = () => {},
+  onBlock = () => {},
   canEdit = false,
   canDelete = false,
+  canModerate = false,
   className = '',
 }) {
   const { t } = useTranslation();
-  const items = buildMessageActionItems({ canEdit, canDelete });
+  const items = buildMessageActionItems({ canEdit, canDelete, canModerate });
 
   return (
     <div
@@ -51,6 +54,30 @@ export default function MessageBubbleActions({
               onClick={onEdit}
             >
               {t('common.edit')}
+            </button>
+          );
+        }
+        if (item.id === 'report') {
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="messages-bubble-action-btn"
+              onClick={onReport}
+            >
+              {t('messages.reportMessage', { defaultValue: 'Report' })}
+            </button>
+          );
+        }
+        if (item.id === 'block') {
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="messages-bubble-action-btn"
+              onClick={onBlock}
+            >
+              {t('messages.blockUser', { defaultValue: 'Block' })}
             </button>
           );
         }

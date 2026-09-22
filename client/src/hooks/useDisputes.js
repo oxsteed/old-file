@@ -75,11 +75,14 @@ export default function useDisputes() {
   }, []);
 
   // Send a message in a dispute thread
-  const sendDisputeMessage = useCallback(async (disputeId, message) => {
+  const sendDisputeMessage = useCallback(async (disputeId, message, clientMessageId = null) => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.post(`/disputes/${disputeId}/messages`, { message });
+      const { data } = await api.post(`/disputes/${disputeId}/messages`, {
+        message,
+        ...(clientMessageId ? { clientMessageId } : {}),
+      });
       return data;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send message');

@@ -25,6 +25,11 @@ const DISPUTE_REASONS = Object.freeze({
 
 const DISPUTE_REASON_VALUES = Object.freeze(Object.values(DISPUTE_REASONS));
 
+function isUuid(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 // ─── OPEN DISPUTE ─────────────────────────────────────────────
 exports.openDispute = async (req, res, next) => {
   try {
@@ -334,11 +339,18 @@ exports.sendDisputeMessage = async (req, res, next) => {
     const userId = req.user.id;
     const { disputeId } = req.params;
     const { message } = req.body;
+    const clientMessageId = req.get('Idempotency-Key')
+      || req.body.clientMessageId
+      || req.body.client_message_id
+      || null;
 
     const fields = {};
     if (!message || !message.trim()) fields.message = 'Message cannot be empty';
     if (Object.keys(fields).length) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    }
+    if (clientMessageId && !isUuid(clientMessageId)) {
+      throw new AppError('clientMessageId must be a valid UUID', 400, 'validation_failed');
     }
 
     // Verify dispute exists and user has access
@@ -358,16 +370,34 @@ exports.sendDisputeMessage = async (req, res, next) => {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
-    // Insert message into dispute_messages table
-    const { rows } = await db.query(
-      `INSERT INTO dispute_messages (dispute_id, sender_id, message, is_admin)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [disputeId, userId, message.trim(), isAdmin]
-    );
+    const result = await withTransaction(db, async (client) => {
+      const senderRole = isAdmin ? 'admin' : req.user.role === 'helper' ? 'helper' : 'client';
+      const { rows } = await client.query(
+        `INSERT INTO dispute_messages
+           (dispute_id, sender_id, sender_role, message, is_admin_only, client_message_id)
+         VALUES ($1, $2, $3, $4, FALSE, $5)
+         ON CONFLICT (dispute_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [disputeId, userId, senderRole, message.trim(), clientMessageId]
+      );
 
-    res.status(201).json({
+      if (rows[0]) return { disputeMessage: rows[0], replayed: false };
+
+      const { rows: replayRows } = await client.query(
+        `SELECT * FROM dispute_messages
+          WHERE dispute_id = $1 AND client_message_id = $2`,
+        [disputeId, clientMessageId]
+      );
+      if (!replayRows[0]) {
+        throw new AppError('Dispute message retry could not be recovered', 409, 'message_retry_failed');
+      }
+      return { disputeMessage: replayRows[0], replayed: true };
+    }, 'send_dispute_message');
+
+    res.status(result.replayed ? 200 : 201).json({
       message: 'Message sent successfully.',
-      disputeMessage: rows[0]
+      disputeMessage: result.disputeMessage
     });
   } catch (err) {
     next(err);

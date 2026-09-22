@@ -543,6 +543,11 @@ const sendMessage = async (req, res, next) => {
              SELECT 1 FROM business_members bm
              WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
            ))
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM user_blocks ub
+            WHERE (ub.blocker_id = $2 AND ub.blocked_id IN (c.customer_id, c.helper_id))
+               OR (ub.blocked_id = $2 AND ub.blocker_id IN (c.customer_id, c.helper_id))
          )`,
         [conversationId, userId]
       );
