@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { getClientRequestId } = require('../utils/idempotency');
 const { withTransaction } = require('../utils/transaction');
+const socketService = require('../services/socketService');
 
 function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
@@ -32,6 +33,17 @@ async function getConversations(req, res, next) {
     const { type = 'all', search = '', limit = 50, offset = 0 } = req.query;
     await assertBusinessAccess(req, businessId);
 
+    const filters = ['bc.business_id = $1', "bc.status IN ('active', 'resolved')"];
+    const filterParams = [businessId, req.user.id];
+    if (type !== 'all') {
+      filters.push(`bc.conversation_type = $${filterParams.length + 1}`);
+      filterParams.push(type);
+    }
+    if (search) {
+      filters.push(`(bc.subject ILIKE $${filterParams.length + 1} OR bc.customer_name ILIKE $${filterParams.length + 1})`);
+      filterParams.push(`%${search}%`);
+    }
+
     let query = `
       SELECT
         bc.id, bc.business_id, bc.conversation_type, bc.status,
@@ -39,30 +51,42 @@ async function getConversations(req, res, next) {
         bc.last_message_at, bc.created_at,
         (SELECT COUNT(*) FROM business_messages bm
           WHERE bm.conversation_id = bc.id AND bm.deleted_at IS NULL) AS message_count
+        ,(SELECT COUNT(*) FROM business_messages bm_unread
+          LEFT JOIN business_conversation_participants bcp
+            ON bcp.conversation_id = bc.id AND bcp.user_id = $2
+          WHERE bm_unread.conversation_id = bc.id
+            AND bm_unread.deleted_at IS NULL
+            AND bm_unread.sender_id IS DISTINCT FROM $2
+            AND (bcp.last_read_at IS NULL OR bm_unread.created_at > bcp.last_read_at)
+        ) AS unread_count
+        ,(SELECT bm_last.content FROM business_messages bm_last
+          WHERE bm_last.conversation_id = bc.id AND bm_last.deleted_at IS NULL
+          ORDER BY bm_last.created_at DESC LIMIT 1
+        ) AS last_message
       FROM business_conversations bc
-      WHERE bc.business_id = $1 AND bc.status IN ('active', 'resolved')
+      WHERE ${filters.join(' AND ')}
     `;
-    const params = [businessId];
-
-    if (type !== 'all') {
-      query += ` AND bc.conversation_type = $${params.length + 1}`;
-      params.push(type);
-    }
-
-    if (search) {
-      query += ` AND (bc.subject ILIKE $${params.length + 1} OR bc.customer_name ILIKE $${params.length + 1})`;
-      params.push(`%${search}%`);
-    }
+    const params = [...filterParams];
 
     query += ` ORDER BY bc.last_message_at DESC NULLS LAST, bc.created_at DESC
                LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(parseInt(limit, 10), parseInt(offset, 10));
 
     const result = await pool.query(query, params);
+    const totalFilters = ['business_id = $1', "status IN ('active', 'resolved')"];
+    const totalParams = [businessId];
+    if (type !== 'all') {
+      totalFilters.push(`conversation_type = $${totalParams.length + 1}`);
+      totalParams.push(type);
+    }
+    if (search) {
+      totalFilters.push(`(subject ILIKE $${totalParams.length + 1} OR customer_name ILIKE $${totalParams.length + 1})`);
+      totalParams.push(`%${search}%`);
+    }
     const totalResult = await pool.query(
       `SELECT COUNT(*) FROM business_conversations
-       WHERE business_id = $1 AND status IN ('active', 'resolved')`,
-      [businessId]
+       WHERE ${totalFilters.join(' AND ')}`,
+      totalParams
     );
 
     res.json({
@@ -93,15 +117,41 @@ async function getConversation(req, res, next) {
     }
 
     const messages = await pool.query(
-      `SELECT
+      `WITH latest_message AS (
+         SELECT id, created_at
+         FROM business_messages
+         WHERE conversation_id = $1 AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1
+       ), mark_read AS (
+         INSERT INTO business_conversation_participants
+           (conversation_id, user_id, last_read_message_id, last_read_at)
+         SELECT $1, $4, id, created_at FROM latest_message
+         ON CONFLICT (conversation_id, user_id) DO UPDATE
+           SET last_read_message_id = EXCLUDED.last_read_message_id,
+               last_read_at = EXCLUDED.last_read_at
+       )
+       SELECT
          bm.id, bm.sender_id, bm.sender_type, bm.content, bm.message_type, bm.created_at,
-         COALESCE(NULLIF(bm.sender_name, ''), ${senderNameSql('u')}) AS sender_name
+         COALESCE(NULLIF(bm.sender_name, ''), ${senderNameSql('u')}) AS sender_name,
+         COALESCE(attachments.items, '[]'::json) AS attachments
        FROM business_messages bm
        LEFT JOIN users u ON u.id = bm.sender_id
+       LEFT JOIN LATERAL (
+         SELECT json_agg(json_build_object(
+           'id', bma.id,
+           'file_name', bma.file_name,
+           'file_url', bma.file_url,
+           'file_size_bytes', bma.file_size_bytes,
+           'file_type', bma.file_type
+         ) ORDER BY bma.created_at ASC) AS items
+         FROM business_message_attachments bma
+         WHERE bma.message_id = bm.id
+       ) attachments ON TRUE
        WHERE bm.conversation_id = $1 AND bm.deleted_at IS NULL
        ORDER BY bm.created_at ASC
        LIMIT $2 OFFSET $3`,
-      [conversationId, parseInt(limit, 10), parseInt(offset, 10)]
+      [conversationId, parseInt(limit, 10), parseInt(offset, 10), req.user.id]
     );
 
     res.json({
@@ -186,6 +236,18 @@ async function sendMessage(req, res, next) {
 
       return { message: msgResult.rows[0], replayed: false };
     }, 'send_business_message');
+
+    if (!replayed) {
+      socketService.broadcastToBusinessInbox(businessId, 'business_inbox:message', {
+        business_id: businessId,
+        conversation_id: conversationId,
+        message_id: message.id,
+        sender_id: req.user.id,
+        sender_name: message.sender_name || null,
+        content: content.trim().slice(0, 280),
+        created_at: message.created_at || new Date().toISOString(),
+      });
+    }
 
     res.status(replayed ? 200 : 201).json(message);
   } catch (error) {

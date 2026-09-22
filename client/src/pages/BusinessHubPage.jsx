@@ -1175,6 +1175,10 @@ function BusinessHubInner() {
   );
   const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
+  // Messaging is available to every active business member. Keep this
+  // separate from profile-edit permissions so representatives can respond to
+  // customers without gaining access to business configuration.
+  const canAccessMessages = ['owner', 'manager', 'representative'].includes(currentRole);
   const canViewFinanceHub = currentRole !== 'representative';
   const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
@@ -1272,7 +1276,8 @@ function BusinessHubInner() {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
-    if (['booking-services','appointments','products','messages','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
+    if (['booking-services','appointments','products','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
+    if (tb === 'messages' && !canAccessMessages) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     if (tb === 'overview' && !canViewFinanceHub) return false;
     if (tb === 'analytics' && !canEditBizProfile) return false;
@@ -2009,7 +2014,7 @@ function BusinessHubInner() {
             )}
 
             {/* ── Messages tab ─────────────────────────────────────── */}
-            {tab === 'messages' && bizId && canEditBizProfile && (
+            {tab === 'messages' && bizId && canAccessMessages && (
               <TabErrorBoundary label={t('businessHub.tabMessagesLabel', { defaultValue: 'Messages' })} resetKey="messages">
                 <BusinessMessagingTab businessId={bizId} />
               </TabErrorBoundary>

@@ -59,6 +59,7 @@ jest.mock('../services/socketService', () => ({
   init: jest.fn(),
   emit: jest.fn(),
   broadcastToConversation: jest.fn(),
+  broadcastToBusinessInbox: jest.fn(),
 }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
 jest.mock('../services/tokenRevocationService', () => ({

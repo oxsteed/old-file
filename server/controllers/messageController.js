@@ -688,6 +688,20 @@ const sendMessage = async (req, res, next) => {
       message: fullMessagePayload,
     });
 
+    // Keep the per-business inbox list fresh for owners and representatives,
+    // including customer messages sent through the unified conversation API.
+    if (business_id) {
+      socketService.broadcastToBusinessInbox(business_id, 'business_inbox:message', {
+        business_id,
+        conversation_id: conversationId,
+        message_id: messagePayload.id,
+        sender_id: req.user.id,
+        sender_name: senderName,
+        content: String(messagePayload.content || content).slice(0, 280),
+        created_at: messagePayload.created_at || new Date().toISOString(),
+      });
+    }
+
     // Additionally, broadcast profile_chat:new_message for profile chats
     // (some clients like HelperConversationPage listen specifically for this event)
     if (isProfileChat) {

@@ -69,6 +69,36 @@ describe('direct message delivery', () => {
     expect(socketService.broadcastToConversation).toHaveBeenCalledTimes(1);
   });
 
+  test('refreshes the business inbox when a customer message belongs to a business', async () => {
+    const businessConversation = {
+      ...conversation,
+      business_id: 17,
+      business_name: 'OxSteed Services',
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [businessConversation] })
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/conversation-1')
+      .send({
+        content: 'I need help.',
+        clientMessageId: message.client_message_id,
+      });
+
+    expect(res.status).toBe(201);
+    expect(socketService.broadcastToBusinessInbox).toHaveBeenCalledWith(
+      17,
+      'business_inbox:message',
+      expect.objectContaining({
+        business_id: 17,
+        conversation_id: 'conversation-1',
+        message_id: message.id,
+      }),
+    );
+  });
+
   test('replays the original message without updating or broadcasting twice', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [conversation] })

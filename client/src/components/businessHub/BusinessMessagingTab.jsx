@@ -6,6 +6,8 @@ import { Archive, Plus, Search, Send } from 'lucide-react';
 import { createMessageRequestId } from '../../lib/messageRequestId';
 import ConversationThread from '../messaging/ConversationThread';
 import ConversationList from '../messaging/ConversationList';
+import { useSocket } from '../../hooks/useSocket';
+import { formatInboxTime } from '../../utils/inboxTimeFormat';
 import {
   conversationDisplayName,
   normalizeTeamConversationItem,
@@ -20,6 +22,7 @@ import '../messaging/SharedMessengerShell.css';
  */
 export function BusinessMessagingTab({ businessId }) {
   const { t } = useTranslation();
+  const { socket } = useSocket();
   const [mode, setMode] = useState('deals');
 
   const [dealConversations, setDealConversations] = useState([]);
@@ -116,11 +119,23 @@ export function BusinessMessagingTab({ businessId }) {
     if (mode === 'team') loadTeam();
   }, [mode, loadTeam]);
 
+  useEffect(() => {
+    if (!socket || !businessId) return undefined;
+    const handleBusinessMessage = (payload) => {
+      if (payload?.business_id && String(payload.business_id) !== String(businessId)) return;
+      if (mode === 'deals') loadDeals();
+      else loadTeam();
+    };
+    socket.on('business_inbox:message', handleBusinessMessage);
+    return () => socket.off('business_inbox:message', handleBusinessMessage);
+  }, [socket, businessId, mode, loadDeals, loadTeam]);
+
   const openTeam = async (conversationId) => {
     try {
       const response = await api.get(`/businesses/${businessId}/messages/${conversationId}`);
       setSelectedTeam(response.data);
       setTeamMessages(Array.isArray(response.data?.messages) ? response.data.messages : []);
+      await loadTeam();
     } catch {
       toast.error(t('businessMessaging.toastLoadConversationFailed'));
     }
@@ -339,6 +354,7 @@ export function BusinessMessagingTab({ businessId }) {
                   t('businessMessaging.conversation'),
                 );
                 const chip = typeLabel(conv.conversation_type);
+                const unreadCount = parseInt(conv.unread_count, 10) || 0;
                 return (
                   <button
                     key={conv.id}
@@ -356,11 +372,13 @@ export function BusinessMessagingTab({ businessId }) {
                         <span className={`bmt-type-chip bmt-type-chip--${conv.conversation_type || 'unknown'}`}>
                           {chip}
                         </span>
+                        {conv.last_message_at ? <span>{formatInboxTime(conv.last_message_at)}</span> : null}
                       </div>
-                      <p className="messages-preview">
-                        {conv.last_message_preview || chip}
-                      </p>
-                    </div>
+                    <p className="messages-preview">
+                      {conv.last_message_preview || chip}
+                    </p>
+                  </div>
+                  {unreadCount > 0 ? <span className="messages-unread">{unreadCount}</span> : null}
                   </button>
                 );
               }}

@@ -51,6 +51,8 @@ describe('business hub messaging tab', () => {
     const sql = mockQuery.mock.calls.map(([q]) => q).join('\n');
     expect(sql).not.toMatch(/business_team_members/);
     expect(sql).toMatch(/business_conversations/);
+    expect(sql).toMatch(/unread_count/);
+    expect(sql).toMatch(/last_message/);
   });
 
   test('returns 403 when the user cannot access the business', async () => {
@@ -76,6 +78,20 @@ describe('business hub messaging tab', () => {
     const sql = mockQuery.mock.calls.map(([q]) => q).join('\n');
     expect(sql).not.toMatch(/json_agg\([^\)]*LIMIT/);
     expect(sql).toMatch(/FROM business_messages bm/);
+    expect(sql).toMatch(/business_conversation_participants/);
+  });
+
+  test('marks the latest business message read for the member opening the thread', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1, conversation_type: 'team' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', content: 'Hello team', sender_type: 'team_member' }] });
+
+    const res = await request(buildApp()).get('/api/businesses/1/messages/conv-1');
+    expect(res.status).toBe(200);
+    const threadSql = mockQuery.mock.calls[2][0];
+    expect(threadSql).toMatch(/INSERT INTO business_conversation_participants/);
+    expect(threadSql).toMatch(/ON CONFLICT \(conversation_id, user_id\)/);
   });
 
   test('sends a message using first/last name instead of users.display_name', async () => {
