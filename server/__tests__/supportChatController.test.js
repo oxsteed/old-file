@@ -58,4 +58,70 @@ describe('legacy support chat compatibility', () => {
     });
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  test('replays a support ticket initiation without opening a second ticket or sending email again', async () => {
+    const clientRequestId = '88888888-8888-4888-8888-888888888888';
+    const ticket = { id: 'ticket-1', ticket_number: 1001 };
+    socketService.getSocketCount = jest.fn().mockResolvedValue(0);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // first ticket lookup
+      .mockResolvedValueOnce({ rows: [ticket] }) // first ticket insert
+      .mockResolvedValueOnce({ rows: [{ id: 'support-message-1' }] }) // first message insert
+      .mockResolvedValueOnce({ rows: [] }) // admin lookup for email
+      .mockResolvedValueOnce({ rows: [ticket] }) // retry ticket lookup
+      .mockResolvedValueOnce({ rows: [] }); // retry message conflict
+
+    const appReq = {
+      body: {
+        message: 'I need help with my account.',
+        visitorName: 'Guest User',
+        visitorEmail: 'guest@example.com',
+        clientRequestId,
+      },
+    };
+    const firstRes = responseDouble();
+    const retryRes = responseDouble();
+
+    await supportChatController.initiateSupportChat(appReq, firstRes);
+    await supportChatController.initiateSupportChat(appReq, retryRes);
+
+    expect(firstRes.status).toHaveBeenCalledWith(201);
+    expect(retryRes.status).toHaveBeenCalledWith(200);
+    expect(retryRes.json).toHaveBeenCalledWith(expect.objectContaining({
+      ticketNumber: 1001,
+      idempotent: true,
+    }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO support_tickets/.test(sql))).toHaveLength(1);
+  });
+
+  test('replays an authenticated support message without updating or broadcasting twice', async () => {
+    const clientRequestId = '99999999-9999-4999-8999-999999999999';
+    const message = { id: 'message-1', content: 'Anyone there?', created_at: '2026-09-22T12:00:00.000Z' };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'user-1', helper_id: 'admin-1' }] })
+      .mockResolvedValueOnce({ rows: [message] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'user-1', helper_id: 'admin-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [message] });
+
+    const req = {
+      user: { id: 'user-1' },
+      body: { conversationId: 'conversation-1', message: 'Anyone there?', clientRequestId },
+    };
+    const firstRes = responseDouble();
+    const retryRes = responseDouble();
+
+    await supportChatController.sendSupportMessage(req, firstRes);
+    await supportChatController.sendSupportMessage(req, retryRes);
+
+    expect(firstRes.status).toHaveBeenCalledWith(201);
+    expect(retryRes.status).toHaveBeenCalledWith(200);
+    expect(retryRes.json).toHaveBeenCalledWith(expect.objectContaining({
+      messageId: 'message-1',
+      idempotent: true,
+    }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /UPDATE conversations SET last_message_at/.test(sql))).toHaveLength(1);
+    expect(socketService.broadcastToConversation).toHaveBeenCalledTimes(1);
+  });
 });
