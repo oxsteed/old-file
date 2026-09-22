@@ -956,6 +956,30 @@ describe('support routes', () => {
     expect(insertCall?.[1]?.[0]).not.toBe(999);
   });
 
+  test('recovers a duplicate support conversation request without queueing again', async () => {
+    const clientRequestId = '55555555-5555-4555-8555-555555555555';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [authUserRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', business_id: 42, status: 'open' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/conversations')
+      .set('Authorization', authHeader())
+      .set('Idempotency-Key', clientRequestId)
+      .send({
+        businessId: 999,
+        subject: 'Account question',
+        description: 'Please help with my account.',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({ ticketId: 'conversation-1', idempotent: true }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_queue/.test(sql))).toBe(false);
+  });
+
   test('reads durable knowledge-base articles for support admins', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })

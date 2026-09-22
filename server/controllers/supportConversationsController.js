@@ -16,6 +16,7 @@ const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
 const { isTerminalConversationStatus } = require('../services/supportConversationTerminal');
+const { getClientRequestId } = require('../utils/idempotency');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function notifyCustomerOfAgentReply(conversation, message) {
@@ -129,6 +130,10 @@ async function createConversation(req, res) {
   try {
     const { businessId, subject, description, category, priority } = req.body;
     const channel = String(req.body?.channel || 'web_chat').trim().toLowerCase();
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      return sendValidationError(res, { clientRequestId: 'Must be a valid UUID' });
+    }
 
     if (!businessId || !subject || String(subject).trim().length > 200 || String(description || '').length > 5000) {
       return sendValidationError(res, {
@@ -173,11 +178,19 @@ async function createConversation(req, res) {
 
     // Create conversation
     const result = await query(
-      `INSERT INTO support_conversations
-       (business_id, customer_id, subject, description, category, priority,
-        channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9)
-       RETURNING *`,
+      clientRequestId
+        ? `INSERT INTO support_conversations
+           (business_id, customer_id, subject, description, category, priority,
+            channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target, client_request_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9, $10)
+           ON CONFLICT (client_request_id)
+           WHERE client_request_id IS NOT NULL DO NOTHING
+           RETURNING *`
+        : `INSERT INTO support_conversations
+           (business_id, customer_id, subject, description, category, priority,
+            channel, status, last_channel_message_at, sla_first_response_target, sla_resolution_target)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', CURRENT_TIMESTAMP, $8, $9)
+           RETURNING *`,
       [
         businessId,
         req.user.id,
@@ -187,11 +200,34 @@ async function createConversation(req, res) {
         priority || 'normal',
         channel,
         slaFirstResponseTarget,
-        slaResolutionTarget
+        slaResolutionTarget,
+        ...(clientRequestId ? [clientRequestId] : []),
       ]
     );
 
-    const conversation = result.rows[0];
+    let conversation = result.rows[0];
+    let replayed = false;
+    if (!conversation && clientRequestId) {
+      const existing = await query(
+        `SELECT * FROM support_conversations
+          WHERE customer_id = $1 AND client_request_id = $2
+          LIMIT 1`,
+        [req.user.id, clientRequestId],
+      );
+      conversation = existing.rows[0];
+      replayed = Boolean(conversation);
+    }
+    if (!conversation) throw new Error('Support conversation retry could not be recovered');
+
+    if (replayed) {
+      return res.status(200).json({
+        success: true,
+        data: conversation,
+        ticketId: conversation.id,
+        conversation,
+        idempotent: true,
+      });
+    }
 
     // Add to queue
     await query(
@@ -206,7 +242,7 @@ async function createConversation(req, res) {
       customerId: req.user.id
     });
 
-    res.json({ success: true, data: conversation, ticketId: conversation.id, conversation });
+    res.json({ success: true, data: conversation, ticketId: conversation.id, conversation, idempotent: false });
   } catch (err) {
     logger.error('createConversation error', { error: err.message });
     sendError(res, 500, 'Failed to create conversation');
