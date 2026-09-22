@@ -1036,6 +1036,18 @@ GitHub credentials; the next engineering action is to audit remaining support
 conversation and escalation creation paths for the same concurrent retry and
 duplicate-notification risks.
 
+Live support reconnect checkpoint (2026-09-22 UTC): reconnecting to an existing
+`waiting_for_agent` support conversation now returns its durable wait state and
+messages without invoking routing again, inserting a second queue row, or
+rebroadcasting `ticket:created`. Newly created `open` conversations still pass
+through the existing AI/skill/availability routing path, and assigned
+conversations retain their existing resume response. The focused live-support,
+routing, wait-state, and communication suite passed `54/54`; the full server
+regression passed `196/196` suites and `1,355/1,355` tests. Exact live
+publication remains blocked by unavailable GitHub credentials; the next
+engineering action is to audit the remaining support conversation and
+escalation creation paths for duplicate side effects after retries.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

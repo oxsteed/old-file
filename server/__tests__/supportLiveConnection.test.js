@@ -91,6 +91,47 @@ describe('live support connection lifecycle', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversations/.test(sql))).toBe(false);
   });
 
+  test('resumes a queued conversation without routing or notifying again', async () => {
+    const expiresAt = new Date(Date.now() + 4 * 60 * 1000);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-queued',
+          status: 'waiting_for_agent',
+          agent_id: null,
+          live_wait_expires_at: expiresAt,
+          live_wait_ended_at: null,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'message-queued', content: 'Waiting for an agent.', message_type: 'text' }],
+      });
+
+    const routeSpy = jest.spyOn(SupportRoutingService, 'routeTicket');
+    const req = {
+      user: { id: 'customer-1', email: 'customer@example.com' },
+      params: { businessId: 'business-1' },
+      body: {},
+    };
+    const res = responseDouble();
+
+    await supportRoutingController.connectConversation(req, res);
+
+    expect(routeSpy).not.toHaveBeenCalled();
+    expect(WebSocketService.broadcastToAdmins).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_queue/.test(sql))).toBe(false);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      ticketId: 'ticket-queued',
+      routedTo: 'queue',
+      resumed: true,
+      waiting: expect.objectContaining({ state: 'waiting' }),
+      messages: expect.arrayContaining([expect.objectContaining({ id: 'message-queued' })]),
+    }));
+  });
+
   test('lists support conversations using the production user name columns', async () => {
     jest.spyOn(require('../services/supportEmployerService'), 'userCanManageBusiness')
       .mockResolvedValue(true);

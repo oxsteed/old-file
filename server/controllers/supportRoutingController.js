@@ -284,6 +284,19 @@ exports.connectConversation = async (req, res) => {
 
     const ticketId = existing.id;
 
+    // A reconnect must not route an already waiting conversation again. The
+    // customer may refresh or reconnect while the worker is coordinating an
+    // agent; repeating routing would duplicate broadcasts and notifications.
+    if (resumed && !existing.agent_id && existing.status !== 'open') {
+      return res.json({
+        ticketId,
+        routedTo: existing.status === 'waiting_for_agent' ? 'queue' : 'message',
+        resumed: true,
+        waiting: waitingState(existing),
+        messages: await loadConversationMessages(ticketId),
+      });
+    }
+
     const response = await routeConversation({
       ticketId,
       customerId,
