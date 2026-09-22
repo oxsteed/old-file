@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Send, Wallet, X } from 'lucide-react';
 import api from '../../../api/axios';
-import { makeCreditPayIdempotencyKey } from './messengerCreditPay.js';
+import { createMessageRequestId } from '../../../lib/messageRequestId';
 import './MessengerDock.css';
 
 export default function PaymentRequestSharePanel({
@@ -21,6 +21,11 @@ export default function PaymentRequestSharePanel({
   const [memo, setMemo] = useState('');
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState(null);
+  const pendingRequestIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) pendingRequestIdRef.current = null;
+  }, [open]);
 
   if (!open) return null;
 
@@ -34,6 +39,8 @@ export default function PaymentRequestSharePanel({
         setSharing(false);
         return;
       }
+      const clientRequestId = pendingRequestIdRef.current || createMessageRequestId();
+      pendingRequestIdRef.current = clientRequestId;
       const { data } = await api.post('/chat/payments/request', {
         conversationId: conversationId || undefined,
         guestSessionId: guestSessionId || undefined,
@@ -43,12 +50,9 @@ export default function PaymentRequestSharePanel({
         memo: memo || undefined,
         quoteKind: quoteKind || undefined,
         quoteId: quoteId || undefined,
-        idempotencyKey: makeCreditPayIdempotencyKey({
-          conversationId,
-          quoteId,
-          amountCents,
-        }),
+        idempotencyKey: clientRequestId,
       });
+      pendingRequestIdRef.current = null;
       onShared?.(data);
       onClose?.();
     } catch (err) {

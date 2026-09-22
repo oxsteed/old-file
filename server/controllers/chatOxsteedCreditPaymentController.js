@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
@@ -49,18 +50,49 @@ function requestIp(req) {
   );
 }
 
-async function postConversationMessage(client, { conversationId, senderId, content, senderName }) {
+function deriveMessageClientId(scope, idempotencyKey) {
+  const digest = crypto
+    .createHash('sha256')
+    .update(`${scope}:${idempotencyKey}`)
+    .digest();
+  digest[6] = (digest[6] & 0x0f) | 0x50;
+  digest[8] = (digest[8] & 0x3f) | 0x80;
+  const hex = digest.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+async function postConversationMessage(client, {
+  conversationId,
+  senderId,
+  content,
+  senderName,
+  clientMessageId = null,
+}) {
   const db = client || pool;
   const { rows } = await db.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, message_type)
-     VALUES ($1, $2, $3, 'text') RETURNING *`,
-    [conversationId, senderId, content],
+    `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
+     VALUES ($1, $2, $3, 'text', $4)
+     ON CONFLICT (conversation_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
+     RETURNING *`,
+    [conversationId, senderId, content, clientMessageId],
   );
+  let messageRow = rows[0];
+  const replayed = !messageRow && Boolean(clientMessageId);
+  if (!messageRow && clientMessageId) {
+    const replay = await db.query(
+      'SELECT * FROM messages WHERE conversation_id = $1 AND client_message_id = $2',
+      [conversationId, clientMessageId],
+    );
+    messageRow = replay.rows[0];
+  }
+  if (!messageRow) throw new Error('Failed to create chat payment message');
+  if (replayed) return { ...messageRow, sender_name: senderName };
   await db.query(
     'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
     [conversationId],
   );
-  const message = { ...rows[0], sender_name: senderName };
+  const message = { ...messageRow, sender_name: senderName };
   try {
     socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
     socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
@@ -74,15 +106,36 @@ async function postConversationMessage(client, { conversationId, senderId, conte
   return message;
 }
 
-async function postGuestMessage({ guestSessionId, senderName, content, helperId, senderType = 'helper' }) {
+async function postGuestMessage({
+  guestSessionId,
+  senderName,
+  content,
+  helperId,
+  senderType = 'helper',
+  clientMessageId = null,
+}) {
   const { rows } = await pool.query(
     `INSERT INTO guest_profile_chat_messages
-       (session_id, sender_type, sender_name, message, created_at)
-     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       (session_id, sender_type, sender_name, message, client_message_id, created_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+     ON CONFLICT (session_id, client_message_id)
+     WHERE client_message_id IS NOT NULL DO NOTHING
      RETURNING id, session_id, sender_type, sender_name, message, created_at`,
-    [guestSessionId, senderType, senderName, content],
+    [guestSessionId, senderType, senderName, content, clientMessageId],
   );
-  const msg = rows[0];
+  let msg = rows[0];
+  const replayed = !msg && Boolean(clientMessageId);
+  if (!msg && clientMessageId) {
+    const replay = await pool.query(
+      `SELECT id, session_id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1 AND client_message_id = $2`,
+      [guestSessionId, clientMessageId],
+    );
+    msg = replay.rows[0];
+  }
+  if (!msg) throw new Error('Failed to create guest chat payment message');
+  if (replayed) return msg;
   const createdAt = msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at;
   try {
     socketService.io?.to?.(`guest_session_${guestSessionId}`)?.emit?.('profile_chat:new_message', {
@@ -523,7 +576,10 @@ exports.requestPayment = async (req, res, next) => {
       businessId = businessId || guestInquiry.business_id;
     }
 
-    // Idempotent replay for provider request
+    // Idempotent replay for provider request. The message is repaired below if
+    // the original request committed its payment row before the chat insert.
+    let payReq = null;
+    let replayed = false;
     if (normalized.idempotencyKey) {
       const { rows: existing } = await pool.query(
         `SELECT * FROM chat_payment_requests
@@ -532,35 +588,49 @@ exports.requestPayment = async (req, res, next) => {
         [userId, normalized.idempotencyKey],
       );
       if (existing[0]) {
-        return res.status(200).json({
-          paymentRequest: toPublicPaymentRequestCard(existing[0]),
-          replayed: true,
-        });
+        payReq = existing[0];
+        replayed = true;
       }
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO chat_payment_requests (
-         conversation_id, guest_session_id, business_id, helper_id,
-         quote_kind, quote_id, amount_cents, currency, memo,
-         requested_by, idempotency_key, status
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open')
-       RETURNING *`,
-      [
-        normalized.conversationId,
-        normalized.guestSessionId,
-        businessId,
-        helperId,
-        normalized.quoteKind,
-        normalized.quoteId,
-        normalized.amountCents,
-        normalized.currency,
-        normalized.memo,
-        userId,
-        normalized.idempotencyKey,
-      ],
-    );
-    const payReq = rows[0];
+    if (!payReq) {
+      const { rows } = await pool.query(
+        `INSERT INTO chat_payment_requests (
+           conversation_id, guest_session_id, business_id, helper_id,
+           quote_kind, quote_id, amount_cents, currency, memo,
+           requested_by, idempotency_key, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open')
+         ON CONFLICT (requested_by, idempotency_key)
+         WHERE idempotency_key IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [
+          normalized.conversationId,
+          normalized.guestSessionId,
+          businessId,
+          helperId,
+          normalized.quoteKind,
+          normalized.quoteId,
+          normalized.amountCents,
+          normalized.currency,
+          normalized.memo,
+          userId,
+          normalized.idempotencyKey,
+        ],
+      );
+      payReq = rows[0] || null;
+      if (!payReq && normalized.idempotencyKey) {
+        const { rows: replay } = await pool.query(
+          `SELECT * FROM chat_payment_requests
+            WHERE requested_by = $1 AND idempotency_key = $2
+            LIMIT 1`,
+          [userId, normalized.idempotencyKey],
+        );
+        payReq = replay[0] || null;
+        replayed = Boolean(payReq);
+      }
+    }
+    if (!payReq) throw new Error('Failed to create chat payment request');
+
     const marker = buildPaymentRequestMarker({
       id: payReq.id,
       amountCents: payReq.amount_cents,
@@ -579,15 +649,24 @@ exports.requestPayment = async (req, res, next) => {
     });
 
     let message = null;
-    if (normalized.conversationId) {
+    const messageClientId = normalized.idempotencyKey
+      ? deriveMessageClientId(
+        normalized.conversationId || `guest:${normalized.guestSessionId}`,
+        normalized.idempotencyKey,
+      )
+      : null;
+    if (payReq.message_id) {
+      message = { id: payReq.message_id };
+    } else if (normalized.conversationId) {
       message = await postConversationMessage(null, {
         conversationId: normalized.conversationId,
         senderId: userId,
         content,
         senderName,
+        clientMessageId: messageClientId,
       });
       await pool.query(
-        'UPDATE chat_payment_requests SET message_id = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE chat_payment_requests SET message_id = $1, updated_at = NOW() WHERE id = $2 AND message_id IS NULL',
         [String(message.id), payReq.id],
       );
     } else if (normalized.guestSessionId) {
@@ -597,17 +676,19 @@ exports.requestPayment = async (req, res, next) => {
         content,
         helperId,
         senderType: 'helper',
+        clientMessageId: messageClientId,
       });
       await pool.query(
-        'UPDATE chat_payment_requests SET message_id = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE chat_payment_requests SET message_id = $1, updated_at = NOW() WHERE id = $2 AND message_id IS NULL',
         [String(message.id), payReq.id],
       );
     }
 
-    return res.status(201).json({
-      paymentRequest: toPublicPaymentRequestCard({ ...payReq, message_id: message?.id }),
+    return res.status(replayed ? 200 : 201).json({
+      paymentRequest: toPublicPaymentRequestCard({ ...payReq, message_id: message?.id || payReq.message_id }),
       message,
       marker,
+      replayed,
     });
   } catch (err) {
     next(err);
