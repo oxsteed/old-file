@@ -67,23 +67,12 @@ function createApiClient({ url, token, fetchImpl, deadline, now }) {
       throw new Error('Coolify API request failed or timed out. Check the HTTPS endpoint and network access.');
     }
     if (!response.ok) {
-      let responseMessage = '';
-      try {
-        const payload = await response.json();
-        if (typeof payload?.message === 'string') responseMessage = payload.message;
-      } catch {
-        // Keep the status-only error when Coolify returns a non-JSON body.
-      }
-      responseMessage = responseMessage
-        .replaceAll(token, '[redacted]')
-        .replaceAll(String(target), '[redacted]');
       const advice = response.status === 404
         ? 'Check the live instance, application UUID, and token team access; no matching resource was found.'
         : [401, 403].includes(response.status)
           ? 'Check that the token exists on this Coolify instance and grants read and deploy access to the application team.'
           : 'Inspect the Coolify deployment and server logs.';
-      const detail = responseMessage ? ` Coolify said: ${responseMessage}.` : '';
-      throw new Error(`Coolify API returned HTTP ${response.status}.${detail} ${advice}`);
+      throw new Error(`Coolify API returned HTTP ${response.status}. ${advice}`);
     }
     try { return await response.json(); } catch {
       throw new Error('Coolify returned an invalid JSON response. Check the API endpoint.');
