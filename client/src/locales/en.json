@@ -13969,6 +13969,11 @@
       "loadMore": "Load more restaurants",
       "loadingMore": "Loading more...",
       "allLoaded": "You have reached the end",
+      "externalPlace": "External place",
+      "externalPlaceBadge": "Not on OxSteed",
+      "externalPlaceDescription": "This place is shown for discovery only. Ordering and OxSteed Credit are unavailable.",
+      "externalPlacesTitle": "Nearby places outside OxSteed",
+      "externalPlacesDescription": "These places come from location search and are not enrolled restaurants.",
       "redesign": {
         "navigation": "Restaurant navigation",
         "network": "Explore OxSteed",

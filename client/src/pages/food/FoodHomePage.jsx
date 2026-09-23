@@ -2,9 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import { listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
+import { getNearbyPlaces } from '../../api/geo';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
@@ -19,6 +18,7 @@ import {
 } from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
 import '../../styles/RestaurantDiscovery.css';
+import AwsLocationMap from '../../components/AwsLocationMap';
 
 const DEFAULT_CENTER = [25.0, -40.0];
 const DEFAULT_ZOOM = 2;
@@ -115,6 +115,22 @@ function RestaurantCard({ r, t }) {
   );
 }
 
+function ExternalPlaceCard({ place, t }) {
+  return (
+    <article className="fd-card fd-external-place-card">
+      <div className="fd-card-cover fd-card-cover-placeholder" aria-hidden="true">
+        <span>{t('food.home.externalPlace')}</span>
+      </div>
+      <div className="fd-card-body">
+        <h3>{place.title || place.display || t('food.home.restaurant')}</h3>
+        <span className="fd-tag">{t('food.home.externalPlaceBadge')}</span>
+        {place.display && <span className="fd-card-meta">{place.display}</span>}
+        <p className="fd-card-meta">{t('food.home.externalPlaceDescription')}</p>
+      </div>
+    </article>
+  );
+}
+
 export default function FoodHomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -130,6 +146,7 @@ export default function FoodHomePage() {
   const [activeCuisine, setActiveCuisine] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [externalPlaces, setExternalPlaces] = useState([]);
   const [sort, setSort] = useState('recommended');
   const [pagination, setPagination] = useState({
     limit: DISCOVERY_PAGE_SIZE,
@@ -209,6 +226,18 @@ export default function FoodHomePage() {
       })
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!geo) {
+      setExternalPlaces([]);
+      return undefined;
+    }
+    let active = true;
+    getNearbyPlaces({ lat: geo.lat, lng: geo.lng, radius: 5000 })
+      .then(({ places }) => { if (active) setExternalPlaces(places); })
+      .catch(() => { if (active) setExternalPlaces([]); });
+    return () => { active = false; };
+  }, [geo]);
 
   const search = (e) => {
     e?.preventDefault?.();
@@ -303,6 +332,7 @@ export default function FoodHomePage() {
   const hasFeatured = !isSearching && !activeCuisine && featured.length > 0;
   const hasNearby = !isSearching && nearbyRestaurants.length > 0;
   const hasData = restaurants.length > 0;
+  const hasMapData = hasData || externalPlaces.length > 0;
   const hasDiscoveryFilter = isSearching || !!activeCuisine || !!geo;
 
   const clearFilters = () => {
@@ -417,7 +447,7 @@ export default function FoodHomePage() {
       )}
 
       {/* ── Map toggle ── */}
-      {hasData && <div className="fd-map-toggle-row">
+      {hasMapData && <div className="fd-map-toggle-row">
         <button
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
@@ -429,34 +459,23 @@ export default function FoodHomePage() {
         </button>
       </div>}
 
-      {showMap && hasData && (
+      {showMap && hasMapData && (
         <div className="fd-map-wrap" id="restaurant-discovery-map">
-          <MapContainer
-            key={`${mapCenter[0].toFixed(2)}|${mapCenter[1].toFixed(2)}`}
+          <AwsLocationMap
             center={mapCenter}
             zoom={geo ? 12 : DEFAULT_ZOOM}
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {restaurants
-              .filter((r) => r.latitude != null && r.longitude != null)
-              .map((r) => (
-                <CircleMarker
-                  key={r.id}
-                  center={[Number(r.latitude), Number(r.longitude)]}
-                  radius={9}
-                  pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.85 }}
-                >
-                  <Popup>
-                    <strong>{r.display_name}</strong><br />
-                    <Link to={`/restaurants/r/${r.id}`}>{t('food.home.viewMenu')}</Link>
-                  </Popup>
-                </CircleMarker>
-              ))}
-          </MapContainer>
+            places={[
+              ...restaurants
+                .filter((r) => r.latitude != null && r.longitude != null)
+                .map((r) => ({
+                  lat: r.latitude,
+                  lng: r.longitude,
+                  display_name: r.display_name,
+                  href: `/restaurants/r/${r.id}`,
+                })),
+              ...externalPlaces.map((place) => ({ ...place, external: true })),
+            ]}
+          />
         </div>
       )}
 
@@ -557,6 +576,18 @@ export default function FoodHomePage() {
                 <div className="fd-h-scroll-inner">
                   {nearbyRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {externalPlaces.length > 0 && (
+            <div className="fd-section" aria-labelledby="external-places-title">
+              <h2 className="fd-section-label" id="external-places-title">{t('food.home.externalPlacesTitle')}</h2>
+              <p className="fd-card-meta">{t('food.home.externalPlacesDescription')}</p>
+              <div className="fd-grid">
+                {externalPlaces.slice(0, 8).map((place) => (
+                  <ExternalPlaceCard key={`${place.placeId || place.display}-${place.lat}-${place.lng}`} place={place} t={t} />
+                ))}
               </div>
             </div>
           )}

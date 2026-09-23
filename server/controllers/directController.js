@@ -28,6 +28,7 @@ const {
 } = require('../services/directCatalogService');
 const { createDraft: createCatalogDraft } = require('../services/directCatalogAI');
 const { recordDirectCalendarAudit } = require('../services/directCalendarAudit');
+const { calculateRoute } = require('../services/geoRouteProviderService');
 const crypto = require('crypto');
 
 const DEFAULT_PROFILE = {
@@ -1710,7 +1711,7 @@ exports.getAdminDashboard = async (req, res) => {
         hasNext: offset + (upcoming.rows || []).length < Number(calendarCount[0]?.total || 0),
       },
       travelDensity: travelDensity.rows || [],
-      routePlan: buildTravelPlan(upcoming.rows || [], serviceAreas, profile?.base_city || 'Springfield'),
+      routePlan: await buildTravelPlan(upcoming.rows || [], serviceAreas, profile?.base_city || 'Springfield'),
       unpaid: unpaid.rows || [],
     });
   } catch (err) {
@@ -1895,7 +1896,7 @@ function distanceBetweenAreas(from, to) {
   return 3958.7613 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-function buildTravelPlan(jobs, serviceAreas, baseCity) {
+async function buildTravelPlan(jobs, serviceAreas, baseCity) {
   const areas = (serviceAreas || []).map((area) => ({ ...area, key: routeCityKey(area.label) }));
   const findArea = (city) => {
     const key = routeCityKey(city);
@@ -1911,7 +1912,7 @@ function buildTravelPlan(jobs, serviceAreas, baseCity) {
     return groups;
   }, {});
 
-  return Object.entries(byDate).sort(([left], [right]) => left.localeCompare(right)).map(([date, dayJobs]) => {
+  return Promise.all(Object.entries(byDate).sort(([left], [right]) => left.localeCompare(right)).map(async ([date, dayJobs]) => {
     const stopMap = new Map();
     dayJobs.forEach((job) => {
       const city = routeCityLabel(job);
@@ -1921,6 +1922,7 @@ function buildTravelPlan(jobs, serviceAreas, baseCity) {
     });
     const remaining = Array.from(stopMap.values());
     const stops = [];
+    const orderedAreas = [];
     let cursor = baseArea;
     let estimatedMiles = 0;
     while (remaining.length) {
@@ -1938,17 +1940,46 @@ function buildTravelPlan(jobs, serviceAreas, baseCity) {
       const distance = distanceBetweenAreas(cursor, next.area);
       if (distance != null) estimatedMiles += distance;
       stops.push({ city: next.city, jobCount: next.jobCount, mapped: Boolean(next.area) });
-      if (next.area) cursor = next.area;
+      if (next.area) {
+        orderedAreas.push(next.area);
+        cursor = next.area;
+      }
     }
+
+    let routeProvider = 'haversine';
+    if (baseArea && orderedAreas.length > 0 && orderedAreas.length === stops.length) {
+      const [lastArea] = orderedAreas.slice(-1);
+      const routedPlan = await calculateRoute({
+        origin: [Number(baseArea.lng), Number(baseArea.lat)],
+        destination: [Number(lastArea.lng), Number(lastArea.lat)],
+        waypoints: orderedAreas.slice(0, -1).map((area) => [Number(area.lng), Number(area.lat)]),
+        travelMode: 'Car',
+      }).catch(() => null);
+      if (routedPlan && Number.isFinite(Number(routedPlan.distanceMeters))) {
+        estimatedMiles = Number(routedPlan.distanceMeters) / 1609.344;
+        routeProvider = routedPlan.provider || 'aws';
+        return {
+          date,
+          baseCity: baseArea?.label || baseCity || null,
+          stops,
+          estimatedMiles: Math.round(estimatedMiles),
+          estimatedDriveMinutes: Math.max(1, Math.round(Number(routedPlan.durationSeconds || 0) / 60)),
+          routeProvider,
+          hasUnmappedStops: false,
+        };
+      }
+    }
+
     return {
       date,
       baseCity: baseArea?.label || baseCity || null,
       stops,
       estimatedMiles: Math.round(estimatedMiles),
       estimatedDriveMinutes: Math.round(estimatedMiles * 2 + (stops.length * 15)),
+      routeProvider,
       hasUnmappedStops: stops.some((stop) => !stop.mapped),
     };
-  });
+  }));
 }
 
 exports.createAdminCalendarBlock = async (req, res) => {

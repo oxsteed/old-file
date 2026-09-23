@@ -1,5 +1,6 @@
 const {
   GeoPlacesClient,
+  SearchNearbyCommand,
   SearchTextCommand,
   ReverseGeocodeCommand,
 } = require('@aws-sdk/client-geo-places');
@@ -39,7 +40,7 @@ function normalizePosition(position) {
   return { lat, lng };
 }
 
-function normalizePlace(item) {
+function normalizePlace(item, options = {}) {
   const address = item?.Address || {};
   const position = normalizePosition(item?.Position)
     || normalizePosition(item?.AccessPoints?.find((point) => point?.Primary)?.Position)
@@ -50,7 +51,7 @@ function normalizePlace(item) {
   const zip = address.PostalCode || address.PostalCodeDetails?.[0]?.PostalCode || '';
   const display = address.Label || item?.Title || [city, state, country].filter(Boolean).join(', ');
 
-  return {
+  const place = {
     display,
     city,
     state,
@@ -59,6 +60,20 @@ function normalizePlace(item) {
     lat: position?.lat ?? null,
     lng: position?.lng ?? null,
   };
+  if (options.external) {
+    return {
+      ...place,
+      provider: 'aws',
+      placeId: item?.PlaceId || null,
+      title: item?.Title || '',
+      distanceMeters: Number.isFinite(Number(item?.Distance)) ? Number(item.Distance) : null,
+      source: 'aws_external',
+      enrolled: false,
+      orderable: false,
+      creditEligible: false,
+    };
+  }
+  return place;
 }
 
 async function send(command, operation) {
@@ -89,6 +104,31 @@ async function suggest(query) {
   return (response.ResultItems || []).map(normalizePlace).filter((place) => place.city || place.display);
 }
 
+async function nearby(lat, lng, options = {}) {
+  if (!isEnabled()) return null;
+  const radius = Math.min(Math.max(Number(options.radiusMeters) || 5000, 100), 25000);
+  const maxResults = Math.min(Math.max(Number(options.maxResults) || 20, 1), 50);
+  const response = await send(new SearchNearbyCommand({
+    QueryPosition: [lng, lat],
+    QueryRadius: radius,
+    MaxResults: maxResults,
+    Language: languageInput(),
+    IntendedUse: 'SingleUse',
+    Filter: { IncludeCategories: ['restaurant'] },
+  }), 'SearchNearby');
+  if (!response) return null;
+  return (response.ResultItems || [])
+    .map((item) => normalizePlace(item, { external: true }))
+    .filter((place) => place.lat !== null && place.lng !== null)
+    .map((place) => ({
+      ...place,
+      source: 'aws_external',
+      enrolled: false,
+      orderable: false,
+      creditEligible: false,
+    }));
+}
+
 async function reverse(lat, lng) {
   if (!isEnabled()) return null;
   const response = await send(new ReverseGeocodeCommand({
@@ -110,5 +150,6 @@ module.exports = {
   normalizePlace,
   reverse,
   suggest,
+  nearby,
   resetForTests,
 };

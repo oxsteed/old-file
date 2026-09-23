@@ -9,6 +9,7 @@ const SCRIPT_SOURCES = [
   // Cloudflare Web Analytics beacon when proxied via CF
   'https://static.cloudflareinsights.com',
 ];
+const AWS_LOCATION_REGION = process.env.AWS_REGION || 'us-east-1';
 
 /**
  * Security headers middleware using Helmet.js.
@@ -41,6 +42,8 @@ const securityHeaders = helmet({
         // Public helper profile: geocode city/state when lat/lng missing (LocationSection)
         'https://nominatim.openstreetmap.org',
         'https://static.cloudflareinsights.com',
+        `https://maps.geo.${AWS_LOCATION_REGION}.amazonaws.com`,
+        `https://tiles.geo.${AWS_LOCATION_REGION}.amazonaws.com`,
         process.env.CLIENT_URL || 'https://oxsteed.com',
         'https://o4511157112471552.ingest.us.sentry.io',
       ],

@@ -2,12 +2,14 @@ const mockSend = jest.fn();
 
 jest.mock('@aws-sdk/client-geo-places', () => ({
   GeoPlacesClient: jest.fn(() => ({ send: mockSend })),
+  SearchNearbyCommand: jest.fn((input) => ({ operation: 'SearchNearby', input })),
   SearchTextCommand: jest.fn((input) => ({ operation: 'SearchText', input })),
   ReverseGeocodeCommand: jest.fn((input) => ({ operation: 'ReverseGeocode', input })),
 }));
 
 const {
   GeoPlacesClient,
+  SearchNearbyCommand,
   SearchTextCommand,
   ReverseGeocodeCommand,
 } = require('@aws-sdk/client-geo-places');
@@ -24,6 +26,7 @@ afterEach(() => {
   GeoPlacesClient.mockClear();
   SearchTextCommand.mockClear();
   ReverseGeocodeCommand.mockClear();
+  SearchNearbyCommand.mockClear();
   geoProvider.resetForTests();
   for (const [key, value] of Object.entries({
     AWS_GEO_PLACES_ENABLED: originalEnv.AWS_GEO_PLACES_ENABLED,
@@ -101,5 +104,45 @@ test('reverse geocodes browser coordinates without persisting the response', asy
     MaxResults: 1,
     Language: 'en',
     IntendedUse: 'SingleUse',
+  });
+});
+
+test('maps nearby restaurants as non-orderable external places', async () => {
+  process.env.AWS_GEO_PLACES_ENABLED = 'true';
+  process.env.AWS_REGION = 'us-east-1';
+  mockSend.mockResolvedValueOnce({
+    ResultItems: [{
+      PlaceId: 'place-1',
+      Title: 'External Cafe',
+      Address: { Label: 'External Cafe, Springfield, OH', Locality: 'Springfield', Region: { Code: 'OH' } },
+      Position: [-83.8, 39.9],
+      Distance: 420,
+    }],
+  });
+
+  await expect(geoProvider.nearby(39.9, -83.8, { radiusMeters: 1000 })).resolves.toEqual([{
+    provider: 'aws',
+    placeId: 'place-1',
+    title: 'External Cafe',
+    display: 'External Cafe, Springfield, OH',
+    city: 'Springfield',
+    state: 'OH',
+    zip: '',
+    country: '',
+    lat: 39.9,
+    lng: -83.8,
+    distanceMeters: 420,
+    source: 'aws_external',
+    enrolled: false,
+    orderable: false,
+    creditEligible: false,
+  }]);
+  expect(SearchNearbyCommand).toHaveBeenCalledWith({
+    QueryPosition: [-83.8, 39.9],
+    QueryRadius: 1000,
+    MaxResults: 20,
+    Language: 'en',
+    IntendedUse: 'SingleUse',
+    Filter: { IncludeCategories: ['restaurant'] },
   });
 });

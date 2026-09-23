@@ -36,6 +36,7 @@ const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { resolveOrderItemModifiers } = require('./foodController');
+const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
@@ -3598,12 +3599,19 @@ exports.createPosOrder = async (req, res, next) => {
             .every((coordinate) => Number.isFinite(Number(coordinate)))) {
             throw new AppError('Delivery coordinates are required to verify the delivery area', 400, 'delivery_coordinates_required');
           }
-          const deliveryDistanceMeters = geoDistanceMeters(
-            Number(lockedRestaurant.latitude),
-            Number(lockedRestaurant.longitude),
-            Number(lat),
-            Number(lng)
-          );
+          const routedDelivery = await calculateGeoRoute({
+            origin: [Number(lockedRestaurant.longitude), Number(lockedRestaurant.latitude)],
+            destination: [Number(lng), Number(lat)],
+            travelMode: 'Car',
+          });
+          const deliveryDistanceMeters = Number.isFinite(Number(routedDelivery?.distanceMeters))
+            ? Number(routedDelivery.distanceMeters)
+            : geoDistanceMeters(
+              Number(lockedRestaurant.latitude),
+              Number(lockedRestaurant.longitude),
+              Number(lat),
+              Number(lng)
+            );
           if (deliveryDistanceMeters > Number(lockedRestaurant.delivery_radius_meters)) {
             throw new AppError('Delivery address is outside this restaurant\'s delivery area', 409, 'outside_delivery_area', {
               deliveryDistanceMeters: Math.round(deliveryDistanceMeters),

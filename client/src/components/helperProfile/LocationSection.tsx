@@ -2,48 +2,35 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Navigation, Wifi } from 'lucide-react';
 import type { LocationInfo } from '../../types/helperProfile';
+import { suggestLocation } from '../../api/geo';
 import SectionCard from './ui/SectionCard';
 
 interface LocationSectionProps {
   location: LocationInfo;
 }
 
-/** Approximate geocode for city/state/zip when lat/lng missing (Nominatim; US-focused). */
+/** Resolve a public profile's city/state/zip through the shared geo provider. */
 async function geocodeCityStateZip(
   city: string,
   state: string,
   zip: string,
-  language: string,
 ): Promise<[number, number] | null> {
   const parts = [city, state, zip, 'USA'].filter(Boolean).join(', ');
   if (!city.trim() && !state.trim()) return null;
-
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(parts)}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'Accept-Language': language,
-      // Nominatim usage policy: identify application
-      'User-Agent': 'OxSteedMarketplace/1.0 (contact: support@oxsteed.com)',
-    },
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as Array<{ lat: string; lon: string }>;
-  if (!data?.length) return null;
-  const lat = parseFloat(data[0].lat);
-  const lon = parseFloat(data[0].lon);
-  if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
-  return null;
+  const [place] = await suggestLocation(parts);
+  if (place?.lat == null || place?.lng == null) return null;
+  const lat = Number(place.lat);
+  const lng = Number(place.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
 }
 
-const ServiceAreaMapLazy = React.lazy(() => import('./ServiceAreaMapLeaflet'));
+const ServiceAreaMapLazy = React.lazy(() => import('./ServiceAreaMapAws'));
 
 const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [geoFailed, setGeoFailed] = useState(false);
   const [loadingMap, setLoadingMap] = useState(true);
-  const geocodeLanguage = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
 
   const hasCoords =
     location.serviceLat != null &&
@@ -69,7 +56,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
           location.city,
           location.state,
           location.zip,
-          geocodeLanguage,
         );
         if (cancelled) return;
         if (resolved) {
@@ -99,7 +85,6 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
     location.city,
     location.state,
     location.zip,
-    geocodeLanguage,
   ]);
 
   const radiusMiles = useMemo(

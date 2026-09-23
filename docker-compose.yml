@@ -26,7 +26,11 @@ services:
       retries: 5
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_AWS_LOCATION_API_KEY: ${VITE_AWS_LOCATION_API_KEY:-}
+        VITE_AWS_LOCATION_REGION: ${VITE_AWS_LOCATION_REGION:-us-east-1}
     container_name: oxsteed-app
     restart: unless-stopped
     depends_on:
@@ -66,6 +70,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_GEO_PLACES_ENABLED: ${AWS_GEO_PLACES_ENABLED:-false}
       AWS_GEO_PLACES_LANGUAGE: ${AWS_GEO_PLACES_LANGUAGE:-en}
+      AWS_GEO_ROUTES_ENABLED: ${AWS_GEO_ROUTES_ENABLED:-false}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}

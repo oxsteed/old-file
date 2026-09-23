@@ -82,7 +82,7 @@
   border: 1px solid var(--border-color, #e5e7eb);
   margin-bottom: 1.25rem;
 }
-.fd-map-wrap .leaflet-container { height: 100%; width: 100%; }
+.fd-map-wrap .aws-location-map { height: 100%; min-height: 0; }
 
 .fd-grid {
   display: grid;

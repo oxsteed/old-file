@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OxSteedLocationServer",
+      "Effect": "Allow",
+      "Action": [
+        "geo-places:SearchText",
+        "geo-places:ReverseGeocode",
+        "geo-places:SearchNearby",
+        "geo-places:GetPlace",
+        "geo-routes:CalculateRoutes",
+        "geo-routes:CalculateRouteMatrix"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

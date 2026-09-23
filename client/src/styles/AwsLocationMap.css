@@ -1,0 +1,49 @@
+.aws-location-map {
+  min-height: 22rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: #dfe6ec;
+}
+
+.aws-location-map-disabled {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  color: #526172;
+  text-align: center;
+}
+
+.aws-location-marker {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 35%);
+}
+
+.aws-location-marker-external {
+  background: #64748b;
+  border-radius: 0.25rem;
+  transform: rotate(45deg);
+}
+
+.aws-location-popup-note {
+  margin: 0.35rem 0 0;
+  color: #526172;
+  font-size: 0.75rem;
+}
+
+.aws-location-popup-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.helper-service-area-map {
+  min-height: 0;
+  height: 100%;
+  border-radius: 0;
+}

@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createFoodLocation, listFoodLocations } from '../../api/food';
+import { suggestLocation } from '../../api/geo';
 import { apiErrorMessage } from './foodShared';
 
 export default function LocationsPanel({ t, restaurant, onChanged }) {
@@ -10,12 +11,39 @@ export default function LocationsPanel({ t, restaurant, onChanged }) {
     name: '', addressCity: '', addressState: '', addressCountry: 'US', latitude: '', longitude: '',
   });
   const [saving, setSaving] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
 
   const load = useCallback(() => {
     listFoodLocations(restaurant.id).then(setLocations).catch(() => setLocations([]));
   }, [restaurant.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const resolveCoordinates = async () => {
+    const query = [form.addressCity, form.addressState, form.addressCountry].filter(Boolean).join(', ');
+    if (query.length < 2) return;
+    setGeocoding(true);
+    try {
+      const [match] = await suggestLocation(query);
+      if (!match) {
+        toast.error(t('food.merchant.locationGeocodeEmpty', 'Could not find coordinates for this location'));
+        return;
+      }
+      setForm((current) => ({
+        ...current,
+        addressCity: match.city || current.addressCity,
+        addressState: match.state || current.addressState,
+        addressCountry: match.country || current.addressCountry,
+        latitude: match.lat ?? current.latitude,
+        longitude: match.lng ?? current.longitude,
+      }));
+      toast.success(t('food.merchant.locationGeocoded', 'Coordinates found'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.merchant.locationGeocodeError', 'Could not find coordinates')));
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -71,6 +99,9 @@ export default function LocationsPanel({ t, restaurant, onChanged }) {
           <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
           <input id="fd-loc-lat" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))} />
         </div>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resolveCoordinates} disabled={geocoding} style={{ alignSelf: 'flex-end' }}>
+          {geocoding ? t('food.common.loading') : t('food.merchant.findCoordinates', 'Find coordinates')}
+        </button>
         <button type="submit" className="fd-btn fd-btn-sm" disabled={saving} style={{ alignSelf: 'flex-end' }}>
           {saving ? t('food.common.saving') : t('food.merchant.addLocation', 'Add location')}
         </button>
