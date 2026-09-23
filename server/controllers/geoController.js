@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const { reverse: awsReverse, suggest: awsSuggest } = require('../services/geoProviderService');
 
 const GOOGLE_MAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GEOCODE_BASE    = 'https://maps.googleapis.com/maps/api/geocode/json';
@@ -41,6 +42,12 @@ exports.reverse = async (req, res) => {
     const cacheKey = `rev:${lat.toFixed(4)},${lng.toFixed(4)}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
+
+    const awsResult = await awsReverse(lat, lng);
+    if (awsResult) {
+      cacheSet(cacheKey, awsResult);
+      return res.json(awsResult);
+    }
 
     const { data } = await axios.get(GEOCODE_BASE, {
       params: { latlng: `${lat},${lng}`, result_type: 'locality', key: GOOGLE_MAPS_KEY },
@@ -89,6 +96,12 @@ exports.suggest = async (req, res) => {
     const cacheKey = q.toLowerCase();
     const cached   = cacheGet(cacheKey);
     if (cached) return res.json(cached);
+
+    const awsResults = await awsSuggest(q);
+    if (awsResults) {
+      cacheSet(cacheKey, awsResults);
+      return res.json(awsResults);
+    }
 
     const { data } = await axios.get(GEOCODE_BASE, {
       params: {
