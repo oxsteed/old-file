@@ -497,8 +497,8 @@
 }
 
 .bpe-btn.primary {
-  background: #f97316;
-  color: #111827;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
 }
 
 .bpe-btn:disabled {
@@ -572,4 +572,3 @@
 .bpe-studio .bpe-checks-inline h3:first-of-type {
   margin-top: 0;
 }
-

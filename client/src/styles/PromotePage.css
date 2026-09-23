@@ -140,8 +140,8 @@
 }
 
 .promote-segmented button.active {
-  background: #f97316;
-  color: #111827;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
 }
 
 .promote-segmented button:disabled {
@@ -686,9 +686,9 @@
 }
 
 .promote-tab.active {
-  background: #f97316;
-  color: #111827;
-  border-color: #f97316;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
+  border-color: var(--color-action, #c2410c);
   box-shadow: 0 4px 16px rgba(249, 115, 22, 0.28);
 }
 

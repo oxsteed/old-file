@@ -74,7 +74,7 @@
 .bcw-footer { position: sticky; bottom: 0; border-top: 1px solid var(--border-color); background: color-mix(in srgb, var(--card-bg) 92%, transparent); backdrop-filter: blur(16px); }
 .bcw-primary,
 .bcw-secondary { min-height: 48px; border-radius: 14px; padding: 0 22px; font-weight: 800; cursor: pointer; }
-.bcw-primary { border: 0; background: linear-gradient(110deg, #f59e0b, #fb7185); color: #111827; }
+.bcw-primary { border: 0; background: var(--color-action, #c2410c); color: var(--color-on-action, #fff); }
 .bcw-secondary { border: 1px solid var(--border-color); background: transparent; color: var(--app-text); }
 .bcw-primary:disabled,
 .bcw-secondary:disabled { cursor: not-allowed; opacity: .55; }

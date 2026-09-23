@@ -59,7 +59,7 @@
 
 .bct-btn:hover { transform: translateY(-1px); }
 .bct-btn.ghost { background: transparent; }
-.bct-btn.primary { background: #f97316; border-color: #f97316; color: #111827; }
+.bct-btn.primary { background: var(--color-action, #c2410c); border-color: var(--color-action, #c2410c); color: var(--color-on-action, #fff); }
 .bct-btn.danger { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
 
 .bct-summary {
@@ -156,12 +156,12 @@
 }
 
 .bct-status-pill.active {
-  background: #f97316;
-  color: #111827;
-  border-color: #f97316;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
+  border-color: var(--color-action, #c2410c);
 }
 
-.bct-status-pill.active em { background: rgba(17, 24, 39, 0.15); color: #111827; }
+.bct-status-pill.active em { background: rgba(255, 255, 255, 0.18); color: var(--color-on-action, #fff); }
 
 .bct-sort {
   display: inline-flex;

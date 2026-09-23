@@ -681,6 +681,21 @@ html:not(.dark) .text-gray-600 { color: #334155 !important; }
 html:not(.dark) .text-gray-200 { color: #1f2937 !important; }
 html:not(.dark) .text-gray-100 { color: #0f172a !important; }
 
+/* Filled action controls keep their intended white foreground in light mode.
+   The neutral text remapping above is still useful for dark-first content, but
+   must not lower contrast on saturated buttons and links. */
+html:not(.dark) :is(
+  .bg-orange-500.text-white,
+  .bg-orange-600.text-white,
+  .bg-orange-700.text-white,
+  .bg-red-500.text-white,
+  .bg-red-600.text-white,
+  .bg-blue-600.text-white,
+  .bg-emerald-600.text-white
+) {
+  color: #ffffff !important;
+}
+
 /* Tailwind embeds the via color in gradient-stops, not gradient-via.
    Remap all neutral stops together so dark bands cannot survive light mode. */
 html:not(.dark) :is(.from-gray-950, .from-gray-900, .from-gray-800, .from-gray-700,

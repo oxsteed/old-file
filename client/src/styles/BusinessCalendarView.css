@@ -53,8 +53,8 @@
 }
 
 .bcv-view-switch button.active {
-  background: #f97316;
-  color: #111827;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
 }
 
 .bcv-filter {
@@ -93,7 +93,7 @@
 
 .bcv-btn:hover { transform: translateY(-1px); }
 .bcv-btn.ghost { background: transparent; }
-.bcv-btn.primary { background: #f97316; border-color: #f97316; color: #111827; }
+.bcv-btn.primary { background: var(--color-action, #c2410c); border-color: var(--color-action, #c2410c); color: var(--color-on-action, #fff); }
 .bcv-btn.danger { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
 
 .bcv-empty {
@@ -172,9 +172,9 @@
 }
 
 .bcv-day-add:hover {
-  background: #f97316;
-  color: #111827;
-  border-color: #f97316;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
+  border-color: var(--color-action, #c2410c);
 }
 
 .bcv-day-list {

@@ -1008,6 +1008,17 @@
 .hp-cta-desc { font-size: .9375rem; color: var(--hp-text-muted); line-height: 1.65; max-width: 46ch; }
 .hp-cta-actions { display: flex; flex-direction: column; gap: .75rem; white-space: nowrap; }
 
+/* Keep the primary CTA readable after light-mode text remapping. */
+html:not(.dark) .hp-root .hp-btn-primary,
+[data-theme='light'] .hp-root .hp-btn-primary {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+html:not(.dark) .hp-root .hp-btn-primary:hover,
+[data-theme='light'] .hp-root .hp-btn-primary:hover {
+  background: var(--color-action-hover);
+}
+
 /* ── Footer ──────────────────────────────────────────────── */
 .hp-footer {
   border-top: 1px solid var(--hp-divider);
