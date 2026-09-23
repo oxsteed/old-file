@@ -29,6 +29,10 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Generate client locale shards
+        working-directory: client
+        run: node scripts/splitLocaleCatalogs.mjs
+
       - name: Deployment command regression tests
         run: node --test scripts/deploy-coolify.test.cjs scripts/compute-content-release.test.cjs
 
