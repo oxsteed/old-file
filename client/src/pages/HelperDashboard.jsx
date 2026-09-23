@@ -1331,7 +1331,7 @@ export default function HelperDashboard() {
                 Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.
               </p>
             </div>
-            <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-gray-950 text-sm font-bold hover:bg-orange-400 transition">
+          <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition">
               Open Growth Center
             </Link>
           </div>
@@ -1340,7 +1340,7 @@ export default function HelperDashboard() {
           {/* Tabs */}
           {tabs.length>1&&(
             <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
             </div>
           )}
 

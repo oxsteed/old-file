@@ -252,7 +252,7 @@ function OpportunityCard({ item, onApply, t }) {
           type="button"
           disabled={isAlreadyAgent || hasPending || item.my_application_status === 'hired'}
           onClick={() => onApply(item)}
-          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
         >
           <SendHorizonal size={15} />
           {isAlreadyAgent ? t('supportAgentPortal.alreadyOnTeam', { defaultValue: 'Already on team' }) : hasPending ? t('supportAgentPortal.applicationPending', { defaultValue: 'Application pending' }) : t('supportAgentPortal.applyNow', { defaultValue: 'Apply now' })}
@@ -594,7 +594,7 @@ export default function SupportAgentPortalPage() {
                         {row.status === 'active' && (
                           <Link
                             to={row.business_id ? `/support/agent/workspace?business=${row.business_id}` : '/support/agent/workspace'}
-                            className="mt-4 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                            className="mt-4 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-400"
                           >
                             <Headphones size={15} />
                             {t('supportAgentPortal.openCustomerQueue', { defaultValue: 'Open customer queue' })}
@@ -684,7 +684,7 @@ export default function SupportAgentPortalPage() {
                       onClick={() => setFilter(value)}
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                         filter === value
-                          ? 'bg-orange-500 text-slate-950'
+                          ? 'bg-orange-500 text-white'
                           : 'border border-white/10 text-slate-300 hover:border-orange-400/40'
                       }`}
                     >
@@ -837,7 +837,7 @@ export default function SupportAgentPortalPage() {
                         type="button"
                         onClick={() => saveHiringProfile(business)}
                         disabled={savingBusinessId === business.business_id}
-                        className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                       >
                         <SendHorizonal size={15} />
                         {savingBusinessId === business.business_id ? t('supportAgentPortal.savingProfile', { defaultValue: 'Saving…' }) : t('supportAgentPortal.saveHiringProfile', { defaultValue: 'Save hiring profile' })}
@@ -956,7 +956,7 @@ export default function SupportAgentPortalPage() {
                 <button
                   type="submit"
                   disabled={submittingApplication || !form.jobTitle.trim()}
-                  className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                  className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
                   <SendHorizonal size={15} />
                   {submittingApplication ? t('supportAgentPortal.sending', { defaultValue: 'Sending…' }) : t('supportAgentPortal.submitApplication', { defaultValue: 'Submit application' })}

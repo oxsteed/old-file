@@ -195,7 +195,7 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
             <button type="button" onClick={loadContext} className="px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm">
               {t('aiPreview.refreshBtn')}
             </button>
-            <Link to={editLink} className="px-4 py-2 rounded-lg bg-orange-500 text-gray-950 text-sm font-semibold">
+            <Link to={editLink} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold">
               {t('aiPreview.editKnowledgeBtn')}
             </Link>
           </div>
@@ -235,7 +235,7 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
                   placeholder={t('aiPreview.sandboxPlaceholder')}
                   className="flex-1 rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm"
                 />
-                <button type="button" onClick={sendSandbox} disabled={sending} className="px-4 py-2 rounded-lg bg-orange-500 text-gray-950 text-sm font-semibold disabled:opacity-50">
+              <button type="button" onClick={sendSandbox} disabled={sending} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold disabled:opacity-50">
                   {t('aiPreview.sandboxSend')}
                 </button>
                 <button

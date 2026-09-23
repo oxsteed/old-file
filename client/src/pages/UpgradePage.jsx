@@ -219,7 +219,7 @@ export default function UpgradePage() {
               {/* PRO */}
               <div className="relative bg-gray-900/60 border-2 border-orange-500/60 rounded-2xl p-8 shadow-lg shadow-orange-500/5">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-orange-500 text-gray-950 text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
+                  <span className="bg-orange-500 text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
                     {t('upgrade.recommended')}
                   </span>
                 </div>
