@@ -204,6 +204,22 @@ test('deep-linked threads do not render the full empty-inbox guide in the inbox 
   assert.match(styles, /\.messages-page\.workspace \.messages-rail-empty\s*\{[\s\S]*?min-height:\s*280px;/);
 });
 
+test('archived conversation rows expose a direct restore action', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const list = await readFile(join(root, 'src/components/messaging/ConversationList.jsx'), 'utf8');
+  const workspace = await readFile(join(root, 'src/components/messaging/MessagingWorkspace.jsx'), 'utf8');
+  const styles = await readFile(join(root, 'src/components/messaging/SharedMessengerShell.css'), 'utf8');
+
+  assert.match(list, /onRestore = null/);
+  assert.match(list, /className="messages-row-restore"/);
+  assert.match(list, /onRestore\(conv\)/);
+  assert.match(workspace, /onRestore=\{\(conversation\) => restoreArchived\(conversation\.id\)\}/);
+  assert.match(styles, /\.messages-row-restore\s*\{/);
+});
+
 test('business workflow labels remain visible on small screens', async () => {
   const { readFile } = await import('node:fs/promises');
   const { fileURLToPath } = await import('node:url');

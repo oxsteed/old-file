@@ -32,6 +32,43 @@
   background: rgba(148, 163, 184, 0.1);
 }
 
+.messages-row-with-action {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0 10px 0 0;
+}
+
+.messages-row-with-action > .messages-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.messages-row-restore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 9px;
+  background: rgba(249, 115, 22, 0.08);
+  color: #fdba74;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.messages-row-restore:hover,
+.messages-row-restore:focus-visible {
+  border-color: rgba(249, 115, 22, 0.62);
+  background: rgba(249, 115, 22, 0.16);
+  color: #fed7aa;
+}
+
 .sms-conversation-row.messages-row.unread strong {
   color: #fff;
 }
@@ -1603,6 +1640,19 @@ html:not(.dark) .messages-page.workspace .messages-empty-actions a:first-child:h
   border-color: #9a3412;
   background: #9a3412;
   color: #fff;
+}
+
+html:not(.dark) .messages-page.workspace .messages-row-restore {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+html:not(.dark) .messages-page.workspace .messages-row-restore:hover,
+html:not(.dark) .messages-page.workspace .messages-row-restore:focus-visible {
+  border-color: #c2410c;
+  background: #ffedd5;
+  color: #7c2d12;
 }
 
 @media (max-width: 1180px) {

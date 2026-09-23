@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, RotateCcw } from 'lucide-react';
 import { formatInboxTime } from '../../utils/inboxTimeFormat';
 import { conversationDisplayName, conversationPreview } from './messengerShellState';
 
@@ -16,6 +16,8 @@ export default function ConversationList({
   ariaLabel,
   renderItem = null,
   getUnread = null,
+  onRestore = null,
+  restoreLabel = null,
   className = '',
 }) {
   const { t } = useTranslation();
@@ -54,7 +56,7 @@ export default function ConversationList({
         const name = conversationDisplayName(conv, t('messages.customer'));
         const preview = conversationPreview(conv) || t('messages.noMessages');
         const time = formatInboxTime(conv.last_message_at || conv.created_at);
-        return (
+        const row = (
           <button
             key={conv.id}
             type="button"
@@ -78,6 +80,27 @@ export default function ConversationList({
               </span>
             ) : null}
           </button>
+        );
+
+        if (!onRestore) return row;
+
+        return (
+          <div key={conv.id} className="messages-row-with-action">
+            {row}
+            <button
+              type="button"
+              className="messages-row-restore"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRestore(conv);
+              }}
+              aria-label={`${restoreLabel || t('messages.restore')} ${name}`}
+              title={restoreLabel || t('messages.restore')}
+            >
+              <RotateCcw size={14} aria-hidden />
+              <span>{restoreLabel || t('messages.restore')}</span>
+            </button>
+          </div>
         );
       })}
     </section>

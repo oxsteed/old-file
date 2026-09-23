@@ -470,6 +470,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   items={filteredArchivedConversations}
                   selectedId={selectedId}
                   onSelect={handleOpen}
+                  onRestore={(conversation) => restoreArchived(conversation.id)}
+                  restoreLabel={t('messages.restore')}
                   ariaLabel={t('messages.viewArchived')}
                 />
               )
