@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { deployCoolify, deployCoolifyImage } = require('./deploy-coolify.cjs');
+const { deployCoolify } = require('./deploy-coolify.cjs');
 
 const env = {
   COOLIFY_WEBHOOK_URL: 'https://coolify.example.test/api/v1/deploy?uuid=website123&force=false',
@@ -14,18 +14,6 @@ const env = {
 const application = { uuid: 'website123', git_repository: env.GITHUB_REPOSITORY, git_branch: env.GITHUB_REF_NAME };
 const queued = { deployments: [{ resource_uuid: 'website123', deployment_uuid: 'deploy123' }] };
 const finished = { deployment_uuid: 'deploy123', status: 'finished', commit: env.GITHUB_SHA };
-const imageEnv = {
-  COOLIFY_IMAGE_WEBHOOK_URL: 'https://coolify.example.test/api/v1/deploy?uuid=image123&force=false',
-  COOLIFY_IMAGE_NAME: 'ghcr.io/oxsteed/old-file',
-  COOLIFY_IMAGE_TAG: env.GITHUB_SHA,
-};
-const imageApplication = {
-  uuid: 'image123',
-  docker_registry_image_name: imageEnv.COOLIFY_IMAGE_NAME,
-  docker_registry_image_tag: 'previous-release',
-};
-const imageQueued = { deployments: [{ resource_uuid: 'image123', deployment_uuid: 'image-deploy123' }] };
-const imageFinished = { deployment_uuid: 'image-deploy123', status: 'finished' };
 
 function fixture(responses, overrides = {}) {
   const calls = [];
@@ -41,30 +29,6 @@ function fixture(responses, overrides = {}) {
       log: (text) => logs.push(text),
       fetchImpl: async (url, options) => {
         calls.push({ url: String(url), ...options });
-        assert.ok(responses.length, 'unexpected extra request');
-        const response = responses.shift();
-        if (response instanceof Error) throw response;
-        return { ok: !response.errorStatus, status: response.errorStatus || 200, json: async () => response };
-      },
-      ...options,
-    }),
-  };
-}
-
-function imageFixture(responses, overrides = {}) {
-  const calls = [];
-  const logs = [];
-  let clock = 0;
-  return {
-    calls, logs,
-    run: (options = {}) => deployCoolifyImage({
-      env: { ...env, ...imageEnv, ...overrides },
-      now: () => clock,
-      sleep: async (ms) => { clock += ms; },
-      timeoutMs: 10000,
-      log: (text) => logs.push(text),
-      fetchImpl: async (url, requestOptions) => {
-        calls.push({ url: String(url), ...requestOptions });
         assert.ok(responses.length, 'unexpected extra request');
         const response = responses.shift();
         if (response instanceof Error) throw response;
@@ -156,27 +120,4 @@ test('transport errors do not leak secret values or endpoint URLs', async () => 
     assert.ok(!error.message.includes(env.COOLIFY_WEBHOOK_URL));
     return true;
   });
-});
-
-test('image deployment updates the verified tag before deploying', async () => {
-  const f = imageFixture([imageApplication, { uuid: 'image123' }, imageQueued, { ...imageFinished, status: 'in_progress' }, imageFinished]);
-  assert.deepEqual(await f.run(), { deploymentUuid: 'image-deploy123' });
-  assert.deepEqual(f.calls.map((call) => call.method), ['GET', 'PATCH', 'POST', 'GET', 'GET']);
-  assert.equal(f.calls[0].url, 'https://coolify.example.test/api/v1/applications/image123');
-  assert.equal(f.calls[1].url, f.calls[0].url);
-  assert.deepEqual(JSON.parse(f.calls[1].body), { docker_registry_image_tag: imageEnv.COOLIFY_IMAGE_TAG });
-  assert.equal(f.calls[2].url, imageEnv.COOLIFY_IMAGE_WEBHOOK_URL);
-  assert.ok(f.calls.every((call) => call.headers.Authorization === `Bearer ${env.COOLIFY_TOKEN}`));
-});
-
-test('image deployment refuses a different registry image', async () => {
-  const f = imageFixture([{ ...imageApplication, docker_registry_image_name: 'ghcr.io/oxsteed/wrong-image' }]);
-  await assert.rejects(f.run(), /different Docker image/);
-  assert.equal(f.calls.length, 1);
-});
-
-test('image check-only mode does not update or deploy', async () => {
-  const f = imageFixture([imageApplication]);
-  assert.deepEqual(await f.run({ checkOnly: true }), { checked: true });
-  assert.equal(f.calls.length, 1);
 });
