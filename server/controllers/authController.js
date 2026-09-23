@@ -1465,6 +1465,12 @@ async function updateProfile(req, res) {
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
     logger.error('Update profile error', { err: err.message });
+    if (err.code === '23514' && /OxSteed Credit/.test(err.message || '')) {
+      return res.status(409).json({
+        error: 'credit_customer_mode_locked',
+        message: 'This account has OxSteed Credit activity and must remain in Customer mode.',
+      });
+    }
     res.status(500).json({ error: 'Failed to update profile' });
   } finally {
     client.release();
@@ -1824,6 +1830,12 @@ async function switchRole(req, res) {
     logger.error('Switch mode error', { err: err.message, code: err.code });
     if (err.code === 'invalid_mode') return res.status(400).json({ error: 'invalid_mode' });
     if (err.code === 'user_not_found') return res.status(404).json({ error: 'user_not_found' });
+    if (err.code === '23514' && /OxSteed Credit/.test(err.message || '')) {
+      return res.status(409).json({
+        error: 'credit_customer_mode_locked',
+        message: 'This account has OxSteed Credit activity and must remain in Customer mode.',
+      });
+    }
     res.status(500).json({ error: 'Failed to switch mode' });
   } finally {
     client.release();

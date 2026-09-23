@@ -123,7 +123,7 @@ export default function SettingsPage() {
       navigate(routeForMode(targetMode), { replace: true });
       window.location.reload();
     } catch (err) {
-      toast.error(err?.response?.data?.error || t('settings.roleSwitchFailed'));
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || t('settings.roleSwitchFailed'));
       setSwitchingMode(null);
     }
   };

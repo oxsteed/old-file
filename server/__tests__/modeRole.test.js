@@ -97,4 +97,28 @@ describe('mode role policy', () => {
     expect(sqlCalls.findIndex((sql) => /INSERT INTO sessions/.test(sql)))
       .toBeLessThan(sqlCalls.findIndex((sql) => sql === 'COMMIT'));
   });
+
+  test('returns a useful conflict when Credit activity locks the customer role', async () => {
+    const req = {
+      body: { mode: 'helper' },
+      user: { id: 'user-1', role: 'customer', default_mode: 'customer' },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'customer', default_mode: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [] }) // helper_profiles
+      .mockRejectedValueOnce(Object.assign(new Error('A user with OxSteed Credit activity must remain a customer'), { code: '23514' }));
+
+    await authController.switchRole(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'credit_customer_mode_locked',
+      message: 'This account has OxSteed Credit activity and must remain in Customer mode.',
+    });
+  });
 });
