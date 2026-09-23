@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2 } from 'lucide-react';
 import { useHelpersInfiniteScroll } from '../hooks/useHelpersInfiniteScroll';
 import type { Helper } from '../hooks/useHelpersInfiniteScroll';
+import { getSharedBrowserLocation } from '../utils/browserLocation';
 
 const FALLBACK_LAT = 39.921923;
 const FALLBACK_LNG = -82.998619;
@@ -103,22 +104,12 @@ export default function LiveHelpersHeroCard() {
 
   useEffect(() => {
     if (!isVisible) return undefined;
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => {
-          setUserLocation({ lat: FALLBACK_LAT, lng: FALLBACK_LNG });
-        },
-        { timeout: 5000, enableHighAccuracy: false }
-      );
-    } else {
-      setUserLocation({ lat: FALLBACK_LAT, lng: FALLBACK_LNG });
-    }
+    let active = true;
+    void getSharedBrowserLocation().then((location) => {
+      if (!active) return;
+      setUserLocation(location || { lat: FALLBACK_LAT, lng: FALLBACK_LNG });
+    });
+    return () => { active = false; };
   }, [isVisible]);
 
   useEffect(() => {

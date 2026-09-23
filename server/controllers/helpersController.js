@@ -5,8 +5,68 @@
 const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
+const crypto        = require('crypto');
+const redis         = require('../utils/redis');
+const metricsService = require('../services/metricsService');
 const { AppError }  = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+
+const DIRECTORY_CACHE_TTL_SECONDS = 30;
+const DIRECTORY_CACHE_TTL_MS = DIRECTORY_CACHE_TTL_SECONDS * 1000;
+const directoryCache = new Map();
+
+function directoryCacheKey(req) {
+  const params = Object.fromEntries(Object.entries(req.query || {}).sort(([a], [b]) => a.localeCompare(b)));
+  const input = JSON.stringify({ params, language: req.headers['accept-language'] || 'en' });
+  return crypto.createHash('sha256').update(input).digest('hex');
+}
+
+function redisReady() {
+  return Boolean(redis && redis.status === 'ready');
+}
+
+async function getDirectoryCache(key) {
+  const memory = directoryCache.get(key);
+  if (memory && memory.expiresAt > Date.now()) {
+    metricsService.incrementCounter('directory.cache_hit', 1, { layer: 'memory' });
+    return memory.value;
+  }
+  if (memory) directoryCache.delete(key);
+  if (!redisReady()) {
+    metricsService.incrementCounter('directory.cache_miss', 1, { layer: 'memory' });
+    return null;
+  }
+  try {
+    const raw = await redis.get(`directory:v1:${key}`);
+    if (!raw) {
+      metricsService.incrementCounter('directory.cache_miss', 1, { layer: 'redis' });
+      return null;
+    }
+    const value = JSON.parse(raw);
+    directoryCache.set(key, { value, expiresAt: Date.now() + DIRECTORY_CACHE_TTL_MS });
+    metricsService.incrementCounter('directory.cache_hit', 1, { layer: 'redis' });
+    return value;
+  } catch {
+    metricsService.incrementCounter('directory.cache_miss', 1, { layer: 'redis' });
+    return null;
+  }
+}
+
+function setDirectoryCache(key, value) {
+  directoryCache.set(key, { value, expiresAt: Date.now() + DIRECTORY_CACHE_TTL_MS });
+  while (directoryCache.size > 250) directoryCache.delete(directoryCache.keys().next().value);
+  if (redisReady()) {
+    redis.setex(`directory:v1:${key}`, DIRECTORY_CACHE_TTL_SECONDS, JSON.stringify(value)).catch(() => {});
+  }
+}
+
+function sendDirectoryResponse(res, payload) {
+  // Public directory data can be briefly reused by browsers and a reverse
+  // proxy. Private/authenticated data is not routed through this controller.
+  res.vary('Accept-Language');
+  res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
+  return res.json(payload);
+}
 
 function formatResponseTime(hours) {
   if (!hours) return 'Varies';
@@ -44,6 +104,10 @@ function sanitizeServicePriceUnit(u) {
 //   page, limit
 async function listHelpers(req, res, next) {
   try {
+    const cacheKey = directoryCacheKey(req);
+    const cached = await getDirectoryCache(cacheKey);
+    if (cached) return sendDirectoryResponse(res, cached);
+
     const {
       query = '',
       categories = '',
@@ -253,7 +317,9 @@ async function listHelpers(req, res, next) {
     );
 
     if (helpers.length === 0) {
-      return res.json({ helpers: [], total: parseInt(count), page: pageNum });
+      const payload = { helpers: [], total: parseInt(count), page: pageNum };
+      setDirectoryCache(cacheKey, payload);
+      return sendDirectoryResponse(res, payload);
     }
 
     // Skills + categories for the fetched helpers
@@ -535,7 +601,9 @@ async function listHelpers(req, res, next) {
       }));
     }
 
-    return res.json({ helpers: mapped, businesses, total: parseInt(count), page: pageNum });
+    const payload = { helpers: mapped, businesses, total: parseInt(count), page: pageNum };
+    setDirectoryCache(cacheKey, payload);
+    return sendDirectoryResponse(res, payload);
   } catch (err) {
     next(err);
   }

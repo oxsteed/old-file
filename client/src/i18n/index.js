@@ -17,8 +17,6 @@ const localeLoaders = {
   en: () => Promise.all([
     import('../locales/generated/en-0.json'),
     import('../locales/generated/en-1.json'),
-    import('../locales/terms/en.content.json'),
-    import('../locales/privacy/en.content.json'),
     import('./locales/en/common.json'),
     import('./locales/en/translator.json'),
     import('./locales/en/credit.json'),
@@ -26,8 +24,6 @@ const localeLoaders = {
   es: () => Promise.all([
     import('../locales/generated/es-0.json'),
     import('../locales/generated/es-1.json'),
-    import('../locales/terms/es.content.json'),
-    import('../locales/privacy/es.content.json'),
     import('./locales/es/common.json'),
     import('./locales/es/translator.json'),
     import('./locales/es/credit.json'),
@@ -35,8 +31,6 @@ const localeLoaders = {
   fr: () => Promise.all([
     import('../locales/generated/fr-0.json'),
     import('../locales/generated/fr-1.json'),
-    import('../locales/terms/fr.content.json'),
-    import('../locales/privacy/fr.content.json'),
     import('./locales/fr/common.json'),
     import('./locales/fr/translator.json'),
     import('./locales/fr/credit.json'),
@@ -44,8 +38,6 @@ const localeLoaders = {
   ht: () => Promise.all([
     import('../locales/generated/ht-0.json'),
     import('../locales/generated/ht-1.json'),
-    import('../locales/terms/ht.content.json'),
-    import('../locales/privacy/ht.content.json'),
     import('./locales/ht/common.json'),
     import('./locales/ht/translator.json'),
     import('./locales/ht/credit.json'),
@@ -53,28 +45,56 @@ const localeLoaders = {
   ar: () => Promise.all([
     import('../locales/generated/ar-0.json'),
     import('../locales/generated/ar-1.json'),
-    import('../locales/terms/ar.content.json'),
-    import('../locales/privacy/ar.content.json'),
     import('./locales/ar/common.json'),
     import('./locales/ar/translator.json'),
     import('./locales/ar/credit.json'),
   ]),
 };
 
+const legalLocaleLoaders = {
+  en: () => Promise.all([
+    import('../locales/terms/en.content.json'),
+    import('../locales/privacy/en.content.json'),
+  ]),
+  es: () => Promise.all([
+    import('../locales/terms/es.content.json'),
+    import('../locales/privacy/es.content.json'),
+  ]),
+  fr: () => Promise.all([
+    import('../locales/terms/fr.content.json'),
+    import('../locales/privacy/fr.content.json'),
+  ]),
+  ht: () => Promise.all([
+    import('../locales/terms/ht.content.json'),
+    import('../locales/privacy/ht.content.json'),
+  ]),
+  ar: () => Promise.all([
+    import('../locales/terms/ar.content.json'),
+    import('../locales/privacy/ar.content.json'),
+  ]),
+};
+
 const localePromises = new Map();
+const legalLocalePromises = new Map();
 
 function getLocaleResources(modules) {
-  const [legacyPartOne, legacyPartTwo, terms, privacy, common, translator, credit] = modules;
+  const [legacyPartOne, legacyPartTwo, common, translator, credit] = modules;
   return {
     translation: {
       ...legacyPartOne.default,
       ...legacyPartTwo.default,
-      termsContent: terms.default,
-      privacyContent: privacy.default,
     },
     common: common.default,
     translator: translator.default,
     credit: credit.default,
+  };
+}
+
+function getLegalLocaleResources(modules) {
+  const [terms, privacy] = modules;
+  return {
+    termsContent: terms.default,
+    privacyContent: privacy.default,
   };
 }
 
@@ -85,6 +105,15 @@ function loadLanguageResources(code) {
     localePromises.set(normalizedCode, loader().then(getLocaleResources));
   }
   return localePromises.get(normalizedCode);
+}
+
+function loadLegalLanguageResources(code) {
+  const normalizedCode = normalizeInitialLanguage(code);
+  if (!legalLocalePromises.has(normalizedCode)) {
+    const loader = legalLocaleLoaders[normalizedCode] || legalLocaleLoaders.en;
+    legalLocalePromises.set(normalizedCode, loader().then(getLegalLocaleResources));
+  }
+  return legalLocalePromises.get(normalizedCode);
 }
 
 function normalizeInitialLanguage(code) {
@@ -166,6 +195,19 @@ export function ensureLanguageLoaded(code) {
       i18n.addResourceBundle(normalizedCode, 'common', resourcesForLanguage.common, true, true);
       i18n.addResourceBundle(normalizedCode, 'translator', resourcesForLanguage.translator, true, true);
       i18n.addResourceBundle(normalizedCode, 'credit', resourcesForLanguage.credit, true, true);
+    });
+  });
+}
+
+export function ensureLegalContentLoaded(code) {
+  const normalizedCode = normalizeInitialLanguage(code);
+  return i18nReady.then(() => {
+    if (i18n.exists('termsContent', { lng: normalizedCode })
+      && i18n.exists('privacyContent', { lng: normalizedCode })) return;
+    return loadLegalLanguageResources(normalizedCode).then((legalResources) => {
+      Object.entries(legalResources).forEach(([key, value]) => {
+        i18n.addResource(normalizedCode, 'translation', key, value);
+      });
     });
   });
 }

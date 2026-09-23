@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const redis = require('../utils/redis');
+const metricsService = require('../services/metricsService');
 const {
   nearby: awsNearby,
   reverse: awsReverse,
@@ -34,24 +35,36 @@ function sharedCacheKey(namespace, value) {
 
 async function sharedCacheGet(namespace, key, memoryGet, memorySet) {
   const memoryValue = memoryGet(key);
-  if (memoryValue !== null) return memoryValue;
-  if (!redisReady()) return null;
+  if (memoryValue !== null) {
+    metricsService.incrementCounter('geo.cache_hit', 1, { namespace, layer: 'memory' });
+    return memoryValue;
+  }
+  if (!redisReady()) {
+    metricsService.incrementCounter('geo.cache_miss', 1, { namespace, layer: 'memory' });
+    return null;
+  }
 
   try {
     const raw = await redis.get(sharedCacheKey(namespace, key));
-    if (!raw) return null;
+    if (!raw) {
+      metricsService.incrementCounter('geo.cache_miss', 1, { namespace, layer: 'redis' });
+      return null;
+    }
     const value = JSON.parse(raw);
     memorySet(key, value);
+    metricsService.incrementCounter('geo.cache_hit', 1, { namespace, layer: 'redis' });
     return value;
   } catch {
     // Redis is an optimization only. A transient cache failure must not block
     // the provider fallback path or make location features unavailable.
+    metricsService.incrementCounter('geo.cache_miss', 1, { namespace, layer: 'redis' });
     return null;
   }
 }
 
 function sharedCacheSet(namespace, key, value, ttlSeconds, memorySet) {
   memorySet(key, value);
+  metricsService.incrementCounter('geo.cache_write', 1, { namespace });
   if (!redisReady()) return;
   redis.setex(sharedCacheKey(namespace, key), ttlSeconds, JSON.stringify(value)).catch(() => {});
 }
@@ -183,6 +196,7 @@ exports.reverse = async (req, res) => {
     const cached = await sharedCacheGet('reverse', cacheKey, cacheGet, cacheSet);
     if (cached) return res.json(cached);
 
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'reverse' });
     const awsResult = await awsReverse(lat, lng);
     if (awsResult) {
       sharedCacheSet('reverse', cacheKey, awsResult, CACHE_TTL_MS / 1000, cacheSet);
@@ -192,6 +206,7 @@ exports.reverse = async (req, res) => {
     const googleKey = googleMapsKey();
     if (!googleKey) return res.json({ city: '', state: '', display: '' });
 
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'google', operation: 'reverse' });
     const { data } = await axios.get(GEOCODE_BASE, {
       params: { latlng: `${lat},${lng}`, result_type: 'locality', key: googleKey },
       timeout: 5000,
@@ -239,6 +254,7 @@ exports.suggest = async (req, res) => {
     const cached = await sharedCacheGet('suggest', cacheKey, cacheGet, cacheSet);
     if (cached) return res.json(cached);
 
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'suggest' });
     const awsResults = await awsSuggest(q, biasPosition ? { biasPosition } : undefined);
     if (awsResults) {
       sharedCacheSet('suggest', cacheKey, awsResults, CACHE_TTL_MS / 1000, cacheSet);
@@ -248,6 +264,7 @@ exports.suggest = async (req, res) => {
     const googleKey = googleMapsKey();
     if (!googleKey) return res.json(parseFallback(q));
 
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'google', operation: 'suggest' });
     const { data } = await axios.get(GEOCODE_BASE, {
       params: {
         address: q,
@@ -307,6 +324,7 @@ exports.nearby = async (req, res) => {
     const cacheKey = `nearby:${lat.toFixed(4)},${lng.toFixed(4)}:${radiusMeters}`;
     const cached = await sharedCacheGet('nearby', cacheKey, nearbyCacheGet, nearbyCacheSet);
     if (cached) return res.json(cached);
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'nearby' });
     const places = await awsNearby(lat, lng, { radiusMeters, maxResults: 20 });
     const response = { places: places || [], provider: places ? 'aws' : 'disabled' };
     sharedCacheSet('nearby', cacheKey, response, NEARBY_CACHE_TTL_MS / 1000, nearbyCacheSet);
@@ -341,6 +359,7 @@ exports.route = async (req, res) => {
     const routeCacheKey = `route:${key}`;
     const cached = await sharedCacheGet('route', routeCacheKey, routeCacheGet, routeCacheSet);
     if (cached) return res.json(cached);
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'route' });
     const route = await awsCalculateRoute({ origin, destination, waypoints, travelMode, departureTime });
     const response = { route: route || fallbackRoute(origin, destination, waypoints) };
     sharedCacheSet('route', routeCacheKey, response, ROUTE_CACHE_TTL_MS / 1000, routeCacheSet);
@@ -372,6 +391,7 @@ exports.routeMatrix = async (req, res) => {
     const matrixCacheKey = `matrix:${key}`;
     const cached = await sharedCacheGet('matrix', matrixCacheKey, routeCacheGet, routeCacheSet);
     if (cached) return res.json(cached);
+    metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'matrix' });
     const matrix = await awsCalculateMatrix({ origins, destinations, travelMode, departureTime });
     const response = { matrix: matrix || fallbackMatrix(origins, destinations) };
     sharedCacheSet('matrix', matrixCacheKey, response, ROUTE_CACHE_TTL_MS / 1000, routeCacheSet);

@@ -133,7 +133,11 @@ test('Business Hub Messages uses the unified helper messaging workspace', async 
     join(root, 'src/pages/BusinessHubPage.jsx'),
     'utf8',
   );
-  assert.ok(src.includes("import MessagingWorkspace from '../components/messaging/MessagingWorkspace';"));
+  assert.ok(
+    src.includes("import MessagingWorkspace from '../components/messaging/MessagingWorkspace';")
+      || src.includes("import('../components/messaging/MessagingWorkspace')"),
+    'Business Hub Messages must use the shared workspace, either eagerly or through the lazy loader',
+  );
   assert.ok(src.includes('<MessagingWorkspace role="helper" businessId={bizId} embedded />'));
 });
 

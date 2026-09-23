@@ -10,6 +10,7 @@ import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
+import { getSharedBrowserLocation } from '../utils/browserLocation';
 
 const DirectCatalogPanels = lazy(() => import('./DirectCatalogLanding').then(({ DirectCatalogPanels: Component }) => ({ default: Component })));
 
@@ -280,23 +281,20 @@ function HomeSearch() {
 
   // ── Geolocation on mount (helpers + discover use location radius) ────────
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords: { latitude: lat, longitude: lng } }) => {
-        // Only apply the geocoded label if the user hasn't started typing
-        if (userHasTypedLoc.current) return;
-        setLocCoords({ lat, lng });
-        try {
-          const { data } = await api.get('/geo/reverse', { params: { lat, lng } });
-          if (!userHasTypedLoc.current) setLocInput(data.display || t('homePage.search.nearYou'));
-        } catch {
-          if (!userHasTypedLoc.current) setLocInput(t('homePage.search.nearYou'));
-        }
-      },
-      () => {},            // silently ignore denied / unavailable
-      { timeout: 5000, maximumAge: 600000 },
-    );
-  }, []);
+    let active = true;
+    void getSharedBrowserLocation().then(async (location) => {
+      if (!active || !location || userHasTypedLoc.current) return;
+      const { lat, lng } = location;
+      setLocCoords({ lat, lng });
+      try {
+        const { data } = await api.get('/geo/reverse', { params: { lat, lng } });
+        if (active && !userHasTypedLoc.current) setLocInput(data.display || t('homePage.search.nearYou'));
+      } catch {
+        if (active && !userHasTypedLoc.current) setLocInput(t('homePage.search.nearYou'));
+      }
+    });
+    return () => { active = false; };
+  }, [t]);
 
   // ── Skill autocomplete: instant local + deferred DB ───────────────────────
   useEffect(() => {

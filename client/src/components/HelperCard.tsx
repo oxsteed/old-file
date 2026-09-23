@@ -38,6 +38,7 @@ export default function HelperCard({ helper }: HelperCardProps) {
             alt={displayName}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
+            decoding="async"
             onError={() => setImageError(true)}
           />
         ) : (

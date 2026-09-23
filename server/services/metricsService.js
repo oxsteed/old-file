@@ -2,6 +2,7 @@
 // Tracks: requests, errors, latency, security events, database health
 
 const logger = require('../utils/logger');
+const os = require('os');
 
 class MetricsCollector {
   constructor() {
@@ -10,6 +11,8 @@ class MetricsCollector {
     this.gauges = new Map();
     this.securityEvents = [];
     this.maxSecurityEvents = 10000; // Keep last 10K events in memory
+    this.cpuBaseline = process.cpuUsage();
+    this.cpuBaselineAt = process.hrtime.bigint();
   }
 
   // ── COUNTERS ──────────────────────────────────────────────────
@@ -103,6 +106,30 @@ class MetricsCollector {
   }
 
   // ── HEALTH SNAPSHOT ──────────────────────────────────────────
+  getSystemSnapshot() {
+    const now = process.hrtime.bigint();
+    const elapsedMicros = Number(now - this.cpuBaselineAt) / 1000;
+    const cpu = process.cpuUsage(this.cpuBaseline);
+    this.cpuBaseline = process.cpuUsage();
+    this.cpuBaselineAt = now;
+    const cpuMicros = cpu.user + cpu.system;
+    const cores = Math.max(1, os.cpus().length);
+    const memory = process.memoryUsage();
+
+    return {
+      uptimeSeconds: Math.round(process.uptime()),
+      cpuPercent: elapsedMicros > 0 ? Math.round((cpuMicros / elapsedMicros / cores) * 1000) / 10 : 0,
+      cpuCores: cores,
+      memoryBytes: {
+        rss: memory.rss,
+        heapUsed: memory.heapUsed,
+        heapTotal: memory.heapTotal,
+        external: memory.external,
+      },
+      loadAverage: os.loadavg(),
+    };
+  }
+
   getHealthSnapshot() {
     return {
       timestamp: new Date().toISOString(),
@@ -117,6 +144,13 @@ class MetricsCollector {
         http: this.getHistogramStats('http.request_ms'),
         database: this.getHistogramStats('db.query_ms'),
         payment: this.getHistogramStats('payment.process_ms'),
+      },
+      system: this.getSystemSnapshot(),
+      costSignals: {
+        geoProviderAttempts: this.getCounter('geo.provider_attempt'),
+        geoCacheHits: this.getCounter('geo.cache_hit'),
+        directoryCacheHits: this.getCounter('directory.cache_hit'),
+        directoryCacheMisses: this.getCounter('directory.cache_miss'),
       },
       security: {
         recentEvents: this.getSecurityEvents(),

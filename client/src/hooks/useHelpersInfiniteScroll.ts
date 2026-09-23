@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import api from '../api/axios';
+import { cachePublicRequest } from '../utils/publicRequestCache';
 
 export interface Helper {
   id: string;
@@ -51,6 +52,38 @@ interface HelpersResponse {
   page: number;
 }
 
+function helperPageKey({ latitude, longitude, radius, limit, page }: {
+  latitude: number;
+  longitude: number;
+  radius: number;
+  limit: number;
+  page: number;
+}) {
+  return `helpers:${latitude.toFixed(6)}:${longitude.toFixed(6)}:${radius}:${limit}:${page}`;
+}
+
+function fetchHelperPage({ latitude, longitude, radius, limit, page }: {
+  latitude: number;
+  longitude: number;
+  radius: number;
+  limit: number;
+  page: number;
+}) {
+  return cachePublicRequest(
+    helperPageKey({ latitude, longitude, radius, limit, page }),
+    () => api.get<HelpersResponse>('/helpers', {
+      params: {
+        lat: latitude.toFixed(6),
+        lng: longitude.toFixed(6),
+        radius,
+        limit,
+        page,
+        sort: 'distance',
+      },
+    }).then((response) => response.data),
+  );
+}
+
 export function useHelpersInfiniteScroll({
   latitude,
   longitude,
@@ -75,22 +108,13 @@ export function useHelpersInfiniteScroll({
       try {
         setIsLoading(true);
         setIsError(false);
-        const response = await api.get<HelpersResponse>('/helpers', {
-          params: {
-            lat: latitude.toFixed(6),
-            lng: longitude.toFixed(6),
-            radius,
-            limit,
-            page: 1,
-            sort: 'distance',
-          },
-        });
+        const response = await fetchHelperPage({ latitude, longitude, radius, limit, page: 1 });
 
-        setHelpers(response.data.helpers || []);
-        setBusinesses(response.data.businesses || []);
-        setTotalCount(response.data.total || 0);
+        setHelpers(response.helpers || []);
+        setBusinesses(response.businesses || []);
+        setTotalCount(response.total || 0);
         setPage(1);
-        setHasMore((response.data.helpers?.length || 0) >= limit);
+        setHasMore((response.helpers?.length || 0) >= limit);
       } catch (err) {
         setIsError(true);
       } finally {
@@ -125,18 +149,9 @@ export function useHelpersInfiniteScroll({
       setIsFetchingNextPage(true);
       const nextPage = page + 1;
 
-      const response = await api.get<HelpersResponse>('/helpers', {
-        params: {
-          lat: latitude.toFixed(6),
-          lng: longitude.toFixed(6),
-          radius,
-          limit,
-          page: nextPage,
-          sort: 'distance',
-        },
-      });
+      const response = await fetchHelperPage({ latitude, longitude, radius, limit, page: nextPage });
 
-      const newHelpers = enrichHelpersWithDistance(response.data.helpers);
+      const newHelpers = enrichHelpersWithDistance(response.helpers || []);
       setHelpers((prev) => [...prev, ...newHelpers]);
       setPage(nextPage);
       setHasMore((newHelpers?.length || 0) >= limit);

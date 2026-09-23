@@ -464,7 +464,7 @@ export default function FoodHomePage() {
 
       {showMap && hasMapData && (
         <div className="fd-map-wrap" id="restaurant-discovery-map">
-          <Suspense fallback={<div className="fd-map-loading" role="status">Loading map...</div>}>
+          <Suspense fallback={<div className="fd-map-loading" role="status">{t('food.common.loading')}</div>}>
             <AwsLocationMap
               center={mapCenter}
               zoom={geo ? 12 : DEFAULT_ZOOM}

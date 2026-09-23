@@ -67,7 +67,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
       {/* Tool Image + Favorite Button */}
       <div className="tool-card-image-container">
         {tool.image_url ? (
-          <img src={tool.image_url} alt={tool.name} className="tool-card-image" loading="lazy" />
+          <img src={tool.image_url} alt={tool.name} className="tool-card-image" loading="lazy" decoding="async" />
         ) : (
           <div className="tool-card-image-placeholder">
             <Eye className="w-8 h-8 text-gray-400" />

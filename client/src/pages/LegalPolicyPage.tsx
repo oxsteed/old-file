@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import { ensureLegalContentLoaded } from '../i18n';
 import { TermsBlocks } from './terms/TermsBlocks';
 import type { TermsBlock } from './terms/termsTypes';
 
@@ -75,14 +76,25 @@ export default function LegalPolicyPage({
 }: LegalPolicyPageProps) {
   const { t, i18n } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [legalContentReady, setLegalContentReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLegalContentReady(false);
+    void ensureLegalContentLoaded(i18n.resolvedLanguage || i18n.language).then(() => {
+      if (active) setLegalContentReady(true);
+    });
+    return () => { active = false; };
+  }, [i18n.language, i18n.resolvedLanguage]);
 
   const pk = (suffix: string) => `${i18nPrefix}.${suffix}`;
 
   const legalData = useMemo((): LegalContentFile => {
+    if (!legalContentReady) return fallbackContent;
     const raw = t(contentKey, { returnObjects: true });
     if (isLegalContentFile(raw)) return raw;
     return fallbackContent;
-  }, [t, i18n.language, contentKey, fallbackContent]);
+  }, [t, i18n.language, contentKey, fallbackContent, legalContentReady]);
 
   const sectionMeta = useMemo(
     () =>

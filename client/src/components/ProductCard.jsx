@@ -31,6 +31,7 @@ export default function ProductCard({
             alt={product.name}
             className="pcard-image"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="pcard-image-placeholder">{t('marketplace.noImage')}</div>
