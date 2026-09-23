@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../styles/HomePage.css';
 import PageShell from '../components/PageShell';
@@ -10,7 +10,8 @@ import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { DEFAULT_DIRECT_PROFILE, loadDirectProfile } from '../api/direct';
-import { DirectCatalogPanels } from './DirectCatalogLanding';
+
+const DirectCatalogPanels = lazy(() => import('./DirectCatalogLanding').then(({ DirectCatalogPanels: Component }) => ({ default: Component })));
 
 const SHOW_DISCOVER_SEARCH_TAB = LAUNCH_VISIBILITY.discoverEverything;
 const SHOW_BUSINESS_ASCENSION_CONSULTING = LAUNCH_VISIBILITY.businessAscension;
@@ -98,12 +99,31 @@ function OxSteedIcon({ size = 26 }) {
 
 function HomeCompanySection() {
   const { t, i18n } = useTranslation();
+  const sectionRef = useRef(null);
+  const [sectionReady, setSectionReady] = useState(false);
   const [catalogProfile, setCatalogProfile] = useState(DEFAULT_DIRECT_PROFILE);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
   const profile = OXSTEED_SERVICE_PROFILE;
 
   useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setSectionReady(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setSectionReady(true);
+      observer.disconnect();
+    }, { rootMargin: '600px 0px' });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!sectionReady) return undefined;
     let active = true;
     setCatalogLoading(true);
     loadDirectProfile(i18n.resolvedLanguage).then(({ profile: loadedProfile, error }) => {
@@ -113,10 +133,10 @@ function HomeCompanySection() {
       setCatalogLoading(false);
     });
     return () => { active = false; };
-  }, [i18n.resolvedLanguage]);
+  }, [i18n.resolvedLanguage, sectionReady]);
 
   return (
-    <section className="hp-section hp-company-section">
+    <section ref={sectionRef} className="hp-section hp-company-section">
       <div className="hp-container">
         <div className="hp-company-card">
           <div className="hp-company-hero">
@@ -157,7 +177,11 @@ function HomeCompanySection() {
                   {t('directCatalog.loadError', { defaultValue: 'Direct services are temporarily unavailable.' })}
                 </div>
               )}
-              {!catalogLoading && !catalogError && <DirectCatalogPanels profile={catalogProfile} />}
+              {!catalogLoading && !catalogError && (
+                <Suspense fallback={<div className="hp-company-catalog-state">{t('directCatalog.loading', { defaultValue: 'Loading Direct services...' })}</div>}>
+                  <DirectCatalogPanels profile={catalogProfile} />
+                </Suspense>
+              )}
             </div>
 
             <div className="hp-company-panel hp-company-panel--wide">

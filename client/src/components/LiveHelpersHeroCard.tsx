@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2 } from 'lucide-react';
@@ -43,16 +43,34 @@ function mergeSkillServiceLabels(row: Helper): string[] {
 
 export default function LiveHelpersHeroCard() {
   const { t } = useTranslation();
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [displayedHelpers, setDisplayedHelpers] = useState<Helper[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setIsVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setIsVisible(true);
+      observer.disconnect();
+    }, { rootMargin: '200px 0px' });
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
 
   const { helpers, businesses, isLoading, fetchNextPage, hasMore, isFetchingNextPage } = useHelpersInfiniteScroll({
     latitude: userLocation?.lat,
     longitude: userLocation?.lng,
     limit: 10,
     radius: 60,
-    enabled: !!userLocation,
+    enabled: isVisible && !!userLocation,
   });
 
   const mergedRows = useMemo(() => {
@@ -84,6 +102,7 @@ export default function LiveHelpersHeroCard() {
   }, [hasMore, isFetchingNextPage, helpers.length, mergedRows.length, fetchNextPage]);
 
   useEffect(() => {
+    if (!isVisible) return undefined;
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -100,7 +119,7 @@ export default function LiveHelpersHeroCard() {
     } else {
       setUserLocation({ lat: FALLBACK_LAT, lng: FALLBACK_LNG });
     }
-  }, []);
+  }, [isVisible]);
 
   useEffect(() => {
     if (displayedHelpers.length === 0) return;
@@ -123,6 +142,7 @@ export default function LiveHelpersHeroCard() {
 
   return (
     <div
+      ref={cardRef}
       className="hp-hero-card"
       style={{ perspective: '800px' }}
       aria-hidden={isLoading_ ? 'true' : 'false'}
