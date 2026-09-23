@@ -624,7 +624,20 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
   // (express.static would serve bare index.html for / without structured data)
   app.use(prerenderHelperProfile);
 
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+  app.use(express.static(path.join(__dirname, '../client/dist'), {
+    setHeaders(res, filePath) {
+      const normalizedPath = filePath.split(path.sep).join('/');
+      if (normalizedPath.includes('/assets/')) {
+        // Vite fingerprints production assets, so they can be retained by
+        // browsers and CDNs for a year without serving stale application code.
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else if (filePath.endsWith('.html')) {
+        // HTML contains the current asset manifest and must revalidate after a
+        // deployment so clients discover the latest hashed entry points.
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
+  }));
 
   // Admin SPA - serve admin.html for the bare entry point and all nested routes.
   // Express does not match `/admin` with the `/admin/*` pattern.

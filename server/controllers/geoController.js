@@ -1,5 +1,7 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
+const redis = require('../utils/redis');
 const {
   nearby: awsNearby,
   reverse: awsReverse,
@@ -19,6 +21,40 @@ const nearbyCache = new Map();
 const NEARBY_CACHE_TTL_MS = 2 * 60 * 1000;
 const routeCache = new Map();
 const ROUTE_CACHE_TTL_MS = 30 * 1000;
+const REDIS_CACHE_PREFIX = 'geo-cache:v1:';
+
+function redisReady() {
+  return Boolean(redis && redis.status === 'ready');
+}
+
+function sharedCacheKey(namespace, value) {
+  const digest = crypto.createHash('sha256').update(String(value)).digest('hex');
+  return `${REDIS_CACHE_PREFIX}${namespace}:${digest}`;
+}
+
+async function sharedCacheGet(namespace, key, memoryGet, memorySet) {
+  const memoryValue = memoryGet(key);
+  if (memoryValue !== null) return memoryValue;
+  if (!redisReady()) return null;
+
+  try {
+    const raw = await redis.get(sharedCacheKey(namespace, key));
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    memorySet(key, value);
+    return value;
+  } catch {
+    // Redis is an optimization only. A transient cache failure must not block
+    // the provider fallback path or make location features unavailable.
+    return null;
+  }
+}
+
+function sharedCacheSet(namespace, key, value, ttlSeconds, memorySet) {
+  memorySet(key, value);
+  if (!redisReady()) return;
+  redis.setex(sharedCacheKey(namespace, key), ttlSeconds, JSON.stringify(value)).catch(() => {});
+}
 
 function cacheGet(key) {
   const entry = cache.get(key);
@@ -144,12 +180,12 @@ exports.reverse = async (req, res) => {
     }
 
     const cacheKey = `rev:${lat.toFixed(4)},${lng.toFixed(4)}`;
-    const cached = cacheGet(cacheKey);
+    const cached = await sharedCacheGet('reverse', cacheKey, cacheGet, cacheSet);
     if (cached) return res.json(cached);
 
     const awsResult = await awsReverse(lat, lng);
     if (awsResult) {
-      cacheSet(cacheKey, awsResult);
+      sharedCacheSet('reverse', cacheKey, awsResult, CACHE_TTL_MS / 1000, cacheSet);
       return res.json(awsResult);
     }
 
@@ -175,7 +211,7 @@ exports.reverse = async (req, res) => {
     const display = city && state ? `${city}, ${state}` : city || state || '';
 
     const result = { city, state, display };
-    cacheSet(cacheKey, result);
+    sharedCacheSet('reverse', cacheKey, result, CACHE_TTL_MS / 1000, cacheSet);
     return res.json(result);
   } catch (err) {
     logger.error('Geo reverse error', { message: err.message });
@@ -195,14 +231,17 @@ exports.suggest = async (req, res) => {
       return res.json([]);
     }
 
-    const cacheKey = q.toLowerCase();
-    const cached   = cacheGet(cacheKey);
+    const biasPosition = parsePosition({ lng: req.query.lng, lat: req.query.lat });
+    const cacheKey = JSON.stringify({
+      query: q.toLowerCase(),
+      bias: biasPosition ? biasPosition.map((value) => value.toFixed(4)) : null,
+    });
+    const cached = await sharedCacheGet('suggest', cacheKey, cacheGet, cacheSet);
     if (cached) return res.json(cached);
 
-    const biasPosition = parsePosition({ lng: req.query.lng, lat: req.query.lat });
     const awsResults = await awsSuggest(q, biasPosition ? { biasPosition } : undefined);
     if (awsResults) {
-      cacheSet(cacheKey, awsResults);
+      sharedCacheSet('suggest', cacheKey, awsResults, CACHE_TTL_MS / 1000, cacheSet);
       return res.json(awsResults);
     }
 
@@ -244,7 +283,7 @@ exports.suggest = async (req, res) => {
       };
     }).filter(r => r.city);
 
-    cacheSet(cacheKey, results);
+    sharedCacheSet('suggest', cacheKey, results, CACHE_TTL_MS / 1000, cacheSet);
     return res.json(results);
   } catch (err) {
     logger.error('Geocode suggest error', { message: err.message });
@@ -266,11 +305,11 @@ exports.nearby = async (req, res) => {
     }
     const radiusMeters = Math.min(Math.max(Number(req.query.radius) || 5000, 100), 25000);
     const cacheKey = `nearby:${lat.toFixed(4)},${lng.toFixed(4)}:${radiusMeters}`;
-    const cached = nearbyCacheGet(cacheKey);
+    const cached = await sharedCacheGet('nearby', cacheKey, nearbyCacheGet, nearbyCacheSet);
     if (cached) return res.json(cached);
     const places = await awsNearby(lat, lng, { radiusMeters, maxResults: 20 });
     const response = { places: places || [], provider: places ? 'aws' : 'disabled' };
-    nearbyCacheSet(cacheKey, response);
+    sharedCacheSet('nearby', cacheKey, response, NEARBY_CACHE_TTL_MS / 1000, nearbyCacheSet);
     return res.json(response);
   } catch (err) {
     logger.error('Geo nearby error', { message: err.message });
@@ -299,11 +338,12 @@ exports.route = async (req, res) => {
       return res.status(400).json({ error: 'departureTime must be a valid ISO timestamp.' });
     }
     const key = JSON.stringify({ origin, destination, waypoints, travelMode, departureTime: departureTime || 'now' });
-    const cached = routeCacheGet(`route:${key}`);
+    const routeCacheKey = `route:${key}`;
+    const cached = await sharedCacheGet('route', routeCacheKey, routeCacheGet, routeCacheSet);
     if (cached) return res.json(cached);
     const route = await awsCalculateRoute({ origin, destination, waypoints, travelMode, departureTime });
     const response = { route: route || fallbackRoute(origin, destination, waypoints) };
-    routeCacheSet(`route:${key}`, response);
+    sharedCacheSet('route', routeCacheKey, response, ROUTE_CACHE_TTL_MS / 1000, routeCacheSet);
     return res.json(response);
   } catch (err) {
     logger.error('Geo route error', { message: err.message });
@@ -329,11 +369,12 @@ exports.routeMatrix = async (req, res) => {
       return res.status(400).json({ error: 'departureTime must be a valid ISO timestamp.' });
     }
     const key = JSON.stringify({ origins, destinations, travelMode, departureTime: departureTime || 'now' });
-    const cached = routeCacheGet(`matrix:${key}`);
+    const matrixCacheKey = `matrix:${key}`;
+    const cached = await sharedCacheGet('matrix', matrixCacheKey, routeCacheGet, routeCacheSet);
     if (cached) return res.json(cached);
     const matrix = await awsCalculateMatrix({ origins, destinations, travelMode, departureTime });
     const response = { matrix: matrix || fallbackMatrix(origins, destinations) };
-    routeCacheSet(`matrix:${key}`, response);
+    sharedCacheSet('matrix', matrixCacheKey, response, ROUTE_CACHE_TTL_MS / 1000, routeCacheSet);
     return res.json(response);
   } catch (err) {
     logger.error('Geo route matrix error', { message: err.message });
