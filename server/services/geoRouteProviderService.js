@@ -16,10 +16,17 @@ function isEnabled() {
 function getClient() {
   if (!isEnabled()) return null;
   if (!client) {
-    client = new GeoRoutesClient({
+    const config = {
       region: process.env.AWS_REGION,
       maxAttempts: 2,
-    });
+    };
+    if (process.env.AWS_LOCATION_ACCESS_KEY_ID && process.env.AWS_LOCATION_SECRET_ACCESS_KEY) {
+      config.credentials = {
+        accessKeyId: process.env.AWS_LOCATION_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_LOCATION_SECRET_ACCESS_KEY,
+      };
+    }
+    client = new GeoRoutesClient(config);
   }
   return client;
 }

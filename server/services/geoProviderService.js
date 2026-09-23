@@ -17,10 +17,17 @@ function isEnabled() {
 function getClient() {
   if (!isEnabled()) return null;
   if (!client) {
-    client = new GeoPlacesClient({
+    const config = {
       region: process.env.AWS_REGION,
       maxAttempts: 2,
-    });
+    };
+    if (process.env.AWS_LOCATION_ACCESS_KEY_ID && process.env.AWS_LOCATION_SECRET_ACCESS_KEY) {
+      config.credentials = {
+        accessKeyId: process.env.AWS_LOCATION_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_LOCATION_SECRET_ACCESS_KEY,
+      };
+    }
+    client = new GeoPlacesClient(config);
   }
   return client;
 }
@@ -91,15 +98,27 @@ async function send(command, operation) {
   }
 }
 
-async function suggest(query) {
+async function suggest(query, options = {}) {
   if (!isEnabled()) return null;
-  const response = await send(new SearchTextCommand({
+  const biasPosition = Array.isArray(options.biasPosition) && options.biasPosition.length >= 2
+    ? options.biasPosition.map(Number)
+    : null;
+  const request = {
     QueryText: query,
     MaxResults: 5,
     Language: languageInput(),
     // Results may be used to persist normalized job/profile coordinates.
     IntendedUse: 'Storage',
-  }), 'SearchText');
+  };
+  // Amazon Location requires either a bias position or a bounding box for
+  // SearchText. Use the caller's position when available; otherwise keep
+  // address search global rather than inventing a misleading default center.
+  if (biasPosition && Number.isFinite(biasPosition[0]) && Number.isFinite(biasPosition[1])) {
+    request.BiasPosition = biasPosition;
+  } else {
+    request.Filter = { BoundingBox: [-180, -90, 180, 90] };
+  }
+  const response = await send(new SearchTextCommand(request), 'SearchText');
   if (!response) return null;
   return (response.ResultItems || []).map(normalizePlace).filter((place) => place.city || place.display);
 }

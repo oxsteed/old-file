@@ -199,7 +199,8 @@ exports.suggest = async (req, res) => {
     const cached   = cacheGet(cacheKey);
     if (cached) return res.json(cached);
 
-    const awsResults = await awsSuggest(q);
+    const biasPosition = parsePosition({ lng: req.query.lng, lat: req.query.lat });
+    const awsResults = await awsSuggest(q, biasPosition ? { biasPosition } : undefined);
     if (awsResults) {
       cacheSet(cacheKey, awsResults);
       return res.json(awsResults);

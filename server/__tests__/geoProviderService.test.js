@@ -78,6 +78,7 @@ test('maps Amazon Location text search into the existing geo contract', async ()
     MaxResults: 5,
     Language: 'en-US',
     IntendedUse: 'Storage',
+    Filter: { BoundingBox: [-180, -90, 180, 90] },
   });
 });
 

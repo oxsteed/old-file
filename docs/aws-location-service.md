@@ -14,8 +14,10 @@ server endpoints are:
 
 Amazon Location Places v2 is available behind `AWS_GEO_PLACES_ENABLED=true`.
 Routes v2 is available behind `AWS_GEO_ROUTES_ENABLED=true`.
-The server uses the AWS SDK default credential chain and `AWS_REGION`, so no
-Google Maps key is required. When the flag is off, the existing Google Maps
+The server uses `AWS_REGION` and, when configured, dedicated
+`AWS_LOCATION_ACCESS_KEY_ID` / `AWS_LOCATION_SECRET_ACCESS_KEY` credentials.
+This keeps Amazon Location permissions separate from storage credentials, and
+no Google Maps key is required. When the flag is off, the existing Google Maps
 integration remains optional and the manual `City, State` parser still keeps
 the endpoints usable without either provider.
 
@@ -48,6 +50,9 @@ to the existing provider/manual behavior.
   `geo-places:GetPlace`, `geo-routes:CalculateRoutes`, and
   `geo-routes:CalculateRouteMatrix`. IAM is the right authentication strategy
   for this server-side integration; do not put AWS credentials in the browser.
+- Prefer a dedicated least-privilege IAM identity for these actions. Do not
+  reuse the storage/root credentials in `AWS_ACCESS_KEY_ID` and
+  `AWS_SECRET_ACCESS_KEY`.
 - Create a separate Amazon Location Maps API key restricted to the production
   domain and the `geo-maps` default provider. Pass it to the client build as
   `VITE_AWS_LOCATION_API_KEY`; it is not a replacement for server credentials.
@@ -66,11 +71,13 @@ Set these variables only after the AWS permissions and browser key restrictions
 are verified:
 
 ```text
-AWS_REGION=us-east-1
+AWS_REGION=us-east-2
+AWS_LOCATION_ACCESS_KEY_ID=<dedicated-location-access-key-id>
+AWS_LOCATION_SECRET_ACCESS_KEY=<dedicated-location-secret-access-key>
 AWS_GEO_PLACES_ENABLED=true
 AWS_GEO_ROUTES_ENABLED=true
 AWS_GEO_PLACES_LANGUAGE=en
-VITE_AWS_LOCATION_REGION=us-east-1
+VITE_AWS_LOCATION_REGION=us-east-2
 VITE_AWS_LOCATION_API_KEY=<domain-restricted-location-api-key>
 ```
 
