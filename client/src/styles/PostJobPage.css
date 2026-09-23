@@ -68,6 +68,24 @@ html:not(.dark) .pjw-nav {
 html:not(.dark) .pjw-overlay {
   background: rgba(248, 250, 252, 0.92);
 }
+html:not(.dark) .pjw-hero {
+  border-color: rgba(249, 115, 22, 0.22);
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 24%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+html:not(.dark) .pjw-hero-kicker {
+  color: #c2410c;
+}
+html:not(.dark) .pjw-hero-panel-card {
+  border-color: rgba(100, 116, 139, 0.24);
+  background: rgba(255, 255, 255, 0.72);
+}
+html:not(.dark) .pjw-hero-panel-label,
+html:not(.dark) .pjw-side-note-kicker {
+  color: #1d4ed8;
+}
 
 /* ── Nav ────────────────────────────────────────────────── */
 .pjw-nav {

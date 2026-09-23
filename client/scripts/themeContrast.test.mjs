@@ -114,3 +114,17 @@ test('legal page styles cannot overwrite global tokens or unrelated components',
     });
   }
 });
+
+test('post-job hero has an explicit light-mode surface and readable accents', () => {
+  const postJobCss = postcss.parse(read('src/styles/PostJobPage.css'));
+  const declarations = (selector) => {
+    const rule = postJobCss.nodes
+      .flatMap((node) => node.type === 'atrule' ? node.nodes || [] : [node])
+      .find((node) => node.type === 'rule' && node.selector === selector);
+    return rule ? Object.fromEntries(rule.nodes.filter((node) => node.type === 'decl').map((node) => [node.prop, node.value])) : {};
+  };
+
+  assert.match(declarations('html:not(.dark) .pjw-hero').background, /#ffffff/);
+  assert.equal(declarations('html:not(.dark) .pjw-hero-kicker').color, '#c2410c');
+  assert.equal(declarations('html:not(.dark) .pjw-hero-panel-label,\nhtml:not(.dark) .pjw-side-note-kicker').color, '#1d4ed8');
+});
