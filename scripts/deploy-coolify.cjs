@@ -4,6 +4,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 
 function deploymentConfig(env, { image = false } = {}) {
   const webhookKey = image ? 'COOLIFY_IMAGE_WEBHOOK_URL' : 'COOLIFY_WEBHOOK_URL';
+  const applicationUuidKey = image ? 'COOLIFY_IMAGE_APPLICATION_UUID' : 'COOLIFY_APPLICATION_UUID';
   if (!env[webhookKey] || !env.COOLIFY_TOKEN) {
     throw new Error(`Configure ${webhookKey} and COOLIFY_TOKEN in GitHub Actions secrets.`);
   }
@@ -14,7 +15,12 @@ function deploymentConfig(env, { image = false } = {}) {
   if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.pathname !== '/api/v1/deploy') {
     throw new Error(`${webhookKey} must use HTTPS and /api/v1/deploy, without embedded credentials or a fragment.`);
   }
-  const uuid = url.searchParams.get('uuid');
+  const configuredUuid = url.searchParams.get('uuid');
+  const applicationUuid = String(env[applicationUuidKey] || '').trim();
+  if (applicationUuid && !/^[a-zA-Z0-9_-]+$/.test(applicationUuid)) {
+    throw new Error(`${applicationUuidKey} must be a valid Coolify application UUID.`);
+  }
+  const uuid = applicationUuid || configuredUuid;
   if (!uuid || !/^[a-zA-Z0-9_-]+$/.test(uuid) || url.searchParams.getAll('uuid').length !== 1 ||
       [...url.searchParams.keys()].some((key) => !['uuid', 'force'].includes(key))) {
     throw new Error(`Use the live application webhook with exactly one uuid in ${webhookKey}; tags and preview deployments are not supported here.`);
@@ -22,6 +28,7 @@ function deploymentConfig(env, { image = false } = {}) {
   if (url.searchParams.has('force') && !['true', 'false'].includes(url.searchParams.get('force'))) {
     throw new Error(`The ${webhookKey} force parameter must be true or false.`);
   }
+  if (applicationUuid) url.searchParams.set('uuid', applicationUuid);
   return { url, uuid, token: env.COOLIFY_TOKEN };
 }
 

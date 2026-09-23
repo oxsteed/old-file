@@ -136,7 +136,8 @@ jobs:
 
       - name: Verify Coolify image target and deploy
         env:
-          COOLIFY_IMAGE_WEBHOOK_URL: ${{ secrets.COOLIFY_IMAGE_WEBHOOK_URL }}
+          COOLIFY_IMAGE_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          COOLIFY_IMAGE_APPLICATION_UUID: ${{ vars.COOLIFY_IMAGE_APPLICATION_UUID }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_IMAGE_NAME: ${{ env.IMAGE_NAME }}
           COOLIFY_IMAGE_TAG: ${{ github.sha }}

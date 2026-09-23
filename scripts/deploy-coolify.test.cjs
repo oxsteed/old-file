@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { deployCoolify, deployCoolifyImage } = require('./deploy-coolify.cjs');
+const { deploymentConfig, deployCoolify, deployCoolifyImage } = require('./deploy-coolify.cjs');
 
 const env = {
   COOLIFY_WEBHOOK_URL: 'https://coolify.example.test/api/v1/deploy?uuid=website123&force=false',
@@ -179,4 +179,15 @@ test('image check-only mode does not update or deploy', async () => {
   const f = imageFixture([imageApplication]);
   assert.deepEqual(await f.run({ checkOnly: true }), { checked: true });
   assert.equal(f.calls.length, 1);
+});
+
+test('image deployments can retarget a shared Coolify webhook by application UUID', async () => {
+  const config = deploymentConfig({
+    COOLIFY_IMAGE_WEBHOOK_URL: env.COOLIFY_WEBHOOK_URL,
+    COOLIFY_IMAGE_APPLICATION_UUID: 'image123',
+    COOLIFY_TOKEN: env.COOLIFY_TOKEN,
+  }, { image: true });
+  assert.equal(config.uuid, 'image123');
+  assert.equal(config.url.searchParams.get('uuid'), 'image123');
+  assert.equal(config.url.searchParams.get('force'), 'false');
 });
