@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { withTransaction } = require('../utils/transaction');
+const { enqueueMessageNotification } = require('../services/messageNotificationService');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -2757,6 +2758,23 @@ exports.sendAdminMessage = async (req, res) => {
     }
 
     if (!replayed) {
+      try {
+        await enqueueMessageNotification({
+          messageId: msgRows[0].id,
+          conversationId,
+          recipientId: targetId,
+          senderName: 'OxSteed Admin',
+          body: content.trim(),
+          actionUrl: `/messages/${conversationId}`,
+        });
+      } catch (notificationError) {
+        logger.warn('Super-admin message notification enqueue failed', {
+          conversationId,
+          messageId: msgRows[0].id,
+          error: notificationError.message,
+        });
+      }
+
       // Push real-time event to target user
       socketService.broadcastToUser(targetId, 'new_message', {
         conversation_id: conversationId,

@@ -124,6 +124,7 @@ test('agreement share replay returns the original artifact and emits once', asyn
     .mockResolvedValueOnce({ rows: [message] }) // message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
     .mockResolvedValueOnce({ rows: [] }) // agreement message link
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox
     .mockResolvedValueOnce({ rows: [agreement] }) // retry key lookup
     .mockResolvedValueOnce({ rows: [] }) // message conflict
     .mockResolvedValueOnce({ rows: [message] }) // original message

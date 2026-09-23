@@ -23,6 +23,7 @@ const {
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
+const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
@@ -81,7 +82,7 @@ async function canViewBooking(req, booking) {
   return false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId, recipientIds = null }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
@@ -106,6 +107,16 @@ async function postConversationMessage({ conversationId, senderId, content, send
     [conversationId],
   );
   const message = { ...messageRow, sender_name: senderName };
+  scheduleConversationMessageNotifications({
+    conversationId,
+    messageId: messageRow.id,
+    senderId,
+    senderName,
+    body: content,
+    actionUrl: `/messages/${conversationId}`,
+    recipientIds,
+    bestEffort: true,
+  });
   socketService.broadcastToConversation(conversationId, 'message:new', {
     conversationId,
     message,
@@ -240,6 +251,7 @@ async function postStatusToThread({
         senderName: actorName || 'Provider',
         businessId: booking.business_id,
         clientMessageId,
+        recipientIds: [booking.customer_id, booking.helper_id],
       });
     } catch (e) {
       logger.warn('[chatBookingRequests] conversation status post failed', { error: e.message });

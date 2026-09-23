@@ -21,6 +21,7 @@ const {
   redactPopForLog,
 } = require('../services/chatProofOfPayment');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
+const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
@@ -38,7 +39,7 @@ function getClientRequestId(req) {
     : false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId, recipientIds = null }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
@@ -63,6 +64,16 @@ async function postConversationMessage({ conversationId, senderId, content, send
     [conversationId],
   );
   const message = { ...messageRow, sender_name: senderName };
+  scheduleConversationMessageNotifications({
+    conversationId,
+    messageId: messageRow.id,
+    senderId,
+    senderName,
+    body: content,
+    actionUrl: `/messages/${conversationId}`,
+    recipientIds,
+    bestEffort: true,
+  });
   socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
   socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
     conversationId,
@@ -195,6 +206,7 @@ exports.sharePop = async (req, res, next) => {
 
     let helperId = null;
     let businessId = req.body.businessId || req.body.business_id || null;
+    let conversationParticipants = null;
     let senderName = req.user
       ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Member'
       : guest?.guest_name || 'Guest';
@@ -203,6 +215,7 @@ exports.sharePop = async (req, res, next) => {
       if (!userId) return bad(res, 401, 'Sign in to share on this conversation', 'auth_required');
       const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
       if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
+      conversationParticipants = [conv.customer_id, conv.helper_id];
       helperId = conv.helper_id;
       businessId = businessId || conv.business_id;
     } else if (guestSessionId) {
@@ -338,6 +351,7 @@ exports.sharePop = async (req, res, next) => {
         senderName,
         businessId: replayed ? pop.business_id : businessId,
         clientMessageId: clientRequestId,
+        recipientIds: conversationParticipants || [pop.customer_id, pop.helper_id],
       });
       await pool.query('UPDATE chat_proof_of_payments SET message_id = $1, updated_at = NOW() WHERE id = $2', [
         String(message.id),
@@ -419,8 +433,10 @@ exports.confirmPop = async (req, res, next) => {
     }
 
     let allowed = false;
+    let conversationParticipants = null;
     if (pop.conversation_id) {
       const conv = await assertConversationParticipant(userId, pop.conversation_id, { writable: true });
+      conversationParticipants = conv ? [conv.customer_id, conv.helper_id] : null;
       if (conv && isProviderOnConversation(userId, conv)) allowed = true;
       if (conv && conv.business_id) {
         const biz = await assertBusinessAccess(userId, conv.business_id);
@@ -468,6 +484,7 @@ exports.confirmPop = async (req, res, next) => {
         content: statusContent,
         senderName: displayName,
         businessId: updated.business_id,
+        recipientIds: conversationParticipants || [updated.customer_id, updated.helper_id],
       });
     } else if (updated.guest_session_id) {
       await postGuestMessage({

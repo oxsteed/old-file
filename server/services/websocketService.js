@@ -8,6 +8,7 @@ const { TERMINAL_CONVERSATION_STATUS_SQL } = require('./supportConversationTermi
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
+const { sendNotification } = require('./notificationService');
 
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -298,6 +299,46 @@ class WebSocketService {
           if (!result) return;
 
           if (result.duplicate) return;
+
+          try {
+            const { rows: recipients } = await pool.query(
+              `SELECT sc.customer_id, sa.user_id AS agent_user_id
+                 FROM support_conversations sc
+                 LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+                WHERE sc.id = $1`,
+              [ticketId],
+            );
+            const recipientId = isAgent
+              ? recipients[0]?.customer_id
+              : recipients[0]?.agent_user_id;
+            if (recipientId && String(recipientId) !== String(senderId)) {
+              void sendNotification({
+                userId: recipientId,
+                type: 'new_message',
+                title: isAgent ? 'New support message' : 'Support customer replied',
+                body: normalizedContent,
+                data: {
+                  supportConversationId: String(ticketId),
+                  messageId: String(result.message.id),
+                },
+                action_url: '/support/escalation',
+                idempotencyKey: `support-socket-message:${ticketId}:${result.message.id}:${recipientId}`,
+              }).catch((error) => {
+                logger.warn('Support socket notification failed', {
+                  ticketId,
+                  messageId: result.message.id,
+                  recipientId,
+                  error: error.message,
+                });
+              });
+            }
+          } catch (notificationError) {
+            logger.warn('Support socket recipient lookup failed', {
+              ticketId,
+              messageId: result.message.id,
+              error: notificationError.message,
+            });
+          }
 
           namespace.to(`ticket:${ticketId}`).emit('message:new', {
             ticketId,

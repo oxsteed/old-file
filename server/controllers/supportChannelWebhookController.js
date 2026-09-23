@@ -5,6 +5,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const WebSocketService = require('../services/websocketService');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 
 const CHANNELS = new Set(['email', 'sms', 'phone', 'social']);
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -251,6 +252,42 @@ async function ingestChannelWebhook(req, res) {
         messageId: result.messageId,
         source: 'channel_webhook',
       });
+      try {
+        const { rows: assigned } = await pool.query(
+          `SELECT sa.user_id
+             FROM support_conversations sc
+             LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+            WHERE sc.id = $1`,
+          [result.conversationId]
+        );
+        const agentUserId = assigned[0]?.user_id;
+        if (agentUserId && result.messageId) {
+          void sendNotification({
+            userId: agentUserId,
+            type: 'new_message',
+            title: 'New support channel message',
+            body: String(payload.content || '').slice(0, 280),
+            data: {
+              supportConversationId: String(result.conversationId),
+              messageId: String(result.messageId),
+              channel: payload.channel,
+            },
+            action_url: '/support/escalation',
+            idempotencyKey: `support-channel-message:${result.conversationId}:${result.messageId}:${agentUserId}`,
+          }).catch((error) => {
+            logger.warn('Support channel message notification failed', {
+              conversationId: result.conversationId,
+              messageId: result.messageId,
+              error: error.message,
+            });
+          });
+        }
+      } catch (notificationLookupError) {
+        logger.warn('Support channel notification lookup failed', {
+          conversationId: result.conversationId,
+          error: notificationLookupError.message,
+        });
+      }
     }
     return res.status(result.duplicate ? 200 : 202).json({
       success: true,

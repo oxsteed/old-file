@@ -15,6 +15,8 @@ const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
+const { sendNotification } = require('../services/notificationService');
+const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -648,15 +650,16 @@ exports.profileChatMessage = async (req, res, next) => {
     // Check if any active rep for this business is online; also collect their IDs
     // so we can notify them directly (FIX Bugbot #2)
     let anyRepOnline = false;
+    let activeRepIds = [];
     let onlineRepIds = [];
-    if (resolvedBusinessId && !helperOnline) {
+    if (resolvedBusinessId) {
       const repsRes = await pool.query(
         `SELECT member_id FROM business_members
          WHERE business_id = $1 AND status = 'active'`,
         [resolvedBusinessId]
       );
-      onlineRepIds = repsRes.rows
-        .map(r => r.member_id)
+      activeRepIds = repsRes.rows.map(r => r.member_id);
+      onlineRepIds = activeRepIds
         .filter(id => socketService.isOnline(id));
       anyRepOnline = onlineRepIds.length > 0;
     }
@@ -823,6 +826,15 @@ exports.profileChatMessage = async (req, res, next) => {
 
       // Notify the business owner AND all online reps, not just resolvedHelperId.
       if (!replayed) {
+        scheduleConversationMessageNotifications({
+          conversationId,
+          messageId: message.id,
+          senderId: userId,
+          senderName: socketPayload.senderName,
+          body: content,
+          actionUrl: `/messages/${conversationId}`,
+          recipientIds: [resolvedHelperId, ...activeRepIds],
+        });
         const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
         notifyTargets.forEach(targetId => {
           socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
@@ -903,11 +915,27 @@ exports.profileChatMessage = async (req, res, next) => {
         guestName: verifiedGuestSession.guest_name,
         guestEmail: verifiedGuestSession.guest_email,
       };
-      const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
+      const providerTargets = new Set([resolvedHelperId, ...activeRepIds]);
+      const socketTargets = new Set([resolvedHelperId, ...onlineRepIds]);
       if (!replayed) {
-        notifyTargets.forEach((targetId) => {
+        socketTargets.forEach((targetId) => {
           socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
         });
+        await Promise.allSettled([...providerTargets].map((targetId) => sendNotification({
+          userId: targetId,
+          type: 'new_message',
+          title: `New message from ${verifiedGuestSession.guest_name || 'a guest'}`,
+          body: content,
+          data: {
+            guestSessionId: String(verifiedGuestSession.id),
+            guestMessageId: String(guestMessageId),
+            businessId: resolvedBusinessId ? String(resolvedBusinessId) : null,
+          },
+          action_url: resolvedBusinessId
+            ? `/business/${resolvedBusinessId}/workspace/messages`
+            : '/helper/messages',
+          idempotencyKey: `guest-profile-message:${verifiedGuestSession.id}:${guestMessageId}:${targetId}`,
+        })));
       }
       // Also emit into guest_session_* so multi-tab guests / parity listeners update.
       try {
@@ -1217,6 +1245,20 @@ exports.guestProfileChatSession = async (req, res, next) => {
     notifyTargets.forEach((uid) => {
       socketService.broadcastToUser(uid, 'profile_chat:new_message', guestPayload);
     });
+    await Promise.allSettled([...notifyTargets].map((uid) => sendNotification({
+      userId: uid,
+      type: 'new_message',
+      title: `New guest message from ${guestName}`,
+      body: message,
+      data: {
+        guestInquiryId: String(row.id),
+        businessId: resolvedBusinessId ? String(resolvedBusinessId) : null,
+      },
+      action_url: resolvedBusinessId
+        ? `/business/${resolvedBusinessId}/workspace/messages`
+        : '/helper/messages',
+      idempotencyKey: `guest-profile-inquiry:${row.id}:${uid}`,
+    })));
 
     // Email fallback when Resend is configured (helpers are not notified otherwise if offline)
     try {

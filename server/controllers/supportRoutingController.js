@@ -12,6 +12,7 @@ const { waitingState } = require('../services/supportWaitService');
 const supportConversationsController = require('./supportConversationsController');
 const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 const {
   TERMINAL_CONVERSATION_STATUS_SQL,
   isTerminalConversationStatus,
@@ -477,6 +478,30 @@ exports.createConversation = async (req, res) => {
         message: normalizedMessage,
         timestamp: new Date().toISOString(),
       });
+      try {
+        const { rows: agentUsers } = await pool.query(
+          'SELECT user_id FROM support_agents WHERE id = $1',
+          [assignedAgentId]
+        );
+        if (agentUsers[0]?.user_id) {
+          void sendNotification({
+            userId: agentUsers[0].user_id,
+            type: 'new_message',
+            title: 'New support conversation assigned',
+            body: normalizedMessage,
+            data: { supportConversationId: String(ticketId) },
+            action_url: '/support/agent',
+            idempotencyKey: `support-assignment:${ticketId}:${assignedAgentId}`,
+          }).catch((error) => {
+            logger.warn('Support assignment notification failed', { ticketId, error: error.message });
+          });
+        }
+      } catch (notificationLookupError) {
+        logger.warn('Support assignment notification lookup failed', {
+          ticketId,
+          error: notificationLookupError.message,
+        });
+      }
 
       logger.info('Ticket routed to agent', {
         ticketId,
@@ -674,7 +699,7 @@ exports.assignToAgent = async (req, res) => {
 
     // Verify the selected agent still exists and is active before writing.
     const agentQuery = `
-      SELECT sa.id, u.first_name, u.last_name
+      SELECT sa.id, u.id AS user_id, u.first_name, u.last_name
       FROM support_agents sa
       JOIN users u ON u.id = sa.user_id
       WHERE sa.id = $1 AND sa.status = 'active' AND sa.is_available = true AND u.is_active = true
@@ -712,6 +737,19 @@ exports.assignToAgent = async (req, res) => {
       ticketId,
       timestamp: new Date().toISOString(),
     });
+    if (agentResult.rows[0]?.user_id) {
+      void sendNotification({
+        userId: agentResult.rows[0].user_id,
+        type: 'new_message',
+        title: 'Support conversation assigned',
+        body: 'A support conversation was assigned to you.',
+        data: { supportConversationId: String(ticketId) },
+        action_url: '/support/agent',
+        idempotencyKey: `support-assignment:${ticketId}:${agentId}`,
+      }).catch((error) => {
+        logger.warn('Manual support assignment notification failed', { ticketId, error: error.message });
+      });
+    }
 
     // Notify customer
     WebSocketService.broadcastToTicket(ticketId, 'agent:assigned', {

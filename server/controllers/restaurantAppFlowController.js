@@ -34,6 +34,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { resolveOrderItemModifiers } = require('./foodController');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
@@ -3127,9 +3128,19 @@ exports.reportDeviceIssue = async (req, res, next) => {
       initialMessage: description,
       clientRequestId,
     }), 'restaurant_device_report_issue');
+    if (!ticket.replayed) {
+      scheduleSupportMessageNotifications({
+        ticketId: ticket.id,
+        messageId: ticket.messageId,
+        body: description,
+        title: 'New restaurant device issue',
+      });
+    }
+    const publicTicket = { ...ticket };
+    delete publicTicket.messageId;
     res.status(ticket.replayed ? 200 : 201).json({
-      ticket,
-      supportTicket: ticket,
+      ticket: publicTicket,
+      supportTicket: publicTicket,
       message: 'Device issue reported.',
       idempotent: Boolean(ticket.replayed),
     });

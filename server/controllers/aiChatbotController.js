@@ -6,6 +6,7 @@ const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -153,6 +154,27 @@ async function applyDraft(req, res) {
     if (result.forbidden) return sendError(res, 403, 'Access denied');
     if (result.invalidState) return sendError(res, 409, `AI draft is already ${result.status}`);
     if (result.closed) return sendError(res, 409, 'Closed conversations cannot receive AI replies');
+
+    if (result.draft.customer_id) {
+      void sendNotification({
+        userId: result.draft.customer_id,
+        type: 'new_message',
+        title: 'New support message',
+        body: String(result.message.content || '').slice(0, 280),
+        data: {
+          supportConversationId: String(result.draft.conversation_id),
+          messageId: String(result.message.id),
+        },
+        action_url: '/support/escalation',
+        idempotencyKey: `support-ai-message:${result.draft.conversation_id}:${result.message.id}:${result.draft.customer_id}`,
+      }).catch((error) => {
+        logger.warn('AI support reply notification failed', {
+          conversationId: result.draft.conversation_id,
+          messageId: result.message.id,
+          error: error.message,
+        });
+      });
+    }
 
     await logAdminAction({
       adminId: req.user.id,

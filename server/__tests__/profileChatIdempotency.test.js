@@ -4,6 +4,10 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 const chatController = require('../controllers/chatController');
 const socketService = require('../services/socketService');
 
@@ -152,6 +156,7 @@ describe('profile chat delivery', () => {
       .mockResolvedValueOnce({ rows: [message] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ first_name: 'Customer', last_name: 'One', profile_photo_url: null }] })
+      .mockResolvedValueOnce({ rows: [] }) // message notification outbox
       // Retry: availability, conversation, conflict, original message, sender.
       .mockResolvedValueOnce({ rows: [{ is_available_now: true }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1' }] })
@@ -219,6 +224,7 @@ describe('profile chat delivery', () => {
     };
     const first = await request(app).post('/api/chat/sessions/guest').send(body);
     const retry = await request(app).post('/api/chat/sessions/guest').send(body);
+
 
     expect(first.status).toBe(201);
     expect(retry.status).toBe(200);

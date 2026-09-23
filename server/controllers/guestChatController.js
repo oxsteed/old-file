@@ -5,6 +5,7 @@ const { withChatTransaction, updateSessionStatus, logChatEvent, queueMessageIfTr
 const { broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage } = require('../services/socketService');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { sendNotification } = require('../services/notificationService');
 
 const GUEST_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const GUEST_TOKEN_SECRET = String(
@@ -232,17 +233,19 @@ async function sendGuestMessage(req, res, next) {
 
     let messageId;
     let replayed = false;
+    let helperIdForNotification = null;
 
     await withChatTransaction(async (client) => {
       // Get session with lock
       const { rows: [session] } = await client.query(
-        `SELECT session_status, guest_name FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
+        `SELECT session_status, guest_name, helper_id FROM guest_profile_chat_inbound WHERE id = $1 FOR UPDATE`,
         [sessionId]
       );
 
       if (!session) {
         throw new AppError('Session not found', 404, 'not_found');
       }
+      helperIdForNotification = session.helper_id || null;
 
       if (session.session_status === 'resolved' || session.session_status === 'abandoned') {
         throw new AppError('Cannot send messages to resolved or abandoned sessions', 400, 'invalid_state');
@@ -309,6 +312,26 @@ async function sendGuestMessage(req, res, next) {
         message,
         createdAt: new Date().toISOString()
       });
+      if (helperIdForNotification) {
+        void sendNotification({
+          userId: helperIdForNotification,
+          type: 'new_message',
+          title: 'New guest message',
+          body: message,
+          data: {
+            guestSessionId: String(sessionId),
+            guestMessageId: String(messageId),
+          },
+          action_url: '/helper/messages',
+          idempotencyKey: `guest-chat-message:${sessionId}:${messageId}:${helperIdForNotification}`,
+        }).catch((error) => {
+          logger.warn('Guest chat notification failed', {
+            sessionId,
+            messageId,
+            error: error.message,
+          });
+        });
+      }
     }
 
     res.status(replayed ? 200 : 201).json({

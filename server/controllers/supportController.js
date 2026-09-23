@@ -10,6 +10,7 @@ const logger        = require('../utils/logger');
 const socketService = require('../services/socketService');
 const { sendEmail } = require('../utils/email');
 const { AppError } = require('../middleware/errorHandler');
+const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -179,15 +180,23 @@ exports.submitSupportRequest = async (req, res, next) => {
       });
     }
 
-    await client.query(
+    const { rows: messageRows } = await client.query(
       `INSERT INTO support_messages
          (ticket_id, sender_id, sender_name, sender_email, content,
           sender_language, is_internal, is_from_admin, client_message_id)
-       VALUES ($1, $2, $3, $4, $5, $6, false, false, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, false, false, $7)
+       RETURNING id`,
       [ticket.id, userId, name.trim(), email.trim().toLowerCase(), message.trim(), safeLanguage, clientRequestId]
     );
 
     await client.query('COMMIT');
+
+    scheduleSupportMessageNotifications({
+      ticketId: ticket.id,
+      messageId: messageRows[0]?.id,
+      body: message,
+      title: 'New support request',
+    });
 
     // Confirmation email to the user
     sendEmail({
@@ -376,6 +385,15 @@ exports.replyToMyTicket = async (req, res, next) => {
         from_name:     ticket.name,
       });
     }
+
+    scheduleSupportMessageNotifications({
+      ticketId: ticket.id,
+      messageId: messageRow.id,
+      senderId: req.user.id,
+      recipientIds: ticket.assigned_to ? [ticket.assigned_to] : null,
+      body: content,
+      title: 'Support customer replied',
+    });
 
     return res.status(201).json({ message: messageRow });
   } catch (err) {
@@ -766,6 +784,15 @@ exports.adminReply = async (req, res) => {
         ticket_id: ticket.id,
         ticket_number: ticket.ticket_number,
         subject: ticket.subject,
+      });
+
+      scheduleSupportMessageNotifications({
+        ticketId: ticket.id,
+        messageId: message.id,
+        senderId: req.user.id,
+        recipientIds: [ticket.user_id],
+        body: content,
+        actionUrl: `/support/my-tickets/${ticket.id}`,
       });
 
       sendEmail({

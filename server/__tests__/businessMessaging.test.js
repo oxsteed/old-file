@@ -146,6 +146,7 @@ describe('business hub messaging tab', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'msg-3', content: 'See the receipt', client_message_id: clientMessageId }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // business message notification lookup
       .mockResolvedValueOnce({ rows: [{ id: 1, owner_id: OWNER.id }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conv-1', business_id: 1 }] })
       .mockResolvedValueOnce({ rows: [] })

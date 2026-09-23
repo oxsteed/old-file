@@ -86,6 +86,7 @@ test('replays a schedule request without creating a second booking or timeline m
     .mockResolvedValueOnce({ rows: [booking] }) // booking insert
     .mockResolvedValueOnce({ rows: [message] }) // timeline message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox
     .mockResolvedValueOnce({ rows: [booking] }) // retry key lookup
     .mockResolvedValueOnce({ rows: [] }) // timeline message conflict
     .mockResolvedValueOnce({ rows: [message] }); // original timeline message

@@ -5,6 +5,7 @@ const { broadcastToConversation } = require('../services/socketService');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 
 async function loadAuthorizedConversation(req, conversationId) {
   const { businessId } = req.params;
@@ -231,6 +232,26 @@ async function addAttachment(req, res) {
       attachmentUrl: normalizedAttachmentUrl,
       attachmentName: storedAttachmentName,
     });
+    if (conversation.customer_id && String(conversation.customer_id) !== String(req.user.id)) {
+      void sendNotification({
+        userId: conversation.customer_id,
+        type: 'new_message',
+        title: 'New support attachment',
+        body: 'A support team member shared an attachment with you.',
+        data: {
+          supportConversationId: String(conversationId),
+          messageId: String(result.rows[0].id),
+        },
+        action_url: '/support/escalation',
+        idempotencyKey: `support-attachment:${conversationId}:${result.rows[0].id}:${conversation.customer_id}`,
+      }).catch((error) => {
+        logger.warn('Support attachment notification failed', {
+          conversationId,
+          messageId: result.rows[0].id,
+          error: error.message,
+        });
+      });
+    }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {

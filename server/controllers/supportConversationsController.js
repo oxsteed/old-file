@@ -15,6 +15,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
+const { sendNotification } = require('../services/notificationService');
 const { isTerminalConversationStatus } = require('../services/supportConversationTerminal');
 const { getClientRequestId } = require('../utils/idempotency');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1995,8 +1996,10 @@ async function addMessage(req, res) {
     const isCustomer = req.user.id === conversation.customer_id;
     const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
     let isAssignedAgent = false;
+    let assignedAgentUserId = null;
     if (conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+      assignedAgentUserId = ag.rows[0]?.user_id || null;
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
     }
     let canManageBusiness = false;
@@ -2166,6 +2169,30 @@ async function addMessage(req, res) {
           error: error.message,
         });
       });
+    }
+    if (!isInternalMessage && !result.duplicate) {
+      const recipientId = isAgent ? conversation.customer_id : assignedAgentUserId;
+      if (recipientId && String(recipientId) !== String(req.user.id)) {
+        void sendNotification({
+          userId: recipientId,
+          type: 'new_message',
+          title: isAgent ? 'New support message' : 'Support customer replied',
+          body: String(message.content || messageContent).slice(0, 280),
+          data: {
+            supportConversationId: String(conversationId),
+            messageId: String(message.id),
+          },
+          action_url: '/support/escalation',
+          idempotencyKey: `support-message:${conversationId}:${message.id}:${recipientId}`,
+        }).catch((error) => {
+          logger.warn('Support message notification failed', {
+            conversationId,
+            messageId: message.id,
+            recipientId,
+            error: error.message,
+          });
+        });
+      }
     }
 
     res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });

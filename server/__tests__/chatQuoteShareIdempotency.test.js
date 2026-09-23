@@ -83,6 +83,7 @@ test('replays a quick-built quote without creating another quote or message', as
     .mockResolvedValueOnce({ rows: [message] }) // message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
     .mockResolvedValueOnce({ rows: [share] }) // share audit insert
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox
     .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: 'customer-1', helper_id: 'provider-1', business_id: null, job_id: null }] }) // retry participant check
     .mockResolvedValueOnce({ rows: [share] }) // retry share-key lookup
     .mockResolvedValueOnce({ rows: [quote] }); // retry quote load
@@ -97,6 +98,7 @@ test('replays a quick-built quote without creating another quote or message', as
   };
   const first = await request(app).post('/api/chat/quotes/share').send(body);
   const retry = await request(app).post('/api/chat/quotes/share').send(body);
+
 
   expect(first.status).toBe(201);
   expect(first.body.idempotent).toBe(false);

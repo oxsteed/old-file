@@ -5,6 +5,7 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const slotEngine = require('../services/bookingSlotEngine');
 const mainAppContracts = require('../models/mainAppContractsModel');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 
 function parseLimit(value, fallback = 4, max = 12) {
   const parsed = Number.parseInt(String(value), 10);
@@ -2537,6 +2538,12 @@ exports.createDisputeRefund = async (req, res, next) => {
         throw new AppError('Refund request could not be created or recovered', 500, 'processing_error');
       }
       await client.query('COMMIT');
+      scheduleSupportMessageNotifications({
+        ticketId: supportTicket.id,
+        messageId: supportTicket.messageId,
+        body: details,
+        title: 'New refund support request',
+      });
       res.status(replayed ? 200 : 201).json({
         contract: {
           version: 'main-refund-disputes-v1',
@@ -3015,14 +3022,22 @@ exports.createSupportReport = async (req, res, next) => {
       });
     }
 
-    await pool.query(
+    const messageResult = await pool.query(
       `INSERT INTO support_messages
         (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin, client_message_id)
        VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, $6)
        ON CONFLICT (ticket_id, client_message_id)
-       WHERE client_message_id IS NOT NULL DO NOTHING`,
+       WHERE client_message_id IS NOT NULL DO NOTHING
+       RETURNING id`,
       [ticket.id, req.user.id, name, email, details, clientRequestId]
     );
+
+    scheduleSupportMessageNotifications({
+      ticketId: ticket.id,
+      messageId: messageResult.rows[0]?.id,
+      body: details,
+      title: 'New support report',
+    });
 
     res.status(201).json({
       ticket: {

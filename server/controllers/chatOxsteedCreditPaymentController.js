@@ -37,6 +37,7 @@ const {
   toPublicCreditRefundCard,
 } = require('../services/chatOxsteedCreditPayment');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
+const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function bad(res, status, error, code, extra = {}) {
   return res.status(status).json({ error, code: code || 'error', ...extra });
@@ -69,6 +70,7 @@ async function postConversationMessage(client, {
   senderName,
   businessId = null,
   clientMessageId = null,
+  recipientIds = null,
 }) {
   const db = client || pool;
   const { rows } = await db.query(
@@ -95,6 +97,17 @@ async function postConversationMessage(client, {
     [conversationId],
   );
   const message = { ...messageRow, sender_name: senderName };
+  await enqueueConversationMessageNotifications({
+    dbClient: db,
+    conversationId,
+    messageId: messageRow.id,
+    senderId,
+    senderName,
+    body: content,
+    actionUrl: `/messages/${conversationId}`,
+    recipientIds,
+    bestEffort: true,
+  });
   try {
     socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
     socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
@@ -503,6 +516,7 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
             senderId: userId,
             content,
             senderName,
+            recipientIds: [conv.customer_id, conv.helper_id],
           });
           await client.query(
             'UPDATE chat_proof_of_payments SET message_id = $1, updated_at = NOW() WHERE id = $2',
@@ -566,12 +580,14 @@ exports.requestPayment = async (req, res, next) => {
 
     let helperId = null;
     let businessId = req.body.businessId || req.body.business_id || null;
+    let conversationParticipants = null;
     const senderName =
       `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Provider';
 
     if (normalized.conversationId) {
       const conv = await assertConversationParticipant(userId, normalized.conversationId, { writable: true });
       if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
+      conversationParticipants = [conv.customer_id, conv.helper_id];
       const isProvider =
         isProviderOnConversation(userId, conv) ||
         (conv.business_id && (await assertBusinessAccess(userId, conv.business_id)));
@@ -677,6 +693,7 @@ exports.requestPayment = async (req, res, next) => {
         senderName,
         businessId,
         clientMessageId: messageClientId,
+        recipientIds: conversationParticipants,
       });
       await pool.query(
         'UPDATE chat_payment_requests SET message_id = $1, updated_at = NOW() WHERE id = $2 AND message_id IS NULL',

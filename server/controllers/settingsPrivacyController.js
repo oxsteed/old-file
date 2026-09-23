@@ -2,6 +2,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { getClientRequestId } = require('../utils/idempotency');
+const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 
 const HELPER_ROLES = new Set(['helper', 'helper_pro', 'broker']);
 
@@ -161,8 +162,9 @@ async function submitAppReport(req, res, next) {
     }
     if (!ticket) throw new AppError('Support report could not be created or recovered', 500, 'processing_error');
 
+    let messageId = null;
     if (!replayed) {
-      await client.query(
+      const { rows: messageRows } = await client.query(
         clientRequestId
           ? `INSERT INTO support_messages
                (ticket_id, sender_id, sender_name, sender_email, content,
@@ -173,7 +175,8 @@ async function submitAppReport(req, res, next) {
           : `INSERT INTO support_messages
                (ticket_id, sender_id, sender_name, sender_email, content,
                 sender_language, is_internal, is_from_admin)
-             VALUES ($1, $2, $3, $4, $5, $6, false, false)`,
+             VALUES ($1, $2, $3, $4, $5, $6, false, false)
+             RETURNING id`,
         clientRequestId
           ? [
               ticket.id,
@@ -193,8 +196,16 @@ async function submitAppReport(req, res, next) {
               req.user.preferred_language || 'en',
             ],
       );
+      messageId = messageRows[0]?.id || null;
     }
     await client.query('COMMIT');
+
+    scheduleSupportMessageNotifications({
+      ticketId: ticket.id,
+      messageId,
+      body: content,
+      title: 'New support report',
+    });
 
     logger.info('Settings app report submitted', {
       userId: req.user.id,

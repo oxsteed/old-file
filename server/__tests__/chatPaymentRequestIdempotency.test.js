@@ -85,6 +85,7 @@ test('repairs a payment-request message on replay without creating another card'
     .mockResolvedValueOnce({ rows: [message] }) // message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
     .mockResolvedValueOnce({ rows: [] }) // payment-request message link
+    .mockResolvedValueOnce({ rows: [] }) // message notification outbox
     .mockResolvedValueOnce({ rows: [payReq] }) // retry sees committed card without message
     .mockResolvedValueOnce({ rows: [] }) // message conflict
     .mockResolvedValueOnce({ rows: [message] }) // original message
@@ -109,4 +110,3 @@ test('repairs a payment-request message on replay without creating another card'
   expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO chat_payment_requests/.test(sql))).toHaveLength(1);
   expect(socketService.broadcastToConversation).toHaveBeenCalledTimes(2);
 });
-

@@ -9,6 +9,7 @@ const WebSocketService = require('../services/websocketService');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 const {
   TERMINAL_CONVERSATION_STATUS_SQL,
   isTerminalConversationStatus,
@@ -300,9 +301,11 @@ async function addGuestMessage(req, res) {
   let uploadedKey = null;
   try {
     const { rows } = await pool.query(
-      `SELECT id FROM support_conversations
-       WHERE id = $1 AND guest_access_token_hash = $2 AND guest_token_expires_at > NOW()
-         AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
+      `SELECT sc.id, sa.user_id AS agent_user_id
+       FROM support_conversations sc
+       LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+       WHERE sc.id = $1 AND sc.guest_access_token_hash = $2 AND sc.guest_token_expires_at > NOW()
+         AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
       [conversationId, hash(req.guestToken)]
     );
     if (!rows.length) return sendError(res, 404, 'Support conversation not found or expired');
@@ -356,7 +359,37 @@ async function addGuestMessage(req, res) {
       });
     }
     const payload = { ticketId: conversationId, messageId: message.id, sender: { type: 'customer' }, content: message.content || messageContent, attachmentUrl: message.attachment_url || attachmentUrl, attachmentName: message.attachment_name || attachmentName, messageType: message.message_type || (req.file ? 'image' : 'text'), timestamp: message.created_at };
-    if (!result.duplicate) WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
+    if (!result.duplicate) {
+      WebSocketService.broadcastToTicket(conversationId, 'message:new', payload);
+      try {
+        const agentUserId = rows[0]?.agent_user_id;
+        if (agentUserId) {
+          void sendNotification({
+            userId: agentUserId,
+            type: 'new_message',
+            title: 'New guest support message',
+            body: message.content || messageContent,
+            data: {
+              supportConversationId: String(conversationId),
+              messageId: String(message.id),
+            },
+            action_url: '/support/agent',
+            idempotencyKey: `guest-support-message:${conversationId}:${message.id}:${agentUserId}`,
+          }).catch((error) => {
+            logger.warn('Guest support message notification failed', {
+              conversationId,
+              messageId: message.id,
+              error: error.message,
+            });
+          });
+        }
+      } catch (notificationLookupError) {
+        logger.warn('Guest support notification lookup failed', {
+          conversationId,
+          error: notificationLookupError.message,
+        });
+      }
+    }
     return res.json({ success: true, data: message, idempotent: Boolean(result.duplicate) });
   } catch (err) {
     if (uploadedKey) {

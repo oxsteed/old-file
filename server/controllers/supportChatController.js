@@ -1,6 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
+const { enqueueMessageNotification, scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function getClientRequestId(req) {
   const value = req.get?.('Idempotency-Key')
@@ -143,6 +144,23 @@ async function handleLiveAdminChat(req, res, userId, visitorName, visitorEmail, 
 
     // Notify all online admins about new support chat
     if (!replayed) {
+      try {
+        await enqueueMessageNotification({
+          messageId: messageRows[0]?.id,
+          conversationId,
+          recipientId: admin.id,
+          senderName: visitorName || 'OxSteed customer',
+          body: message,
+          actionUrl: `/messages/${conversationId}`,
+        });
+      } catch (notificationError) {
+        logger.warn('Live support message notification enqueue failed', {
+          conversationId,
+          messageId: messageRows[0]?.id,
+          error: notificationError.message,
+        });
+      }
+
       socketService.broadcastToAdmins('support:new_chat', {
         conversationId,
         visitorName,
@@ -326,6 +344,17 @@ async function sendSupportMessage(req, res) {
          WHERE id = $1`,
         [conversationId]
       );
+
+      scheduleConversationMessageNotifications({
+        conversationId,
+        messageId: msg.id,
+        senderId: userId,
+        senderName: 'OxSteed customer',
+        body: message,
+        actionUrl: `/messages/${conversationId}`,
+        recipientIds: [conv.customer_id, conv.helper_id],
+        bestEffort: true,
+      });
 
       // Emit via Socket.IO to both participants.
       socketService.broadcastToConversation(conversationId, 'message:new', {

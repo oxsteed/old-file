@@ -22,6 +22,7 @@ const {
 } = require('../services/chatQuotes');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
+const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 
 function bad(res, status, error, code, extra = {}) {
@@ -129,6 +130,7 @@ async function postConversationMessage({
   isProfileChat,
   businessId = null,
   clientMessageId = null,
+  recipientIds = null,
 }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
@@ -154,6 +156,16 @@ async function postConversationMessage({
     [conversationId],
   );
   const message = { ...messageRow, sender_name: senderName };
+  scheduleConversationMessageNotifications({
+    conversationId,
+    messageId: messageRow.id,
+    senderId,
+    senderName,
+    body: content,
+    actionUrl: `/messages/${conversationId}`,
+    recipientIds,
+    bestEffort: true,
+  });
   socketService.broadcastToConversation(conversationId, 'message:new', {
     conversationId,
     message,
@@ -548,6 +560,7 @@ exports.shareQuote = async (req, res, next) => {
         isProfileChat: !conv?.job_id,
         businessId: body.businessId ?? businessId,
         clientMessageId: clientRequestId,
+        recipientIds: [conv.customer_id, conv.helper_id],
       });
     } else if (guestSessionId) {
       message = await postGuestMessage({
@@ -677,9 +690,11 @@ exports.respondQuote = async (req, res, next) => {
     }
 
     let allowed = false;
+    let participantConversation = null;
     if (token && quote.token && token === quote.token) allowed = true;
     if (userId && quote.conversation_id) {
       const conv = await assertConversationParticipant(userId, quote.conversation_id, { writable: true });
+      participantConversation = conv;
       if (conv && String(conv.customer_id) === String(userId)) allowed = true;
     }
     if (userId && kind === 'helper' && quote.client_user_id && String(quote.client_user_id) === String(userId)) {
@@ -776,6 +791,7 @@ exports.respondQuote = async (req, res, next) => {
           isProfileChat: true,
           businessId: updated.business_id,
           clientMessageId: clientRequestId,
+          recipientIds: [participantConversation?.customer_id, participantConversation?.helper_id, updated.customer_id, updated.helper_id],
         });
       } catch (e) {
         logger.warn('[chatQuotes] status message failed', { error: e.message });
@@ -1016,9 +1032,11 @@ exports.scheduleFromQuote = async (req, res, next) => {
     }
 
     let allowed = false;
+    let participantConversation = null;
     if (token && quote.token && token === quote.token) allowed = true;
     if (userId && quote.conversation_id) {
       const conv = await assertConversationParticipant(userId, quote.conversation_id, { writable: true });
+      participantConversation = conv;
       if (conv && String(conv.customer_id) === String(userId)) allowed = true;
     }
     if (guest && quote.guest_session_id && String(guest.id) === String(quote.guest_session_id)) {
@@ -1276,6 +1294,7 @@ ${threadContent}`,
           isProfileChat: true,
           businessId: quote.business_id,
           clientMessageId: clientRequestId,
+          recipientIds: [participantConversation?.customer_id, participantConversation?.helper_id, quote.customer_id, quote.helper_id],
         });
       } catch { /* ignore */ }
     } else if (quote.guest_session_id && guest) {

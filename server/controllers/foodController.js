@@ -13,6 +13,7 @@ const emailService = require('../services/emailService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const {
@@ -5800,7 +5801,25 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       });
     }
 
-    if (!result?.replayed && restaurant.owner_user_id && restaurant.owner_user_id !== req.user.id) {
+    if (!result?.replayed && restaurant.business_id) {
+      const recipientIds = new Set();
+      if (restaurant.owner_user_id) recipientIds.add(String(restaurant.owner_user_id));
+      try {
+        const { rows: reps } = await pool.query(
+          `SELECT member_id
+             FROM business_members
+            WHERE business_id = $1 AND status = 'active'`,
+          [restaurant.business_id]
+        );
+        reps.forEach((row) => recipientIds.add(String(row.member_id)));
+      } catch (repError) {
+        logger.warn('Failed to load restaurant business representatives', {
+          businessId: restaurant.business_id,
+          error: repError.message,
+        });
+      }
+      recipientIds.delete(String(req.user.id));
+
       if (conversationId && chatMessageId) {
         socketService.broadcastToConversation(conversationId, 'message:new', {
           conversationId,
@@ -5815,14 +5834,16 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
             created_at: new Date().toISOString(),
           },
         });
-        socketService.broadcastToUser(restaurant.owner_user_id, 'message:new', {
-          conversationId,
-          messageId: chatMessageId,
+        recipientIds.forEach((recipientId) => {
+          socketService.broadcastToUser(recipientId, 'message:new', {
+            conversationId,
+            messageId: chatMessageId,
+          });
         });
       }
 
-      notificationService.sendNotification({
-        userId: restaurant.owner_user_id,
+      await Promise.allSettled([...recipientIds].map((recipientId) => notificationService.sendNotification({
+        userId: recipientId,
         type: 'food_restaurant_message',
         title: 'New restaurant message',
         body: `A customer sent a message to ${restaurant.display_name}.`,
@@ -5834,13 +5855,8 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
           chatMessageId: chatMessageId ? String(chatMessageId) : null,
         },
         action_url: conversationId ? `/messages/${conversationId}` : `/business/${restaurant.business_id}`,
-      }).catch((err) => {
-        logger.warn('restaurant customer message notification failed', {
-          restaurantId: restaurant.id,
-          messageId: record.id,
-          error: err && err.message,
-        });
-      });
+        idempotencyKey: `restaurant-message:${record.id}:${recipientId}`,
+      })));
     }
 
     res.status(result?.replayed ? 200 : 201).json({
@@ -5967,6 +5983,15 @@ exports.createRestaurantReport = async (req, res, next) => {
       if (!record) throw new AppError('Restaurant report could not be created or recovered', 500, 'processing_error');
       return { record, ticket: supportTicket, replayed };
     }, 'create_restaurant_report_with_support_ticket');
+
+    if (!result.replayed) {
+      scheduleSupportMessageNotifications({
+        ticketId: result.ticket?.id,
+        messageId: result.ticket?.messageId,
+        body: description || `Restaurant report: ${reason}`,
+        title: 'New restaurant report',
+      });
+    }
 
     res.status(result?.replayed ? 200 : 201).json({
       report: result.record,

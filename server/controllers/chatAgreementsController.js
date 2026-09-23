@@ -26,6 +26,7 @@ const {
   scheduleBlockedByAgreements,
 } = require('../services/chatAgreements');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
+const { scheduleConversationMessageNotifications } = require('../services/messageNotificationService');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
@@ -48,7 +49,7 @@ function getClientRequestId(req) {
     : false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId, recipientIds = null }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
@@ -73,6 +74,16 @@ async function postConversationMessage({ conversationId, senderId, content, send
     [conversationId],
   );
   const message = { ...messageRow, sender_name: senderName };
+  scheduleConversationMessageNotifications({
+    conversationId,
+    messageId: messageRow.id,
+    senderId,
+    senderName,
+    body: content,
+    actionUrl: `/messages/${conversationId}`,
+    recipientIds,
+    bestEffort: true,
+  });
   socketService.broadcastToConversation(conversationId, 'message:new', { conversationId, message });
   socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
     conversationId,
@@ -165,6 +176,7 @@ async function assertProviderCanShare(userId, { conversationId, guestSessionId, 
       ok: true,
       conversationId,
       helperId: conv.helper_id,
+      customerId: conv.customer_id,
       businessId: businessId || conv.business_id,
       conv,
     };
@@ -228,6 +240,7 @@ async function postAgreementMessage(ctx, content, senderName, userId, clientMess
       senderName,
       businessId: ctx.businessId,
       clientMessageId,
+      recipientIds: [ctx.customerId, ctx.helperId],
     });
   }
   if (ctx.guestSessionId) {
@@ -351,12 +364,13 @@ exports.shareAgreement = async (req, res, next) => {
       title: agreement.title,
       preface: req.body.preface,
     });
-    const messageContext = replayed
+      const messageContext = replayed
       ? {
         conversationId: agreement.conversation_id,
         guestSessionId: agreement.guest_session_id,
         helperId: agreement.helper_id,
         businessId: agreement.business_id,
+        recipientIds: [access.conv?.customer_id, access.conv?.helper_id],
       }
       : access;
     const message = await postAgreementMessage(messageContext, content, senderName, userId, clientRequestId);
@@ -501,6 +515,7 @@ exports.respondAgreement = async (req, res, next) => {
         content: statusContent,
         senderName: actorName,
         businessId: updated.business_id,
+        recipientIds: [updated.customer_id, updated.helper_id],
       });
     } else if (updated.guest_session_id) {
       await postGuestMessage({
@@ -621,6 +636,8 @@ exports.reviseAgreement = async (req, res, next) => {
           conversationId: parent.conversation_id,
           guestSessionId: parent.guest_session_id,
           helperId: parent.helper_id,
+          customerId: access.customerId,
+          recipientIds: [access.customerId, access.helperId],
         },
         content,
         senderName,

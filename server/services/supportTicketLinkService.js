@@ -72,20 +72,23 @@ async function createLinkedSupportTicket(client, {
   if (!ticket) throw new Error('Linked support ticket could not be created or recovered');
 
   if (!replayed) {
-    await client.query(
+    const { rows: messageRows } = await client.query(
       clientRequestId
         ? `INSERT INTO support_messages
              (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin, client_message_id)
            VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, $6)
            ON CONFLICT (ticket_id, client_message_id)
-           WHERE client_message_id IS NOT NULL DO NOTHING`
+           WHERE client_message_id IS NOT NULL DO NOTHING
+           RETURNING id`
         : `INSERT INTO support_messages
              (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin)
-           VALUES ($1, $2, $3, $4, $5, FALSE, FALSE)`,
+           VALUES ($1, $2, $3, $4, $5, FALSE, FALSE)
+           RETURNING id`,
       clientRequestId
         ? [ticket.id, userId || null, safeName, safeEmail, content, clientRequestId]
         : [ticket.id, userId || null, safeName, safeEmail, content],
     );
+    ticket.messageId = messageRows[0]?.id || null;
   }
 
   return { ...ticket, replayed };

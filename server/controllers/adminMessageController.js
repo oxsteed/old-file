@@ -16,6 +16,7 @@ const logger         = require('../utils/logger');
 const socketService  = require('../services/socketService');
 const { logAdminAction } = require('../services/auditService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { enqueueMessageNotification } = require('../services/messageNotificationService');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -295,6 +296,23 @@ exports.send = async (req, res) => {
     };
 
     if (!replayed) {
+      try {
+        await enqueueMessageNotification({
+          messageId: msgRow.id,
+          conversationId,
+          recipientId: userId,
+          senderName: 'OxSteed Admin',
+          body: content,
+          actionUrl: `/messages/${conversationId}`,
+        });
+      } catch (notificationError) {
+        logger.warn('Admin message notification enqueue failed', {
+          conversationId,
+          messageId: msgRow.id,
+          error: notificationError.message,
+        });
+      }
+
       // Standard inbox event (user's MessagesPage picks this up)
       socketService.broadcastToUser(userId, 'message:new', {
         conversationId,

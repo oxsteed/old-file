@@ -115,6 +115,7 @@ describe('legacy support chat compatibility', () => {
     await supportChatController.sendSupportMessage(req, firstRes);
     await supportChatController.sendSupportMessage(req, retryRes);
 
+
     expect(firstRes.status).toHaveBeenCalledWith(201);
     expect(retryRes.status).toHaveBeenCalledWith(200);
     expect(retryRes.json).toHaveBeenCalledWith(expect.objectContaining({

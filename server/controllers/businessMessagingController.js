@@ -8,6 +8,7 @@ const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { getClientRequestId } = require('../utils/idempotency');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { ensureLegacyConversationLink } = require('../services/businessConversationSync');
 
@@ -18,6 +19,50 @@ function senderNameSql(alias = 'u') {
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function scheduleBusinessMessageNotifications({ businessId, conversationId, message, senderId, body }) {
+  setImmediate(async () => {
+    try {
+      const { rows: recipientRows } = await pool.query(
+        `SELECT user_id AS member_id
+           FROM businesses
+          WHERE id = $1
+         UNION
+         SELECT member_id
+           FROM business_members
+          WHERE business_id = $1 AND status = 'active'
+         UNION
+         SELECT customer_id AS member_id
+           FROM business_conversations
+          WHERE id = $2 AND customer_id IS NOT NULL`,
+        [businessId, conversationId]
+      );
+      const recipients = recipientRows
+        .map((row) => row.member_id)
+        .filter((recipientId) => String(recipientId) !== String(senderId));
+      await Promise.allSettled(recipients.map((recipientId) => sendNotification({
+        userId: recipientId,
+        type: 'new_message',
+        title: `New message from ${message.sender_name || 'your OxSteed business'}`,
+        body: body || 'You received a new message.',
+        data: {
+          businessId: String(businessId),
+          conversationId: String(conversationId),
+          messageId: String(message.id),
+        },
+        action_url: `/business/${businessId}/workspace/messages`,
+        idempotencyKey: `business-message:${businessId}:${message.id}:${recipientId}`,
+      })));
+    } catch (notificationError) {
+      logger.warn('Business message notification fan-out failed', {
+        businessId,
+        conversationId,
+        messageId: message.id,
+        error: notificationError.message,
+      });
+    }
+  });
 }
 
 async function assertBusinessAccess(req, businessId) {
@@ -321,6 +366,14 @@ async function sendMessage(req, res, next) {
         sender_name: message.sender_name || null,
         content: normalizedContent.slice(0, 280),
         created_at: message.created_at || new Date().toISOString(),
+      });
+
+      scheduleBusinessMessageNotifications({
+        businessId,
+        conversationId,
+        message,
+        senderId: req.user.id,
+        body: normalizedContent,
       });
     }
 

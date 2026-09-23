@@ -17,7 +17,7 @@ describe('linked support ticket idempotency', () => {
         rows: [{ id: 'ticket-1', ticket_number: 'SUP-100', status: 'open', priority: 'normal' }],
         rowCount: 1,
       })
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+      .mockResolvedValueOnce({ rows: [{ id: 'message-1' }], rowCount: 1 });
 
     const ticket = await createLinkedSupportTicket(client, {
       userId: 'user-1',
@@ -29,6 +29,7 @@ describe('linked support ticket idempotency', () => {
     });
 
     expect(ticket.replayed).toBe(false);
+    expect(ticket.messageId).toBe('message-1');
     expect(mockQuery.mock.calls[0][0]).toMatch(/client_request_id/);
     expect(mockQuery.mock.calls[0][1]).toContain(clientRequestId);
     expect(mockQuery.mock.calls[1][0]).toMatch(/client_message_id/);

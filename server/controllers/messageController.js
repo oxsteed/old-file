@@ -8,6 +8,7 @@ const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
+const { enqueueMessageNotifications } = require('../services/messageNotificationService');
 
 function normalizeMessageAttachments(value) {
   if (!Array.isArray(value)) return [];
@@ -636,27 +637,16 @@ const sendMessage = async (req, res, next) => {
         if (String(repId) !== String(conv.helper_id)) addRecipient(repId);
       }
 
-      const messagePreview = content.length > 100 ? `${content.slice(0, 97)}...` : content;
-      for (const recipientId of notificationRecipients) {
-        await client.query(
-          `INSERT INTO message_notification_outbox
-             (message_id, conversation_id, recipient_id, payload)
-           VALUES ($1, $2, $3, $4::jsonb)
-           ON CONFLICT (message_id, recipient_id) DO NOTHING`,
-          [
-            msgResult.rows[0].id,
-            conversationId,
-            recipientId,
-            JSON.stringify({
-              conversationId,
-              messageId: msgResult.rows[0].id,
-              senderName,
-              body: messagePreview,
-              actionUrl: `/messages/${conversationId}`,
-            }),
-          ]
-        );
-      }
+      await enqueueMessageNotifications({
+        dbClient: client,
+        messageId: msgResult.rows[0].id,
+        conversationId,
+        recipientIds: notificationRecipients,
+        senderId: userId,
+        senderName,
+        body: content,
+        actionUrl: `/messages/${conversationId}`,
+      });
 
       return {
         messagePayload: msgResult.rows[0],
