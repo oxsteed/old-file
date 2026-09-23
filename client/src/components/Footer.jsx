@@ -45,10 +45,6 @@ export default function Footer() {
       <div className="ox-container site-footer__inner">
         <div className="site-footer__top">
           <div className="site-footer__brand">
-            <div className="site-footer__eyebrow">
-              <span>{t('footer.networkTagline')}</span>
-            </div>
-
             <Link to="/" className="site-footer__brand-link">
               <svg className="site-footer__mark" width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
                 <rect width="512" height="512" rx="88" fill="#16213e" />
@@ -62,6 +58,9 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
+            <div className="site-footer__eyebrow">
+              <span>{t('footer.networkTagline')}</span>
+            </div>
             <p className="site-footer__tagline">
               {t('footer.tagline')}
             </p>
