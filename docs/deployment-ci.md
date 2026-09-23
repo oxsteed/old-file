@@ -57,10 +57,8 @@ and production server before enabling this workflow:
 3. Configure Coolify's Docker Registry credentials so the deployment server can
    pull the private GHCR package. Use a narrowly scoped GitHub token with
    `read:packages`; do not put that token in the repository or a webhook URL.
-4. Add the new Docker Image application's UUID as the
-   `COOLIFY_IMAGE_APPLICATION_UUID` repository variable. The workflow reuses
-   the existing `COOLIFY_WEBHOOK_URL` secret and replaces only its application
-   UUID, so no second webhook secret is required. Keep `COOLIFY_TOKEN` or
+4. Copy the new Docker Image application's deployment webhook into the
+   `COOLIFY_IMAGE_WEBHOOK_URL` GitHub Actions secret. Keep `COOLIFY_TOKEN` or
    replace it with a token that can read the image application and deploy it.
 5. Add the client build values that were previously supplied to Coolify as
    GitHub Actions repository secrets/variables: `VITE_SENTRY_DSN` when used,
@@ -72,12 +70,11 @@ and production server before enabling this workflow:
 
 The workflow fails closed if the Coolify webhook points at a different
 application or if the application is configured for a different GHCR image.
-Run this read-only image preflight after the Coolify application and token are
+Run this read-only image preflight after the Coolify application and secret are
 ready:
 
 ```sh
-COOLIFY_IMAGE_WEBHOOK_URL='https://coolify.example/api/v1/deploy?uuid=<existing-application-uuid>' \
-COOLIFY_IMAGE_APPLICATION_UUID='<image-application-uuid>' \
+COOLIFY_IMAGE_WEBHOOK_URL='https://coolify.example/api/v1/deploy?uuid=<image-application-uuid>' \
 COOLIFY_TOKEN='provided-out-of-band' \
 COOLIFY_IMAGE_NAME='ghcr.io/oxsteed/old-file' \
 COOLIFY_IMAGE_TAG='<commit-sha>' \
@@ -89,12 +86,12 @@ uses the equivalent `--deploy-image` command after the image is published.
 
 ## Actions deployment configuration
 
-The image workflow uses these GitHub Actions secrets and variables:
+The image workflow uses these GitHub Actions secrets:
 
-- `COOLIFY_WEBHOOK_URL`: the existing reachable HTTPS Coolify deployment URL.
-  The workflow replaces its `uuid` query parameter with the image application
-  UUID before deploying. Do not use a local `127.0.0.1` URL.
-- `COOLIFY_IMAGE_APPLICATION_UUID`: the new Docker Image application's UUID.
+- `COOLIFY_IMAGE_WEBHOOK_URL`: the reachable HTTPS URL for the new Docker Image
+  application, with path `/api/v1/deploy?uuid=<application-uuid>`. Use the
+  application's webhook URL, not a deployment UUID, old resource, tag, or local
+  `127.0.0.1` URL.
 - `COOLIFY_TOKEN`: a token created on that same instance for the application's
   team, with read and deploy permissions. Do not use a full-access token when
   read/deploy permissions suffice.
@@ -128,7 +125,7 @@ deployment completion. The production deployment job serializes Actions runs.
 ## Complete the integration
 
 1. Create and configure the Docker Image application and private GHCR pull access.
-2. Add `COOLIFY_IMAGE_APPLICATION_UUID`, client build variables, and any required
+2. Add `COOLIFY_IMAGE_WEBHOOK_URL`, client build variables, and any required
    GitHub Actions secrets.
 3. Run `--check-image` and confirm the application points at the expected image.
 4. Disable the old source application's independent automatic deployment.
