@@ -171,11 +171,15 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.site-footer__controls,
+.site-footer__legal-links,
 .site-footer__pills {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.site-footer__legal-links {
+  gap: 0.15rem 1.25rem;
 }
 
 .site-footer__cookie-button {
@@ -299,8 +303,10 @@
     flex-direction: column;
   }
 
-  .site-footer__controls {
-    gap: 0.15rem 0.65rem;
+  .site-footer__legal-links {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
   }
 
   .site-footer__pills {

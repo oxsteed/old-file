@@ -10,6 +10,7 @@ import {
 import { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
 import { apiErrorMessage } from './foodShared';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 const STEPS = ['welcome', 'create', 'profile', 'location', 'hours', 'menu', 'publish', 'devices', 'done'];
 
@@ -388,15 +389,27 @@ export default function MerchantOnboardingWizard({
             {/* ── Location ── */}
             {step === 'location' && (
               <div className="fd-field-grid">
-                <div className="fd-field">
-                  <label htmlFor="ob-street">{t('food.merchant.street', 'Street address')}</label>
-                  <input
-                    id="ob-street"
-                    value={locationForm.addressStreet}
-                    onChange={(e) => setLocationForm((f) => ({ ...f, addressStreet: e.target.value }))}
-                    placeholder="123 Main St"
-                  />
-                </div>
+                  <div className="fd-field">
+                    <label htmlFor="ob-street">{t('food.merchant.street', 'Street address')}</label>
+                    <AddressAutocomplete
+                      id="ob-street"
+                      value={locationForm.addressStreet}
+                      onChange={(value) => setLocationForm((current) => ({ ...current, addressStreet: value, latitude: '', longitude: '' }))}
+                      onSelect={(place) => setLocationForm((current) => ({
+                        ...current,
+                        addressStreet: place.addressLine1 || place.display,
+                        city: place.city || current.city,
+                        addressState: place.state || current.addressState,
+                        addressZip: place.zip || current.addressZip,
+                        addressCountry: place.country || current.addressCountry,
+                        latitude: place.lat ?? current.latitude,
+                        longitude: place.lng ?? current.longitude,
+                      }))}
+                      placeholder="123 Main St"
+                      autoComplete="street-address"
+                      ariaLabel={t('food.merchant.street', 'Street address')}
+                    />
+                  </div>
                 <div className="fd-onboarding-field-row">
                   <div className="fd-field">
                     <label htmlFor="ob-city">{t('food.merchant.city', 'City')}</label>

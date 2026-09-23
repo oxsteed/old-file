@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import CountrySelect from '../CountrySelect';
 import RegionInput from '../RegionInput';
 import PostalCodeInput from '../PostalCodeInput';
+import AddressAutocomplete from '../AddressAutocomplete';
 import ProfileStudioShell from '../profileStudio/ProfileStudioShell';
 import ProfilePreviewCard from '../profileStudio/ProfilePreviewCard';
 import { getCountryName, getDialCode, getPostalLabel, getRegionLabel } from '../../lib/countries';
@@ -609,13 +610,21 @@ export default function BusinessProfileEditor({
       <>
         <div>
           <label htmlFor="bh-street">{t('businessHub.fieldStreetAddress')}</label>
-          <input
+          <AddressAutocomplete
             id="bh-street"
-            className="bpe-field"
-            name="address_street"
             value={form.address_street || ''}
-            onChange={pf}
+            onChange={(value) => onChange({ address_street: value })}
+            onSelect={(place) => onChange({
+              address_street: place.addressLine1 || place.display,
+              address_city: place.city || form.address_city,
+              address_state: place.state || form.address_state,
+              address_zip: place.zip || form.address_zip,
+              address_country: place.country || form.address_country,
+            })}
             placeholder={t('businessHub.placeholderStreet')}
+            ariaLabel={t('businessHub.fieldStreetAddress')}
+            autoComplete="street-address"
+            inputClassName="bpe-field"
           />
           <p className="bpe-hint">{t('businessHub.streetHint')}</p>
         </div>

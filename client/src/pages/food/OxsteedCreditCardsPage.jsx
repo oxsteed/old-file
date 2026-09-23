@@ -28,6 +28,7 @@ import {
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import './OxsteedCreditCardsPage.css';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 function requestId() {
   return globalThis.crypto?.randomUUID?.() || `credit-card-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -262,7 +263,21 @@ export default function OxsteedCreditCardsPage() {
                   </label>
                   {form.cardType === 'physical' && <>
                     <label className="ox-card-form-wide">{t('cards.shippingAddress')}
-                      <input required value={form.addressLine1} onChange={(event) => setForm({ ...form, addressLine1: event.target.value })} placeholder={t('cards.streetAddress')} />
+                      <AddressAutocomplete
+                        value={form.addressLine1}
+                        onChange={(value) => setForm((current) => ({ ...current, addressLine1: value }))}
+                        onSelect={(place) => setForm((current) => ({
+                          ...current,
+                          addressLine1: place.addressLine1 || place.display,
+                          city: place.city || current.city,
+                          state: place.state || current.state,
+                          postalCode: place.zip || current.postalCode,
+                          country: place.country || current.country,
+                        }))}
+                        placeholder={t('cards.streetAddress')}
+                        autoComplete="shipping street-address"
+                        ariaLabel={t('cards.shippingAddress')}
+                      />
                     </label>
                     <label>{t('cards.city')}<input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} /></label>
                     <label>{t('cards.stateRegion')}<input value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })} /></label>

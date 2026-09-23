@@ -14,6 +14,7 @@ import {
   deleteBusinessClient,
 } from '../../api/businesses';
 import { formatDate, formatMoney } from '../../lib/format';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 import '../../styles/BusinessClientsTab.css';
 
 const STATUSES = [
@@ -86,7 +87,20 @@ function ClientFormModal({ open, initial, onClose, onSave, onDelete }) {
           </div>
           <label className="bct-field">
             <span>{t('businessClients.fieldAddress')}</span>
-            <input value={draft.address_line || ''} onChange={(e) => update({ address_line: e.target.value })} placeholder={t('businessClients.placeholderAddress')} />
+            <AddressAutocomplete
+              value={draft.address_line || ''}
+              onChange={(value) => update({ address_line: value })}
+              onSelect={(place) => update({
+                address_line: place.addressLine1 || place.display,
+                city: place.city || draft.city,
+                state: place.state || draft.state,
+                postal_code: place.zip || draft.postal_code,
+                country: place.country || draft.country,
+              })}
+              placeholder={t('businessClients.placeholderAddress')}
+              ariaLabel={t('businessClients.fieldAddress')}
+              autoComplete="street-address"
+            />
           </label>
           <div className="bct-grid-3">
             <label className="bct-field">

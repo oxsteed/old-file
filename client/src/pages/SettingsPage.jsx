@@ -15,6 +15,7 @@ import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import {
   LAUNCH_SELF_SELECTABLE_MODES,
@@ -693,7 +694,22 @@ export default function SettingsPage() {
                 onChange={(code) => setBizForm({ ...bizForm, address_country: code, address_state: '' })}
                 includeBlank={false}
               />
-              <input className="sp-input" placeholder={t('settings.businesses.form.street')} value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
+              <AddressAutocomplete
+                value={bizForm.address_street}
+                onChange={(value) => setBizForm((current) => ({ ...current, address_street: value }))}
+                onSelect={(place) => setBizForm((current) => ({
+                  ...current,
+                  address_street: place.addressLine1 || place.display,
+                  address_city: place.city || current.address_city,
+                  address_state: place.state || current.address_state,
+                  address_zip: place.zip || current.address_zip,
+                  address_country: place.country || current.address_country,
+                }))}
+                inputClassName="sp-input"
+                placeholder={t('settings.businesses.form.street')}
+                autoComplete="street-address"
+                ariaLabel={t('settings.businesses.form.street')}
+              />
               <input className="sp-input" placeholder={t('settings.businesses.form.city')} value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
               <RegionInput
                 className="sp-input"

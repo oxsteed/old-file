@@ -103,7 +103,13 @@ export default function Footer() {
         </div>
 
         <div className="site-footer__utility">
-          <div className="site-footer__controls">
+          <nav className="site-footer__legal-links" aria-label={t('footer.legal')}>
+            <FooterLink to="/terms">{t('footer.terms')}</FooterLink>
+            <FooterLink to="/privacy">{t('footer.privacy')}</FooterLink>
+            <FooterLink to="/security">{t('footer.security')}</FooterLink>
+            <FooterLink to="/cookie-policy">{t('footer.cookiePolicy')}</FooterLink>
+            <FooterLink to="/do-not-sell">{t('footer.doNotSell')}</FooterLink>
+            <FooterLink to="/accessibility">{t('footer.accessibility')}</FooterLink>
             <button
               onClick={openSettings}
               aria-label={t('footer.manageCookies')}
@@ -111,7 +117,7 @@ export default function Footer() {
             >
               {t('footer.manageCookies')}
             </button>
-          </div>
+          </nav>
 
           {SHOW_FOOTER_UTILITY_PILLS && (
           <div className="site-footer__pills">

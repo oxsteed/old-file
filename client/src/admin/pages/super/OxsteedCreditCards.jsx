@@ -5,6 +5,7 @@ import adminApi from '../../../lib/adminApi';
 import { createStableIdempotencyKeyStore } from './creditIdempotency';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
+import AddressAutocomplete from '../../../components/AddressAutocomplete';
 
 const CARD_STATUSES = ['pending', 'active', 'frozen', 'lost', 'stolen', 'revoked', 'expired'];
 const CARD_TYPES = ['virtual', 'physical'];
@@ -254,7 +255,23 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
       {form.cardType === 'physical' && <>
         <label className="lg:col-span-2">
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.shippingAddressLine1')}</span>
-          <input required value={form.addressLine1} onChange={(event) => setForm({ ...form, addressLine1: event.target.value })} className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400" />
+          <AddressAutocomplete
+            value={form.addressLine1}
+            onChange={(value) => setForm({ ...form, addressLine1: value })}
+            onSelect={(place) => setForm((current) => ({
+              ...current,
+              addressLine1: place.addressLine1 || place.display,
+              city: place.city || current.city,
+              state: place.state || current.state,
+              postalCode: place.zip || current.postalCode,
+              country: place.country || current.country,
+            }))}
+            placeholder={t('cards.shippingAddressLine1')}
+            ariaLabel={t('cards.shippingAddressLine1')}
+            autoComplete="shipping street-address"
+            inputClassName="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-white outline-none focus:border-orange-400"
+            required
+          />
         </label>
         <label>
           <span className="mb-1 block text-xs font-semibold text-gray-500">{t('cards.city')}</span>

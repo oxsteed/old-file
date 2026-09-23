@@ -55,6 +55,9 @@ test('maps Amazon Location text search into the existing geo contract', async ()
       Title: 'Springfield, Ohio',
       Address: {
         Label: 'Springfield, OH 45501, United States',
+        AddressNumber: '123',
+        Street: 'Main St',
+        SecondaryAddressComponents: [{ Designator: 'Unit', Number: '4' }],
         Locality: 'Springfield',
         Region: { Code: 'OH', Name: 'Ohio' },
         PostalCode: '45501',
@@ -66,6 +69,8 @@ test('maps Amazon Location text search into the existing geo contract', async ()
 
   await expect(geoProvider.suggest('Springfield, OH')).resolves.toEqual([{
     display: 'Springfield, OH 45501, United States',
+    addressLine1: '123 Main St',
+    addressLine2: 'Unit 4',
     city: 'Springfield',
     state: 'OH',
     zip: '45501',
@@ -126,6 +131,8 @@ test('maps nearby restaurants as non-orderable external places', async () => {
     placeId: 'place-1',
     title: 'External Cafe',
     display: 'External Cafe, Springfield, OH',
+    addressLine1: '',
+    addressLine2: '',
     city: 'Springfield',
     state: 'OH',
     zip: '',

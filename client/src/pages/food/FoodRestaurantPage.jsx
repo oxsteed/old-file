@@ -33,6 +33,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import { getPublicSiteUrl } from '../../utils/seoDescription';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 import '../../styles/FoodRestaurantPage.css';
 
 // ── Active-order persistence ─────────────────────────────────────────────────
@@ -1640,7 +1641,19 @@ export default function FoodRestaurantPage() {
                         {!isPickup && (
                           <>
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.streetAddress')}</p>
-                            <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder={t('food.restaurant.streetPlaceholder')} style={inputStyle} />
+                            <AddressAutocomplete
+                              value={addressLine1}
+                              onChange={setAddressLine1}
+                              onSelect={(place) => {
+                                setAddressLine1(place.addressLine1 || place.display);
+                                if (place.addressLine2) setAddressLine2(place.addressLine2);
+                              }}
+                              placeholder={t('food.restaurant.streetPlaceholder')}
+                              autoComplete="shipping street-address"
+                              ariaLabel={t('food.restaurant.streetAddress')}
+                              inputStyle={inputStyle}
+                              inputClassName="food-address-autocomplete-input"
+                            />
                             <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>{t('food.restaurant.aptSuite')} <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span></p>
                             <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder={t('food.restaurant.aptPlaceholder')} style={{ ...inputStyle, marginBottom: 20 }} />
                           </>

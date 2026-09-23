@@ -35,6 +35,7 @@ import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import PageShell from '../../components/PageShell';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 import '../../styles/FoodPages.css';
 
 const NEXT_STATUS = {
@@ -106,7 +107,24 @@ function CreateRestaurantForm({ t, onCreated }) {
       <div className="fd-row">
         <div className="fd-field" style={{ flex: 2 }}>
           <label htmlFor="fd-r-street">{t('food.merchant.street')}</label>
-          <input id="fd-r-street" value={form.addressStreet} onChange={set('addressStreet')} />
+          <AddressAutocomplete
+            id="fd-r-street"
+            value={form.addressStreet}
+            onChange={(value) => setForm((current) => ({ ...current, addressStreet: value, latitude: '', longitude: '' }))}
+            onSelect={(place) => setForm((current) => ({
+              ...current,
+              addressStreet: place.addressLine1 || place.display,
+              addressCity: place.city || current.addressCity,
+              addressState: place.state || current.addressState,
+              addressZip: place.zip || current.addressZip,
+              addressCountry: place.country || current.addressCountry,
+              latitude: place.lat ?? current.latitude,
+              longitude: place.lng ?? current.longitude,
+            }))}
+            inputClassName="fd-input"
+            autoComplete="street-address"
+            ariaLabel={t('food.merchant.street')}
+          />
         </div>
         <div className="fd-field" style={{ flex: 1 }}>
           <label htmlFor="fd-r-city">{t('food.merchant.city')}</label>

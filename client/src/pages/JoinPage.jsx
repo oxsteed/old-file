@@ -30,6 +30,7 @@ import PasswordField, { scorePassword } from '../components/registration/Passwor
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 import {
   detectCountryFromLocale, hasPostalCode, hasRegions,
 } from '../lib/countries';
@@ -370,17 +371,26 @@ export default function JoinPage() {
 
                 <div className="flex flex-col gap-1">
                   <label htmlFor="address" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">{t('register.streetAddress')}</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-                    <input
-                      id="address"
-                      type="text"
-                      value={form.addressLine1}
-                      onChange={(e) => set('addressLine1', e.target.value)}
-                      className={`${inputWithIcon} ${errors.addressLine1 ? 'border-red-500 bg-red-900/20' : ''}`}
-                      autoComplete="street-address"
-                    />
-                  </div>
+                  <AddressAutocomplete
+                    id="address"
+                    value={form.addressLine1}
+                    onChange={(value) => set('addressLine1', value)}
+                    onSelect={(place) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        addressLine1: place.addressLine1 || place.display,
+                        city: place.city || prev.city,
+                        state: place.state || prev.state,
+                        zipCode: place.zip || prev.zipCode,
+                        country: place.country || prev.country,
+                      }));
+                      setErrors((prev) => ({ ...prev, addressLine1: '', city: '', state: '', zipCode: '', country: '' }));
+                    }}
+                    inputClassName={`${inputWithIcon} ${errors.addressLine1 ? 'border-red-500 bg-red-900/20' : ''}`}
+                    autoComplete="street-address"
+                    ariaLabel={t('register.streetAddress')}
+                    leading={<MapPin size={14} />}
+                  />
                   <FieldError msg={errors.addressLine1} />
                 </div>
 

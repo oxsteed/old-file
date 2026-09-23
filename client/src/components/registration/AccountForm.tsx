@@ -18,6 +18,7 @@ import PasswordField, { scorePassword } from './PasswordField';
 import CountrySelect from '../CountrySelect';
 import RegionInput from '../RegionInput';
 import PostalCodeInput from '../PostalCodeInput';
+import AddressAutocomplete from '../AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, hasRegions, getRegionLabel } from '../../lib/countries';
 
 // ── Types ────────────────────────────────────────────────
@@ -447,23 +448,28 @@ export default function AccountForm({ role, onSuccess }: Props) {
               <label htmlFor="addressLine1" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
                 {t('register.streetAddress')}
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-                  <MapPin size={16} />
-                </span>
-                <input
-                  id="addressLine1"
-                  type="text"
-                  value={form.addressLine1}
-                  onChange={(e) => set('addressLine1', e.target.value)}
-                  className={`${inputWithIcon} ${errors.addressLine1 ? 'border-red-500 bg-red-900/20' : ''}`}
-                  placeholder={t('register.streetPlaceholder')}
-                  autoComplete="address-line1"
-                  required
-                  aria-invalid={!!errors.addressLine1}
-                  aria-describedby={errors.addressLine1 ? 'err-addressLine1' : undefined}
-                />
-              </div>
+              <AddressAutocomplete
+                id="addressLine1"
+                value={form.addressLine1}
+                onChange={(value) => set('addressLine1', value)}
+                onSelect={(place) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    addressLine1: place.addressLine1 || place.display,
+                    city: place.city || prev.city,
+                    state: place.state || prev.state,
+                    zipCode: place.zip || prev.zipCode,
+                    country: place.country || prev.country,
+                  }));
+                  setErrors((prev) => ({ ...prev, addressLine1: '', city: '', state: '', zipCode: '', country: '' }));
+                }}
+                inputClassName={`${inputWithIcon} ${errors.addressLine1 ? 'border-red-500 bg-red-900/20' : ''}`}
+                placeholder={t('register.streetPlaceholder')}
+                autoComplete="address-line1"
+                required
+                ariaLabel={t('register.streetAddress')}
+                leading={<MapPin size={16} />}
+              />
               <FieldError id="err-addressLine1" msg={errors.addressLine1} />
             </div>
             <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1">

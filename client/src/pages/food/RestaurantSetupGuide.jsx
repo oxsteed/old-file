@@ -11,6 +11,7 @@ import { apiErrorMessage } from './foodShared';
 import { defaultWeekdayHours } from './FoodSetupWizard';
 import CountrySelect from '../../components/CountrySelect';
 import { getDefaultCurrency } from '../../lib/countries';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 const STEPS = ['profile', 'ordering', 'menu', 'review'];
 
@@ -30,7 +31,7 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
   const [uploading, setUploading] = useState('');
   const [pendingBrandFiles, setPendingBrandFiles] = useState({ logoUrl: null, coverPhotoUrl: null });
   const [profile, setProfile] = useState({ name: '', description: '', cuisine: '', phone: '', logoUrl: '', coverPhotoUrl: '' });
-  const [ordering, setOrdering] = useState({ street: '', city: '', region: '', postal: '', country: 'US', currency: 'USD', open: '11:00', close: '22:00', pickup: true, delivery: false, dineIn: false });
+  const [ordering, setOrdering] = useState({ street: '', city: '', region: '', postal: '', country: 'US', latitude: '', longitude: '', currency: 'USD', open: '11:00', close: '22:00', pickup: true, delivery: false, dineIn: false });
   const [menuItem, setMenuItem] = useState({ name: '', price: '', description: '' });
 
   useEffect(() => {
@@ -52,6 +53,8 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
       region: selected.address_state || '',
       postal: selected.address_zip || '',
       country: selected.address_country || 'US',
+      latitude: selected.latitude ?? selected.address_lat ?? '',
+      longitude: selected.longitude ?? selected.address_lng ?? '',
       currency: selected.currency_code || 'USD',
       pickup: modes.includes('pickup'),
       delivery: modes.includes('delivery'),
@@ -204,6 +207,8 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
           addressState: ordering.region.trim() || undefined,
           addressZip: ordering.postal.trim() || undefined,
           addressCountry: ordering.country.trim() || 'US',
+          latitude: ordering.latitude !== '' ? Number(ordering.latitude) : undefined,
+          longitude: ordering.longitude !== '' ? Number(ordering.longitude) : undefined,
           currencyCode: ordering.currency,
           fulfillmentModes,
           operatingHours: defaultWeekdayHours(ordering.open, ordering.close),
@@ -219,6 +224,8 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
             addressState: ordering.region.trim() || undefined,
             addressZip: ordering.postal.trim() || undefined,
             addressCountry: ordering.country.trim() || 'US',
+            latitude: ordering.latitude !== '' ? Number(ordering.latitude) : undefined,
+            longitude: ordering.longitude !== '' ? Number(ordering.longitude) : undefined,
             isPrimary: true,
             operatingHours: defaultWeekdayHours(ordering.open, ordering.close),
           });
@@ -308,7 +315,7 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
           {step === 'ordering' && (
             <div className="fd-owner-setup-section">
               <p className="fd-owner-setup-intro">{t('food.setup.orderingIntro', 'Tell customers where, when, and how they can order.')}</p>
-              <div className="fd-field"><label htmlFor="setup-street">{t('food.merchant.street', 'Street address')}</label><input id="setup-street" value={ordering.street} onChange={(event) => setOrdering((current) => ({ ...current, street: event.target.value }))} autoComplete="street-address" /></div>
+              <div className="fd-field"><label htmlFor="setup-street">{t('food.merchant.street', 'Street address')}</label><AddressAutocomplete id="setup-street" value={ordering.street} onChange={(value) => setOrdering((current) => ({ ...current, street: value, latitude: '', longitude: '' }))} onSelect={(place) => setOrdering((current) => ({ ...current, street: place.addressLine1 || place.display, city: place.city || current.city, region: place.state || current.region, postal: place.zip || current.postal, country: place.country || current.country, latitude: place.lat ?? current.latitude, longitude: place.lng ?? current.longitude }))} autoComplete="street-address" ariaLabel={t('food.merchant.street', 'Street address')} /></div>
               <div className="fd-owner-setup-grid"><div className="fd-field"><label htmlFor="setup-city">{t('food.merchant.city', 'City')} *</label><input id="setup-city" value={ordering.city} onChange={(event) => setOrdering((current) => ({ ...current, city: event.target.value }))} /></div><div className="fd-field"><label htmlFor="setup-region">{t('food.merchant.state', 'State / region')}</label><input id="setup-region" value={ordering.region} onChange={(event) => setOrdering((current) => ({ ...current, region: event.target.value }))} /></div><div className="fd-field"><label htmlFor="setup-postal">{t('food.merchant.zip', 'Postal code')}</label><input id="setup-postal" value={ordering.postal} onChange={(event) => setOrdering((current) => ({ ...current, postal: event.target.value }))} /></div></div>
               <div className="fd-owner-setup-grid"><div className="fd-field"><label htmlFor="setup-country">{t('food.merchant.country', 'Country')}</label><CountrySelect id="setup-country" value={ordering.country} includeBlank={false} onChange={(country) => setOrdering((current) => ({ ...current, country, currency: getDefaultCurrency(country) }))} /></div><div className="fd-field"><label htmlFor="setup-currency">{t('food.merchant.currency', 'Currency')}</label><select id="setup-currency" value={ordering.currency} onChange={(event) => setOrdering((current) => ({ ...current, currency: event.target.value }))}>{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select></div></div>
               <fieldset className="fd-owner-choice-group"><legend>{t('food.setup.orderTypes', 'Ordering options')}</legend><label><input type="checkbox" checked={ordering.pickup} onChange={(event) => setOrdering((current) => ({ ...current, pickup: event.target.checked }))} /><span><strong>{t('food.setup.pickup', 'Pickup')}</strong><small>{t('food.setup.pickupHint', 'Customers collect orders at the restaurant.')}</small></span></label><label><input type="checkbox" checked={ordering.delivery} onChange={(event) => setOrdering((current) => ({ ...current, delivery: event.target.checked }))} /><span><strong>{t('food.setup.delivery', 'Delivery')}</strong><small>{t('food.setup.deliveryHint', 'Restaurant-managed delivery orders.')}</small></span></label><label><input type="checkbox" checked={ordering.dineIn} onChange={(event) => setOrdering((current) => ({ ...current, dineIn: event.target.checked }))} /><span><strong>{t('food.setup.dineIn', 'Dine in')}</strong><small>{t('food.setup.dineInHint', 'Orders are served at the restaurant.')}</small></span></label></fieldset>

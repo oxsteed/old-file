@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
+import AddressAutocomplete from '../AddressAutocomplete';
 
 interface Props {
   token: string;
@@ -161,9 +162,26 @@ export default function Step6TaxInfo({ token: _token, suggestedName, onSuccess, 
       {/* Mailing address */}
       <div>
         <label className="block text-sm text-gray-300 mb-1">{t('helperRegister.step6.mailingLabel')}</label>
-        <input type="text" placeholder={t('helperRegister.step6.streetPh')} value={form.street}
-          onChange={e => set('street', e.target.value)}
-          className={inputClass + ' mb-2'} aria-required="true" />
+        <AddressAutocomplete
+          value={form.street}
+          onChange={value => set('street', value)}
+          onSelect={place => {
+            setForm(prev => ({
+              ...prev,
+              street: place.addressLine1 || place.display,
+              city: place.city || prev.city,
+              state: place.state || prev.state,
+              zip: place.zip || prev.zip,
+            }));
+            setErrors(prev => ({ ...prev, street: '', city: '', state: '', zip: '' }));
+          }}
+          placeholder={t('helperRegister.step6.streetPh')}
+          ariaLabel={t('helperRegister.step6.streetPh')}
+          autoComplete="street-address"
+          inputClassName={inputClass}
+          wrapperClassName="mb-2"
+          required
+        />
         {errors.street && <p className="text-red-400 text-xs mb-2" role="alert">{errors.street}</p>}
         <div className="grid grid-cols-3 gap-2">
           <input type="text" placeholder={t('helperRegister.step6.cityPh')} value={form.city}

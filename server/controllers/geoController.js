@@ -233,6 +233,8 @@ exports.suggest = async (req, res) => {
 
       return {
         display:   r.formatted_address,
+        addressLine1: [get('street_number'), get('route')].filter(Boolean).join(' '),
+        addressLine2: get('subpremise'),
         city:      get('locality') || get('sublocality') || get('neighborhood'),
         state:     getShort('administrative_area_level_1'),
         zip:       get('postal_code'),
@@ -363,6 +365,8 @@ function parseFallback(q) {
 
   return [{
     display: str,
+    addressLine1: '',
+    addressLine2: '',
     city:    match[1].trim(),
     state:   match[2].toUpperCase(),
     zip:     match[3]?.trim() || '',

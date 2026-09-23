@@ -11,6 +11,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useTranslation } from 'react-i18next';
 import { useCapabilities } from '../hooks/useCapabilities';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -1310,12 +1311,22 @@ export default function PostJobPage() {
                       <label htmlFor="pjw-city" className="pjw-sublabel">
                         {t('postJob.cityLabel')} <span className="req">*</span>
                       </label>
-                      <input
-                        id="pjw-city" type="text"
-                        className={`pjw-input${errors.locationCity ? ' has-error' : ''}`}
-                        placeholder={t('postJob.cityPlaceholder')}
+                      <AddressAutocomplete
+                        id="pjw-city"
                         value={form.locationCity}
-                        onChange={e => set({ locationCity: e.target.value })}
+                        onChange={(value) => set({ locationCity: value, locationLat: null, locationLng: null })}
+                        onSelect={(place) => set({
+                          locationCity: place.city || place.display,
+                          locationState: place.state || form.locationState,
+                          locationZip: place.zip || form.locationZip,
+                          locationCountry: place.country || form.locationCountry,
+                          locationLat: place.lat ?? null,
+                          locationLng: place.lng ?? null,
+                        })}
+                        inputClassName={`pjw-input${errors.locationCity ? ' has-error' : ''}`}
+                        placeholder={t('postJob.cityPlaceholder')}
+                        autoComplete="address-level2"
+                        ariaLabel={t('postJob.cityLabel')}
                         onBlur={handleLocationBlur}
                       />
                       {errors.locationCity && <div className="pjw-field-error">{errors.locationCity}</div>}

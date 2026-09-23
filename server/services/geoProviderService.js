@@ -49,6 +49,13 @@ function normalizePosition(position) {
 
 function normalizePlace(item, options = {}) {
   const address = item?.Address || {};
+  const addressLine1 = [address.AddressNumber, address.Street].filter(Boolean).join(' ');
+  const addressLine2 = [
+    address.Building,
+    ...(address.SecondaryAddressComponents || []).map((component) => (
+      [component?.Designator, component?.Number].filter(Boolean).join(' ')
+    )),
+  ].filter(Boolean).join(', ');
   const position = normalizePosition(item?.Position)
     || normalizePosition(item?.AccessPoints?.find((point) => point?.Primary)?.Position)
     || normalizePosition(item?.AccessPoints?.[0]?.Position);
@@ -60,6 +67,8 @@ function normalizePlace(item, options = {}) {
 
   const place = {
     display,
+    addressLine1,
+    addressLine2,
     city,
     state,
     zip,

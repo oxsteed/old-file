@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { createFoodLocation, listFoodLocations } from '../../api/food';
 import { suggestLocation } from '../../api/geo';
 import { apiErrorMessage } from './foodShared';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 export default function LocationsPanel({ t, restaurant, onChanged }) {
   const [locations, setLocations] = useState([]);
@@ -93,7 +94,21 @@ export default function LocationsPanel({ t, restaurant, onChanged }) {
         </div>
         <div className="fd-field" style={{ flex: '1 1 120px' }}>
           <label htmlFor="fd-loc-city">{t('food.merchant.city')}</label>
-          <input id="fd-loc-city" value={form.addressCity} onChange={(e) => setForm((f) => ({ ...f, addressCity: e.target.value }))} />
+          <AddressAutocomplete
+            id="fd-loc-city"
+            value={form.addressCity}
+            onChange={(value) => setForm((current) => ({ ...current, addressCity: value, latitude: '', longitude: '' }))}
+            onSelect={(place) => setForm((current) => ({
+              ...current,
+              addressCity: place.city || place.display,
+              addressState: place.state || current.addressState,
+              addressCountry: place.country || current.addressCountry,
+              latitude: place.lat ?? current.latitude,
+              longitude: place.lng ?? current.longitude,
+            }))}
+            autoComplete="address-level2"
+            ariaLabel={t('food.merchant.city')}
+          />
         </div>
         <div className="fd-field" style={{ flex: '0 1 100px' }}>
           <label htmlFor="fd-loc-lat">{t('food.merchant.latitude')}</label>
