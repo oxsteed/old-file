@@ -1234,6 +1234,70 @@ body:has(.messages-page.workspace) .support-contact-fab:hover {
   box-shadow: none;
 }
 
+.messages-page.workspace .messages-rail-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: 32px 24px;
+  color: var(--messenger-muted);
+  text-align: center;
+}
+
+.messages-page.workspace .messages-rail-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 15px;
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--messenger-accent);
+}
+
+.messages-page.workspace .messages-rail-empty .messages-kicker {
+  margin: 0 0 8px;
+  color: var(--messenger-accent);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+}
+
+.messages-page.workspace .messages-rail-empty h2 {
+  margin: 0;
+  color: var(--messenger-text);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.messages-page.workspace .messages-rail-empty > p:not(.messages-kicker) {
+  max-width: 24ch;
+  margin: 10px 0 20px;
+  color: var(--messenger-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.messages-page.workspace .messages-rail-empty button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--messenger-border);
+  border-radius: 10px;
+  background: var(--messenger-surface-raised);
+  color: var(--messenger-text);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.messages-page.workspace .messages-rail-empty button:hover,
+.messages-page.workspace .messages-rail-empty button:focus-visible {
+  border-color: rgba(249, 115, 22, 0.54);
+  color: var(--messenger-accent);
+}
+
 .messages-page.workspace .messages-inbox-pane .sms-conversation-list {
   flex: 1;
   border-radius: 0;

@@ -191,6 +191,19 @@ test('zero-conversation onboarding uses the full canvas and stacks cleanly on mo
   assert.match(styles, /\.messages-workspace--empty > \.messages-empty\.messages-empty--error\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
 });
 
+test('deep-linked threads do not render the full empty-inbox guide in the inbox rail', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const workspace = await readFile(join(root, 'src/components/messaging/MessagingWorkspace.jsx'), 'utf8');
+  const styles = await readFile(join(root, 'src/components/messaging/SharedMessengerShell.css'), 'utf8');
+
+  assert.match(workspace, /hasThread \? <ConversationRailEmpty t=\{t\} onClose=\{closeThread\} \/>/);
+  assert.match(workspace, /function ConversationRailEmpty\(\{ t, onClose \}\)/);
+  assert.match(styles, /\.messages-page\.workspace \.messages-rail-empty\s*\{[\s\S]*?min-height:\s*280px;/);
+});
+
 test('business workflow labels remain visible on small screens', async () => {
   const { readFile } = await import('node:fs/promises');
   const { fileURLToPath } = await import('node:url');

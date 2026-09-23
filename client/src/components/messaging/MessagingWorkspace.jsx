@@ -486,7 +486,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
               </div>
             ) : conversations.length === 0 ? (
-              showHelperInbox ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
+              hasThread ? <ConversationRailEmpty t={t} onClose={closeThread} />
+                : showHelperInbox ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
             ) : filteredConversations.length === 0 ? (
               <div className="messages-empty compact">
                 <MessageSquare size={30} />
@@ -639,6 +640,28 @@ function EmptyMessages({ t }) {
         </Link>
       </div>
     </section>
+  );
+}
+
+function ConversationRailEmpty({ t, onClose }) {
+  return (
+    <div className="messages-rail-empty">
+      <div className="messages-rail-empty-icon">
+        <MessageSquare size={20} aria-hidden />
+      </div>
+      <p className="messages-kicker">
+        {t('messages.currentConversation', { defaultValue: 'Current conversation' })}
+      </p>
+      <h2>{t('messages.noOtherConversations', { defaultValue: 'No other conversations' })}</h2>
+      <p>
+        {t('messages.noOtherConversationsHint', {
+          defaultValue: 'Your selected conversation is open beside this inbox.',
+        })}
+      </p>
+      <button type="button" onClick={onClose}>
+        {t('messages.backToInbox', { defaultValue: 'Back to inbox' })}
+      </button>
+    </div>
   );
 }
 
