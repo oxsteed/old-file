@@ -1218,17 +1218,60 @@ export default function HelperDashboard() {
         <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-            <div>
-              <h1 className="text-4xl font-black text-white tracking-tight mb-2">
-                {t('dashboard.welcome', { name: user?.first_name || 'there' })}
+          <section className="helper-dashboard-hero" aria-labelledby="helper-workspace-heading">
+            <div className="helper-dashboard-hero__main">
+              <div className="helper-dashboard-hero__eyebrow">
+                <span className="helper-dashboard-hero__eyebrow-dot" aria-hidden="true" />
+                {t('helperDashboard.workspaceEyebrow', { defaultValue: 'Your OxSteed workspace' })}
+              </div>
+              <h1 id="helper-workspace-heading" className="helper-dashboard-hero__title">
+                {t('dashboard.welcome', { name: displayName || user?.first_name || 'there' })}
               </h1>
-              <p className="text-gray-400 font-medium">
+              <p className="helper-dashboard-hero__subtitle">
                 {t('dashboard.atAGlanceHelper')}
               </p>
+              <div className="helper-dashboard-hero__roles" aria-label={t('helperDashboard.workspaceRoles', { defaultValue: 'Your OxSteed roles' })}>
+                <span className="helper-dashboard-hero__role helper-dashboard-hero__role--active">
+                  <IcoBriefcase size={15} cls="text-orange-400" />
+                  {t('helperDashboard.helperRole', { defaultValue: 'Earn as a helper' })}
+                </span>
+                <span className="helper-dashboard-hero__role">
+                  <IcoHome size={15} cls="text-sky-400" />
+                  {t('helperDashboard.customerRole', { defaultValue: 'Get help as a customer' })}
+                </span>
+              </div>
+              {SHOW_HELPER_SUBSCRIPTIONS && (
+                <div className="helper-dashboard-hero__trial"><TrialBanner /></div>
+              )}
             </div>
-            {SHOW_HELPER_SUBSCRIPTIONS && <TrialBanner />}
-          </div>
+
+            <aside className="helper-dashboard-customer-card" aria-labelledby="helper-customer-heading">
+              <div className="helper-dashboard-customer-card__eyebrow">
+                <IcoHome size={15} cls="text-sky-400" />
+                {t('helperDashboard.customerLaneEyebrow', { defaultValue: 'The other side of OxSteed' })}
+              </div>
+              <h2 id="helper-customer-heading">
+                {t('helperDashboard.customerLaneTitle', { defaultValue: 'Need a hand yourself?' })}
+              </h2>
+              <p>
+                {t('helperDashboard.customerLaneCopy', { defaultValue: 'Your helper account is also your customer account. Get work done, book local help, or order food without creating another profile.' })}
+              </p>
+              <div className="helper-dashboard-customer-card__actions">
+                <Link to="/helpers" className="helper-dashboard-customer-card__action helper-dashboard-customer-card__action--primary">
+                  <IcoSearch size={15} cls="helper-dashboard-customer-card__icon" />
+                  {t('helperDashboard.findAHelper', { defaultValue: 'Find a helper' })}
+                </Link>
+                <Link to="/post-job" className="helper-dashboard-customer-card__action">
+                  <IcoFileText size={15} cls="text-orange-400" />
+                  {t('helperDashboard.postYourJob', { defaultValue: 'Post a job' })}
+                </Link>
+                <Link to="/restaurants" className="helper-dashboard-customer-card__action">
+                  <IcoHeart size={15} cls="text-rose-400" />
+                  {t('helperDashboard.orderFood', { defaultValue: 'Order food' })}
+                </Link>
+              </div>
+            </aside>
+          </section>
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}

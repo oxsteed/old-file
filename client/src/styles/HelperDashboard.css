@@ -8,6 +8,170 @@
   color: #fff;
 }
 
+/* ── Dual-role workspace shell ─────────────────────────── */
+.helper-dashboard-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(249, 115, 22, 0.1), transparent 28rem),
+    radial-gradient(circle at 92% 14%, rgba(14, 165, 233, 0.08), transparent 24rem),
+    linear-gradient(180deg, #080d18 0%, #0b1220 48%, #030712 100%);
+}
+.helper-dashboard-shell > main,
+.helper-dashboard-shell > nav {
+  position: relative;
+  z-index: 1;
+}
+.helper-dashboard-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.helper-dashboard-hero__main,
+.helper-dashboard-customer-card {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1.5rem;
+  box-shadow: 0 18px 45px rgba(2, 6, 23, 0.24);
+}
+.helper-dashboard-hero__main {
+  min-width: 0;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.2), transparent 34%),
+    linear-gradient(135deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.78));
+  border-color: rgba(249, 115, 22, 0.26);
+}
+.helper-dashboard-hero__eyebrow,
+.helper-dashboard-customer-card__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fdba74;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.helper-dashboard-hero__eyebrow-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.13);
+}
+.helper-dashboard-hero__title {
+  margin: 0.75rem 0 0.5rem;
+  color: #f8fafc;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.helper-dashboard-hero__subtitle {
+  max-width: 44rem;
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+.helper-dashboard-hero__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.35rem;
+}
+.helper-dashboard-hero__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.52rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.helper-dashboard-hero__role--active {
+  border-color: rgba(249, 115, 22, 0.35);
+  background: rgba(249, 115, 22, 0.12);
+  color: #fed7aa;
+}
+.helper-dashboard-hero__trial {
+  margin-top: 1.25rem;
+  max-width: 25rem;
+}
+.helper-dashboard-hero__trial > div {
+  width: 100%;
+}
+.helper-dashboard-customer-card {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.16), transparent 55%),
+    rgba(15, 23, 42, 0.86);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+.helper-dashboard-customer-card__eyebrow {
+  color: #7dd3fc;
+}
+.helper-dashboard-customer-card h2 {
+  margin: 1rem 0 0.5rem;
+  color: #f8fafc;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.helper-dashboard-customer-card p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+.helper-dashboard-customer-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1.25rem;
+}
+.helper-dashboard-customer-card__action {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.045);
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.helper-dashboard-customer-card__action:hover {
+  transform: translateY(-2px);
+  border-color: rgba(125, 211, 252, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+}
+.helper-dashboard-customer-card__action--primary {
+  border-color: #f97316;
+  background: #f97316;
+  color: #fff;
+}
+.helper-dashboard-customer-card__action--primary:hover {
+  border-color: #fb923c;
+  background: #ea580c;
+}
+.helper-dashboard-customer-card__icon {
+  color: #fff;
+}
+
 .helper-dashboard h1 {
   font-size: 1.75rem;
   font-weight: 700;
@@ -523,6 +687,83 @@ html:not(.dark) .helper-dashboard-shell [class~='hover:border-gray-700']:hover,
 html:not(.dark) .helper-dashboard-shell [class~='from-gray-900/80'],
 [data-theme='light'] .helper-dashboard-shell [class~='from-gray-900/80'] {
   background-image: linear-gradient(to right, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.84)) !important;
+}
+
+/* ── Dual-role workspace light theme ──────────────────── */
+html:not(.dark) .helper-dashboard-shell,
+[data-theme='light'] .helper-dashboard-shell {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(249, 115, 22, 0.09), transparent 28rem),
+    radial-gradient(circle at 92% 14%, rgba(14, 165, 233, 0.08), transparent 24rem),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 52%, #eef2ff 100%);
+}
+html:not(.dark) .helper-dashboard-hero__main,
+[data-theme='light'] .helper-dashboard-hero__main {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.11), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-color: rgba(249, 115, 22, 0.25);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+html:not(.dark) .helper-dashboard-hero__eyebrow,
+[data-theme='light'] .helper-dashboard-hero__eyebrow { color: #c2410c; }
+html:not(.dark) .helper-dashboard-hero__title,
+[data-theme='light'] .helper-dashboard-hero__title { color: #0f172a; }
+html:not(.dark) .helper-dashboard-hero__subtitle,
+[data-theme='light'] .helper-dashboard-hero__subtitle { color: #475569; }
+html:not(.dark) .helper-dashboard-hero__role,
+[data-theme='light'] .helper-dashboard-hero__role {
+  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.76);
+  color: #475569;
+}
+html:not(.dark) .helper-dashboard-hero__role--active,
+[data-theme='light'] .helper-dashboard-hero__role--active {
+  border-color: rgba(249, 115, 22, 0.3);
+  background: rgba(249, 115, 22, 0.1);
+  color: #9a3412;
+}
+html:not(.dark) .helper-dashboard-customer-card,
+[data-theme='light'] .helper-dashboard-customer-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.12), transparent 55%),
+    rgba(255, 255, 255, 0.9);
+  border-color: rgba(14, 116, 144, 0.2);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+html:not(.dark) .helper-dashboard-customer-card__eyebrow,
+[data-theme='light'] .helper-dashboard-customer-card__eyebrow { color: #0369a1; }
+html:not(.dark) .helper-dashboard-customer-card h2,
+[data-theme='light'] .helper-dashboard-customer-card h2 { color: #0f172a; }
+html:not(.dark) .helper-dashboard-customer-card p,
+[data-theme='light'] .helper-dashboard-customer-card p { color: #475569; }
+html:not(.dark) .helper-dashboard-customer-card__action,
+[data-theme='light'] .helper-dashboard-customer-card__action {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+html:not(.dark) .helper-dashboard-customer-card__action:hover,
+[data-theme='light'] .helper-dashboard-customer-card__action:hover {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
+}
+html:not(.dark) .helper-dashboard-customer-card__action--primary,
+[data-theme='light'] .helper-dashboard-customer-card__action--primary {
+  border-color: #f97316;
+  background: #f97316;
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .helper-dashboard-hero { grid-template-columns: 1fr; }
+  .helper-dashboard-customer-card__actions { margin-top: 0; }
+}
+@media (max-width: 520px) {
+  .helper-dashboard-hero__main,
+  .helper-dashboard-customer-card { border-radius: 1.15rem; }
+  .helper-dashboard-customer-card__actions { grid-template-columns: 1fr; }
+  .helper-dashboard-customer-card__action { justify-content: flex-start; padding-inline: 0.85rem; }
 }
 
 /* ── Responsive ──────────────────────────────────────── */
