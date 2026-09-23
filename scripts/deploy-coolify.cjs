@@ -12,11 +12,8 @@ function deploymentConfig(env, { image = false } = {}) {
   try { url = new URL(env[webhookKey]); } catch {
     throw new Error(`${webhookKey} must be an HTTPS Coolify API deployment URL.`);
   }
-  const localHttpOptIn = env.COOLIFY_ALLOW_LOCAL_HTTP === 'true' &&
-    url.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  if ((!['https:', 'http:'].includes(url.protocol) || (url.protocol !== 'https:' && !localHttpOptIn)) ||
-      url.username || url.password || url.hash || url.pathname !== '/api/v1/deploy') {
-    throw new Error(`${webhookKey} must use HTTPS, or explicit loopback HTTP with COOLIFY_ALLOW_LOCAL_HTTP=true, and /api/v1/deploy, without embedded credentials or a fragment.`);
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.pathname !== '/api/v1/deploy') {
+    throw new Error(`${webhookKey} must use HTTPS and /api/v1/deploy, without embedded credentials or a fragment.`);
   }
   const configuredUuid = url.searchParams.get('uuid');
   const applicationUuid = String(env[applicationUuidKey] || '').trim();

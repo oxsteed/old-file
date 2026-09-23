@@ -79,7 +79,6 @@ test('invalid configuration makes no requests', async () => {
   for (const overrides of [
     { COOLIFY_TOKEN: '' }, { COOLIFY_WEBHOOK_URL: 'not a url' },
     { COOLIFY_WEBHOOK_URL: 'http://coolify.example.test/api/v1/deploy?uuid=website123' },
-    { COOLIFY_WEBHOOK_URL: 'http://127.0.0.1:8000/api/v1/deploy?uuid=website123' },
     { COOLIFY_WEBHOOK_URL: 'https://user:secret@coolify.example.test/api/v1/deploy?uuid=website123' },
     { COOLIFY_WEBHOOK_URL: 'https://coolify.example.test/api/v1/deploy?tag=production' },
     { COOLIFY_WEBHOOK_URL: 'https://coolify.example.test/api/v1/deploy?uuid=a&uuid=b' },
@@ -89,16 +88,6 @@ test('invalid configuration makes no requests', async () => {
     await assert.rejects(f.run());
     assert.equal(f.calls.length, 0);
   }
-});
-
-test('loopback HTTP is allowed only with an explicit local opt-in', () => {
-  const config = deploymentConfig({
-    COOLIFY_WEBHOOK_URL: 'http://127.0.0.1:8000/api/v1/deploy?uuid=website123',
-    COOLIFY_TOKEN: env.COOLIFY_TOKEN,
-    COOLIFY_ALLOW_LOCAL_HTTP: 'true',
-  });
-  assert.equal(config.url.protocol, 'http:');
-  assert.equal(config.uuid, 'website123');
 });
 
 test('missing resource and invalid token fail before any deployment POST', async () => {

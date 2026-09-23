@@ -119,7 +119,7 @@ jobs:
 
   deploy:
     name: Deploy to Coolify
-    runs-on: [self-hosted, coolify-local]
+    runs-on: ubuntu-latest
     needs: [install-check, build-image]
     if: github.ref == 'refs/heads/old-files-claude' && github.event_name == 'push'
     timeout-minutes: 25
@@ -144,7 +144,6 @@ jobs:
           COOLIFY_IMAGE_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           COOLIFY_IMAGE_APPLICATION_UUID: ${{ vars.COOLIFY_IMAGE_APPLICATION_UUID }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-          COOLIFY_ALLOW_LOCAL_HTTP: 'true'
           COOLIFY_IMAGE_NAME: ${{ env.IMAGE_NAME }}
           COOLIFY_IMAGE_TAG: ${{ github.sha }}
         run: node scripts/deploy-coolify.cjs --deploy-image
