@@ -105,9 +105,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
             const helperOffline = key === 'helper' && helperStatus !== 'live';
             const liveDisabledNote = key === 'helper' && helperStatus === 'live' && !allowLiveChat;
             const statusHint = helperOffline
-              ? t('helperProfile.chat.helperAiAvailable', {
-                  defaultValue: 'Offline — chat with their AI assistant',
-                })
+              ? t('helperProfile.chat.helperAiAvailable')
               : liveDisabledNote
               ? t('helperProfile.chat.liveChatDisabled')
               : sub;

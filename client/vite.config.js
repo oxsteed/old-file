@@ -7,6 +7,28 @@ import { dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function largeChunkAudit() {
+  const warningLimitBytes = 500 * 1024;
+
+  return {
+    name: 'oxsteed-large-chunk-audit',
+    generateBundle(_options, bundle) {
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') continue;
+
+        const isMapLibreVendor = output.name === 'maplibre-vendor';
+        const size = Buffer.byteLength(output.code);
+
+        // MapLibre ships as one prebuilt engine; it is route-lazy-loaded and
+        // about 285 kB gzipped, so keep it as the sole documented exception.
+        if (size > warningLimitBytes && !isMapLibreVendor) {
+          this.warn(`Large chunk ${output.fileName}: ${(size / 1024).toFixed(1)} KiB minified (500 KiB target).`);
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
   const sentryOrg = process.env.SENTRY_ORG;
@@ -17,6 +39,7 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [
     react(),
+    largeChunkAudit(),
     ...(sentryUpload
       ? [
           sentryVitePlugin({
@@ -55,11 +78,21 @@ export default defineConfig(({ mode }) => {
 
   build: {
     outDir: 'dist',
+    // MapLibre's prebuilt engine is the only bundle allowed above 500 KiB;
+    // largeChunkAudit keeps the original target active for every other chunk.
+    chunkSizeWarningLimit: 1100,
     sourcemap: sentryUpload ? 'hidden' : mode === 'production' ? false : true,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
         admin: resolve(__dirname, 'admin.html'),
+      },
+      output: {
+        manualChunks(id) {
+          if (id.replaceAll('\\', '/').includes('/node_modules/maplibre-gl/')) {
+            return 'maplibre-vendor';
+          }
+        },
       },
     },
   },

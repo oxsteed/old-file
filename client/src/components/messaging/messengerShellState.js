@@ -2,7 +2,7 @@
  * Pure helpers for Shared Messenger Shell layout decisions (unit-tested).
  */
 
-/** Message action labels must never concatenate when CSS fails. */
+/** Build the available actions; moderation is presented in the overflow menu. */
 export function buildMessageActionItems({ canEdit = false, canDelete = false, canModerate = false } = {}) {
   const items = [{ id: 'copy', kind: 'action' }];
   if (canModerate) {
@@ -22,10 +22,11 @@ export function buildMessageActionItems({ canEdit = false, canDelete = false, ca
   return items;
 }
 
-/** Visible text of action row for regression tests (no smashed CopyEditDelete). */
+/** Visible common-action labels; separators are layout metadata, not text. */
 export function formatMessageActionsLabel(items, labels) {
   return items
-    .map((item) => (item.kind === 'sep' ? '|' : labels[item.id] || item.id))
+    .filter((item) => item.kind === 'action' && !['report', 'block'].includes(item.id))
+    .map((item) => labels[item.id] || item.id)
     .join(' ');
 }
 
@@ -38,11 +39,11 @@ export function shouldShowHeaderProviderChips({ role, hasProviderToolbar }) {
   return true;
 }
 
-/** Header secondary controls are icon-only (translate, AI). */
+/** Secondary thread controls retain visible text at all supported widths. */
 export function resolveThreadHeaderSecondary({ translateEnabled }) {
   return {
-    translateMode: 'icon',
-    advisorMode: 'icon',
+    translateMode: 'labeled',
+    advisorMode: 'labeled',
     translatePressed: Boolean(translateEnabled),
   };
 }

@@ -10,14 +10,14 @@ import {
   conversationPreview,
 } from '../src/components/messaging/messengerShellState.js';
 
-test('message actions never smash CopyEditDelete', () => {
+test('message actions render common labels without separators or concatenation', () => {
   const items = buildMessageActionItems({ canEdit: true, canDelete: true });
   const label = formatMessageActionsLabel(items, {
     copy: 'Copy',
     edit: 'Edit',
     delete: 'Delete',
   });
-  assert.equal(label, 'Copy | Edit | Delete');
+  assert.equal(label, 'Copy Edit Delete');
   assert.ok(!label.includes('CopyEdit'));
   assert.ok(!label.includes('EditDelete'));
 });
@@ -42,10 +42,10 @@ test('header provider chips suppressed when toolbar present', () => {
   );
 });
 
-test('thread header secondary controls are icon mode', () => {
+test('thread header secondary controls retain visible labels', () => {
   const secondary = resolveThreadHeaderSecondary({ translateEnabled: true });
-  assert.equal(secondary.translateMode, 'icon');
-  assert.equal(secondary.advisorMode, 'icon');
+  assert.equal(secondary.translateMode, 'labeled');
+  assert.equal(secondary.advisorMode, 'labeled');
   assert.equal(secondary.translatePressed, true);
 });
 
@@ -161,4 +161,63 @@ test('provider chat tools stay shared across helper and business routes', async 
   assert.ok(toolbar.includes('onClick={onPaymentRequest}'));
   assert.ok(toolbar.includes('onClick={onAgreement}'));
   assert.ok(toolbar.includes('onClick={onSchedule}'));
+});
+
+test('inbox work area is not followed by promotional cards', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const workspace = await readFile(join(root, 'src/components/messaging/MessagingWorkspace.jsx'), 'utf8');
+  assert.ok(!workspace.includes('messages-guide'));
+  assert.ok(workspace.includes('messages-empty-side'), 'keep guidance for a genuinely empty inbox');
+});
+
+test('business workflow labels remain visible on small screens', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const toolbar = await readFile(join(root, 'src/components/messaging/ProviderMessengerToolbar.jsx'), 'utf8');
+  const styles = await readFile(join(root, 'src/components/messaging/SharedMessengerShell.css'), 'utf8');
+  for (const action of ['onQuote', 'onPaymentRequest', 'onAgreement', 'onSchedule', 'onContact']) {
+    assert.ok(toolbar.includes(`onClick={${action}}`));
+  }
+  assert.ok(styles.includes('.provider-messenger-toolbar .hide-sm {\n  display: inline !important;'));
+});
+
+test('message moderation stays in an accessible overflow menu', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const actions = await readFile(join(root, 'src/components/messaging/MessageBubbleActions.jsx'), 'utf8');
+  assert.match(actions, /<details className="messages-bubble-overflow">/);
+  assert.match(actions, /<summary aria-label=\{t\('messages\.shell\.moreActions'\)\}>/);
+  assert.match(actions, /messages\.reportMessage/);
+  assert.match(actions, /messages\.blockUser/);
+});
+
+test('message composer stacks tools above a full-width reply row', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const styles = await readFile(join(root, 'src/components/messaging/SharedMessengerShell.css'), 'utf8');
+  const sharedComposerRule = styles.match(/\.messages-composer,\s*\.bmt-team-composer\s*\{([^}]*)\}/s)?.[1] || '';
+  assert.doesNotMatch(sharedComposerRule, /flex-direction:\s*column/);
+  assert.match(styles, /\.messages-composer \{[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;/s);
+  assert.match(styles, /\.bmt-team-composer \{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(styles, /\.messages-composer-row textarea\s*\{[^}]*flex:\s*1 1 auto/s);
+});
+
+test('global navigation switches to the existing compact menu before links wrap', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const navbar = await readFile(join(root, 'src/components/Navbar.jsx'), 'utf8');
+  assert.match(navbar, /@media \(max-width: 1360px\)/);
+  assert.match(navbar, /whiteSpace:\s*'nowrap'/);
+  assert.match(navbar, /max-width:\s*1600px/);
 });

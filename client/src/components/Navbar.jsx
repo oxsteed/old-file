@@ -157,7 +157,7 @@ export default function Navbar() {
         borderBottom: '1px solid var(--color-nav-border)',
       }}
     >
-      <div className="ox-container">
+      <div className="ox-container ox-navbar-container">
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -466,7 +466,9 @@ export default function Navbar() {
 
       {/* Responsive hide/show via CSS */}
       <style>{`
-        @media (max-width: 768px) {
+        .ox-navbar-container { max-width: 1600px; }
+        .ox-navbar-container .ox-nav-desktop { gap: 2px !important; }
+        @media (max-width: 1360px) {
           .ox-nav-desktop { display: none !important; }
           .ox-nav-mobile-controls { display: flex !important; }
           .ox-nav-mobile-menu {
@@ -580,6 +582,8 @@ function NavLink({ to, children, active }) {
         transition: 'color var(--transition-fast), background var(--transition-fast)',
         display: 'inline-flex',
         alignItems: 'center',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
       onMouseEnter={e => {
         if (!active) {

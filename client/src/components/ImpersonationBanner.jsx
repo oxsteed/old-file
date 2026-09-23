@@ -15,7 +15,7 @@ import {
   IMPERSONATION_TOKEN_KEY,
   IMPERSONATION_USER_KEY,
   IMPERSONATION_JTI_KEY,
-} from '../pages/ImpersonatePage';
+} from '../lib/impersonationStorage';
 import api from '../api/axios';
 
 export default function ImpersonationBanner() {

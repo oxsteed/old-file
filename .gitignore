@@ -5,6 +5,7 @@ node_modules/
 *.log
 dist/
 build/
+client/src/locales/generated/
 coverage/
 .nyc_output/
 *.pid

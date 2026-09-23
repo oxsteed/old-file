@@ -4,14 +4,9 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   Archive,
-  Briefcase,
-  Building2,
-  CalendarDays,
   MessageSquare,
   RefreshCw,
   Search,
-  ShieldCheck,
-  Sparkles,
   UserCheck,
   UserRoundCheck,
 } from 'lucide-react';
@@ -568,25 +563,6 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
           </div>
         </div>
 
-        {!hasThread && (
-          <section className="messages-guide" aria-label={t(showHelperInbox ? 'messages.helperGuide.ariaLabel' : 'messages.guide.ariaLabel')}>
-            {showHelperInbox ? (
-              <>
-                <GuideItem icon={UserRoundCheck} title={t('messages.helperGuide.leads.title')} text={t('messages.helperGuide.leads.text')} />
-                <GuideItem icon={Briefcase} title={t('messages.helperGuide.jobs.title')} text={t('messages.helperGuide.jobs.text')} />
-                <GuideItem icon={Building2} title={t('messages.helperGuide.business.title')} text={t('messages.helperGuide.business.text')} />
-                <GuideItem icon={Sparkles} title={t('messages.helperGuide.convert.title')} text={t('messages.helperGuide.convert.text')} />
-              </>
-            ) : (
-              <>
-                <GuideItem icon={Briefcase} title={t('messages.guide.jobs.title')} text={t('messages.guide.jobs.text')} />
-                <GuideItem icon={CalendarDays} title={t('messages.guide.bookings.title')} text={t('messages.guide.bookings.text')} />
-                <GuideItem icon={ShieldCheck} title={t('messages.guide.trust.title')} text={t('messages.guide.trust.text')} />
-                <GuideItem icon={Sparkles} title={t('messages.guide.repeat.title')} text={t('messages.guide.repeat.text')} />
-              </>
-            )}
-          </section>
-        )}
     </div>
   );
 
@@ -670,15 +646,5 @@ function EmptyHelperInbox({ t }) {
         </Link>
       </div>
     </section>
-  );
-}
-
-function GuideItem({ icon: Icon, title, text }) {
-  return (
-    <div className="messages-guide-item">
-      <Icon size={18} />
-      <h3>{title}</h3>
-      <p>{text}</p>
-    </div>
   );
 }

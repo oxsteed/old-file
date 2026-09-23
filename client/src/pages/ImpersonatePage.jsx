@@ -11,10 +11,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-export const IMPERSONATION_TOKEN_KEY = 'oxs:impersonation_token';
-export const IMPERSONATION_USER_KEY  = 'oxs:impersonation_user';
-export const IMPERSONATION_JTI_KEY   = 'oxs:impersonation_jti';
+import {
+  IMPERSONATION_TOKEN_KEY,
+  IMPERSONATION_USER_KEY,
+  IMPERSONATION_JTI_KEY,
+} from '../lib/impersonationStorage';
 
 /** Decode the payload of a JWT without verifying the signature (client-side only). */
 function decodeJwtPayload(token) {

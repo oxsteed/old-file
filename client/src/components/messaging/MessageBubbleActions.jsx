@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
 import { buildMessageActionItems } from './messengerShellState';
 
 /**
- * Spaced Copy | Edit | Delete controls — never concatenated text.
+ * Keep common message controls visible and tuck moderation under More.
  */
 export default function MessageBubbleActions({
   onCopy,
@@ -17,6 +18,30 @@ export default function MessageBubbleActions({
 }) {
   const { t } = useTranslation();
   const items = buildMessageActionItems({ canEdit, canDelete, canModerate });
+  const visibleItems = items.filter((item) => item.kind === 'action' && !['report', 'block'].includes(item.id));
+
+  const renderAction = (item) => {
+    if (item.id === 'copy') {
+      return (
+        <button
+          key={item.id}
+          type="button"
+          className="messages-bubble-action-btn"
+          onClick={onCopy}
+          aria-label={t('messages.copyMessage')}
+        >
+          {t('messages.copy')}
+        </button>
+      );
+    }
+    if (item.id === 'edit') {
+      return <button key={item.id} type="button" className="messages-bubble-action-btn" onClick={onEdit}>{t('common.edit')}</button>;
+    }
+    if (item.id === 'delete') {
+      return <button key={item.id} type="button" className="messages-bubble-action-btn" onClick={onDelete}>{t('common.delete')}</button>;
+    }
+    return null;
+  };
 
   return (
     <div
@@ -24,77 +49,29 @@ export default function MessageBubbleActions({
       role="group"
       aria-label={t('messages.shell.messageActionsAria')}
     >
-      {items.map((item) => {
-        if (item.kind === 'sep') {
-          return (
-            <span key={item.id} className="messages-bubble-action-sep" aria-hidden="true">
-              |
-            </span>
-          );
-        }
-        if (item.id === 'copy') {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="messages-bubble-action-btn"
-              onClick={onCopy}
-              aria-label={t('messages.copyMessage')}
-            >
-              {t('messages.copy')}
-            </button>
-          );
-        }
-        if (item.id === 'edit') {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="messages-bubble-action-btn"
-              onClick={onEdit}
-            >
-              {t('common.edit')}
-            </button>
-          );
-        }
-        if (item.id === 'report') {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="messages-bubble-action-btn"
-              onClick={onReport}
-            >
+      {visibleItems.map(renderAction)}
+      {canModerate && (
+        <details className="messages-bubble-overflow">
+          <summary aria-label={t('messages.shell.moreActions')}>
+            {t('messages.shell.moreActions')}
+            <ChevronDown size={12} aria-hidden="true" />
+          </summary>
+          <div className="messages-bubble-overflow-menu">
+            <button type="button" onClick={(event) => {
+              onReport();
+              event.currentTarget.closest('details')?.removeAttribute('open');
+            }}>
               {t('messages.reportMessage', { defaultValue: 'Report' })}
             </button>
-          );
-        }
-        if (item.id === 'block') {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="messages-bubble-action-btn"
-              onClick={onBlock}
-            >
+            <button type="button" onClick={(event) => {
+              onBlock();
+              event.currentTarget.closest('details')?.removeAttribute('open');
+            }}>
               {t('messages.blockUser', { defaultValue: 'Block' })}
             </button>
-          );
-        }
-        if (item.id === 'delete') {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="messages-bubble-action-btn"
-              onClick={onDelete}
-            >
-              {t('common.delete')}
-            </button>
-          );
-        }
-        return null;
-      })}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

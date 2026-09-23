@@ -15,7 +15,8 @@ const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
 // only need the selected language plus English fallback on first load.
 const localeLoaders = {
   en: () => Promise.all([
-    import('../locales/en.json'),
+    import('../locales/generated/en-0.json'),
+    import('../locales/generated/en-1.json'),
     import('../locales/terms/en.content.json'),
     import('../locales/privacy/en.content.json'),
     import('./locales/en/common.json'),
@@ -23,7 +24,8 @@ const localeLoaders = {
     import('./locales/en/credit.json'),
   ]),
   es: () => Promise.all([
-    import('../locales/es.json'),
+    import('../locales/generated/es-0.json'),
+    import('../locales/generated/es-1.json'),
     import('../locales/terms/es.content.json'),
     import('../locales/privacy/es.content.json'),
     import('./locales/es/common.json'),
@@ -31,7 +33,8 @@ const localeLoaders = {
     import('./locales/es/credit.json'),
   ]),
   fr: () => Promise.all([
-    import('../locales/fr.json'),
+    import('../locales/generated/fr-0.json'),
+    import('../locales/generated/fr-1.json'),
     import('../locales/terms/fr.content.json'),
     import('../locales/privacy/fr.content.json'),
     import('./locales/fr/common.json'),
@@ -39,7 +42,8 @@ const localeLoaders = {
     import('./locales/fr/credit.json'),
   ]),
   ht: () => Promise.all([
-    import('../locales/ht.json'),
+    import('../locales/generated/ht-0.json'),
+    import('../locales/generated/ht-1.json'),
     import('../locales/terms/ht.content.json'),
     import('../locales/privacy/ht.content.json'),
     import('./locales/ht/common.json'),
@@ -47,7 +51,8 @@ const localeLoaders = {
     import('./locales/ht/credit.json'),
   ]),
   ar: () => Promise.all([
-    import('../locales/ar.json'),
+    import('../locales/generated/ar-0.json'),
+    import('../locales/generated/ar-1.json'),
     import('../locales/terms/ar.content.json'),
     import('../locales/privacy/ar.content.json'),
     import('./locales/ar/common.json'),
@@ -59,10 +64,11 @@ const localeLoaders = {
 const localePromises = new Map();
 
 function getLocaleResources(modules) {
-  const [legacy, terms, privacy, common, translator, credit] = modules;
+  const [legacyPartOne, legacyPartTwo, terms, privacy, common, translator, credit] = modules;
   return {
     translation: {
-      ...legacy.default,
+      ...legacyPartOne.default,
+      ...legacyPartTwo.default,
       termsContent: terms.default,
       privacyContent: privacy.default,
     },

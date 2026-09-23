@@ -244,7 +244,7 @@ export default function ConversationThread({
               title={t('messages.archive')}
             >
               <Archive size={16} aria-hidden />
-              <span className="visually-hidden">{t('messages.archive')}</span>
+              <span className="messages-thread-action-label">{t('messages.archive')}</span>
             </button>
           ) : null}
           {onRestore ? (
@@ -256,7 +256,7 @@ export default function ConversationThread({
               title={t('messages.restore')}
             >
               <RotateCcw size={16} aria-hidden />
-              <span className="visually-hidden">{t('messages.restore')}</span>
+              <span className="messages-thread-action-label">{t('messages.restore')}</span>
             </button>
           ) : null}
           {/* Provider deal chips live only in ProviderMessengerToolbar (no header duplicate). */}
@@ -269,7 +269,7 @@ export default function ConversationThread({
               title={t('messages.popShare.title')}
             >
               <Receipt size={16} aria-hidden />
-              <span className="visually-hidden">{t('messages.popShare.button')}</span>
+              <span className="messages-thread-action-label">{t('messages.popShare.button')}</span>
             </button>
           ) : null}
           <button
@@ -281,7 +281,7 @@ export default function ConversationThread({
             title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
           >
             <Globe size={16} aria-hidden />
-            <span className="visually-hidden">
+            <span className="messages-thread-action-label">
               {translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
             </span>
           </button>
@@ -294,7 +294,7 @@ export default function ConversationThread({
             aria-pressed={showAdvisor}
           >
             <Calculator size={16} aria-hidden />
-            <span className="visually-hidden">{t('messages.shell.aiAdvisorAria')}</span>
+            <span className="messages-thread-action-label">{t('messages.shell.aiAdvisorAria')}</span>
           </button>
         </div>
       </header>

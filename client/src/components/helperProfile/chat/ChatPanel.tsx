@@ -141,9 +141,7 @@ const DestinationContextBanner: React.FC<{
           {t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
         </p>
         <p className="text-[11px] text-violet-400/90 mt-0.5">
-          {t('helperProfile.chat.oxsteedAiOnlyHint', {
-            defaultValue: 'OxSteed here is AI. For a live support specialist, continue below.',
-          })}
+          {t('helperProfile.chat.oxsteedAiOnlyHint')}
         </p>
         <Link
           to={{ pathname: handoff.pathname, search: handoff.search }}
@@ -1310,7 +1308,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             className="text-sky-300 underline shrink-0"
             onClick={() => setRoutingNotice(null)}
           >
-            {t('common.dismiss', { defaultValue: 'Dismiss' })}
+            {t('common.dismiss')}
           </button>
         </div>
       )}
