@@ -964,11 +964,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
   const PageFrame = ({ children }) => (
     <div
-      className="min-h-[calc(100vh-140px)]"
-      style={{
-        background:
-          'radial-gradient(circle at top left, rgba(249,115,22,0.12), transparent 24%), radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 22%), linear-gradient(180deg, #07101c 0%, #040811 100%)',
-      }}
+      className="min-h-[calc(100vh-140px)] support-escalation-frame"
     >
       <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">{children}</div>
     </div>
@@ -976,12 +972,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
 
   const Hero = ({ eyebrow, title, body, right }) => (
     <section
-      className="rounded-[28px] border p-6 md:p-8 shadow-2xl mb-6"
-      style={{
-        borderColor: 'rgba(148,163,184,0.16)',
-        background:
-          'linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,23,0.96))',
-      }}
+      className="rounded-[28px] border p-6 md:p-8 shadow-2xl mb-6 support-escalation-hero"
     >
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_320px] gap-6 items-start">
         <div>
@@ -998,7 +989,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
   );
 
   const SideCard = ({ icon: Icon, title, children, tint = 'text-slate-300' }) => (
-    <div className="rounded-3xl border p-5" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.72)' }}>
+    <div className="rounded-3xl border p-5 support-escalation-side-card">
       <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] mb-3 ${tint}`}>
         <Icon size={14} />
         {title}
@@ -1008,7 +999,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
   );
 
   const StatPill = ({ icon: Icon, label, value }) => (
-    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(255,255,255,0.03)' }}>
+    <div className="rounded-2xl border px-4 py-3 support-escalation-stat">
       <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-[0.08em]">
         <Icon size={13} />
         {label}
@@ -1033,7 +1024,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
               title={t('support.escalation.checking', { defaultValue: 'Checking specialist availability' })}
               body={t('support.escalation.checkingDesc', { defaultValue: 'We are checking whether a live support specialist is available right now or whether we should route this into a priority support ticket.' })}
               right={(
-                <div className="rounded-3xl border p-5" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(255,255,255,0.03)' }}>
+                <div className="rounded-3xl border p-5 support-escalation-inline-card">
                   <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
                     <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
                   </div>
@@ -1083,7 +1074,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-              <section className="rounded-[28px] border overflow-hidden shadow-2xl" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.82)' }}>
+              <section className="rounded-[28px] border overflow-hidden shadow-2xl support-escalation-conversation">
                 <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${connectionState === 'connected' ? 'bg-green-400' : 'bg-orange-400 animate-pulse'}`} />
@@ -1238,7 +1229,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-              <section className="rounded-[28px] border p-6 md:p-8 shadow-2xl" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.82)' }}>
+              <section className="rounded-[28px] border p-6 md:p-8 shadow-2xl support-escalation-ticket">
                 {handoff?.isFromProfile && (
                   <div className="mb-6 rounded-3xl border border-violet-500/30 bg-violet-500/10 p-5">
                     <p className="font-semibold text-violet-200">
@@ -1274,7 +1265,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   </div>
                 )}
 
-                <div className="flex items-start gap-4 p-5 rounded-3xl border mb-6" style={{ borderColor: 'rgba(249,115,22,0.24)', background: 'rgba(249,115,22,0.08)' }}>
+                <div className="flex items-start gap-4 p-5 rounded-3xl border mb-6 support-escalation-ticket-notice">
                   <AlertCircle className="text-orange-400 flex-shrink-0 mt-1" size={24} />
                   <div>
                     <h2 className="text-white font-semibold text-lg mb-2">{t('support.escalation.ticketFormTitle')}</h2>
@@ -1402,12 +1393,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
           <PageFrame>
             <div className="max-w-2xl mx-auto">
               <section
-                className="rounded-[32px] border p-8 text-center shadow-2xl"
-                style={{
-                  borderColor: 'rgba(52,211,153,0.22)',
-                  background:
-                    'radial-gradient(circle at top, rgba(52,211,153,0.12), transparent 24%), linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,23,0.96))',
-                }}
+                className="rounded-[32px] border p-8 text-center shadow-2xl support-escalation-success"
               >
                 <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="text-green-400" size={32} />

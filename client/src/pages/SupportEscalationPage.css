@@ -18,6 +18,49 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Authenticated support states use the same visual system as the rest of the
+   app while retaining a higher-contrast, focused conversation layout. */
+.support-escalation-frame {
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 22%),
+    linear-gradient(180deg, #07101c 0%, #040811 100%);
+}
+
+.support-escalation-hero {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(8, 13, 23, 0.96));
+}
+
+.support-escalation-side-card,
+.support-escalation-conversation,
+.support-escalation-ticket {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.support-escalation-side-card {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.support-escalation-stat,
+.support-escalation-inline-card {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.support-escalation-ticket-notice {
+  border-color: rgba(249, 115, 22, 0.24);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.support-escalation-success {
+  border-color: rgba(52, 211, 153, 0.22);
+  background:
+    radial-gradient(circle at top, rgba(52, 211, 153, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(8, 13, 23, 0.96));
+}
+
 .guest-support-page a:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 4px;
@@ -40,4 +83,117 @@ html:not(.dark) .support-escalation-page input,
 html:not(.dark) .support-escalation-page textarea {
   color: var(--color-text) !important;
   color-scheme: light;
+}
+
+html:not(.dark) .support-escalation-frame {
+  background:
+    radial-gradient(circle at top left, var(--color-primary-bg), transparent 24%),
+    radial-gradient(circle at top right, var(--color-info-bg), transparent 22%),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 100%);
+}
+
+html:not(.dark) :where(
+  .support-escalation-hero,
+  .support-escalation-side-card,
+  .support-escalation-conversation,
+  .support-escalation-ticket,
+  .support-escalation-inline-card
+) {
+  border-color: var(--color-card-border) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+}
+
+html:not(.dark) .support-escalation-stat {
+  border-color: var(--color-border) !important;
+  background: var(--color-surface-2) !important;
+  color: var(--color-text);
+}
+
+html:not(.dark) .support-escalation-ticket-notice {
+  border-color: var(--color-card-hover-border) !important;
+  background: var(--color-primary-bg) !important;
+  color: var(--color-text);
+}
+
+html:not(.dark) .support-escalation-success {
+  border-color: rgba(22, 163, 74, 0.35) !important;
+  background:
+    radial-gradient(circle at top, var(--color-success-bg), transparent 24%),
+    linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%) !important;
+  color: var(--color-text);
+}
+
+html:not(.dark) .support-escalation-page .border-slate-700\/70 {
+  border-color: var(--color-border-strong) !important;
+}
+
+html:not(.dark) .support-escalation-page :where(.bg-slate-950\/30, .bg-slate-950\/60, .bg-slate-900\/70) {
+  background: var(--color-surface-2) !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-100 {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .support-escalation-page :where(.text-white\/70, .text-white\/75) {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .support-escalation-page :where(.bg-orange-500, .bg-orange-600) {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-slate-950\/85 .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .support-escalation-page :where(
+  .text-violet-200,
+  .text-violet-300,
+  .text-violet-300\/90
+) {
+  color: #6d28d9 !important;
+}
+
+html:not(.dark) .support-escalation-page :where(.text-sky-300, .text-sky-400) {
+  color: #0369a1 !important;
+}
+
+html:not(.dark) .support-escalation-page :where(.text-orange-200, .text-amber-100, .text-emerald-200) {
+  color: #9a3412 !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-violet-500\/10 {
+  background: rgba(124, 58, 237, 0.1) !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-orange-500\/10 {
+  background: var(--color-primary-bg) !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-amber-500\/10 {
+  background: rgba(202, 138, 4, 0.12) !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-emerald-500\/10 {
+  background: var(--color-success-bg) !important;
+}
+
+html:not(.dark) .support-escalation-page .border-violet-500\/30 {
+  border-color: rgba(124, 58, 237, 0.35) !important;
+}
+
+html:not(.dark) .support-escalation-page .border-orange-500\/25,
+html:not(.dark) .support-escalation-page .border-orange-500\/40 {
+  border-color: var(--color-card-hover-border) !important;
+}
+
+html:not(.dark) .support-escalation-page .border-amber-500\/30 {
+  border-color: rgba(202, 138, 4, 0.45) !important;
+}
+
+html:not(.dark) .support-escalation-page .border-emerald-500\/20 {
+  border-color: rgba(22, 163, 74, 0.35) !important;
 }
