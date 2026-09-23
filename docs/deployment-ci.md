@@ -43,6 +43,13 @@ The workflow uses the commit SHA as the image tag rather than `latest`. This
 keeps each deployment immutable and lets the Coolify application identify the
 exact image that passed CI.
 
+The replacement image application is now prepared in Coolify as
+`OxSteed Website Image Production` on the existing service Docker network
+`twsam5aiyvm0w1l2jqxx9ih3`. Its repository target is stored in the
+`COOLIFY_IMAGE_APPLICATION_UUID` repository variable. The original
+source-based application remains the live-domain owner until the replacement
+has been verified.
+
 ## One-time Coolify cutover
 
 The existing `OxSteed Website GitHub` application is source-based. Create a
@@ -122,18 +129,20 @@ finishes. Failed/cancelled deployments, bad credentials, wrong targets, image
 mismatches, and timeouts remain explicit failures. Requests do not follow
 redirects with credentials and errors omit server response bodies.
 
-The existing public readiness, API health, and catalog checks run after successful
-deployment completion. The production deployment job serializes Actions runs.
+The public readiness, API health, and catalog checks are preserved but run only
+when the `VERIFY_PUBLIC_AFTER_DEPLOY` repository variable is set to `true`.
+This prevents a pre-cutover image deployment from being incorrectly judged
+against the still-live source application. Enable the variable after the live
+domains are moved to the image application. The production deployment job
+serializes Actions runs.
 
 ## Complete the integration
 
-1. Create and configure the Docker Image application and private GHCR pull access.
-2. Add `COOLIFY_IMAGE_APPLICATION_UUID`, client build variables, and any required
-   GitHub Actions secrets.
-3. Run `--check-image` and confirm the application points at the expected image.
-4. Disable the old source application's independent automatic deployment.
-5. Run a controlled push after CI passes; verify the queued image deployment,
-   image tag, `/ready`, API health, and the public site.
+1. Confirm the image application can pull its first private GHCR image and becomes healthy.
+2. Verify the replacement container can resolve the existing `postgres` and `redis` service names on its managed network.
+3. Move the live domains to the verified image application and then set `VERIFY_PUBLIC_AFTER_DEPLOY=true`.
+4. Disable the old source application's independent automatic deployment to prevent duplicate deploys.
+5. Run a controlled push after CI passes; verify the image tag, `/ready`, API health, and the public site.
 
 The repository changes do not create the Coolify Docker Image application,
 rotate credentials, or disable the current source deployment. Those one-time

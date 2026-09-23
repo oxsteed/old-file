@@ -140,6 +140,7 @@ jobs:
 
       - name: Verify Coolify image target and deploy
         env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           COOLIFY_IMAGE_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           COOLIFY_IMAGE_APPLICATION_UUID: ${{ vars.COOLIFY_IMAGE_APPLICATION_UUID }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
@@ -147,7 +148,8 @@ jobs:
           COOLIFY_IMAGE_TAG: ${{ github.sha }}
         run: node scripts/deploy-coolify.cjs --deploy-image
 
-      - name: Verify production recovered after deploy
+      - name: Verify public production recovered after cutover
+        if: vars.VERIFY_PUBLIC_AFTER_DEPLOY == 'true'
         env:
           PUBLIC_READY_URL: https://oxsteed.com/ready
           API_HEALTH_URL: https://api.oxsteed.com/health
