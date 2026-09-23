@@ -22,6 +22,7 @@ const {
 } = require('../services/chatBookingRequests');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
+const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 
 function bad(res, status, error, code = 'error', extra = {}) {
   return res.status(status).json({ error, code, ...extra });
@@ -55,7 +56,7 @@ async function isCustomerForBooking(req, booking) {
     return { ok: true, via: 'customer', userId };
   }
   if (userId && booking.conversation_id) {
-    const conv = await assertConversationParticipant(userId, booking.conversation_id);
+    const conv = await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
     if (conv && String(conv.customer_id) === String(userId)) {
       return { ok: true, via: 'conversation_customer', userId };
     }
@@ -80,7 +81,7 @@ async function canViewBooking(req, booking) {
   return false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, clientMessageId }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
@@ -114,6 +115,16 @@ async function postConversationMessage({ conversationId, senderId, content, send
     message,
     senderName,
   });
+  try {
+    await mirrorLegacyMessage?.({
+      legacyConversationId: conversationId,
+      businessId,
+      message,
+      senderName,
+    });
+  } catch (err) {
+    logger.warn('[chatBookingRequests] business mirror failed', { error: err.message });
+  }
   return message;
 }
 
@@ -227,6 +238,7 @@ async function postStatusToThread({
         senderId: actorId,
         content,
         senderName: actorName || 'Provider',
+        businessId: booking.business_id,
         clientMessageId,
       });
     } catch (e) {
@@ -357,6 +369,9 @@ exports.acceptBookingRequest = async (req, res, next) => {
     if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can accept this booking', 'forbidden');
     }
+    if (booking.conversation_id) {
+      await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
+    }
 
     let result;
     try {
@@ -406,6 +421,9 @@ exports.declineBookingRequest = async (req, res, next) => {
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
     if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can decline this booking', 'forbidden');
+    }
+    if (booking.conversation_id) {
+      await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
     }
 
     const reason = String(req.body?.reason || req.body?.decline_reason || '').trim().slice(0, 500) || null;
@@ -458,6 +476,9 @@ exports.customerAcceptBookingRequest = async (req, res, next) => {
       }
       return bad(res, 403, 'Only the customer or verified guest can accept this time', 'forbidden');
     }
+    if (authz.userId && booking.conversation_id) {
+      await assertConversationParticipant(authz.userId, booking.conversation_id, { writable: true });
+    }
 
     let result;
     try {
@@ -509,6 +530,9 @@ exports.customerDeclineBookingRequest = async (req, res, next) => {
       }
       return bad(res, 403, 'Only the customer or verified guest can decline this time', 'forbidden');
     }
+    if (authz.userId && booking.conversation_id) {
+      await assertConversationParticipant(authz.userId, booking.conversation_id, { writable: true });
+    }
 
     const reason = String(req.body?.reason || req.body?.decline_reason || '').trim().slice(0, 500) || null;
     let result;
@@ -556,6 +580,9 @@ exports.proposeBookingTime = async (req, res, next) => {
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
     if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
       return bad(res, 403, 'Only the provider can propose a different time', 'forbidden');
+    }
+    if (booking.conversation_id) {
+      await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
     }
 
     const agreementGate = await checkScheduleAgreementGate(pool, {
@@ -633,7 +660,7 @@ exports.createChatBookingRequest = async (req, res, next) => {
       return bad(res, 400, 'conversationId is required', 'validation_failed');
     }
 
-    const conv = await assertConversationParticipant(userId, conversationId);
+    const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
     const agreementGate = await checkScheduleAgreementGate(pool, {

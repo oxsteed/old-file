@@ -44,6 +44,7 @@ import '../helperProfile/chat/MessengerDock.css';
 import './SharedMessengerShell.css';
 import api from '../../api/axios';
 import { createMessageRequestId } from '../../lib/messageRequestId';
+import { uploadBusinessMessageAttachment } from '../../api/businessMessaging';
 import toast from 'react-hot-toast';
 
 function formatTime(ts) {
@@ -78,9 +79,10 @@ export default function ConversationThread({
   onBack,
   onArchive,
   onRestore,
+  businessId: workspaceBusinessId = null,
 }) {
   const { t } = useTranslation();
-  const canUseProviderTools = providerMode;
+  const isBusinessConversation = Boolean(workspaceBusinessId);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showAdvisor, setShowAdvisor] = useState(false);
@@ -109,18 +111,29 @@ export default function ConversationThread({
   };
 
   const chat = useConversationChat(conversationId, {
-    listenProfileChat: canUseProviderTools,
+    listenProfileChat: providerMode,
+    businessId: workspaceBusinessId,
   });
 
   const {
     messages, fetchMessages, otherName, helperBusiness, jobTitle, otherUserId, jobId, helperId, businessId,
+    legacyConversationId, businessConversationType,
     newMessage, loading, loadError, sending, notFound, otherTyping, showSeen, lastSentByMe,
-    stickToBottom, messagesEndRef, threadRef, inputRef,
+    stickToBottom, messagesEndRef, threadRef, inputRef, isArchived,
     handleInputChange, handleBlur, sendMessage, retryMessage,
     handleThreadScroll, scrollToLatest, user,
   } = chat;
 
+  const artifactConversationId = isBusinessConversation ? legacyConversationId : conversationId;
+  const isBusinessCustomerConversation = !isBusinessConversation || businessConversationType === 'customer';
+  const canUseProviderTools = providerMode
+    && !isArchived
+    && isBusinessCustomerConversation
+    && Boolean(artifactConversationId);
+  const archiveAction = isArchived ? onRestore : onArchive;
+
   const handleDeleteMessage = async (messageId) => {
+    if (isBusinessConversation) return;
     if (!window.confirm(t('messages.deleteConfirm'))) return;
     try {
       await api.delete(`/messages/conversations/${conversationId}/${messageId}`);
@@ -130,6 +143,7 @@ export default function ConversationThread({
   };
 
   const handleEditMessage = (messageId) => {
+    if (isBusinessConversation) return;
     const msg = messages.find((item) => item.id === messageId);
     if (msg) {
       setEditingId(messageId);
@@ -235,32 +249,22 @@ export default function ConversationThread({
           </div>
         </div>
         <div className="messages-thread-actions">
-          {onArchive ? (
+          {archiveAction ? (
             <button
               type="button"
               className="messages-thread-action-icon"
-              onClick={onArchive}
-              aria-label={t('messages.archive')}
-              title={t('messages.archive')}
+              onClick={archiveAction}
+              aria-label={isArchived ? t('messages.restore') : t('messages.archive')}
+              title={isArchived ? t('messages.restore') : t('messages.archive')}
             >
-              <Archive size={16} aria-hidden />
-              <span className="messages-thread-action-label">{t('messages.archive')}</span>
-            </button>
-          ) : null}
-          {onRestore ? (
-            <button
-              type="button"
-              className="messages-thread-action-icon"
-              onClick={onRestore}
-              aria-label={t('messages.restore')}
-              title={t('messages.restore')}
-            >
-              <RotateCcw size={16} aria-hidden />
-              <span className="messages-thread-action-label">{t('messages.restore')}</span>
+              {isArchived ? <RotateCcw size={16} aria-hidden /> : <Archive size={16} aria-hidden />}
+              <span className="messages-thread-action-label">
+                {isArchived ? t('messages.restore') : t('messages.archive')}
+              </span>
             </button>
           ) : null}
           {/* Provider deal chips live only in ProviderMessengerToolbar (no header duplicate). */}
-          {!canUseProviderTools ? (
+          {!isBusinessConversation && !canUseProviderTools && !isArchived ? (
             <button
               type="button"
               className="messages-thread-action-icon"
@@ -398,9 +402,10 @@ export default function ConversationThread({
                             <QuoteCard
                               markerText={msg.content}
                               isProvider={canUseProviderTools}
+                              readOnly={isArchived}
                               isAuthenticated
                               guestVerified={false}
-                              conversationId={conversationId}
+                              conversationId={artifactConversationId}
                               payeeBusinessId={businessId}
                               payeeHelperId={helperId}
                               onAccepted={(data) => {
@@ -416,6 +421,7 @@ export default function ConversationThread({
                             <ProofOfPaymentCard
                               markerText={msg.content}
                               isProvider={canUseProviderTools}
+                              readOnly={isArchived}
                               onRefundRequest={(target) => {
                                 setRefundTarget(target);
                                 setShowCreditRefund(true);
@@ -425,8 +431,9 @@ export default function ConversationThread({
                           {payReqParsed ? (
                             <PaymentRequestCard
                               markerText={msg.content}
-                              conversationId={conversationId}
+                              conversationId={artifactConversationId}
                               isProvider={canUseProviderTools}
+                              readOnly={isArchived}
                               isAuthenticated
                               payeeBusinessId={businessId}
                               payeeHelperId={helperId}
@@ -436,6 +443,7 @@ export default function ConversationThread({
                             <AgreementCard
                               markerText={msg.content}
                               isProvider={canUseProviderTools}
+                              readOnly={isArchived}
                               isAuthenticated
                             />
                           ) : null}
@@ -443,8 +451,9 @@ export default function ConversationThread({
                             <BookingRequestCard
                               markerText={msg.content}
                               isProvider={canUseProviderTools}
+                              readOnly={isArchived}
                               isAuthenticated
-                              conversationId={conversationId}
+                              conversationId={artifactConversationId}
                               onProposeTime={({ booking }) => {
                                 setProposingBookingId(booking?.id || null);
                                 setSchedulingQuote(null);
@@ -460,9 +469,9 @@ export default function ConversationThread({
                       <span className="messages-edited">{t('messages.edited')}</span>
                     )}
                   </div>
-                  {!msg._pending && !msg._failed && (
+                  {!isBusinessConversation && !msg._pending && !msg._failed && (
                     <MessageReactions
-                      conversationId={conversationId}
+                    conversationId={artifactConversationId}
                       messageId={msg.id}
                       reactions={msg.reactions || []}
                     />
@@ -487,9 +496,9 @@ export default function ConversationThread({
                       onDelete={() => handleDeleteMessage(msg.id)}
                       onReport={() => setReportUserOpen(true)}
                       onBlock={handleBlockUser}
-                      canEdit={isMe}
-                      canDelete={isMe}
-                      canModerate={!isMe && Boolean(otherUserId)}
+                      canEdit={isMe && !isBusinessConversation}
+                      canDelete={isMe && !isBusinessConversation}
+                      canModerate={!isBusinessConversation && !isMe && Boolean(otherUserId)}
                     />
                   </div>
                 </>
@@ -586,7 +595,7 @@ export default function ConversationThread({
                     timezone: tz,
                   });
                   const body = buildInboxScheduleBookingBody({
-                    conversationId,
+                    conversationId: artifactConversationId,
                     helperId,
                     businessId,
                     serviceId: slot.serviceId,
@@ -652,7 +661,7 @@ export default function ConversationThread({
           onClose={() => setShowQuoteShare(false)}
           kind={businessId ? 'business' : 'helper'}
           businessId={businessId}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
           onShared={(data) => {
             // Optimistic append if socket lags
             if (data?.message) {
@@ -666,7 +675,7 @@ export default function ConversationThread({
         <PopSharePanel
           open={showPopShare}
           onClose={() => setShowPopShare(false)}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
           businessId={businessId}
           onShared={() => setShowPopShare(false)}
         />
@@ -675,23 +684,23 @@ export default function ConversationThread({
         <AgreementSharePanel
           open={showAgreementShare}
           onClose={() => setShowAgreementShare(false)}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
           businessId={businessId}
           onShared={() => setShowAgreementShare(false)}
         />
       )}
-      {showContactDrawer && (
+      {showContactDrawer && !isBusinessConversation && (
         <ConversationContactDrawer
           open={showContactDrawer}
           onClose={() => setShowContactDrawer(false)}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
         />
       )}
       {showCreditRefund && (
         <CreditRefundPanel
           open={showCreditRefund}
           onClose={() => { setShowCreditRefund(false); setRefundTarget(null); }}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
           paymentRequestId={refundTarget?.paymentRequestId || null}
           popId={refundTarget?.popId || null}
           creditTxnId={refundTarget?.creditTxnId || null}
@@ -704,23 +713,38 @@ export default function ConversationThread({
         <PaymentRequestSharePanel
           open={showPaymentRequestShare}
           onClose={() => setShowPaymentRequestShare(false)}
-          conversationId={conversationId}
+          conversationId={artifactConversationId}
           businessId={businessId}
           onShared={() => setShowPaymentRequestShare(false)}
         />
       )}
-<ConversationComposer
-        conversationId={conversationId}
-        value={newMessage}
-        onChange={handleInputChange}
-        onBlur={handleBlur}
-        onSend={sendMessage}
-        sending={sending}
-        inputRef={inputRef}
-        starters={starters}
-        showStarters={messages.length === 0}
-        placeholder={role === 'helper' ? t('messages.typeReply') : t('messages.typeAMessage')}
-      />
+      {isArchived ? (
+        <div className="messages-archived-notice" role="status">
+          <p>{t('messages.archivedReadOnly', { defaultValue: 'This conversation is archived. Restore it to continue messaging.' })}</p>
+          {onRestore ? (
+            <button type="button" onClick={onRestore}>
+              <RotateCcw size={15} aria-hidden />
+              {t('messages.restore')}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <ConversationComposer
+          conversationId={conversationId}
+          value={newMessage}
+          onChange={handleInputChange}
+          onBlur={handleBlur}
+          onSend={sendMessage}
+          sending={sending}
+          inputRef={inputRef}
+          starters={starters}
+          showStarters={messages.length === 0}
+          placeholder={role === 'helper' ? t('messages.typeReply') : t('messages.typeAMessage')}
+          uploadAttachment={isBusinessConversation
+            ? (id, file) => uploadBusinessMessageAttachment(workspaceBusinessId, id, file)
+            : undefined}
+        />
+      )}
 
       <FinancialAdvisorPanel isOpen={showAdvisor} onClose={() => setShowAdvisor(false)} />
     </section>

@@ -29,6 +29,7 @@ export default function BookingRequestCard({
   onAccepted = null,
   onDeclined = null,
   onProposeTime,
+  readOnly = false,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -95,13 +96,13 @@ export default function BookingRequestCard({
   }, [bookingId, load]);
 
   const status = toBookingChatStatus(booking?.status || parsed?.status);
-  const canProviderAct = isProvider && canProviderRespondBooking(status);
+  const canProviderAct = !readOnly && isProvider && canProviderRespondBooking(status);
   const canCustomerAct =
-    !isProvider
+    !readOnly && !isProvider
     && canCustomerRespondBooking(status)
     && (isAuthenticated || guestVerified || Boolean(guestAuthHeaders));
   const canCustomerActNeedsVerify =
-    !isProvider
+    !readOnly && !isProvider
     && canCustomerRespondBooking(status)
     && !isAuthenticated
     && !guestVerified
@@ -109,7 +110,7 @@ export default function BookingRequestCard({
   const canRespond = canProviderAct || canCustomerAct;
 
   const respond = async (action) => {
-    if (!bookingId) return;
+    if (readOnly || !bookingId) return;
     if (!isProvider && !isAuthenticated && !guestVerified && !guestAuthHeaders) {
       onRequestVerify?.();
       return;

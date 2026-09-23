@@ -17,6 +17,7 @@ export default function ConversationList({
   renderItem = null,
   getUnread = null,
   onRestore = null,
+  restorePendingId = null,
   restoreLabel = null,
   className = '',
 }) {
@@ -51,7 +52,14 @@ export default function ConversationList({
           ? getUnread(conv)
           : parseInt(conv.unread_count, 10) > 0;
         if (typeof renderItem === 'function') {
-          return renderItem(conv, { isActive, unread, onSelect });
+          return renderItem(conv, {
+            isActive,
+            unread,
+            onSelect,
+            onRestore,
+            restoreLabel,
+            restorePending: String(restorePendingId) === String(conv.id),
+          });
         }
         const name = conversationDisplayName(conv, t('messages.customer'));
         const preview = conversationPreview(conv) || t('messages.noMessages');
@@ -94,6 +102,7 @@ export default function ConversationList({
                 event.stopPropagation();
                 onRestore(conv);
               }}
+              disabled={String(restorePendingId) === String(conv.id)}
               aria-label={`${restoreLabel || t('messages.restore')} ${name}`}
               title={restoreLabel || t('messages.restore')}
             >

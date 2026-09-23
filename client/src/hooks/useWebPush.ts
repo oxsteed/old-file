@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../api/axios';
 
 /**
@@ -30,6 +30,7 @@ interface UseWebPushResult {
   subscribe: (deviceLabel?: string) => Promise<boolean>;
   unsubscribe: () => Promise<boolean>;
   sendTest: () => Promise<boolean>;
+  refresh: () => Promise<void>;
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -75,32 +76,44 @@ export function useWebPush(): UseWebPushResult {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const initRan = useRef(false);
-
-  // Initial probe - fetch VAPID public key + check current subscription state.
-  useEffect(() => {
-    if (!isSupported || initRan.current) {
-      if (!isSupported) setReady(true);
+  // Probe server capability and the current browser subscription. The public
+  // key is deliberately the only push credential exposed to this hook.
+  const refresh = useCallback(async (): Promise<void> => {
+    if (!isSupported) {
+      setReady(true);
       return;
     }
-    initRan.current = true;
 
-    (async () => {
-      try {
-        const { data } = await api.get<PublicKeyResponse>('/notifications/webpush/public-key');
-        setServerEnabled(!!data.enabled);
-        setPublicKey(data.publicKey);
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.get<PublicKeyResponse>('/notifications/webpush/public-key');
+      setServerEnabled(!!data.enabled && !!data.publicKey);
+      setPublicKey(data.publicKey || null);
+      setPermission(Notification.permission as PushPermission);
 
-        const reg = await navigator.serviceWorker.ready;
-        const existing = await reg.pushManager.getSubscription();
-        setIsSubscribed(!!existing);
-      } catch (err) {
-        // Non-fatal - UI just shows the panel as disabled.
-      } finally {
-        setReady(true);
-      }
-    })();
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error('Service worker is not ready.')), 8000);
+        }),
+      ]);
+      const existing = await reg.pushManager.getSubscription();
+      setIsSubscribed(!!existing);
+    } catch (err) {
+      setServerEnabled(false);
+      setPublicKey(null);
+      setIsSubscribed(false);
+      setError(err instanceof Error ? err.message : 'Unable to check browser push setup.');
+    } finally {
+      setReady(true);
+      setLoading(false);
+    }
   }, [isSupported]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   // Re-subscribe path - SW broadcasts when the browser rotates the endpoint.
   useEffect(() => {
@@ -221,6 +234,7 @@ export function useWebPush(): UseWebPushResult {
     subscribe,
     unsubscribe,
     sendTest,
+    refresh,
   };
 }
 

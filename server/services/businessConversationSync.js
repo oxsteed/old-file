@@ -172,38 +172,66 @@ async function mirrorMessage(args) {
   if (!senderType || !content) return null;
 
   try {
-    const inserted = await pool.query(
-      `INSERT INTO business_messages
-         (conversation_id, sender_id, sender_name, sender_email, sender_type,
-          content, message_type, legacy_message_id, client_message_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (conversation_id, client_message_id)
-       WHERE client_message_id IS NOT NULL DO NOTHING
-       RETURNING id`,
-      [
-        businessConversationId,
-        senderId,
-        senderName,
-        senderEmail,
-        senderType,
-        String(content).slice(0, 10000),
-        messageType,
-        legacyMessageId,
-        clientMessageId,
-      ]
-    );
-    let messageId = inserted.rows[0] && inserted.rows[0].id;
-    let replayed = false;
-    if (!messageId && clientMessageId) {
-      const existing = await pool.query(
-        `SELECT id FROM business_messages
-          WHERE conversation_id = $1 AND client_message_id = $2
-          LIMIT 1`,
-        [businessConversationId, clientMessageId],
+    const writeMessage = async (client) => {
+      // Legacy status messages can be retried by several artifact endpoints at
+      // once. Keep the check and insert on one connection so only one wins.
+      if (legacyMessageId) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+          [`business-message-mirror:${businessConversationId}:${legacyMessageId}`],
+        );
+        const existing = await client.query(
+          `SELECT id FROM business_messages
+            WHERE conversation_id = $1 AND legacy_message_id = $2
+            LIMIT 1`,
+          [businessConversationId, legacyMessageId],
+        );
+        if (existing.rows[0]) return { messageId: existing.rows[0].id, replayed: true };
+      }
+
+      const inserted = await client.query(
+        `INSERT INTO business_messages
+           (conversation_id, sender_id, sender_name, sender_email, sender_type,
+            content, message_type, legacy_message_id, client_message_id)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
+          WHERE EXISTS (
+            SELECT 1 FROM business_conversations
+             WHERE id = $1 AND status NOT IN ('archived', 'spam')
+          )
+         ON CONFLICT (conversation_id, client_message_id)
+         WHERE client_message_id IS NOT NULL DO NOTHING
+         RETURNING id`,
+        [
+          businessConversationId,
+          senderId,
+          senderName,
+          senderEmail,
+          senderType,
+          String(content).slice(0, 10000),
+          messageType,
+          legacyMessageId,
+          clientMessageId,
+        ]
       );
-      messageId = existing.rows[0] && existing.rows[0].id;
-      replayed = Boolean(messageId);
-    }
+      let messageId = inserted.rows[0] && inserted.rows[0].id;
+      let replayed = false;
+      if (!messageId && clientMessageId) {
+        const existing = await client.query(
+          `SELECT id FROM business_messages
+            WHERE conversation_id = $1 AND client_message_id = $2
+            LIMIT 1`,
+          [businessConversationId, clientMessageId],
+        );
+        messageId = existing.rows[0] && existing.rows[0].id;
+        replayed = Boolean(messageId);
+      }
+      return { messageId, replayed };
+    };
+
+    const writeResult = legacyMessageId
+      ? await withTransaction(pool, writeMessage, 'mirror_business_message')
+      : await writeMessage(pool);
+    const { messageId, replayed } = writeResult;
     if (!messageId) return null;
 
     if (replayed) return messageId;
@@ -245,4 +273,131 @@ async function mirrorMessage(args) {
   }
 }
 
-module.exports = { ensureBusinessConversation, mirrorMessage };
+/**
+ * Ensure a customer Business Hub thread has the legacy conversation id used
+ * by the quote, payment, agreement, and booking tables.
+ */
+async function ensureLegacyConversationLink({ businessConversationId, businessId }) {
+  if (!businessConversationId || !businessId) return null;
+
+  try {
+    return await withTransaction(pool, async (client) => {
+      const { rows: businessRows } = await client.query(
+        `SELECT bc.id, bc.legacy_conversation_id, bc.customer_id, b.user_id AS helper_id
+           FROM business_conversations bc
+           JOIN businesses b ON b.id = bc.business_id
+          WHERE bc.id = $1 AND bc.business_id = $2
+            AND bc.conversation_type = 'customer'
+          FOR UPDATE`,
+        [businessConversationId, businessId],
+      );
+      const businessConversation = businessRows[0];
+      if (!businessConversation?.customer_id || !businessConversation.helper_id) return null;
+      if (businessConversation.legacy_conversation_id) return businessConversation.legacy_conversation_id;
+      if (String(businessConversation.customer_id) === String(businessConversation.helper_id)) return null;
+
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+        [`legacy-conversation-link:${businessId}:${businessConversation.customer_id}`],
+      );
+
+      const existing = await client.query(
+        `SELECT id FROM conversations
+          WHERE business_id = $1 AND customer_id = $2 AND helper_id = $3 AND job_id IS NULL
+          ORDER BY updated_at DESC NULLS LAST, created_at DESC
+          LIMIT 1`,
+        [businessId, businessConversation.customer_id, businessConversation.helper_id],
+      );
+      let legacyId = existing.rows[0]?.id || null;
+
+      if (!legacyId) {
+        const inserted = await client.query(
+          `INSERT INTO conversations
+             (customer_id, helper_id, business_id, status, last_message_at)
+           VALUES ($1, $2, $3, 'active', NOW())
+           ON CONFLICT DO NOTHING
+           RETURNING id`,
+          [businessConversation.customer_id, businessConversation.helper_id, businessId],
+        );
+        legacyId = inserted.rows[0]?.id || null;
+      }
+
+      if (!legacyId) {
+        const retry = await client.query(
+          `SELECT id FROM conversations
+            WHERE business_id = $1 AND customer_id = $2 AND helper_id = $3 AND job_id IS NULL
+            ORDER BY updated_at DESC NULLS LAST, created_at DESC
+            LIMIT 1`,
+          [businessId, businessConversation.customer_id, businessConversation.helper_id],
+        );
+        legacyId = retry.rows[0]?.id || null;
+      }
+
+      if (!legacyId) return null;
+      await client.query(
+        `UPDATE business_conversations
+            SET legacy_conversation_id = $1, updated_at = NOW()
+          WHERE id = $2`,
+        [legacyId, businessConversationId],
+      );
+      return legacyId;
+    }, 'ensure_legacy_conversation_link');
+  } catch (err) {
+    logger.warn('ensureLegacyConversationLink failed', {
+      err: err && err.message,
+      businessConversationId,
+      businessId,
+    });
+    return null;
+  }
+}
+
+/** Mirror an artifact/status message created in the legacy thread. */
+async function mirrorLegacyMessage({ legacyConversationId, businessId = null, message, senderName = null }) {
+  // Most legacy threads are personal helper chats. Avoid an extra database
+  // lookup for those; only business-scoped artifacts need mirroring.
+  if (!legacyConversationId || !businessId || !message?.id) return null;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT bc.id AS business_conversation_id,
+              c.customer_id,
+              c.helper_id,
+              u.email AS sender_email
+         FROM business_conversations bc
+         JOIN conversations c ON c.id = bc.legacy_conversation_id
+         LEFT JOIN users u ON u.id = $3
+        WHERE bc.legacy_conversation_id = $1 AND bc.business_id = $2
+        LIMIT 1`,
+      [legacyConversationId, businessId, message.sender_id],
+    );
+    const link = rows[0];
+    if (!link) return null;
+
+    return mirrorMessage({
+      businessConversationId: link.business_conversation_id,
+      senderId: message.sender_id,
+      senderName,
+      senderEmail: link.sender_email || null,
+      senderType: String(message.sender_id) === String(link.customer_id) ? 'customer' : 'team_member',
+      content: message.content,
+      messageType: message.message_type || 'text',
+      legacyMessageId: message.id,
+      clientMessageId: message.client_message_id || null,
+    });
+  } catch (err) {
+    logger.warn('mirrorLegacyMessage failed', {
+      err: err && err.message,
+      legacyConversationId,
+      legacyMessageId: message?.id,
+    });
+    return null;
+  }
+}
+
+module.exports = {
+  ensureBusinessConversation,
+  ensureLegacyConversationLink,
+  mirrorMessage,
+  mirrorLegacyMessage,
+};

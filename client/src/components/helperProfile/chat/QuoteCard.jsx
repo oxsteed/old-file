@@ -35,6 +35,7 @@ export default function QuoteCard({
   payeeHelperId = null,
   onRequestSignIn,
   onCreditPaid,
+  readOnly = false,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -105,7 +106,7 @@ export default function QuoteCard({
   const lineItems = Array.isArray(quote?.line_items) ? quote.line_items : [];
 
   const respond = async (action) => {
-    if (!kind || !quoteId) return;
+    if (readOnly || !kind || !quoteId) return;
     if (!isAuthenticated && !guestVerified) {
       onRequestVerify?.();
       return;
@@ -171,7 +172,7 @@ export default function QuoteCard({
   });
 
   const showCustomerActions =
-    !isProvider && status === 'sent' && !quote?.superseded_at;
+    !readOnly && !isProvider && status === 'sent' && !quote?.superseded_at;
 
   return (
     <div
@@ -311,7 +312,7 @@ export default function QuoteCard({
       )}
 
 
-      {!isProvider && (status === 'accepted' || status === 'sent') && !quote?.superseded_at && !expired && (
+      {!readOnly && !isProvider && (status === 'accepted' || status === 'sent') && !quote?.superseded_at && !expired && (
         <div className="messenger-quote-card__actions" style={{ marginTop: 8 }}>
           {isAuthenticated ? (
             <button
@@ -335,7 +336,7 @@ export default function QuoteCard({
       )}
 
       <PayWithCreditModal
-        open={showCreditPay}
+        open={showCreditPay && !readOnly}
         onClose={() => setShowCreditPay(false)}
         conversationId={conversationId}
         amountCents={total}
@@ -349,7 +350,7 @@ export default function QuoteCard({
         onPaid={(data) => onCreditPaid?.(data)}
       />
 
-      {status === 'accepted' && !isProvider && (
+      {!readOnly && status === 'accepted' && !isProvider && (
         <button
           type="button"
           className="messenger-quote-card__btn messenger-quote-card__btn--primary messenger-quote-card__schedule"

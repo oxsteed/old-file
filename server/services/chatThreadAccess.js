@@ -8,10 +8,11 @@
 const pool = require('../db');
 const guestProfileVerify = require('./guestProfileChatVerification');
 
-async function assertConversationParticipant(userId, conversationId) {
+async function assertConversationParticipant(userId, conversationId, { writable = false } = {}) {
   if (!userId || !conversationId) return null;
   const { rows } = await pool.query(
-    `SELECT c.id, c.customer_id, c.helper_id, c.business_id, c.job_id
+    `SELECT c.id, c.customer_id, c.helper_id, c.business_id, c.job_id,
+            c.status, c.archived_at
        FROM conversations c
       WHERE c.id = $1 AND (
         c.customer_id = $2 OR c.helper_id = $2
@@ -26,7 +27,15 @@ async function assertConversationParticipant(userId, conversationId) {
       )`,
     [conversationId, userId],
   );
-  return rows[0] || null;
+  const conversation = rows[0] || null;
+  if (writable && conversation && (conversation.status === 'archived' || conversation.archived_at)) {
+    const error = new Error('Conversation is archived');
+    error.status = 409;
+    error.statusCode = 409;
+    error.code = 'conversation_archived';
+    throw error;
+  }
+  return conversation;
 }
 
 async function assertGuestInquiryAccess(userId, guestSessionId) {

@@ -134,6 +134,30 @@ function bindChatNamespace(namespace, { pool, socketService, logger }) {
       }
     });
 
+    const emitBusinessTyping = async (event, payload) => {
+      const businessId = payload?.businessId;
+      const conversationId = payload?.conversationId;
+      if (!businessId || !conversationId) return;
+      if (!(await socketService.validateBusinessRoomAccess(businessId, userId))) return;
+      socket.to(`business_${businessId}_inbox`).emit(event, {
+        businessId,
+        conversationId,
+        userId,
+      });
+    };
+
+    socket.on('business:typing:start', (payload) => {
+      emitBusinessTyping('business:user:typing', payload).catch((err) => {
+        logger.warn('business typing start failed', { userId, error: err?.message });
+      });
+    });
+
+    socket.on('business:typing:stop', (payload) => {
+      emitBusinessTyping('business:user:stopped_typing', payload).catch((err) => {
+        logger.warn('business typing stop failed', { userId, error: err?.message });
+      });
+    });
+
     if (['helper', 'helper_pro', 'broker'].includes(socket.userRole)) {
       socket.join('guest_chat_waiting');
       logger.debug('Helper joined guest chat waiting room', { userId });

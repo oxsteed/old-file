@@ -7,6 +7,7 @@ const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
+const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 
 function normalizeMessageAttachments(value) {
   if (!Array.isArray(value)) return [];
@@ -172,8 +173,11 @@ const getConversations = async (req, res) => {
       bizFilter = ` AND c.business_id = $${params.length}`;
     }
 
-    // By default, exclude archived conversations; add filter to include them if requested
-    const archivedFilter = includeArchived ? '' : ' AND c.archived_at IS NULL';
+    // Keep the status and timestamp state machine aligned. Older rows may have
+    // only one of these fields set, so the archive view accepts either signal.
+    const statusFilter = includeArchived
+      ? " AND (c.status IN ('active', 'archived') OR c.archived_at IS NOT NULL)"
+      : " AND c.status = 'active' AND c.archived_at IS NULL";
 
     const result = await pool.query(
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
@@ -222,7 +226,7 @@ const getConversations = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
-       ) AND c.status = 'active'${bizFilter}${archivedFilter}
+       )${bizFilter}${statusFilter}
        ORDER BY c.last_message_at DESC NULLS LAST`,
       params
     );
@@ -324,7 +328,7 @@ const getMessages = async (req, res, next) => {
 
     // Verify user is part of conversation (direct participant or active business rep)
     const conv = await pool.query(
-      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+      `SELECT c.customer_id, c.helper_id, c.business_id, c.status, c.archived_at FROM conversations c
        WHERE c.id = $1 AND (
          c.customer_id = $2
          OR c.helper_id = $2
@@ -381,6 +385,7 @@ const getConversationMeta = async (req, res) => {
     const result = await pool.query(
       `SELECT
          c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
+         c.archived_at,
          CASE
            WHEN c.customer_id = $2 AND NULLIF(cb.business_name, '') IS NOT NULL THEN cb.business_name
            WHEN c.customer_id = $2 THEN h.first_name || ' ' || h.last_name
@@ -538,7 +543,8 @@ const sendMessage = async (req, res, next) => {
     } = await withTransaction(pool, async (client) => {
       // Verify user is part of conversation and fetch metadata
       const convResult = await client.query(
-        `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id, b.business_name
+        `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id,
+                c.status, c.archived_at, b.business_name
          FROM conversations c
          LEFT JOIN businesses b ON b.id = c.business_id AND b.is_active = TRUE
          WHERE c.id = $1 AND (
@@ -564,6 +570,9 @@ const sendMessage = async (req, res, next) => {
       }
 
       const conv = convResult.rows[0];
+      if (conv.status === 'archived' || conv.archived_at) {
+        throw new AppError('Conversation is archived', 409, 'conversation_archived');
+      }
       const senderName = (conv.business_id && conv.business_name)
         ? conv.business_name
         : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
@@ -670,6 +679,46 @@ const sendMessage = async (req, res, next) => {
       ? business_name
       : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim());
     const fullMessagePayload = { ...messagePayload, sender_name: senderName };
+
+    // Keep the Business Hub copy durable as well as realtime. Profile-chat
+    // creation already uses this bridge, but ordinary customer messages can
+    // arrive through this legacy endpoint too.
+    if (business_id && String(userId) === String(customer_id)) {
+      try {
+        const senderResult = await pool.query(
+          'SELECT first_name, last_name, email FROM users WHERE id = $1',
+          [userId],
+        );
+        const sender = senderResult.rows[0] || {};
+        const displayName = [sender.first_name, sender.last_name].filter(Boolean).join(' ') || sender.email || null;
+        const businessConversationId = await ensureBusinessConversation({
+          businessId: business_id,
+          legacyConversationId: conversationId,
+          customerId: userId,
+          customerName: displayName,
+          customerEmail: sender.email || `${userId}@user.local`,
+        });
+        if (businessConversationId) {
+          await mirrorMessage({
+            businessConversationId,
+            senderId: userId,
+            senderName: displayName,
+            senderEmail: sender.email || null,
+            senderType: 'customer',
+            content,
+            messageType: messagePayload.message_type || 'text',
+            legacyMessageId: messagePayload.id,
+            clientMessageId,
+          });
+        }
+      } catch (mirrorError) {
+        logger.warn('business message mirror failed', {
+          err: mirrorError && mirrorError.message,
+          conversationId,
+          businessId: business_id,
+        });
+      }
+    }
 
     // A retry with the same client ID returns the original message but must
     // not fan out a second socket event or notification.
@@ -1005,27 +1054,42 @@ const archiveConversation = async (req, res) => {
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
 
-    // Archive the conversation
-    const result = await pool.query(
-      `UPDATE conversations
-       SET archived_at = NOW()
-       WHERE id = $1 AND archived_at IS NULL
-       RETURNING *`,
-      [conversationId]
-    );
+    const result = await withTransaction(pool, async (client) => {
+      const archived = await client.query(
+        `UPDATE conversations
+         SET status = 'archived', archived_at = NOW(), archived_by = $2
+         WHERE id = $1 AND archived_at IS NULL AND status <> 'blocked'
+         RETURNING *`,
+        [conversationId, userId]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Conversation is already archived' });
-    }
+      if (archived.rows.length === 0) {
+        return null;
+      }
 
-    // Log the archival event
-    await pool.query(
-      `INSERT INTO conversation_archive_log (conversation_id, user_id, action, reason)
-       VALUES ($1, $2, 'archived', $3)`,
-      [conversationId, userId, reason || null]
-    );
+      await client.query(
+        `INSERT INTO conversation_archive_log (conversation_id, user_id, action, reason)
+         VALUES ($1, $2, 'archived', $3)`,
+        [conversationId, userId, reason || null]
+      );
+      await client.query(
+        `UPDATE business_conversations
+            SET status = 'archived', updated_at = NOW()
+          WHERE legacy_conversation_id = $1`,
+        [conversationId],
+      );
+      return archived.rows[0];
+    }, 'archive_conversation');
 
-    res.json(result.rows[0]);
+    if (!result) return res.status(400).json({ error: 'Conversation is already archived' });
+
+    socketService.broadcastToConversation(conversationId, 'conversation:archive_updated', {
+      conversationId,
+      status: 'archived',
+      archivedAt: result.archived_at,
+    });
+
+    res.json(result);
   } catch (error) {
     logger.error('Error archiving conversation', { err: error.message });
     res.status(500).json({ error: 'Failed to archive conversation' });
@@ -1053,27 +1117,43 @@ const restoreConversation = async (req, res) => {
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
 
-    // Restore the conversation
-    const result = await pool.query(
-      `UPDATE conversations
-       SET archived_at = NULL
-       WHERE id = $1 AND archived_at IS NOT NULL
-       RETURNING *`,
-      [conversationId]
-    );
+    const result = await withTransaction(pool, async (client) => {
+      const restored = await client.query(
+        `UPDATE conversations
+         SET status = 'active', archived_at = NULL, archived_by = NULL
+         WHERE id = $1 AND status <> 'blocked'
+           AND (archived_at IS NOT NULL OR status = 'archived')
+         RETURNING *`,
+        [conversationId]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Conversation is not archived' });
-    }
+      if (restored.rows.length === 0) {
+        return null;
+      }
 
-    // Log the restoration event
-    await pool.query(
-      `INSERT INTO conversation_archive_log (conversation_id, user_id, action)
-       VALUES ($1, $2, 'restored')`,
-      [conversationId, userId]
-    );
+      await client.query(
+        `INSERT INTO conversation_archive_log (conversation_id, user_id, action)
+         VALUES ($1, $2, 'restored')`,
+        [conversationId, userId]
+      );
+      await client.query(
+        `UPDATE business_conversations
+            SET status = 'active', updated_at = NOW()
+          WHERE legacy_conversation_id = $1 AND status = 'archived'`,
+        [conversationId],
+      );
+      return restored.rows[0];
+    }, 'restore_conversation');
 
-    res.json(result.rows[0]);
+    if (!result) return res.status(400).json({ error: 'Conversation is not archived' });
+
+    socketService.broadcastToConversation(conversationId, 'conversation:archive_updated', {
+      conversationId,
+      status: 'active',
+      archivedAt: null,
+    });
+
+    res.json(result);
   } catch (error) {
     logger.error('Error restoring conversation', { err: error.message });
     res.status(500).json({ error: 'Failed to restore conversation' });
@@ -1084,8 +1164,10 @@ const restoreConversation = async (req, res) => {
 const getArchivedConversations = async (req, res) => {
   try {
     const userId = req.user.id;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const requestedOffset = Number.parseInt(req.query.offset, 10);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
+    const offset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
     const result = await pool.query(
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
@@ -1108,7 +1190,7 @@ const getArchivedConversations = async (req, res) => {
              WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
            ))
          )
-         AND c.archived_at IS NOT NULL
+         AND (c.archived_at IS NOT NULL OR c.status = 'archived')
        ORDER BY c.archived_at DESC
        LIMIT $2 OFFSET $3`,
       [userId, limit, offset]
@@ -1124,7 +1206,7 @@ const getArchivedConversations = async (req, res) => {
              WHERE bm.business_id = conversations.business_id AND bm.member_id = $1 AND bm.status = 'active'
            ))
          )
-         AND archived_at IS NOT NULL`,
+         AND (archived_at IS NOT NULL OR status = 'archived')`,
       [userId]
     );
 

@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
-import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import './Footer.css';
 
 const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
 const OXSTEED_MAIN_PHONE = '+1 (937) 408-5169';
@@ -37,94 +37,20 @@ export default function Footer() {
   const { openSettings } = useCookieConsentContext();
   const { t } = useTranslation();
   const helperRoles = new Set(['helper', 'helper_pro', 'broker']);
-  const currentMode = user?.default_mode || (helperRoles.has(user?.role) ? 'helper' : 'customer');
   const isHelper = helperRoles.has(user?.role);
-
-  const footerSectionTitleStyle = {
-    fontSize: '0.75rem',
-    fontWeight: 700,
-    color: 'var(--color-text)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    marginBottom: '0.95rem',
-  };
-
-  const utilityPillStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    textDecoration: 'none',
-    background: 'rgba(148,163,184,0.08)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '999px',
-    padding: '0.4rem 0.8rem',
-    fontSize: '0.76rem',
-    fontWeight: 600,
-    color: 'var(--color-text)',
-    cursor: 'pointer',
-    letterSpacing: '0.02em',
-    transition: 'background var(--transition-fast), transform var(--transition-fast)',
-  };
 
   return (
     <>
-    <footer
-      style={{
-        borderTop: '1px solid var(--color-border)',
-        background: 'linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 18%, var(--color-surface) 100%)',
-        color: 'var(--color-text)',
-        padding: 'var(--space-10) 0 var(--space-8)',
-      }}
-    >
-      <div className="ox-container">
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          alignItems: 'start',
-          gap: 'var(--space-8)',
-          marginBottom: 'var(--space-8)',
-          paddingBottom: 'var(--space-8)',
-          borderBottom: '1px solid var(--color-border)',
-        }}>
-          <div style={{
-            border: '1px solid var(--color-border)',
-            borderRadius: '1.25rem',
-            padding: '1.1rem 1.15rem',
-            background: 'linear-gradient(180deg, rgba(148,163,184,0.04) 0%, rgba(148,163,184,0.02) 100%)',
-            maxWidth: '32rem',
-          }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.55rem',
-              padding: '0.3rem 0.7rem',
-              borderRadius: '999px',
-              background: 'rgba(249,115,22,0.08)',
-              border: '1px solid rgba(249,115,22,0.22)',
-              color: 'var(--color-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              marginBottom: '1rem',
-            }}>
+    <footer className="site-footer">
+      <div className="ox-container site-footer__inner">
+        <div className="site-footer__top">
+          <div className="site-footer__brand">
+            <div className="site-footer__eyebrow">
               <span>{t('footer.networkTagline')}</span>
             </div>
 
-            <Link
-              to="/"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                textDecoration: 'none',
-                fontSize: '1.55rem',
-                fontWeight: 800,
-                color: 'var(--color-text)',
-                marginBottom: '0.7rem',
-              }}
-            >
-              <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
+            <Link to="/" className="site-footer__brand-link">
+              <svg className="site-footer__mark" width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
                 <rect width="512" height="512" rx="88" fill="#16213e" />
                 <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316" />
                 <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316" />
@@ -136,60 +62,37 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <p style={{ fontSize: '0.94rem', color: 'var(--color-text)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1rem' }}>
+            <p className="site-footer__tagline">
               {t('footer.tagline')}
             </p>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text)', lineHeight: 1.6 }}>
+            <p className="site-footer__subtagline">
               {t('footer.subtagline')}
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: 'var(--space-6)',
-            alignContent: 'start',
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-              <span style={footerSectionTitleStyle}>
+          <div className="site-footer__link-grid">
+            <div className="site-footer__group">
+              <span className="site-footer__heading">
                 {t('footer.company')}
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
               <FooterLink to="/careers">{t('footer.careers')}</FooterLink>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-              <span style={footerSectionTitleStyle}>
-                {t('footer.legal')}
-              </span>
-              <FooterLink to="/legal/background-check">{t('footer.backgroundCheck')}</FooterLink>
-              <FooterLink to="/legal/arbitration">{t('footer.arbitration')}</FooterLink>
-              <FooterLink to="/legal/escrow-policy">{t('footer.escrowPolicy')}</FooterLink>
-              <FooterLink to="/legal/account-termination">{t('footer.accountTermination')}</FooterLink>
-              <FooterLink to="/legal/dispute-resolution">{t('footer.disputeResolution')}</FooterLink>
-              <FooterLink to="/legal/independent-contractor">{t('footer.independentContractor')}</FooterLink>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-              <span style={footerSectionTitleStyle}>
+            <div className="site-footer__group">
+              <span className="site-footer__heading">
                 {t('footer.platform')}
               </span>
-              {user ? (
-                <FooterLink to={routeForMode(currentMode)}>{t('nav.dashboard')}</FooterLink>
-              ) : (
+              {!user && (
                 <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
               )}
-              <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
               <FooterLink to="/restaurants">{t('footer.restaurants')}</FooterLink>
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
-              <FooterLink to="/support/escalation">{t('footer.support')}</FooterLink>
-              <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
-              <FooterLink to={isHelper ? routeForMode(currentMode) : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
-              <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
               {LAUNCH_VISIBILITY.productMarketplace && <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>}
               {isHelper && (
                 <>
-                  <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>
+                  <span className="site-footer__heading site-footer__heading--nested">
                     {t('footer.resource')}
                   </span>
                   <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
@@ -199,66 +102,30 @@ export default function Footer() {
           </div>
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          gap: 'var(--space-4)',
-          marginBottom: 'var(--space-4)',
-          alignItems: 'center',
-          padding: '0.9rem 1rem',
-          border: '1px solid var(--color-border)',
-          borderRadius: '1rem',
-          background: 'rgba(148,163,184,0.04)',
-        }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'center' }}>
-            <LegalLink to="/terms">{t('footer.terms')}</LegalLink>
-            <LegalLink to="/privacy">{t('footer.privacy')}</LegalLink>
-            <LegalLink to="/security">{t('footer.security')}</LegalLink>
-            <LegalLink to="/cookie-policy">{t('footer.cookiePolicy')}</LegalLink>
-            <LegalLink to="/do-not-sell">{t('footer.doNotSell')}</LegalLink>
-            <LegalLink to="/accessibility">{t('footer.accessibility')}</LegalLink>
+        <div className="site-footer__utility">
+          <div className="site-footer__controls">
             <button
               onClick={openSettings}
               aria-label={t('footer.manageCookies')}
-              style={{
-                background: 'none',
-                border: 'none',
-                minHeight: '40px',
-                padding: '0.45rem 0',
-                fontSize: '0.78rem',
-                color: 'var(--color-text)',
-                cursor: 'pointer',
-                transition: 'color var(--transition-fast)',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-primary)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text)')}
+              className="site-footer__cookie-button"
             >
               {t('footer.manageCookies')}
             </button>
           </div>
 
           {SHOW_FOOTER_UTILITY_PILLS && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+          <div className="site-footer__pills">
             <button
               type="button"
               onClick={() => navigate('/vortex')}
-              style={utilityPillStyle}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(148,163,184,0.08)'}
+              className="site-footer__pill"
             >
               {t('footer.vortex')}
             </button>
             {user && (
               <Link
                 to="/support/agent"
-                style={utilityPillStyle}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(148,163,184,0.14)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(148,163,184,0.08)';
-                }}
+                className="site-footer__pill"
               >
                 {t('nav.supportWorkspace')}
               </Link>
@@ -266,9 +133,7 @@ export default function Footer() {
             <button
               type="button"
               onClick={() => navigate('/direct/request-quote')}
-              style={utilityPillStyle}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(148,163,184,0.08)'}
+              className="site-footer__pill"
               title={t('footer.consultingTooltip')}
             >
               {t('footer.consulting')}
@@ -277,34 +142,20 @@ export default function Footer() {
           )}
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 'var(--space-2)',
-          paddingTop: 'var(--space-4)',
-          borderTop: '1px solid var(--color-border)',
-          fontSize: 'var(--text-xs)',
-          color: 'var(--color-text)',
-        }}>
-          <p>&copy; {year} OxSteed LLC</p>
-          <p>
+        <div className="site-footer__bottom">
+          <p className="site-footer__copyright">&copy; {year} OxSteed LLC</p>
+          <p className="site-footer__contact">
             <a
               href="mailto:support@oxsteed.com"
-              style={{ display: 'inline-flex', minHeight: '40px', alignItems: 'center', color: 'var(--color-primary)', textDecoration: 'none' }}
-              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+              className="site-footer__contact-link"
             >
               support@oxsteed.com
             </a>
-            <span aria-hidden="true">{' · '}</span>
+            <span className="site-footer__contact-separator" aria-hidden="true">/</span>
             <a
               href="tel:+19374085169"
               aria-label={t('footer.callOxSteed', { defaultValue: `Call OxSteed at ${OXSTEED_MAIN_PHONE}` })}
-              style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
-              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+              className="site-footer__contact-link"
             >
               {OXSTEED_MAIN_PHONE}
             </a>
@@ -329,51 +180,7 @@ export default function Footer() {
 }
 
 function FooterLink({ to, children }) {
-  return (
-    <Link
-      to={to}
-      style={{
-        display: 'inline-flex',
-        minHeight: '40px',
-        alignItems: 'center',
-        fontSize: '0.96rem',
-        color: 'var(--color-text)',
-        textDecoration: 'none',
-        transition: 'color var(--transition-fast), transform var(--transition-fast)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.color = 'var(--color-primary)';
-        e.currentTarget.style.transform = 'translateX(2px)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.color = 'var(--color-text)';
-        e.currentTarget.style.transform = 'translateX(0)';
-      }}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function LegalLink({ to, children }) {
-  return (
-    <Link
-      to={to}
-      style={{
-        display: 'inline-flex',
-        minHeight: '40px',
-        alignItems: 'center',
-        fontSize: '0.78rem',
-        color: 'var(--color-text)',
-        textDecoration: 'none',
-        transition: 'color var(--transition-fast)',
-      }}
-      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
-      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text)'}
-    >
-      {children}
-    </Link>
-  );
+  return <Link className="site-footer__link" to={to}>{children}</Link>;
 }
 
 function VortexModal({ onClose, initialToken = '' }) {

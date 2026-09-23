@@ -69,6 +69,58 @@
   color: #fed7aa;
 }
 
+.messages-archive-more {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: 0.75rem auto 1rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.messages-archive-more:hover:not(:disabled),
+.messages-archive-more:focus-visible {
+  border-color: currentColor;
+}
+
+.messages-archive-more:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.messages-archived-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--messages-border, #d8dee9);
+  background: var(--messages-surface-muted, #f6f8fb);
+  color: var(--messages-text-muted, #5b6678);
+}
+
+.messages-archived-notice p {
+  margin: 0;
+}
+
+.messages-archived-notice button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .messages-archived-notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .sms-conversation-row.messages-row.unread strong {
   color: #fff;
 }

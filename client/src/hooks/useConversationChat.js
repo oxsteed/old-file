@@ -5,6 +5,7 @@ import { useSocket } from './useSocket';
 import { loadMessageDraft, saveMessageDraft, clearMessageDraft } from '../utils/messageDrafts';
 import { toStoredAttachment } from '../utils/messageAttachments';
 import { createMessageRequestId } from '../lib/messageRequestId';
+import { getBusinessConversation, sendBusinessMessage } from '../api/businessMessaging';
 
 const TYPING_EMIT_COOLDOWN = 2000;
 const TYPING_AUTO_CLEAR_MS = 5000; // clear indicator if no stop event received (e.g. disconnect)
@@ -14,11 +15,14 @@ const NEAR_BOTTOM_PX = 96;
  * Shared logic for ConversationPage and HelperConversationPage.
  *
  * @param {string|undefined} conversationId
- * @param {{ extraSocketEvents?: Array<[string, Function]>, listenProfileChat?: boolean }} options
+ * @param {{ extraSocketEvents?: Array<[string, Function]>, listenProfileChat?: boolean, businessId?: string|number }} options
  *   extraSocketEvents: additional [event, handler] pairs
  *   listenProfileChat: when true, handle profile_chat:new_message (job-less profile threads; no message:new from server)
  */
-export function useConversationChat(conversationId, { extraSocketEvents = [], listenProfileChat = false } = {}) {
+export function useConversationChat(
+  conversationId,
+  { extraSocketEvents = [], listenProfileChat = false, businessId: workspaceBusinessId = null } = {},
+) {
   const [messages, setMessages] = useState([]);
   const [otherName, setOtherName] = useState('');
   const [helperBusiness, setHelperBusiness] = useState('');
@@ -27,6 +31,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const [otherUserId, setOtherUserId] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [helperId, setHelperId] = useState(null);
+  const [legacyConversationId, setLegacyConversationId] = useState(null);
+  const [businessConversationType, setBusinessConversationType] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -34,6 +40,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const [notFound, setNotFound] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
   const [lastReadAt, setLastReadAt] = useState(null);
+  const [isArchived, setIsArchived] = useState(false);
   const [stickToBottom, setStickToBottom] = useState(true);
 
   const messagesEndRef = useRef(null);
@@ -64,7 +71,10 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setOtherUserId(null);
     setJobId(null);
     setHelperId(null);
+    setLegacyConversationId(null);
+    setBusinessConversationType(null);
     setLastReadAt(null);
+    setIsArchived(false);
     setOtherTyping(false);
     setStickToBottom(true);
     stickToBottomRef.current = true;
@@ -72,7 +82,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     pendingTempRef.current = new Set();
     pendingClientMessageRef.current = new Map();
     setNewMessage(loadMessageDraft(conversationId));
-  }, [conversationId]);
+  }, [conversationId, workspaceBusinessId]);
 
   useEffect(() => {
     if (!conversationId) return undefined;
@@ -88,12 +98,33 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     }
     try {
       setLoadError(false);
-      const res = await api.get(`/messages/conversations/${conversationId}`);
-      const data = Array.isArray(res.data) ? res.data : [];
+      const res = workspaceBusinessId
+        ? await getBusinessConversation(workspaceBusinessId, conversationId)
+        : await api.get(`/messages/conversations/${conversationId}`).then((response) => response.data);
+      const data = workspaceBusinessId
+        ? (Array.isArray(res?.messages) ? res.messages : []).map((message) => ({
+          ...message,
+          attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
+            url: attachment.url || attachment.file_url,
+            filename: attachment.filename || attachment.file_name,
+            type: attachment.type || attachment.file_type,
+            size: attachment.size || attachment.file_size_bytes,
+          })),
+        }))
+        : (Array.isArray(res) ? res : []);
       messageIdsRef.current = new Set(data.map((m) => m.id));
       setMessages(data);
       const other = data.find(m => m.sender_id !== user?.id);
       if (other?.sender_name) setOtherName(other.sender_name);
+      if (workspaceBusinessId) {
+        setBusinessId(workspaceBusinessId);
+        setIsArchived(res?.status === 'archived');
+        setLegacyConversationId(res?.legacy_conversation_id || null);
+        setBusinessConversationType(res?.conversation_type || null);
+        setOtherName(res?.customer_name || res?.subject || 'Business conversation');
+        setOtherUserId(res?.customer_id || null);
+        setJobTitle(res?.subject || '');
+      }
     } catch (err) {
       if (err.response?.status === 403 || err.response?.status === 404) {
         setNotFound(true);
@@ -104,13 +135,13 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     } finally {
       setLoading(false);
     }
-  }, [conversationId, user?.id]);
+  }, [conversationId, user?.id, workspaceBusinessId]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
   // Load conversation metadata for the header
   useEffect(() => {
-    if (!conversationId) return undefined;
+    if (!conversationId || workspaceBusinessId) return undefined;
     api.get(`/messages/conversations/${conversationId}/meta`)
       .then(res => {
         if (res.data.other_user_name) setOtherName(res.data.other_user_name);
@@ -120,20 +151,21 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         if (res.data.job_id) setJobId(res.data.job_id);
         if (res.data.helper_id) setHelperId(res.data.helper_id);
         if (res.data.business_id != null) setBusinessId(res.data.business_id);
+        setIsArchived(res.data.status === 'archived' || Boolean(res.data.archived_at));
       })
       .catch(() => {});
-  }, [conversationId]);
+  }, [conversationId, workspaceBusinessId]);
 
   // ── Join / leave socket room ──────────────────────────────────
   useEffect(() => {
-    if (!socket || !connected || !conversationId) {
+    if (!socket || !connected || !conversationId || workspaceBusinessId) {
       return;
     }
     joinConversation(conversationId);
     return () => {
       leaveConversation(conversationId);
     };
-  }, [socket, connected, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket, connected, conversationId, workspaceBusinessId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToLatest = useCallback((behavior = 'smooth') => {
     stickToBottomRef.current = true;
@@ -163,11 +195,15 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
   const markConversationRead = useCallback(async () => {
     try {
-      await api.get(`/messages/conversations/${conversationId}`);
+      if (workspaceBusinessId) {
+        await getBusinessConversation(workspaceBusinessId, conversationId);
+      } else {
+        await api.get(`/messages/conversations/${conversationId}`);
+      }
     } catch (_err) {
       // Best effort: read state will be synced on next successful fetch.
     }
-  }, [conversationId]);
+  }, [conversationId, workspaceBusinessId]);
 
   const appendMessageIfNew = useCallback((incomingMessage) => {
     if (!incomingMessage || messageIdsRef.current.has(incomingMessage.id)) {
@@ -300,6 +336,26 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     };
 
     socket.on('message:new', onMessageNew);
+    const onBusinessInboxMessage = ({ conversation_id: cid }) => {
+      if (workspaceBusinessId && String(cid) === String(conversationId)) fetchMessages();
+    };
+    const onBusinessTyping = ({ businessId: bid, conversationId: cid, userId }) => {
+      if (!workspaceBusinessId || String(bid) !== String(workspaceBusinessId) || String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
+      setOtherTyping(true);
+      clearTimeout(typingAutoClearRef.current);
+      typingAutoClearRef.current = setTimeout(() => setOtherTyping(false), TYPING_AUTO_CLEAR_MS);
+    };
+    const onBusinessStoppedTyping = ({ businessId: bid, conversationId: cid, userId }) => {
+      if (!workspaceBusinessId || String(bid) !== String(workspaceBusinessId) || String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
+      clearOtherTyping();
+    };
+    if (workspaceBusinessId) socket.on('business_inbox:message', onBusinessInboxMessage);
+    if (workspaceBusinessId) {
+      socket.on('business:user:typing', onBusinessTyping);
+      socket.on('business:user:stopped_typing', onBusinessStoppedTyping);
+    }
     socket.on('booking:chat_updated', onBookingChatUpdated);
     socket.on('user:typing', onTyping);
     socket.on('user:stopped_typing', onStoppedTyping);
@@ -316,6 +372,11 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
     return () => {
       socket.off('message:new', onMessageNew);
+      if (workspaceBusinessId) socket.off('business_inbox:message', onBusinessInboxMessage);
+      if (workspaceBusinessId) {
+        socket.off('business:user:typing', onBusinessTyping);
+        socket.off('business:user:stopped_typing', onBusinessStoppedTyping);
+      }
       socket.off('booking:chat_updated', onBookingChatUpdated);
       socket.off('user:typing', onTyping);
       socket.off('user:stopped_typing', onStoppedTyping);
@@ -329,19 +390,25 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         socket.off(event, handler);
       }
     };
-  }, [socket, conversationId, user?.id, clearOtherTyping, markConversationRead, appendMessageIfNew, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
+  }, [socket, conversationId, user?.id, clearOtherTyping, markConversationRead, appendMessageIfNew, listenProfileChat, workspaceBusinessId, fetchMessages]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
 
   // ── Typing indicator emit ─────────────────────────────────────
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
     if (!socket) return;
     if (!isTypingRef.current) {
-      socket.emit('typing:start', conversationId);
+      socket.emit(
+        workspaceBusinessId ? 'business:typing:start' : 'typing:start',
+        workspaceBusinessId ? { businessId: workspaceBusinessId, conversationId } : conversationId,
+      );
       isTypingRef.current = true;
     }
     clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => {
-      socket.emit('typing:stop', conversationId);
+      socket.emit(
+        workspaceBusinessId ? 'business:typing:stop' : 'typing:stop',
+        workspaceBusinessId ? { businessId: workspaceBusinessId, conversationId } : conversationId,
+      );
       isTypingRef.current = false;
     }, TYPING_EMIT_COOLDOWN);
   };
@@ -349,23 +416,40 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const stopTypingEmit = useCallback(() => {
     if (isTypingRef.current && socket) {
       clearTimeout(typingTimerRef.current);
-      socket.emit('typing:stop', conversationId);
+      socket.emit(
+        workspaceBusinessId ? 'business:typing:stop' : 'typing:stop',
+        workspaceBusinessId ? { businessId: workspaceBusinessId, conversationId } : conversationId,
+      );
       isTypingRef.current = false;
     }
-  }, [socket, conversationId]);
+  }, [socket, conversationId, workspaceBusinessId]);
 
   const handleBlur = () => stopTypingEmit();
 
   // ── Send ──────────────────────────────────────────────────────
   const sendContent = useCallback(async (content, tempId, attachments = [], clientMessageId) => {
     try {
-      const res = await api.post(`/messages/conversations/${conversationId}`, {
-        content,
-        attachments,
-        clientMessageId,
-      });
+      const businessAttachments = attachments.map((attachment) => ({
+        file_url: attachment.url,
+        file_name: attachment.filename || attachment.name || 'Attachment',
+        file_size_bytes: attachment.size || attachment.file_size_bytes || null,
+        file_type: attachment.type || attachment.mimeType || attachment.file_type || null,
+      }));
+      const res = workspaceBusinessId
+        ? await sendBusinessMessage(workspaceBusinessId, conversationId, {
+          content,
+          attachments: businessAttachments,
+          clientMessageId,
+        })
+        : await api.post(`/messages/conversations/${conversationId}`, {
+          content,
+          attachments,
+          clientMessageId,
+        }).then((response) => response.data);
       pendingTempRef.current.delete(tempId);
-      replaceTempMessage(tempId, res.data);
+      replaceTempMessage(tempId, workspaceBusinessId
+        ? { ...res, attachments }
+        : res);
     } catch (err) {
       console.error('[useConversationChat] send error:', err);
       pendingTempRef.current.delete(tempId);
@@ -373,7 +457,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         prev.map((m) => (m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
       );
     }
-  }, [conversationId, replaceTempMessage]);
+  }, [conversationId, replaceTempMessage, workspaceBusinessId]);
 
   const sendMessage = useCallback(async ({ content, attachments } = {}) => {
     const storedAttachments = (attachments || []).map(toStoredAttachment).filter(Boolean);
@@ -460,6 +544,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     otherUserId,
     jobId,
     helperId,
+    legacyConversationId,
+    businessConversationType,
     businessId,
     newMessage,
     loading,
@@ -470,6 +556,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     showSeen,
     lastSentByMe,
     stickToBottom,
+    isArchived,
+    isBusinessConversation: Boolean(workspaceBusinessId),
     messagesEndRef,
     threadRef,
     inputRef,

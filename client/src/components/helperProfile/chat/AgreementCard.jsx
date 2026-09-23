@@ -16,6 +16,7 @@ export default function AgreementCard({
   guestAuthHeaders = null,
   onStatusChange = null,
   onRequestVerify,
+  readOnly = false,
   compact = false,
 }) {
   const { t } = useTranslation();
@@ -69,7 +70,7 @@ export default function AgreementCard({
   });
 
   const respond = async (action) => {
-    if (!agreementId) return;
+    if (readOnly || !agreementId) return;
     if (!isAuthenticated && !guestVerified) {
       onRequestVerify?.();
       return;
@@ -148,7 +149,7 @@ export default function AgreementCard({
             <Download size={14} aria-hidden /> {t('helperProfile.messenger.agreementDownload')}
           </button>
         ) : null}
-        {!isProvider && respondGate.ok ? (
+        {!readOnly && !isProvider && respondGate.ok ? (
           <>
             {status === 'shared' ? (
               <button type="button" className="artifact-btn" disabled={busy} onClick={() => respond('acknowledge')}>
@@ -169,7 +170,7 @@ export default function AgreementCard({
             />
           </>
         ) : null}
-        {!isProvider && respondGate.reason === 'verify_required' ? (
+        {!readOnly && !isProvider && respondGate.reason === 'verify_required' ? (
           <button type="button" className="artifact-btn" onClick={() => onRequestVerify?.()}>
             {t('helperProfile.messenger.agreementVerifyToRespond')}
           </button>

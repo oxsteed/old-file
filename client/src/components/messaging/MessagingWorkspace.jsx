@@ -27,8 +27,30 @@ import ConversationThread from './ConversationThread';
 import ConversationList from './ConversationList';
 import GuestInquiryPanel from './GuestInquiryPanel';
 import { resolveShellChrome } from './messengerShellState';
+import {
+  archiveBusinessConversation,
+  getBusinessConversations,
+  restoreBusinessConversation,
+} from '../../api/businessMessaging';
 import '../../pages/MessagesPage.css';
 import './SharedMessengerShell.css';
+
+const ARCHIVE_PAGE_SIZE = 50;
+
+function normalizeBusinessConversation(conversation) {
+  const name = conversation.customer_name
+    || conversation.subject
+    || (conversation.conversation_type === 'team' ? 'Team conversation' : 'Business conversation');
+  return {
+    ...conversation,
+    other_user_name: conversation.other_user_name || name,
+    job_title: conversation.job_title || conversation.subject || null,
+    last_message_preview: conversation.last_message_preview || conversation.last_message || '',
+    archived_at: conversation.status === 'archived'
+      ? conversation.archived_at || conversation.updated_at || conversation.created_at
+      : null,
+  };
+}
 
 export default function MessagingWorkspace({ role = 'auto', businessId = null, embedded = false }) {
   const { t } = useTranslation();
@@ -46,6 +68,10 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const [archivedConversations, setArchivedConversations] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archivedError, setArchivedError] = useState('');
+  const [archivedHasMore, setArchivedHasMore] = useState(false);
+  const [archivedOffset, setArchivedOffset] = useState(0);
+  const [archiveActionId, setArchiveActionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
@@ -97,6 +123,11 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const fetchConversations = useCallback(async () => {
     try {
       setLoadError('');
+      if (businessId) {
+        const data = await getBusinessConversations(businessId, { limit: 100, offset: 0 });
+        setConversations((data?.conversations || []).map(normalizeBusinessConversation));
+        return;
+      }
       const params = businessId
         ? { business_id: businessId }
         : businessFilter !== 'all'
@@ -122,25 +153,38 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     }
   }, [businessId, businessFilter, t]);
 
-  const fetchArchived = useCallback(async () => {
+  const fetchArchived = useCallback(async ({ append = false } = {}) => {
+    if (archivedLoading) return;
+    const nextOffset = append ? archivedOffset : 0;
     try {
       setArchivedLoading(true);
+      setArchivedError('');
       if (businessId) {
-        const { data } = await api.get('/messages/conversations', {
-          params: { business_id: businessId, include_archived: 'true' },
+        const data = await getBusinessConversations(businessId, {
+          archived_only: 'true',
+          limit: ARCHIVE_PAGE_SIZE,
+          offset: nextOffset,
         });
-        const conversations = Array.isArray(data?.conversations) ? data.conversations : Array.isArray(data) ? data : [];
-        setArchivedConversations(conversations.filter((conversation) => conversation.archived_at));
+        const incoming = (data?.conversations || []).map(normalizeBusinessConversation);
+        setArchivedConversations((previous) => append ? [...previous, ...incoming] : incoming);
+        setArchivedOffset(nextOffset + incoming.length);
+        setArchivedHasMore(nextOffset + incoming.length < (Number(data?.total) || 0));
       } else {
-        const { data } = await api.get('/messages/archived', { params: { limit: 100, offset: 0 } });
-        setArchivedConversations(Array.isArray(data?.archived) ? data.archived : []);
+        const { data } = await api.get('/messages/archived', {
+          params: { limit: ARCHIVE_PAGE_SIZE, offset: nextOffset },
+        });
+        const incoming = Array.isArray(data?.archived) ? data.archived : [];
+        setArchivedConversations((previous) => append ? [...previous, ...incoming] : incoming);
+        setArchivedOffset(nextOffset + incoming.length);
+        setArchivedHasMore(Boolean(data?.hasMore));
       }
     } catch (err) {
+      setArchivedError(err.response?.data?.error || t('messages.loadFailed'));
       toast.error(err.response?.data?.error || t('messages.loadFailed'));
     } finally {
       setArchivedLoading(false);
     }
-  }, [businessId, t]);
+  }, [archivedLoading, archivedOffset, businessId, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -169,16 +213,32 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       }
       if (payload?.conversationId) bumpConv(payload.conversationId);
     };
+    const handleBusinessConversation = (payload) => {
+      if (!businessId || String(payload?.business_id) !== String(businessId)) return;
+      fetchConversations();
+      if (showArchived) fetchArchived();
+    };
+    const handleArchiveUpdated = (payload) => {
+      const changedId = payload?.conversationId;
+      if (!changedId || businessId) return;
+      fetchConversations();
+      if (showArchived) fetchArchived();
+    };
     socket.on('message:new', handleMessageNew);
     socket.on('profile_chat:new_message', handleProfileChat);
+    if (businessId) socket.on('business_inbox:conversation', handleBusinessConversation);
+    if (!businessId) socket.on('conversation:archive_updated', handleArchiveUpdated);
     return () => {
       socket.off('message:new', handleMessageNew);
       socket.off('profile_chat:new_message', handleProfileChat);
+      if (businessId) socket.off('business_inbox:conversation', handleBusinessConversation);
+      if (!businessId) socket.off('conversation:archive_updated', handleArchiveUpdated);
     };
-  }, [socket, fetchConversations]);
+  }, [businessId, fetchArchived, fetchConversations, showArchived, socket]);
 
   useEffect(() => {
     const start = parseConversationStartParams(location.search);
+    if (businessId) return undefined;
     const body = conversationStartRequestBody(start);
     if (!body) return undefined;
     let cancelled = false;
@@ -196,7 +256,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
         if (!cancelled) setStarting(false);
       });
     return () => { cancelled = true; };
-  }, [location.search, basePath, navigate, t]);
+  }, [location.search, basePath, businessId, navigate, t]);
 
   const unreadCount = useMemo(
     () => conversations.reduce((sum, conv) => sum + (parseInt(conv.unread_count, 10) || 0), 0) + newInbound.size,
@@ -262,11 +322,18 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   };
 
   const restoreArchived = async (conversationId) => {
+    if (archiveActionId) return;
+    setArchiveActionId(String(conversationId));
     try {
-      await api.post(`/messages/conversations/${conversationId}/restore`);
+      if (businessId) {
+        await restoreBusinessConversation(businessId, conversationId);
+      } else {
+        await api.post(`/messages/conversations/${conversationId}/restore`);
+      }
       toast.success(t('messages.restored'));
       await Promise.all([fetchArchived(), fetchConversations()]);
       if (String(selectedId) === String(conversationId)) {
+        setShowArchived(false);
         if (embedded) {
           setEmbeddedConversationId(null);
           setEmbeddedInquiryId(null);
@@ -275,12 +342,20 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       }
     } catch (err) {
       toast.error(err.response?.data?.error || t('messages.restoreFailed', { defaultValue: 'Failed to restore conversation' }));
+    } finally {
+      setArchiveActionId(null);
     }
   };
 
   const archiveConversation = async (conversationId) => {
+    if (archiveActionId) return;
+    setArchiveActionId(String(conversationId));
     try {
-      await api.post(`/messages/conversations/${conversationId}/archive`);
+      if (businessId) {
+        await archiveBusinessConversation(businessId, conversationId);
+      } else {
+        await api.post(`/messages/conversations/${conversationId}/archive`);
+      }
       toast.success(t('messages.archived'));
       await fetchConversations();
       if (String(selectedId) === String(conversationId)) {
@@ -292,6 +367,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       }
     } catch (err) {
       toast.error(err.response?.data?.error || t('messages.archiveFailed', { defaultValue: 'Failed to archive conversation' }));
+    } finally {
+      setArchiveActionId(null);
     }
   };
 
@@ -460,20 +537,43 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   <div className="messages-spinner" />
                   <p>{t('common.loading')}</p>
                 </div>
+              ) : archivedError ? (
+                <div className="messages-empty compact messages-empty--error" role="alert">
+                  <Archive size={30} />
+                  <h2>{t('messages.loadFailedTitle')}</h2>
+                  <p>{archivedError}</p>
+                  <button type="button" onClick={() => fetchArchived()} disabled={archivedLoading}>
+                    <RefreshCw size={15} aria-hidden />
+                    {t('messages.retry')}
+                  </button>
+                </div>
               ) : filteredArchivedConversations.length === 0 ? (
                 <div className="messages-empty compact">
                   <Archive size={30} />
                   <h2>{t('messages.noArchivedConversations')}</h2>
                 </div>
               ) : (
-                <ConversationList
-                  items={filteredArchivedConversations}
-                  selectedId={selectedId}
-                  onSelect={handleOpen}
-                  onRestore={(conversation) => restoreArchived(conversation.id)}
-                  restoreLabel={t('messages.restore')}
-                  ariaLabel={t('messages.viewArchived')}
-                />
+                <>
+                  <ConversationList
+                    items={filteredArchivedConversations}
+                    selectedId={selectedId}
+                    onSelect={handleOpen}
+                    onRestore={(conversation) => restoreArchived(conversation.id)}
+                    restorePendingId={archiveActionId}
+                    restoreLabel={t('messages.restore')}
+                    ariaLabel={t('messages.viewArchived')}
+                  />
+                  {archivedHasMore && (
+                    <button
+                      type="button"
+                      className="messages-archive-more"
+                      onClick={() => fetchArchived({ append: true })}
+                      disabled={archivedLoading}
+                    >
+                      {archivedLoading ? t('common.loading') : t('messages.loadMoreArchived', { defaultValue: 'Load more archived conversations' })}
+                    </button>
+                  )}
+                </>
               )
             ) : loading || starting ? (
               <div className="messages-loading">
@@ -573,12 +673,9 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 role={threadRole}
                 providerMode={helperRoute}
                 onBack={closeThread}
-                onArchive={selectedConversation && !selectedConversation.archived_at
-                  ? () => archiveConversation(conversationId)
-                  : undefined}
-                onRestore={selectedConversation?.archived_at
-                  ? () => restoreArchived(conversationId)
-                  : undefined}
+                onArchive={() => archiveConversation(conversationId)}
+                onRestore={() => restoreArchived(conversationId)}
+                businessId={businessId}
               />
             ) : (
               <div className="messages-thread-empty desktop-only">

@@ -6,6 +6,7 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { BrowserPushPanel } from '../../components/NotificationPreferences';
 
 const PREF_GROUPS = [
   {
@@ -48,23 +49,18 @@ const PREF_GROUPS = [
   },
 ];
 
-function Toggle({ checked, onChange, disabled }) {
+function Toggle({ checked, onChange, disabled, ariaLabel }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-40 disabled:cursor-not-allowed ${
-        checked ? 'bg-orange-500' : 'bg-gray-700'
-      }`}
+      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`}
     >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
+      <span className="notification-settings__toggle-thumb" />
     </button>
   );
 }
@@ -85,7 +81,7 @@ export default function NotificationSettings() {
         toast.error(t('notifications.failedLoad'));
         setLoading(false);
       });
-  }, []);
+  }, [t]);
 
   const handleToggle = useCallback(async (key, value) => {
     setPrefs(prev => ({ ...prev, [key]: value }));
@@ -102,7 +98,7 @@ export default function NotificationSettings() {
   }, [t]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="min-h-screen sp-page">
       <Navbar />
 
       <main className="flex-1">
@@ -111,7 +107,7 @@ export default function NotificationSettings() {
           {/* Back link */}
           <Link
             to="/settings"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm"
+            className="notification-settings__back-link inline-flex items-center gap-2 mb-8 transition text-sm"
           >
             <ArrowLeft size={16} />
             {t('notifications.backToSettings')}
@@ -123,13 +119,13 @@ export default function NotificationSettings() {
               <Bell size={20} className="text-orange-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">{t('notifications.title')}</h1>
-              <p className="text-sm text-gray-400 mt-0.5">
+              <h1 className="notification-settings__page-title text-2xl font-bold">{t('notifications.title')}</h1>
+              <p className="notification-settings__muted text-sm mt-0.5">
                 {t('notifications.subtitle')}
               </p>
             </div>
             {saving && (
-              <span className="ml-auto flex items-center gap-1.5 text-xs text-orange-400">
+              <span className="ml-auto flex items-center gap-1.5 text-xs text-orange-600">
                 <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -139,13 +135,12 @@ export default function NotificationSettings() {
             )}
           </div>
 
-          <div
-            className="mb-8 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95"
-            role="note"
-          >
-            <p className="font-semibold text-amber-200">{t('notifications.securityNoticeTitle')}</p>
-            <p className="mt-1.5 text-amber-100/90 leading-relaxed">{t('notifications.securityNoticeBody')}</p>
+          <div className="notification-settings__security-notice" role="note">
+            <p className="notification-settings__security-title">{t('notifications.securityNoticeTitle')}</p>
+            <p className="notification-settings__security-body">{t('notifications.securityNoticeBody')}</p>
           </div>
+
+          <BrowserPushPanel />
 
           {/* Content */}
           {loading ? (
@@ -157,12 +152,12 @@ export default function NotificationSettings() {
               {PREF_GROUPS.map((group) => (
                 <div
                   key={group.key}
-                  className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden"
+                  className="notification-settings__preference-list rounded-2xl"
                 >
                   {/* Group header */}
-                  <div className="px-6 py-4 border-b border-gray-800">
-                    <h2 className="text-base font-semibold text-white">{t(`notifications.groups.${group.key}.label`)}</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">{t(`notifications.groups.${group.key}.description`)}</p>
+                  <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
+                    <h2 className="notification-settings__section-title">{t(`notifications.groups.${group.key}.label`)}</h2>
+                    <p className="notification-settings__muted text-xs mt-0.5">{t(`notifications.groups.${group.key}.description`)}</p>
                   </div>
 
                   {/* Pref rows */}
@@ -172,13 +167,11 @@ export default function NotificationSettings() {
                       return (
                         <div
                           key={prefKey}
-                          className={`flex items-center justify-between px-6 py-3.5 hover:bg-gray-800/40 transition-colors ${
-                            idx !== group.prefs.length - 1 ? 'border-b border-gray-800/60' : ''
-                          }`}
+                          className={`notification-settings__preference-row ${idx !== group.prefs.length - 1 ? 'has-border' : ''}`}
                         >
                           <label
                             htmlFor={prefKey}
-                            className="text-sm text-gray-200 cursor-pointer select-none"
+                            className="notification-settings__row-title cursor-pointer select-none"
                           >
                             {t(`notifications.prefs.${prefKey}`)}
                           </label>
@@ -186,6 +179,7 @@ export default function NotificationSettings() {
                             checked={enabled}
                             onChange={(val) => handleToggle(prefKey, val)}
                             disabled={saving}
+                            ariaLabel={t(`notifications.prefs.${prefKey}`)}
                           />
                         </div>
                       );

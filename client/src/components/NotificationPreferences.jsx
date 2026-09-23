@@ -3,29 +3,25 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import useWebPush from '../hooks/useWebPush';
+import './NotificationPreferences.css';
 
-function Toggle({ checked, onChange, disabled }) {
+function Toggle({ checked, onChange, disabled, ariaLabel }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-40 disabled:cursor-not-allowed ${
-        checked ? 'bg-orange-500' : 'bg-gray-700'
-      }`}
+      className={`notification-settings__toggle ${checked ? 'is-on' : 'is-off'}`}
     >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
+      <span className="notification-settings__toggle-thumb" />
     </button>
   );
 }
 
-function BrowserPushPanel() {
+export function BrowserPushPanel() {
   const { t } = useTranslation();
   const wp = useWebPush();
 
@@ -60,25 +56,22 @@ function BrowserPushPanel() {
     !wp.isSupported || !wp.serverEnabled || wp.loading || wp.permission === 'denied';
 
   return (
-    <div className="mb-8">
-      <div className="mb-3">
-        <h3 className="text-base font-medium" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+    <div className="notification-settings__browser-panel">
+      <div className="notification-settings__section-heading">
+        <h3 className="notification-settings__section-title">
           {t('notifications.webPush.title')}
         </h3>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+        <p className="notification-settings__muted notification-settings__section-description">
           {t('notifications.webPush.subtitle')}
         </p>
       </div>
-      <div
-        className="rounded-xl px-4 py-3"
-        style={{ border: '1px solid var(--border-color,rgba(255,255,255,.08))' }}
-      >
-        <div className="flex items-center justify-between">
+      <div className="notification-settings__browser-shell">
+        <div className="notification-settings__browser-row">
           <div className="min-w-0">
-            <div className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            <div className="notification-settings__row-title">
               {t('notifications.webPush.toggleLabel')}
             </div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            <div className="notification-settings__muted notification-settings__row-status">
               {statusText}
             </div>
           </div>
@@ -86,28 +79,44 @@ function BrowserPushPanel() {
             checked={wp.isSubscribed}
             onChange={handleToggle}
             disabled={disabled}
+            ariaLabel={t('notifications.webPush.toggleLabel')}
           />
         </div>
 
         {wp.isSubscribed && (
-          <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-color,rgba(255,255,255,.08))' }}>
+          <div className="notification-settings__browser-actions">
             <button
               type="button"
               onClick={handleTest}
               disabled={wp.loading}
-              className="text-xs font-medium px-3 py-1.5 rounded-md disabled:opacity-50"
-              style={{ background: 'rgba(249,115,22,.12)', color: '#f97316' }}
+              className="notification-settings__secondary-button"
             >
               {t('notifications.webPush.sendTest')}
             </button>
           </div>
         )}
 
+        {wp.isSupported && !wp.serverEnabled && (
+          <div className="notification-settings__status-callout">
+            <p className="notification-settings__status-title">{statusText}</p>
+            <p className="notification-settings__status-body">
+              {t('notifications.webPush.setupHelp', {
+                defaultValue: 'An administrator must configure browser push on the server before this browser can be enabled.',
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={wp.refresh}
+              disabled={wp.loading}
+              className="notification-settings__secondary-button"
+            >
+              {t('notifications.webPush.checkAgain', { defaultValue: 'Check again' })}
+            </button>
+          </div>
+        )}
+
         {wp.permission === 'denied' && (
-          <div
-            className="mt-3 text-xs px-3 py-2 rounded-md"
-            style={{ background: 'rgba(239,68,68,.08)', color: '#fca5a5' }}
-          >
+          <div className="notification-settings__status-callout notification-settings__status-callout--error">
             {t('notifications.webPush.deniedHelp')}
           </div>
         )}
@@ -253,13 +262,9 @@ export default function NotificationPreferences() {
       </div>
       <p className="sp-card-subtitle">{t('notifications.subtitle')}</p>
 
-      <div
-        className="mb-6 rounded-xl px-4 py-3 text-sm"
-        style={{ border: '1px solid rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: '#fde68a' }}
-        role="note"
-      >
-        <p className="font-semibold" style={{ color: '#fcd34d' }}>{t('notifications.securityNoticeTitle')}</p>
-        <p className="mt-1.5 leading-relaxed opacity-95">{t('notifications.securityNoticeBody')}</p>
+      <div className="notification-settings__security-notice" role="note">
+        <p className="notification-settings__security-title">{t('notifications.securityNoticeTitle')}</p>
+        <p className="notification-settings__security-body">{t('notifications.securityNoticeBody')}</p>
       </div>
 
       <BrowserPushPanel />
@@ -267,30 +272,28 @@ export default function NotificationPreferences() {
       <div className="space-y-8">
         {SECTIONS.map((section, sIdx) => (
           <div key={section.key}>
-            <div className="mb-3">
-              <h3 className="text-base font-medium" style={{ color: 'var(--app-text,#f1f5f9)' }}>{section.title}</h3>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>{section.description}</p>
+            <div className="notification-settings__section-heading">
+              <h3 className="notification-settings__section-title">{section.title}</h3>
+              <p className="notification-settings__muted notification-settings__section-description">{section.description}</p>
             </div>
-            <div className="space-y-0 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-color,rgba(255,255,255,.08))' }}>
+            <div className="notification-settings__preference-list">
               {section.keys.map((prefKey, idx) => (
                 <div
                   key={prefKey}
-                  className={`flex items-center justify-between px-4 py-3 transition-colors ${
-                    idx !== section.keys.length - 1 ? 'border-b' : ''
-                  } hover:bg-white/5`}
-                  style={idx !== section.keys.length - 1 ? { borderBottomColor: 'var(--border-color,rgba(255,255,255,.08))' } : {}}
+                  className={`notification-settings__preference-row ${idx !== section.keys.length - 1 ? 'has-border' : ''}`}
                 >
-                  <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>{LABELS[prefKey]}</span>
+                  <span className="notification-settings__row-title">{LABELS[prefKey]}</span>
                   <Toggle
                     checked={prefs?.[prefKey] ?? true}
                     onChange={(val) => handleToggle(prefKey, val)}
                     disabled={saving}
+                    ariaLabel={LABELS[prefKey]}
                   />
                 </div>
               ))}
             </div>
             {sIdx < SECTIONS.length - 1 && (
-              <div className="mt-8" style={{ borderTop: '1px solid var(--border-color,rgba(255,255,255,.08))' }} />
+              <div className="notification-settings__section-divider" />
             )}
           </div>
         ))}

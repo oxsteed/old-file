@@ -9,6 +9,7 @@ const { getClientRequestId } = require('../utils/idempotency');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { ensureLegacyConversationLink } = require('../services/businessConversationSync');
 
 function senderNameSql(alias = 'u') {
   return `NULLIF(TRIM(BOTH FROM CONCAT(COALESCE(${alias}.first_name, ''), ' ', COALESCE(${alias}.last_name, ''))), '')`;
@@ -41,6 +42,10 @@ async function getConversations(req, res, next) {
     } = req.query;
     await assertBusinessAccess(req, businessId);
 
+    const requestedLimit = Number.parseInt(limit, 10);
+    const requestedOffset = Number.parseInt(offset, 10);
+    const safeLimit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
+    const safeOffset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
     const statusFilter = archivedOnly === 'true'
       ? "bc.status = 'archived'"
       : includeArchived === 'true'
@@ -61,6 +66,7 @@ async function getConversations(req, res, next) {
       SELECT
         bc.id, bc.business_id, bc.conversation_type, bc.status,
         bc.customer_id, bc.customer_name, bc.customer_email, bc.subject,
+        bc.legacy_conversation_id,
         bc.last_message_at, bc.created_at,
         (SELECT COUNT(*) FROM business_messages bm
           WHERE bm.conversation_id = bc.id AND bm.deleted_at IS NULL) AS message_count
@@ -83,7 +89,7 @@ async function getConversations(req, res, next) {
 
     query += ` ORDER BY bc.last_message_at DESC NULLS LAST, bc.created_at DESC
                LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    params.push(safeLimit, safeOffset);
 
     const result = await pool.query(query, params);
     const totalFilters = ['business_id = $1', statusFilter.replace('bc.', '')];
@@ -105,8 +111,8 @@ async function getConversations(req, res, next) {
     res.json({
       conversations: result.rows,
       total: parseInt(totalResult.rows[0].count, 10),
-      limit: parseInt(limit, 10),
-      offset: parseInt(offset, 10),
+      limit: safeLimit,
+      offset: safeOffset,
     });
   } catch (error) {
     if (error instanceof AppError) return next(error);
@@ -121,12 +127,20 @@ async function getConversation(req, res, next) {
     const { limit = 50, offset = 0 } = req.query;
     await assertBusinessAccess(req, businessId);
 
-    const convCheck = await pool.query(
+    let convCheck = await pool.query(
       'SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2',
       [conversationId, businessId]
     );
     if (!convCheck.rows.length) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
+    }
+
+    if (convCheck.rows[0].conversation_type === 'customer' && !convCheck.rows[0].legacy_conversation_id) {
+      await ensureLegacyConversationLink({ businessConversationId: conversationId, businessId });
+      convCheck = await pool.query(
+        'SELECT * FROM business_conversations WHERE id = $1 AND business_id = $2',
+        [conversationId, businessId],
+      );
     }
 
     const messages = await pool.query(
@@ -196,13 +210,36 @@ async function sendMessage(req, res, next) {
     const { content, message_type = 'text', attachments = [] } = req.body;
     const normalizedContent = typeof content === 'string' ? content.trim() : '';
     const normalizedAttachments = Array.isArray(attachments)
-      ? attachments.filter((attachment) => (
-        attachment
-        && typeof attachment.file_url === 'string'
-        && attachment.file_url.trim()
-        && typeof attachment.file_name === 'string'
-        && attachment.file_name.trim()
-      )).slice(0, 10)
+      ? attachments.flatMap((attachment) => {
+        if (!attachment || typeof attachment !== 'object') return [];
+        const fileUrl = typeof attachment.file_url === 'string'
+          ? attachment.file_url.trim()
+          : typeof attachment.url === 'string'
+            ? attachment.url.trim()
+            : '';
+        const fileName = typeof attachment.file_name === 'string'
+          ? attachment.file_name.trim()
+          : typeof attachment.filename === 'string'
+            ? attachment.filename.trim()
+            : typeof attachment.name === 'string'
+              ? attachment.name.trim()
+              : '';
+        if (!fileUrl || !fileName) return [];
+        return [{
+          file_url: fileUrl,
+          file_name: fileName.slice(0, 255),
+          file_size_bytes: Number.isFinite(Number(attachment.file_size_bytes || attachment.size))
+            ? Number(attachment.file_size_bytes || attachment.size)
+            : null,
+          file_type: typeof attachment.file_type === 'string'
+            ? attachment.file_type.slice(0, 100)
+            : typeof attachment.type === 'string'
+              ? attachment.type.slice(0, 100)
+              : typeof attachment.mimeType === 'string'
+                ? attachment.mimeType.slice(0, 100)
+                : null,
+        }];
+      }).slice(0, 10)
       : [];
     const clientMessageId = req.get('Idempotency-Key')
       || req.body.clientMessageId
@@ -226,6 +263,9 @@ async function sendMessage(req, res, next) {
     );
     if (!convCheck.rows.length) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
+    }
+    if (convCheck.rows[0].status === 'archived') {
+      return next(new AppError('Conversation is archived', 409, 'conversation_archived'));
     }
 
     const { message, replayed } = await withTransaction(pool, async (client) => {
@@ -344,8 +384,12 @@ async function createConversation(req, res, next) {
 
     const result = await pool.query(
       `INSERT INTO business_conversations
-       (business_id, conversation_type, customer_email, customer_name, customer_phone, subject, created_by_id, client_request_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (business_id, conversation_type, customer_id, customer_email, customer_name, customer_phone, subject, created_by_id, client_request_id)
+       VALUES (
+         $1, $2,
+         (SELECT id FROM users WHERE LOWER(email) = LOWER($3) AND deleted_at IS NULL LIMIT 1),
+         $3, $4, $5, $6, $7, $8
+       )
        ON CONFLICT (business_id, created_by_id, client_request_id)
        WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
@@ -379,16 +423,38 @@ async function archiveConversation(req, res, next) {
     const { businessId, conversationId } = req.params;
     await assertBusinessAccess(req, businessId);
 
-    const result = await pool.query(
-      'UPDATE business_conversations SET status = $1 WHERE id = $2 AND business_id = $3 RETURNING *',
-      ['archived', conversationId, businessId]
-    );
+    const result = await withTransaction(pool, async (client) => {
+      const archived = await client.query(
+        `UPDATE business_conversations
+            SET status = 'archived', updated_at = NOW()
+          WHERE id = $1 AND business_id = $2
+          RETURNING *`,
+        [conversationId, businessId],
+      );
+      if (!archived.rows.length) return null;
+      const legacyConversationId = archived.rows[0].legacy_conversation_id;
+      if (legacyConversationId) {
+        await client.query(
+          `UPDATE conversations
+              SET status = 'archived', archived_at = NOW(), archived_by = $2, updated_at = NOW()
+            WHERE id = $1 AND status <> 'blocked'`,
+          [legacyConversationId, req.user.id],
+        );
+      }
+      return archived.rows[0];
+    }, 'archive_business_conversation');
 
-    if (!result.rows.length) {
+    if (!result) {
       return next(new AppError('Conversation not found', 404, 'not_found'));
     }
 
-    res.json(result.rows[0]);
+    socketService.broadcastToBusinessInbox(businessId, 'business_inbox:conversation', {
+      business_id: businessId,
+      conversation_id: conversationId,
+      status: 'archived',
+    });
+
+    res.json(result);
   } catch (error) {
     if (error instanceof AppError) return next(error);
     logger.error('Error archiving conversation', { error: error.message });
@@ -401,17 +467,35 @@ async function restoreConversation(req, res, next) {
     const { businessId, conversationId } = req.params;
     await assertBusinessAccess(req, businessId);
 
-    const result = await pool.query(
-      `UPDATE business_conversations
-       SET status = 'active', updated_at = NOW()
-       WHERE id = $1 AND business_id = $2 AND status = 'archived'
-       RETURNING *`,
-      [conversationId, businessId],
-    );
-    if (!result.rows.length) {
+    const result = await withTransaction(pool, async (client) => {
+      const restored = await client.query(
+        `UPDATE business_conversations
+            SET status = 'active', updated_at = NOW()
+          WHERE id = $1 AND business_id = $2 AND status = 'archived'
+          RETURNING *`,
+        [conversationId, businessId],
+      );
+      if (!restored.rows.length) return null;
+      const legacyConversationId = restored.rows[0].legacy_conversation_id;
+      if (legacyConversationId) {
+        await client.query(
+          `UPDATE conversations
+              SET status = 'active', archived_at = NULL, archived_by = NULL, updated_at = NOW()
+            WHERE id = $1 AND (archived_at IS NOT NULL OR status = 'archived')`,
+          [legacyConversationId],
+        );
+      }
+      return restored.rows[0];
+    }, 'restore_business_conversation');
+    if (!result) {
       return next(new AppError('Archived conversation not found', 404, 'not_found'));
     }
-    return res.json(result.rows[0]);
+    socketService.broadcastToBusinessInbox(businessId, 'business_inbox:conversation', {
+      business_id: businessId,
+      conversation_id: conversationId,
+      status: 'active',
+    });
+    return res.json(result);
   } catch (error) {
     if (error instanceof AppError) return next(error);
     logger.error('Error restoring conversation', { error: error.message, conversationId: req.params.conversationId });

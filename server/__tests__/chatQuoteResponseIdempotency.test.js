@@ -24,6 +24,10 @@ jest.mock('../controllers/chatBookingRequestsController', () => ({
   buildBookingRequestMarker: jest.fn(),
 }));
 
+jest.mock('../services/businessConversationSync', () => ({
+  mirrorLegacyMessage: jest.fn().mockResolvedValue(null),
+}));
+
 const socketService = require('../services/socketService');
 const controller = require('../controllers/chatQuotesController');
 

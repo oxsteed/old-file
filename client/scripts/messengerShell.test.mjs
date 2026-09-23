@@ -220,6 +220,25 @@ test('archived conversation rows expose a direct restore action', async () => {
   assert.match(styles, /\.messages-row-restore\s*\{/);
 });
 
+test('archive recovery uses the business store and supports direct-linked threads', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const workspace = await readFile(join(root, 'src/components/messaging/MessagingWorkspace.jsx'), 'utf8');
+  const thread = await readFile(join(root, 'src/components/messaging/ConversationThread.jsx'), 'utf8');
+  const hook = await readFile(join(root, 'src/hooks/useConversationChat.js'), 'utf8');
+
+  assert.match(workspace, /getBusinessConversations/);
+  assert.match(workspace, /restoreBusinessConversation/);
+  assert.match(workspace, /fetchArchived\(\{ append: true \}\)/);
+  assert.match(workspace, /businessId=\{businessId\}/);
+  assert.match(thread, /businessId: workspaceBusinessId = null/);
+  assert.match(thread, /const archiveAction = isArchived \? onRestore : onArchive/);
+  assert.match(hook, /getBusinessConversation\(workspaceBusinessId, conversationId\)/);
+  assert.match(hook, /sendBusinessMessage\(workspaceBusinessId, conversationId/);
+});
+
 test('business workflow labels remain visible on small screens', async () => {
   const { readFile } = await import('node:fs/promises');
   const { fileURLToPath } = await import('node:url');

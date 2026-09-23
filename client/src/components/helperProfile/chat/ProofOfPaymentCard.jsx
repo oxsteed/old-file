@@ -13,6 +13,7 @@ export default function ProofOfPaymentCard({
   guestAuthHeaders = null,
   onStatusChange = null,
   onRefundRequest = null,
+  readOnly = false,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -61,7 +62,7 @@ export default function ProofOfPaymentCard({
   const amount = pop?.amount_cents ?? parsed?.amountCents ?? 0;
 
   const confirm = async (action) => {
-    if (!popId || !isProvider) return;
+    if (readOnly || !popId || !isProvider) return;
     setBusy(true);
     setError(null);
     try {
@@ -141,7 +142,7 @@ export default function ProofOfPaymentCard({
             <Download size={14} aria-hidden /> {t('helperProfile.messenger.popDownload')}
           </button>
         ) : null}
-        {isProvider && status === 'submitted' ? (
+        {!readOnly && isProvider && status === 'submitted' ? (
           <>
             <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => confirm('confirm')}>
               <Check size={14} aria-hidden /> {t('helperProfile.messenger.popConfirm')}
@@ -157,7 +158,7 @@ export default function ProofOfPaymentCard({
             />
           </>
         ) : null}
-        {isProvider && onRefundRequest && (status === 'confirmed' || status === 'partially_refunded')
+        {!readOnly && isProvider && onRefundRequest && (status === 'confirmed' || status === 'partially_refunded')
           && String(pop?.payment_method || parsed?.paymentMethod || '').toLowerCase().includes('credit') ? (
           <button
             type="button"

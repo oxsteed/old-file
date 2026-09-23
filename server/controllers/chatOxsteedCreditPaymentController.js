@@ -36,6 +36,7 @@ const {
   buildCreditRefundShareContent,
   toPublicCreditRefundCard,
 } = require('../services/chatOxsteedCreditPayment');
+const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 
 function bad(res, status, error, code, extra = {}) {
   return res.status(status).json({ error, code: code || 'error', ...extra });
@@ -66,6 +67,7 @@ async function postConversationMessage(client, {
   senderId,
   content,
   senderName,
+  businessId = null,
   clientMessageId = null,
 }) {
   const db = client || pool;
@@ -102,6 +104,16 @@ async function postConversationMessage(client, {
     });
   } catch (e) {
     logger.warn('[chatCreditPay] socket emit failed', { error: e.message });
+  }
+  try {
+    await mirrorLegacyMessage?.({
+      legacyConversationId: conversationId,
+      businessId,
+      message,
+      senderName,
+    });
+  } catch (e) {
+    logger.warn('[chatCreditPay] business mirror failed', { error: e.message });
   }
   return message;
 }
@@ -330,7 +342,7 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
     const normalized = normalizeCreditPayPayload(req.body || {});
     if (normalized.error) return bad(res, 400, normalized.error, normalized.code);
 
-    const conv = await assertConversationParticipant(userId, normalized.conversationId);
+    const conv = await assertConversationParticipant(userId, normalized.conversationId, { writable: true });
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
     const member = assertMembershipForCustomerPay(userId, conv);
@@ -558,7 +570,7 @@ exports.requestPayment = async (req, res, next) => {
       `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Provider';
 
     if (normalized.conversationId) {
-      const conv = await assertConversationParticipant(userId, normalized.conversationId);
+      const conv = await assertConversationParticipant(userId, normalized.conversationId, { writable: true });
       if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
       const isProvider =
         isProviderOnConversation(userId, conv) ||
@@ -663,6 +675,7 @@ exports.requestPayment = async (req, res, next) => {
         senderId: userId,
         content,
         senderName,
+        businessId,
         clientMessageId: messageClientId,
       });
       await pool.query(
@@ -735,7 +748,7 @@ exports.getCreditPayHint = async (req, res, next) => {
     const conversationId = req.query.conversationId || req.query.conversation_id;
     if (!conversationId) return bad(res, 400, 'conversationId required', 'validation_failed');
 
-    const conv = await assertConversationParticipant(userId, conversationId);
+    const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
     if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
 
     const businessId = req.query.businessId || req.query.business_id || conv.business_id || null;

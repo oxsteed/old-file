@@ -19,6 +19,7 @@ export default function PaymentRequestCard({
   payeeHelperId = null,
   onRequestSignIn,
   onPaid,
+  readOnly = false,
   compact = false,
 }) {
   const { t, i18n } = useTranslation();
@@ -103,7 +104,7 @@ export default function PaymentRequestCard({
             </div>
           ) : null}
         </div>
-        {!isProvider && status === 'open' ? (
+        {!readOnly && !isProvider && status === 'open' ? (
           <div className="artifact-card-actions">
             {gate.ok ? (
               <button type="button" className="artifact-btn primary" onClick={() => setShowPay(true)}>
@@ -123,7 +124,7 @@ export default function PaymentRequestCard({
         {error ? <p className="artifact-error">{error}</p> : null}
       </div>
       <PayWithCreditModal
-        open={showPay}
+        open={showPay && !readOnly}
         onClose={() => setShowPay(false)}
         conversationId={conversationId || req?.conversation_id}
         amountCents={amount}

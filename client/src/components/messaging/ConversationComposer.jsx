@@ -18,6 +18,7 @@ export default function ConversationComposer({
   starters = [],
   showStarters = false,
   placeholder,
+  uploadAttachment = uploadMessageAttachment,
 }) {
   const { t } = useTranslation();
   const [pendingAttachment, setPendingAttachment] = useState(null);
@@ -60,7 +61,7 @@ export default function ConversationComposer({
     }
     setUploading(true);
     try {
-      const meta = await uploadMessageAttachment(conversationId, file);
+      const meta = await uploadAttachment(conversationId, file);
       setPendingAttachment(toStoredAttachment(meta) || meta);
     } catch {
       toast.error(t('messages.attachUploadFailed'));

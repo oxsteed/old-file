@@ -21,6 +21,7 @@ const {
   toChatStatus,
 } = require('../services/chatQuotes');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
+const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 
 
 function bad(res, status, error, code, extra = {}) {
@@ -76,9 +77,10 @@ async function assertProviderAccess(userId, { kind, businessId, helperId, conver
   return { ok: true, helperId: hid };
 }
 
-async function assertConversationParticipant(userId, conversationId) {
+async function assertConversationParticipant(userId, conversationId, { writable = false } = {}) {
   const { rows } = await pool.query(
-    `SELECT c.id, c.customer_id, c.helper_id, c.business_id, c.job_id
+    `SELECT c.id, c.customer_id, c.helper_id, c.business_id, c.job_id,
+            c.status, c.archived_at
        FROM conversations c
       WHERE c.id = $1 AND (
         c.customer_id = $2 OR c.helper_id = $2
@@ -89,7 +91,15 @@ async function assertConversationParticipant(userId, conversationId) {
       )`,
     [conversationId, userId],
   );
-  return rows[0] || null;
+  const conversation = rows[0] || null;
+  if (writable && conversation && (conversation.status === 'archived' || conversation.archived_at)) {
+    const error = new Error('Conversation is archived');
+    error.status = 409;
+    error.statusCode = 409;
+    error.code = 'conversation_archived';
+    throw error;
+  }
+  return conversation;
 }
 
 async function assertGuestInquiryAccess(userId, guestSessionId) {
@@ -117,6 +127,7 @@ async function postConversationMessage({
   content,
   senderName,
   isProfileChat,
+  businessId = null,
   clientMessageId = null,
 }) {
   const { rows } = await pool.query(
@@ -153,6 +164,16 @@ async function postConversationMessage({
       message,
       senderName,
     });
+  }
+  try {
+    await mirrorLegacyMessage?.({
+      legacyConversationId: conversationId,
+      businessId,
+      message,
+      senderName,
+    });
+  } catch (err) {
+    logger.warn('[chatQuotes] business mirror failed', { error: err.message });
   }
   return message;
 }
@@ -298,7 +319,7 @@ exports.shareQuote = async (req, res, next) => {
     let helperId = body.helperId || body.helper_id || null;
 
     if (conversationId) {
-      const conv = await assertConversationParticipant(userId, conversationId);
+      const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
       if (!conv) return bad(res, 403, 'Not a participant of this conversation', 'forbidden');
       helperId = helperId || conv.helper_id;
       if (kind === 'business' && !businessId && conv.business_id) {
@@ -518,13 +539,14 @@ exports.shareQuote = async (req, res, next) => {
 
     let message = null;
     if (conversationId) {
-      const conv = await assertConversationParticipant(userId, conversationId);
+      const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
       message = await postConversationMessage({
         conversationId,
         senderId: userId,
         content,
         senderName,
         isProfileChat: !conv?.job_id,
+        businessId: body.businessId ?? businessId,
         clientMessageId: clientRequestId,
       });
     } else if (guestSessionId) {
@@ -657,7 +679,7 @@ exports.respondQuote = async (req, res, next) => {
     let allowed = false;
     if (token && quote.token && token === quote.token) allowed = true;
     if (userId && quote.conversation_id) {
-      const conv = await assertConversationParticipant(userId, quote.conversation_id);
+      const conv = await assertConversationParticipant(userId, quote.conversation_id, { writable: true });
       if (conv && String(conv.customer_id) === String(userId)) allowed = true;
     }
     if (userId && kind === 'helper' && quote.client_user_id && String(quote.client_user_id) === String(userId)) {
@@ -752,6 +774,7 @@ exports.respondQuote = async (req, res, next) => {
           content: followUpMessage ? `${statusContent}\n${followUpMessage}` : statusContent,
           senderName: 'Customer',
           isProfileChat: true,
+          businessId: updated.business_id,
           clientMessageId: clientRequestId,
         });
       } catch (e) {
@@ -815,6 +838,9 @@ exports.reviseQuote = async (req, res, next) => {
       helperId: kind === 'helper' ? parent.helper_id : userId,
     });
     if (!access.ok) return bad(res, access.status, access.error, 'forbidden');
+    if (parent.conversation_id) {
+      await assertConversationParticipant(userId, parent.conversation_id, { writable: true });
+    }
 
     const normalized = normalizeLineItems(req.body?.line_items || req.body?.lineItems || parent.line_items);
     if (normalized.error) return bad(res, 400, normalized.error, 'validation_failed');
@@ -936,6 +962,7 @@ exports.reviseQuote = async (req, res, next) => {
           content,
           senderName,
           isProfileChat: true,
+          businessId: created.business_id,
         });
       } else if (created.guest_session_id) {
         message = await postGuestMessage({
@@ -991,7 +1018,7 @@ exports.scheduleFromQuote = async (req, res, next) => {
     let allowed = false;
     if (token && quote.token && token === quote.token) allowed = true;
     if (userId && quote.conversation_id) {
-      const conv = await assertConversationParticipant(userId, quote.conversation_id);
+      const conv = await assertConversationParticipant(userId, quote.conversation_id, { writable: true });
       if (conv && String(conv.customer_id) === String(userId)) allowed = true;
     }
     if (guest && quote.guest_session_id && String(guest.id) === String(quote.guest_session_id)) {
@@ -1247,6 +1274,7 @@ ${statusLabel}` : statusLabel;
 ${threadContent}`,
           senderName: 'Customer',
           isProfileChat: true,
+          businessId: quote.business_id,
           clientMessageId: clientRequestId,
         });
       } catch { /* ignore */ }

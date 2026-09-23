@@ -25,6 +25,7 @@ const {
   redactAgreementForLog,
   scheduleBlockedByAgreements,
 } = require('../services/chatAgreements');
+const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 
 function bad(res, status, error, code) {
   return res.status(status).json({ error, code: code || 'error' });
@@ -47,7 +48,7 @@ function getClientRequestId(req) {
     : false;
 }
 
-async function postConversationMessage({ conversationId, senderId, content, senderName, clientMessageId }) {
+async function postConversationMessage({ conversationId, senderId, content, senderName, businessId = null, clientMessageId }) {
   const { rows } = await pool.query(
     `INSERT INTO messages (conversation_id, sender_id, content, message_type, client_message_id)
      VALUES ($1, $2, $3, 'text', $4)
@@ -78,6 +79,16 @@ async function postConversationMessage({ conversationId, senderId, content, send
     message,
     senderName,
   });
+  try {
+    await mirrorLegacyMessage?.({
+      legacyConversationId: conversationId,
+      businessId,
+      message,
+      senderName,
+    });
+  } catch (err) {
+    logger.warn('[chatAgreements] business mirror failed', { error: err.message });
+  }
   return message;
 }
 
@@ -144,7 +155,7 @@ async function loadAgreement(id) {
 
 async function assertProviderCanShare(userId, { conversationId, guestSessionId, businessId, helperId }) {
   if (conversationId) {
-    const conv = await assertConversationParticipant(userId, conversationId);
+    const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
     if (!conv) return { ok: false, status: 403, error: 'Not a conversation participant' };
     const isProvider =
       isProviderOnConversation(userId, conv) ||
@@ -215,6 +226,7 @@ async function postAgreementMessage(ctx, content, senderName, userId, clientMess
       senderId: userId,
       content,
       senderName,
+      businessId: ctx.businessId,
       clientMessageId,
     });
   }
@@ -344,6 +356,7 @@ exports.shareAgreement = async (req, res, next) => {
         conversationId: agreement.conversation_id,
         guestSessionId: agreement.guest_session_id,
         helperId: agreement.helper_id,
+        businessId: agreement.business_id,
       }
       : access;
     const message = await postAgreementMessage(messageContext, content, senderName, userId, clientRequestId);
@@ -418,7 +431,7 @@ exports.respondAgreement = async (req, res, next) => {
     let allowed = false;
     if (token && row.token && token === row.token) allowed = true;
     if (userId && row.conversation_id) {
-      const conv = await assertConversationParticipant(userId, row.conversation_id);
+      const conv = await assertConversationParticipant(userId, row.conversation_id, { writable: true });
       if (conv && isCustomerOnConversation(userId, conv)) allowed = true;
     }
     if (guest && row.guest_session_id && String(guest.id) === String(row.guest_session_id)) {
@@ -487,6 +500,7 @@ exports.respondAgreement = async (req, res, next) => {
         senderId: userId,
         content: statusContent,
         senderName: actorName,
+        businessId: updated.business_id,
       });
     } else if (updated.guest_session_id) {
       await postGuestMessage({

@@ -798,7 +798,7 @@ exports.profileChatMessage = async (req, res, next) => {
               senderType: 'customer',
               content,
               messageType: 'text',
-              legacyMessageId: msgRow.rows[0] && msgRow.rows[0].id,
+              legacyMessageId: message?.id || null,
               clientMessageId,
             });
           }

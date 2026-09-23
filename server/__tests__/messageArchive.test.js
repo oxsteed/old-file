@@ -44,7 +44,7 @@ describe('message archive routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.id).toBe('conv-1');
     expect(mockQuery.mock.calls[0][0]).toContain('business_members');
-    expect(mockQuery.mock.calls[1][0]).toContain('SET archived_at = NOW()');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/SET status = 'archived', archived_at = NOW\(\), archived_by = \$2/);
   });
 
   test('POST /messages/conversations/:id/restore allows active business members', async () => {
@@ -65,7 +65,7 @@ describe('message archive routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.id).toBe('conv-1');
     expect(mockQuery.mock.calls[0][0]).toContain('business_members');
-    expect(mockQuery.mock.calls[1][0]).toContain('SET archived_at = NULL');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/SET status = 'active', archived_at = NULL, archived_by = NULL/);
   });
 
   test('GET /messages/archived includes conversations available through business membership', async () => {
@@ -89,5 +89,23 @@ describe('message archive routes', () => {
     expect(res.body.total).toBe(1);
     expect(mockQuery.mock.calls[0][0]).toContain('business_members');
     expect(mockQuery.mock.calls[1][0]).toContain('business_members');
+  });
+
+  test('restores a legacy status-only archived conversation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ customer_id: 'customer-1', helper_id: 'helper-1', business_id: null }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'legacy-1', status: 'active', archived_at: null, archived_by: null }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/messages/conversations/legacy-1/restore');
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls[1][0]).toContain("status = 'archived'");
+    expect(mockQuery.mock.calls[1][0]).toContain('archived_at IS NOT NULL OR status =');
   });
 });
