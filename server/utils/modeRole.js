@@ -91,7 +91,7 @@ function isGrantedMode(m) {
  */
 function roleForMode(mode, { currentRole } = {}) {
   if (currentRole === 'super_admin') return 'super_admin';
-  if (currentRole === 'admin' && mode === 'admin') return 'admin';
+  if (currentRole === 'admin') return 'admin';
   if (currentRole === 'employee') return 'employee';
   const target = MODE_ROLE_MAP[mode];
   return target || 'customer';

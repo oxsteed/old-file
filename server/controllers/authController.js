@@ -1362,6 +1362,21 @@ async function updateProfile(req, res) {
   try {
     const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language } = req.body;
     const finalZip = zip_code || zipcode;
+    const requestedMode = default_mode === undefined || default_mode === null
+      ? null
+      : String(default_mode);
+    const currentRole = req.user.role;
+    const currentMode = req.user.default_mode || (
+      ['admin', 'super_admin'].includes(currentRole)
+        ? 'admin'
+        : ['helper', 'helper_pro', 'broker'].includes(currentRole)
+          ? 'helper'
+          : 'customer'
+    );
+
+    if (requestedMode && !modeRoleUtil.isValidMode(requestedMode)) {
+      return res.status(400).json({ error: 'invalid_mode' });
+    }
 
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
@@ -1373,9 +1388,40 @@ async function updateProfile(req, res) {
     // invalidation all happen atomically — same code path as /switch-role.
     let updatedUser = null;
     let didModeSwitch = false;
+    let modeTokens = null;
     await client.query('BEGIN');
-    if (typeof default_mode === 'string' && modeRoleUtil.isValidMode(default_mode) && default_mode !== req.user.default_mode) {
-      updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, default_mode);
+    if (requestedMode && requestedMode !== currentMode) {
+      if (requestedMode === 'admin' && !['admin', 'super_admin'].includes(currentRole)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'mode_not_granted',
+          message: 'Admin mode is only available to administrators.',
+        });
+      }
+
+      if (modeRoleUtil.isGrantedMode(requestedMode) && !['admin', 'super_admin'].includes(currentRole)) {
+        const memberRole = ({
+          business_manager: 'manager',
+          business_representative: 'representative',
+          business_employee: 'employee',
+          business_support_agent: 'support_agent',
+        })[requestedMode];
+        const { rows: memberships } = await client.query(
+          `SELECT id FROM business_members
+             WHERE user_id = $1 AND role = $2 AND status = 'active'
+             LIMIT 1`,
+          [req.user.id, memberRole],
+        );
+        if (memberships.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'mode_not_granted',
+            message: `You don't have an active "${memberRole}" membership on any workspace.`,
+          });
+        }
+      }
+
+      updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, requestedMode);
       if (!updatedUser) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'state_conflict' });
@@ -1394,15 +1440,28 @@ async function updateProfile(req, res) {
        RETURNING *`,
       [phone || null, finalZip || null, pref || null, preferredLang || null, req.user.id]
     );
+    const finalRow = didModeSwitch && updatedUser
+      ? { ...updatedUser, ...rows[0] }
+      : rows[0];
+
     if (didModeSwitch) {
+      const tokens = generateTokens(finalRow);
+      const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
       await modeRoleUtil.invalidateUserSessions(client, req.user.id);
+      await client.query(
+        "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
+        [finalRow.id, hashedRefresh],
+      );
+      modeTokens = tokens;
     }
     await client.query('COMMIT');
 
-    // Prefer the post-switch row if we did a switch (it has the joined
-    // business_name + is_listed); otherwise the plain UPDATE row is fine.
-    const finalRow = didModeSwitch && updatedUser ? updatedUser : rows[0];
-    res.json({ success: true, user: formatAuthUser(finalRow), mode_switched: didModeSwitch });
+    res.json({
+      success: true,
+      user: formatAuthUser(finalRow),
+      mode_switched: didModeSwitch,
+      ...(modeTokens || {}),
+    });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
     logger.error('Update profile error', { err: err.message });
@@ -1670,7 +1729,13 @@ async function switchRole(req, res) {
     const { mode: requestedMode, target_role: legacyTargetRole } = req.body;
     const userId = req.user.id;
     const currentRole = req.user.role;
-    const currentMode = req.user.default_mode;
+    const currentMode = req.user.default_mode || (
+      ['admin', 'super_admin'].includes(currentRole)
+        ? 'admin'
+        : ['helper', 'helper_pro', 'broker'].includes(currentRole)
+          ? 'helper'
+          : 'customer'
+    );
 
     // Resolve the requested mode. Legacy callers send target_role — map it.
     let newMode = requestedMode;
@@ -1683,6 +1748,16 @@ async function switchRole(req, res) {
       return res.status(400).json({
         error: 'invalid_mode',
         message: `Mode must be one of: ${Object.keys(modeRoleUtil.MODE_ROLE_MAP).join(', ')}`,
+      });
+    }
+
+    // Self-selectable modes are available to every authenticated user. Granted
+    // workspace modes require proof of the underlying membership, while admin
+    // mode is reserved for users who already have an administrative role.
+    if (newMode === 'admin' && currentRole !== 'admin' && currentRole !== 'super_admin') {
+      return res.status(403).json({
+        error: 'mode_not_granted',
+        message: 'Admin mode is only available to administrators.',
       });
     }
 
@@ -1725,15 +1800,17 @@ async function switchRole(req, res) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'state_conflict', message: 'Mode changed during switch. Please try again.' });
     }
-    await modeRoleUtil.invalidateUserSessions(client, userId);
-    await client.query('COMMIT');
-
     const tokens = generateTokens(updatedUser);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-    await pool.query(
+    // Create the replacement session before commit. This keeps the user mode
+    // update and its fresh refresh token atomic instead of returning a 500
+    // after the role has already changed.
+    await modeRoleUtil.invalidateUserSessions(client, userId);
+    await client.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [updatedUser.id, hashedRefresh],
     );
+    await client.query('COMMIT');
 
     logger.info('Mode switch', { userId, fromMode: currentMode, toMode: newMode, fromRole: currentRole, toRole: updatedUser.role });
     return res.json({

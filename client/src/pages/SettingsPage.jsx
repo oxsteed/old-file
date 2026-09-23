@@ -88,7 +88,7 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, switchRole, refreshUser } = useAuth();
+  const { user, logout, switchRole, refreshUser, setUser } = useAuth();
   const navigate = useNavigate();
 
   const TABS = useMemo(() => [
@@ -235,7 +235,12 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const { first_name, last_name, bio, ...updatableFields } = profile;
-      await api.put('/auth/profile', updatableFields);
+      const { data } = await api.put('/auth/profile', updatableFields);
+      if (data?.accessToken && data?.refreshToken) {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      if (data?.user) setUser(data.user);
       toast.success(t('settings.profileUpdated'));
     } catch (err) { toast.error(err.response?.data?.error || t('settings.profileFailed')); }
     setSaving(false);
