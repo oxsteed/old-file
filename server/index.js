@@ -41,6 +41,7 @@ const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
+const { diditWebhook } = require('./controllers/webhookController');
 const jobRoutes = require('./routes/jobs');
 const bidRoutes = require('./routes/bids');
 const paymentRoutes = require('./routes/payments');
@@ -252,9 +253,9 @@ app.use('/api/webhooks', webhookRoutes);
 // Must be mounted before express.json() to prevent body-parser from consuming
 // the request stream (same pattern as Stripe above).
 const verificationCtrl = require('./controllers/verificationController');
-const { handleWebhook: diditWebhook } = require('./controllers/diditController');
 app.post('/api/verification/webhooks/checkr', express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
 app.post('/api/verification/webhooks/identity', express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
+// Backwards-compatible alias. Configure Didit to use /api/webhooks/didit.
 app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditWebhook);
 
 // Provider-agnostic support channel ingress uses its own bounded limiter and

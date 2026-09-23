@@ -725,8 +725,10 @@ function stableStringify(obj) {
 }
 
 function verifySignatureV2(body, receivedSignature, timestamp, secret) {
+  const numericTimestamp = Number(timestamp);
+  if (!Number.isFinite(numericTimestamp)) return false;
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - timestamp) > 300) return false;
+  if (Math.abs(now - numericTimestamp) > 300) return false;
   const processedData = shortenFloats(body);
   const encodedData = stableStringify(processedData);
   const expectedSig = crypto.createHmac('sha256', secret)
@@ -741,8 +743,10 @@ function verifySignatureV2(body, receivedSignature, timestamp, secret) {
 }
 
 function verifySignatureSimple(body, receivedSignature, timestamp, secret) {
+  const numericTimestamp = Number(timestamp);
+  if (!Number.isFinite(numericTimestamp)) return false;
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - timestamp) > 300) return false;
+  if (Math.abs(now - numericTimestamp) > 300) return false;
   const canonicalString = [
     String(body.timestamp || ''),
     String(body.session_id || ''),
@@ -761,8 +765,10 @@ function verifySignatureSimple(body, receivedSignature, timestamp, secret) {
 }
 
 function verifySignatureOriginal(rawBody, receivedSignature, timestamp, secret) {
+  const numericTimestamp = Number(timestamp);
+  if (!Number.isFinite(numericTimestamp)) return false;
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - timestamp) > 300) return false;
+  if (Math.abs(now - numericTimestamp) > 300) return false;
   const expectedSig = crypto.createHmac('sha256', secret)
     .update(rawBody)
     .digest('hex');
@@ -774,13 +780,50 @@ function verifySignatureOriginal(rawBody, receivedSignature, timestamp, secret) 
   } catch { return false; }
 }
 
+function diditTimestamp(req, body) {
+  return req.headers['x-timestamp'] || body.created_at || body.timestamp;
+}
+
+async function beginDiditWebhookEvent(body) {
+  const eventId = body.event_id || body.id;
+  if (!eventId) return { shouldProcess: true, receiptId: null };
+
+  const eventType = String(body.webhook_type || body.type || 'didit.verification');
+  const eventCreated = Number.isSafeInteger(Number(body.created_at))
+    ? Number(body.created_at)
+    : null;
+  const { rows } = await db.query(
+    `INSERT INTO webhook_event_receipts
+       (provider, event_id, event_type, object_type, object_id, event_created, status)
+     VALUES ('didit', $1, $2, 'session', $3, $4, 'processing')
+     ON CONFLICT (provider, event_id) DO UPDATE SET
+       attempts = webhook_event_receipts.attempts + 1,
+       event_type = EXCLUDED.event_type,
+       object_id = EXCLUDED.object_id,
+       event_created = EXCLUDED.event_created,
+       status = 'processing',
+       last_seen_at = NOW(),
+       last_error = NULL
+     WHERE webhook_event_receipts.status = 'failed'
+        OR (
+          webhook_event_receipts.status = 'processing'
+          AND webhook_event_receipts.last_seen_at < NOW() - INTERVAL '15 minutes'
+        )
+     RETURNING id`,
+    [String(eventId), eventType, body.session_id ? String(body.session_id) : null, eventCreated]
+  );
+
+  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id || null };
+}
+
 // Didit identity webhook handler (v3 API)
 exports.diditWebhook = async (req, res, next) => {
+  let receiptId = null;
   try {
     const secret = process.env.DIDIT_WEBHOOK_SECRET;
     if (!secret) {
       logger.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
-      throw new AppError('Webhook not configured', 500, 'webhook_not_configured');
+      return res.status(500).json({ error: 'Webhook not configured', code: 'webhook_not_configured' });
     }
 
     // Parse body from raw Buffer
@@ -790,14 +833,14 @@ exports.diditWebhook = async (req, res, next) => {
       rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
       body = typeof req.body === 'object' && !(req.body instanceof Buffer) ? req.body : JSON.parse(rawBody);
     } catch {
-      throw new AppError('Invalid JSON', 400, 'invalid_json');
+      return res.status(400).json({ error: 'Invalid JSON', code: 'invalid_json' });
     }
 
   // Get signature headers (Express lowercases them)
   const signatureV2 = req.headers['x-signature-v2'];
   const signatureSimple = req.headers['x-signature-simple'];
   const signatureOriginal = req.headers['x-signature'];
-  const timestamp = body.created_at; // Didit uses body.created_at as timestamp
+  const timestamp = diditTimestamp(req, body);
 
   // Try verification methods in order: V2 -> Simple -> Original
   let isValid = false;
@@ -818,7 +861,7 @@ exports.diditWebhook = async (req, res, next) => {
 
     if (!isValid) {
       logger.warn('[Didit] Invalid webhook signature');
-      throw new AppError('Invalid signature', 401, 'invalid_webhook_signature');
+      return res.status(401).json({ error: 'Invalid signature', code: 'invalid_webhook_signature' });
     }
 
     logger.info(`[Didit] Signature verified via ${method}`);
@@ -830,10 +873,18 @@ exports.diditWebhook = async (req, res, next) => {
       return res.json({ received: true, test: true });
     }
 
+    const event = await beginDiditWebhookEvent(body);
+    if (!event.shouldProcess) {
+      logger.info('[Didit] Duplicate webhook ignored', { eventId: body.event_id || body.id });
+      return res.json({ received: true, duplicate: true });
+    }
+    receiptId = event.receiptId;
+
     // Process verification result
     const { session_id, status, decision } = body;
     if (!session_id) {
-      throw new AppError('Missing session_id', 400, 'missing_session_id');
+      await markWebhookEventFailed(receiptId, new Error('Missing session_id'));
+      return res.status(400).json({ error: 'Missing session_id', code: 'missing_session_id' });
     }
 
     // Didit sends capitalized status: "Approved", "Declined"
@@ -975,9 +1026,18 @@ exports.diditWebhook = async (req, res, next) => {
       logger.info('[Didit] Unhandled status', { status });
     }
 
+    await markWebhookEventProcessed(receiptId);
     res.json({ received: true });
   } catch (err) {
+    await markWebhookEventFailed(receiptId, err).catch(() => {});
     logger.error('Didit webhook handler error', { error: err.message });
-    throw new AppError('Webhook processing failed', 500, 'webhook_processing_error');
+    if (typeof next === 'function') {
+      return next(new AppError('Webhook processing failed', 500, 'webhook_processing_error'));
+    }
+    return res.status(500).json({ error: 'Webhook processing failed', code: 'webhook_processing_error' });
   }
 };
+
+exports.canonicalizeDiditPayload = (body) => stableStringify(shortenFloats(body));
+exports.verifyDiditSignatureV2 = (body, signature, timestamp, secret) =>
+  verifySignatureV2(body, signature, timestamp, secret);

@@ -6,9 +6,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
-const DIDIT_API_KEY = process.env.DIDIT_API_KEY;
-const DIDIT_WORKFLOW_ID = process.env.DIDIT_WORKFLOW_ID || '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
-const DIDIT_WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET;
+const DEFAULT_DIDIT_WORKFLOW_ID = '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
 const { diditAllowUserSkip } = require('../utils/diditGate');
 
 // ── Create a Didit session for a user ────────────────────
@@ -20,7 +18,11 @@ async function createSession(req, res) {
 
     // Guard: if Didit is not configured, tell the client so it can offer a skip
     // path instead of showing a generic 502 error.
-    if (!DIDIT_API_KEY) {
+    const apiKey = process.env.DIDIT_API_KEY;
+    const workflowId = process.env.DIDIT_WORKFLOW_ID || DEFAULT_DIDIT_WORKFLOW_ID;
+    const callbackUrl = process.env.DIDIT_CALLBACK_URL;
+
+    if (!apiKey) {
       return res.status(503).json({
         error: 'verification_unavailable',
         message: 'Identity verification is not configured on this server.',
@@ -32,11 +34,12 @@ async function createSession(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': DIDIT_API_KEY,
+        'x-api-key': apiKey,
       },
       body: JSON.stringify({
-        workflow_id: DIDIT_WORKFLOW_ID,
+        workflow_id: workflowId,
         vendor_data: String(userId),
+        ...(callbackUrl ? { callback: callbackUrl } : {}),
       }),
     });
 
@@ -74,7 +77,8 @@ async function createSession(req, res) {
 // This is the enforcement point for one-person-one-account.
 async function handleWebhook(req, res) {
   try {
-    if (!DIDIT_WEBHOOK_SECRET) {
+    const webhookSecret = process.env.DIDIT_WEBHOOK_SECRET;
+    if (!webhookSecret) {
       logger.error('DIDIT_WEBHOOK_SECRET is not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
     }
@@ -86,7 +90,7 @@ async function handleWebhook(req, res) {
 
     const rawBody = req.body; // Buffer from express.raw()
     const expectedSig = crypto
-      .createHmac('sha256', DIDIT_WEBHOOK_SECRET)
+      .createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('hex');
 
