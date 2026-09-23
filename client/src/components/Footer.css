@@ -164,7 +164,19 @@
 }
 
 .site-footer__legal-links {
-  gap: 0.15rem 1.25rem;
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem 1.25rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface-2);
+}
+
+.site-footer__legal-links > * {
+  min-width: 0;
 }
 
 .site-footer__cookie-button {
@@ -289,9 +301,13 @@
   }
 
   .site-footer__legal-links {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.15rem;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem 0.85rem;
+  }
+
+  .site-footer__bottom {
+    padding-bottom: 4.75rem;
   }
 
   .site-footer__pills {
@@ -310,5 +326,10 @@
 
   .site-footer__link-grid {
     grid-template-columns: 1fr;
+  }
+
+  .site-footer__legal-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem 0.75rem;
   }
 }
