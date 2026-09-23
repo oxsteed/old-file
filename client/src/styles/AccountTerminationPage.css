@@ -1,6 +1,6 @@
 /* Account Termination Policy Page Styles */
 
-:root {
+.termination-page-container {
   --primary: #f97316;
   --primary-dark: #ea580c;
   --primary-light: #fed7aa;
@@ -15,7 +15,7 @@
   --error: #ef4444;
 }
 
-html:not(.dark) {
+html:not(.dark) .termination-page-container {
   --primary: #ea580c;
   --primary-dark: #b84906;
   --primary-light: #fed7aa;
@@ -36,28 +36,28 @@ html:not(.dark) {
 }
 
 /* ── Header ── */
-.termination-header {
+:where(.termination-page-container) .termination-header {
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0.05) 100%);
   border-bottom: 1px solid var(--border-color);
   padding: 3rem 1.5rem;
   text-align: center;
 }
 
-.termination-header h1 {
+:where(.termination-page-container) .termination-header h1 {
   font-size: 2.5rem;
   font-weight: 800;
   margin: 0 0 1rem 0;
   letter-spacing: -0.02em;
 }
 
-.termination-version {
+:where(.termination-page-container) .termination-version {
   font-size: 0.95rem;
   color: var(--text-muted);
   margin: 0;
 }
 
 /* ── Layout ── */
-.termination-layout {
+:where(.termination-page-container) .termination-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 2rem;
@@ -69,7 +69,7 @@ html:not(.dark) {
 }
 
 /* ── Sidebar ── */
-.termination-sidebar {
+:where(.termination-page-container) .termination-sidebar {
   position: sticky;
   top: 2rem;
   height: max-content;
@@ -81,18 +81,18 @@ html:not(.dark) {
   background-color: var(--section-bg);
 }
 
-.toc-header h3 {
+:where(.termination-page-container) .toc-header h3 {
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 700;
 }
 
-.search-box {
+:where(.termination-page-container) .search-box {
   position: relative;
   margin-bottom: 1.5rem;
 }
 
-.search-box input {
+:where(.termination-page-container) .search-box input {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--border-color);
@@ -103,17 +103,17 @@ html:not(.dark) {
   transition: all 0.2s;
 }
 
-.search-box input:focus {
+:where(.termination-page-container) .search-box input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
-.search-box input::placeholder {
+:where(.termination-page-container) .search-box input::placeholder {
   color: var(--text-muted);
 }
 
-.search-count {
+:where(.termination-page-container) .search-count {
   position: absolute;
   top: 50%;
   right: 0.75rem;
@@ -123,14 +123,14 @@ html:not(.dark) {
 }
 
 /* ── TOC Navigation ── */
-.toc-nav {
+:where(.termination-page-container) .toc-nav {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
 }
 
-.toc-link {
+:where(.termination-page-container) .toc-link {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -145,18 +145,18 @@ html:not(.dark) {
   transition: all 0.2s;
 }
 
-.toc-link:hover {
+:where(.termination-page-container) .toc-link:hover {
   background-color: rgba(249, 115, 22, 0.1);
   color: var(--primary);
 }
 
-.toc-link.active {
+:where(.termination-page-container) .toc-link.active {
   background-color: rgba(249, 115, 22, 0.2);
   color: var(--primary);
   font-weight: 600;
 }
 
-.toc-link.highlighted {
+:where(.termination-page-container) .toc-link.highlighted {
   animation: pulse-highlight 0.6s ease-in-out;
 }
 
@@ -169,17 +169,17 @@ html:not(.dark) {
   }
 }
 
-.toc-icon {
+:where(.termination-page-container) .toc-icon {
   font-size: 1.25rem;
   flex-shrink: 0;
 }
 
-.toc-text {
+:where(.termination-page-container) .toc-text {
   flex: 1;
 }
 
 /* ── Version History ── */
-.version-history-btn {
+:where(.termination-page-container) .version-history-btn {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--border-color);
@@ -193,11 +193,11 @@ html:not(.dark) {
   margin-bottom: 1rem;
 }
 
-.version-history-btn:hover {
+:where(.termination-page-container) .version-history-btn:hover {
   background-color: rgba(249, 115, 22, 0.1);
 }
 
-.version-history-modal {
+:where(.termination-page-container) .version-history-modal {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1rem;
@@ -216,12 +216,12 @@ html:not(.dark) {
   }
 }
 
-.version-history-modal h4 {
+:where(.termination-page-container) .version-history-modal h4 {
   margin: 0 0 1rem 0;
   font-size: 0.95rem;
 }
 
-.history-list {
+:where(.termination-page-container) .history-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -230,7 +230,7 @@ html:not(.dark) {
   gap: 0.75rem;
 }
 
-.history-entry {
+:where(.termination-page-container) .history-entry {
   border-left: 3px solid var(--primary);
   padding: 0.75rem;
   background-color: rgba(249, 115, 22, 0.05);
@@ -238,23 +238,23 @@ html:not(.dark) {
   font-size: 0.85rem;
 }
 
-.entry-date {
+:where(.termination-page-container) .entry-date {
   font-weight: 600;
   color: var(--primary);
   margin-bottom: 0.25rem;
 }
 
-.entry-signer {
+:where(.termination-page-container) .entry-signer {
   color: var(--text-light);
   margin-bottom: 0.25rem;
 }
 
-.entry-version {
+:where(.termination-page-container) .entry-version {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
 
-.no-history {
+:where(.termination-page-container) .no-history {
   font-size: 0.9rem;
   color: var(--text-muted);
   margin: 0;
@@ -263,13 +263,13 @@ html:not(.dark) {
 }
 
 /* ── Main Content ── */
-.termination-main {
+:where(.termination-page-container) .termination-main {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.termination-content {
+:where(.termination-page-container) .termination-content {
   flex: 1;
   overflow-y: auto;
   padding-right: 0.5rem;
@@ -277,25 +277,25 @@ html:not(.dark) {
   scroll-behavior: smooth;
 }
 
-.termination-content::-webkit-scrollbar {
+:where(.termination-page-container) .termination-content::-webkit-scrollbar {
   width: 8px;
 }
 
-.termination-content::-webkit-scrollbar-track {
+:where(.termination-page-container) .termination-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.termination-content::-webkit-scrollbar-thumb {
+:where(.termination-page-container) .termination-content::-webkit-scrollbar-thumb {
   background-color: rgba(249, 115, 22, 0.5);
   border-radius: 4px;
 }
 
-.termination-content::-webkit-scrollbar-thumb:hover {
+:where(.termination-page-container) .termination-content::-webkit-scrollbar-thumb:hover {
   background-color: var(--primary);
 }
 
 /* ── Content Sections ── */
-.content-section {
+:where(.termination-page-container) .content-section {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   margin-bottom: 1.5rem;
@@ -304,7 +304,7 @@ html:not(.dark) {
   transition: all 0.3s ease;
 }
 
-.section-header {
+:where(.termination-page-container) .section-header {
   width: 100%;
   padding: 1.5rem;
   border: none;
@@ -319,34 +319,34 @@ html:not(.dark) {
   font-size: 1rem;
 }
 
-.section-header:hover {
+:where(.termination-page-container) .section-header:hover {
   background-color: rgba(249, 115, 22, 0.05);
 }
 
-.content-section.expanded .section-header {
+:where(.termination-page-container) .content-section.expanded .section-header {
   background-color: rgba(249, 115, 22, 0.08);
   border-bottom: 1px solid var(--border-color);
 }
 
-.section-icon {
+:where(.termination-page-container) .section-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
 }
 
-.section-header h2 {
+:where(.termination-page-container) .section-header h2 {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
   flex: 1;
 }
 
-.expand-icon {
+:where(.termination-page-container) .expand-icon {
   font-size: 1.25rem;
   color: var(--primary);
   flex-shrink: 0;
 }
 
-.section-content {
+:where(.termination-page-container) .section-content {
   padding: 1.5rem;
   color: var(--text-light);
   line-height: 1.8;
@@ -365,54 +365,54 @@ html:not(.dark) {
 }
 
 /* ── Typography ── */
-.section-content h3 {
+:where(.termination-page-container) .section-content h3 {
   font-size: 1.1rem;
   font-weight: 700;
   margin: 1.5rem 0 1rem 0;
   color: var(--primary);
 }
 
-.section-content h4 {
+:where(.termination-page-container) .section-content h4 {
   font-size: 1rem;
   font-weight: 600;
   margin: 1.25rem 0 0.75rem 0;
   color: var(--text-light);
 }
 
-.section-content p {
+:where(.termination-page-container) .section-content p {
   margin: 1rem 0;
   color: var(--text-light);
 }
 
-.section-content ul,
-.section-content ol {
+:where(.termination-page-container) .section-content ul,
+:where(.termination-page-container) .section-content ol {
   margin: 1rem 0;
   padding-left: 1.5rem;
   color: var(--text-light);
 }
 
-.section-content li {
+:where(.termination-page-container) .section-content li {
   margin: 0.5rem 0;
   line-height: 1.7;
 }
 
-.numbered-list {
+:where(.termination-page-container) .numbered-list {
   list-style-type: decimal;
 }
 
-.bullet-list {
+:where(.termination-page-container) .bullet-list {
   list-style-type: disc;
 }
 
 /* ── Grounds Grid ── */
-.grounds-grid {
+:where(.termination-page-container) .grounds-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
   margin: 1.5rem 0;
 }
 
-.ground-card {
+:where(.termination-page-container) .ground-card {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.25rem;
@@ -422,24 +422,24 @@ html:not(.dark) {
   border-left: 4px solid var(--error);
 }
 
-.ground-card:hover {
+:where(.termination-page-container) .ground-card:hover {
   border-color: var(--error);
   background-color: rgba(239, 68, 68, 0.1);
   transform: translateY(-2px);
 }
 
-.ground-icon {
+:where(.termination-page-container) .ground-icon {
   font-size: 2rem;
   margin-bottom: 0.75rem;
 }
 
-.ground-card h4 {
+:where(.termination-page-container) .ground-card h4 {
   margin: 0.75rem 0 0.5rem 0;
   font-size: 0.95rem;
   color: var(--error);
 }
 
-.ground-card p {
+:where(.termination-page-container) .ground-card p {
   margin: 0;
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -447,13 +447,13 @@ html:not(.dark) {
 }
 
 /* ── Appeal Timeline ── */
-.appeal-timeline {
+:where(.termination-page-container) .appeal-timeline {
   margin: 1.5rem 0;
   position: relative;
   padding: 1rem 0;
 }
 
-.timeline-step {
+:where(.termination-page-container) .timeline-step {
   margin-bottom: 2rem;
   padding: 1.25rem;
   border-left: 4px solid var(--primary);
@@ -462,11 +462,11 @@ html:not(.dark) {
   position: relative;
 }
 
-.timeline-step:last-child {
+:where(.termination-page-container) .timeline-step:last-child {
   margin-bottom: 0;
 }
 
-.step-marker {
+:where(.termination-page-container) .step-marker {
   position: absolute;
   left: -18px;
   top: 1.25rem;
@@ -483,31 +483,31 @@ html:not(.dark) {
   border: 3px solid var(--bg-dark);
 }
 
-.timeline-step h4 {
+:where(.termination-page-container) .timeline-step h4 {
   margin: 0 0 0.5rem 0;
   font-size: 0.95rem;
   color: var(--primary);
 }
 
-.timeline-step p {
+:where(.termination-page-container) .timeline-step p {
   margin: 0;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.timeline-connector {
+:where(.termination-page-container) .timeline-connector {
   height: 2rem;
   border-left: 2px dashed var(--primary);
   margin: -2rem 0 2rem 15px;
 }
 
-.timeline-step:last-child .timeline-connector {
+:where(.termination-page-container) .timeline-step:last-child .timeline-connector {
   display: none;
 }
 
 /* ── Callouts ── */
-.callout-info,
-.callout-warning {
+:where(.termination-page-container) .callout-info,
+:where(.termination-page-container) .callout-warning {
   border-radius: 8px;
   padding: 1.25rem;
   margin: 1.5rem 0;
@@ -516,29 +516,29 @@ html:not(.dark) {
   border-left: 4px solid var(--primary);
 }
 
-.callout-info {
+:where(.termination-page-container) .callout-info {
   background-color: rgba(59, 130, 246, 0.1);
   border-left-color: #3b82f6;
 }
 
-.callout-warning {
+:where(.termination-page-container) .callout-warning {
   background-color: rgba(239, 68, 68, 0.1);
   border-left-color: var(--error);
 }
 
-.callout-icon {
+:where(.termination-page-container) .callout-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
 }
 
-.callout-info p,
-.callout-warning p {
+:where(.termination-page-container) .callout-info p,
+:where(.termination-page-container) .callout-warning p {
   margin: 0;
   color: var(--text-light);
 }
 
 /* ── Scroll Progress ── */
-.scroll-progress {
+:where(.termination-page-container) .scroll-progress {
   height: 4px;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 2px;
@@ -546,7 +546,7 @@ html:not(.dark) {
   overflow: hidden;
 }
 
-.scroll-bar {
+:where(.termination-page-container) .scroll-bar {
   height: 100%;
   background: linear-gradient(90deg, var(--primary), var(--primary-light));
   transition: width 0.1s linear;
@@ -554,7 +554,7 @@ html:not(.dark) {
 }
 
 /* ── Signature Form ── */
-.signature-form {
+:where(.termination-page-container) .signature-form {
   margin-top: 2rem;
   padding: 2rem;
   border: 1px solid var(--border-color);
@@ -562,18 +562,18 @@ html:not(.dark) {
   background-color: var(--section-bg);
 }
 
-.signature-form h3 {
+:where(.termination-page-container) .signature-form h3 {
   margin: 0 0 1.5rem 0;
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--primary);
 }
 
-.form-group {
+:where(.termination-page-container) .form-group {
   margin-bottom: 1.5rem;
 }
 
-.form-label {
+:where(.termination-page-container) .form-label {
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -581,12 +581,12 @@ html:not(.dark) {
   font-size: 0.95rem;
 }
 
-.form-label span {
+:where(.termination-page-container) .form-label span {
   color: var(--error);
   margin-left: 0.25rem;
 }
 
-.form-group input[type='text'] {
+:where(.termination-page-container) .form-group input[type='text'] {
   width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
@@ -597,20 +597,20 @@ html:not(.dark) {
   transition: all 0.2s;
 }
 
-.form-group input[type='text']:focus {
+:where(.termination-page-container) .form-group input[type='text']:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
-.form-group.checkbox {
+:where(.termination-page-container) .form-group.checkbox {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 2rem;
 }
 
-.form-group.checkbox input[type='checkbox'] {
+:where(.termination-page-container) .form-group.checkbox input[type='checkbox'] {
   margin-top: 0.35rem;
   cursor: pointer;
   width: 20px;
@@ -618,19 +618,19 @@ html:not(.dark) {
   accent-color: var(--primary);
 }
 
-.form-group.checkbox input[type='checkbox']:disabled {
+:where(.termination-page-container) .form-group.checkbox input[type='checkbox']:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.form-group.checkbox label {
+:where(.termination-page-container) .form-group.checkbox label {
   flex: 1;
   cursor: pointer;
   color: var(--text-light);
   line-height: 1.6;
 }
 
-.form-meta {
+:where(.termination-page-container) .form-meta {
   padding: 1rem;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
@@ -638,17 +638,17 @@ html:not(.dark) {
   font-size: 0.85rem;
 }
 
-.meta-line {
+:where(.termination-page-container) .meta-line {
   margin: 0.5rem 0;
   color: var(--text-muted);
 }
 
-.meta-line strong {
+:where(.termination-page-container) .meta-line strong {
   color: var(--text-light);
 }
 
 /* ── Buttons ── */
-.submit-btn {
+:where(.termination-page-container) .submit-btn {
   width: 100%;
   padding: 0.875rem 1.5rem;
   border: none;
@@ -661,28 +661,28 @@ html:not(.dark) {
   color: white;
 }
 
-.submit-btn.enabled {
+:where(.termination-page-container) .submit-btn.enabled {
   background-color: var(--primary);
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
 
-.submit-btn.enabled:hover:not(:disabled) {
+:where(.termination-page-container) .submit-btn.enabled:hover:not(:disabled) {
   background-color: var(--primary-dark);
   box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4);
   transform: translateY(-1px);
 }
 
-.submit-btn.enabled:active:not(:disabled) {
+:where(.termination-page-container) .submit-btn.enabled:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.submit-btn.disabled {
+:where(.termination-page-container) .submit-btn.disabled {
   background-color: rgba(249, 115, 22, 0.3);
   color: var(--text-muted);
   cursor: not-allowed;
 }
 
-.signature-note {
+:where(.termination-page-container) .signature-note {
   margin: 1rem 0 0 0;
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -691,50 +691,50 @@ html:not(.dark) {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .termination-layout {
+  :where(.termination-page-container) .termination-layout {
     grid-template-columns: 1fr;
     gap: 1.5rem;
     padding: 1rem;
   }
 
-  .termination-sidebar {
+  :where(.termination-page-container) .termination-sidebar {
     position: static;
     max-height: none;
     border: 1px solid var(--border-color);
     margin-bottom: 2rem;
   }
 
-  .termination-header h1 {
+  :where(.termination-page-container) .termination-header h1 {
     font-size: 1.75rem;
   }
 
-  .section-content {
+  :where(.termination-page-container) .section-content {
     padding: 1rem;
   }
 
-  .section-header {
+  :where(.termination-page-container) .section-header {
     padding: 1rem;
   }
 
-  .signature-form {
+  :where(.termination-page-container) .signature-form {
     padding: 1.5rem;
   }
 
-  .toc-link {
+  :where(.termination-page-container) .toc-link {
     padding: 0.6rem 0.8rem;
     font-size: 0.9rem;
   }
 
-  .grounds-grid {
+  :where(.termination-page-container) .grounds-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 0.75rem;
   }
 
-  .appeal-timeline {
+  :where(.termination-page-container) .appeal-timeline {
     padding: 0;
   }
 
-  .step-marker {
+  :where(.termination-page-container) .step-marker {
     left: -12px;
     width: 28px;
     height: 28px;
@@ -747,85 +747,85 @@ html:not(.dark) {
     min-height: auto;
   }
 
-  .termination-header {
+  :where(.termination-page-container) .termination-header {
     padding: 2rem 1rem;
   }
 
-  .termination-header h1 {
+  :where(.termination-page-container) .termination-header h1 {
     font-size: 1.5rem;
   }
 
-  .termination-layout {
+  :where(.termination-page-container) .termination-layout {
     gap: 1rem;
     padding: 1rem 0.75rem;
   }
 
-  .toc-nav {
+  :where(.termination-page-container) .toc-nav {
     gap: 0.25rem;
   }
 
-  .toc-link {
+  :where(.termination-page-container) .toc-link {
     padding: 0.5rem 0.6rem;
     font-size: 0.85rem;
   }
 
-  .search-box input {
+  :where(.termination-page-container) .search-box input {
     font-size: 0.8rem;
     padding: 0.6rem;
   }
 
-  .section-content {
+  :where(.termination-page-container) .section-content {
     padding: 0.75rem;
     font-size: 0.9rem;
   }
 
-  .section-header h2 {
+  :where(.termination-page-container) .section-header h2 {
     font-size: 1rem;
   }
 
-  .section-content h3 {
+  :where(.termination-page-container) .section-content h3 {
     font-size: 0.95rem;
     margin: 1rem 0 0.75rem 0;
   }
 
-  .grounds-grid {
+  :where(.termination-page-container) .grounds-grid {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
 
-  .ground-card {
+  :where(.termination-page-container) .ground-card {
     padding: 0.75rem;
   }
 
-  .ground-icon {
+  :where(.termination-page-container) .ground-icon {
     font-size: 1.5rem;
   }
 
-  .timeline-step {
+  :where(.termination-page-container) .timeline-step {
     padding: 1rem;
     margin-left: 1.5rem;
   }
 
-  .step-marker {
+  :where(.termination-page-container) .step-marker {
     left: -20px;
   }
 
-  .form-group input[type='text'] {
+  :where(.termination-page-container) .form-group input[type='text'] {
     font-size: 0.9rem;
     padding: 0.6rem 0.75rem;
   }
 
-  .submit-btn {
+  :where(.termination-page-container) .submit-btn {
     padding: 0.75rem 1rem;
     font-size: 0.95rem;
   }
 
-  .form-meta {
+  :where(.termination-page-container) .form-meta {
     font-size: 0.8rem;
     padding: 0.75rem;
   }
 
-  .signature-form {
+  :where(.termination-page-container) .signature-form {
     padding: 1rem;
   }
 }

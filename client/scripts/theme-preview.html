@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theme regression preview (local only)</title>
+  <style>
+    body { margin: 0; padding: 24px; }
+    main { max-width: 1100px; margin: auto; }
+    .samples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; margin-top: 24px; }
+    .sample { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 16px; padding: 24px; }
+    h1 { font-size: 28px; font-weight: 700; }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+    p { margin: 10px 0; }
+    .statuses { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+    .sample button { margin: 4px; }
+    .banner { background: #9a3412; border-radius: 8px; padding: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Theme regression preview</h1>
+  <p>Real application styles with synthetic data. No account or API requests.</p>
+  <button class="ox-btn ox-btn-secondary" id="theme-toggle">Switch to dark mode</button>
+  <div class="samples">
+    <section class="sample">
+      <h2>Shared controls and protected foregrounds</h2>
+      <button class="ox-btn ox-btn-primary" data-contrast>Primary action</button>
+      <button class="ox-btn ox-btn-destructive" data-contrast>Delete</button>
+      <button class="ox-btn bg-action text-on-action" data-contrast>Contact support</button>
+      <p class="banner text-on-solid" data-contrast>White text stays white on a dark banner.</p>
+      <label for="search">Search</label>
+      <input id="search" class="ox-input" placeholder="Search people, jobs, or orders">
+      <p style="color:var(--color-text-muted)" data-contrast>Secondary text remains readable.</p>
+    </section>
+    <section class="sample">
+      <h2>Invoice details</h2>
+      <div class="invoices-detail"><span data-contrast>Customer</span><strong data-contrast>Sample customer</strong></div>
+      <p class="invoices-amount" data-contrast>$125.00</p>
+      <div class="statuses">
+        <span class="invoices-status invoices-status-paid" data-contrast>Paid</span>
+        <span class="invoices-status invoices-status-issued" data-contrast>Issued</span>
+        <span class="invoices-status invoices-status-overdue" data-contrast>Overdue</span>
+        <span class="invoices-status invoices-status-draft" data-contrast>Draft</span>
+      </div>
+      <button class="invoices-btn invoices-btn-primary" data-contrast>New invoice</button>
+    </section>
+    <section class="sample">
+      <h2>Order history</h2>
+      <p class="orders-total" data-contrast>$48.00</p>
+      <div class="statuses">
+        <span class="orders-status orders-status-paid" data-contrast>Paid</span>
+        <span class="orders-status orders-status-processing" data-contrast>Processing</span>
+        <span class="orders-status orders-status-cancelled" data-contrast>Cancelled</span>
+      </div>
+      <div class="orders-filters"><button class="active" data-contrast>All orders</button><button data-contrast>Completed</button></div>
+    </section>
+    <section class="sample">
+      <h2>Public invoice</h2>
+      <div class="piv-bill-to"><span data-contrast>Bill to</span><strong data-contrast>Sample customer</strong><p data-contrast>Example address</p></div>
+      <p class="piv-status piv-status-partial" data-contrast>Partially paid</p>
+      <button class="piv-button piv-button-primary" data-contrast>Pay invoice</button>
+      <button class="piv-button piv-button-secondary" data-contrast>Download</button>
+    </section>
+    <section class="sample bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <h2 class="text-white">Support and admin gradient</h2>
+      <p class="text-gray-400">The background and text must switch together.</p>
+    </section>
+    <section class="sample sp-page">
+      <h2 class="sp-title">Account settings</h2>
+      <button class="sp-tab active">Profile</button>
+      <button class="sp-tab danger">Delete account</button>
+      <button class="sp-tab danger active">Confirm deletion</button>
+    </section>
+  </div>
+</main>
+<script type="module">
+  import '../src/index.css';
+  import '../src/pages/InvoicesPage.css';
+  import '../src/pages/OrderHistoryPage.css';
+  import '../src/styles/PublicInvoiceView.css';
+  import '../src/styles/SettingsPage.css';
+  // Legal CSS used to overwrite shared tokens and generic class names.
+  import '../src/styles/IndependentContractorPage.css';
+  import '../src/styles/DisputeResolutionPage.css';
+  import '../src/styles/AccountTerminationPage.css';
+  document.querySelector('#theme-toggle').addEventListener('click', (event) => {
+    const dark = document.documentElement.classList.toggle('dark');
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    event.target.textContent = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  });
+</script>
+</body>
+</html>

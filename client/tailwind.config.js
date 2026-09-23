@@ -32,6 +32,14 @@ export default {
           hover: 'var(--color-primary-hover)',
           bg: 'var(--color-primary-bg)',
         },
+        content: 'var(--color-text)',
+        muted: 'var(--color-text-muted)',
+        'on-solid': '#ffffff',
+        'on-action': 'var(--color-on-action)',
+        action: {
+          DEFAULT: 'var(--color-action)',
+          hover: 'var(--color-action-hover)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

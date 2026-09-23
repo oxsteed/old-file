@@ -34,15 +34,19 @@
   --color-primary-hover: #ea580c;
   --color-primary-bg:    rgba(249, 115, 22, 0.12);
   --color-primary-text:  #ffffff;
+  /* Solid actions keep a readable foreground in either theme. */
+  --color-action:        #c2410c;
+  --color-action-hover:  #9a3412;
+  --color-on-action:     #ffffff;
 
   /* ── Semantic Status ── */
   --color-success:       #22c55e;
   --color-success-bg:    rgba(34, 197, 94, 0.12);
   --color-warning:       #eab308;
   --color-warning-bg:    rgba(234, 179, 8, 0.12);
-  --color-error:         #ef4444;
+  --color-error:         #f87171;
   --color-error-bg:      rgba(239, 68, 68, 0.12);
-  --color-info:          #3b82f6;
+  --color-info:          #60a5fa;
   --color-info-bg:       rgba(59, 130, 246, 0.12);
 
   /* ── Navigation ── */
@@ -159,18 +163,18 @@ html:not(.dark),
   --color-text-muted:    #1f2937;
   --color-text-faint:    #374151;
 
-  --color-primary:       #ea580c;
-  --color-primary-hover: #c2410c;
+  --color-primary:       #9a3412;
+  --color-primary-hover: #7c2d12;
   --color-primary-bg:    rgba(234, 88, 12, 0.08);
   --color-primary-text:  #ffffff;
 
-  --color-success:       #16a34a;
+  --color-success:       #166534;
   --color-success-bg:    rgba(22, 163, 74, 0.08);
-  --color-warning:       #ca8a04;
+  --color-warning:       #854d0e;
   --color-warning-bg:    rgba(202, 138, 4, 0.08);
-  --color-error:         #dc2626;
+  --color-error:         #b91c1c;
   --color-error-bg:      rgba(220, 38, 38, 0.08);
-  --color-info:          #2563eb;
+  --color-info:          #1d4ed8;
   --color-info-bg:       rgba(37, 99, 235, 0.08);
 
   --color-nav-bg:        rgba(255, 255, 255, 0.92);
@@ -265,11 +269,11 @@ html:not(.dark),
 }
 
 .ox-btn-primary {
-  background: var(--color-primary);
-  color: var(--color-primary-text);
+  background: var(--color-action);
+  color: var(--color-on-action);
 }
 .ox-btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: var(--color-action-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -302,11 +306,11 @@ html:not(.dark),
 }
 
 .ox-btn-destructive {
-  background: var(--color-error);
+  background: #b91c1c;
   color: #fff;
 }
 .ox-btn-destructive:hover:not(:disabled) {
-  background: #dc2626;
+  background: #991b1b;
   box-shadow: var(--shadow-sm);
 }
 
@@ -658,7 +662,7 @@ html:not(.dark) .text-white { color: #0f172a !important; }
 html:not(.dark) .text-gray-300 { color: #1f2937 !important; }
 html:not(.dark) .text-gray-400 { color: #334155 !important; }
 html:not(.dark) .text-gray-500 { color: #475569 !important; }
-html:not(.dark) .placeholder-gray-600::placeholder { color: #94a3b8 !important; }
+html:not(.dark) .placeholder-gray-600::placeholder { color: #475569 !important; }
 html:not(.dark) .bg-gray-700  { background-color: #e2e8f0 !important; }
 html:not(.dark) .bg-gray-600  { background-color: #cbd5e1 !important; }
 
@@ -677,10 +681,21 @@ html:not(.dark) .text-gray-600 { color: #334155 !important; }
 html:not(.dark) .text-gray-200 { color: #1f2937 !important; }
 html:not(.dark) .text-gray-100 { color: #0f172a !important; }
 
-html:not(.dark) .from-gray-950 { --tw-gradient-from: #f8fafc !important; }
-html:not(.dark) .from-gray-900 { --tw-gradient-from: #ffffff !important; }
-html:not(.dark) .via-gray-900 { --tw-gradient-via: #f8fafc !important; }
-html:not(.dark) .to-gray-950  { --tw-gradient-to: #f1f5f9 !important; }
+/* Tailwind embeds the via color in gradient-stops, not gradient-via.
+   Remap all neutral stops together so dark bands cannot survive light mode. */
+html:not(.dark) :is(.from-gray-950, .from-gray-900, .from-gray-800, .from-gray-700,
+  .from-slate-950, .from-slate-900, .from-slate-800, .from-slate-700) {
+  --tw-gradient-from: var(--color-surface) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: transparent var(--tw-gradient-to-position);
+}
+html:not(.dark) :is(.via-gray-950, .via-gray-900, .via-gray-800, .via-gray-700,
+  .via-slate-950, .via-slate-900, .via-slate-800, .via-slate-700) {
+  --tw-gradient-stops: var(--tw-gradient-from), var(--color-bg) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+html:not(.dark) :is(.to-gray-950, .to-gray-900, .to-gray-800, .to-gray-700,
+  .to-slate-950, .to-slate-900, .to-slate-800, .to-slate-700) {
+  --tw-gradient-to: var(--color-surface-2) var(--tw-gradient-to-position) !important;
+}
 
 html:not(.dark) .hover\:bg-gray-800:hover { background-color: #f1f5f9 !important; }
 html:not(.dark) .hover\:bg-gray-700:hover { background-color: #e2e8f0 !important; }
@@ -715,13 +730,10 @@ html:not(.dark) .bg-gradient-to-r.from-gray-900\/80 {
    These pages were designed on the dark system first; this maps their shared
    card/table/empty-state vocabulary back to semantic light surfaces. */
 html:not(.dark) :where(
-  .invoices-page,
   .messages-page,
-  .orders-page,
   .feature-guide-page,
   .analytics-page-shell,
-  .verify-identity-page,
-  .piv-page
+  .verify-identity-page
 ) {
   background:
     linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(37, 99, 235, 0.045) 42%, transparent 70%),
@@ -730,20 +742,10 @@ html:not(.dark) :where(
 }
 
 html:not(.dark) :where(
-  .invoices-hero h1,
-  .invoices-summary-card strong,
-  .invoices-panel-header h2,
-  .invoices-guide h2,
-  .invoices-empty h2,
   .messages-hero h1,
   .messages-empty h2,
   .messages-hero-stats span,
   .messages-guide-item h3,
-  .orders-hero h1,
-  .orders-summary-card strong,
-  .orders-panel-header h2,
-  .orders-empty h2,
-  .orders-guide h2,
   .feature-guide-hero h1,
   .feature-guide-path-card h2,
   .feature-guide-overview h2,
@@ -756,27 +758,15 @@ html:not(.dark) :where(
   .analytics-empty-v2 h2,
   .analytics-empty-side h3,
   .verify-identity-copy h1,
-  .verify-identity-benefits strong,
-  .piv-state-card h1,
-  .piv-business-block h1,
-  .piv-panel h2,
-  .piv-amount-card strong
+  .verify-identity-benefits strong
 ) {
   color: var(--color-text) !important;
 }
 
 html:not(.dark) :where(
-  .invoices-hero p:last-child,
-  .invoices-panel-header p,
-  .invoices-guide p,
-  .invoices-empty p,
   .messages-hero p:last-child,
   .messages-empty p,
   .messages-guide-item p,
-  .orders-hero p:last-child,
-  .orders-panel-header p,
-  .orders-empty p,
-  .orders-guide-item p,
   .feature-guide-hero p,
   .feature-guide-overview p,
   .feature-guide-real-life p,
@@ -787,30 +777,18 @@ html:not(.dark) :where(
   .analytics-empty-v2 p,
   .analytics-empty-side ul,
   .verify-identity-copy > p,
-  .verify-identity-benefits span,
-  .piv-state-card p,
-  .piv-panel p,
-  .piv-back-link
+  .verify-identity-benefits span
 ) {
   color: var(--color-text-muted) !important;
 }
 
 html:not(.dark) :where(
-  .invoices-summary-card,
-  .invoices-loading,
-  .invoices-panel,
-  .invoices-empty,
-  .invoices-guide,
-  .invoices-modal,
   .messages-hero-stats div,
   .messages-toolbar,
   .messages-panel,
   .messages-empty,
   .messages-loading,
   .messages-guide,
-  .orders-summary-card,
-  .orders-panel,
-  .orders-guide,
   .feature-guide-path-card,
   .feature-guide-overview,
   .feature-guide-real-life,
@@ -821,11 +799,7 @@ html:not(.dark) :where(
   .analytics-empty-side,
   .verify-identity-benefits div,
   .verify-identity-card,
-  .verify-identity-nav-badge,
-  .piv-state-card,
-  .piv-business-block,
-  .piv-amount-card,
-  .piv-panel
+  .verify-identity-nav-badge
 ) {
   background: rgba(255,255,255,0.92) !important;
   border-color: var(--color-border) !important;
@@ -833,11 +807,8 @@ html:not(.dark) :where(
 }
 
 html:not(.dark) :where(
-  .invoices-btn,
-  .orders-btn,
   .analytics-btn-secondary,
   .messages-business-select,
-  .orders-filters button,
   .feature-guide-search input,
   .feature-guide-category-row a,
   .feature-guide-actions a
@@ -848,8 +819,6 @@ html:not(.dark) :where(
 }
 
 html:not(.dark) :where(
-  .invoices-btn-primary,
-  .orders-btn-primary,
   .my-bookings-hero-btn.primary,
   .dispute-btn.primary
 ) {
@@ -861,14 +830,7 @@ html:not(.dark) :where(
 html:not(.dark) :where(
   .messages-search,
   .messages-business-select,
-  .orders-filters button,
-  .invoices-table-head,
-  .invoices-row,
-  .orders-row,
-  .analytics-empty-side,
-  .piv-meta-grid div,
-  .piv-line-items,
-  .piv-note
+  .analytics-empty-side
 ) {
   background: rgba(241,245,249,0.78) !important;
   border-color: var(--color-border) !important;
@@ -876,10 +838,7 @@ html:not(.dark) :where(
 
 html:not(.dark) :where(
   .messages-search input,
-  .feature-guide-search input,
-  .invoices-modal input,
-  .invoices-modal select,
-  .invoices-modal textarea
+  .feature-guide-search input
 ) {
   color: var(--color-text) !important;
 }
@@ -929,8 +888,8 @@ html:not(.dark) .text-gray-500   { color: #475569 !important; }
 
 html:not(.dark) .focus\:border-orange-500:focus { border-color: #ea580c !important; }
 
-html:not(.dark) ::placeholder { color: #94a3b8 !important; }
-html:not(.dark) .placeholder-gray-500::placeholder { color: #94a3b8 !important; }
+html:not(.dark) ::placeholder { color: #475569 !important; opacity: 1; }
+html:not(.dark) .placeholder-gray-500::placeholder { color: #475569 !important; }
 
 /* Admin panel - extra overrides for classes not covered above */
 html:not(.dark) .bg-gray-700  { background-color: #e2e8f0 !important; }

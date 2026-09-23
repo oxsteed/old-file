@@ -76,7 +76,7 @@ const CardHeader = ({ icon: IconComp, title, right }) => (
   </div>
 );
 const Btn = ({ children, onClick, variant = 'primary', className = '', ...rest }) => {
-  const v = { primary:'bg-orange-500 hover:bg-orange-600 text-white', secondary:'bg-gray-800 hover:bg-gray-700 text-gray-300', danger:'bg-red-500/20 hover:bg-red-500/30 text-red-400' };
+  const v = { primary:'bg-action hover:bg-action-hover text-on-action', secondary:'bg-gray-800 hover:bg-gray-700 text-gray-300', danger:'bg-red-500/20 hover:bg-red-500/30 text-red-400' };
   return <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition ${v[variant]} ${className}`} {...rest}>{children}</button>;
 };
 const Input = ({ label, ...rest }) => (
@@ -184,8 +184,8 @@ function LaunchCustomerDashboard({
           <h2 className="customer-dashboard-hero-title relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.skillsTitle')}</h2>
           <p className="customer-dashboard-hero-copy relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.skillsText')}</p>
           <div className="relative mt-6 flex flex-wrap gap-3">
-            <Link to="/post-job" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400">
-              <IcoPlus size={16} cls="text-white" /> {t('dashboard.postJob')}
+            <Link to="/post-job" className="inline-flex items-center gap-2 rounded-xl bg-action px-4 py-2.5 text-sm font-bold text-on-action transition hover:bg-action-hover">
+              <IcoPlus size={16} cls="text-on-action" /> {t('dashboard.postJob')}
             </Link>
             <Link to="/helpers" className="customer-dashboard-hero-secondary inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
               <IcoSearch size={16} cls="text-gray-200" /> {t('dashboard.browseHelpers')}
@@ -1331,7 +1331,7 @@ export default function Dashboard() {
             ].filter((a) => SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS || !['/planned-needs', '/tool-rentals'].includes(a.to)).map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
-                {a.badge>0&&<span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{a.badge}</span>}
+                {a.badge>0&&<span className="absolute top-2 right-2 bg-action text-on-action text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{a.badge}</span>}
               </Link>
             ))}
           </div>
@@ -1380,7 +1380,7 @@ export default function Dashboard() {
               ) : (
                 <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                   <p className="text-sm text-gray-400">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                  <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">
+                  <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">
                     {t('dashboard.plannedNeeds.addOne')}
                   </Link>
                 </div>
@@ -1478,7 +1478,7 @@ export default function Dashboard() {
           {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && isFreeTier && (
             <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('dashboard.upgrade.title')}</h3></div><p className="text-sm text-gray-400">{t('dashboard.upgrade.subtitle')}</p></div>
-              <Link to="/upgrade" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('dashboard.upgrade.viewPlans')}</Link>
+              <Link to="/upgrade" className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('dashboard.upgrade.viewPlans')}</Link>
             </div>
           )}
         </>)}
@@ -1570,7 +1570,7 @@ export default function Dashboard() {
             {moneyPlannedNeeds.length === 0 ? (
               <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                 <p className="text-sm text-gray-500">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
+                <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1616,7 +1616,7 @@ export default function Dashboard() {
               />
               <button onClick={lookupHomeAddress}
                 disabled={homeLookupLoading || homeAddrInput.trim().length < 5}
-                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
                 {homeLookupLoading ? t('dashboard.home.lookingUp') : t('dashboard.home.lookUp')}
               </button>
             </div>
@@ -1652,7 +1652,7 @@ export default function Dashboard() {
                     onChange={e=>setHomeNickname(e.target.value)}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                   <button onClick={addHome} disabled={homeAdding}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
                     {homeAdding ? t('common.saving') : t('dashboard.home.saveProperty')}
                   </button>
                 </div>
@@ -1842,7 +1842,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-white text-lg">{t('dashboard.myJobs')}</h3>
-              <Link to="/post-job" className="text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl transition">{t('dashboard.postJob')}</Link>
+              <Link to="/post-job" className="text-sm bg-action hover:bg-action-hover text-on-action font-semibold px-4 py-2 rounded-xl transition">{t('dashboard.postJob')}</Link>
             </div>
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3 mb-4">
@@ -1868,7 +1868,7 @@ export default function Dashboard() {
                 {id:'cancelled',    label:t('jobs.cancelled')},
               ].map(f=>(
                 <button key={f.id} onClick={()=>setJobsFilter(f.id)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${jobsFilter===f.id?'bg-orange-500 text-white':'bg-gray-800 text-gray-400 hover:text-gray-300'}`}>
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${jobsFilter===f.id?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-300'}`}>
                   {f.label}
                 </button>
               ))}
@@ -1887,7 +1887,7 @@ export default function Dashboard() {
               </div>
             ) : !Array.isArray(myJobs)||myJobs.length===0 ? (
               <Card className="p-16 text-center"><IcoBriefcase size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('dashboard.jobs.noJobs')}</p>
-                <Link to="/post-job" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('dashboard.jobs.postFirst')}</Link></Card>
+                <Link to="/post-job" className="bg-action hover:bg-action-hover text-on-action font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('dashboard.jobs.postFirst')}</Link></Card>
             ) : (
               <div className="space-y-2">{myJobs.filter(job=>{
                 if(jobsFilter==='all') return true;
@@ -2211,7 +2211,7 @@ export default function Dashboard() {
                     onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
                     className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition flex-1 min-w-[120px]"/>
                   <button onClick={addToGarage} disabled={garageAdding||!garageForm.selectedMake||!garageForm.selectedModel}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
                     {garageAdding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarage')}
                   </button>
                 </div>
@@ -2230,7 +2230,7 @@ export default function Dashboard() {
                     />
                     <button onClick={decodeVin}
                       disabled={vinDecoding || vinInput.length !== 17}
-                      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                      className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
                       {vinDecoding ? t('dashboard.carCare.decoding') : t('dashboard.carCare.decode')}
                     </button>
                   </div>
@@ -2261,7 +2261,7 @@ export default function Dashboard() {
                           onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
                           className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                         <button onClick={addVinVehicle} disabled={garageAdding}
-                          className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                          className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
                           {garageAdding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarageBtn')}
                         </button>
                       </div>

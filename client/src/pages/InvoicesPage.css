@@ -3,8 +3,8 @@
   padding: 32px clamp(16px, 4vw, 56px) 72px;
   background:
     linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(37, 99, 235, 0.04) 38%, transparent 68%),
-    #080c14;
-  color: #d6deeb;
+    var(--color-bg);
+  color: var(--color-text);
 }
 
 .invoices-hero {
@@ -19,7 +19,7 @@
 .invoices-kicker,
 .invoices-empty-kicker {
   margin: 0 0 10px;
-  color: #fb923c;
+  color: var(--color-primary);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -28,7 +28,7 @@
 
 .invoices-hero h1 {
   margin: 0;
-  color: #fff;
+  color: var(--color-text);
   font-size: clamp(2.25rem, 4vw, 3.3rem);
   line-height: 1.05;
 }
@@ -36,7 +36,7 @@
 .invoices-hero p:last-child {
   max-width: 760px;
   margin: 14px 0 0;
-  color: #9da8bb;
+  color: var(--color-text-muted);
   line-height: 1.72;
 }
 
@@ -62,8 +62,8 @@
   padding: 0 14px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 7px;
-  background: rgba(15, 23, 42, 0.78);
-  color: #dbe5f3;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 0.88rem;
   font-weight: 750;
   text-decoration: none;
@@ -72,7 +72,7 @@
 
 .invoices-btn:hover {
   border-color: rgba(249, 115, 22, 0.52);
-  color: #fff;
+  color: var(--color-text);
 }
 
 .invoices-btn:disabled {
@@ -82,8 +82,8 @@
 
 .invoices-btn-primary {
   border-color: rgba(249, 115, 22, 0.74);
-  background: #f97316;
-  color: #fff;
+  background: var(--color-action);
+  color: var(--color-on-action);
 }
 
 .invoices-stats {
@@ -99,7 +99,7 @@
   padding: 18px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.72);
+  background: var(--color-surface);
 }
 
 .invoices-summary-icon {
@@ -109,13 +109,13 @@
   height: 34px;
   margin-bottom: 12px;
   border-radius: 7px;
-  background: rgba(249, 115, 22, 0.12);
-  color: #fb923c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .invoices-summary-card span {
   display: block;
-  color: #8390a5;
+  color: var(--color-text-faint);
   font-size: 0.78rem;
   font-weight: 760;
   letter-spacing: 0.04em;
@@ -125,23 +125,23 @@
 .invoices-summary-card strong {
   display: block;
   margin-top: 8px;
-  color: #fff;
+  color: var(--color-text);
   font-size: 1.45rem;
 }
 
 .invoices-summary-card.tone-success .invoices-summary-icon {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .invoices-summary-card.tone-warn .invoices-summary-icon {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf24;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .invoices-summary-card.tone-danger .invoices-summary-icon {
-  background: rgba(239, 68, 68, 0.13);
-  color: #f87171;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .invoices-loading,
@@ -152,14 +152,14 @@
   margin: 0 auto 22px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.72);
+  background: var(--color-surface);
 }
 
 .invoices-loading {
   display: grid;
   place-items: center;
   min-height: 280px;
-  color: #9aa6ba;
+  color: var(--color-text-muted);
 }
 
 .invoices-loading-icon,
@@ -171,8 +171,8 @@
   margin-bottom: 14px;
   border: 1px solid rgba(249, 115, 22, 0.26);
   border-radius: 8px;
-  background: rgba(249, 115, 22, 0.1);
-  color: #fb923c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .invoices-panel {
@@ -192,19 +192,19 @@
 .invoices-guide h2,
 .invoices-empty h2 {
   margin: 0;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .invoices-panel-header p,
 .invoices-guide p,
 .invoices-empty p {
   margin: 7px 0 0;
-  color: #9da8bb;
+  color: var(--color-text-muted);
   line-height: 1.65;
 }
 
 .invoices-panel-header span {
-  color: #fb923c;
+  color: var(--color-primary);
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -219,37 +219,37 @@
 }
 
 .invoices-table-head {
-  color: #7b879a;
+  color: var(--color-text-faint);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: rgba(2, 6, 23, 0.32);
+  background: var(--color-surface-2);
 }
 
 .invoices-row {
   min-height: 76px;
   border-top: 1px solid rgba(148, 163, 184, 0.11);
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
 
 .invoices-row:hover {
-  background: rgba(30, 41, 59, 0.32);
+  background: var(--color-surface);
 }
 
 .invoices-row strong,
 .invoices-detail strong {
-  color: #fff;
+  color: var(--color-text);
 }
 
 .invoices-row small {
   display: block;
   margin-top: 4px;
-  color: #7f8ba0;
+  color: var(--color-text-faint);
 }
 
 .invoices-amount {
-  color: #f8fafc;
+  color: var(--color-text);
   font-weight: 800;
 }
 
@@ -259,37 +259,37 @@
   width: fit-content;
   padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
-  color: #cbd5e1;
+  background: var(--color-surface-3);
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 800;
   font-style: normal;
 }
 
 .invoices-status-paid {
-  background: rgba(16, 185, 129, 0.14);
-  color: #34d399;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .invoices-status-issued,
 .invoices-status-sent {
-  background: rgba(59, 130, 246, 0.14);
-  color: #60a5fa;
+  background: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 .invoices-status-overdue {
-  background: rgba(239, 68, 68, 0.14);
-  color: #f87171;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .invoices-status-draft {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf24;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .invoices-status-cancelled {
-  background: rgba(100, 116, 139, 0.16);
-  color: #94a3b8;
+  background: var(--color-surface-3);
+  color: var(--color-text-faint);
 }
 
 .invoices-row-actions {
@@ -305,15 +305,15 @@
   height: 36px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 7px;
-  background: rgba(15, 23, 42, 0.72);
-  color: #cbd5e1;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
 .invoices-row-actions button:hover,
 .invoices-modal-header button:hover {
   border-color: rgba(249, 115, 22, 0.5);
-  color: #fb923c;
+  color: var(--color-primary);
 }
 
 .invoices-row-actions button:disabled {
@@ -349,18 +349,18 @@
   padding: 22px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.24);
+  background: var(--color-surface-2);
 }
 
 .invoices-empty-side h3 {
   margin: 0 0 12px;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .invoices-empty-side ul {
   margin: 0;
   padding-left: 1.1rem;
-  color: #a5b0c2;
+  color: var(--color-text-muted);
   line-height: 1.7;
 }
 
@@ -381,16 +381,16 @@
   padding: 16px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.22);
+  background: var(--color-surface-2);
 }
 
 .invoices-guide-item svg {
-  color: #fb923c;
+  color: var(--color-primary);
 }
 
 .invoices-guide-item h3 {
   margin: 10px 0 6px;
-  color: #fff;
+  color: var(--color-text);
   font-size: 0.95rem;
 }
 
@@ -416,7 +416,7 @@
   overflow: auto;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 10px;
-  background: #0f172a;
+  background: var(--color-surface);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
 }
 
@@ -431,7 +431,7 @@
 
 .invoices-modal-header p {
   margin: 0 0 5px;
-  color: #fb923c;
+  color: var(--color-primary);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -440,7 +440,7 @@
 
 .invoices-modal-header h2 {
   margin: 0;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .invoices-modal-total {
@@ -452,7 +452,7 @@
 }
 
 .invoices-modal-total span {
-  color: #8a96aa;
+  color: var(--color-text-faint);
   font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -460,7 +460,7 @@
 
 .invoices-modal-total strong {
   margin-right: auto;
-  color: #fff;
+  color: var(--color-text);
   font-size: 1.8rem;
 }
 
@@ -475,13 +475,13 @@
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.22);
+  background: var(--color-surface-2);
 }
 
 .invoices-detail span {
   display: block;
   margin-bottom: 6px;
-  color: #7d899d;
+  color: var(--color-text-faint);
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;

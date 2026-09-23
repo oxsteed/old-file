@@ -39,7 +39,7 @@ function FeatureItem({ icon, title, sub }) {
         {icon}
       </div>
       <div>
-        <p className="text-white font-semibold text-sm leading-snug">{title}</p>
+        <p className="text-on-solid font-semibold text-sm leading-snug">{title}</p>
         <p className="text-orange-100/80 text-sm mt-0.5 leading-relaxed">{sub}</p>
       </div>
     </div>
@@ -167,7 +167,7 @@ export default function Login() {
         {/* ── Left panel — brand ─────────────────────────────────────────────── */}
         <div
           className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
-          style={{ background: 'linear-gradient(155deg, #7c2d12 0%, #c2410c 48%, #d97706 100%)' }}
+          style={{ background: 'linear-gradient(155deg, #7c2d12 0%, #c2410c 48%, #9a3412 100%)' }}
         >
           {/* Dot grid texture */}
           <div
@@ -209,10 +209,10 @@ export default function Login() {
                   border: '1.5px solid rgba(255,255,255,0.28)',
                 }}
               >
-                <span className="text-white text-xl font-black text-white text-xl font-black tracking-tighter leading-none select-none"><svg width="40" height="40" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="512" height="512" rx="88" fill="#16213e" /><path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316" /><path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316" /><path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316" /><path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316" /><circle cx="256" cy="256" r="145" fill="#F97316" /><text x="256" y="236" textAnchor="middle" dominantBaseline="middle" fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif" fontWeight="900" fontSize="90" fill="#FFFFFF">OxS</text><polyline points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305" fill="none" stroke="#FFFFFF" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+                <span className="text-on-solid text-xl font-black text-on-solid text-xl font-black tracking-tighter leading-none select-none"><svg width="40" height="40" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="512" height="512" rx="88" fill="#16213e" /><path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316" /><path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316" /><path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316" /><path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316" /><circle cx="256" cy="256" r="145" fill="#F97316" /><text x="256" y="236" textAnchor="middle" dominantBaseline="middle" fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif" fontWeight="900" fontSize="90" fill="#FFFFFF">OxS</text><polyline points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305" fill="none" stroke="#FFFFFF" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
               </div>
               <div>
-                <h1 className="text-white font-black tracking-tight leading-none"
+                <h1 className="text-on-solid font-black tracking-tight leading-none"
                   style={{ fontSize: '2.75rem' }}>OxSteed</h1>
                 <div className="w-10 h-0.5 my-2" style={{ background: 'rgba(255,255,255,0.35)' }} />
                 <p className="text-orange-100 text-sm font-medium">{t('login.brandTagline')}</p>
@@ -222,24 +222,24 @@ export default function Login() {
             {/* Feature bullets */}
             <div className="space-y-7">
               <FeatureItem
-                icon={<MapPin size={19} className="text-white" />}
+                icon={<MapPin size={19} className="text-on-solid" />}
                 title={t('login.feature1Title')}
                 sub={t('login.feature1Sub')}
               />
               <FeatureItem
-                icon={<Briefcase size={19} className="text-white" />}
+                icon={<Briefcase size={19} className="text-on-solid" />}
                 title={t('login.feature2Title')}
                 sub={t('login.feature2Sub')}
               />
               <FeatureItem
-                icon={<ShieldCheck size={19} className="text-white" />}
+                icon={<ShieldCheck size={19} className="text-on-solid" />}
                 title={t('login.feature3Title')}
                 sub={t('login.feature3Sub')}
               />
             </div>
 
             {/* Footer */}
-            <p className="text-orange-200/60 text-xs">
+            <p className="text-orange-100 text-xs">
               {t('login.copyright', { year: new Date().getFullYear() })}
             </p>
           </div>
@@ -434,7 +434,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading || (mfaToken ? !twoFactorCode.trim() : !canSubmit)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-action hover:bg-action-hover text-on-action font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 aria-disabled={mfaToken ? !twoFactorCode.trim() : !canSubmit}
               >
                 {loading ? (

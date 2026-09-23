@@ -3,8 +3,8 @@
   padding: 32px clamp(16px, 4vw, 56px) 72px;
   background:
     linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(37, 99, 235, 0.04) 42%, transparent 70%),
-    #080c14;
-  color: #d6deeb;
+    var(--color-bg);
+  color: var(--color-text);
 }
 
 .orders-hero,
@@ -25,7 +25,7 @@
 
 .orders-kicker {
   margin: 0 0 10px;
-  color: #fb923c;
+  color: var(--color-primary);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -37,7 +37,7 @@
 .orders-empty h2,
 .orders-guide h2 {
   margin: 0;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .orders-hero h1 {
@@ -49,7 +49,7 @@
 .orders-panel-header p,
 .orders-empty p,
 .orders-guide-item p {
-  color: #9da8bb;
+  color: var(--color-text-muted);
   line-height: 1.7;
 }
 
@@ -76,8 +76,8 @@
   padding: 0 14px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 7px;
-  background: rgba(15, 23, 42, 0.78);
-  color: #dbe5f3;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 0.88rem;
   font-weight: 750;
   text-decoration: none;
@@ -86,13 +86,13 @@
 
 .orders-btn:hover {
   border-color: rgba(249, 115, 22, 0.52);
-  color: #fff;
+  color: var(--color-text);
 }
 
 .orders-btn-primary {
   border-color: rgba(249, 115, 22, 0.74);
-  background: #f97316;
-  color: #fff;
+  background: var(--color-action);
+  color: var(--color-on-action);
 }
 
 .orders-stats {
@@ -107,7 +107,7 @@
 .orders-guide {
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.72);
+  background: var(--color-surface);
 }
 
 .orders-summary-card {
@@ -122,23 +122,23 @@
   height: 34px;
   margin-bottom: 12px;
   border-radius: 7px;
-  background: rgba(249, 115, 22, 0.12);
-  color: #fb923c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .orders-summary-card.tone-success .orders-summary-icon {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .orders-summary-card.tone-warn .orders-summary-icon {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf24;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .orders-summary-card span {
   display: block;
-  color: #8390a5;
+  color: var(--color-text-faint);
   font-size: 0.78rem;
   font-weight: 760;
   letter-spacing: 0.04em;
@@ -148,7 +148,7 @@
 .orders-summary-card strong {
   display: block;
   margin-top: 8px;
-  color: #fff;
+  color: var(--color-text);
   font-size: 1.45rem;
 }
 
@@ -182,8 +182,8 @@
   padding: 0 12px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 7px;
-  background: rgba(2, 6, 23, 0.24);
-  color: #a6b0c2;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 760;
   cursor: pointer;
@@ -192,8 +192,8 @@
 .orders-filters button.active,
 .orders-filters button:hover {
   border-color: rgba(249, 115, 22, 0.54);
-  background: rgba(249, 115, 22, 0.12);
-  color: #fb923c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .orders-loading,
@@ -202,11 +202,11 @@
   place-items: center;
   min-height: 260px;
   padding: 24px;
-  color: #9da8bb;
+  color: var(--color-text-muted);
 }
 
 .orders-error {
-  color: #fca5a5;
+  color: var(--color-error);
   gap: 12px;
 }
 
@@ -234,12 +234,12 @@
 }
 
 .orders-list-head {
-  color: #7b879a;
+  color: var(--color-text-faint);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: rgba(2, 6, 23, 0.32);
+  background: var(--color-surface-2);
 }
 
 .orders-row {
@@ -248,21 +248,21 @@
 }
 
 .orders-row:hover {
-  background: rgba(30, 41, 59, 0.32);
+  background: var(--color-surface);
 }
 
 .orders-row strong {
-  color: #fff;
+  color: var(--color-text);
 }
 
 .orders-row small {
   display: block;
   margin-top: 4px;
-  color: #7f8ba0;
+  color: var(--color-text-faint);
 }
 
 .orders-total {
-  color: #f8fafc;
+  color: var(--color-text);
   font-weight: 800;
 }
 
@@ -270,28 +270,28 @@
   width: fit-content;
   padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
-  color: #cbd5e1;
+  background: var(--color-surface-3);
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 800;
 }
 
 .orders-status-completed,
 .orders-status-paid {
-  background: rgba(16, 185, 129, 0.14);
-  color: #34d399;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .orders-status-pending,
 .orders-status-processing {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf24;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .orders-status-cancelled,
 .orders-status-refunded {
-  background: rgba(100, 116, 139, 0.16);
-  color: #94a3b8;
+  background: var(--color-surface-3);
+  color: var(--color-text-faint);
 }
 
 .orders-row button {
@@ -303,14 +303,14 @@
   border: 1px solid rgba(249, 115, 22, 0.32);
   border-radius: 7px;
   background: transparent;
-  color: #fb923c;
+  color: var(--color-primary);
   font-weight: 760;
   cursor: pointer;
 }
 
 .orders-row button:hover {
-  background: rgba(249, 115, 22, 0.1);
-  color: #fff;
+  background: var(--color-primary-bg);
+  color: var(--color-text);
 }
 
 .orders-empty {
@@ -328,8 +328,8 @@
   margin-bottom: 14px;
   border: 1px solid rgba(249, 115, 22, 0.26);
   border-radius: 8px;
-  background: rgba(249, 115, 22, 0.1);
-  color: #fb923c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .orders-empty h2 {
@@ -347,18 +347,18 @@
   padding: 22px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.24);
+  background: var(--color-surface-2);
 }
 
 .orders-empty-side h3 {
   margin: 0 0 12px;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .orders-empty-side ul {
   margin: 0;
   padding-left: 1.1rem;
-  color: #a5b0c2;
+  color: var(--color-text-muted);
   line-height: 1.72;
 }
 
@@ -373,22 +373,22 @@
   padding: 16px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.22);
+  background: var(--color-surface-2);
 }
 
 .orders-guide-item svg {
-  color: #fb923c;
+  color: var(--color-primary);
 }
 
 .orders-guide-item h3 {
   margin: 10px 0 6px;
-  color: #fff;
+  color: var(--color-text);
   font-size: 0.95rem;
 }
 
 .orders-guide-item p {
   margin: 0;
-  color: #9da8bb;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   line-height: 1.7;
 }

@@ -1434,7 +1434,7 @@ export default function HelperDashboard() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
                     to="/settings"
-                    className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
+                    className="inline-flex items-center justify-center bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition"
                   >
                     {t('nav.settings')}
                   </Link>
@@ -1449,13 +1449,13 @@ export default function HelperDashboard() {
               {backgroundChecksAvailable && <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
-                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
+                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
               </Card>}
                 <Card>
                   <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
                   {isIdVerified
                     ? <Tag text={idVerificationStatusLabel} color="green"/>
-                    : (<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
+                    : (<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
                 </Card>
               </div>
 
@@ -1509,7 +1509,7 @@ export default function HelperDashboard() {
             {SHOW_HELPER_SUBSCRIPTIONS && !hasProAccess && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
-                <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
+                <button onClick={()=>navigate('/upgrade')} className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
               </div>
             )}
           </>)}
@@ -1685,7 +1685,7 @@ export default function HelperDashboard() {
             {moneyPlannedNeeds.length===0?(
               <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
                 <p className="text-sm text-gray-500">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
-                <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
+                <Link to="/planned-needs" className="text-xs bg-action hover:bg-action-hover text-on-action font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
               </div>
             ):(
               <div className="space-y-4">
@@ -1730,7 +1730,7 @@ export default function HelperDashboard() {
               />
               <button onClick={lookupHomeAddress}
                 disabled={homeLookupLoading||homeAddrInput.trim().length<5}
-                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
                 {homeLookupLoading?t('dashboard.home.lookingUp'):t('dashboard.home.lookUp')}
               </button>
             </div>
@@ -1763,7 +1763,7 @@ export default function HelperDashboard() {
                     onChange={e=>setHomeNickname(e.target.value)}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                   <button onClick={addHome} disabled={homeAdding}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
                     {homeAdding?t('dashboard.carCare.saving'):t('dashboard.home.saveProperty')}
                   </button>
                 </div>
@@ -1950,7 +1950,7 @@ export default function HelperDashboard() {
             <Card>
               <CardHeader icon={IcoCar} title={t('dashboard.carCare.myGarage')} right={<span className="text-[10px] text-gray-600">{t('dashboard.carCare.nhtsaData')}</span>}/>
               <div className="flex gap-2 mb-4">
-                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-orange-500 text-white':'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>{m==='search'?t('dashboard.carCare.garageModeSummary'):t('dashboard.carCare.garageModeVin')}</button>)}
+                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-action text-on-action':'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>{m==='search'?t('dashboard.carCare.garageModeSummary'):t('dashboard.carCare.garageModeVin')}</button>)}
               </div>
               {garageMode==='search'?(
                 <div className="space-y-3">
@@ -1984,14 +1984,14 @@ export default function HelperDashboard() {
                   <div className="grid grid-cols-3 gap-3">
                     <input type="number" placeholder={t('dashboard.carCare.yearOptional')} min="1900" max={new Date().getFullYear()+1} value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                     <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addToGarageShort')}</button>
+                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addToGarageShort')}</button>
                   </div>
                 </div>
               ):(
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     <input placeholder={t('dashboard.carCare.vinPlaceholder')} value={vinInput} onChange={e=>setVinInput(e.target.value)} maxLength={17} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">{vinDecoding?t('dashboard.carCare.decoding'):t('dashboard.carCare.decode')}</button>
+                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">{vinDecoding?t('dashboard.carCare.decoding'):t('dashboard.carCare.decode')}</button>
                   </div>
                   {vinError&&<p className="text-xs text-red-400">{vinError}</p>}
                   {vinResult&&(
@@ -1999,7 +1999,7 @@ export default function HelperDashboard() {
                       <p className="text-sm font-semibold text-white">{vinResult.year} {vinResult.make} {vinResult.model}</p>
                       <div className="flex gap-2">
                         <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addVinSave')}</button>
+                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-action hover:bg-action-hover disabled:opacity-50 text-on-action text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addVinSave')}</button>
                       </div>
                     </div>
                   )}
@@ -2216,7 +2216,7 @@ export default function HelperDashboard() {
                               <button
                                 onClick={() => handleSendInvoice(inv.id)}
                                 disabled={sendingInvoiceId === inv.id}
-                                className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold px-3 py-1 rounded-lg transition whitespace-nowrap"
+                                className="text-xs bg-action hover:bg-action-hover disabled:opacity-50 text-on-action font-semibold px-3 py-1 rounded-lg transition whitespace-nowrap"
                               >
                                 {sendingInvoiceId === inv.id ? 'Sending...' : t('helperDashboard.invoices.send')}
                               </button>
@@ -2249,7 +2249,7 @@ export default function HelperDashboard() {
         {tab==='bids'&&(
           <div>
             <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">{t('helperDashboard.myBids')}</h3><div className="flex gap-2"><Tag text={t('helperDashboard.activeBidsCount',{count:activeBids.length})} color="orange"/><Tag text={t('helperDashboard.wonBidsCount',{count:wonBids.length})} color="green"/></div></div>
-            {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('helperDashboard.noBidsYet')}</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('helperDashboard.browseJobs')}</Link></Card>
+            {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('helperDashboard.noBidsYet')}</p><Link to="/jobs" className="bg-action hover:bg-action-hover text-on-action font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('helperDashboard.browseJobs')}</Link></Card>
             :<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
                 <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title || t('helperDashboard.jobNumber', { id: bid.job_id })}</p><p className="text-xs text-gray-500 mt-1">Bid <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
@@ -2725,7 +2725,7 @@ export default function HelperDashboard() {
 
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowInvoiceModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg transition">{t('common.cancel')}</button>
-            <button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
+            <button type="submit" className="flex-1 bg-action hover:bg-action-hover text-on-action font-semibold py-2 rounded-lg transition">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
           </div>
         </form>
       </Modal>

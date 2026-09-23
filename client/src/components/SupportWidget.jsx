@@ -360,7 +360,7 @@ function AISupportWidget() {
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
-          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/85 hover:bg-orange-600 text-white rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-action hover:bg-action-hover text-on-action rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -509,7 +509,7 @@ function AISupportWidget() {
                         {/* Bubble */}
                         <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
                           m.role === 'user'
-                            ? 'bg-orange-600 text-white rounded-br-sm whitespace-pre-wrap leading-relaxed'
+                            ? 'bg-action text-on-action rounded-br-sm whitespace-pre-wrap leading-relaxed'
                             : m.isError
                             ? 'bg-red-900/40 text-red-200 border border-red-800/50 rounded-bl-sm leading-relaxed'
                             : 'bg-gray-800 text-gray-100 rounded-bl-sm'
@@ -645,7 +645,7 @@ function AISupportWidget() {
                   <button
                     type="submit"
                     disabled={loading || !input.trim()}
-                    className="flex-shrink-0 p-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition disabled:opacity-40 active:scale-95"
+                    className="flex-shrink-0 p-2.5 bg-action hover:bg-action-hover text-on-action rounded-xl transition disabled:opacity-40 active:scale-95"
                     aria-label={t('supportWidget.sendMessage')}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -692,7 +692,7 @@ export default function SupportWidget() {
       <button
         type="button"
         onClick={() => navigate('/support/escalation')}
-        className="fixed bottom-5 right-5 z-40 rounded-full bg-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-orange-700"
+        className="fixed bottom-5 right-5 z-40 rounded-full bg-action px-4 py-3 text-sm font-semibold text-on-action shadow-xl transition hover:bg-action-hover"
         aria-label={t('supportWidget.talkToHuman', { defaultValue: 'Contact support' })}
       >
         {t('supportWidget.talkToHuman', { defaultValue: 'Contact support' })}
