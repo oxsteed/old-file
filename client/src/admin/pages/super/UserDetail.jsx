@@ -204,6 +204,7 @@ export default function UserDetail() {
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgText,      setMsgText]      = useState('');
   const [msgSending,   setMsgSending]   = useState(false);
+  const [phoneVerificationSaving, setPhoneVerificationSaving] = useState(false);
 
   const [diditSaving, setDiditSaving] = useState(false);
 
@@ -348,6 +349,28 @@ export default function UserDetail() {
       flash('success', res.message || 'Profile updated.'); setShowProfileEdit(false); fetchUser();
     } catch (err) { flash('error', parseApiError(err, 'Profile update failed.')); }
     finally { setProfileSaving(false); }
+  };
+
+  // Phone verification is deliberately an explicit, per-user admin action.
+  // The code is sent by AWS and is never returned to this screen.
+  const triggerPhoneVerification = async () => {
+    if (!user.phone) {
+      flash('error', 'Add an E.164 phone number to this user before sending a code.');
+      return;
+    }
+    const reason = window.prompt('Reason for sending a phone verification code (required):', 'Support-assisted phone verification') ?? '';
+    if (!reason.trim()) return;
+    if (!window.confirm(`Send a verification code to the phone ending in ${String(user.phone).slice(-4)}?`)) return;
+
+    setPhoneVerificationSaving(true);
+    try {
+      const { data: res } = await adminApi.post(`/admin/users/${userId}/phone-verification-code`, { reason: reason.trim() });
+      flash('success', res.message || `Verification code sent to ${res.data?.maskedPhone || 'the user phone'}.`);
+    } catch (err) {
+      flash('error', parseApiError(err, 'Failed to send phone verification code.'));
+    } finally {
+      setPhoneVerificationSaving(false);
+    }
   };
 
   // ── role ──────────────────────────────────────────────────────────────────
@@ -767,6 +790,18 @@ export default function UserDetail() {
             >
               <MessageSquare size={13} />Message
             </button>
+
+            {isAdmin && (
+              <button
+                onClick={triggerPhoneVerification}
+                disabled={phoneVerificationSaving || !user.phone || ['admin', 'super_admin'].includes(user.role)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-transparent border border-emerald-700/60 text-emerald-300 hover:border-emerald-500 hover:text-emerald-200 rounded-lg text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title={!user.phone ? 'Add a phone number first' : 'Send an AWS phone verification code'}
+              >
+                {phoneVerificationSaving ? <Loader2 size={13} className="animate-spin" /> : <Phone size={13} />}
+                Verify Phone
+              </button>
+            )}
 
             {/* Actions dropdown: destructive + admin actions */}
             {isSuper && (

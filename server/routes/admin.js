@@ -13,11 +13,12 @@ const bizModCtrl      = require('../controllers/businessModerationController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
+const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 const restaurantCreditAdminCtrl = require('../controllers/restaurantCreditAdminController');
 const oxsteedCreditCtrl = require('../controllers/oxsteedCreditController');
 const oxsteedCreditCardCtrl = require('../controllers/oxsteedCreditCardController');
-const { creditAdminMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
+const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -89,6 +90,13 @@ router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
 router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
 router.put('/users/:userId/didit-enforcement', requireAdmin, superCtrl.setUserDiditEnforcement);
 router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
+router.post(
+  '/users/:userId/phone-verification-code',
+  requireAdmin,
+  requirePermission('verify_users'),
+  adminPhoneVerificationLimiter,
+  adminPhoneVerificationCtrl.sendCode,
+);
 
 // Market / Zip Code management
 router.get('/regions',                       requireAdmin, regionCtrl.listRegions);

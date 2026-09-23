@@ -2,6 +2,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const smsNotificationService = require('../services/smsNotificationService');
+const adminPhoneVerificationService = require('../services/adminPhoneVerificationService');
 
 // Request phone number verification (send OTP)
 async function requestPhoneVerification(req, res) {
@@ -62,7 +63,10 @@ async function verifyPhone(req, res) {
     }
 
     try {
-      const result = await smsNotificationService.verifyPhoneWithOTP(userId, otp);
+      // Admin-triggered AWS challenges are checked first. If there is no active
+      // admin challenge, preserve the existing self-service OTP flow.
+      const adminResult = await adminPhoneVerificationService.verifyAdminChallenge(userId, otp);
+      const result = adminResult || await smsNotificationService.verifyPhoneWithOTP(userId, otp);
       res.json({
         success: true,
         data: {

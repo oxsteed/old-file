@@ -448,6 +448,23 @@ const creditExportLimiter = rateLimit({
   },
 });
 
+// Admin-triggered phone verification sends are expensive and sensitive. Keep
+// the bucket keyed to the acting admin; the challenge service also enforces a
+// per-user cooldown.
+const adminPhoneVerificationLimiter = rateLimit({
+  ...createStoreOption('rl:admin_phone_verification:'),
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `admin:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many admin phone verification sends. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
 module.exports = {
   generalLimiter,
   authenticatedLimiter,
@@ -473,4 +490,5 @@ module.exports = {
   creditPurchaseLimiter,
   creditAdminMutationLimiter,
   creditExportLimiter,
+  adminPhoneVerificationLimiter,
 };

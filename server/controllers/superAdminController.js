@@ -595,7 +595,10 @@ exports.getUserDetail = async (req, res) => {
     const hasCA   = await tableExists('connect_accounts');
 
     // Check for columns added in migration 154 (non-fatal if migration hasn't run)
-    const hasMig154Cols = await columnExists('users', 'is_suspended');
+    const [hasMig154Cols, hasPhoneNumber] = await Promise.all([
+      columnExists('users', 'is_suspended'),
+      columnExists('users', 'phone_number'),
+    ]);
 
     // Explicit list of columns to retrieve. NEVER use SELECT * in production to
     // prevent leaking sensitive internal flags or secrets (e.g. password_hash, otp_secret).
@@ -610,6 +613,7 @@ exports.getUserDetail = async (req, res) => {
       'u.last_login_at',
       'u.subscription_status', 'u.background_check_status', 'u.identity_verified',
     ];
+    if (hasPhoneNumber) cols.push('u.phone_number');
 
     // Columns added in migration 154 — only include when the migration has run
     if (hasMig154Cols) {
@@ -658,6 +662,7 @@ exports.getUserDetail = async (req, res) => {
     // helper_profiles for deployments that haven't migrated to connect_accounts.
     const user = {
       ...raw,
+      phone: raw.phone || raw.phone_number || null,
       avatar_url:          raw.hp_profile_photo_url || null,
       id_verified:         raw.identity_verified ?? raw.is_identity_verified ?? false,
       stripe_account_id:   raw.ca_stripe_account_id   || raw.hp_stripe_account_id   || null,
