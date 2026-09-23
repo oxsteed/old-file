@@ -44,7 +44,7 @@ export default function Hero({ search }) {
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </Link>
-            <Link to="/jobs" className="hp-btn hp-btn-outline hp-btn-lg">
+            <Link to="/helpers" className="hp-btn hp-btn-outline hp-btn-lg">
               {t('hero.browseHelpers')}
             </Link>
           </>
