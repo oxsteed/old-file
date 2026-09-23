@@ -57,22 +57,6 @@
   z-index: 1;
 }
 
-.site-footer__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  margin-bottom: 0.85rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid rgba(249, 115, 22, 0.24);
-  border-radius: 999px;
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  line-height: 1.35;
-  text-transform: uppercase;
-}
-
 .site-footer__brand-link {
   display: inline-flex;
   align-items: center;

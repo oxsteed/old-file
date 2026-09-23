@@ -58,9 +58,6 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <div className="site-footer__eyebrow">
-              <span>{t('footer.networkTagline')}</span>
-            </div>
             <p className="site-footer__tagline">
               {t('footer.tagline')}
             </p>
