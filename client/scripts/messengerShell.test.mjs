@@ -173,6 +173,24 @@ test('inbox work area is not followed by promotional cards', async () => {
   assert.ok(workspace.includes('messages-empty-side'), 'keep guidance for a genuinely empty inbox');
 });
 
+test('zero-conversation onboarding uses the full canvas and stacks cleanly on mobile', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const workspace = await readFile(join(root, 'src/components/messaging/MessagingWorkspace.jsx'), 'utf8');
+  const styles = await readFile(join(root, 'src/components/messaging/SharedMessengerShell.css'), 'utf8');
+
+  assert.match(workspace, /const showStandaloneEmpty = !loading && !starting && !hasThread && !showArchived && conversations\.length === 0/);
+  assert.match(workspace, /messages-workspace--empty/);
+  assert.ok(workspace.indexOf('{showStandaloneEmpty ? (') < workspace.indexOf('<div className="messages-inbox-pane">'));
+  assert.match(styles, /\.messages-page\.workspace \.messages-workspace--empty\s*\{\s*display:\s*block;/);
+  assert.match(styles, /\.messages-page\.workspace \.messages-workspace--empty > \.messages-empty\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1\.2fr\) minmax\(270px, 0\.8fr\)/s);
+  assert.match(styles, /@media \(max-width: 980px\)[\s\S]*?\.messages-page\.workspace \.messages-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/s);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.messages-page\.workspace \.messages-workspace--empty > \.messages-empty\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+  assert.match(styles, /\.messages-workspace--empty > \.messages-empty\.messages-empty--error\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
+});
+
 test('business workflow labels remain visible on small screens', async () => {
   const { readFile } = await import('node:fs/promises');
   const { fileURLToPath } = await import('node:url');

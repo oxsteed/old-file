@@ -306,9 +306,10 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     .find((conv) => String(conv.id) === String(selectedId));
   const threadRole = conversationSide(userId, selectedConversation);
   const chrome = resolveShellChrome({ hasThread, compact: true });
+  const showStandaloneEmpty = !loading && !starting && !hasThread && !showArchived && conversations.length === 0;
 
   const workspaceContent = (
-    <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}`}>
+    <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}${showStandaloneEmpty ? ' inbox-empty' : ''}`}>
         <header className="messages-hero compact shell-compact">
           <div>
             <p className="messages-kicker">
@@ -343,51 +344,54 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
               placeholder={showHelperInbox ? t('messages.helperSearchPlaceholder') : t('messages.searchPlaceholder')}
             />
           </label>
-          <div className="messages-filter" role="group" aria-label={t('messages.filterAriaLabel')}>
-            <button
-              type="button"
-              className={filter === 'all' ? 'active' : ''}
-              onClick={() => setFilter('all')}
-            >
-              {t('messages.allFilter')}
-            </button>
-            <button
-              type="button"
-              className={filter === 'unread' ? 'active' : ''}
-              onClick={() => setFilter('unread')}
-            >
-              {t('messages.unreadFilter')}
-              {unreadCount > 0 && <em>{unreadCount}</em>}
-            </button>
-          </div>
-          {dualRole && (
-            <div className="messages-filter" role="group" aria-label={t('messages.sideFilterAriaLabel')}>
-              <button type="button" className={sideFilter === 'all' ? 'active' : ''} onClick={() => setSideFilter('all')}>
-                {t('messages.sideAll')}
+          <div className="messages-toolbar-controls">
+            <div className="messages-filter" role="group" aria-label={t('messages.filterAriaLabel')}>
+              <button
+                type="button"
+                className={filter === 'all' ? 'active' : ''}
+                onClick={() => setFilter('all')}
+              >
+                {t('messages.allFilter')}
               </button>
-              <button type="button" className={sideFilter === 'helper' ? 'active' : ''} onClick={() => setSideFilter('helper')}>
-                {t('messages.sideHelper')}
-              </button>
-              <button type="button" className={sideFilter === 'customer' ? 'active' : ''} onClick={() => setSideFilter('customer')}>
-                {t('messages.sideCustomer')}
+              <button
+                type="button"
+                className={filter === 'unread' ? 'active' : ''}
+                onClick={() => setFilter('unread')}
+              >
+                {t('messages.unreadFilter')}
+                {unreadCount > 0 && <em>{unreadCount}</em>}
               </button>
             </div>
-          )}
-          {!businessId && managedBusinesses.length > 0 && (
-            <select
-              value={businessFilter}
-              onChange={(e) => {
-                setBusinessFilter(e.target.value);
-                setLoading(true);
-              }}
-              className="messages-business-select"
-            >
-              <option value="all">{t('messages.allConversations')}</option>
-              {managedBusinesses.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          )}
+            {dualRole && (
+              <div className="messages-filter" role="group" aria-label={t('messages.sideFilterAriaLabel')}>
+                <button type="button" className={sideFilter === 'all' ? 'active' : ''} onClick={() => setSideFilter('all')}>
+                  {t('messages.sideAll')}
+                </button>
+                <button type="button" className={sideFilter === 'helper' ? 'active' : ''} onClick={() => setSideFilter('helper')}>
+                  {t('messages.sideHelper')}
+                </button>
+                <button type="button" className={sideFilter === 'customer' ? 'active' : ''} onClick={() => setSideFilter('customer')}>
+                  {t('messages.sideCustomer')}
+                </button>
+              </div>
+            )}
+            {!businessId && managedBusinesses.length > 0 && (
+              <select
+                value={businessFilter}
+                onChange={(e) => {
+                  setBusinessFilter(e.target.value);
+                  setLoading(true);
+                }}
+                className="messages-business-select"
+                aria-label={t('messages.allConversations')}
+              >
+                <option value="all">{t('messages.allConversations')}</option>
+                {managedBusinesses.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <div className="messages-actions shell-demoted">
             <button
               type="button"
@@ -419,7 +423,27 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
           </div>
         </section>
 
-        <div className="messages-workspace">
+        <div className={`messages-workspace${showStandaloneEmpty ? ' messages-workspace--empty' : ''}`}>
+          {showStandaloneEmpty ? (
+            loadError ? (
+              <section className="messages-empty messages-empty--error" role="alert">
+                <div className="messages-empty-main">
+                  <div className="messages-empty-icon"><MessageSquare size={30} aria-hidden /></div>
+                  <p className="messages-kicker">{t('messages.kicker')}</p>
+                  <h2>{t('messages.loadFailedTitle')}</h2>
+                  <p>{t('messages.loadFailedHint')}</p>
+                  <div className="messages-empty-actions">
+                    <button type="button" onClick={fetchConversations} disabled={loading}>
+                      <RefreshCw size={16} aria-hidden />
+                      {t('messages.retry')}
+                    </button>
+                    <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
+                  </div>
+                </div>
+              </section>
+            ) : showHelperInbox ? <EmptyHelperInbox t={t} /> : <EmptyMessages t={t} />
+          ) : (
+            <>
           <div className="messages-inbox-pane">
             {loadError && (
               <div className="messages-inline-alert" role="alert">
@@ -561,6 +585,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
 
     </div>
