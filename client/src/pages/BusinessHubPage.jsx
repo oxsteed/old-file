@@ -1,43 +1,46 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import BusinessSkillsSelector from '../components/BusinessSkillsSelector';
-import AIKnowledgeTab from '../components/AIKnowledgeTab';
+const lazyDefault = (loader) => lazy(loader);
+const lazyNamed = (loader, exportName) => lazy(() => loader().then((module) => ({ default: module[exportName] })));
+
+const BusinessSkillsSelector = lazyDefault(() => import('../components/BusinessSkillsSelector'));
+const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'));
 import RoleMenu from '../components/businessHub/RoleMenu';
-import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
-import BusinessClientsTab from '../components/businessHub/BusinessClientsTab';
-import MessagingWorkspace from '../components/messaging/MessagingWorkspace';
-import { AppointmentCalendarView } from '../components/businessHub/AppointmentCalendarView';
-import { BusinessServicesTab } from '../components/businessHub/BusinessServicesTab';
+const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
+const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
+const MessagingWorkspace = lazyDefault(() => import('../components/messaging/MessagingWorkspace'));
+const AppointmentCalendarView = lazyNamed(() => import('../components/businessHub/AppointmentCalendarView'), 'AppointmentCalendarView');
+const BusinessServicesTab = lazyNamed(() => import('../components/businessHub/BusinessServicesTab'), 'BusinessServicesTab');
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
 import { ProductManagement } from '../components/businessHub/ProductManagement';
 import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
-import { BusinessAnalyticsTab } from '../components/businessHub/BusinessAnalyticsTab';
-import { CustomerLoyaltyManager } from '../components/businessHub/CustomerLoyaltyManager';
-import { BusinessIntegrations } from '../components/businessHub/BusinessIntegrations';
-import { ExpenseTracker } from '../components/businessHub/ExpenseTracker';
-import { QuoteBuilder } from '../components/businessHub/QuoteBuilder';
-import { RecurringBillingManager } from '../components/businessHub/RecurringBillingManager';
-import { StaffScheduler } from '../components/businessHub/StaffScheduler';
-import { ReviewManager } from '../components/businessHub/ReviewManager';
-import { MarketingTools } from '../components/businessHub/MarketingTools';
-import { WaitlistManager } from '../components/businessHub/WaitlistManager';
-import { ServicePackagesManager } from '../components/businessHub/ServicePackagesManager';
-import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDashboard';
-import { LeadPipeline } from '../components/businessHub/LeadPipeline';
-import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
+const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
+const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub/CustomerLoyaltyManager'), 'CustomerLoyaltyManager');
+const BusinessIntegrations = lazyNamed(() => import('../components/businessHub/BusinessIntegrations'), 'BusinessIntegrations');
+const ExpenseTracker = lazyNamed(() => import('../components/businessHub/ExpenseTracker'), 'ExpenseTracker');
+const QuoteBuilder = lazyNamed(() => import('../components/businessHub/QuoteBuilder'), 'QuoteBuilder');
+const RecurringBillingManager = lazyNamed(() => import('../components/businessHub/RecurringBillingManager'), 'RecurringBillingManager');
+const StaffScheduler = lazyNamed(() => import('../components/businessHub/StaffScheduler'), 'StaffScheduler');
+const ReviewManager = lazyNamed(() => import('../components/businessHub/ReviewManager'), 'ReviewManager');
+const MarketingTools = lazyNamed(() => import('../components/businessHub/MarketingTools'), 'MarketingTools');
+const WaitlistManager = lazyNamed(() => import('../components/businessHub/WaitlistManager'), 'WaitlistManager');
+const ServicePackagesManager = lazyNamed(() => import('../components/businessHub/ServicePackagesManager'), 'ServicePackagesManager');
+const HealthAlertsDashboard = lazyNamed(() => import('../components/businessHub/HealthAlertsDashboard'), 'HealthAlertsDashboard');
+const LeadPipeline = lazyNamed(() => import('../components/businessHub/LeadPipeline'), 'LeadPipeline');
+const MessageTemplatesManager = lazyNamed(() => import('../components/businessHub/MessageTemplatesManager'), 'MessageTemplatesManager');
 import BusinessCreationWizard from '../components/businessHub/BusinessCreationWizard';
-import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
-import TradesOperationsTab from '../components/businessHub/TradesOperationsTab';
-import BeautyOperationsTab from '../components/businessHub/BeautyOperationsTab';
-import CreativeOperationsTab from '../components/businessHub/CreativeOperationsTab';
-import ProfessionalOperationsTab from '../components/businessHub/ProfessionalOperationsTab';
-import ContinuityOperationsTab from '../components/businessHub/ContinuityOperationsTab';
-import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
+const PropertyOperationsTab = lazyDefault(() => import('../components/businessHub/PropertyOperationsTab'));
+const TradesOperationsTab = lazyDefault(() => import('../components/businessHub/TradesOperationsTab'));
+const BeautyOperationsTab = lazyDefault(() => import('../components/businessHub/BeautyOperationsTab'));
+const CreativeOperationsTab = lazyDefault(() => import('../components/businessHub/CreativeOperationsTab'));
+const ProfessionalOperationsTab = lazyDefault(() => import('../components/businessHub/ProfessionalOperationsTab'));
+const ContinuityOperationsTab = lazyDefault(() => import('../components/businessHub/ContinuityOperationsTab'));
+const TemplateWorkflowSystemTab = lazyDefault(() => import('../components/businessHub/TemplateWorkflowSystemTab'));
 import BusinessProfileEditor from '../components/businessHub/BusinessProfileEditor';
 import {
   listBusinesses, updateBusiness, uploadBusinessPhotos,
@@ -82,7 +85,7 @@ import { getDefaultCurrency } from '../lib/countries';
 import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canAccessBusinessHub } from '../utils/modeAccess';
 import TabErrorBoundary from '../components/TabErrorBoundary';
-import HiringPipelineBoard from '../components/careers/HiringPipelineBoard';
+const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
 import {
   profileFormFromBusiness,
   tagOwnedBusiness,
@@ -1590,6 +1593,8 @@ function BusinessHubInner() {
               ))}
             </div>
 
+            <Suspense fallback={<p className="bh-loading">Loading workspace...</p>}>
+
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
               <TabErrorBoundary label={t('businessHub.tabProfileLabel', { defaultValue: 'Profile' })} resetKey="profile">
@@ -2099,6 +2104,7 @@ function BusinessHubInner() {
             {tab === 'msg-templates' && bizId && canEditBizProfile && (
               <MessageTemplatesManager businessId={bizId} />
             )}
+            </Suspense>
           </>
         )}
 

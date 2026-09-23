@@ -1,5 +1,5 @@
 // OxSteed Restaurants — customer discovery: search, browse, and order from restaurants worldwide.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listFoodRestaurantsPage, listMyFoodOrders } from '../../api/food';
@@ -18,7 +18,10 @@ import {
 } from './restaurantDiscovery';
 import '../../styles/FoodPages.css';
 import '../../styles/RestaurantDiscovery.css';
-import AwsLocationMap from '../../components/AwsLocationMap';
+
+// Keep the MapLibre engine off the restaurant discovery path until a user
+// explicitly opens the map.
+const AwsLocationMap = lazy(() => import('../../components/AwsLocationMap'));
 
 const DEFAULT_CENTER = [25.0, -40.0];
 const DEFAULT_ZOOM = 2;
@@ -461,21 +464,23 @@ export default function FoodHomePage() {
 
       {showMap && hasMapData && (
         <div className="fd-map-wrap" id="restaurant-discovery-map">
-          <AwsLocationMap
-            center={mapCenter}
-            zoom={geo ? 12 : DEFAULT_ZOOM}
-            places={[
-              ...restaurants
-                .filter((r) => r.latitude != null && r.longitude != null)
-                .map((r) => ({
-                  lat: r.latitude,
-                  lng: r.longitude,
-                  display_name: r.display_name,
-                  href: `/restaurants/r/${r.id}`,
-                })),
-              ...externalPlaces.map((place) => ({ ...place, external: true })),
-            ]}
-          />
+          <Suspense fallback={<div className="fd-map-loading" role="status">Loading map...</div>}>
+            <AwsLocationMap
+              center={mapCenter}
+              zoom={geo ? 12 : DEFAULT_ZOOM}
+              places={[
+                ...restaurants
+                  .filter((r) => r.latitude != null && r.longitude != null)
+                  .map((r) => ({
+                    lat: r.latitude,
+                    lng: r.longitude,
+                    display_name: r.display_name,
+                    href: `/restaurants/r/${r.id}`,
+                  })),
+                ...externalPlaces.map((place) => ({ ...place, external: true })),
+              ]}
+            />
+          </Suspense>
         </div>
       )}
 

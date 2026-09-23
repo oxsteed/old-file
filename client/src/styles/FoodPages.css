@@ -83,6 +83,16 @@
   margin-bottom: 1.25rem;
 }
 .fd-map-wrap .aws-location-map { height: 100%; min-height: 0; }
+.fd-map-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 180px;
+  color: var(--muted-text, #6b7280);
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: inherit;
+}
 
 .fd-grid {
   display: grid;
