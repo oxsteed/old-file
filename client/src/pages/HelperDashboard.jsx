@@ -22,6 +22,7 @@ import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
+import '../styles/HelperDashboard.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -1202,7 +1203,7 @@ export default function HelperDashboard() {
 
   if (loading) return (
     <PageShell>
-      <div className="min-h-screen text-white">
+      <div className="helper-dashboard-shell min-h-screen text-white">
         <div className="flex flex-col items-center justify-center py-24 text-gray-500">
           <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4" />
           <span className="text-sm">{t('helperDashboard.loadingDashboard')}</span>
@@ -1213,7 +1214,7 @@ export default function HelperDashboard() {
 
   return (
     <PageShell>
-      <div className="min-h-screen text-white">
+      <div className="helper-dashboard-shell min-h-screen text-white">
         <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

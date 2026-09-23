@@ -420,6 +420,111 @@ html:not(.dark) .plan-status.free   { background: rgba(107, 114, 128, 0.12); col
 /* Stat labels — #9ca3af is too pale on white */
 html:not(.dark) .stat-label { color: #4b5563; }
 
+/* ── Tailwind utility bridge for the current dashboard markup ────────────
+   HelperDashboard still uses dark-first utility classes in its JSX. Keep
+   the translation scoped to this page so shared components and dark mode are
+   not changed by these light-mode corrections. */
+html:not(.dark) .helper-dashboard-shell,
+[data-theme='light'] .helper-dashboard-shell {
+  color: var(--color-text);
+  background: var(--color-bg);
+  color-scheme: light;
+}
+
+html:not(.dark) .helper-dashboard-shell [class~='text-white'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-white'] {
+  color: #0f172a !important;
+}
+
+/* Preserve white text on saturated status and action surfaces. */
+html:not(.dark) .helper-dashboard-shell [class~='bg-blue-500'][class~='text-white'],
+html:not(.dark) .helper-dashboard-shell [class~='bg-red-500'][class~='text-white'],
+html:not(.dark) .helper-dashboard-shell [class~='bg-orange-500'][class~='text-white'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-blue-500'][class~='text-white'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-red-500'][class~='text-white'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-orange-500'][class~='text-white'] {
+  color: #fff !important;
+}
+
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-200'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-200'] { color: #1f2937 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-300'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-300'] { color: #334155 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-400'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-400'] { color: #475569 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-500'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-500'] { color: #64748b !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-600'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-600'] { color: #64748b !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-700'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-700'] { color: #475569 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='text-gray-950'],
+[data-theme='light'] .helper-dashboard-shell [class~='text-gray-950'] { color: #0f172a !important; }
+
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-900'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-900'] { background-color: #fff !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-900/80'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-900/80'] { background-color: rgba(255, 255, 255, 0.92) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-900/60'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-900/60'] { background-color: rgba(255, 255, 255, 0.86) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-900/50'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-900/50'] { background-color: rgba(255, 255, 255, 0.78) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-800'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-800'] { background-color: #f1f5f9 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-800/80'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-800/80'] { background-color: rgba(241, 245, 249, 0.94) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-800/70'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-800/70'] { background-color: rgba(241, 245, 249, 0.88) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-800/50'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-800/50'] { background-color: rgba(241, 245, 249, 0.72) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-800/30'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-800/30'] { background-color: rgba(15, 23, 42, 0.04) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-700'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-700'] { background-color: #e2e8f0 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='bg-gray-700/40'],
+[data-theme='light'] .helper-dashboard-shell [class~='bg-gray-700/40'] { background-color: rgba(226, 232, 240, 0.72) !important; }
+
+html:not(.dark) .helper-dashboard-shell [class~='border-gray-700'],
+[data-theme='light'] .helper-dashboard-shell [class~='border-gray-700'] { border-color: #cbd5e1 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='border-gray-700/40'],
+[data-theme='light'] .helper-dashboard-shell [class~='border-gray-700/40'] { border-color: rgba(203, 213, 225, 0.72) !important; }
+html:not(.dark) .helper-dashboard-shell [class~='border-gray-800'],
+[data-theme='light'] .helper-dashboard-shell [class~='border-gray-800'] { border-color: #e2e8f0 !important; }
+
+html:not(.dark) .helper-dashboard-shell [class~='placeholder-gray-600']::placeholder,
+[data-theme='light'] .helper-dashboard-shell [class~='placeholder-gray-600']::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-600']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:bg-gray-600']:hover { background-color: #cbd5e1 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-700']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:bg-gray-700']:hover,
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-700/60']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:bg-gray-700/60']:hover { background-color: #e2e8f0 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-800']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:bg-gray-800']:hover,
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-800/30']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:bg-gray-800/30']:hover,
+html:not(.dark) .helper-dashboard-shell [class~='hover:bg-gray-800/60']:hover { background-color: #e2e8f0 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:text-white']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:text-white']:hover { color: #0f172a !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:text-gray-200']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:text-gray-200']:hover { color: #1f2937 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:text-gray-300']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:text-gray-300']:hover { color: #334155 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:border-gray-600']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:border-gray-600']:hover { border-color: #94a3b8 !important; }
+html:not(.dark) .helper-dashboard-shell [class~='hover:border-gray-700']:hover,
+[data-theme='light'] .helper-dashboard-shell [class~='hover:border-gray-700']:hover { border-color: #cbd5e1 !important; }
+
+/* The pulse card uses a dark-only gradient in the JSX. */
+html:not(.dark) .helper-dashboard-shell [class~='from-gray-900/80'],
+[data-theme='light'] .helper-dashboard-shell [class~='from-gray-900/80'] {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.84)) !important;
+}
+
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 640px) {
   .helper-dashboard {
