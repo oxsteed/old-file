@@ -1278,49 +1278,61 @@ export default function HelperDashboard() {
 
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
-          {/* Directory listing status */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 bg-gray-900/60 border border-gray-700/40 rounded-2xl p-4">
-            <div className="flex items-center gap-4">
-              <div className={`w-3 h-3 rounded-full ${isListed ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
+          {/* Compact availability controls */}
+          <section className="helper-availability-card mb-6" aria-labelledby="helper-availability-heading">
+            <div className="helper-availability-card__header">
               <div>
-                <p className="text-sm font-bold text-white">
-                  {isListed ? t('helperDashboard.online') : t('helperDashboard.offline')}
+                <p className="helper-availability-card__eyebrow">
+                  {t('helperDashboard.availabilityTitle', { defaultValue: 'Availability' })}
                 </p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mt-0.5">
-                  {t('helperDashboard.directoryStatus')}
-                </p>
+                <h2 id="helper-availability-heading">
+                  {t('helperDashboard.availabilityHint', { defaultValue: 'Choose how customers can find and reach you.' })}
+                </h2>
               </div>
             </div>
-            <Btn
-              variant={isListed ? 'secondary' : 'primary'}
-              onClick={() => handleToggleListing(!isListed)}
-              disabled={listingLoading}
-            >
-              {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
-            </Btn>
-          </div>
 
-          {/* Live chat availability status */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-sky-900/30 border border-sky-700/40 rounded-2xl p-4">
-            <div className="flex items-center gap-4">
-              <div className={`w-3 h-3 rounded-full ${isLiveAvailable ? 'bg-blue-500 animate-pulse' : 'bg-gray-600'}`} />
-              <div>
-                <p className="text-sm font-bold text-white">
-                  {isLiveAvailable ? t('helperDashboard.liveNow') : t('helperDashboard.notLive')}
-                </p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mt-0.5">
-                  {t('helperDashboard.liveStatus')}
-                </p>
+            <div className="helper-availability-card__rows">
+              <div className="helper-availability-row">
+                <div className="helper-availability-row__details">
+                  <div className={`helper-availability-row__dot ${isListed ? 'helper-availability-row__dot--directory' : ''}`} />
+                  <div>
+                    <p className="helper-availability-row__status">
+                      {isListed ? t('helperDashboard.online') : t('helperDashboard.offline')}
+                    </p>
+                    <p className="helper-availability-row__label">{t('helperDashboard.directoryStatus')}</p>
+                  </div>
+                </div>
+                <Btn
+                  variant={isListed ? 'secondary' : 'primary'}
+                  className="helper-availability-row__button"
+                  onClick={() => handleToggleListing(!isListed)}
+                  disabled={listingLoading}
+                >
+                  {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
+                </Btn>
+              </div>
+
+              <div className="helper-availability-row">
+                <div className="helper-availability-row__details">
+                  <div className={`helper-availability-row__dot helper-availability-row__dot--live ${isLiveAvailable ? 'helper-availability-row__dot--active' : ''}`} />
+                  <div>
+                    <p className="helper-availability-row__status">
+                      {isLiveAvailable ? t('helperDashboard.liveNow') : t('helperDashboard.notLive')}
+                    </p>
+                    <p className="helper-availability-row__label">{t('helperDashboard.liveStatus')}</p>
+                  </div>
+                </div>
+                <Btn
+                  variant={isLiveAvailable ? 'secondary' : 'primary'}
+                  className="helper-availability-row__button"
+                  onClick={() => handleToggleLiveAvailability(!isLiveAvailable)}
+                  disabled={liveAvailLoading}
+                >
+                  {isLiveAvailable ? t('helperDashboard.goOffline') : t('helperDashboard.goLive')}
+                </Btn>
               </div>
             </div>
-            <Btn
-              variant={isLiveAvailable ? 'secondary' : 'primary'}
-              onClick={() => handleToggleLiveAvailability(!isLiveAvailable)}
-              disabled={liveAvailLoading}
-            >
-              {isLiveAvailable ? t('helperDashboard.goOffline') : t('helperDashboard.goLive')}
-            </Btn>
-          </div>
+          </section>
 
           {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
@@ -1353,7 +1365,7 @@ export default function HelperDashboard() {
               </div>
             )}
 
-            <div className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4">
+            <div className="helper-payment-banner mb-4 p-3 sm:p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4">
               <div>
                 <p className="text-emerald-300 font-semibold text-sm">💸 Restaurant credit and direct payment ready</p>
                 <p className="text-gray-400 text-xs mt-0.5">
