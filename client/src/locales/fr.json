@@ -8110,7 +8110,11 @@
     "downloadPNG": "Télécharger PNG",
     "downloadSVG": "Télécharger SVG",
     "errorGenerating": "Erreur lors de la génération du code QR",
-    "loadError": "Erreur lors du chargement de vos codes QR enregistrés"
+    "loadError": "Erreur lors du chargement de vos codes QR enregistrés",
+    "proRequiredTitle": "Les codes QR sont une fonction Pro pour les assistants",
+    "proRequiredDescription": "Passez à un forfait assistant Pro pour créer et enregistrer des codes QR pour votre entreprise.",
+    "viewPlans": "Voir les forfaits Pro",
+    "proRequired": "L’enregistrement des codes QR nécessite un forfait assistant Pro."
   },
   "consulting": {
     "title": "Conseil en Ascension Commerciale",
