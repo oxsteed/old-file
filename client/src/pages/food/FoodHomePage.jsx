@@ -1,4 +1,4 @@
-// OxSteed Restaurants — customer discovery: search, browse, and order from restaurants worldwide.
+// Local Food Directory — customer discovery: search, browse, and order from restaurants worldwide.
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
