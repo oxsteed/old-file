@@ -493,13 +493,11 @@ const HelperBusinessProfilePage: React.FC = () => {
           {t('businessProfile.message')}
         </button>
         <button
-          onClick={services.length > 0 ? handleBookNow : undefined}
-          disabled={services.length === 0}
-          title={services.length === 0 ? t('helperProfile.cta.noServicesTitle') : undefined}
-          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
-          aria-label={t('businessProfile.bookBusinessAria')}
+          onClick={services.length > 0 ? handleBookNow : handleOpenChat}
+          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+          aria-label={services.length > 0 ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.messageHelperAria')}
         >
-          {t('businessProfile.bookNow')}
+          {services.length > 0 ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
       </div>
 
