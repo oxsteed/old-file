@@ -41,6 +41,23 @@ function generateGuestToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function isGuestProfileChatSchemaError(err) {
+  const code = String(err?.code || '');
+  const message = String(err?.message || '');
+  return ['42P01', '42703', '23502', '23514'].includes(code)
+    && /guest_profile_chat_(inbound|verifications)/i.test(message);
+}
+
+function buildGuestChatUnavailableError(cause) {
+  const error = new Error(
+    'Guest chat verification is not ready on this deployment. Please sign in to message this helper.',
+  );
+  error.status = 503;
+  error.code = 'guest_chat_unavailable';
+  error.databaseCode = cause?.code || null;
+  return error;
+}
+
 /** Bind guest session token to a specific helper (+ optional business). */
 function tokenMatchesProfile(session, { helperId, businessId = null } = {}) {
   if (!session) return false;
@@ -216,6 +233,14 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
     };
   } catch (err) {
     await client.query('ROLLBACK');
+    if (isGuestProfileChatSchemaError(err)) {
+      logger.error('guest profile chat verification schema is unavailable', {
+        error: err.message,
+        code: err.code,
+        migrationHint: 'Apply 085_allow_guest_contact_and_guest_chat.sql, 532_guest_profile_chat_verification.sql, and 544_profile_chat_idempotency.sql',
+      });
+      throw buildGuestChatUnavailableError(err);
+    }
     logger.error('startGuestVerification failed', { error: err.message });
     throw err;
   } finally {
