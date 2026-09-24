@@ -845,7 +845,7 @@
     "howItWorks": "كيف يعمل",
     "about": "حول",
     "findHelpers": "اعثر على مساعدين",
-    "restaurants": "OxSteed Restaurants",
+    "restaurants": "Local Food Directory",
     "direct": "OxSteed Direct",
     "support": "الدعم",
     "consultingIntake": "برنامج إطلاق الأعمال",
@@ -2433,7 +2433,7 @@
       "skillsEyebrow": "سوق الخدمات",
       "skillsTitle": "اعثر على المساعدة المناسبة للعمل الذي تحتاج إليه.",
       "skillsText": "انشر مهمة وقارن العروض أو احجز مقدم خدمة محلياً موثوقاً مباشرةً.",
-      "foodEyebrow": "OxSteed Restaurants",
+      "foodEyebrow": "Local Food Directory",
       "foodTitle": "طعام محلي بالطريقة التي تناسبك.",
       "foodText": "تصفح القوائم المتاحة واطلب مسبقاً وتابع كل تحديث حتى الاستلام أو التوصيل.",
       "browseRestaurants": "تصفح المطاعم",
@@ -14513,7 +14513,7 @@
       "inStoreScreens": "شاشات داخل المطعم",
       "inStoreScreensHint": "افتحها على شاشة المطبخ أو جهاز عرض، وتلفاز أمام الزبائن، وجهاز لوحي للطلب الذاتي.",
       "landing": {
-        "eyebrow": "OxSteed Restaurants",
+        "eyebrow": "Local Food Directory",
         "headline": "أدوات بمستوى سلاسل الامتياز للمطاعم المستقلة",
         "sub": "ابدأ العمل في اليوم نفسه. استقبل الطلبات من المنضدة والكشك وشاشة المطبخ وعبر الإنترنت، وكلها متصلة بنظام خلفي واحد.",
         "cta": "أضف مطعمك",
@@ -14522,7 +14522,7 @@
         "f2Title": "الطلب عبر قنوات متعددة",
         "f2Desc": "المنضدة والكشك وشاشة المطبخ والإنترنت، كلها متزامنة تلقائيًا.",
         "f3Title": "علامة تجارية مستقلة",
-        "f3Desc": "اسمك وهويتك، مع تشغيل البنية التحتية بواسطة OxSteed Restaurants في الخلفية.",
+        "f3Desc": "اسمك وهويتك، مع تشغيل البنية التحتية بواسطة Local Food Directory في الخلفية.",
         "f4Title": "جاهز للعمل عالميًا",
         "f4Desc": "قوائم متعددة اللغات ودعم للمدفوعات الدولية منذ اليوم الأول.",
         "step1": "أضف مطعمك",
@@ -14817,7 +14817,7 @@
       "hint": "وظّف مساعدين محليين، انشر الوظائف، قارن العروض"
     },
     "restaurants": {
-      "title": "OxSteed Restaurants",
+      "title": "Local Food Directory",
       "hint": "أدوات بمستوى الامتياز للمطاعم المستقلة"
     },
     "logistics": {
@@ -14850,7 +14850,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "OxSteed Restaurants"
+      "entry": "Local Food Directory"
     },
     "ops": {
       "title": "العمليات",
@@ -15270,8 +15270,8 @@
   "publicSeo": {
     "help": {
       "restaurant": {
-        "title": "OxSteed Restaurants Help Center | الطلبات والدعم",
-        "description": "تعرّف على كيفية استعراض المطاعم وإدارة القوائم وإجراء الطلبات وتتبع الطعام والحصول على الدعم عبر OxSteed Restaurants."
+        "title": "Local Food Directory Help Center | الطلبات والدعم",
+        "description": "تعرّف على كيفية استعراض المطاعم وإدارة القوائم وإجراء الطلبات وتتبع الطعام والحصول على الدعم عبر Local Food Directory."
       },
       "manager": {
         "title": "مركز مساعدة OxSteed Manager | عمليات المطاعم",
