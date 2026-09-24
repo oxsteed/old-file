@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
 
 export default function Hero({ search }) {
@@ -23,7 +23,7 @@ export default function Hero({ search }) {
       <div className="hp-hero-ctas">
         {user ? (
           <>
-            <Link
+            <PrefetchLink
               to={user.role === 'helper' ? '/jobs' : '/post-job'}
               className="hp-btn hp-btn-primary hp-btn-lg"
             >
@@ -31,31 +31,31 @@ export default function Hero({ search }) {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
-            </Link>
-            <Link to="/dashboard" className="hp-btn hp-btn-outline hp-btn-lg">
+            </PrefetchLink>
+            <PrefetchLink to="/dashboard" className="hp-btn hp-btn-outline hp-btn-lg">
               {t('nav.dashboard')}
-            </Link>
+            </PrefetchLink>
           </>
         ) : (
           <>
-            <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
+            <PrefetchLink to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
               {t('hero.postJob')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
-            </Link>
-            <Link to="/helpers" className="hp-btn hp-btn-outline hp-btn-lg">
+            </PrefetchLink>
+            <PrefetchLink to="/helpers" className="hp-btn hp-btn-outline hp-btn-lg">
               {t('hero.browseHelpers')}
-            </Link>
+            </PrefetchLink>
           </>
         )}
-        <Link to="/restaurants" className="hp-btn hp-btn-food hp-btn-lg">
+        <PrefetchLink to="/restaurants" className="hp-btn hp-btn-food hp-btn-lg">
           <span className="hp-btn-food-icon" aria-hidden="true">🍽</span>
           <span className="hp-btn-food-copy">
             <strong>{t('hero.orderFood')}</strong>
             <small>{t('hero.orderFoodHint')}</small>
           </span>
-        </Link>
+        </PrefetchLink>
       </div>
 
       <div className="hp-hero-trust">
