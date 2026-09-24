@@ -453,7 +453,7 @@ export default function App() {
                     <Route path="/food/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/food/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
 
-                    {/* OxSteed Restaurants — new branch name for the same operating
+                    {/* Local Food Directory — new branch name for the same operating
                         surface. The /restaurants/* paths are the canonical routes going
                         forward; the /food/* paths above are preserved for back-compat
                         (existing links, QR codes, kiosk/queue displays already deployed). */}
