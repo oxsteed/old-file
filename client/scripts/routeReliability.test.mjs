@@ -22,7 +22,7 @@ test('common route loaders are shared by prefetching and route definitions', () 
     ['careers', 'routeLoaders.careers'],
     ['jobs', 'routeLoaders.jobs'],
   ]) {
-    assert.match(loaders, new RegExp(`\\\\b${name}: createLoader`));
+    assert.match(loaders, new RegExp(`\\b${name}: createLoader`));
     assert.match(app, new RegExp(route.replace('.', '\\\\.')), `${name} must use its shared loader`);
   }
 });
