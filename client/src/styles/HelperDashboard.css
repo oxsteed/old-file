@@ -895,12 +895,11 @@ html:not(.dark) .helper-availability-row__dot--active,
 @media (min-width: 1024px) {
   .helper-dashboard-overview-area {
     display: grid;
-    grid-template-columns: minmax(22rem, 0.92fr) minmax(0, 1.08fr);
+    grid-template-columns: minmax(0, 1.18fr) minmax(25rem, 0.82fr);
     grid-template-areas:
       "tabs availability"
       "summary availability"
-      "summary jobs"
-      "quicklinks quicklinks";
+      "summary jobs";
     align-items: start;
     gap: 1rem;
   }
@@ -927,9 +926,10 @@ html:not(.dark) .helper-availability-row__dot--active,
     min-width: 0;
     margin-bottom: 0 !important;
   }
-  .helper-dashboard-overview-area__quick-actions {
-    grid-area: quicklinks;
-    margin-bottom: 0 !important;
+  .helper-dashboard-nearby-jobs__list {
+    max-height: 25rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
   }
   .helper-overview-summary-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -972,6 +972,12 @@ html:not(.dark) .helper-availability-row__dot--active,
   .onboarding-pct {
     margin-left: 0;
     align-self: flex-start;
+  }
+}
+
+@media (max-width: 1023px) {
+  .helper-dashboard-nearby-jobs__list > :nth-child(n+4) {
+    display: none;
   }
 }
  

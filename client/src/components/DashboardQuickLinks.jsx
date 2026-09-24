@@ -22,6 +22,7 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/my-bids', 'helperDashboard.myBids', 'My bids', FileText),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
     link('/helper/messages', 'nav.messages', 'Messages', MessageSquare),
+    link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck),
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   life: [
