@@ -635,7 +635,7 @@ const MARKETING_PAGES = {
     noIndex: true,
   },
   '/consulting-intake': {
-    title: 'OxSteed Business Launch Program | Start Your Business',
+    title: 'OxSteed Founder Development Program | Start Your Business',
     description: 'Get practical help with setup, branding, website, and launch planning for your local business.',
   },
   '/direct': {
