@@ -212,10 +212,12 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
     } else {
       const inserted = await client.query(
         `INSERT INTO guest_profile_chat_inbound
-           (helper_id, business_id, guest_name, guest_email, message, verification_status)
-         VALUES ($1, $2, $3, $4, NULL, 'pending')
+           (helper_id, business_id, guest_name, guest_email, message, verification_status,
+            helper_response_deadline)
+         VALUES ($1, $2, $3, $4, NULL, 'pending', NOW() + ($5 || ' minutes')::interval)
          RETURNING id`,
-        [resolvedHelperId, resolvedBusinessId, name, email]
+        // The default waiting_for_helper state requires a deadline even before OTP verification.
+        [resolvedHelperId, resolvedBusinessId, name, email, String(CODE_TTL_MINUTES)]
       );
       sessionId = inserted.rows[0].id;
     }
@@ -315,7 +317,9 @@ async function verifyGuestCode({ sessionId, guestEmail, code }) {
        SET guest_access_token_hash = $1,
            guest_token_expires_at = NOW() + ($2 || ' hours')::interval,
            guest_verified_at = COALESCE(guest_verified_at, NOW()),
-           verification_status = 'verified'
+           verification_status = 'verified',
+           helper_response_deadline = CASE WHEN session_status = 'waiting_for_helper'
+             THEN NOW() + INTERVAL '5 minutes' ELSE helper_response_deadline END
        WHERE id = $3`,
       [hash(token), String(TOKEN_TTL_HOURS), sessionId]
     );

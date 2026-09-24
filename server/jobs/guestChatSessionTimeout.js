@@ -18,6 +18,7 @@ const startGuestChatSessionTimeoutJob = () => {
         `SELECT id, guest_id, guest_name, last_activity_at
          FROM guest_profile_chat_inbound
          WHERE session_status = 'waiting_for_helper'
+           AND verification_status = 'verified'
            AND helper_response_deadline IS NOT NULL
            AND helper_response_deadline < CURRENT_TIMESTAMP
          LIMIT 100`
@@ -40,14 +41,15 @@ const startGuestChatSessionTimeoutJob = () => {
           await withChatTransaction(async (client) => {
             // Get current session state with lock
             const current = await client.query(
-              `SELECT session_status, helper_response_deadline FROM guest_profile_chat_inbound
+              `SELECT session_status, helper_response_deadline, verification_status FROM guest_profile_chat_inbound
                WHERE id = $1 FOR UPDATE`,
               [session.id]
             );
 
             // Double-check the session is still waiting and deadline has passed
             // (another process might have claimed it)
-            if (current.rows[0].session_status !== 'waiting_for_helper' ||
+            if (current.rows[0].verification_status !== 'verified' ||
+                current.rows[0].session_status !== 'waiting_for_helper' ||
                 new Date(current.rows[0].helper_response_deadline) > new Date()) {
               return; // Session was claimed or deadline was updated, skip
             }
