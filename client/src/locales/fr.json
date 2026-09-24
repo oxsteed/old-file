@@ -845,7 +845,7 @@
     "howItWorks": "Comment ça marche",
     "about": "À propos",
     "findHelpers": "Trouver des prestataires",
-    "restaurants": "OxSteed Restaurants",
+    "restaurants": "Local Food Directory",
     "direct": "OxSteed Direct",
     "support": "Assistance",
     "consultingIntake": "Programme de lancement d'entreprise",
@@ -2433,7 +2433,7 @@
       "skillsEyebrow": "Marché des services",
       "skillsTitle": "Trouvez la bonne aide pour vos prochains travaux.",
       "skillsText": "Publiez une mission, comparez les offres ou réservez directement un prestataire local de confiance.",
-      "foodEyebrow": "OxSteed Restaurants",
+      "foodEyebrow": "Local Food Directory",
       "foodTitle": "Des plats locaux, commandés à votre façon.",
       "foodText": "Consultez les menus disponibles, commandez à l'avance et suivez chaque étape jusqu'au retrait ou à la livraison.",
       "browseRestaurants": "Voir les restaurants",
@@ -14015,7 +14015,7 @@
       "no": "Non"
     },
     "home": {
-      "title": "OxSteed Restaurants",
+      "title": "Local Food Directory",
       "subtitle": "Commandez à l'avance ou sur place dans les restaurants près de chez vous, partout dans le monde.",
       "searchPlaceholder": "Rechercher des restaurants ou des cuisines",
       "searchBtn": "Rechercher",
@@ -14510,7 +14510,7 @@
       "price": "Prix",
       "advancedCoords": "Avancé : coordonnées GPS (facultatif)",
       "landing": {
-        "eyebrow": "OxSteed Restaurants",
+        "eyebrow": "Local Food Directory",
         "headline": "Outils de niveau franchise pour restaurants indépendants",
         "sub": "Lancez-vous le même jour. Acceptez des commandes au comptoir, en kiosque, sur l'écran cuisine et en ligne — depuis un seul backend partagé.",
         "cta": "Ajouter votre restaurant",
@@ -14519,7 +14519,7 @@
         "f2Title": "Commandes multi-surfaces",
         "f2Desc": "Comptoir, kiosque, KDS et en ligne — tout synchronisé automatiquement.",
         "f3Title": "Marque indépendante",
-        "f3Desc": "Votre nom, votre identité. Propulsé par OxSteed Restaurants en arrière-plan.",
+        "f3Desc": "Votre nom, votre identité. Propulsé par Local Food Directory en arrière-plan.",
         "f4Title": "Prêt pour le monde entier",
         "f4Desc": "Menus multilingues et prise en charge des paiements internationaux dès le premier jour.",
         "step1": "Ajoutez votre restaurant",
@@ -14814,7 +14814,7 @@
       "hint": "Recrutez des aides locales, publiez des missions, comparez les offres"
     },
     "restaurants": {
-      "title": "OxSteed Restaurants",
+      "title": "Local Food Directory",
       "hint": "Des outils de niveau franchise pour les restaurants indépendants"
     },
     "logistics": {
@@ -14847,7 +14847,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "OxSteed Restaurants"
+      "entry": "Local Food Directory"
     },
     "ops": {
       "title": "Opérations",
@@ -15267,8 +15267,8 @@
   "publicSeo": {
     "help": {
       "restaurant": {
-        "title": "Centre d'aide OxSteed Restaurants | Commandes et assistance",
-        "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec OxSteed Restaurants."
+        "title": "Centre d'aide Local Food Directory | Commandes et assistance",
+        "description": "Découvrez comment parcourir les restaurants, gérer les menus, commander, suivre les repas et obtenir de l'aide avec Local Food Directory."
       },
       "manager": {
         "title": "Centre d'aide OxSteed Manager | Opérations de restaurant",
