@@ -47,7 +47,11 @@ test('prefetching honors connection constraints and deduplicates loaders', () =>
 test('service worker is release-versioned and does not cache arbitrary HTML navigations', () => {
   const sw = repo('client/public/sw.js');
   assert.match(sw, /searchParams\.get\('v'\)/);
-  assert.doesNotMatch(sw, /cache\.put\(request, response\.clone\(\)\);[\s\S]*return caches\.match\('\/offline\.html'\)/);
+  const start = sw.indexOf('async function navigationHandler');
+  const end = sw.indexOf('// ── Web Push', start);
+  const navigation = sw.slice(start, end);
+  assert.doesNotMatch(navigation, /cache\.put/);
+  assert.match(navigation, /caches\.match\('\/offline\.html'\)/);
 });
 
 test('missing assets are rejected before the SPA catch-all', () => {
