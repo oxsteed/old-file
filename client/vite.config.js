@@ -78,6 +78,7 @@ export default defineConfig(({ mode }) => {
 
   build: {
     outDir: 'dist',
+    manifest: true,
     // MapLibre's prebuilt engine is the only bundle allowed above 500 KiB;
     // largeChunkAudit keeps the original target active for every other chunk.
     chunkSizeWarningLimit: 1100,
