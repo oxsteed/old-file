@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -9,12 +10,14 @@ import qrCodesApi from '../api/qrCodes';
 import QRCodeStyling from 'qr-code-styling';
 import logger from '../utils/logger';
 import './QRCodeGeneratorPage.css';
+import { canUseQrGenerator } from '../utils/modeAccess';
 import { Trash2, Download, Copy, Check, Plus } from 'lucide-react';
 
 const QRCodeGeneratorPage = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qrRef = useRef(null);
+  const canUseQr = canUseQrGenerator(user);
 
   // State for live preview form
   const [formData, setFormData] = useState({
@@ -74,23 +77,31 @@ const QRCodeGeneratorPage = () => {
     }
   }, [formData, t]);
 
-  // Fetch saved QR codes
-  useEffect(() => {
-    fetchSavedQRs();
-  }, []);
-
+  // Fetch saved QR codes only after the same Pro entitlement check used by
+  // the API. This prevents a generic load error for regular helpers.
   const fetchSavedQRs = async () => {
     try {
       setLoading(true);
       const { data } = await qrCodesApi.getAll(100, 0);
       setSavedQRs(data.data || []);
     } catch (err) {
-      logger.error('QRCodeGeneratorPage: failed to fetch saved QRs', { err: err.message });
-      toast.error(t('qrGenerator.loadError'));
+      logger.error('QRCodeGeneratorPage: failed to fetch saved QRs', {
+        err: err.message,
+        status: err.response?.status,
+      });
+      toast.error(
+        err.response?.status === 403
+          ? t('qrGenerator.proRequired')
+          : t('qrGenerator.loadError'),
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (canUseQr) fetchSavedQRs();
+  }, [canUseQr]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -148,8 +159,15 @@ const QRCodeGeneratorPage = () => {
       setShowSaveModal(false);
       fetchSavedQRs();
     } catch (err) {
-      logger.error('QRCodeGeneratorPage: failed to save QR', { err: err.message });
-      toast.error(t('qrGenerator.saveError'));
+      logger.error('QRCodeGeneratorPage: failed to save QR', {
+        err: err.message,
+        status: err.response?.status,
+      });
+      toast.error(
+        err.response?.status === 403
+          ? t('qrGenerator.proRequired')
+          : t('qrGenerator.saveError'),
+      );
     } finally {
       setLoading(false);
     }
@@ -198,6 +216,27 @@ const QRCodeGeneratorPage = () => {
     setCopiedId(url);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  if (!canUseQr) {
+    return (
+      <>
+        <PageMeta title={t('qrGenerator.pageTitle')} description={t('qrGenerator.pageDescription')} />
+        <Navbar />
+        <div className="qrg-container">
+          <div className="qrg-hero">
+            <h1 className="qrg-title">{t('qrGenerator.title')}</h1>
+            <p className="qrg-subtitle">{t('qrGenerator.subtitle')}</p>
+          </div>
+          <section className="qrg-section" role="status" style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+            <h2 className="qrg-section-title">{t('qrGenerator.proRequiredTitle')}</h2>
+            <p className="qrg-subtitle" style={{ marginBottom: '24px' }}>{t('qrGenerator.proRequiredDescription')}</p>
+            <Link to="/upgrade" className="qrg-button qrg-button-primary">{t('qrGenerator.viewPlans')}</Link>
+          </section>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
