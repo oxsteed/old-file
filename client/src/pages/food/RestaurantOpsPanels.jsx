@@ -1,4 +1,4 @@
-// OxSteed Restaurants — Operations panels (Phase 2): Checklists + SOP library.
+// Local Food Directory — Operations panels (Phase 2): Checklists + SOP library.
 // Mounted inside FoodMerchantPage's Operations tab. Talks to /api/restaurants.
 //
 // Management actions (create/edit templates, author SOPs) are owner/manager
