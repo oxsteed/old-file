@@ -250,7 +250,7 @@ export default function Login() {
           <div className="w-full max-w-md space-y-8">
 
             {/* Mobile wordmark */}
-            <div className="lg:hidden text-center">
+            <div className="hidden lg:block text-center">
               <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
               <p className="text-[var(--color-text-faint)] mt-1">{t('login.brandTagline')}</p>
             </div>
