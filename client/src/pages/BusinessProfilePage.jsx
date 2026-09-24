@@ -52,8 +52,6 @@ import { getPublicCreativeOperations } from '../api/creativeOperations';
 import { getPublicProfessionalOperations } from '../api/professionalOperations';
 import { getPublicContinuityOperations } from '../api/continuityOperations';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
-import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
-import '../components/profileTemplates/TemplateBehaviorPanel.css';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
@@ -927,12 +925,6 @@ export default function BusinessProfilePage() {
         </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
         <div className="px-4 sm:px-6 lg:px-8">
-          <TemplateBehaviorPanel
-            compact
-            behavior={templateBehavior}
-            onPrimaryAction={handleTemplatePrimaryAction}
-            onSecondaryAction={handleOpenChat}
-          />
           {activeTemplate === 'property_manager' ? (
             <div className="mt-6">
               <PropertyOperationsPublicSection data={propertyOpsData} />
@@ -1034,12 +1026,6 @@ export default function BusinessProfilePage() {
 
             {/* Contact links (phone / website) */}
             <ContactLinksSection phone={phone} website={website} />
-
-            <TemplateBehaviorPanel
-              behavior={templateBehavior}
-              onPrimaryAction={handleTemplatePrimaryAction}
-              onSecondaryAction={handleOpenChat}
-            />
 
             {LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate === 'property_manager' ? (
               <PropertyOperationsPublicSection data={propertyOpsData} />
@@ -1155,13 +1141,11 @@ export default function BusinessProfilePage() {
           {t('businessProfile.message')}
         </button>
         <button
-          onClick={services.length > 0 ? handleBookNow : undefined}
-          disabled={services.length === 0}
-          title={services.length === 0 ? t('helperProfile.cta.noServicesTitle') : undefined}
-          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
-          aria-label={t('businessProfile.bookBusinessAria')}
+          onClick={services.length > 0 ? handleBookNow : handleOpenChat}
+          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:bg-brand-700"
+          aria-label={services.length > 0 ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.messageHelperAria')}
         >
-          {t('businessProfile.bookNow')}
+          {services.length > 0 ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
       </div>
 
