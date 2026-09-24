@@ -177,7 +177,7 @@ export default function BusinessLaunchAdmin() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ margin: '0 0 0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>Business Launch Program</h1>
+          <h1 style={{ margin: '0 0 0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>Founder Development Program</h1>
           <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
             {pagination.total || 0} total requests
           </p>
