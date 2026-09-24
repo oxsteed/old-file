@@ -81,13 +81,23 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const previousItemsRef = useRef<TimelineItem[]>(items);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const previousItems = previousItemsRef.current;
+    const prependedOlderMessages = previousItems.length > 0
+      && items.length > previousItems.length
+      && items[items.length - 1]?.id === previousItems[previousItems.length - 1]?.id;
+    previousItemsRef.current = items;
+
+    if (!prependedOlderMessages) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [items, typing]);
 
   return (
     <div
-      className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scroll-smooth"
+      className="px-4 py-4 space-y-3 scroll-smooth"
       role="log"
       aria-label={t('helperProfile.chat.chatConversation')}
       aria-live="polite"
