@@ -84,16 +84,16 @@ function verifyCanonicalBrands() {
   const exact = {
     'homePage.company.heading': 'OxSteed',
     'homePage.company.headingDirect': 'OxSteed Direct',
-    'network.restaurants.title': 'OxSteed Restaurants',
-    'footer.restaurants': 'OxSteed Restaurants',
-    'restaurants.nav.entry': 'OxSteed Restaurants',
+    'network.restaurants.title': 'Local Food Directory',
+    'footer.restaurants': 'Local Food Directory',
+    'restaurants.nav.entry': 'Local Food Directory',
     'food.nav.entry': 'OxSteed Food',
-    'dashboard.customer.foodEyebrow': 'OxSteed Restaurants',
-    'food.merchant.landing.eyebrow': 'OxSteed Restaurants',
+    'dashboard.customer.foodEyebrow': 'Local Food Directory',
+    'food.merchant.landing.eyebrow': 'Local Food Directory',
   };
   const includes = {
-    'publicSeo.help.restaurant.title': 'OxSteed Restaurants',
-    'publicSeo.help.restaurant.description': 'OxSteed Restaurants',
+    'publicSeo.help.restaurant.title': 'Local Food Directory',
+    'publicSeo.help.restaurant.description': 'Local Food Directory',
     'publicSeo.direct.services.title': 'OxSteed Direct',
     'publicSeo.direct.services.description': 'OxSteed Direct',
   };
