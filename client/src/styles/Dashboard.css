@@ -179,3 +179,25 @@ html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link svg {
   outline: 2px solid var(--color-primary, #f97316);
   outline-offset: 2px;
 }
+
+.dashboard-quick-links__link--history {
+  background: #34d399;
+  color: #0f172a;
+}
+
+.dashboard-quick-links__link--history:hover,
+.dashboard-quick-links__link--history:focus-visible {
+  background: #6ee7b7;
+  color: #0f172a;
+}
+
+.dashboard-quick-links__link--verify {
+  background: var(--color-primary, #f97316);
+  color: var(--color-text-on-action, #ffffff);
+}
+
+.dashboard-quick-links__link--verify:hover,
+.dashboard-quick-links__link--verify:focus-visible {
+  background: var(--color-primary-hover, #ea580c);
+  color: var(--color-text-on-action, #ffffff);
+}
