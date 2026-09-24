@@ -23,7 +23,7 @@ export function FoodLogo({ size = 32 }) {
   );
 }
 
-export function FoodBrand({ size = 32, label = 'Restaurants' }) {
+export function FoodBrand({ size = 32, label = 'Local Food Directory' }) {
   return (
     <span className="fd-brand-badge">
       <FoodLogo size={size} />
