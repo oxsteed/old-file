@@ -379,11 +379,12 @@ export default function Navbar() {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="ox-nav-mobile-menu">
-            <div className="ox-nav-mobile-preferences">
-              {user && <ModeSwitcher compact />}
-              {showBusinessHub && <BusinessSwitcher compact />}
-              <ThemeToggle />
-            </div>
+            {(user || showBusinessHub) && (
+              <div className="ox-nav-mobile-preferences">
+                {user && <ModeSwitcher compact />}
+                {showBusinessHub && <BusinessSwitcher compact />}
+              </div>
+            )}
             {user ? (
               <>
                 <MobileNavLink to={dashboardPath} onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
