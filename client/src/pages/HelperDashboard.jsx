@@ -1496,66 +1496,66 @@ export default function HelperDashboard() {
         {/* ═══════ EDIT PROFILE ═══════ */}
         {tab==='editprofile'&&<EditProfileTab />}
 
-        {/* Compact availability controls */}
-        <section className="helper-availability-card" aria-labelledby="helper-availability-heading">
-          <div className="helper-availability-card__header">
-            <div>
-              <p className="helper-availability-card__eyebrow">
-                {t('helperDashboard.availabilityTitle', { defaultValue: 'Availability' })}
-              </p>
-              <h2 id="helper-availability-heading">
-                {t('helperDashboard.availabilityHint', { defaultValue: 'Choose how customers can find and reach you.' })}
-              </h2>
-            </div>
-          </div>
-
-          <div className="helper-availability-card__rows">
-            <div className="helper-availability-row">
-              <div className="helper-availability-row__details">
-                <div className={`helper-availability-row__dot ${isListed ? 'helper-availability-row__dot--directory' : ''}`} />
-                <div>
-                  <p className="helper-availability-row__status">
-                    {isListed ? t('helperDashboard.online') : t('helperDashboard.offline')}
-                  </p>
-                  <p className="helper-availability-row__label">{t('helperDashboard.directoryStatus')}</p>
-                </div>
+        {/* Unified availability card: status and weekly schedule. */}
+        {tab==='availability' && (
+          <section className="helper-availability-card" aria-labelledby="helper-availability-heading">
+            <div className="helper-availability-card__header">
+              <div>
+                <p className="helper-availability-card__eyebrow">
+                  {t('helperDashboard.availabilityTitle', { defaultValue: 'Availability' })}
+                </p>
+                <h2 id="helper-availability-heading">
+                  {t('helperDashboard.availabilityHint', { defaultValue: 'Choose how customers can find and reach you.' })}
+                </h2>
               </div>
-              <Btn
-                variant={isListed ? 'secondary' : 'primary'}
-                className="helper-availability-row__button"
-                onClick={() => handleToggleListing(!isListed)}
-                disabled={listingLoading}
-              >
-                {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
-              </Btn>
             </div>
 
-            <div className="helper-availability-row">
-              <div className="helper-availability-row__details">
-                <div className={`helper-availability-row__dot helper-availability-row__dot--live ${isLiveAvailable ? 'helper-availability-row__dot--active' : ''}`} />
-                <div>
-                  <p className="helper-availability-row__status">
-                    {isLiveAvailable ? t('helperDashboard.liveNow') : t('helperDashboard.notLive')}
-                  </p>
-                  <p className="helper-availability-row__label">{t('helperDashboard.liveStatus')}</p>
+            <div className="helper-availability-card__rows">
+              <div className="helper-availability-row">
+                <div className="helper-availability-row__details">
+                  <div className={`helper-availability-row__dot ${isListed ? 'helper-availability-row__dot--directory' : ''}`} />
+                  <div>
+                    <p className="helper-availability-row__status">
+                      {isListed ? t('helperDashboard.online') : t('helperDashboard.offline')}
+                    </p>
+                    <p className="helper-availability-row__label">{t('helperDashboard.directoryStatus')}</p>
+                  </div>
                 </div>
+                <Btn
+                  variant={isListed ? 'secondary' : 'primary'}
+                  className="helper-availability-row__button"
+                  onClick={() => handleToggleListing(!isListed)}
+                  disabled={listingLoading}
+                >
+                  {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
+                </Btn>
               </div>
-              <Btn
-                variant={isLiveAvailable ? 'secondary' : 'primary'}
-                className="helper-availability-row__button"
-                onClick={() => handleToggleLiveAvailability(!isLiveAvailable)}
-                disabled={liveAvailLoading}
-              >
-                {isLiveAvailable ? t('helperDashboard.goOffline') : t('helperDashboard.goLive')}
-              </Btn>
+
+              <div className="helper-availability-row">
+                <div className="helper-availability-row__details">
+                  <div className={`helper-availability-row__dot helper-availability-row__dot--live ${isLiveAvailable ? 'helper-availability-row__dot--active' : ''}`} />
+                  <div>
+                    <p className="helper-availability-row__status">
+                      {isLiveAvailable ? t('helperDashboard.liveNow') : t('helperDashboard.notLive')}
+                    </p>
+                    <p className="helper-availability-row__label">{t('helperDashboard.liveStatus')}</p>
+                  </div>
+                </div>
+                <Btn
+                  variant={isLiveAvailable ? 'secondary' : 'primary'}
+                  className="helper-availability-row__button"
+                  onClick={() => handleToggleLiveAvailability(!isLiveAvailable)}
+                  disabled={liveAvailLoading}
+                >
+                  {isLiveAvailable ? t('helperDashboard.goOffline') : t('helperDashboard.goLive')}
+                </Btn>
+              </div>
             </div>
-          </div>
-          <div className="helper-availability-card__schedule">
-            <HelperAvailabilityEditor />
-          </div>
-        </section>
-
-
+            <div className="helper-availability-card__schedule">
+              <HelperAvailabilityEditor />
+            </div>
+          </section>
+        )}
         {tab==='aiKnowledge'&& user?.id && (
           <div className="max-w-4xl">
             <AIKnowledgeTab profileType="helper" profileId={user.id} />
