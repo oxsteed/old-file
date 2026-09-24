@@ -14,9 +14,11 @@ assert.ok(manifestPath, 'Vite manifest is missing from the production build');
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const files = new Set();
+const visitedEntries = new Set();
 
 function collect(entry) {
-  if (!entry || typeof entry !== 'object') return;
+  if (!entry || typeof entry !== 'object' || visitedEntries.has(entry)) return;
+  visitedEntries.add(entry);
   for (const key of ['file', 'css', 'assets']) {
     const values = Array.isArray(entry[key]) ? entry[key] : [entry[key]];
     for (const value of values) {
