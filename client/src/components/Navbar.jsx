@@ -618,7 +618,8 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
     transition: 'background var(--transition-fast), color var(--transition-fast)',
     color: primary ? 'var(--color-primary-text)' : highlight ? 'var(--color-primary)' : 'var(--color-nav-link)',
     background: primary ? 'var(--color-primary)' : 'transparent',
-    textAlign: primary ? 'center' : 'left',
+    textAlign: 'right',
+    justifyContent: 'flex-end',
     marginTop: primary ? 'var(--space-2)' : 0,
   };
 
