@@ -98,6 +98,13 @@ export function canAccessBusinessHub(user) {
   return ['admin', 'super_admin'].includes(user.role) || getMode(user) === 'admin';
 }
 
+// QR code creation and saved-code storage are Pro helper features on the API.
+// Keep the client entitlement check aligned with server/routes/qrCodes.js so
+// users without access do not see a page that can only fail with 403.
+export function canUseQrGenerator(user) {
+  return ['helper_pro', 'broker'].includes(user?.role);
+}
+
 export function canOfferConsulting(user) {
   return getMode(user) === 'consultant';
 }
@@ -145,7 +152,7 @@ export function navLinksForMode(user) {
     showMessages: !!user,
     showDashboard: !!user,
     showBusinessHub: canAccessBusinessHub(user),
-    showQRGenerator: isHelperClassMode(user),
+    showQRGenerator: canUseQrGenerator(user),
     showToolRentalsBrowse: true,
     showConsultingPortal: m === 'consultant',
     showLaunchStatus: m === 'franchise_applicant' || m === 'consultant',
@@ -163,6 +170,7 @@ export default {
   canListTools,
   canManageBusinesses,
   canAccessBusinessHub,
+  canUseQrGenerator,
   canOfferConsulting,
   canSeeLifeFeatures,
   canSeeFranchiseApplications,
