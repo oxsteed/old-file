@@ -8110,7 +8110,11 @@
     "downloadPNG": "Descargar PNG",
     "downloadSVG": "Descargar SVG",
     "errorGenerating": "Error al generar el código QR",
-    "loadError": "Error al cargar tus códigos QR guardados"
+    "loadError": "Error al cargar tus códigos QR guardados",
+    "proRequiredTitle": "Los códigos QR son una función Pro para ayudantes",
+    "proRequiredDescription": "Actualiza tu plan de ayudante para crear y guardar códigos QR para tu negocio.",
+    "viewPlans": "Ver planes Pro",
+    "proRequired": "Guardar códigos QR requiere un plan Pro para ayudantes."
   },
   "consulting": {
     "title": "Asesoría Empresarial de Ascenso",
