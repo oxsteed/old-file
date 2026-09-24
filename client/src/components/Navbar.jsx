@@ -11,7 +11,7 @@ import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { navLinksForMode } from '../utils/modeAccess';
+import { canUseQrGenerator, navLinksForMode } from '../utils/modeAccess';
 import { businessHubLandingPath, readLastBusinessHubId } from '../utils/businessProfileForm';
 import '../styles/BusinessSwitcher.css';
 
@@ -296,14 +296,16 @@ export default function Navbar() {
                           >
                             <span className="ox-nav-resource-option-title">{t('nav.business')}</span>
                           </PrefetchLink>
-                          <PrefetchLink
-                            role="menuitem"
-                            to="/qr-generator"
-                            className="ox-nav-resource-option"
-                            onClick={() => setResourcesMenuOpen(false)}
-                          >
-                            <span className="ox-nav-resource-option-title">{t('nav.qrGenerator')}</span>
-                          </PrefetchLink>
+                          {canUseQrGenerator(user) && (
+                            <PrefetchLink
+                              role="menuitem"
+                              to="/qr-generator"
+                              className="ox-nav-resource-option"
+                              onClick={() => setResourcesMenuOpen(false)}
+                            >
+                              <span className="ox-nav-resource-option-title">{t('nav.qrGenerator')}</span>
+                            </PrefetchLink>
+                          )}
                         </>
                       )}
                     </div>
@@ -421,7 +423,7 @@ export default function Navbar() {
                   )}
                 </MobileNavLink>
                 {showBusinessHub && <MobileNavLink to={businessHubTo} onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
-                {SHOW_LEGACY_NAV_RESOURCES && isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
+                {SHOW_LEGACY_NAV_RESOURCES && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
                   style={{
