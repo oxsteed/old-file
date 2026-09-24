@@ -1529,8 +1529,8 @@ export default function HelperDashboard() {
 
           {/* Tabs stay below the verification and nearby jobs sections. */}
           {tabs.length>1&&(
-            <div className="helper-dashboard-overview-area__tabs grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
+            <div className="helper-dashboard-overview-area__tabs grid grid-cols-2 sm:flex gap-1.5 my-6 bg-gray-900/80 rounded-xl p-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
             </div>
           )}
 
