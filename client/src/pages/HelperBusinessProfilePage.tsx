@@ -60,8 +60,6 @@ import type { HelperProfileData, LoadingState, Service } from '../types/helperPr
 import { fetchHelperProfile } from '../api/helpers';
 // Template system
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
-import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
-import '../components/profileTemplates/TemplateBehaviorPanel.css';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Main page component ───────────────────────────────────────────────────────
@@ -287,14 +285,6 @@ const HelperBusinessProfilePage: React.FC = () => {
           />
         </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={data} />
-        <div className="px-4 sm:px-6 lg:px-8">
-          <TemplateBehaviorPanel
-            compact
-            behavior={templateBehavior}
-            onPrimaryAction={handleTemplatePrimaryAction}
-            onSecondaryAction={handleMessageHelper}
-          />
-        </div>
         <Footer />
       </div>
     );
@@ -398,12 +388,6 @@ const HelperBusinessProfilePage: React.FC = () => {
               primaryLabel={templateBehavior.primaryCta}
               secondaryLabel={templateBehavior.secondaryCta}
               allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
-            />
-
-            <TemplateBehaviorPanel
-              behavior={templateBehavior}
-              onPrimaryAction={handleTemplatePrimaryAction}
-              onSecondaryAction={handleMessageHelper}
             />
 
             {visibility?.services && (
