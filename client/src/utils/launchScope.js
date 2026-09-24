@@ -104,7 +104,6 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/consulting', to: '/business-hub' },
   { prefix: '/business-launch-status', to: '/business-hub' },
   { prefix: '/franchise', to: '/business-hub' },
-  { prefix: '/qr-generator', to: '/dashboard' },
   { prefix: '/settings/payment-policies', to: '/settings' },
 ]);
 
