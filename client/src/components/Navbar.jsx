@@ -356,7 +356,7 @@ export default function Navbar() {
             gap: 'var(--space-2)',
             marginLeft: 'auto',
           }}>
-            <LanguageSelector />
+            <LanguageSelector menuAlign="start" />
             <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
