@@ -40,7 +40,6 @@ const IcoZap       = (p) => <Ico {...p}><polygon points="13 2 3 14 12 14 11 22 2
 const IcoMap       = (p) => <Ico {...p}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></Ico>;
 const IcoTarget    = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></Ico>;
 const IcoChat      = (p) => <Ico {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Ico>;
-const IcoId        = (p) => <Ico {...p}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></Ico>;
 const IcoSettings  = (p) => <Ico {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></Ico>;
 const IcoTrash     = (p) => <Ico {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></Ico>;
 const IcoUsers     = (p) => <Ico {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></Ico>;
@@ -171,15 +170,6 @@ export default function HelperDashboard() {
 
   // Detect "selected Pro during registration but hasn't paid yet"
   const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
-  const isIdVerified =
-    verification.identity?.status === 'verified' ||
-    verification.identity?.status === 'approved' ||
-    user?.didit_status === 'verified' ||
-    user?.identity_verified === true ||
-    user?.is_verified === true;
-  const idVerificationStatusLabel = user?.didit_status === 'verified'
-    ? 'verified'
-    : (verification.identity?.status || 'verified');
   // ── Products state ────────────────────────────────────────────────────────
   const [myProducts, setMyProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -1307,15 +1297,6 @@ export default function HelperDashboard() {
               </div>
             )}
 
-            <div className="helper-payment-banner mb-4 p-3 sm:p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4">
-              <div>
-                <p className="text-emerald-300 font-semibold text-sm">💸 Restaurant credit and direct payment ready</p>
-                <p className="text-gray-400 text-xs mt-0.5">
-                  Helpers can accept restaurant-credit work and record direct-payment proof in chat or activity history.
-                </p>
-              </div>
-            </div>
-
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
           {SHOW_LEGACY_HELPER_LIFE_TABS && !showOnboarding && fp && (() => {
             const score = fp.pulse_score;
@@ -1437,12 +1418,6 @@ export default function HelperDashboard() {
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
                 :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
               </Card>}
-                <Card>
-                  <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
-                  {isIdVerified
-                    ? <Tag text={idVerificationStatusLabel} color="green"/>
-                    : <p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p>}
-                </Card>
               </div>
 
             </>)}
