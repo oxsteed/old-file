@@ -11,7 +11,7 @@ export function getNetworkBranches(t, { showSupportWorkspace = false } = {}) {
   // business angles while preserving the legacy routes/components elsewhere.
   const focusedBranches = [
     { key: 'marketplace',    to: '/jobs',                    title: t('network.marketplace.title', 'OxSteed Marketplace'),     hint: t('network.marketplace.hint', 'Hire local helpers, post jobs, compare bids') },
-    { key: 'restaurants',    to: '/restaurants',             title: t('network.restaurants.title', 'OxSteed Restaurants'),      hint: t('network.restaurants.hint', 'Franchise-grade tools for independent restaurants') },
+    { key: 'restaurants',    to: '/restaurants',             title: t('network.restaurants.title', 'Local Food Directory'),      hint: t('network.restaurants.hint', 'Franchise-grade tools for independent restaurants') },
   ];
 
   const hiddenLegacyBranches = [
