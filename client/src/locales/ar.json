@@ -8110,7 +8110,11 @@
     "downloadPNG": "تحميل PNG",
     "downloadSVG": "تنزيل SVG",
     "errorGenerating": "فشل في إنشاء رمز الاستجابة السريعة",
-    "loadError": "فشل تحميل رموز QR المحفوظة"
+    "loadError": "فشل تحميل رموز QR المحفوظة",
+    "proRequiredTitle": "رموز QR ميزة Pro للمساعدين",
+    "proRequiredDescription": "قم بترقية خطة المساعد لديك لإنشاء رموز QR وحفظها لنشاطك التجاري.",
+    "viewPlans": "عرض خطط Pro",
+    "proRequired": "يتطلب حفظ رموز QR خطة Pro للمساعدين."
   },
   "consulting": {
     "title": "استشارات صعود الأعمال",
