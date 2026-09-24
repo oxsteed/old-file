@@ -346,7 +346,7 @@ const MARKETING_SHELL_LINKS = {
   '/': [
     ['/helpers', 'Find local helpers'],
     ['/jobs', 'Browse local jobs'],
-    ['/restaurants', 'OxSteed Restaurants'],
+    ['/restaurants', 'Local Food Directory'],
     ['/direct/services', 'OxSteed Direct services'],
     ['/direct/service-area', 'Check the service area'],
     ['/support/escalation', 'Contact OxSteed support'],
@@ -393,7 +393,7 @@ const MARKETING_SHELL_NAV_COPY = {
     explore: 'Explore OxSteed',
     findHelpers: 'Find local helpers',
     browseJobs: 'Browse local jobs',
-    restaurants: 'OxSteed Restaurants',
+    restaurants: 'Local Food Directory',
     directServices: 'OxSteed Direct services',
     checkArea: 'Check the service area',
     contactSupport: 'Contact OxSteed support',
@@ -462,7 +462,7 @@ function getMarketingShellNavCopy(req, label) {
   const labelKey = {
     'Find local helpers': 'findHelpers',
     'Browse local jobs': 'browseJobs',
-    'OxSteed Restaurants': 'restaurants',
+    'Local Food Directory': 'restaurants',
     'OxSteed Direct services': 'directServices',
     'Check the service area': 'checkArea',
     'Contact OxSteed support': 'contactSupport',
@@ -568,7 +568,7 @@ const MARKETING_PAGES = {
   },
   '/help/restaurant': {
     title: 'OxSteed Restaurant Help Center | Ordering and Support',
-    description: 'Learn how customers use OxSteed Restaurants to browse menus, place orders, track food, and request support.',
+    description: 'Learn how customers use Local Food Directory to browse menus, place orders, track food, and request support.',
     schemaType: 'TechArticle',
   },
   '/help/manager': {
@@ -607,7 +607,7 @@ const MARKETING_PAGES = {
     schemaType: 'TechArticle',
   },
   '/restaurants': {
-    title: 'OxSteed Restaurants | Order Local Food',
+    title: 'Local Food Directory | Order Local Food',
     description: 'Browse participating local restaurants and order food through OxSteed.',
     schemaType: 'CollectionPage',
   },
@@ -765,7 +765,7 @@ async function handleHomepage(template, res, req) {
   const navigationItems = [
     ['/helpers', 'Find local helpers'],
     ['/jobs', 'Browse local jobs'],
-    ['/restaurants', 'OxSteed Restaurants'],
+    ['/restaurants', 'Local Food Directory'],
     ['/join', 'Join OxSteed'],
     ['/direct/services', 'OxSteed Direct services'],
     ['/support/escalation', 'Contact OxSteed support'],
@@ -1400,7 +1400,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
   const location = [restaurant.address_city, restaurant.address_state].filter(Boolean).join(', ');
   const description = String(
     restaurant.description
-      || `${restaurant.display_name} serves ${cuisine.join(', ') || 'local food'}${location ? ` in ${location}` : ''} through OxSteed Restaurants.`,
+      || `${restaurant.display_name} serves ${cuisine.join(', ') || 'local food'}${location ? ` in ${location}` : ''} through Local Food Directory.`,
   ).replace(/\s+/g, ' ').trim().slice(0, 320);
   const image = restaurant.cover_photo_url || restaurant.logo_url || `${origin}/icons/icon-512.png`;
   const address = restaurant.address_city || restaurant.address_state
@@ -1440,7 +1440,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
     ${menuHtml}
   </div>`;
   let html = replaceMeta(template, {
-    title: `${restaurant.display_name} | OxSteed Restaurants`,
+    title: `${restaurant.display_name} | Local Food Directory`,
     description,
     url,
     image: absoluteUrl(image),
@@ -1448,7 +1448,7 @@ async function handleRestaurantProfile(restaurantId, template, res, next, req) {
   html = setDocumentLanguage(html, language);
   html = addLanguageAlternates(html, `${origin}${publicPath}`);
   html = injectJsonLd(html, jsonLd);
-  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${restaurant.display_name} | OxSteed Restaurants`, url, req, language));
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(`${restaurant.display_name} | Local Food Directory`, url, req, language));
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
   res.set('Content-Type', 'text/html');
   res.set('Content-Language', language);
