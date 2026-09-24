@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { forceChunkReload, isChunkLoadError } from '../utils/lazyWithRetry';
 
 /**
  * Per-route error boundary to isolate page crashes
@@ -41,7 +42,13 @@ class RouteErrorBoundary extends React.Component {
         <RouteErrorFallback
           error={this.state.error}
           errorInfo={this.state.errorInfo}
-          onReset={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+          onReset={() => {
+            if (isChunkLoadError(this.state.error)) {
+              forceChunkReload();
+              return;
+            }
+            this.setState({ hasError: false, error: null, errorInfo: null });
+          }}
         />
       );
     }
