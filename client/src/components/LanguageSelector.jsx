@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function LanguageSelector() {
+export default function LanguageSelector({ menuAlign = 'end' }) {
   const { language, setLanguage, availableLanguages } = useLanguage();
   const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
@@ -63,7 +63,9 @@ export default function LanguageSelector() {
           role="listbox"
           aria-label={t('languageSelector.languageMenu')}
           style={{
-            position: 'absolute', top: 'calc(100% + 6px)', insetInlineEnd: 0,
+            position: 'absolute', top: 'calc(100% + 6px)',
+            insetInlineStart: menuAlign === 'start' ? 0 : 'auto',
+            insetInlineEnd: menuAlign === 'start' ? 'auto' : 0,
             background: 'var(--color-card-bg)',
             border: '1px solid var(--color-border)',
             borderRadius: '8px',
