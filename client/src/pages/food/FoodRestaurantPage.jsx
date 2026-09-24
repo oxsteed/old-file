@@ -1,4 +1,4 @@
-// OxSteed Restaurants — public restaurant profile (v3 design comp).
+// Local Food Directory — public restaurant profile (v3 design comp).
 // 1:1 port of the design prototype, wired to the live /food API and rendered
 // inside the real site shell (Navbar + Footer). Per-restaurant accent theming,
 // featured grid, item-modifier modal, and a full multi-step cart/checkout
@@ -727,7 +727,7 @@ export default function FoodRestaurantPage() {
   const publicUrl = `${getPublicSiteUrl()}/restaurants/r/${restaurantId}`;
   const seoDescription = String(
     restaurant.description
-      || `${restaurant.display_name} serves ${cuisineLabel.toLowerCase()} food${restaurant.address_city ? ` in ${restaurant.address_city}` : ''} through OxSteed Restaurants.`,
+      || `${restaurant.display_name} serves ${cuisineLabel.toLowerCase()} food${restaurant.address_city ? ` in ${restaurant.address_city}` : ''} through Local Food Directory.`,
   ).replace(/\s+/g, ' ').trim().slice(0, 320);
 
   const rating = parseFloat(restaurant.avg_rating || 0) || 0;
@@ -1115,7 +1115,7 @@ export default function FoodRestaurantPage() {
   return (
     <>
       <PageMeta
-        title={`${restaurant.display_name} | OxSteed Restaurants`}
+        title={`${restaurant.display_name} | Local Food Directory`}
         description={seoDescription}
         image={restaurant.cover_photo_url || restaurant.logo_url}
         url={publicUrl}
