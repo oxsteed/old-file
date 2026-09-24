@@ -120,7 +120,11 @@ const CTASection: React.FC<CTASectionProps> = ({
           className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 text-white font-semibold text-sm transition-colors active:scale-[0.98]"
           aria-label={primaryEnabled ? t('helperProfile.cta.bookNowAria') : t('helperProfile.cta.messageHelperAria')}
         >
-          <CalendarCheck className="w-4 h-4" aria-hidden="true" />
+          {primaryEnabled ? (
+            <CalendarCheck className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <MessageCircle className="w-4 h-4" aria-hidden="true" />
+          )}
           {primaryButtonLabel}
         </button>
         <button
