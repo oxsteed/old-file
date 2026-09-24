@@ -49,8 +49,10 @@ i18nReady.then(() => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swVersion = import.meta.env.VITE_APP_VERSION || 'dev';
-    navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(swVersion)}`).catch(() => {
+    const swVersion = import.meta.env.VITE_APP_VERSION || import.meta.env.VITE_SENTRY_RELEASE || 'dev';
+    navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(swVersion)}`, {
+      updateViaCache: 'none',
+    }).catch(() => {
       // SW registration is non-fatal - app works without it
     });
   });
