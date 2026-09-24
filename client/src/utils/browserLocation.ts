@@ -6,7 +6,8 @@ export type BrowserCoordinates = {
 let locationPromise: Promise<BrowserCoordinates | null> | null = null;
 
 /** Share one browser permission request between homepage widgets. */
-export function getSharedBrowserLocation(): Promise<BrowserCoordinates | null> {
+export function getSharedBrowserLocation(refresh = false): Promise<BrowserCoordinates | null> {
+  if (refresh) locationPromise = null;
   if (locationPromise) return locationPromise;
 
   if (typeof navigator === 'undefined' || !navigator.geolocation) {

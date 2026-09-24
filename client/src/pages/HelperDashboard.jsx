@@ -16,12 +16,16 @@ import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
+import useNearbyJobs from '../hooks/useNearbyJobs';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
+import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
+import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
+import '../components/messaging/SharedMessengerShell.css';
 import '../styles/HelperDashboard.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -37,7 +41,6 @@ const IcoBell      = (p) => <Ico {...p}><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h1
 const IcoShield    = (p) => <Ico {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Ico>;
 const IcoCheck     = (p) => <Ico {...p}><polyline points="20 6 9 17 4 12"/></Ico>;
 const IcoZap       = (p) => <Ico {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Ico>;
-const IcoMap       = (p) => <Ico {...p}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></Ico>;
 const IcoTarget    = (p) => <Ico {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></Ico>;
 const IcoChat      = (p) => <Ico {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Ico>;
 const IcoSettings  = (p) => <Ico {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></Ico>;
@@ -67,7 +70,7 @@ const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
   'pulse',
   'editprofile',
   'availability',
-  'jobs',
+  'quotes',
   'skills',
   'bids',
   'reviews',
@@ -75,6 +78,25 @@ const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
   ...(SHOW_HELPER_EARNINGS ? ['earnings'] : []),
   ...(SHOW_HELPER_INVOICES ? ['invoices'] : []),
 ]);
+
+const focusedTab = (requested) => {
+  const next = requested === 'jobs' ? 'quotes' : requested;
+  return FOCUSED_HELPER_DASHBOARD_TABS.has(next) ? next : 'pulse';
+};
+
+const notificationActivityKey = (notification) => {
+  const type = String(notification?.type || '').toLowerCase();
+  const url = String(notification?.action_url || notification?.data?.action_url || '').toLowerCase();
+  if (type.startsWith('dispute_') || url.startsWith('/disputes')) return 'disputes';
+  if (type === 'booking' || type.startsWith('booking_') || type.startsWith('recurring_booking_')
+    || type === 'appointment' || type.startsWith('appointment_') || url.startsWith('/calendar')) return 'calendar';
+  if (type === 'bid' || (type.startsWith('bid_') && type !== 'bid_received') || url.startsWith('/my-bids')) return 'bids';
+  return null;
+};
+
+const unreadConversationCount = (conversations) => Array.isArray(conversations)
+  ? conversations.reduce((total, conversation) => total + (parseInt(conversation.unread_count, 10) || 0), 0)
+  : 0;
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
@@ -98,16 +120,6 @@ const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const monthYearLabel = () => formatDate(new Date(), { month: 'long', year: 'numeric', day: undefined });
 const signedMoney = (value, type) => `${type === 'income' ? '+' : '-'}${formatMoney(Math.abs(Number(value || 0)))}`;
-const jobBudgetLabel = (job) => {
-  const min = Number(job.budget_min);
-  const max = Number(job.budget_max);
-  const hasMin = Number.isFinite(min) && min > 0;
-  const hasMax = Number.isFinite(max) && max > 0;
-  if (hasMin && hasMax) return `${formatMoney(min, { maximumFractionDigits: 0 })}-${formatMoney(max, { maximumFractionDigits: 0 })}`;
-  if (hasMin) return formatMoney(min, { maximumFractionDigits: 0 });
-  if (hasMax) return formatMoney(max, { maximumFractionDigits: 0 });
-  return '';
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
@@ -135,14 +147,18 @@ export default function HelperDashboard() {
   const [verification, setVerification] = useState({backgroundCheck:null,identity:null});
   const [notifications, setNotifications] = useState([]);
   const [myBids, setMyBids] = useState([]);
-  const [nearbyJobs, setNearbyJobs] = useState([]);
+  const { jobs: nearbyJobs, status: nearbyStatus, locationSource: nearbyLocationSource, retry: retryNearbyJobs } = useNearbyJobs({
+    enabled: initialized && !!user && isOnboardingComplete,
+    city: user?.city,
+    state: user?.state,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const requestedTab = searchParams.get('tab') || 'pulse';
-    return FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
+    return focusedTab(requestedTab);
   });
   useEffect(()=>{
     if(searchParams.get('subscribed')==='true'){
@@ -160,7 +176,7 @@ export default function HelperDashboard() {
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab') || 'pulse';
-    const urlTab = FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
+    const urlTab = focusedTab(requestedTab);
     if (urlTab === tab) return;
     const n = new URLSearchParams(searchParams);
     if (tab === 'pulse') n.delete('tab');
@@ -883,6 +899,7 @@ export default function HelperDashboard() {
 
   // ── Unread messages / socket ───────────────────────────────────────────
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
   const { socket } = useSocket();
 
   const retryLoad = useCallback(async()=>{
@@ -892,9 +909,13 @@ export default function HelperDashboard() {
       const p = [
         backgroundChecksAvailable ? api.get('/verification/background-check/status') : Promise.resolve({ data: {} }),
         api.get('/verification/identity/status'),
-        api.get('/notifications'),
+        api.get('/notifications', { params: { unread_only: true, limit: 100 } }),
       ];
-      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));p.push(api.get('/messages/conversations'));}
+      if(isOnboardingComplete){
+        p.push(api.get('/bids/me'));
+        p.push(api.get('/messages/conversations'));
+        p.push(api.get('/messages/guest-inquiries'));
+      }
       const r = await Promise.allSettled(p);
       const anyFailed = r.some(res=>res.status==='rejected');
       if(anyFailed) setError(true);
@@ -902,23 +923,48 @@ export default function HelperDashboard() {
       if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
       if(isOnboardingComplete){
         if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
-        if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
-        if(r[5]?.status==='fulfilled'){const convs=r[5].value.data||[];const total=convs.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0);setUnreadMessages(total);}
+        if(r[4]?.status==='fulfilled') setUnreadMessages(unreadConversationCount(r[4].value.data));
+        if(r[5]?.status==='fulfilled') setUnreadGuestMessages(unreadConversationCount(r[5].value.data));
       }
     }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
   },[isOnboardingComplete, backgroundChecksAvailable]);
 
-  // Real-time unread badge
+  // Keep activity indicators current while the dashboard is open.
   useEffect(()=>{
     if(!socket) return;
-    const inc = ()=> setUnreadMessages(prev => prev + 1);
-    socket.on('profile_chat:new_message', inc);
-    socket.on('message:new', inc);
+    let refreshTimer;
+    const refreshMessages = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        api.get('/messages/conversations')
+          .then(({ data }) => setUnreadMessages(unreadConversationCount(data))).catch(() => {});
+        api.get('/messages/guest-inquiries')
+          .then(({ data }) => setUnreadGuestMessages(unreadConversationCount(data))).catch(() => {});
+      }, 150);
+    };
+    const onNotification = (notification) => setNotifications((current) =>
+      current.some((item) => String(item.id) === String(notification.id)) ? current : [notification, ...current]);
+    socket.on('profile_chat:new_message', refreshMessages);
+    socket.on('message:new', refreshMessages);
+    socket.on('notification:new', onNotification);
     return ()=>{
-      socket.off('profile_chat:new_message', inc);
-      socket.off('message:new', inc);
+      clearTimeout(refreshTimer);
+      socket.off('profile_chat:new_message', refreshMessages);
+      socket.off('message:new', refreshMessages);
+      socket.off('notification:new', onNotification);
     };
   },[socket]);
+
+  const onActivityOpen = useCallback((activityKey) => {
+    if (activityKey === 'messages') return;
+    const ids = notifications.filter((notification) => !notification.is_read
+      && notificationActivityKey(notification) === activityKey).map((notification) => notification.id);
+    if (!ids.length) return;
+    api.post('/notifications/mark-read', { ids })
+      .then(() => setNotifications((current) => current.map((notification) =>
+        ids.includes(notification.id) ? { ...notification, is_read: true } : notification)))
+      .catch(() => {});
+  }, [notifications]);
 
   useEffect(() => {
     if (!initialized || !user) return;
@@ -1158,7 +1204,12 @@ export default function HelperDashboard() {
   const trialDaysLeft = user?.trial_days_left ?? 0;
   const hasProAccess = isTrialActive || user?.effective_tier === 'pro' || subscription?.status === 'active' || subscription?.status === 'trialing';
   const isProActive = subscription?.status === 'active';
-  const unreadNotifs = notifications.filter(n => !n.read && !n.read_at).length;
+  const activityCounts = notifications.reduce((counts, notification) => {
+    if (notification.is_read || notification.read_at) return counts;
+    const key = notificationActivityKey(notification);
+    if (key) counts[key] += 1;
+    return counts;
+  }, { bids: 0, calendar: 0, messages: unreadMessages + unreadGuestMessages, disputes: 0 });
   const activeBids = myBids.filter(b => b.status === 'pending' || b.status === 'accepted');
   const wonBids = myBids.filter(b => b.status === 'accepted');
   const s = life.summary;
@@ -1170,7 +1221,7 @@ export default function HelperDashboard() {
     { id: 'availability', label: t('helperDashboard.tabs.availability', { defaultValue: 'Availability' }) },
     ...(SHOW_HELPER_AI_KNOWLEDGE ? [{ id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') }] : []),
     ...(SHOW_HELPER_EARNINGS ? [{ id: 'earnings', label: t('helperDashboard.tabs.earnings') }] : []),
-    { id: 'jobs',         label: t('helperDashboard.tabs.findJobs') },
+    { id: 'quotes',       label: t('helperDashboard.tabs.quotes') },
     ...(SHOW_LEGACY_HELPER_LIFE_TABS ? [
       { id: 'money',        label: t('dashboard.tabs.money') },
       { id: 'home',         label: t('dashboard.tabs.home') },
@@ -1262,7 +1313,7 @@ export default function HelperDashboard() {
           {/* Dashboard tabs sit directly below the welcome and customer panels. */}
           {tabs.length>1&&(
             <div className="helper-dashboard-overview-area__tabs grid grid-cols-2 sm:flex gap-1.5 my-6 bg-gray-900/80 rounded-xl p-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>{setTab(tb.id); if(tb.id==='bids') onActivityOpen('bids');}} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
             </div>
           )}
 
@@ -1426,7 +1477,15 @@ export default function HelperDashboard() {
           {/* Nearby jobs stay with the availability controls on desktop. */}
           {tab==='pulse'&&<Card className="helper-dashboard-overview-area__jobs mb-6">
             <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
-            {nearbyJobs.length===0
+            {nearbyStatus==='loading'
+              ? <p className="text-gray-500 text-sm text-center py-6" role="status">{t('helperDashboard.nearbyLoading')}</p>
+              : nearbyStatus==='location-unavailable'
+              ? <div className="text-center py-6"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLocationUnavailable')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3">{t('helperDashboard.nearbyRetryLocation')}</button></div>
+              : nearbyStatus==='error'
+              ? <div className="text-center py-6" role="alert"><p className="text-gray-500 text-sm">{t('helperDashboard.nearbyLoadFailed')}</p><button type="button" onClick={retryNearbyJobs} className="text-orange-400 text-sm font-semibold mt-3">{t('helperDashboard.nearbyRetry')}</button></div>
+              : nearbyStatus==='setup'
+              ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.nearbySetup')}</p>
+              : nearbyJobs.length===0
               ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.noNearbyJobs')} <Link to="/jobs" className="text-orange-400 hover:text-orange-300">{t('helperDashboard.browseAllJobs')}</Link>.</p>
               : <div className="helper-dashboard-nearby-jobs__list space-y-2">{nearbyJobs.map(job=>(
                   <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
@@ -1435,6 +1494,7 @@ export default function HelperDashboard() {
                   </Link>
                 ))}</div>
             }
+            {nearbyStatus==='ready'&&nearbyLocationSource==='profile'&&<p className="text-gray-500 text-xs mt-3">{t('helperDashboard.nearbyUsingProfile', { city: user?.city })}</p>}
           </Card>}
           </div>
 
@@ -1583,17 +1643,14 @@ export default function HelperDashboard() {
           </div>
         </>)}
 
-        {/* ═══════ FIND JOBS ═══════ */}
-        {tab==='jobs'&&(
-          <div>
-            <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">{t('helperDashboard.availableJobsTitle')}</h3><Link to="/jobs" className="text-sm text-orange-400 font-medium">{t('helperDashboard.advancedSearch')}</Link></div>
-            {nearbyJobs.length===0?<Card className="p-16 text-center"><IcoMap size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('helperDashboard.noJobsAvailable')}</p></Card>
-            :<div className="space-y-2">{nearbyJobs.map(job=>(
-              <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
-                <div className="min-w-0 flex-1 mr-4"><div className="flex items-center gap-2 mb-1"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{job.title}</p>{job.is_urgent&&<Tag text={t('jobDetail.urgencyASAP')} color="red"/>}</div><p className="text-xs text-gray-500 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.bid_count>0?` · ${job.bid_count} bids`:''}</p></div>
-                <div className="flex items-center gap-3 flex-shrink-0">{(job.budget_min||job.budget_max)&&<span className="text-base font-bold text-emerald-400">{jobBudgetLabel(job)}</span>}<span className="text-xs bg-orange-500/15 text-orange-400 px-3 py-1.5 rounded-lg font-semibold">{t('helperDashboard.viewJobBtn')}</span></div>
-              </Link>
-            ))}</div>}
+        {/* ═══════ QUOTES SENT TO CUSTOMERS ═══════ */}
+        {tab==='quotes'&&(
+          <div className="helper-dashboard-quotes">
+            <QuoteHistoryPanel mode="provider" kind="helper" onOpenQuote={(quote) => {
+              if (quote.conversation_id) navigate(`/helper/messages/${quote.conversation_id}`);
+              else if (quote.guest_session_id) navigate(`/helper/messages/guest/${quote.guest_session_id}`);
+              else if (quote.job_id) navigate(`/jobs/${quote.job_id}`);
+            }} />
           </div>
         )}
 
@@ -2069,81 +2126,22 @@ export default function HelperDashboard() {
 
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills' && (
-          <div className="space-y-8">
-            <div className="flex justify-end">
-              <button onClick={()=>navigate(`/helpers/public/${user?.id}`)} className="text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 transition">{t('helperDashboard.viewPublicProfile')}</button>
-            </div>
-            {/* My Skills */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div><h3 className="font-semibold text-white text-lg">{t('dashboard.skillsTools.skillsTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.skillsTools.skillsSub')}</p></div>
-                <Btn onClick={openAddSkill}>{t('dashboard.skillsTools.addSkill')}</Btn>
-              </div>
-              {skillsLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-              :mySkills.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.skillsTools.noSkills')}</p>
-              :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{mySkills.map(sk=>(
-                <div key={sk.id} className="p-4 border border-gray-800 rounded-xl">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-white truncate">{sk.skill_name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{sk.category}{sk.years_exp?` · ${sk.years_exp} yrs`:''}</p>
-                      {sk.hourly_rate&&<p className="text-xs text-orange-400 mt-1 font-semibold">${parseFloat(sk.hourly_rate).toFixed(0)}/hr</p>}
-                      {sk.description&&<p className="text-xs text-gray-600 mt-1 line-clamp-2">{sk.description}</p>}
-                    </div>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <Tag text={sk.is_available?t('dashboard.skillsTools.available'):t('dashboard.skillsTools.unavailable')} color={sk.is_available?'green':'gray'}/>
-                      <div className="flex gap-1 justify-end mt-1">
-                        <button onClick={()=>openEditSkill(sk)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
-                        <button onClick={()=>handleDeleteSkill(sk.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}</div>}
-            </div>
-
-            {/* Tools for Rent */}
-            {SHOW_HELPER_TOOL_RENTALS && <div>
-              <div className="flex items-center justify-between mb-4">
-                <div><h3 className="font-semibold text-white text-lg">{t('dashboard.skillsTools.toolsForRentTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.skillsTools.toolsForRentSub')}</p></div>
-                <Btn onClick={openAddTool}>{t('dashboard.skillsTools.listToolBtn')}</Btn>
-              </div>
-              {toolsLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-              :myTools.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.skillsTools.noTools')}</p>
-              :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{myTools.map(tool=>(
-                <div key={tool.id} className="p-4 border border-gray-800 rounded-xl">
-                  <div className="flex items-start justify-between gap-2">
-                    {tool.image_url&&<img src={tool.image_url} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-800 flex-shrink-0"/>}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-white truncate">{tool.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{tool.category}{tool.brand?` · ${tool.brand}`:''}{tool.model?` ${tool.model}`:''}</p>
-                      <div className="flex gap-2 mt-1 flex-wrap">
-                        {tool.daily_rate&&<span className="text-xs text-orange-400 font-semibold">${parseFloat(tool.daily_rate).toFixed(0)}/day</span>}
-                        {tool.hourly_rate&&<span className="text-xs text-gray-400">${parseFloat(tool.hourly_rate).toFixed(0)}/hr</span>}
-                        {tool.deposit_amount&&<span className="text-xs text-gray-500">Deposit ${parseFloat(tool.deposit_amount).toFixed(0)}</span>}
-                      </div>
-                      {tool.condition&&<p className="text-xs text-gray-600 mt-1 capitalize">{t('dashboard.skillsTools.conditionPrefix')} {tool.condition}</p>}
-                      {(tool.location_city||tool.location_state)&&<p className="text-xs text-gray-600 mt-0.5">{[tool.location_city,tool.location_state].filter(Boolean).join(', ')}</p>}
-                      <div className="flex gap-2 mt-1 flex-wrap">
-                        {tool.delivery_available&&<span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">{t('dashboard.skillsTools.delivery')}</span>}
-                        {tool.requires_deposit&&<span className="text-[10px] bg-yellow-500/15 text-yellow-400 px-1.5 py-0.5 rounded-full font-semibold">{t('dashboard.skillsTools.depositRequired')}</span>}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <Tag text={tool.is_available?t('dashboard.skillsTools.available'):t('dashboard.skillsTools.unavailable')} color={tool.is_available?'green':'gray'}/>
-                      <div className="flex gap-1 justify-end mt-1">
-                        {tool.is_available&&<button onClick={()=>navigate(`/tool-rentals/${tool.id}`)} className="text-xs text-orange-400 hover:text-orange-300 transition px-2 py-1 rounded hover:bg-orange-500/10">{t('common.view')}</button>}
-                        <button onClick={()=>openEditTool(tool)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
-                        <button onClick={()=>handleDeleteTool(tool.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}</div>}
-            </div>}
-          </div>
+          <HelperCapabilitiesCatalog
+            skills={mySkills}
+            tools={myTools}
+            skillsLoading={skillsLoading}
+            toolsLoading={toolsLoading}
+            showTools={SHOW_HELPER_TOOL_RENTALS}
+            onAddSkill={openAddSkill}
+            onEditSkill={openEditSkill}
+            onDeleteSkill={handleDeleteSkill}
+            onAddTool={openAddTool}
+            onEditTool={openEditTool}
+            onDeleteTool={handleDeleteTool}
+            onViewTool={(tool) => navigate(`/tool-rentals/${tool.id}`)}
+            onViewProfile={() => navigate(`/helpers/public/${user?.id}`)}
+          />
         )}
-
         {/* ═══════ MY PRODUCTS ═══════ */}
         {tab==='products'&&(
           <div>
@@ -2268,7 +2266,7 @@ export default function HelperDashboard() {
 
       </main>
 
-      <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.helper} className="mx-4 mb-6 lg:mx-auto lg:w-full lg:max-w-6xl" />
+      <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.helper} activity={activityCounts} onActivityOpen={onActivityOpen} className="mx-4 mb-6 lg:mx-auto lg:w-full lg:max-w-6xl" />
 
       {/* ════════════════════ MODALS ════════════════════ */}
 

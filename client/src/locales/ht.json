@@ -3141,6 +3141,14 @@
     "taskAdded": "Travay ajoute: {title}"
   },
   "helperDashboard": {
+    "newActivityCount": "{{count}} nouvo aktivite",
+    "nearbyLoading": "N ap chèche travay lokal…",
+    "nearbyLocationUnavailable": "Nou pa ka jwenn kote ou ye a. Pèmèt aksè ak lokalizasyon oswa ajoute vil ou nan pwofil ou.",
+    "nearbyRetryLocation": "Eseye jwenn kote a ankò",
+    "nearbyLoadFailed": "Nou pa ka chaje travay ki toupre ou yo.",
+    "nearbyRetry": "Eseye ankò",
+    "nearbySetup": "Fini mete pwofil èd ou a pou wè travay toupre ou.",
+    "nearbyUsingProfile": "N ap montre travay toupre {{city}} dapre pwofil ou.",
     "title": "Tablo de Bò Pwofesyonèl",
     "online": "Sou Entènèt",
     "offline": "Dekonekte",
@@ -3177,6 +3185,7 @@
       "editProfile": "Modifye pwofil",
       "earnings": "Revni",
       "findJobs": "Jwenn travay",
+      "quotes": "Devis mwen yo",
       "myBids": "Òf mwen yo",
       "reviews": "Kritik",
       "invoices": "Fakti",

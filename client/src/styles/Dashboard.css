@@ -180,6 +180,21 @@ html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link svg {
   outline-offset: 2px;
 }
 
+.dashboard-quick-links__activity {
+  display: inline-flex;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #fff);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .dashboard-quick-links__link--history {
   background: #34d399;
   color: #0f172a;

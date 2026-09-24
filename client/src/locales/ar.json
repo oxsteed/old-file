@@ -3056,6 +3056,14 @@
     "taskAdded": "تمت إضافة المهمة: {title}"
   },
   "helperDashboard": {
+    "newActivityCount": "{{count}} تحديثات جديدة",
+    "nearbyLoading": "جارٍ البحث عن وظائف محلية…",
+    "nearbyLocationUnavailable": "تعذر تحديد موقعك. اسمح بالوصول إلى الموقع أو أضف مدينة إلى ملفك الشخصي.",
+    "nearbyRetryLocation": "إعادة محاولة تحديد الموقع",
+    "nearbyLoadFailed": "تعذر تحميل الوظائف القريبة.",
+    "nearbyRetry": "إعادة المحاولة",
+    "nearbySetup": "أكمل إعداد حساب المساعد لرؤية الوظائف القريبة.",
+    "nearbyUsingProfile": "عرض الوظائف بالقرب من {{city}} وفقًا لملفك الشخصي.",
     "title": "لوحة القيادة المساعدة",
     "online": "متصل",
     "offline": "غير متصل",
@@ -3189,6 +3197,7 @@
       "editProfile": "تحرير الملف الشخصي",
       "earnings": "الأرباح",
       "findJobs": "البحث عن وظائف",
+      "quotes": "عروض أسعاري",
       "myBids": "عروض الأسعار الخاصة بي",
       "reviews": "التعليقات",
       "invoices": "الفواتير",

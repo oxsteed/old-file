@@ -3056,6 +3056,14 @@
     "taskAdded": "Tarea agregada: {title}"
   },
   "helperDashboard": {
+    "newActivityCount": "{{count}} novedades",
+    "nearbyLoading": "Buscando trabajos locales…",
+    "nearbyLocationUnavailable": "No pudimos determinar tu ubicación. Permite el acceso a la ubicación o añade una ciudad a tu perfil.",
+    "nearbyRetryLocation": "Intentar obtener ubicación de nuevo",
+    "nearbyLoadFailed": "No se pudieron cargar los trabajos cercanos.",
+    "nearbyRetry": "Reintentar",
+    "nearbySetup": "Completa tu perfil de ayudante para ver trabajos cercanos.",
+    "nearbyUsingProfile": "Mostrando trabajos cerca de {{city}} según tu perfil.",
     "title": "Panel de ayudante",
     "online": "En línea",
     "offline": "Desconectado",
@@ -3189,6 +3197,7 @@
       "editProfile": "Editar perfil",
       "earnings": "Ganancias",
       "findJobs": "Buscar trabajos",
+      "quotes": "Mis cotizaciones",
       "myBids": "Mis ofertas",
       "reviews": "Reseñas",
       "invoices": "Facturas",

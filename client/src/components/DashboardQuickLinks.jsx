@@ -14,17 +14,17 @@ import {
 } from 'lucide-react';
 import '../styles/Dashboard.css';
 
-const link = (to, labelKey, defaultLabel, Icon, tone = '') => ({ to, labelKey, defaultLabel, Icon, tone });
+const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '') => ({ to, labelKey, defaultLabel, Icon, tone, activityKey });
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
     link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
     link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
-    link('/my-bids', 'helperDashboard.myBids', 'My bids', FileText),
-    link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
-    link('/helper/messages', 'nav.messages', 'Messages', MessageSquare),
-    link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck),
+    link('/my-bids', 'helperDashboard.myBids', 'My bids', FileText, '', 'bids'),
+    link('/calendar', 'nav.calendar', 'Calendar', CalendarDays, '', 'calendar'),
+    link('/helper/messages', 'nav.messages', 'Messages', MessageSquare, '', 'messages'),
+    link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck, '', 'disputes'),
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   life: [
@@ -65,7 +65,7 @@ export const DASHBOARD_QUICK_LINKS = {
   ],
 };
 
-export default function DashboardQuickLinks({ items, className = '' }) {
+export default function DashboardQuickLinks({ items, className = '', activity = {}, onActivityOpen }) {
   const { t } = useTranslation();
 
   return (
@@ -76,14 +76,23 @@ export default function DashboardQuickLinks({ items, className = '' }) {
       <span className="dashboard-quick-links__label">
         {t('dashboard.quickLinks', { defaultValue: 'Quick links' })}
       </span>
-      {items.map(({ to, labelKey, defaultLabel, Icon, tone }) => (
+      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey }) => (
         <Link
           key={to}
           to={to}
+          onClick={activityKey ? () => onActivityOpen?.(activityKey) : undefined}
           className={`dashboard-quick-links__link${tone ? ` dashboard-quick-links__link--${tone}` : ''}`}
         >
           <Icon size={15} aria-hidden="true" />
           <span>{t(labelKey, { defaultValue: defaultLabel })}</span>
+          {activityKey && activity[activityKey] > 0 && (
+            <span
+              className="dashboard-quick-links__activity"
+              aria-label={t('helperDashboard.newActivityCount', { count: activity[activityKey] })}
+            >
+              {activity[activityKey] > 99 ? '99+' : activity[activityKey]}
+            </span>
+          )}
         </Link>
       ))}
     </nav>

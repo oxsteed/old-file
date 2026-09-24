@@ -15,7 +15,7 @@ export default function QuoteHistoryPanel({
   payeeBusinessId = null,
   conversationId = null,
   onClose,
-  onOpenQuote,
+  onOpenQuote = null,
   onAccepted,
 }) {
   const { t } = useTranslation();

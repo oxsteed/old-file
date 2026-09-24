@@ -3056,6 +3056,14 @@
     "taskAdded": "Tâche ajoutée : {title}"
   },
   "helperDashboard": {
+    "newActivityCount": "{{count}} nouvelles activités",
+    "nearbyLoading": "Recherche d'offres locales…",
+    "nearbyLocationUnavailable": "Impossible de déterminer votre position. Autorisez la localisation ou ajoutez une ville à votre profil.",
+    "nearbyRetryLocation": "Réessayer la localisation",
+    "nearbyLoadFailed": "Impossible de charger les offres à proximité.",
+    "nearbyRetry": "Réessayer",
+    "nearbySetup": "Terminez votre profil d'aide pour voir les offres à proximité.",
+    "nearbyUsingProfile": "Offres près de {{city}}, selon votre profil.",
     "title": "Tableau de bord prestataire",
     "online": "En ligne",
     "offline": "Hors ligne",
@@ -3189,6 +3197,7 @@
       "editProfile": "Modifier le profil",
       "earnings": "Revenus",
       "findJobs": "Trouver des emplois",
+      "quotes": "Mes devis",
       "myBids": "Mes offres",
       "reviews": "Avis",
       "invoices": "Factures",

@@ -258,7 +258,7 @@ exports.getJobs = async (req, res, next) => {
     const {
       category, city, state, country, status, q,
       min_budget, max_budget, sort,
-      lat, lng, radius,
+      lat, lng, radius, fallback_city, fallback_state,
     } = req.query;
 
     // ── Geolocation / radius filtering ──────────────────────────────────────────
@@ -270,8 +270,10 @@ exports.getJobs = async (req, res, next) => {
     const userLng    = lng  ? parseFloat(lng)  : null;
     const radiusMi   = Math.min(100, Math.max(1, parseFloat(radius) || 25));
     const radiusM    = radiusMi * 1609.344; // convert miles → metres for ST_DWithin
-    const hasGeoFilter = userLat !== null && userLng !== null
-      && !Number.isNaN(userLat) && !Number.isNaN(userLng);
+    const hasGeoFilter = Number.isFinite(userLat) && Number.isFinite(userLng)
+      && Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180;
+    const fallbackCity = String(fallback_city || '').trim().slice(0, 100);
+    const fallbackState = String(fallback_state || '').trim().slice(0, 100);
 
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
@@ -280,14 +282,19 @@ exports.getJobs = async (req, res, next) => {
     let params = [];
     let paramIdx = 1;
 
-    // Radius condition — only matches jobs that have been geocoded (location_point
-    // IS NOT NULL). Jobs without coordinates fall through to city/state text match.
+    // Keep jobs without coordinates visible when their city and state match the
+    // location resolved by the client. Other jobs must pass the radius check.
     if (hasGeoFilter) {
-      conditions.push(
-        `(j.location_point IS NOT NULL AND ST_DWithin(j.location_point, ST_SetSRID(ST_MakePoint($${paramIdx}::float, $${paramIdx + 1}::float), 4326)::geography, $${paramIdx + 2}::float))`
-      );
+      const radiusCondition = `(j.location_point IS NOT NULL AND ST_DWithin(j.location_point, ST_SetSRID(ST_MakePoint($${paramIdx}::float, $${paramIdx + 1}::float), 4326)::geography, $${paramIdx + 2}::float))`;
       params.push(userLng, userLat, radiusM);
       paramIdx += 3;
+      if (fallbackCity && fallbackState) {
+        conditions.push(`(${radiusCondition} OR (j.location_point IS NULL AND LOWER(j.location_city) = LOWER($${paramIdx}) AND LOWER(j.location_state) = LOWER($${paramIdx + 1})))`);
+        params.push(fallbackCity, fallbackState);
+        paramIdx += 2;
+      } else {
+        conditions.push(radiusCondition);
+      }
     }
 
     if (q) {

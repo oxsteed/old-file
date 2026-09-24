@@ -3056,6 +3056,14 @@
     "taskAdded": "Task added: {title}"
   },
   "helperDashboard": {
+    "newActivityCount": "{{count}} new updates",
+    "nearbyLoading": "Finding local jobs…",
+    "nearbyLocationUnavailable": "We couldn't determine your location. Allow location access or add a city to your profile.",
+    "nearbyRetryLocation": "Try location again",
+    "nearbyLoadFailed": "Nearby jobs could not load.",
+    "nearbyRetry": "Retry",
+    "nearbySetup": "Complete your helper setup to see nearby jobs.",
+    "nearbyUsingProfile": "Showing jobs near {{city}} from your profile.",
     "title": "Helper Dashboard",
     "online": "Online",
     "offline": "Offline",
@@ -3189,6 +3197,7 @@
       "editProfile": "Edit Profile",
       "earnings": "Earnings",
       "findJobs": "Find Jobs",
+      "quotes": "My Quotes",
       "myBids": "My Bids",
       "reviews": "Reviews",
       "invoices": "Invoices",
