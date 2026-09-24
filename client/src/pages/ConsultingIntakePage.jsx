@@ -410,7 +410,7 @@ export default function ConsultingIntakePage() {
   return (
     <PageShell>
       <PageMeta
-        title="OxSteed Business Launch Program"
+        title="OxSteed Founder Development Program"
         description="Turn your skill into a real business. Setup, branding, website, and launch support included."
         url={`${window.location.origin}/consulting-intake`}
       />
