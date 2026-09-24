@@ -6,8 +6,8 @@ const root = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf
 const repo = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
 
 test('main and admin route imports use resilient lazy loading', () => {
-  assert.doesNotMatch(repo('client/src/App.jsx'), /const [A-Za-z0-9_]+ = lazy\\(/);
-  assert.doesNotMatch(repo('client/src/admin/AdminApp.jsx'), /const [A-Za-z0-9_]+ = lazy\\(/);
+  assert.doesNotMatch(repo('client/src/App.jsx'), /const [A-Za-z0-9_]+ = lazy\(/);
+  assert.doesNotMatch(repo('client/src/admin/AdminApp.jsx'), /const [A-Za-z0-9_]+ = lazy\(/);
   assert.match(repo('client/src/App.jsx'), /lazyWithRetry/);
   assert.match(repo('client/src/admin/AdminApp.jsx'), /lazyWithRetry/);
 });
@@ -41,17 +41,17 @@ test('prefetching honors connection constraints and deduplicates loaders', () =>
   assert.match(source, /saveData/);
   assert.match(source, /slow-2g/);
   assert.match(source, /routePromises/);
-  assert.match(source, /routePromises\\.has/);
+  assert.match(source, /routePromises\.has/);
 });
 
 test('service worker is release-versioned and does not cache arbitrary HTML navigations', () => {
   const sw = repo('client/public/sw.js');
-  assert.match(sw, /searchParams\\.get\\('v'\\)/);
+  assert.match(sw, /searchParams\.get\('v'\)/);
   const start = sw.indexOf('async function navigationHandler');
   const end = sw.indexOf('// ── Web Push', start);
   const navigation = sw.slice(start, end);
-  assert.doesNotMatch(navigation, /cache\\.put/);
-  assert.match(navigation, /caches\\.match\\('\\/offline\\.html'\\)/);
+  assert.doesNotMatch(navigation, /cache\.put/);
+  assert.match(navigation, /caches\.match\('\/offline\.html'\)/);
 });
 
 test('missing assets are rejected before the SPA catch-all', () => {
@@ -60,7 +60,7 @@ test('missing assets are rejected before the SPA catch-all', () => {
   const catchAll = server.indexOf("app.get('*'");
   assert.ok(missingAsset >= 0);
   assert.ok(catchAll > missingAsset);
-  assert.match(server, /res\\.status\\(404\\).*Asset not found/);
+  assert.match(server, /res\.status\(404\).*Asset not found/);
 });
 
 test('production builds emit an asset manifest and release version', () => {
