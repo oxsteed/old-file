@@ -158,3 +158,127 @@
   color: #cbd5e1;
   line-height: 1.65;
 }
+
+/* Keep the careers experience readable when the site is in light mode. */
+html:not(.dark) .ox-careers,
+[data-theme='light'] .ox-careers {
+  color: #273449;
+}
+
+html:not(.dark) .ox-careers h1,
+html:not(.dark) .ox-careers h2,
+html:not(.dark) .ox-careers h3,
+[data-theme='light'] .ox-careers h1,
+[data-theme='light'] .ox-careers h2,
+[data-theme='light'] .ox-careers h3 {
+  color: #172033;
+}
+
+html:not(.dark) .ox-careers-lead,
+[data-theme='light'] .ox-careers-lead {
+  color: #526176;
+}
+
+html:not(.dark) .ox-careers input,
+html:not(.dark) .ox-careers select,
+html:not(.dark) .ox-careers textarea,
+[data-theme='light'] .ox-careers input,
+[data-theme='light'] .ox-careers select,
+[data-theme='light'] .ox-careers textarea {
+  color: #172033;
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+html:not(.dark) .ox-careers input::placeholder,
+html:not(.dark) .ox-careers textarea::placeholder,
+[data-theme='light'] .ox-careers input::placeholder,
+[data-theme='light'] .ox-careers textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+html:not(.dark) .ox-careers input:focus-visible,
+html:not(.dark) .ox-careers select:focus-visible,
+html:not(.dark) .ox-careers textarea:focus-visible,
+html:not(.dark) .ox-careers-btn:focus-visible,
+[data-theme='light'] .ox-careers input:focus-visible,
+[data-theme='light'] .ox-careers select:focus-visible,
+[data-theme='light'] .ox-careers textarea:focus-visible,
+[data-theme='light'] .ox-careers-btn:focus-visible {
+  outline: 3px solid rgba(234, 88, 12, 0.28);
+  outline-offset: 2px;
+  border-color: #ea580c;
+}
+
+html:not(.dark) .ox-careers-card,
+html:not(.dark) .ox-careers-panel,
+[data-theme='light'] .ox-careers-card,
+[data-theme='light'] .ox-careers-panel {
+  color: #273449;
+  background: #fff;
+  border-color: #dbe3ec;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+html:not(.dark) .ox-careers-card:hover,
+[data-theme='light'] .ox-careers-card:hover {
+  border-color: #f97316;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.ox-careers-card {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+html:not(.dark) .ox-careers-chip,
+[data-theme='light'] .ox-careers-chip {
+  color: #475569;
+  background: #f8fafc;
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .ox-careers-btn,
+[data-theme='light'] .ox-careers-btn {
+  color: #334155;
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+html:not(.dark) .ox-careers-btn:hover,
+[data-theme='light'] .ox-careers-btn:hover {
+  color: #9a3412;
+  border-color: #fb923c;
+  background: #fff7ed;
+}
+
+html:not(.dark) .ox-careers-btn.primary,
+html:not(.dark) .ox-careers-btn.primary:hover,
+[data-theme='light'] .ox-careers-btn.primary,
+[data-theme='light'] .ox-careers-btn.primary:hover {
+  color: #fff;
+  background: #c2410c;
+  border-color: #c2410c;
+}
+
+html:not(.dark) .ox-careers label,
+html:not(.dark) .ox-careers-app p,
+html:not(.dark) .ox-careers-prose,
+[data-theme='light'] .ox-careers label,
+[data-theme='light'] .ox-careers-app p,
+[data-theme='light'] .ox-careers-prose {
+  color: #526176;
+}
+
+html:not(.dark) .ox-careers-app,
+[data-theme='light'] .ox-careers-app {
+  background: #f8fafc;
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .ox-careers-error,
+[data-theme='light'] .ox-careers-error {
+  color: #b91c1c;
+}
