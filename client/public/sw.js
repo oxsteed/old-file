@@ -2,7 +2,7 @@
 
 // Bump on every change so old clients fetch the new SW.
 // Bump this whenever we need browsers to drop stale cached bundles.
-const CACHE_VERSION = 'v4-homepage-i18n';
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
 const API_CACHE     = `oxsteed-api-${CACHE_VERSION}`;
 
@@ -99,18 +99,10 @@ async function networkFirst(request, cacheName) {
 
 async function navigationHandler(request) {
   try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
+    return await fetch(request);
   } catch {
-    // Try the exact URL, then the app shell ('/')
-    const cached =
-      (await caches.match(request)) ||
-      (await caches.match('/'));
-    if (cached) return cached;
+    // Keep application HTML network-first so a deployment can publish a new
+    // asset manifest without an older route shell masking it.
     return caches.match('/offline.html');
   }
 }
