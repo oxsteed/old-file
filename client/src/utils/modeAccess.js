@@ -102,7 +102,16 @@ export function canAccessBusinessHub(user) {
 // Keep the client entitlement check aligned with server/routes/qrCodes.js so
 // users without access do not see a page that can only fail with 403.
 export function canUseQrGenerator(user) {
-  return ['helper_pro', 'broker'].includes(user?.role);
+  if (!user || !['helper', 'helper_pro', 'broker'].includes(user.role)) return false;
+  if (['helper_pro', 'broker'].includes(user.role)) return true;
+
+  // Auth responses expose effective_tier for active trials and current plans.
+  // Keep tier2 for older accounts that have not been migrated to the newer
+  // "pro" membership value yet.
+  const tier = user.effective_tier || user.membership_tier;
+  if (['pro', 'tier2'].includes(tier)) return true;
+
+  return Boolean(user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now());
 }
 
 export function canOfferConsulting(user) {
