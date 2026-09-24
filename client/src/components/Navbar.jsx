@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -165,7 +166,7 @@ export default function Navbar() {
           height: '3.75rem',
         }}>
           {/* Logo */}
-          <Link
+          <PrefetchLink
             to="/"
             style={{
               display: 'flex',
@@ -180,7 +181,7 @@ export default function Navbar() {
           >
             <OxSteedIcon size={28} />
             <span>OxSteed</span>
-          </Link>
+          </PrefetchLink>
 
           {/* Desktop nav links */}
           <div className="ox-nav-desktop" style={{
@@ -261,48 +262,48 @@ export default function Navbar() {
                         zIndex: 60,
                       }}
                     >
-                      <Link
+                      <PrefetchLink
                         role="menuitem"
                         to="/how-it-works"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
                         <span className="ox-nav-resource-option-title">{t('nav.howOxsteedWorks')}</span>
-                      </Link>
-                      <Link
+                      </PrefetchLink>
+                      <PrefetchLink
                         role="menuitem"
                         to="/tool-rentals"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
                         <span className="ox-nav-resource-option-title">{t('toolRentals.browsePage')}</span>
-                      </Link>
-                      <Link
+                      </PrefetchLink>
+                      <PrefetchLink
                         role="menuitem"
                         to="/learn"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
                         <span className="ox-nav-resource-option-title">{t('nav.learnToDiy')}</span>
-                      </Link>
+                      </PrefetchLink>
                       {isHelper && (
                         <>
-                          <Link
+                          <PrefetchLink
                             role="menuitem"
                             to={businessHubTo}
                             className="ox-nav-resource-option"
                             onClick={() => setResourcesMenuOpen(false)}
                           >
                             <span className="ox-nav-resource-option-title">{t('nav.business')}</span>
-                          </Link>
-                          <Link
+                          </PrefetchLink>
+                          <PrefetchLink
                             role="menuitem"
                             to="/qr-generator"
                             className="ox-nav-resource-option"
                             onClick={() => setResourcesMenuOpen(false)}
                           >
                             <span className="ox-nav-resource-option-title">{t('nav.qrGenerator')}</span>
-                          </Link>
+                          </PrefetchLink>
                         </>
                       )}
                     </div>
@@ -332,13 +333,13 @@ export default function Navbar() {
                     Mode picker now lives inside /join itself. The customer/
                     helper register pages are still mounted in App.jsx for
                     back-compat with old inbound links. */}
-                <Link
+                <PrefetchLink
                   to="/join"
                   className="ox-btn ox-btn-primary ox-btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
                   {t('nav.joinOxsteed')}
-                </Link>
+                </PrefetchLink>
               </>
             )}
             {user && <ModeSwitcher />}
@@ -574,7 +575,7 @@ export default function Navbar() {
 
 function NavLink({ to, children, active }) {
   return (
-    <Link
+    <PrefetchLink
       to={to}
       style={{
         fontSize: 'var(--text-sm)',
@@ -601,7 +602,7 @@ function NavLink({ to, children, active }) {
       }}
     >
       {children}
-    </Link>
+    </PrefetchLink>
   );
 }
 
@@ -624,7 +625,7 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
   };
 
   return (
-    <Link
+    <PrefetchLink
       to={to}
       onClick={onClick}
       style={baseStyle}
@@ -638,7 +639,7 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
       }}
     >
       {children}
-    </Link>
+    </PrefetchLink>
   );
 }
 
