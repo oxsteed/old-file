@@ -14,6 +14,20 @@ Read-only inspection on 2026-09-21 identified:
 
 These are dated observations. Recheck them before changing production settings.
 
+## Release asset continuity
+
+Production now retains fingerprinted client assets in the persistent
+`oxsteed-web-assets` volume. Each release copies new files into the
+store and removes only files older than 30 days. The server serves current
+assets first, then retained assets, and returns a real 404 for a missing
+`/assets/*` request instead of the SPA HTML shell.
+
+The client embeds the deployment release in `VITE_APP_VERSION` and uses
+that value for service-worker cache names and lazy-route failure telemetry.
+After a deployment, verify that `/`, representative lazy routes, and an
+old browser tab can load their chunks before removing or recreating the
+persistent asset volume.
+
 ## Two distinct failures
 
 Actions run 1411 passed verification but received HTTP 404 / `No resources found.`
