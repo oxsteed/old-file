@@ -1,7 +1,7 @@
 /* OxSteed Service Worker */
 
-// Bump on every change so old clients fetch the new SW.
-// Bump this whenever we need browsers to drop stale cached bundles.
+// The registration query carries the release SHA, so each deployment gets
+// isolated caches without a manually maintained version constant.
 const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
 const API_CACHE     = `oxsteed-api-${CACHE_VERSION}`;
