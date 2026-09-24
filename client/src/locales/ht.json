@@ -15976,5 +15976,16 @@
     "autoSaveHint": "Chanjman nan seksyon sa a sove lè ou ajoute, modifye, oswa retire atik.",
     "savingStatus": "Ap sove…",
     "saveError": "Pa t kapab sove. Eseye ankò."
+  },
+  "chatLiveStatus": {
+    "sending": "Ap voye…",
+    "delivered": "Livre",
+    "failed": "Pa t voye",
+    "retry": "Eseye ankò",
+    "connecting": "Ap konekte…",
+    "reconnecting": "Ap rekonekte…",
+    "offline": "Pa konekte",
+    "offlineHint": "Mizajou an dirèk pa disponib. Ou ka voye mesaj toujou; repons yo ka pran reta.",
+    "searchFailed": "Rechèch la pa t fini. Eseye ankò."
   }
 }

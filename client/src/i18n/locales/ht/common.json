@@ -339,5 +339,16 @@
     "escalationFailed": "Pa t ka eskale. Tanpri eseye ankò.",
     "ticketFailed": "Pa t ka kreye tikè",
     "ticketSubmitFailed": "Pa t ka soumèt tikè"
+  },
+  "chatLiveStatus": {
+    "sending": "Ap voye…",
+    "delivered": "Livre",
+    "failed": "Pa t voye",
+    "retry": "Eseye ankò",
+    "connecting": "Ap konekte…",
+    "reconnecting": "Ap rekonekte…",
+    "offline": "Pa konekte",
+    "offlineHint": "Mizajou an dirèk pa disponib. Ou ka voye mesaj toujou; repons yo ka pran reta.",
+    "searchFailed": "Rechèch la pa t fini. Eseye ankò."
   }
 }

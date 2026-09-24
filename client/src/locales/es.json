@@ -15976,5 +15976,16 @@
     "autoSaveHint": "Los cambios de esta sección se guardan al agregar, editar o eliminar elementos.",
     "savingStatus": "Guardando…",
     "saveError": "No se pudo guardar. Inténtalo de nuevo."
+  },
+  "chatLiveStatus": {
+    "sending": "Enviando…",
+    "delivered": "Entregado",
+    "failed": "No se pudo enviar",
+    "retry": "Reintentar",
+    "connecting": "Conectando…",
+    "reconnecting": "Reconectando…",
+    "offline": "Sin conexión",
+    "offlineHint": "Las actualizaciones en vivo no están disponibles. Aún puedes enviar mensajes; las respuestas pueden tardar.",
+    "searchFailed": "No se pudo completar la búsqueda. Inténtalo de nuevo."
   }
 }

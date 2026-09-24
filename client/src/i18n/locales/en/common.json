@@ -339,5 +339,16 @@
     "escalationFailed": "Failed to escalate. Please try again.",
     "ticketFailed": "Failed to create ticket",
     "ticketSubmitFailed": "Failed to create ticket"
+  },
+  "chatLiveStatus": {
+    "sending": "Sending…",
+    "delivered": "Delivered",
+    "failed": "Failed to send",
+    "retry": "Retry",
+    "connecting": "Connecting…",
+    "reconnecting": "Reconnecting…",
+    "offline": "Offline",
+    "offlineHint": "Live updates are unavailable. You can still send messages; replies may be delayed.",
+    "searchFailed": "Search couldn’t be completed. Try again."
   }
 }

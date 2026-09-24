@@ -339,5 +339,16 @@
     "escalationFailed": "No se pudo escalar. Inténtalo de nuevo.",
     "ticketFailed": "No se pudo crear el ticket",
     "ticketSubmitFailed": "No se pudo enviar el ticket"
+  },
+  "chatLiveStatus": {
+    "sending": "Enviando…",
+    "delivered": "Entregado",
+    "failed": "No se pudo enviar",
+    "retry": "Reintentar",
+    "connecting": "Conectando…",
+    "reconnecting": "Reconectando…",
+    "offline": "Sin conexión",
+    "offlineHint": "Las actualizaciones en vivo no están disponibles. Aún puedes enviar mensajes; las respuestas pueden tardar.",
+    "searchFailed": "No se pudo completar la búsqueda. Inténtalo de nuevo."
   }
 }

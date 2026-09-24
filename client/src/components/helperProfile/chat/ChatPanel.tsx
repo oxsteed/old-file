@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Maximize2, Calendar } from 'lucide-react';
+import { X, Search, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Maximize2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -201,7 +201,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     )
   );
 
-  const { socket } = useSocket();
+  const { socket, connectionState: userConnectionState } = useSocket();
 
   const [session,          setSession]          = useState<ChatSession>(initialSession);
   const [sending,          setSending]          = useState(false);
@@ -219,6 +219,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const textareaRef = messageInputRef || internalTextareaRef;
 
+  // Compact, on-demand conversation search.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestRef = useRef(0);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Keep readers in place when a new message arrives while they review history.
+  const [stickToBottom, setStickToBottom] = useState(true);
+  const stickToBottomRef = useRef(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadMessageIdsRef = useRef(new Set<string>());
+
   // Pagination state
   const [messageOffset,    setMessageOffset]    = useState(0);
   const [hasMoreMessages,  setHasMoreMessages]  = useState(true);
@@ -226,6 +242,39 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingOlderScrollRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
   const loadingOlderRef = useRef(false);
+
+  const updateMessageDeliveryStatus = useCallback((
+    messageId: string,
+    deliveryStatus: ChatMessage['deliveryStatus'],
+  ) => {
+    setSession(prev => ({
+      ...prev,
+      timeline: prev.timeline.map(item =>
+        item.itemType === 'message' && item.id === messageId
+          ? { ...item, deliveryStatus }
+          : item
+      ),
+    }));
+  }, []);
+
+  const clearUnreadMessages = useCallback(() => {
+    unreadMessageIdsRef.current.clear();
+    setUnreadCount(0);
+  }, []);
+
+  const markIncomingMessageUnread = useCallback((messageId: string) => {
+    const container = timelineScrollRef.current;
+    const nearBottom = !container
+      || container.scrollHeight - container.scrollTop - container.clientHeight < 96;
+    if (nearBottom) return;
+
+    const normalizedId = String(messageId || '');
+    if (!normalizedId || unreadMessageIdsRef.current.has(normalizedId)) return;
+    unreadMessageIdsRef.current.add(normalizedId);
+    stickToBottomRef.current = false;
+    setStickToBottom(false);
+    setUnreadCount(unreadMessageIdsRef.current.size);
+  }, []);
 
   // Inline-edit state for ChatPanel messages
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -438,6 +487,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         content:    msg.content,
         timestamp:  msg.created_at || new Date().toISOString(),
       };
+      markIncomingMessageUnread(timelineMsg.id);
       setSession(prev => ({
         ...prev,
         typing:   null,
@@ -499,11 +549,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       socket.off('messages:read', handleMessagesRead);
       socket.off('booking:chat_updated', handleBookingChatUpdated);
     };
-  }, [socket, conversationId]);
+  }, [socket, conversationId, markIncomingMessageUnread]);
 
   // ── Guest live /chat socket (OTP-verified; separate from JWT useSocket) ───
   const verifiedGuestSession = isGuest ? readGuestVerifiedSession(helperId, businessId) : null;
   const handleGuestLiveMessage = useCallback((incoming: ChatMessage) => {
+    if (!shouldAppendGuestLiveMessage(session.timeline, incoming)) return;
+    markIncomingMessageUnread(incoming.id);
     setSession((prev) => {
       if (!shouldAppendGuestLiveMessage(prev.timeline, incoming)) return prev;
       return {
@@ -512,13 +564,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         timeline: [...prev.timeline, incoming],
       };
     });
-  }, []);
+  }, [markIncomingMessageUnread, session.timeline]);
   const handleGuestSocketExpired = useCallback(() => {
     clearGuestVerifiedSession(helperId, businessId);
     toast.error(t('helperProfile.messenger.guestSessionExpired'));
     onGuestSessionExpired?.();
   }, [helperId, businessId, onGuestSessionExpired, t]);
-  useGuestProfileChatSocket({
+  const { connectionState: guestConnectionState } = useGuestProfileChatSocket({
     enabled: Boolean(dockOpen),
     isGuest,
     guestToken: verifiedGuestSession?.guestToken || '',
@@ -530,6 +582,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const currentStatus =
     isProviderChatDestination(session.destination) ? session.helperStatus : session.oxsteedStatus;
+  const liveProviderChat = isProviderChatDestination(session.destination) && currentStatus === 'live';
+  const showConnectionWarning = liveProviderChat && (isGuest ? Boolean(verifiedGuestSession) : Boolean(user));
+  const realtimeConnectionState = isGuest ? guestConnectionState : userConnectionState;
 
   const handleDestinationChange = useCallback((dest: ChatDestination) => {
     // Dropdown exposes provider as `helper`; business-only profiles keep `business`.
@@ -646,7 +701,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           } : {}),
           ...(clientMessageId ? { clientMessageId } : {}),
           language: localStorage.getItem('oxs:language') || 'en',
-          messages: [...session.timeline, userMsg]
+          messages: (session.timeline.some(
+            item => item.itemType === 'message' && item.id === userMsg.id
+          ) ? session.timeline : [...session.timeline, userMsg])
             .filter(i => i.itemType === 'message')
             .map(i => {
               const m = i as ChatMessage;
@@ -672,7 +729,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             typing: null,
             timeline: [...prev.timeline, waiting],
           }));
-          return;
+          return true;
         }
       } catch {
         /* fall through to escalation / verify UI */
@@ -718,6 +775,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       typing: null,
       timeline: [...prev.timeline, ...events],
     }));
+    return false;
   }, [
     allowLiveChat,
     businessId,
@@ -732,7 +790,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     user,
   ]);
 
-  const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
+  const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }, retryMessage?: ChatMessage) => {
     if (sending) return;
 
     if (isGuest && isProviderChatDestination(session.destination)) {
@@ -744,25 +802,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }
     }
 
-    const msgContent = attachment
-      ? `${text ? text + '\n' : ''}[attachment:${attachment.url}|${attachment.name}|${attachment.mimeType}]`
-      : text;
-    const clientMessageId = pendingProfileMessageIdRef.current || createMessageRequestId();
+    const msgContent = retryMessage
+      ? retryMessage.content
+      : attachment
+        ? `${text ? text + '\n' : ''}[attachment:${attachment.url}|${attachment.name}|${attachment.mimeType}]`
+        : text;
+    const clientMessageId = retryMessage?.clientMessageId
+      || pendingProfileMessageIdRef.current
+      || createMessageRequestId();
     pendingProfileMessageIdRef.current = clientMessageId;
 
-    const userMsg: ChatMessage = {
-      id:         `msg-${Date.now()}`,
-      itemType:   'message',
-      authorType: 'user',
-      content:    msgContent,
-      timestamp:  new Date().toISOString(),
-      ...(attachment ? { attachment } : {}),
-    };
+    const userMsg: ChatMessage = retryMessage
+      ? { ...retryMessage, clientMessageId, deliveryStatus: 'sending' }
+      : {
+          id: `msg-${Date.now()}`,
+          itemType: 'message',
+          authorType: 'user',
+          content: msgContent,
+          timestamp: new Date().toISOString(),
+          clientMessageId,
+          deliveryStatus: 'sending',
+          ...(attachment ? { attachment } : {}),
+        };
     setSession(prev => ({
       ...prev,
-      typing:   { authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai', authorLabel: t('helperProfile.chat.aiAssistant') },
-      timeline: [...prev.timeline, userMsg],
+      typing: { authorType: isProviderChatDestination(session.destination) ? 'helper_ai' : 'oxsteed_ai', authorLabel: t('helperProfile.chat.aiAssistant') },
+      timeline: retryMessage
+        ? prev.timeline.map(item => item.itemType === 'message' && item.id === retryMessage.id ? userMsg : item)
+        : [...prev.timeline, userMsg],
     }));
+    stickToBottomRef.current = true;
+    setStickToBottom(true);
+    clearUnreadMessages();
     setSending(true);
     setEscalationOpen(false);
 
@@ -774,6 +845,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             'X-Guest-Session-Id': verifiedGuest.sessionId,
           }
         : undefined;
+      const requestTimeline = session.timeline.some(
+        item => item.itemType === 'message' && item.id === userMsg.id
+      ) ? session.timeline : [...session.timeline, userMsg];
       const { data } = await api.post('/chat/profile-message', {
         helperId,
         ...(businessId ? { businessId } : {}),
@@ -786,7 +860,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         clientMessageId,
         ...(threadId ? { threadId } : {}),
         language: localStorage.getItem('oxs:language') || 'en',
-        messages: [...session.timeline, userMsg]
+        messages: requestTimeline
           .filter(i => i.itemType === 'message')
           .map(i => {
             const m = i as ChatMessage;
@@ -796,6 +870,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             };
           }),
       }, guestHeaders ? { headers: guestHeaders } : undefined);
+
+      updateMessageDeliveryStatus(userMsg.id, 'delivered');
 
       if (data?.aiFailed || data?.type === 'ai_error') {
         await applyAiFailureRouting({ data, userMsg, clientMessageId });
@@ -887,7 +963,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       pendingProfileMessageIdRef.current = null;
     } catch (err: unknown) {
       const axiosData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
-      await applyAiFailureRouting({
+      const recoveredByLiveChat = await applyAiFailureRouting({
         data: {
           aiFailed: true,
           type: 'ai_error',
@@ -899,12 +975,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         userMsg,
         clientMessageId,
       });
+      updateMessageDeliveryStatus(userMsg.id, recoveredByLiveChat ? 'delivered' : 'failed');
       pendingProfileMessageIdRef.current = null;
     } finally {
       setSending(false);
     }
-  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail, guestContactSaved, applyAiFailureRouting, allowLiveChat]);
+  }, [
+    helperId, businessId, session, user, helperName, sending, t, isGuest,
+    guestName, guestEmail, guestContactSaved, applyAiFailureRouting, allowLiveChat,
+    updateMessageDeliveryStatus, clearUnreadMessages, threadId,
+  ]);
 
+
+  const handleRetryMessage = useCallback((messageId: string) => {
+    const failedMessage = session.timeline.find(
+      (item): item is ChatMessage =>
+        item.itemType === 'message' && item.id === messageId && item.deliveryStatus === 'failed'
+    );
+    if (!failedMessage) return;
+    void handleSend(failedMessage.content, undefined, failedMessage);
+  }, [session.timeline, handleSend]);
 
   const saveGuestContact = useCallback(() => {
     const name = guestName.trim();
@@ -1043,6 +1133,85 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     handleSend(text);
   }, [handleSend]);
 
+  const performSearch = useCallback(async (query: string) => {
+    const normalizedQuery = query.trim();
+    const requestId = ++searchRequestRef.current;
+    if (!normalizedQuery) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    setSearchError(false);
+    if (!conversationId) {
+      const needle = normalizedQuery.toLocaleLowerCase();
+      setSearchResults(session.timeline.filter(
+        (item): item is ChatMessage =>
+          item.itemType === 'message' && item.content.toLocaleLowerCase().includes(needle)
+      ));
+      setSearchLoading(false);
+      return;
+    }
+
+    try {
+      const { data } = await api.get(`/messages/conversations/${conversationId}/search`, {
+        params: { q: normalizedQuery, sender: 'all', limit: 50, offset: 0 },
+      });
+      if (requestId === searchRequestRef.current) {
+        setSearchResults(Array.isArray(data?.results) ? data.results : []);
+      }
+    } catch {
+      if (requestId === searchRequestRef.current) {
+        setSearchResults([]);
+        setSearchError(true);
+      }
+    } finally {
+      if (requestId === searchRequestRef.current) setSearchLoading(false);
+    }
+  }, [conversationId, session.timeline]);
+
+  const handleSearchQueryChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchRequestRef.current += 1;
+    setSearchError(false);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchResults([]);
+    setSearchLoading(true);
+    searchTimeoutRef.current = setTimeout(() => {
+      void performSearch(query);
+    }, 300);
+  }, [performSearch]);
+
+  const clearSearch = useCallback(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = null;
+    searchRequestRef.current += 1;
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchLoading(false);
+    setSearchError(false);
+  }, []);
+
+  const handleSearchToggle = useCallback(() => {
+    if (searchOpen) {
+      clearSearch();
+    } else if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+    setSearchOpen(!searchOpen);
+  }, [clearSearch, searchOpen]);
+
+  useEffect(() => () => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+  }, []);
+
   // Load earlier messages automatically when the conversation is scrolled to its top.
   const loadOlderMessages = useCallback(async () => {
     if (!conversationId || loadingOlderRef.current || !hasMoreMessages) return;
@@ -1119,6 +1288,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             {dockChrome.showPanelTitle ? (
               <StatusBadge status={currentStatus} />
             ) : null}
+            <button
+              onClick={handleSearchToggle}
+              className="messages-thread-action-icon"
+              aria-label={t('helperProfile.chat.searchPlaceholder')}
+              title={t('helperProfile.chat.searchPlaceholder')}
+              type="button"
+              aria-pressed={searchOpen}
+            >
+              <Search className="w-4 h-4" aria-hidden="true" />
+              <span className="visually-hidden">{t('helperProfile.chat.searchPlaceholder')}</span>
+            </button>
             {onExpand && !roomy && !isDockMode && (
               <button
                 onClick={onExpand}
@@ -1174,6 +1354,55 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={handleDestinationChange}
         />
 
+        {searchOpen && (
+          <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
+            <Search className="h-4 w-4 flex-shrink-0 text-gray-400" aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={event => handleSearchQueryChange(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Escape') handleSearchToggle();
+              }}
+              placeholder={t('helperProfile.chat.searchPlaceholder')}
+              aria-label={t('helperProfile.chat.searchPlaceholder')}
+              className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-none"
+              autoFocus
+            />
+            {searchLoading && <span className="text-xs text-gray-400">{t('helperProfile.chat.searchLoading')}</span>}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="p-1 text-gray-400 hover:text-white"
+                aria-label={t('helperProfile.chat.clearSearch')}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {showConnectionWarning && realtimeConnectionState !== 'connected' && (
+          <div
+            className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 text-xs ${realtimeConnectionState === 'offline' ? 'border border-rose-800/50 bg-rose-950/20 text-rose-200' : 'border border-amber-800/50 bg-amber-950/20 text-amber-200'}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className={`h-2 w-2 rounded-full ${realtimeConnectionState === 'offline' ? 'bg-rose-400' : 'bg-amber-400 animate-pulse'}`} aria-hidden="true" />
+            <span>
+              {realtimeConnectionState === 'offline'
+                ? t('chatLiveStatus.offline', { ns: 'common' })
+                : realtimeConnectionState === 'connecting'
+                  ? t('chatLiveStatus.connecting', { ns: 'common' })
+                  : t('chatLiveStatus.reconnecting', { ns: 'common' })}
+            </span>
+            {realtimeConnectionState === 'offline' && (
+              <span className="text-gray-400">{t('chatLiveStatus.offlineHint', { ns: 'common' })}</span>
+            )}
+          </div>
+        )}
 
 
       </div>
@@ -1338,18 +1567,62 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         </div>
       )}
 
-      {/* ── Timeline / Empty state ────────────────────────────── */}
-      {showOfflineWall ? (
+      {/* ── Timeline / Search Results / Empty state ─────────── */}
+      {searchOpen && searchQuery.trim() ? (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-2 min-h-0" aria-live="polite">
+          {searchLoading && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchLoading')}</p>
+          )}
+          {searchError && (
+            <p className="text-center text-sm text-rose-300">{t('chatLiveStatus.searchFailed', { ns: 'common' })}</p>
+          )}
+          {!searchLoading && !searchError && searchResults.length === 0 && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchNoResults')}</p>
+          )}
+          {searchResults.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 text-center mb-2">
+                {searchResults.length === 1
+                  ? t('helperProfile.chat.searchResults', { count: searchResults.length })
+                  : t('helperProfile.chat.searchResultsPlural', { count: searchResults.length })}
+              </p>
+              <div className="space-y-2">
+                {searchResults.map(msg => {
+                  const timestamp = msg.timestamp || (msg as any).created_at;
+                  const sender = msg.sender_name || (msg.authorType === 'user'
+                    ? t('helperProfile.chat.youLabel')
+                    : helperName);
+                  return (
+                    <div
+                      key={msg.id}
+                      className="p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300"
+                    >
+                      <p className="text-xs text-gray-500 mb-1">
+                        {sender}{timestamp ? ` • ${new Date(timestamp).toLocaleString()}` : ''}
+                      </p>
+                      <p className="line-clamp-2 text-gray-200">{msg.content}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      ) : showOfflineWall ? (
         <UnavailableState
           destination={session.destination}
           helperName={helperName}
         />
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
           <div
             ref={timelineScrollRef}
             onScroll={(event) => {
               const container = event.currentTarget;
+              const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 96;
+              stickToBottomRef.current = nearBottom;
+              setStickToBottom(nearBottom);
+              if (nearBottom) clearUnreadMessages();
               if (container.scrollTop <= 24) handleTimelineScroll(container);
             }}
             className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
@@ -1372,7 +1645,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 typing={sending ? session.typing : null}
                 currentUserId={user?.id}
                 onMessageDelete={handleMessageDelete}
+                onMessageRetry={handleRetryMessage}
                 onMessageEdit={handleMessageEdit}
+                shouldAutoScroll={stickToBottom}
                 onQuickReply={handleQuickReply}
                 editingMessageId={editingMessageId}
                 editingText={editingText}
@@ -1437,6 +1712,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               />
             )}
           </div>
+          {!stickToBottom && (
+            <button
+              type="button"
+              onClick={() => {
+                stickToBottomRef.current = true;
+                setStickToBottom(true);
+                clearUnreadMessages();
+                const container = timelineScrollRef.current;
+                container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+              }}
+              className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-600 bg-gray-800 px-3.5 py-2 text-xs font-medium text-white shadow-lg hover:bg-gray-700"
+              aria-label={`${t('messages.jumpToLatest')}${unreadCount ? ` (${unreadCount})` : ''}`}
+            >
+              <span aria-hidden="true">↓</span>
+              {t('messages.jumpToLatest')}
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px]">{unreadCount}</span>
+              )}
+            </button>
+          )}
         </div>
       )}
 

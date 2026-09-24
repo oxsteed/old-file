@@ -213,6 +213,15 @@ export interface ChatMessage {
   sender_id?: string | number;
   sender_name?: string;
   attachments?: Attachment[];
+  attachment?: {
+    url: string;
+    key?: string | null;
+    name: string;
+    size: number;
+    mimeType: string;
+  };
+  clientMessageId?: string;
+  deliveryStatus?: 'sending' | 'delivered' | 'failed';
   isRead?: boolean;
   /** When message was read by recipient (ISO date string) */
   readAt?: string;

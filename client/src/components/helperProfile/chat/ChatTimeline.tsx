@@ -16,6 +16,8 @@ interface ChatTimelineProps {
   typing?: TypingIndicator | null;
   currentUserId?: string;
   onMessageDelete?: (messageId: string) => void;
+  onMessageRetry?: (messageId: string) => void;
+  shouldAutoScroll?: boolean;
   onMessageEdit?: (messageId: string) => void;
   onQuickReply?: (text: string) => void;
   editingMessageId?: string | null;
@@ -60,6 +62,8 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   typing,
   currentUserId,
   onMessageDelete,
+  onMessageRetry,
+  shouldAutoScroll = true,
   onMessageEdit,
   onQuickReply,
   editingMessageId,
@@ -90,10 +94,10 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
       && items[items.length - 1]?.id === previousItems[previousItems.length - 1]?.id;
     previousItemsRef.current = items;
 
-    if (!prependedOlderMessages) {
+    if (!prependedOlderMessages && shouldAutoScroll) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [items, typing]);
+  }, [items, typing, shouldAutoScroll]);
 
   return (
     <div
@@ -147,6 +151,7 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
               helperName={helperName}
               currentUserId={currentUserId}
               onDelete={onMessageDelete}
+              onRetry={onMessageRetry}
               onEdit={onMessageEdit}
               isAuthenticated={isAuthenticated}
               guestVerified={guestVerified}

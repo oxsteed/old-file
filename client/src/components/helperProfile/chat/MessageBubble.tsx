@@ -22,6 +22,7 @@ interface MessageBubbleProps {
   helperName: string;
   currentUserId?: string;
   onDelete?: (messageId: string) => void;
+  onRetry?: (messageId: string) => void;
   onEdit?: (messageId: string) => void;
   onQuickReply?: (text: string) => void;
   showQuickReplies?: boolean;
@@ -115,6 +116,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   helperName,
   currentUserId,
   onDelete,
+  onRetry,
   onEdit,
   onQuickReply,
   showQuickReplies,
@@ -317,12 +319,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
           </div>
 
-          {/* Seen indicator for user messages */}
-          {isUser && message.isRead && (
-            <div className="text-xs text-gray-500 mt-1 text-right">
+          {/* Keep delivery and read receipts distinct. */}
+          {isUser && message.isRead ? (
+            <div className="text-xs text-gray-500 mt-1 text-right" role="status">
               {t('helperProfile.chat.seen')}
             </div>
-          )}
+          ) : isUser && message.deliveryStatus ? (
+            <div className="mt-1 flex items-center justify-end gap-2 text-xs text-gray-500" role="status">
+              <span>{t(`chatLiveStatus.${message.deliveryStatus}`, { ns: 'common' })}</span>
+              {message.deliveryStatus === 'failed' && onRetry && (
+                <button
+                  type="button"
+                  onClick={() => onRetry(message.id)}
+                  className="font-medium text-brand-400 underline underline-offset-2 hover:text-brand-300"
+                >
+                  {t('chatLiveStatus.retry', { ns: 'common' })}
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
 
         {/* Shared shell Copy | Edit | Delete (+ dock-only AI feedback on hover) */}

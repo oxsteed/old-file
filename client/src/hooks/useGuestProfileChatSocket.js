@@ -18,6 +18,7 @@ import {
  * @param {number|null} [opts.expiresAt]
  * @param {(message: object) => void} [opts.onMessage]
  * @param {() => void} [opts.onExpired]
+ * @returns {{ connected: boolean, connectionState: 'connecting'|'connected'|'reconnecting'|'offline' }}
  */
 export function useGuestProfileChatSocket({
   enabled = true,
@@ -29,6 +30,7 @@ export function useGuestProfileChatSocket({
   onExpired,
 } = {}) {
   const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState('offline');
   const onMessageRef = useRef(onMessage);
   const onExpiredRef = useRef(onExpired);
   onMessageRef.current = onMessage;
@@ -45,6 +47,7 @@ export function useGuestProfileChatSocket({
   useEffect(() => {
     if (!shouldConnect) {
       setConnected(false);
+      setConnectionState('offline');
       return undefined;
     }
 
@@ -53,6 +56,7 @@ export function useGuestProfileChatSocket({
     let cancelled = false;
     let socket = null;
     let expiryTimer = null;
+    let managerHandlers = null;
 
     const disconnect = () => {
       if (expiryTimer != null) {
@@ -60,11 +64,20 @@ export function useGuestProfileChatSocket({
         expiryTimer = null;
       }
       if (socket) {
+        if (managerHandlers) {
+          socket.io.off('reconnect_attempt', managerHandlers.attempt);
+          socket.io.off('reconnect', managerHandlers.reconnected);
+          socket.io.off('reconnect_failed', managerHandlers.failed);
+          managerHandlers = null;
+        }
         socket.removeAllListeners();
         socket.disconnect();
         socket = null;
       }
-      if (!cancelled) setConnected(false);
+      if (!cancelled) {
+        setConnected(false);
+        setConnectionState('offline');
+      }
     };
 
     if (expiresAt != null && Number(expiresAt) > 0) {
@@ -79,6 +92,8 @@ export function useGuestProfileChatSocket({
       }, ms);
     }
 
+    setConnected(false);
+    setConnectionState('connecting');
     socket = io(realtimeNamespaceUrl('chat'), {
       auth: { guestToken: token, guestSessionId: sessionId },
       transports: ['websocket', 'polling'],
@@ -107,19 +122,46 @@ export function useGuestProfileChatSocket({
     };
 
     socket.on('connect', () => {
-      if (!cancelled) setConnected(true);
-    });
-    socket.on('disconnect', () => {
-      if (!cancelled) setConnected(false);
-    });
-    socket.on('connect_error', () => {
-      if (!cancelled) setConnected(false);
-    });
-    socket.on('reconnect_attempt', () => {
-      if (socket) {
-        socket.auth = { guestToken: token, guestSessionId: sessionId };
+      if (!cancelled) {
+        setConnected(true);
+        setConnectionState('connected');
       }
     });
+    socket.on('disconnect', () => {
+      if (!cancelled) {
+        setConnected(false);
+        setConnectionState(socket?.active ? 'reconnecting' : 'offline');
+      }
+    });
+    socket.on('connect_error', () => {
+      if (!cancelled) {
+        setConnected(false);
+        setConnectionState(socket?.active ? 'reconnecting' : 'offline');
+      }
+    });
+    managerHandlers = {
+      attempt: () => {
+        if (socket) {
+          socket.auth = { guestToken: token, guestSessionId: sessionId };
+        }
+        if (!cancelled) setConnectionState('reconnecting');
+      },
+      reconnected: () => {
+        if (!cancelled) {
+          setConnected(true);
+          setConnectionState('connected');
+        }
+      },
+      failed: () => {
+        if (!cancelled) {
+          setConnected(false);
+          setConnectionState('offline');
+        }
+      },
+    };
+    socket.io.on('reconnect_attempt', managerHandlers.attempt);
+    socket.io.on('reconnect', managerHandlers.reconnected);
+    socket.io.on('reconnect_failed', managerHandlers.failed);
 
     socket.on('guest_chat:message', handleIncoming('guest_chat:message'));
     socket.on('profile_chat:new_message', handleIncoming('profile_chat:new_message'));
@@ -147,7 +189,7 @@ export function useGuestProfileChatSocket({
     };
   }, [shouldConnect, guestToken, guestSessionId, expiresAt]);
 
-  return { connected };
+  return { connected, connectionState };
 }
 
 export default useGuestProfileChatSocket;

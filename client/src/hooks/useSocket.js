@@ -11,13 +11,16 @@ let socketInstance = null;
 // connect/disconnect events without each needing its own listener.
 const connListeners = new Set();
 
-function notifyListeners(connected) {
-  connListeners.forEach(fn => fn(connected));
+function notifyListeners(connected, connectionState = connected ? 'connected' : 'offline') {
+  connListeners.forEach(fn => fn(connected, connectionState));
 }
 
 export const useSocket = () => {
   const { user }    = useAuth();
   const [connected, setConnected] = useState(() => !!socketInstance?.connected);
+  const [connectionState, setConnectionState] = useState(() => (
+    socketInstance?.connected ? 'connected' : socketInstance?.active ? 'reconnecting' : 'offline'
+  ));
   const socketRef   = useRef(socketInstance);
 
   console.log('[useSocket] Hook called, current state:', {
@@ -29,9 +32,10 @@ export const useSocket = () => {
 
   // Keep each instance's connected state in sync with the singleton.
   useEffect(() => {
-    const handler = (c) => {
-      console.log('[useSocket] Connected state changed:', c);
+    const handler = (c, state) => {
+      console.log('[useSocket] Connected state changed:', c, state);
       setConnected(c);
+      setConnectionState(state || (c ? 'connected' : 'offline'));
     };
     connListeners.add(handler);
     return () => connListeners.delete(handler);
@@ -40,6 +44,8 @@ export const useSocket = () => {
   useEffect(() => {
     if (!user) {
       console.log('[useSocket] No user, skipping socket setup');
+      setConnected(false);
+      setConnectionState('offline');
       return;
     }
 
@@ -50,6 +56,7 @@ export const useSocket = () => {
       console.log('[useSocket] Socket already connected, reusing instance');
       socketRef.current = socketInstance;
       setConnected(true);
+      setConnectionState('connected');
       return;
     }
 
@@ -58,12 +65,18 @@ export const useSocket = () => {
       console.log('[useSocket] Socket exists but disconnected, reconnecting...');
       socketInstance.connect();
       socketRef.current = socketInstance;
+      setConnected(false);
+      setConnectionState(socketInstance.active ? 'reconnecting' : 'connecting');
+      notifyListeners(false, socketInstance.active ? 'reconnecting' : 'connecting');
       return;
     }
 
     const token = localStorage.getItem('accessToken');
 
     console.log('[useSocket] Creating new Socket.io connection');
+    setConnected(false);
+    setConnectionState('connecting');
+    notifyListeners(false, 'connecting');
     socketInstance = io(
       realtimeNamespaceUrl('chat'),
       {
@@ -80,26 +93,40 @@ export const useSocket = () => {
     socketInstance.on('connect', () => {
       console.log('[useSocket] Socket connected successfully');
       setConnected(true);
-      notifyListeners(true);
+      setConnectionState('connected');
+      notifyListeners(true, 'connected');
     });
 
     socketInstance.on('disconnect', () => {
       console.log('[useSocket] Socket disconnected');
+      const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
       setConnected(false);
-      notifyListeners(false);
+      setConnectionState(nextState);
+      notifyListeners(false, nextState);
     });
 
     socketInstance.on('connect_error', (err) => {
       console.error('[useSocket] Connection error:', err.message, err);
+      const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
+      setConnected(false);
+      setConnectionState(nextState);
+      notifyListeners(false, nextState);
     });
 
     // Refresh the auth token before each reconnect attempt so the socket never
     // reconnects with an expired JWT (access tokens rotate every 15 minutes).
-    socketInstance.on('reconnect_attempt', () => {
+    socketInstance.io.on('reconnect_attempt', () => {
       const freshToken = localStorage.getItem('accessToken');
       if (freshToken && socketInstance) {
         socketInstance.auth = { token: freshToken };
       }
+      setConnectionState('reconnecting');
+      notifyListeners(false, 'reconnecting');
+    });
+    socketInstance.io.on('reconnect_failed', () => {
+      setConnected(false);
+      setConnectionState('offline');
+      notifyListeners(false, 'offline');
     });
 
     // Server emits this when an admin bans or deactivates the account.
@@ -109,7 +136,8 @@ export const useSocket = () => {
       localStorage.removeItem('user');
       socketInstance?.disconnect();
       socketInstance = null;
-      notifyListeners(false);
+      setConnectionState('offline');
+      notifyListeners(false, 'offline');
       window.location.replace('/login');
     });
 
@@ -145,7 +173,8 @@ export const useSocket = () => {
     socketInstance = null;
     socketRef.current = null;
     setConnected(false);
-    notifyListeners(false);
+    setConnectionState('offline');
+    notifyListeners(false, 'offline');
   }, []);
 
   // Return the ref so callers always access the current socket instance, but
@@ -153,6 +182,7 @@ export const useSocket = () => {
   return {
     socket:            socketRef.current,
     connected,
+    connectionState,
     joinConversation,
     leaveConversation,
     joinJobRoom,

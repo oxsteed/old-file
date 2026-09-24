@@ -15892,5 +15892,16 @@
     "autoSaveHint": "Changes in this section save when you add, edit, or remove items.",
     "savingStatus": "Saving…",
     "saveError": "Couldn’t save. Try again."
+  },
+  "chatLiveStatus": {
+    "sending": "Sending…",
+    "delivered": "Delivered",
+    "failed": "Failed to send",
+    "retry": "Retry",
+    "connecting": "Connecting…",
+    "reconnecting": "Reconnecting…",
+    "offline": "Offline",
+    "offlineHint": "Live updates are unavailable. You can still send messages; replies may be delayed.",
+    "searchFailed": "Search couldn’t be completed. Try again."
   }
 }

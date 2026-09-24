@@ -15976,5 +15976,16 @@
     "autoSaveHint": "Les modifications de cette section sont enregistrées lorsque vous ajoutez, modifiez ou supprimez des éléments.",
     "savingStatus": "Enregistrement…",
     "saveError": "Échec de l’enregistrement. Réessayez."
+  },
+  "chatLiveStatus": {
+    "sending": "Envoi…",
+    "delivered": "Livré",
+    "failed": "Échec de l’envoi",
+    "retry": "Réessayer",
+    "connecting": "Connexion…",
+    "reconnecting": "Reconnexion…",
+    "offline": "Hors ligne",
+    "offlineHint": "Les mises à jour en direct sont indisponibles. Vous pouvez envoyer des messages ; les réponses peuvent être retardées.",
+    "searchFailed": "La recherche n’a pas abouti. Réessayez."
   }
 }
