@@ -135,7 +135,15 @@ async function sendVerificationCode(sessionId, email, name, db = pool) {
 
   const result = await sendOTPEmail(email, code);
   if (result && result.success === false) {
-    throw new Error('Verification email could not be delivered');
+    const deliveryError = new Error(
+      result.error === 'Email not configured'
+        ? 'Guest verification email is not configured. Please sign in to message this helper.'
+        : 'Guest verification email could not be delivered. Please try again.',
+    );
+    deliveryError.status = 503;
+    deliveryError.code = 'guest_email_delivery_unavailable';
+    deliveryError.deliveryReason = result.error || 'unknown';
+    throw deliveryError;
   }
   logger.info('guest profile chat OTP sent', {
     sessionId,
