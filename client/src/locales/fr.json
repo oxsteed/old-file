@@ -2310,6 +2310,7 @@
     "guestInquirySendReply": "Envoyer la réponse",
     "guestInquirySendError": "Impossible d’envoyer la réponse. Réessayez.",
     "you": "Vous",
+    "quoteHistory":{"button":"Historique des devis","eyebrow":"Historique des devis","title":"Devis envoyés","guestTitle":"Devis de cette conversation","loading":"Chargement des devis…","empty":"Aucun devis n'a encore été partagé ici.","failed":"Impossible de charger l'historique des devis.","customer":"Client","openConversation":"Ouvrir la conversation","openJob":"Voir le travail"},
     "quoteShare": {
       "title": "Partager un devis",
       "button": "Devis",

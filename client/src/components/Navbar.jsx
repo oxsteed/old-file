@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
@@ -13,6 +13,7 @@ import { routeForMode } from '../utils/modeRouter';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canUseQrGenerator, navLinksForMode } from '../utils/modeAccess';
 import { businessHubLandingPath, readLastBusinessHubId } from '../utils/businessProfileForm';
+import { useSocket } from '../hooks/useSocket';
 import '../styles/BusinessSwitcher.css';
 
 const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
@@ -42,6 +43,7 @@ export function OxSteedIcon({ size = 24 }) {
 
 export default function Navbar() {
   const { user, logout, isHelper } = useAuth();
+  const { socket } = useSocket();
   const { t } = useTranslation();
   const location = useLocation();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
@@ -58,26 +60,52 @@ export default function Navbar() {
   const showBusinessHub = !!user && navLinks.showBusinessHub;
   const businessHubTo = businessHubLandingPath(readLastBusinessHubId());
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchCounts = async () => {
-      try {
-        const [notifRes, msgRes] = await Promise.allSettled([
-          api.get('/notifications'),
-          api.get('/messages/conversations'),
-        ]);
-        if (notifRes.status === 'fulfilled') {
-          const notifs = notifRes.value.data?.notifications || notifRes.value.data || [];
-          setUnreadNotifs(Array.isArray(notifs) ? notifs.filter(n => !n.is_read && !n.read_at).length : 0);
-        }
-        if (msgRes.status === 'fulfilled') {
-          const convos = msgRes.value.data?.conversations || msgRes.value.data || [];
-          setUnreadMsgs(Array.isArray(convos) ? convos.filter(c => c.unread_count > 0).length : 0);
-        }
-      } catch {}
-    };
-    fetchCounts();
+  const refreshUnreadCounts = useCallback(async () => {
+    if (!user) {
+      setUnreadNotifs(0);
+      setUnreadMsgs(0);
+      return;
+    }
+    const [notifRes, msgRes, guestRes] = await Promise.allSettled([
+      api.get('/notifications'),
+      api.get('/messages/conversations'),
+      api.get('/messages/guest-inquiries'),
+    ]);
+    if (notifRes.status === 'fulfilled') {
+      const notifs = notifRes.value.data?.notifications || notifRes.value.data || [];
+      setUnreadNotifs(Array.isArray(notifs) ? notifs.filter(n => !n.is_read && !n.read_at).length : 0);
+    }
+    const convos = msgRes.status === 'fulfilled'
+      ? (msgRes.value.data?.conversations || msgRes.value.data || [])
+      : [];
+    const guestInquiries = guestRes.status === 'fulfilled'
+      ? (guestRes.value.data?.inquiries || guestRes.value.data || [])
+      : [];
+    setUnreadMsgs(
+      (Array.isArray(convos) ? convos : []).filter((conversation) => Number(conversation.unread_count) > 0).length
+      + (Array.isArray(guestInquiries) ? guestInquiries : []).filter((inquiry) => Number(inquiry.unread_count) > 0).length,
+    );
   }, [user]);
+
+  useEffect(() => {
+    const refresh = () => { void refreshUnreadCounts(); };
+    refresh();
+    if (!user) return undefined;
+    const interval = window.setInterval(refresh, 30_000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
+    const messageEvents = ['message:new', 'profile_chat:new_message', 'business_inbox:conversation', 'messages:read'];
+    messageEvents.forEach((eventName) => socket?.on(eventName, refresh));
+    window.addEventListener('focus', refresh);
+    window.addEventListener('oxsteed:messages-read', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      messageEvents.forEach((eventName) => socket?.off(eventName, refresh));
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('oxsteed:messages-read', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [refreshUnreadCounts, socket, user]);
 
   useEffect(() => {
     if (!user) {

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   Archive,
+  FileText,
   MessageSquare,
   RefreshCw,
   Search,
@@ -25,6 +26,7 @@ import {
 } from '../../utils/inboxRole';
 import ConversationThread from './ConversationThread';
 import ConversationList from './ConversationList';
+import QuoteHistoryPanel from './QuoteHistoryPanel';
 import GuestInquiryPanel from './GuestInquiryPanel';
 import { resolveShellChrome } from './messengerShellState';
 import {
@@ -78,6 +80,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const [filter, setFilter] = useState('all');
   const [sideFilter, setSideFilter] = useState('all');
   const [newInbound, setNewInbound] = useState(new Set());
+  const [showQuoteHistory, setShowQuoteHistory] = useState(false);
   const [businessFilter, setBusinessFilter] = useState('all');
   const [managedBusinesses, setManagedBusinesses] = useState([]);
   const [starting, setStarting] = useState(false);
@@ -124,8 +127,17 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     try {
       setLoadError('');
       if (businessId) {
-        const data = await getBusinessConversations(businessId, { limit: 100, offset: 0 });
-        setConversations((data?.conversations || []).map(normalizeBusinessConversation));
+        const [data, guestRes] = await Promise.all([
+          getBusinessConversations(businessId, { limit: 100, offset: 0 }),
+          api.get('/messages/guest-inquiries', { params: { business_id: businessId } }).catch(() => ({ data: [] })),
+        ]);
+        const businessConversations = (data?.conversations || []).map(normalizeBusinessConversation);
+        const guestInquiries = Array.isArray(guestRes.data) ? guestRes.data : [];
+        setConversations([...guestInquiries, ...businessConversations].sort((a, b) => {
+          const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
+          const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
+          return tb - ta;
+        }));
         return;
       }
       const params = businessId
@@ -192,6 +204,23 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   }, [fetchConversations]);
 
   useEffect(() => {
+    const refreshAfterRead = (event) => {
+      const conversationId = String(event?.detail?.conversationId || '');
+      if (conversationId) {
+        setNewInbound((previous) => {
+          if (!previous.has(conversationId)) return previous;
+          const next = new Set(previous);
+          next.delete(conversationId);
+          return next;
+        });
+      }
+      void fetchConversations();
+    };
+    window.addEventListener('oxsteed:messages-read', refreshAfterRead);
+    return () => window.removeEventListener('oxsteed:messages-read', refreshAfterRead);
+  }, [fetchConversations]);
+
+  useEffect(() => {
     if (!socket) return undefined;
     const bumpConv = (id) => {
       fetchConversations();
@@ -213,6 +242,19 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       }
       if (payload?.conversationId) bumpConv(payload.conversationId);
     };
+    const handleMessagesRead = (payload) => {
+      if (String(payload?.readBy) !== String(userId)) return;
+      const id = String(payload?.conversationId || '');
+      if (id) {
+        setNewInbound((previous) => {
+          if (!previous.has(id)) return previous;
+          const next = new Set(previous);
+          next.delete(id);
+          return next;
+        });
+      }
+      fetchConversations();
+    };
     const handleBusinessConversation = (payload) => {
       if (!businessId || String(payload?.business_id) !== String(businessId)) return;
       fetchConversations();
@@ -226,15 +268,17 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     };
     socket.on('message:new', handleMessageNew);
     socket.on('profile_chat:new_message', handleProfileChat);
+    socket.on('messages:read', handleMessagesRead);
     if (businessId) socket.on('business_inbox:conversation', handleBusinessConversation);
     if (!businessId) socket.on('conversation:archive_updated', handleArchiveUpdated);
     return () => {
       socket.off('message:new', handleMessageNew);
       socket.off('profile_chat:new_message', handleProfileChat);
+      socket.off('messages:read', handleMessagesRead);
       if (businessId) socket.off('business_inbox:conversation', handleBusinessConversation);
       if (!businessId) socket.off('conversation:archive_updated', handleArchiveUpdated);
     };
-  }, [businessId, fetchArchived, fetchConversations, showArchived, socket]);
+  }, [businessId, fetchArchived, fetchConversations, showArchived, socket, userId]);
 
   useEffect(() => {
     const start = parseConversationStartParams(location.search);
@@ -259,7 +303,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   }, [location.search, basePath, businessId, navigate, t]);
 
   const unreadCount = useMemo(
-    () => conversations.reduce((sum, conv) => sum + (parseInt(conv.unread_count, 10) || 0), 0) + newInbound.size,
+    () => conversations.filter((conv) => Number(conv.unread_count) > 0 || newInbound.has(String(conv.id))).length,
     [conversations, newInbound]
   );
 
@@ -303,6 +347,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
       next.delete(String(convId));
       return next;
     });
+    setConversations((previous) => previous.map((item) => String(item.id) === String(convId) ? { ...item, unread_count: 0 } : item));
+    window.dispatchEvent(new CustomEvent('oxsteed:messages-read', { detail: { conversationId: String(convId) } }));
     if (isGuestConversation(conv)) {
       const uuid = String(convId).replace(/^guest-/i, '');
       if (embedded) {
@@ -321,6 +367,18 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     }
   };
 
+  const openQuoteHistoryItem = (quote) => {
+    setShowQuoteHistory(false);
+    if (businessId && quote?.business_workspace_conversation_id) {
+      handleOpen({ id: quote.business_workspace_conversation_id });
+    } else if (quote?.conversation_id) {
+      handleOpen({ id: quote.conversation_id });
+    } else if (quote?.guest_session_id) {
+      handleOpen({ id: `guest-${quote.guest_session_id}` });
+    } else if (quote?.job_id) {
+      navigate(`/jobs/${quote.job_id}`);
+    }
+  };
   const restoreArchived = async (conversationId) => {
     if (archiveActionId) return;
     setArchiveActionId(String(conversationId));
@@ -383,7 +441,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
     .find((conv) => String(conv.id) === String(selectedId));
   const threadRole = conversationSide(userId, selectedConversation);
   const chrome = resolveShellChrome({ hasThread, compact: true });
-  const showStandaloneEmpty = !loading && !starting && !hasThread && !showArchived && conversations.length === 0;
+  const showStandaloneEmpty = !showQuoteHistory && !loading && !starting && !hasThread && !showArchived && conversations.length === 0;
 
   const workspaceContent = (
     <div className={`messages-page workspace${hasThread ? ' has-thread' : ''}${showStandaloneEmpty ? ' inbox-empty' : ''}`}>
@@ -438,6 +496,22 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                 {t('messages.unreadFilter')}
                 {unreadCount > 0 && <em>{unreadCount}</em>}
               </button>
+              {(showHelperInbox || businessId) && (
+                <button
+                  type="button"
+                  className={showQuoteHistory ? 'active' : ''}
+                  aria-pressed={showQuoteHistory}
+                  onClick={() => {
+                    const next = !showQuoteHistory;
+                    setShowQuoteHistory(next);
+                    setShowArchived(false);
+                    if (next && hasThread) closeThread();
+                  }}
+                >
+                  <FileText size={14} aria-hidden />
+                  {t('messages.quoteHistory.button')}
+                </button>
+              )}
             </div>
             {dualRole && (
               <div className="messages-filter" role="group" aria-label={t('messages.sideFilterAriaLabel')}>
@@ -500,7 +574,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
           </div>
         </section>
 
-        <div className={`messages-workspace${showStandaloneEmpty ? ' messages-workspace--empty' : ''}`}>
+        <div className={`messages-workspace${showStandaloneEmpty ? ' messages-workspace--empty' : ''}${showQuoteHistory ? ' messages-workspace--quotes' : ''}`}>
           {showStandaloneEmpty ? (
             loadError ? (
               <section className="messages-empty messages-empty--error" role="alert">
@@ -522,6 +596,15 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
           ) : (
             <>
           <div className="messages-inbox-pane">
+            {showQuoteHistory ? (
+              <QuoteHistoryPanel
+                mode="provider"
+                kind={businessId || businessFilter !== 'all' ? 'business' : 'all'}
+                businessId={businessId || (businessFilter !== 'all' ? businessFilter : null)}
+                onOpenQuote={openQuoteHistoryItem}
+              />
+            ) : (
+              <>
             {loadError && (
               <div className="messages-inline-alert" role="alert">
                 <p>{loadError}</p>
@@ -657,6 +740,8 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
                   );
                 }}
               />
+            )}
+              </>
             )}
           </div>
 

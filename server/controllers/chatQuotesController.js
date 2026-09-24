@@ -1366,3 +1366,140 @@ exports.listForThread = async (req, res, next) => {
     next(err);
   }
 };
+
+function historyQuote(kind, row) {
+  const card = toPublicQuoteCard(kind, row);
+  if (!card) return null;
+  return {
+    ...card,
+    status: row.superseded_at ? 'superseded' : card.status,
+    recipient_name: row.recipient_name || row.client_name || row.guest_name || null,
+    job_id: row.history_job_id || row.job_id || null,
+    job_title: row.job_title || null,
+    business_id: row.business_id || null,
+    business_name: row.business_name || null,
+    business_workspace_conversation_id: row.business_workspace_conversation_id || null,
+  };
+}
+
+/** GET /api/chat/quotes/history — sent quotes for the signed-in provider. */
+exports.listHistory = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return bad(res, 401, 'Authentication required', 'auth_error');
+
+    const kind = String(req.query.kind || 'all').toLowerCase();
+    if (!['all', 'helper', 'business'].includes(kind)) {
+      return bad(res, 400, 'kind must be all, helper, or business', 'validation_failed');
+    }
+    const businessId = req.query.businessId || req.query.business_id || null;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
+    const history = [];
+
+    if (kind === 'all' || kind === 'helper') {
+      const { rows } = await pool.query(
+        `SELECT hq.*,
+                COALESCE(NULLIF(hq.client_name, ''), NULLIF(g.guest_name, ''),
+                         NULLIF(TRIM(CONCAT(cu.first_name, ' ', cu.last_name)), ''), cu.email) AS recipient_name,
+                COALESCE(hq.job_id, c.job_id) AS history_job_id,
+                j.title AS job_title,
+                NULL::INTEGER AS business_id,
+                NULL::TEXT AS business_name
+           FROM helper_quotes hq
+           LEFT JOIN guest_profile_chat_inbound g ON g.id = hq.guest_session_id
+           LEFT JOIN conversations c ON c.id = hq.conversation_id
+           LEFT JOIN users cu ON cu.id = COALESCE(hq.client_user_id, c.customer_id)
+           LEFT JOIN jobs j ON j.id = COALESCE(hq.job_id, c.job_id)
+          WHERE hq.helper_id = $1 AND hq.status <> 'draft'
+          ORDER BY hq.updated_at DESC NULLS LAST, hq.created_at DESC
+          LIMIT $2`,
+        [userId, limit],
+      );
+      history.push(...rows.map((row) => historyQuote('helper', row)));
+    }
+
+    if (kind === 'all' || kind === 'business') {
+      const { rows: accessibleBusinesses } = await pool.query(
+        `SELECT DISTINCT b.id
+           FROM businesses b
+          WHERE b.is_active = TRUE
+            AND (b.user_id = $1 OR EXISTS (
+              SELECT 1 FROM business_members bm
+               WHERE bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
+            ))
+            AND ($2::INTEGER IS NULL OR b.id = $2::INTEGER)`,
+        [userId, businessId ? parseInt(businessId, 10) || null : null],
+      );
+      const businessIds = accessibleBusinesses.map((row) => row.id);
+      if (businessId && !businessIds.some((id) => String(id) === String(businessId))) {
+        return bad(res, 403, 'Not allowed for this business', 'forbidden');
+      }
+      if (businessIds.length) {
+        const { rows } = await pool.query(
+          `SELECT bq.*, b.business_name,
+                  COALESCE(NULLIF(bq.client_name, ''), NULLIF(g.guest_name, ''),
+                           NULLIF(TRIM(CONCAT(cu.first_name, ' ', cu.last_name)), ''), cu.email) AS recipient_name,
+                  c.job_id AS history_job_id,
+                  j.title AS job_title,
+                  bc.id AS business_workspace_conversation_id
+             FROM business_quotes bq
+             JOIN businesses b ON b.id = bq.business_id
+             LEFT JOIN guest_profile_chat_inbound g ON g.id = bq.guest_session_id
+             LEFT JOIN conversations c ON c.id = bq.conversation_id
+             LEFT JOIN business_conversations bc
+               ON bc.business_id = bq.business_id
+              AND bc.legacy_conversation_id = bq.conversation_id
+             LEFT JOIN users cu ON cu.id = c.customer_id
+             LEFT JOIN jobs j ON j.id = c.job_id
+            WHERE bq.business_id = ANY($1::INTEGER[]) AND bq.status <> 'draft'
+            ORDER BY bq.updated_at DESC NULLS LAST, bq.created_at DESC
+            LIMIT $2`,
+          [businessIds, limit],
+        );
+        history.push(...rows.map((row) => historyQuote('business', row)));
+      }
+    }
+
+    history.sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0));
+    return res.json({ quotes: history.slice(0, limit) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** GET /api/chat/quotes/guest-history — quotes belonging to the verified guest session. */
+exports.listGuestHistory = async (req, res, next) => {
+  try {
+    const guest = req.guestSession;
+    if (!guest?.id) return bad(res, 401, 'Verify your email to view quote history', 'verify_required');
+
+    const [helperQuotes, businessQuotes] = await Promise.all([
+      pool.query(
+        `SELECT hq.*, COALESCE(NULLIF(hp.display_name, ''), NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''), u.email) AS provider_name
+           FROM helper_quotes hq
+           JOIN users u ON u.id = hq.helper_id
+           LEFT JOIN helper_profiles hp ON hp.user_id = hq.helper_id
+          WHERE hq.guest_session_id = $1 AND hq.status <> 'draft'
+          ORDER BY hq.created_at DESC`,
+        [guest.id],
+      ),
+      pool.query(
+        `SELECT bq.*, b.business_name AS provider_name
+           FROM business_quotes bq
+           JOIN businesses b ON b.id = bq.business_id
+          WHERE bq.guest_session_id = $1 AND bq.status <> 'draft'
+          ORDER BY bq.created_at DESC`,
+        [guest.id],
+      ),
+    ]);
+
+    const quotes = [
+      ...helperQuotes.rows.map((row) => ({ ...historyQuote('helper', row), provider_name: row.provider_name })),
+      ...businessQuotes.rows.map((row) => ({ ...historyQuote('business', row), provider_name: row.provider_name })),
+    ].filter(Boolean).sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0));
+
+    return res.json({ quotes });
+  } catch (err) {
+    next(err);
+  }
+};

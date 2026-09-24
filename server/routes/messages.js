@@ -13,6 +13,7 @@ const {
   getGuestInquiries,
   getGuestInquiryById,
   getGuestInquiryMessages,
+  markGuestInquiryRead,
   replyGuestInquiryMessage,
   getOrCreateConversation,
   getConversationMeta,
@@ -41,6 +42,7 @@ router.get('/guest-inquiries/:id', getGuestInquiryById);
 
 // Guest live thread (helper/business inbox)
 router.get('/guest-inquiries/:id/messages', getGuestInquiryMessages);
+router.post('/guest-inquiries/:id/mark-read', userChatLimiter, markGuestInquiryRead);
 router.post('/guest-inquiries/:id/messages', userChatLimiter, conversationMessageLimiter, replyGuestInquiryMessage);
 
 // GET /api/messages/conversations - Get all conversations

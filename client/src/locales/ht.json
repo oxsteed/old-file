@@ -2395,6 +2395,7 @@
     "guestInquirySendReply": "Voye repons",
     "guestInquirySendError": "Pa t kapab voye repons lan. Eseye ankò.",
     "you": "Ou",
+    "quoteHistory":{"button":"Istwa devis yo","eyebrow":"Istwa devis yo","title":"Devis ki voye yo","guestTitle":"Devis pou konvèsasyon sa a","loading":"Ap chaje devis yo…","empty":"Poko pataje okenn devis isit la.","failed":"Nou pa ka chaje istwa devis yo.","customer":"Kliyan","openConversation":"Louvri konvèsasyon an","openJob":"Gade travay la"},
     "quoteShare": {
       "title": "Pataje yon devi",
       "button": "Devi",

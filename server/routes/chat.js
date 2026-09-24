@@ -96,6 +96,8 @@ router.post('/sessions/guest/verify/resend', authLimiter, profileChatLimiter, re
 
 // ── In-chat quotes (helper + business) ───────────────────────────────────────
 router.get('/quotes/list', chatLimiter, authenticate, chatQuotes.listForThread);
+router.get('/quotes/history', chatLimiter, authenticate, chatQuotes.listHistory);
+router.get('/quotes/guest-history', chatLimiter, optionalAuth, chatQuotes.listGuestHistory);
 router.post('/quotes/share', chatLimiter, authenticate, chatQuotes.shareQuote);
 router.get('/quotes/:kind/:id', chatLimiter, optionalAuth, chatQuotes.getQuote);
 router.post('/quotes/:kind/:id/respond', chatLimiter, optionalAuth, chatQuotes.respondQuote);

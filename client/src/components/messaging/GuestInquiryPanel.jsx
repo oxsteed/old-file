@@ -22,6 +22,11 @@ import { useSocket } from '../../hooks/useSocket';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function notifyMessagesRead(conversationId) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('oxsteed:messages-read', { detail: { conversationId } }));
+}
+
 export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -96,6 +101,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
     try {
       const { data } = await api.get(`/messages/guest-inquiries/${inquiryUuid}/messages`);
       setMessages(Array.isArray(data) ? data : []);
+      notifyMessagesRead(`guest-${inquiryUuid}`);
     } catch {
       setMessages([]);
     } finally {
@@ -154,6 +160,11 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
           },
         ];
       });
+      if (senderType === 'guest' && document.visibilityState === 'visible' && document.hasFocus()) {
+        api.post(`/messages/guest-inquiries/${inquiryUuid}/mark-read`)
+          .then(() => notifyMessagesRead(`guest-${inquiryUuid}`))
+          .catch(() => {});
+      }
     };
     socket.on('profile_chat:new_message', onPayload);
     socket.on('guest_chat:message', onPayload);

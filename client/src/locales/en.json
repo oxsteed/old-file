@@ -2310,6 +2310,7 @@
     "guestInquirySendReply": "Send reply",
     "guestInquirySendError": "Could not send reply. Try again.",
     "you": "You",
+    "quoteHistory":{"button":"Quote history","eyebrow":"Quote history","title":"Quotes sent","guestTitle":"Quotes for this chat","loading":"Loading quotes…","empty":"No quotes have been shared here yet.","failed":"Could not load quote history.","customer":"Customer","openConversation":"Open conversation","openJob":"View job"},
     "quoteShare": {
       "title": "Share a quote",
       "button": "Quote",

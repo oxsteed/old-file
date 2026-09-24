@@ -2310,6 +2310,7 @@
     "guestInquirySendReply": "إرسال الرد",
     "guestInquirySendError": "تعذر إرسال الرد. حاول مرة أخرى.",
     "you": "أنت",
+    "quoteHistory":{"button":"سجل عروض الأسعار","eyebrow":"سجل عروض الأسعار","title":"عروض الأسعار المرسلة","guestTitle":"عروض الأسعار في هذه المحادثة","loading":"جارٍ تحميل عروض الأسعار…","empty":"لم تتم مشاركة أي عروض أسعار هنا بعد.","failed":"تعذر تحميل سجل عروض الأسعار.","customer":"العميل","openConversation":"فتح المحادثة","openJob":"عرض العمل"},
     "quoteShare": {
       "title": "مشاركة عرض سعر",
       "button": "عرض سعر",

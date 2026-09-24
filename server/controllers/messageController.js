@@ -43,6 +43,7 @@ function isUuid(value) {
  * Guest profile inquiries (visitors without accounts) - guest_profile_chat_inbound.
  */
 function mapGuestInquiryRow(r) {
+  const lastMessage = r.last_message || r.message || '';
   return {
       id: `guest-${r.id}`,
       is_guest_inquiry: true,
@@ -51,18 +52,17 @@ function mapGuestInquiryRow(r) {
       helper_id: r.helper_id,
       business_id: r.business_id,
       status: 'active',
-      last_message_at: r.created_at,
+      last_message_at: r.last_message_at || r.last_activity_at || r.created_at,
       created_at: r.created_at,
-      updated_at: r.created_at,
+      updated_at: r.last_activity_at || r.created_at,
       other_user_name: r.guest_name,
       other_user_id: null,
       job_title: null,
-      last_message:
-        r.message.length > 140 ? `${r.message.slice(0, 137)}…` : r.message,
+      last_message: lastMessage.length > 140 ? `${lastMessage.slice(0, 137)}…` : lastMessage,
       last_message_sender_id: null,
       helper_business_name: null,
       conversation_business_name: r.conversation_business_name,
-      unread_count: 1,
+      unread_count: Number(r.unread_count) || 0,
       guest_email: r.guest_email,
       guest_message_full: r.message,
     };
@@ -72,45 +72,58 @@ const getGuestInquiries = async (req, res) => {
   try {
     const userId = req.user.id;
     const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
-
-    let result;
-    if (filterBizId) {
-      result = await pool.query(
-        `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
-                cb.business_name AS conversation_business_name
-         FROM guest_profile_chat_inbound g
-         LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
-         WHERE g.business_id = $1 AND (
-           g.helper_id = $2 OR EXISTS (
+    const result = await pool.query(
+      `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+              g.last_activity_at, cb.business_name AS conversation_business_name,
+              COALESCE(latest.message, g.message) AS last_message,
+              COALESCE(latest.created_at, g.last_guest_message_at, g.created_at) AS last_message_at,
+              COALESCE(unread.unread_count, 0) + CASE
+                WHEN g.message IS NOT NULL
+                  AND COALESCE(unread.total_guest_messages, 0) = 0
+                  AND read_cursor.last_read_at IS NULL THEN 1
+                ELSE 0
+              END AS unread_count
+       FROM guest_profile_chat_inbound g
+       LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+       LEFT JOIN guest_profile_chat_read_cursors read_cursor
+         ON read_cursor.session_id = g.id AND read_cursor.reader_id = $1
+       LEFT JOIN LATERAL (
+         SELECT gm.message, gm.created_at
+           FROM guest_profile_chat_messages gm
+          WHERE gm.session_id = g.id
+          ORDER BY gm.id DESC
+          LIMIT 1
+       ) latest ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) FILTER (
+                  WHERE gm.sender_type = 'guest'
+                    AND gm.id > COALESCE(read_cursor.last_read_message_id, 0)
+                )::INTEGER AS unread_count,
+                COUNT(*) FILTER (WHERE gm.sender_type = 'guest')::INTEGER AS total_guest_messages
+           FROM guest_profile_chat_messages gm
+          WHERE gm.session_id = g.id
+       ) unread ON TRUE
+       WHERE (
+         ($2::INTEGER IS NULL AND (
+           g.helper_id = $1 OR (g.business_id IS NOT NULL AND EXISTS (
              SELECT 1 FROM business_members bm
-             WHERE bm.business_id = g.business_id AND bm.member_id = $2 AND bm.status = 'active'
+              WHERE bm.business_id = g.business_id AND bm.member_id = $1 AND bm.status = 'active'
+           ))
+         )) OR (
+           $2::INTEGER IS NOT NULL AND g.business_id = $2::INTEGER AND (
+             g.helper_id = $1 OR EXISTS (
+               SELECT 1 FROM business_members bm
+                WHERE bm.business_id = g.business_id AND bm.member_id = $1 AND bm.status = 'active'
+             )
            )
          )
-         ORDER BY g.created_at DESC
-         LIMIT 100`,
-        [filterBizId, userId]
-      );
-    } else {
-      result = await pool.query(
-        `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
-                cb.business_name AS conversation_business_name
-         FROM guest_profile_chat_inbound g
-         LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
-         WHERE g.helper_id = $1
-            OR (
-              g.business_id IS NOT NULL AND EXISTS (
-                SELECT 1 FROM business_members bm
-                WHERE bm.business_id = g.business_id AND bm.member_id = $1 AND bm.status = 'active'
-              )
-            )
-         ORDER BY g.created_at DESC
-         LIMIT 100`,
-        [userId]
-      );
-    }
+       )
+       ORDER BY COALESCE(latest.created_at, g.last_activity_at, g.created_at) DESC
+       LIMIT 100`,
+      [userId, filterBizId],
+    );
 
-    const rows = result.rows.map(mapGuestInquiryRow);
-    res.json(rows);
+    res.json(result.rows.map(mapGuestInquiryRow));
   } catch (error) {
     logger.error('Error fetching guest inquiries', { err: error.message });
     res.status(500).json({ error: 'Failed to fetch guest inquiries' });
@@ -1293,6 +1306,40 @@ async function assertGuestInquiryAccess(userId, inquiryId) {
   return r;
 }
 
+async function markGuestInquiryReadCursor(inquiryId, readerId) {
+  await pool.query(
+    `INSERT INTO guest_profile_chat_read_cursors
+       (session_id, reader_id, last_read_message_id, last_read_at)
+     SELECT g.id, $2,
+            COALESCE((
+              SELECT MAX(gm.id)
+                FROM guest_profile_chat_messages gm
+               WHERE gm.session_id = g.id AND gm.sender_type = 'guest'
+            ), 0),
+            NOW()
+       FROM guest_profile_chat_inbound g
+      WHERE g.id = $1
+     ON CONFLICT (session_id, reader_id) DO UPDATE
+       SET last_read_message_id = GREATEST(
+             guest_profile_chat_read_cursors.last_read_message_id,
+             EXCLUDED.last_read_message_id
+           ),
+           last_read_at = EXCLUDED.last_read_at`,
+    [inquiryId, readerId],
+  );
+  try {
+    socketService.broadcastToUser(readerId, 'messages:read', {
+      conversationId: `guest-${inquiryId}`,
+      readBy: readerId,
+      readAt: new Date().toISOString(),
+    });
+  } catch (socketError) {
+    logger.warn('Failed to broadcast guest inquiry read state', {
+      inquiryId,
+      error: socketError.message,
+    });
+  }
+}
 /**
  * GET /api/messages/guest-inquiries/:id/messages
  * Thread history for a verified (or leave-message) guest profile session.
@@ -1304,6 +1351,7 @@ const getGuestInquiryMessages = async (req, res) => {
     if (!inquiryId) return res.status(400).json({ error: 'Invalid inquiry id' });
 
     await assertGuestInquiryAccess(userId, inquiryId);
+    await markGuestInquiryReadCursor(inquiryId, userId);
 
     const { rows } = await pool.query(
       `SELECT id, session_id, sender_type, sender_name, message, created_at
@@ -1355,6 +1403,23 @@ const getGuestInquiryMessages = async (req, res) => {
   }
 };
 
+/** Mark guest messages read when the provider is actively viewing the thread. */
+const markGuestInquiryRead = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const inquiryId = String(req.params.id || '').replace(/^guest-/i, '');
+    if (!inquiryId) return res.status(400).json({ error: 'Invalid inquiry id' });
+    await assertGuestInquiryAccess(userId, inquiryId);
+    await markGuestInquiryReadCursor(inquiryId, userId);
+    return res.json({ success: true });
+  } catch (error) {
+    if (error.status === 404 || error.status === 403) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    logger.error('Error marking guest inquiry read', { err: error.message });
+    return res.status(500).json({ error: 'Failed to mark guest inquiry as read' });
+  }
+};
 /**
  * POST /api/messages/guest-inquiries/:id/messages
  * Helper/business reply into a guest live thread; emits to guest_session_* room.
@@ -1486,6 +1551,7 @@ module.exports = {
   getGuestInquiries,
   getGuestInquiryById,
   getGuestInquiryMessages,
+  markGuestInquiryRead,
   replyGuestInquiryMessage,
   getOrCreateConversation,
   getConversationMeta,

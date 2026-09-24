@@ -2310,6 +2310,7 @@
     "guestInquirySendReply": "Enviar respuesta",
     "guestInquirySendError": "No se pudo enviar la respuesta. Inténtalo de nuevo.",
     "you": "Tú",
+    "quoteHistory":{"button":"Historial de cotizaciones","eyebrow":"Historial de cotizaciones","title":"Cotizaciones enviadas","guestTitle":"Cotizaciones de este chat","loading":"Cargando cotizaciones…","empty":"Aún no se han compartido cotizaciones aquí.","failed":"No se pudo cargar el historial de cotizaciones.","customer":"Cliente","openConversation":"Abrir conversación","openJob":"Ver trabajo"},
     "quoteShare": {
       "title": "Compartir presupuesto",
       "button": "Presupuesto",

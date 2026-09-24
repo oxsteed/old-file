@@ -1880,3 +1880,138 @@ html:not(.dark) .messages-page.workspace .messages-row-restore:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Quote history is available alongside messages for providers and guests. */
+.messages-quote-history,
+.quote-history-overlay {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text, #e2e8f0);
+  background: var(--color-surface, #0f172a);
+}
+.messages-quote-history {
+  height: 100%;
+  overflow: hidden;
+}
+.quote-history-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  padding: 0.75rem;
+  border-radius: inherit;
+  border: 1px solid var(--color-border, #334155);
+  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.38);
+}
+.quote-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--color-border, #334155);
+  flex: 0 0 auto;
+}
+.quote-history-head h2 {
+  margin: 0.2rem 0 0;
+  color: var(--color-text, #f8fafc);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+.quote-history-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--color-primary, #f97316);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quote-history-close {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 0.65rem;
+  background: var(--color-surface-2, #1e293b);
+  color: inherit;
+  cursor: pointer;
+}
+.quote-history-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.8rem;
+}
+.messages-quote-history .quote-history-body {
+  padding: 0.85rem;
+}
+.quote-history-item {
+  padding: 0.8rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 0.85rem;
+  background: var(--color-surface-2, #111827);
+}
+.quote-history-item:last-child { margin-bottom: 0; }
+.quote-history-context {
+  margin: 0 0 0.45rem;
+  color: var(--color-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.quote-history-item .messenger-quote-card {
+  max-width: none;
+  margin: 0;
+}
+.quote-history-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  margin-top: 0.55rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 0.55rem;
+  background: var(--color-surface, #0f172a);
+  color: var(--color-primary, #f97316);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.quote-history-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 6rem;
+  margin: 0;
+  color: var(--color-text-muted, #94a3b8);
+  text-align: center;
+  font-size: 0.85rem;
+}
+.quote-history-state.is-error { color: var(--color-error, #f87171); }
+html:not(.dark) .quote-history-item,
+html:not(.dark) .quote-history-close,
+html:not(.dark) .quote-history-open {
+  background: var(--color-surface-2, #fff);
+}
+@media (max-width: 640px) {
+  .quote-history-overlay { padding: 0.45rem; }
+  .quote-history-head { padding: 0.6rem 0.65rem; }
+  .quote-history-body { padding: 0.6rem; }
+  .quote-history-item { padding: 0.6rem; }
+}
+
+.messages-page.workspace .messages-workspace--quotes {
+  grid-template-columns: minmax(0, 1fr);
+}
+.messages-page.workspace .messages-workspace--quotes > .messages-inbox-pane {
+  min-height: min(68vh, 760px);
+}
+.messages-page.workspace .messages-workspace--quotes > .messages-thread-pane {
+  display: none;
+}

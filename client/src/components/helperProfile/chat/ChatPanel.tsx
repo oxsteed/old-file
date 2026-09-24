@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { X, Search, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Maximize2, Calendar } from 'lucide-react';
+import { X, Search, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Maximize2, Calendar, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -21,6 +21,7 @@ import PopSharePanel from './PopSharePanel';
 import AgreementSharePanel from './AgreementSharePanel';
 import PaymentRequestSharePanel from './PaymentRequestSharePanel';
 import ConversationContactDrawer from '../../messaging/ConversationContactDrawer';
+import QuoteHistoryPanel from '../../messaging/QuoteHistoryPanel';
 
 import MessengerAvailabilityPicker from './MessengerAvailabilityPicker.jsx';
 import { quoteEventContent } from './messengerQuotes.js';
@@ -282,6 +283,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const guestClaimKeyRef = useRef<string | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
   const [showProviderQuoteShare, setShowProviderQuoteShare] = useState(false);
+  const [showGuestQuoteHistory, setShowGuestQuoteHistory] = useState(false);
   const [showProviderPopShare, setShowProviderPopShare] = useState(false);
   const [showProviderAgreementShare, setShowProviderAgreementShare] = useState(false);
   const [showProviderPayReqShare, setShowProviderPayReqShare] = useState(false);
@@ -1266,7 +1268,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div
-      className={`flex flex-col overflow-hidden h-full ${isDockMode ? 'chat-panel--dock bg-transparent border-0 rounded-none' : `bg-gray-900 border border-gray-800 rounded-2xl ${roomy ? 'shadow-2xl shadow-black/40' : ''}`} ${className}`}
+      className={`relative flex flex-col overflow-hidden h-full ${isDockMode ? 'chat-panel--dock bg-transparent border-0 rounded-none' : `bg-gray-900 border border-gray-800 rounded-2xl ${roomy ? 'shadow-2xl shadow-black/40' : ''}`} ${className}`}
       aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
@@ -1287,6 +1289,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           <div className="messages-thread-actions chat-panel__secondary" role="toolbar" aria-label={t('messages.shell.dockSecondaryAria')}>
             {dockChrome.showPanelTitle ? (
               <StatusBadge status={currentStatus} />
+            ) : null}
+            {isGuest && isProviderChatDestination(session.destination) && verifiedGuestSession ? (
+              <button
+                onClick={() => setShowGuestQuoteHistory(true)}
+                className="messages-thread-action-icon"
+                aria-label={t('messages.quoteHistory.button')}
+                title={t('messages.quoteHistory.button')}
+                type="button"
+                aria-pressed={showGuestQuoteHistory}
+              >
+                <FileText className="w-4 h-4" aria-hidden="true" />
+                <span className="visually-hidden">{t('messages.quoteHistory.button')}</span>
+              </button>
             ) : null}
             <button
               onClick={handleSearchToggle}
@@ -2133,6 +2148,28 @@ const textMsg = buildSlotRequestMessage({
       </div>
       )}
 
+      {isGuest && isProviderChatDestination(session.destination) && verifiedGuestSession ? (
+        <QuoteHistoryPanel
+          mode="guest"
+          open={showGuestQuoteHistory}
+          guestSessionId={verifiedGuestSession.sessionId}
+          guestAuthHeaders={{
+            'X-Guest-Profile-Token': verifiedGuestSession.guestToken,
+            'X-Guest-Session-Id': verifiedGuestSession.sessionId,
+          }}
+          helperId={helperId}
+          payeeBusinessId={businessId || null}
+          conversationId={conversationId}
+          onClose={() => setShowGuestQuoteHistory(false)}
+          onAccepted={(data) => {
+            const q = data?.quote || data;
+            if (q?.kind && q?.id) setSchedulingQuote({ kind: q.kind, id: q.id, token: q.token });
+            setProposingBookingId(null);
+            setShowGuestQuoteHistory(false);
+            setShowAvailability(true);
+          }}
+        />
+      ) : null}
       {isProviderActor && showProviderQuoteShare ? (
         <QuoteSharePanel
           open={showProviderQuoteShare}
