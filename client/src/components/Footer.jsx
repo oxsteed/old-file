@@ -7,6 +7,7 @@ import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { canUseQrGenerator } from '../utils/modeAccess';
 import './Footer.css';
 
 const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
@@ -37,8 +38,7 @@ export default function Footer() {
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
   const { t } = useTranslation();
-  const helperRoles = new Set(['helper', 'helper_pro', 'broker']);
-  const isHelper = helperRoles.has(user?.role);
+  const showQrGenerator = canUseQrGenerator(user);
 
   return (
     <>
@@ -83,7 +83,7 @@ export default function Footer() {
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
               <FooterLink to="/logistics">{t('footer.logistics')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
-              {isHelper && (
+              {showQrGenerator && (
                 <>
                   <span className="site-footer__heading site-footer__heading--nested">
                     {t('footer.resource')}
