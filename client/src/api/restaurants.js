@@ -1,6 +1,6 @@
 // client/src/api/restaurants.js
 //
-// OxSteed Restaurants — canonical operations API helpers (Phase 2).
+// Local Food Directory — canonical operations API helpers (Phase 2).
 // Talks to /api/restaurants (checklists, runs, SOPs). The ordering helpers
 // stay in api/food.js; this file only covers the new Operations surface.
 
