@@ -14,10 +14,12 @@ import {
 } from 'lucide-react';
 import '../styles/Dashboard.css';
 
-const link = (to, labelKey, defaultLabel, Icon) => ({ to, labelKey, defaultLabel, Icon });
+const link = (to, labelKey, defaultLabel, Icon, tone = '') => ({ to, labelKey, defaultLabel, Icon, tone });
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
+    link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
+    link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
     link('/my-bids', 'helperDashboard.myBids', 'My bids', FileText),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
@@ -74,8 +76,12 @@ export default function DashboardQuickLinks({ items, className = '' }) {
       <span className="dashboard-quick-links__label">
         {t('dashboard.quickLinks', { defaultValue: 'Quick links' })}
       </span>
-      {items.map(({ to, labelKey, defaultLabel, Icon }) => (
-        <Link key={to} to={to} className="dashboard-quick-links__link">
+      {items.map(({ to, labelKey, defaultLabel, Icon, tone }) => (
+        <Link
+          key={to}
+          to={to}
+          className={`dashboard-quick-links__link${tone ? ` dashboard-quick-links__link--${tone}` : ''}`}
+        >
           <Icon size={15} aria-hidden="true" />
           <span>{t(labelKey, { defaultValue: defaultLabel })}</span>
         </Link>
