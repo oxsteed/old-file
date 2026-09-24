@@ -6,12 +6,12 @@ const STORAGE_KEY = (restaurantId) => `ox.food.onboarding.devices.${restaurantId
 const DEVICE_STEPS = [
   {
     id: 'kiosk',
-    title: 'Install OxSteed Restaurants Kiosk (TestFlight)',
+    title: 'Install Local Food Directory Kiosk (TestFlight)',
     detail: 'Guest self-ordering at the counter. Sign in once and select your restaurant.',
   },
   {
     id: 'kitchen',
-    title: 'Install OxSteed Restaurants Kitchen (TestFlight)',
+    title: 'Install Local Food Directory Kitchen (TestFlight)',
     detail: 'Staff sign-in — tickets appear in New. Tap to advance Preparing → Ready.',
   },
   {
