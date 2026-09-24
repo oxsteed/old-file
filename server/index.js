@@ -644,7 +644,8 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
   }));
   // Never return index.html for an asset request: a missing JS chunk must be
   // observable as a real 404 and must not fail as an HTML module response.
-  app.use('/assets', (_req, res) => {
+  app.use('/assets', (req, res) => {
+    logger.warn('[assets] Missing client asset', { path: req.originalUrl });
     res.setHeader('Cache-Control', 'no-store');
     res.status(404).type('text/plain').send('Asset not found');
   });
