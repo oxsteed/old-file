@@ -352,9 +352,12 @@ export default function Navbar() {
           <div className="ox-nav-mobile-controls" style={{
             display: 'none',
             alignItems: 'center',
+            justifyContent: 'flex-end',
             gap: 'var(--space-2)',
+            marginLeft: 'auto',
           }}>
             <LanguageSelector />
+            <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
