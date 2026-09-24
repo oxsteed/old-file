@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
+const { getEffectiveTier } = require('../utils/trial');
 const {
   createQRCode,
   getQRCodes,
@@ -14,14 +15,26 @@ const {
   downloadQRCode,
 } = require('../controllers/qrCodesController');
 
-// Simple middleware to check Pro tier (helper_pro role)
+// QR generation is a Pro helper feature. A helper can reach Pro through
+// the dedicated helper_pro/broker role, a current Pro membership, or an
+// active Pro trial. Keep the legacy tier2 value valid during migration.
 const requireProTier = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  if (req.user.role !== 'helper_pro' && req.user.role !== 'broker') {
+
+  const helperRole = ['helper', 'helper_pro', 'broker'].includes(req.user.role);
+  const proRole = ['helper_pro', 'broker'].includes(req.user.role);
+  const membershipTier = String(req.user.membership_tier || '').toLowerCase();
+  const effectiveTier = getEffectiveTier(req.user);
+  const hasProTier = proRole
+    || ['pro', 'tier2'].includes(membershipTier)
+    || effectiveTier === 'pro';
+
+  if (!helperRole || !hasProTier) {
     return res.status(403).json({
       error: 'Pro tier required',
+      code: 'QR_PRO_REQUIRED',
       message: 'This feature is only available for Pro helpers'
     });
   }
