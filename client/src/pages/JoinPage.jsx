@@ -248,8 +248,11 @@ export default function JoinPage() {
       <AuthNavbar
         links={[
           { to: '/how-it-works', label: t('nav.howItWorks'), hideOnSmall: true },
-          { to: '/login', label: t('nav.signIn') },
         ]}
+        cta={{
+          to: '/login',
+          label: t('nav.signIn'),
+        }}
       />
 
       <div className="flex-1 flex flex-col items-center px-4 py-8 md:py-12">
