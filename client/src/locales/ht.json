@@ -930,7 +930,7 @@
     "howItWorks": "Kijan sa Mache",
     "about": "Apwopo",
     "findHelpers": "Jwenn Pwofesyonèl",
-    "restaurants": "OxSteed Restaurants",
+    "restaurants": "Local Food Directory",
     "direct": "OxSteed Direct",
     "support": "Sipò",
     "consultingIntake": "Pwogram Lansman Biznis",
@@ -2518,7 +2518,7 @@
       "skillsEyebrow": "Mache sèvis",
       "skillsTitle": "Jwenn bon moun pou travay ou bezwen fè a.",
       "skillsText": "Pibliye yon travay, konpare òf, oswa rezève yon moun lokal ou fè konfyans dirèkteman.",
-      "foodEyebrow": "OxSteed Restaurants",
+      "foodEyebrow": "Local Food Directory",
       "foodTitle": "Manje lokal, kòmande jan ou vle.",
       "foodText": "Gade meni ki disponib, kòmande davans, epi swiv tout etap yo jouk lè ou pran manje a oswa yo livre li.",
       "browseRestaurants": "Gade restoran yo",
@@ -14015,7 +14015,7 @@
       "no": "Non"
     },
     "home": {
-      "title": "OxSteed Restaurants",
+      "title": "Local Food Directory",
       "subtitle": "Kòmande davans oswa nan restoran an, nan restoran ki tou pre w - nenpòt kote nan mond lan.",
       "searchPlaceholder": "Chèche restoran oswa kalite manje",
       "searchBtn": "Chèche",
@@ -14510,7 +14510,7 @@
       "price": "Pri",
       "advancedCoords": "Avanse: kowòdone GPS (si w vle)",
       "landing": {
-        "eyebrow": "OxSteed Restaurants",
+        "eyebrow": "Local Food Directory",
         "headline": "Zouti nivo franchise pou restoran endepandan",
         "sub": "Kòmanse menm jou a. Aksepte kòmand nan kontwa, kiosk, afichaj kwizin, ak sou entènèt — tout nan yon sèl backend pataje.",
         "cta": "Ajoute restoran ou",
@@ -14519,7 +14519,7 @@
         "f2Title": "Kòmand sou plizyè ekran",
         "f2Desc": "Kontwa, kiosk, KDS, ak sou entènèt — tout senkronize otomatikman.",
         "f3Title": "Mak endepandan",
-        "f3Desc": "Non ou, idantite ou. Alimante pa OxSteed Restaurants dèyè.",
+        "f3Desc": "Non ou, idantite ou. Alimante pa Local Food Directory dèyè.",
         "f4Title": "Pare pou lemond",
         "f4Desc": "Meni plizyè lang ak sipò peman entènasyonal depi premye jou a.",
         "step1": "Ajoute restoran ou",
@@ -14814,7 +14814,7 @@
       "hint": "Anboche èd lokal, poste travay, konpare òf yo"
     },
     "restaurants": {
-      "title": "OxSteed Restaurants",
+      "title": "Local Food Directory",
       "hint": "Zouti nivo franchiz pou restoran endepandan"
     },
     "logistics": {
@@ -14847,7 +14847,7 @@
   },
   "restaurants": {
     "nav": {
-      "entry": "OxSteed Restaurants"
+      "entry": "Local Food Directory"
     },
     "ops": {
       "title": "Operasyon",
@@ -15267,8 +15267,8 @@
   "publicSeo": {
     "help": {
       "restaurant": {
-        "title": "Sant èd OxSteed Restaurants | Kòmand ak sipò",
-        "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan OxSteed Restaurants."
+        "title": "Sant èd Local Food Directory | Kòmand ak sipò",
+        "description": "Aprann kijan pou chèche restoran, jere meni, fè kòmand, swiv manje, epi jwenn sipò nan Local Food Directory."
       },
       "manager": {
         "title": "Sant èd OxSteed Manager | Operasyon restoran",
