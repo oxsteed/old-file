@@ -8,7 +8,7 @@ function sanitizeCountry(code) {
 }
 
 /**
- * Submit a Business Launch Program intake form
+ * Submit a Founder Development Program intake form
  * POST /api/consulting/business-launch/submit
  */
 async function submitBusinessLaunchRequest(req, res) {
@@ -677,15 +677,15 @@ async function sendClientConfirmationEmail(
 async function sendStatusUpdateEmail(request, newStatus) {
   const statusMessages = {
     pending: {
-      subject: 'We received your Business Launch Program application',
+      subject: 'We received your Founder Development Program application',
       message: 'We have received your intake form and are reviewing it. Our team will reach out within 24 hours.',
     },
     contacted: {
-      subject: 'Next steps for your Business Launch Program',
+      subject: 'Next steps for your Founder Development Program',
       message: 'We have reviewed your submission and will be reaching out shortly with next steps and to schedule your kickoff call.',
     },
     kickoff_scheduled: {
-      subject: 'Your Business Launch Program kickoff is scheduled!',
+      subject: 'Your Founder Development Program kickoff is scheduled!',
       message: 'Your kickoff call is now scheduled. Check your email for the calendar invite and preparation materials.',
     },
     in_progress: {
@@ -697,13 +697,13 @@ async function sendStatusUpdateEmail(request, newStatus) {
       message: 'Your business is now fully set up and ready to launch. We wish you success in your new venture!',
     },
     cancelled: {
-      subject: 'Your Business Launch Program request has been cancelled',
+      subject: 'Your Founder Development Program request has been cancelled',
       message: 'Your intake form request has been cancelled. If you have any questions, please contact support.',
     },
   };
 
   const { subject, message } = statusMessages[newStatus] || {
-    subject: 'Business Launch Program Status Update',
+    subject: 'Founder Development Program Status Update',
     message: 'Your request status has been updated.',
   };
 
