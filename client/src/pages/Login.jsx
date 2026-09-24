@@ -250,7 +250,7 @@ export default function Login() {
           <div className="w-full max-w-md space-y-8">
 
             {/* Mobile wordmark */}
-            <div className="lg:hidden text-center">
+            <div className="hidden lg:block text-center">
               <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
               <p className="text-[var(--color-text-faint)] mt-1">{t('login.brandTagline')}</p>
             </div>
@@ -452,7 +452,7 @@ export default function Login() {
             </form>
 
             {/* Divider */}
-            <div className="relative">
+            <div className="relative hidden lg:block">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-800" />
               </div>
@@ -462,7 +462,7 @@ export default function Login() {
             </div>
 
             {/* Sign-up link */}
-            <div className="flex justify-center">
+            <div className="hidden lg:flex justify-center">
               <Link
                 to="/join"
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
