@@ -1444,7 +1444,7 @@ function MerchantLanding({ t, onStart }) {
   return (
     <div className="fd-merchant-landing">
       <div className="fd-merchant-landing-pitch">
-        <span className="fd-merchant-landing-eyebrow">{t('food.merchant.landing.eyebrow', 'OxSteed Restaurants')}</span>
+        <span className="fd-merchant-landing-eyebrow">{t('food.merchant.landing.eyebrow', 'Local Food Directory')}</span>
         <h2 className="fd-merchant-landing-headline">{t('food.merchant.landing.headline', 'Franchise-grade tools for independent restaurants')}</h2>
         <p className="fd-merchant-landing-sub">{t('food.merchant.landing.sub', 'Go live the same day. Accept orders at the counter, kiosk, kitchen display, and online — all from one shared backend.')}</p>
         <button type="button" className="fd-btn fd-merchant-landing-cta" onClick={onStart}>
