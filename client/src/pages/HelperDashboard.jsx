@@ -983,10 +983,6 @@ export default function HelperDashboard() {
     }
   };
 
-  const startIdentityVerification = () => {
-    navigate('/verify-identity');
-  };
-
   // Form handlers
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -1272,6 +1268,14 @@ export default function HelperDashboard() {
               </div>
             </aside>
           </section>
+
+          {/* Dashboard tabs sit directly below the welcome and customer panels. */}
+          {tabs.length>1&&(
+            <div className="helper-dashboard-overview-area__tabs grid grid-cols-2 sm:flex gap-1.5 my-6 bg-gray-900/80 rounded-xl p-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
+            </div>
+          )}
+
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
@@ -1366,12 +1370,6 @@ export default function HelperDashboard() {
                   Helpers can accept restaurant-credit work and record direct-payment proof in chat or activity history.
                 </p>
               </div>
-              <Link
-                to="/activity"
-                className="shrink-0 px-4 py-2 bg-emerald-400 text-gray-950 font-semibold text-sm rounded-lg hover:bg-emerald-300 transition-colors"
-              >
-                View history
-              </Link>
             </div>
 
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
@@ -1488,12 +1486,6 @@ export default function HelperDashboard() {
                   >
                     {t('nav.settings')}
                   </Link>
-                  <Link
-                    to="/activity"
-                    className="inline-flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold px-4 py-2 rounded-lg transition"
-                  >
-                    View history
-                  </Link>
                 </div>
               </Card>}
               {backgroundChecksAvailable && <Card>
@@ -1505,7 +1497,7 @@ export default function HelperDashboard() {
                   <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
                   {isIdVerified
                     ? <Tag text={idVerificationStatusLabel} color="green"/>
-                    : (<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
+                    : <p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p>}
                 </Card>
               </div>
 
@@ -1526,13 +1518,6 @@ export default function HelperDashboard() {
             }
           </Card>}
           </div>
-
-          {/* Tabs stay below the verification and nearby jobs sections. */}
-          {tabs.length>1&&(
-            <div className="helper-dashboard-overview-area__tabs grid grid-cols-2 sm:flex gap-1.5 my-6 bg-gray-900/80 rounded-xl p-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`w-full sm:flex-1 sm:min-w-0 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
-            </div>
-          )}
 
           {tab==='pulse'&&(<>
 
