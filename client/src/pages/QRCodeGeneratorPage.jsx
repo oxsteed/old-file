@@ -17,6 +17,7 @@ const QRCodeGeneratorPage = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const qrRef = useRef(null);
+  const logoInputRef = useRef(null);
   const canUseQr = canUseQrGenerator(user);
 
   // State for live preview form
@@ -38,6 +39,7 @@ const QRCodeGeneratorPage = () => {
   const [loading, setLoading] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [logoDataUrl, setLogoDataUrl] = useState('');
 
   // Initialize QR code instance and regenerate on changes
   useEffect(() => {
@@ -48,6 +50,13 @@ const QRCodeGeneratorPage = () => {
         width: formData.size,
         height: formData.size,
         data: formData.url,
+        image: logoDataUrl || undefined,
+        imageOptions: logoDataUrl ? {
+          hideBackgroundDots: true,
+          imageSize: 0.22,
+          margin: 5,
+        } : undefined,
+        qrOptions: logoDataUrl ? { errorCorrectionLevel: 'H' } : undefined,
         dotsOptions: {
           color: formData.dotColor,
           type: formData.dotStyle,
@@ -75,7 +84,7 @@ const QRCodeGeneratorPage = () => {
       logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
       toast.error(t('qrGenerator.errorGenerating'));
     }
-  }, [formData, t]);
+  }, [formData, logoDataUrl, t]);
 
   // Fetch saved QR codes only after the same Pro entitlement check used by
   // the API. This prevents a generic load error for regular helpers.
@@ -118,6 +127,44 @@ const QRCodeGeneratorPage = () => {
       [name]: value,
     }));
   };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(t('qrGenerator.logoUnsupported'));
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('qrGenerator.logoTooLarge'));
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setLogoDataUrl(reader.result);
+      } else {
+        toast.error(t('qrGenerator.errorGenerating'));
+      }
+    };
+    reader.onerror = () => {
+      logger.error('QRCodeGeneratorPage: failed to read logo image');
+      toast.error(t('qrGenerator.errorGenerating'));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoDataUrl('');
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
 
   const handleSaveQR = async () => {
     if (!formData.title.trim()) {
@@ -302,6 +349,29 @@ const QRCodeGeneratorPage = () => {
                   <option value="classy">{t('qrGenerator.styleClassy')}</option>
                   <option value="classy-rounded">{t('qrGenerator.styleClassyRounded')}</option>
                 </select>
+              </div>
+
+              <div className="qrg-form-group">
+                <label htmlFor="logoUpload">{t('qrGenerator.logo')}</label>
+                <input
+                  ref={logoInputRef}
+                  id="logoUpload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleLogoChange}
+                  className="qrg-file-input"
+                />
+                {logoDataUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="qrg-button qrg-button-secondary"
+                    style={{ marginTop: '12px' }}
+                  >
+                    <Trash2 size={16} />
+                    {t('qrGenerator.removeLogo')}
+                  </button>
+                )}
               </div>
 
               <div className="qrg-color-row">
