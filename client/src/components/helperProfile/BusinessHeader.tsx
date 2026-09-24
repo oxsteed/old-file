@@ -89,6 +89,8 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
 
   const variant = variantProp
     || (shareI18nPrefix === 'businessProfile' ? 'business' : 'helper');
+  const badges = helper.badges || [];
+  const categories = helper.categories || [];
 
   const summary = buildFullProfileHeaderSummaryModel({
     variant,
@@ -188,7 +190,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
       coverOverlay={coverOverlay}
       actions={actions}
     >
-      {(helper.badges || []).length > 0 && (
+      {badges.length > 0 && (
         <ul
           className="flex flex-wrap justify-center sm:justify-start gap-2"
           aria-label={t('helperProfile.header.trustBadgesAria')}
@@ -208,9 +210,9 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         </ul>
       )}
 
-      {(helper.categories || []).length > 0 && (
+      {categories.length > 0 && (
         <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
-          {helper.categories.map((cat) => (
+          {categories.map((cat) => (
             <span
               key={cat}
               className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
