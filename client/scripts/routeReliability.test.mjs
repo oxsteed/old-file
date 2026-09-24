@@ -56,7 +56,7 @@ test('service worker is release-versioned and does not cache arbitrary HTML navi
 
 test('missing assets are rejected before the SPA catch-all', () => {
   const server = repo('server/index.js');
-  const missingAsset = server.indexOf("app.use('/assets', (_req, res)");
+  const missingAsset = server.indexOf("app.use('/assets', (req, res)");
   const catchAll = server.indexOf("app.get('*'");
   assert.ok(missingAsset >= 0);
   assert.ok(catchAll > missingAsset);
