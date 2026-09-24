@@ -79,13 +79,9 @@ export default function Footer() {
               <span className="site-footer__heading">
                 {t('footer.platform')}
               </span>
-              {!user && (
-                <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
-              )}
-              <FooterLink to="/restaurants">{t('footer.restaurants')}</FooterLink>
               <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
+              <FooterLink to="/logistics">{t('footer.logistics')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
-              {LAUNCH_VISIBILITY.productMarketplace && <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>}
               {isHelper && (
                 <>
                   <span className="site-footer__heading site-footer__heading--nested">
