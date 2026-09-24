@@ -624,16 +624,38 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
   // (express.static would serve bare index.html for / without structured data)
   app.use(prerenderHelperProfile);
 
-  app.use(express.static(path.join(__dirname, '../client/dist'), {
+  const clientDist = path.join(__dirname, '../client/dist');
+  const currentAssets = path.join(clientDist, 'assets');
+  const retainedAssets = path.join(
+    process.env.WEB_ASSET_STORE || path.join(__dirname, 'runtime/web-assets'),
+    'assets',
+  );
+  const setImmutableAssetHeaders = (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  };
+
+  // Serve current and retained fingerprinted assets before the SPA fallback.
+  // The retained store keeps chunks available to tabs that predate a deploy.
+  app.use('/assets', express.static(currentAssets, {
+    setHeaders: setImmutableAssetHeaders,
+  }));
+  app.use('/assets', express.static(retainedAssets, {
+    setHeaders: setImmutableAssetHeaders,
+  }));
+  // Never return index.html for an asset request: a missing JS chunk must be
+  // observable as a real 404 and must not fail as an HTML module response.
+  app.use('/assets', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(404).type('text/plain').send('Asset not found');
+  });
+
+  app.use(express.static(clientDist, {
     setHeaders(res, filePath) {
       const normalizedPath = filePath.split(path.sep).join('/');
       if (normalizedPath.includes('/assets/')) {
-        // Vite fingerprints production assets, so they can be retained by
-        // browsers and CDNs for a year without serving stale application code.
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      } else if (filePath.endsWith('.html')) {
-        // HTML contains the current asset manifest and must revalidate after a
-        // deployment so clients discover the latest hashed entry points.
+        setImmutableAssetHeaders(res);
+      } else if (path.basename(filePath) === 'sw.js' || filePath.endsWith('.html')) {
+        // HTML and the service worker must revalidate after a deployment.
         res.setHeader('Cache-Control', 'no-cache');
       }
     },
@@ -642,12 +664,12 @@ if (process.env.NODE_ENV === 'production' || process.env.CREDIT_TEST_SERVE_STATI
   // Admin SPA - serve admin.html for the bare entry point and all nested routes.
   // Express does not match `/admin` with the `/admin/*` pattern.
   app.get(['/admin', '/admin/*'], (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
+    res.sendFile(path.join(clientDist, 'admin.html'));
   });
 
   // Main SPA - catch-all for everything else
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
 
