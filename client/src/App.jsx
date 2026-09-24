@@ -13,6 +13,8 @@ import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBound
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import ImpersonationBanner from './components/ImpersonationBanner';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+import { routeLoaders } from './utils/routePrefetch';
 const ImpersonatePage = lazyWithRetry(() => import('./pages/ImpersonatePage'));
 const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
@@ -187,8 +189,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
 import { LanguageProvider } from './context/LanguageContext';
 import { getLaunchRedirect } from './utils/launchScope';
-import { lazyWithRetry } from './utils/lazyWithRetry';
-import { routeLoaders } from './utils/routePrefetch';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
