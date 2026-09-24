@@ -21,13 +21,21 @@ CREATE TABLE IF NOT EXISTS guest_profile_chat_inbound (
 );
 
 ALTER TABLE guest_profile_chat_inbound
-  ALTER COLUMN message DROP NOT NULL,
+  ADD COLUMN IF NOT EXISTS helper_id UUID,
+  ADD COLUMN IF NOT EXISTS business_id INTEGER,
+  ADD COLUMN IF NOT EXISTS guest_name VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS guest_email VARCHAR(254),
+  ADD COLUMN IF NOT EXISTS message TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS guest_id UUID REFERENCES users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS guest_access_token_hash CHAR(64),
   ADD COLUMN IF NOT EXISTS guest_token_expires_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS guest_verified_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS verification_status VARCHAR(32) DEFAULT 'unverified',
   ADD COLUMN IF NOT EXISTS client_request_id UUID;
+
+ALTER TABLE guest_profile_chat_inbound
+  ALTER COLUMN message DROP NOT NULL;
 
 UPDATE guest_profile_chat_inbound
    SET verification_status = 'unverified'
