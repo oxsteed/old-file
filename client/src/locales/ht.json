@@ -8110,7 +8110,11 @@
     "downloadPNG": "Telechaje PNG",
     "downloadSVG": "Telechaje SVG",
     "errorGenerating": "Erè toujou ap jenere kòd QR",
-    "loadError": "Erè toujou ap chaje kòd QR sove ou"
+    "loadError": "Erè toujou ap chaje kòd QR sove ou",
+    "proRequiredTitle": "Kòd QR yo se yon fonksyon Pro pou asistan",
+    "proRequiredDescription": "Mete plan asistan ou ajou pou kreye epi sove kòd QR pou biznis ou.",
+    "viewPlans": "Gade plan Pro yo",
+    "proRequired": "Pou sove kòd QR, ou bezwen yon plan Pro pou asistan."
   },
   "consulting": {
     "title": "Konsèy Asansyon Biznis",
