@@ -23,7 +23,7 @@ test('common route loaders are shared by prefetching and route definitions', () 
     ['jobs', 'routeLoaders.jobs'],
   ]) {
     assert.match(loaders, new RegExp(`\\b${name}: createLoader`));
-    assert.match(app, new RegExp(route.replace('.', '\\.'), `${name} must use its shared loader`));
+    assert.match(app, new RegExp(route.replace('.', '\\.')), `${name} must use its shared loader`);
   }
 });
 
