@@ -895,10 +895,12 @@ html:not(.dark) .helper-availability-row__dot--active,
 @media (min-width: 1024px) {
   .helper-dashboard-overview-area {
     display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(22rem, 0.92fr);
+    grid-template-columns: minmax(22rem, 0.92fr) minmax(0, 1.08fr);
     grid-template-areas:
-      "availability tabs"
-      "availability summary";
+      "tabs availability"
+      "summary availability"
+      "summary jobs"
+      "quicklinks quicklinks";
     align-items: start;
     gap: 1rem;
   }
@@ -918,6 +920,15 @@ html:not(.dark) .helper-availability-row__dot--active,
     gap: 0.75rem;
   }
   .helper-dashboard-overview-area__summary > * {
+    margin-bottom: 0 !important;
+  }
+  .helper-dashboard-overview-area__jobs {
+    grid-area: jobs;
+    min-width: 0;
+    margin-bottom: 0 !important;
+  }
+  .helper-dashboard-overview-area__quick-actions {
+    grid-area: quicklinks;
     margin-bottom: 0 !important;
   }
   .helper-overview-summary-stats {

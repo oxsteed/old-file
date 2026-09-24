@@ -1518,36 +1518,36 @@ export default function HelperDashboard() {
 
             </>)}
           </div>)}
+
+          {/* Quick actions remain between the summary and nearby jobs on mobile. */}
+          {tab==='pulse'&&<div className="helper-dashboard-overview-area__quick-actions grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+            {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400',visible:SHOW_HELPER_TOOL_RENTALS},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400',visible:LAUNCH_VISIBILITY.templates}].filter((a)=>a.visible!==false).map((a,i)=>(
+              <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <a.Ic size={18} cls={a.c}/>
+                  {!!a.badge&&<span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">{a.badge>99?'99+':a.badge}</span>}
+                </div>
+                <span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
+              </Link>
+            ))}
+          </div>}
+
+          {/* Nearby jobs stay with the availability controls on desktop. */}
+          {tab==='pulse'&&<Card className="helper-dashboard-overview-area__jobs mb-6">
+            <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
+            {nearbyJobs.length===0
+              ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.noNearbyJobs')} <Link to="/jobs" className="text-orange-400 hover:text-orange-300">{t('helperDashboard.browseAllJobs')}</Link>.</p>
+              : <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
+                  <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
+                    <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
+                    {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
+                  </Link>
+                ))}</div>
+            }
+          </Card>}
           </div>
 
           {tab==='pulse'&&(<>
-
-            {/* Quick actions */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400',visible:SHOW_HELPER_TOOL_RENTALS},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400',visible:LAUNCH_VISIBILITY.templates}].filter((a)=>a.visible!==false).map((a,i)=>(
-                <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
-                  <div className="relative flex-shrink-0">
-                    <a.Ic size={18} cls={a.c}/>
-                    {!!a.badge&&<span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">{a.badge>99?'99+':a.badge}</span>}
-                  </div>
-                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
-                </Link>
-              ))}
-            </div>
-
-            {/* Nearby jobs */}
-            <Card className="mb-6">
-              <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
-              {nearbyJobs.length===0
-                ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.noNearbyJobs')} <Link to="/jobs" className="text-orange-400 hover:text-orange-300">{t('helperDashboard.browseAllJobs')}</Link>.</p>
-                : <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
-                    <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
-                      <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
-                      {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
-                    </Link>
-                  ))}</div>
-              }
-            </Card>
 
             {/* Community stats */}
             {SHOW_HELPER_COMMUNITY_PULSE && life.community && (
