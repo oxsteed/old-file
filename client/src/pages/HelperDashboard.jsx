@@ -1278,8 +1278,24 @@ export default function HelperDashboard() {
 
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
+          {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
+              <h2 className="text-base font-bold text-white mb-1">Promote your services with ready-made links, QR codes, and local posts.</h2>
+              <p className="text-sm text-gray-400 max-w-2xl">
+                Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.
+              </p>
+            </div>
+          <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition">
+              Open Growth Center
+            </Link>
+          </div>
+          )}
+
+          <div className="helper-dashboard-overview-area">
           {/* Compact availability controls */}
-          <section className="helper-availability-card mb-6" aria-labelledby="helper-availability-heading">
+          <section className="helper-availability-card helper-dashboard-overview-area__availability" aria-labelledby="helper-availability-heading">
             <div className="helper-availability-card__header">
               <div>
                 <p className="helper-availability-card__eyebrow">
@@ -1334,30 +1350,15 @@ export default function HelperDashboard() {
             </div>
           </section>
 
-          {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
-              <h2 className="text-base font-bold text-white mb-1">Promote your services with ready-made links, QR codes, and local posts.</h2>
-              <p className="text-sm text-gray-400 max-w-2xl">
-                Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.
-              </p>
-            </div>
-          <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition">
-              Open Growth Center
-            </Link>
-          </div>
-          )}
-
           {/* Tabs */}
           {tabs.length>1&&(
-            <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+            <div className="helper-dashboard-overview-area__tabs grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
               {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-white':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
             </div>
           )}
 
           {/* ═══════ PULSE ═══════ */}
-          {tab==='pulse'&&(<>
+          {tab==='pulse'&&(<div className="helper-dashboard-overview-area__summary">
             {error && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
                 <span>⚠</span>
@@ -1440,7 +1441,7 @@ export default function HelperDashboard() {
           })()}
 
           {/* Summary stat cards */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
+          <div className={`helper-overview-summary-stats grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.jobsCompleted')}</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:t('helperDashboard.noReviewsYet')}</p></Card>
             {SHOW_HELPER_EARNINGS && <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(s?.finances?.net || 0)}</p><p className="text-xs text-gray-500 mt-1">{t('dashboard.money.inOutSummary', { income: formatMoney(s?.finances?.total_income || 0, { maximumFractionDigits: 0 }), expenses: formatMoney(s?.finances?.total_expenses || 0, { maximumFractionDigits: 0 }) })}</p></Card>}
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.activeBids')}</p><p className="text-2xl font-bold text-blue-400">{activeBids.length}</p><p className="text-xs text-gray-500 mt-1">{wonBids.length} {t('helperDashboard.accepted')}</p></Card>
@@ -1449,7 +1450,7 @@ export default function HelperDashboard() {
 
           {!showOnboarding&&(<>
             {/* Verification cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <div className="helper-overview-verification-grid grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               {SHOW_HELPER_SUBSCRIPTIONS && <Card>
                 <div className="flex items-center gap-2 mb-3">
                   <IcoDollar size={16} cls="text-orange-400" />
@@ -1515,6 +1516,12 @@ export default function HelperDashboard() {
                 </Card>
               </div>
 
+            </>)}
+          </div>)}
+          </div>
+
+          {tab==='pulse'&&(<>
+
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
               {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400',visible:SHOW_HELPER_TOOL_RENTALS},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400',visible:LAUNCH_VISIBILITY.templates}].filter((a)=>a.visible!==false).map((a,i)=>(
@@ -1569,7 +1576,6 @@ export default function HelperDashboard() {
               </div>
             )}
           </>)}
-        </>)}
 
         {/* ═══════ EDIT PROFILE ═══════ */}
         {tab==='editprofile'&&<EditProfileTab />}
