@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
+import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
@@ -178,7 +179,7 @@ export default function Footer() {
 }
 
 function FooterLink({ to, children }) {
-  return <Link className="site-footer__link" to={to}>{children}</Link>;
+  return <PrefetchLink className="site-footer__link" to={to}>{children}</PrefetchLink>;
 }
 
 function VortexModal({ onClose, initialToken = '' }) {
