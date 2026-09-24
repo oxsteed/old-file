@@ -8110,7 +8110,11 @@
     "downloadPNG": "Download PNG",
     "downloadSVG": "Download SVG",
     "errorGenerating": "Failed to generate QR code",
-    "loadError": "Failed to load your saved QR codes"
+    "loadError": "Failed to load your saved QR codes",
+    "proRequiredTitle": "QR codes are a Pro helper feature",
+    "proRequiredDescription": "Upgrade your helper plan to create and save QR codes for your business.",
+    "viewPlans": "View Pro plans",
+    "proRequired": "Saving QR codes requires a Pro helper plan."
   },
   "consulting": {
     "title": "Business Ascension Consulting",
