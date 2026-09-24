@@ -266,7 +266,7 @@ export default function MerchantOnboardingWizard({
             <span className="fd-onboarding-flame" aria-hidden>🔥</span>
             <div>
               <p className="fd-onboarding-eyebrow">{t('food.onboarding.eyebrow', 'Opening Night')}</p>
-              <p className="fd-onboarding-brand-name">OxSteed Restaurants</p>
+              <p className="fd-onboarding-brand-name">Local Food Directory</p>
             </div>
           </div>
           <button
