@@ -58,6 +58,10 @@ const CTASection: React.FC<CTASectionProps> = ({
   const priceUnitLabel = formatPriceUnit(t, startingService);
 
   const primaryEnabled = hasServices || allowPrimaryWithoutServices;
+  const primaryAction = primaryEnabled ? onBookNow : onMessageHelper;
+  const primaryButtonLabel = primaryEnabled
+    ? (primaryLabel || t('helperProfile.cta.bookNow'))
+    : t('helperProfile.cta.contactForPricing');
 
   return (
     <aside
@@ -112,18 +116,12 @@ const CTASection: React.FC<CTASectionProps> = ({
       {/* CTAs - Always Visible */}
       <div className="px-5 py-4 space-y-3">
         <button
-          onClick={primaryEnabled ? onBookNow : undefined}
-          disabled={!primaryEnabled}
-          title={!primaryEnabled ? t('helperProfile.cta.noServicesTitle') : undefined}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-white font-semibold text-sm transition-colors active:scale-[0.98] ${
-            primaryEnabled
-              ? 'bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 cursor-pointer'
-              : 'bg-gray-700 cursor-not-allowed opacity-60'
-          }`}
-          aria-label={primaryEnabled ? t('helperProfile.cta.bookNowAria') : t('helperProfile.cta.bookingUnavailableAria')}
+          onClick={primaryAction}
+          className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 text-white font-semibold text-sm transition-colors active:scale-[0.98]"
+          aria-label={primaryEnabled ? t('helperProfile.cta.bookNowAria') : t('helperProfile.cta.messageHelperAria')}
         >
           <CalendarCheck className="w-4 h-4" aria-hidden="true" />
-          {primaryLabel || t('helperProfile.cta.bookNow')}
+          {primaryButtonLabel}
         </button>
         <button
           onClick={onMessageHelper}
