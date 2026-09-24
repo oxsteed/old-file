@@ -67,7 +67,10 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   variant: variantProp,
 }) => {
   const { t } = useTranslation();
-  const memberYear = new Date(helper.memberSince).getFullYear();
+  const memberDate = helper.memberSince ? new Date(helper.memberSince) : null;
+  const memberYear = memberDate && !Number.isNaN(memberDate.getTime())
+    ? memberDate.getFullYear()
+    : null;
   const qrSrc = helperId ? getHelperProfileQrPngUrl(helperId, 160) : '';
 
   const ratingLabel = helper.reviewCount > 0
@@ -75,11 +78,13 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
     : t('helperProfile.header.noReviewsYet');
 
   const metaExtra = [
-    t('helperProfile.header.jobsDone', { count: helper.jobsCompleted }),
+    helper.jobsCompleted > 0
+      ? t('helperProfile.header.jobsDone', { count: helper.jobsCompleted })
+      : t('helperProfile.header.newHelper'),
     helper.responseTime && helper.responseTime.toLowerCase() !== 'varies'
       ? t('helperProfile.header.respondsIn', { time: helper.responseTime })
       : t('helperProfile.header.responseVaries'),
-    t('helperProfile.header.memberSince', { year: memberYear }),
+    memberYear ? t('helperProfile.header.memberSince', { year: memberYear }) : null,
   ].filter(Boolean).join(' · ');
 
   const variant = variantProp
@@ -183,7 +188,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
       coverOverlay={coverOverlay}
       actions={actions}
     >
-      {helper.badges.length > 0 && (
+      {(helper.badges || []).length > 0 && (
         <ul
           className="flex flex-wrap justify-center sm:justify-start gap-2"
           aria-label={t('helperProfile.header.trustBadgesAria')}
@@ -203,7 +208,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         </ul>
       )}
 
-      {helper.categories.length > 0 && (
+      {(helper.categories || []).length > 0 && (
         <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
           {helper.categories.map((cat) => (
             <span
