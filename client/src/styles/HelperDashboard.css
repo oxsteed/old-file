@@ -908,9 +908,9 @@ html:not(.dark) .helper-availability-row__dot--active,
     margin-bottom: 0 !important;
   }
   .helper-dashboard-overview-area__tabs {
-    grid-area: tabs;
     min-width: 0;
-    margin: 0 !important;
+    width: 100%;
+    margin: 1.25rem 0 1.5rem !important;
   }
   .helper-dashboard-overview-area__summary {
     display: grid;
