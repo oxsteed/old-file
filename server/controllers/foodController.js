@@ -1012,7 +1012,7 @@ function checkoutCompletionHtml({ title, detail, actionLabel, actionHref }) {
       <h1>${safeTitle}</h1>
       <p>${safeDetail}</p>
       ${safeActionLabel && safeActionHref ? `<a href="${safeActionHref}">${safeActionLabel}</a>` : ''}
-      <small>You can return to the OxSteed Restaurants app at any time.</small>
+      <small>You can return to the Local Food Directory app at any time.</small>
     </main>
   </body>
 </html>`;
@@ -1089,7 +1089,7 @@ async function createFoodCheckoutSession({
           .map((item) => `${item.quantity}x ${item.menuItem.name}`)
           .slice(0, 6)
           .join(', ')
-          || 'OxSteed Restaurants order',
+          || 'Local Food Directory order',
       },
     },
   }];
