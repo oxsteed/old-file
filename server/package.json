@@ -4,7 +4,7 @@
   "description": "OxSteed v2 API server",
   "main": "index.js",
   "scripts": {
-    "start": "node migrate.js && node index.js",
+    "start": "node scripts/sync-web-assets.cjs && node migrate.js && node index.js",
     "migrate": "node migrate.js",
     "dev": "nodemon index.js",
     "test": "jest --runInBand --forceExit",
