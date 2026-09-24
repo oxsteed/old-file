@@ -9,6 +9,7 @@ services:
         SENTRY_RELEASE: ${SENTRY_RELEASE}
         COMMIT_SHA: ${COMMIT_SHA}
         SOURCE_COMMIT: ${SOURCE_COMMIT}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-${COMMIT_SHA:-${SOURCE_COMMIT}}}
         VITE_AWS_LOCATION_API_KEY: ${VITE_AWS_LOCATION_API_KEY}
         VITE_AWS_LOCATION_REGION: ${VITE_AWS_LOCATION_REGION:-us-east-1}
     restart: unless-stopped
@@ -103,6 +104,7 @@ services:
       - "5000"
     volumes:
       - /Users/oxsteed/Documents/GitHub/6/server/runtime/uploads:/app/server/runtime/uploads
+      - oxsteed-web-assets:/app/server/runtime/web-assets
     networks:
       - oxsteed-production
     healthcheck:
@@ -111,6 +113,10 @@ services:
       timeout: 10s
       start_period: 90s
       retries: 5
+
+volumes:
+  oxsteed-web-assets:
+    name: oxsteed-web-assets
 
 networks:
   oxsteed-production:
