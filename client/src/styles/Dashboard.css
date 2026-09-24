@@ -192,12 +192,12 @@ html:not(.dark) .customer-launch-dashboard .customer-dashboard-quick-link svg {
 }
 
 .dashboard-quick-links__link--verify {
-  background: var(--color-primary, #f97316);
-  color: var(--color-text-on-action, #ffffff);
+  background: var(--color-action, #c2410c);
+  color: var(--color-on-action, #ffffff);
 }
 
 .dashboard-quick-links__link--verify:hover,
 .dashboard-quick-links__link--verify:focus-visible {
-  background: var(--color-primary-hover, #ea580c);
-  color: var(--color-text-on-action, #ffffff);
+  background: var(--color-action-hover, #9a3412);
+  color: var(--color-on-action, #ffffff);
 }
