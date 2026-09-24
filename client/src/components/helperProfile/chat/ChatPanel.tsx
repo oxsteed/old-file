@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Search, Maximize2, Calendar } from 'lucide-react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Maximize2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -219,22 +219,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const textareaRef = messageInputRef || internalTextareaRef;
 
-  // Search state
-  const [searchQuery,      setSearchQuery]      = useState('');
-  const [searchFilter,     setSearchFilter]     = useState<'all' | 'me' | 'helper'>('all');
-  const [searchResults,    setSearchResults]    = useState<ChatMessage[]>([]);
-  const [searchLoading,    setSearchLoading]    = useState(false);
-  const searchTimeoutRef   = useRef<NodeJS.Timeout | null>(null);
-
   // Pagination state
   const [messageOffset,    setMessageOffset]    = useState(0);
   const [hasMoreMessages,  setHasMoreMessages]  = useState(true);
   const [loadingOlder,     setLoadingOlder]     = useState(false);
+  const timelineScrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingOlderScrollRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+  const loadingOlderRef = useRef(false);
 
   // Inline-edit state for ChatPanel messages
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText,      setEditingText]      = useState('');
-  const [searchOpen,       setSearchOpen]       = useState(false);
   const guestClaimKeyRef = useRef<string | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
   const [showProviderQuoteShare, setShowProviderQuoteShare] = useState(false);
@@ -1048,66 +1043,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     handleSend(text);
   }, [handleSend]);
 
-  // Debounced search handler
-  const performSearch = useCallback(async (q: string, filter: string) => {
-    if (!conversationId) return;
-
-    if (!q.trim()) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-
-    setSearchLoading(true);
-    try {
-      const { data } = await api.get(`/messages/conversations/${conversationId}/search`, {
-        params: {
-          q: q.trim(),
-          sender: filter,
-          limit: 50,
-          offset: 0,
-        },
-      });
-      setSearchResults(data.results || []);
-    } catch (error) {
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, [conversationId]);
-
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    };
-  }, []);
-
-  // Debounce search input
-  const handleSearchQueryChange = useCallback((q: string) => {
-    setSearchQuery(q);
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    searchTimeoutRef.current = setTimeout(() => {
-      performSearch(q, searchFilter);
-    }, 300);
-  }, [searchFilter, performSearch]);
-
-  const handleSearchFilterChange = useCallback((filter: 'all' | 'me' | 'helper') => {
-    setSearchFilter(filter);
-    if (searchQuery.trim()) {
-      performSearch(searchQuery, filter);
-    }
-  }, [searchQuery, performSearch]);
-
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
-    setSearchResults([]);
-  }, []);
-
-  // Load older messages
+  // Load earlier messages automatically when the conversation is scrolled to its top.
   const loadOlderMessages = useCallback(async () => {
-    if (!conversationId || loadingOlder || !hasMoreMessages) return;
+    if (!conversationId || loadingOlderRef.current || !hasMoreMessages) return;
 
+    loadingOlderRef.current = true;
     setLoadingOlder(true);
     try {
       const newOffset = messageOffset + 50;
@@ -1116,25 +1056,44 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       });
 
       if (data && data.length > 0) {
-        // Prepend older messages to the beginning of timeline (filter out duplicates)
         const messageIds = new Set(data.map((m: ChatMessage) => m.id));
         setSession(prev => ({
           ...prev,
           timeline: [...data, ...prev.timeline.filter(item => !(item.itemType === 'message' && messageIds.has(item.id)))],
         }));
         setMessageOffset(newOffset);
-        if (data.length < 50) {
-          setHasMoreMessages(false);
-        }
+        if (data.length < 50) setHasMoreMessages(false);
       } else {
+        pendingOlderScrollRef.current = null;
         setHasMoreMessages(false);
       }
     } catch (error) {
+      pendingOlderScrollRef.current = null;
       console.error('Error loading older messages:', error);
     } finally {
+      loadingOlderRef.current = false;
       setLoadingOlder(false);
     }
-  }, [conversationId, messageOffset, loadingOlder, hasMoreMessages]);
+  }, [conversationId, messageOffset, hasMoreMessages]);
+
+  const handleTimelineScroll = useCallback((container: HTMLDivElement) => {
+    if (container.scrollTop > 24 || !hasMoreMessages || loadingOlderRef.current) return;
+    timelineScrollRef.current = container;
+    pendingOlderScrollRef.current = {
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+    };
+    void loadOlderMessages();
+  }, [hasMoreMessages, loadOlderMessages]);
+
+  useLayoutEffect(() => {
+    const previousPosition = pendingOlderScrollRef.current;
+    const container = timelineScrollRef.current;
+    if (!previousPosition || !container) return;
+
+    container.scrollTop = previousPosition.scrollTop + (container.scrollHeight - previousPosition.scrollHeight);
+    pendingOlderScrollRef.current = null;
+  }, [session.timeline]);
 
   return (
     <div
@@ -1160,22 +1119,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             {dockChrome.showPanelTitle ? (
               <StatusBadge status={currentStatus} />
             ) : null}
-            <button
-              onClick={() => {
-                setSearchOpen((v) => {
-                  if (v) clearSearch();
-                  return !v;
-                });
-              }}
-              className="messages-thread-action-icon"
-              aria-label={t('helperProfile.chat.searchPlaceholder')}
-              title={t('helperProfile.chat.searchPlaceholder')}
-              type="button"
-              aria-pressed={searchOpen}
-            >
-              <Search className="w-4 h-4" aria-hidden="true" />
-              <span className="visually-hidden">{t('helperProfile.chat.searchPlaceholder')}</span>
-            </button>
             {onExpand && !roomy && !isDockMode && (
               <button
                 onClick={onExpand}
@@ -1231,52 +1174,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={handleDestinationChange}
         />
 
-        {isGuest && isProviderChatDestination(session.destination) && verifiedGuestSession ? (
-          <p
-            className={`text-xs rounded-lg px-2.5 py-1.5 border ${
-              helperIsLive
-                ? 'border-emerald-700/60 bg-emerald-950/40 text-emerald-300'
-                : 'border-amber-700/50 bg-amber-950/30 text-amber-200'
-            }`}
-            role="status"
-          >
-            {helperIsLive
-              ? t('helperProfile.messenger.guestLiveBanner')
-              : t('helperProfile.messenger.guestOfflineBanner')}
-          </p>
-        ) : null}
 
-        {searchOpen && (
-        <div className="flex gap-2 items-center">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => handleSearchQueryChange(e.target.value)}
-            placeholder={t('helperProfile.chat.searchPlaceholder')}
-            className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500"
-            aria-label={t('helperProfile.chat.searchPlaceholder')}
-          />
-          <select
-            value={searchFilter}
-            onChange={(e) => handleSearchFilterChange(e.target.value as 'all' | 'me' | 'helper')}
-            className="rounded-lg bg-gray-800 border border-gray-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
-            aria-label={t('helperProfile.chat.filterSearchResults')}
-          >
-            <option value="all">{t('helperProfile.chat.searchFilterAll')}</option>
-            <option value="me">{t('helperProfile.chat.searchFilterMe')}</option>
-            <option value="helper">{t('helperProfile.chat.searchFilterHelper')}</option>
-          </select>
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
-              aria-label={t('helperProfile.chat.clearSearch')}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-        )}
+
       </div>
 
       {/* ── Context banner (when OxSteed selected) ─────────── */}
@@ -1439,58 +1338,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         </div>
       )}
 
-      {/* ── Timeline / Search Results / Empty state ──────────── */}
-      {searchQuery ? (
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-2 min-h-0">
-          {searchLoading && (
-            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchLoading')}</p>
-          )}
-          {!searchLoading && searchResults.length === 0 && (
-            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchNoResults')}</p>
-          )}
-          {searchResults.length > 0 && (
-            <>
-              <p className="text-xs text-gray-500 text-center mb-2">
-                {searchResults.length === 1
-                  ? t('helperProfile.chat.searchResults', { count: searchResults.length })
-                  : t('helperProfile.chat.searchResultsPlural', { count: searchResults.length })}
-              </p>
-              <div className="space-y-2">
-                {searchResults.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:border-brand-600/50 transition-colors cursor-pointer"
-                    onClick={clearSearch}
-                  >
-                    <p className="text-xs text-gray-500 mb-1">
-                      {msg.sender_name || 'Unknown'} • {new Date(msg.timestamp).toLocaleString()}
-                    </p>
-                    <p className="line-clamp-2 text-gray-200">{msg.content}</p>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      ) : showOfflineWall ? (
+      {/* ── Timeline / Empty state ────────────────────────────── */}
+      {showOfflineWall ? (
         <UnavailableState
           destination={session.destination}
           helperName={helperName}
         />
       ) : (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {hasMoreMessages && (
-            <div className="px-4 pt-3 pb-2 flex-shrink-0">
-              <button
-                onClick={loadOlderMessages}
-                disabled={loadingOlder}
-                className="w-full py-2 px-3 text-xs text-gray-400 hover:text-gray-300 border border-gray-700/50 rounded-lg hover:border-gray-600/50 transition-colors disabled:opacity-50"
-              >
-                {loadingOlder ? t('common.loading') : t('messages.loadOlderMessages')}
-              </button>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+          <div
+            ref={timelineScrollRef}
+            onScroll={(event) => {
+              const container = event.currentTarget;
+              if (container.scrollTop <= 24) handleTimelineScroll(container);
+            }}
+            className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
+          >
+            {loadingOlder && (
+              <p className="px-4 pt-2 text-center text-xs text-gray-500" role="status">{t('common.loading')}</p>
+            )}
             {displayTimeline.length === 0 && !sending ? (
               <div className={`messages-thread-empty chat-panel__empty ${isDockMode ? 'chat-panel__empty--dock' : ''} flex flex-col items-center justify-center gap-2 px-6 py-10 text-center h-full min-h-[10rem]`}>
                 <MessageCircle className="w-8 h-8 text-gray-600" aria-hidden="true" />
