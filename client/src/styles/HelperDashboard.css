@@ -203,6 +203,12 @@
   display: grid;
   gap: 0.5rem;
 }
+
+.helper-availability-card__schedule {
+  margin-top: 1.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
 .helper-availability-row {
   display: flex;
   align-items: center;
@@ -896,16 +902,9 @@ html:not(.dark) .helper-availability-row__dot--active,
   .helper-dashboard-overview-area {
     display: grid;
     grid-template-columns: minmax(0, 1.18fr) minmax(25rem, 0.82fr);
-    grid-template-areas:
-      "tabs availability"
-      "summary availability"
-      "summary jobs";
+    grid-template-areas: "summary jobs";
     align-items: start;
     gap: 1rem;
-  }
-  .helper-dashboard-overview-area__availability {
-    grid-area: availability;
-    margin-bottom: 0 !important;
   }
   .helper-dashboard-overview-area__tabs {
     min-width: 0;
