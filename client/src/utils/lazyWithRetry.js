@@ -63,7 +63,7 @@ function clearRetryMarker(key) {
 
 export function isChunkLoadError(error) {
   const message = String(error?.message || error || '').toLowerCase();
-  return /failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk|module script failed|mime type/.test(message);
+  return /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|chunkloaderror|loading chunk|module script failed|mime type|load failed/.test(message);
 }
 
 export function forceChunkReload() {
