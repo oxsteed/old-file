@@ -27,9 +27,7 @@ export function FoodBrand({ size = 32, label = 'Local Food Directory' }) {
   return (
     <span className="fd-brand-badge">
       <FoodLogo size={size} />
-      <span>
-        OxSteed <span className="fd-brand-food">{label}</span>
-      </span>
+      <span className="fd-brand-food">{label}</span>
     </span>
   );
 }
