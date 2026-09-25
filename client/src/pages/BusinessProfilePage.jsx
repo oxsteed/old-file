@@ -275,7 +275,7 @@ function ContactLinksSection({ phone, website }) {
   );
 }
 
-function PropertyOperationsPublicSection({ data }) {
+function PropertyOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const packages = data.packages || [];
@@ -285,19 +285,19 @@ function PropertyOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Property Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Tenant-ready maintenance workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">{t('businessProfile.operations.property.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.property.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.tenant_portal_intro || 'Tenants can report issues with urgency, access notes, photos, and repair-window preferences while the property team keeps the response and compliance trail organized.'}
+            {settings.tenant_portal_intro || t('businessProfile.operations.property.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 24}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Units tracked</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.property.unitsTracked')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{metrics.total_units || 0}</p>
           </div>
         </div>
@@ -305,7 +305,7 @@ function PropertyOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Trusted process signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.property.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -315,17 +315,17 @@ function PropertyOperationsPublicSection({ data }) {
           </div>
           {settings.emergency_phone || settings.after_hours_policy ? (
             <div className="mt-4 space-y-2 text-sm text-gray-300">
-              {settings.emergency_phone ? <p><strong>Emergency line:</strong> {settings.emergency_phone}</p> : null}
-              {settings.after_hours_policy ? <p><strong>After hours:</strong> {settings.after_hours_policy}</p> : null}
+              {settings.emergency_phone ? <p><strong>{t('businessProfile.operations.property.emergencyLine')}:</strong> {settings.emergency_phone}</p> : null}
+              {settings.after_hours_policy ? <p><strong>{t('businessProfile.operations.property.afterHours')}:</strong> {settings.after_hours_policy}</p> : null}
             </div>
           ) : null}
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live service packages</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.property.packages')}</p>
           <div className="mt-3 space-y-3">
             {packages.length === 0 ? (
-              <p className="text-sm text-gray-400">Maintenance intake is live. Package-level billing can be configured inside Business Hub.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.property.emptyPackages')}</p>
             ) : packages.map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -342,7 +342,7 @@ function PropertyOperationsPublicSection({ data }) {
   );
 }
 
-function TradesOperationsPublicSection({ data }) {
+function TradesOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const trustRecords = data.trustRecords || [];
@@ -353,19 +353,19 @@ function TradesOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Trades Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Diagnostic-first technical workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">{t('businessProfile.operations.trades.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.trades.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.intake_instructions || 'This profile is set up to capture the issue clearly, document diagnosis, and turn written findings into the right repair or upgrade recommendation.'}
+            {settings.intake_instructions || t('businessProfile.operations.trades.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 12}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estimate turnaround</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.trades.estimateTurnaround')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.estimate_turnaround_hours || 24}h</p>
           </div>
         </div>
@@ -373,7 +373,7 @@ function TradesOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Authority and proof</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.trades.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -391,10 +391,10 @@ function TradesOperationsPublicSection({ data }) {
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live recommendation signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.trades.recommendations')}</p>
           <div className="mt-3 space-y-3">
             {recommendations.length === 0 ? (
-              <p className="text-sm text-gray-400">Diagnostics and written recommendations can be managed from Business Hub as this template is configured further.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.trades.emptyRecommendations')}</p>
             ) : recommendations.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -405,7 +405,7 @@ function TradesOperationsPublicSection({ data }) {
               </div>
             ))}
             <p className="text-xs text-gray-500">
-              {metrics.critical_recommendations || 0} critical recommendations tracked internally.
+              {t('businessProfile.operations.trades.criticalTracked', { count: metrics.critical_recommendations || 0 })}
             </p>
           </div>
         </div>
@@ -414,7 +414,7 @@ function TradesOperationsPublicSection({ data }) {
   );
 }
 
-function BeautyOperationsPublicSection({ data }) {
+function BeautyOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const packages = data.packages || [];
@@ -425,19 +425,19 @@ function BeautyOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">Beauty Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Prep-aware booking and retention workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">{t('businessProfile.operations.beauty.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.beauty.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.prep_instructions || 'This profile is set up to capture look goals, sensitivities, prep expectations, and rebook timing before the chair is locked in.'}
+            {settings.prep_instructions || t('businessProfile.operations.beauty.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 6}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Rebook window</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.beauty.rebookWindow')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.rebook_window_days || 42}d</p>
           </div>
         </div>
@@ -445,7 +445,7 @@ function BeautyOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Prep and trust signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.beauty.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -463,10 +463,10 @@ function BeautyOperationsPublicSection({ data }) {
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Packages and repeat rituals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.beauty.packages')}</p>
           <div className="mt-3 space-y-3">
             {packages.length === 0 ? (
-              <p className="text-sm text-gray-400">Beauty intake is live. Memberships, series, and ritual packages can be configured inside Business Hub.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.beauty.emptyPackages')}</p>
             ) : packages.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -477,7 +477,7 @@ function BeautyOperationsPublicSection({ data }) {
               </div>
             ))}
             <p className="text-xs text-gray-500">
-              {metrics.rebooked_requests || 0} rebooked visits are tracked internally.
+              {t('businessProfile.operations.beauty.rebookedTracked', { count: metrics.rebooked_requests || 0 })}
             </p>
           </div>
         </div>
@@ -486,7 +486,7 @@ function BeautyOperationsPublicSection({ data }) {
   );
 }
 
-function CreativeOperationsPublicSection({ data }) {
+function CreativeOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const packages = data.packages || [];
@@ -497,19 +497,19 @@ function CreativeOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-200">Creative Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Discovery-to-delivery project workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-200">{t('businessProfile.operations.creative.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.creative.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.approval_policy || 'This profile is set up for creative discovery, proof approvals, and final delivery follow-through instead of a vague portfolio contact path.'}
+            {settings.approval_policy || t('businessProfile.operations.creative.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 12}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Delivery window</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.creative.deliveryWindow')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.delivery_window_days || 14}d</p>
           </div>
         </div>
@@ -517,7 +517,7 @@ function CreativeOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Process and proof signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.creative.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -535,10 +535,10 @@ function CreativeOperationsPublicSection({ data }) {
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Packages and project framing</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.creative.packages')}</p>
           <div className="mt-3 space-y-3">
             {packages.length === 0 ? (
-              <p className="text-sm text-gray-400">Creative discovery is live. Packages and proof-stage records can be configured inside Business Hub.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.creative.emptyPackages')}</p>
             ) : packages.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -549,7 +549,7 @@ function CreativeOperationsPublicSection({ data }) {
               </div>
             ))}
             <p className="text-xs text-gray-500">
-              {metrics.proposals_waiting || 0} proposals are tracked internally right now.
+              {t('businessProfile.operations.creative.proposalsTracked', { count: metrics.proposals_waiting || 0 })}
             </p>
           </div>
         </div>
@@ -558,7 +558,7 @@ function CreativeOperationsPublicSection({ data }) {
   );
 }
 
-function ProfessionalOperationsPublicSection({ data }) {
+function ProfessionalOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const packages = data.packages || [];
@@ -569,19 +569,19 @@ function ProfessionalOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">Professional Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Engagement and obligation workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">{t('businessProfile.operations.professional.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.professional.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.engagement_policy || 'This profile is set up for documented intake, package clarity, recurring obligations, and trust-sensitive follow-up instead of a generic contact path.'}
+            {settings.engagement_policy || t('businessProfile.operations.professional.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 24}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Reminder cadence</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.professional.reminderCadence')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.recurring_reminder_days || 30}d</p>
           </div>
         </div>
@@ -589,7 +589,7 @@ function ProfessionalOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Process and trust signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.professional.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -607,10 +607,10 @@ function ProfessionalOperationsPublicSection({ data }) {
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Packages and recurring support</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.professional.packages')}</p>
           <div className="mt-3 space-y-3">
             {packages.length === 0 ? (
-              <p className="text-sm text-gray-400">Engagement intake is live. Packages and obligation records can be configured inside Business Hub.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.professional.emptyPackages')}</p>
             ) : packages.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -621,7 +621,7 @@ function ProfessionalOperationsPublicSection({ data }) {
               </div>
             ))}
             <p className="text-xs text-gray-500">
-              {metrics.obligations_due || 0} recurring obligations are tracked internally right now.
+              {t('businessProfile.operations.professional.obligationsTracked', { count: metrics.obligations_due || 0 })}
             </p>
           </div>
         </div>
@@ -630,7 +630,7 @@ function ProfessionalOperationsPublicSection({ data }) {
   );
 }
 
-function ContinuityOperationsPublicSection({ data }) {
+function ContinuityOperationsPublicSection({ data, t }) {
   if (!data) return null;
   const settings = data.settings || {};
   const plans = data.plans || [];
@@ -641,19 +641,19 @@ function ContinuityOperationsPublicSection({ data }) {
     <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">Continuity Operations</p>
-          <h2 className="mt-2 text-lg font-semibold text-white">Guided intake and recurring support workflow</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">{t('businessProfile.operations.continuity.title')}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">{t('businessProfile.operations.continuity.heading')}</h2>
           <p className="mt-2 text-sm leading-7 text-gray-300">
-            {settings.continuity_pitch || 'This profile is set up for guided intake, trust-sensitive context, recurring session planning, and next-step follow-through instead of a one-off booking handoff.'}
+            {settings.continuity_pitch || t('businessProfile.operations.continuity.intro')}
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.common.responsePromise')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 12}h</p>
           </div>
           <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Next-session rhythm</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.continuity.nextSession')}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{settings.next_session_window_days || 14}d</p>
           </div>
         </div>
@@ -661,7 +661,7 @@ function ContinuityOperationsPublicSection({ data }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Trust and intake signals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.continuity.trustSignals')}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(settings.trust_artifacts || []).map((item) => (
               <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
@@ -679,10 +679,10 @@ function ContinuityOperationsPublicSection({ data }) {
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Plans and recurring pathways</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessProfile.operations.continuity.packages')}</p>
           <div className="mt-3 space-y-3">
             {plans.length === 0 ? (
-              <p className="text-sm text-gray-400">Guided intake is live. Recurring plans and continuity packages can be configured inside Business Hub.</p>
+              <p className="text-sm text-gray-400">{t('businessProfile.operations.continuity.emptyPackages')}</p>
             ) : plans.slice(0, 3).map((item) => (
               <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -693,7 +693,7 @@ function ContinuityOperationsPublicSection({ data }) {
               </div>
             ))}
             <p className="text-xs text-gray-500">
-              {metrics.continuity_clients || 0} continuing clients are tracked internally right now.
+              {t('businessProfile.operations.continuity.clientsTracked', { count: metrics.continuity_clients || 0 })}
             </p>
           </div>
         </div>
@@ -927,32 +927,32 @@ export default function BusinessProfilePage() {
         <div className="px-4 sm:px-6 lg:px-8">
           {activeTemplate === 'property_manager' ? (
             <div className="mt-6">
-              <PropertyOperationsPublicSection data={propertyOpsData} />
+              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
             </div>
           ) : null}
           {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
             <div className="mt-6">
-              <TradesOperationsPublicSection data={tradesOpsData} />
+              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
             </div>
           ) : null}
           {['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
             <div className="mt-6">
-              <BeautyOperationsPublicSection data={beautyOpsData} />
+              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
             </div>
           ) : null}
           {['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
             <div className="mt-6">
-              <CreativeOperationsPublicSection data={creativeOpsData} />
+              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
             </div>
           ) : null}
           {['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
             <div className="mt-6">
-              <ProfessionalOperationsPublicSection data={professionalOpsData} />
+              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
             </div>
           ) : null}
           {['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
             <div className="mt-6">
-              <ContinuityOperationsPublicSection data={continuityOpsData} />
+              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
             </div>
           ) : null}
         </div>
@@ -1028,22 +1028,22 @@ export default function BusinessProfilePage() {
             <ContactLinksSection phone={phone} website={website} />
 
             {LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate === 'property_manager' ? (
-              <PropertyOperationsPublicSection data={propertyOpsData} />
+              <PropertyOperationsPublicSection data={propertyOpsData} t={t} />
             ) : null}
             {LAUNCH_VISIBILITY.specializedProfileTemplates && ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
-              <TradesOperationsPublicSection data={tradesOpsData} />
+              <TradesOperationsPublicSection data={tradesOpsData} t={t} />
             ) : null}
             {LAUNCH_VISIBILITY.specializedProfileTemplates && ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
-              <BeautyOperationsPublicSection data={beautyOpsData} />
+              <BeautyOperationsPublicSection data={beautyOpsData} t={t} />
             ) : null}
             {LAUNCH_VISIBILITY.specializedProfileTemplates && ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
-              <CreativeOperationsPublicSection data={creativeOpsData} />
+              <CreativeOperationsPublicSection data={creativeOpsData} t={t} />
             ) : null}
             {LAUNCH_VISIBILITY.specializedProfileTemplates && ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
-              <ProfessionalOperationsPublicSection data={professionalOpsData} />
+              <ProfessionalOperationsPublicSection data={professionalOpsData} t={t} />
             ) : null}
             {LAUNCH_VISIBILITY.specializedProfileTemplates && ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
-              <ContinuityOperationsPublicSection data={continuityOpsData} />
+              <ContinuityOperationsPublicSection data={continuityOpsData} t={t} />
             ) : null}
 
             {/* Services & Pricing (empty state built into component) */}

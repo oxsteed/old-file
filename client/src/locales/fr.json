@@ -8612,7 +8612,73 @@
       "copyFailed": "Impossible de copier le lien",
       "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}"
     },
-    "contactBusiness": "Contacter l'entreprise"
+    "contactBusiness": "Contacter l'entreprise",
+    "operations": {
+      "common": {
+        "responsePromise": "Engagement de réponse"
+      },
+      "property": {
+        "title": "Opérations immobilières",
+        "heading": "Processus de maintenance prêt pour les locataires",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "unitsTracked": "Unités suivies",
+        "trustSignals": "Signaux d’un processus fiable",
+        "emergencyLine": "Ligne d’urgence",
+        "afterHours": "Hors horaires",
+        "packages": "Forfaits de service actifs",
+        "emptyPackages": "Vous pouvez configurer plus de détails du service dans Business Hub."
+      },
+      "trades": {
+        "title": "Opérations techniques",
+        "heading": "Processus technique axé sur le diagnostic",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "estimateTurnaround": "Délai du devis",
+        "trustSignals": "Autorité et justificatifs",
+        "recommendations": "Signaux de recommandations actives",
+        "emptyRecommendations": "Vous pouvez configurer plus de détails du service dans Business Hub.",
+        "criticalTracked": "{{count}} éléments suivis en interne."
+      },
+      "beauty": {
+        "title": "Opérations beauté",
+        "heading": "Processus de réservation et de fidélisation avec préparation",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "rebookWindow": "Fenêtre de réservation suivante",
+        "trustSignals": "Signaux de préparation et de confiance",
+        "packages": "Forfaits et rituels récurrents",
+        "emptyPackages": "Vous pouvez configurer plus de détails du service dans Business Hub.",
+        "rebookedTracked": "{{count}} éléments suivis en interne."
+      },
+      "creative": {
+        "title": "Opérations créatives",
+        "heading": "Processus de projet de la découverte à la livraison",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "deliveryWindow": "Délai de livraison",
+        "trustSignals": "Signaux de processus et de preuve",
+        "packages": "Forfaits et cadrage du projet",
+        "emptyPackages": "Vous pouvez configurer plus de détails du service dans Business Hub.",
+        "proposalsTracked": "{{count}} éléments suivis en interne."
+      },
+      "professional": {
+        "title": "Opérations professionnelles",
+        "heading": "Processus d’engagement et d’obligations",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "reminderCadence": "Fréquence des rappels",
+        "trustSignals": "Signaux de processus et de confiance",
+        "packages": "Forfaits et accompagnement récurrent",
+        "emptyPackages": "Vous pouvez configurer plus de détails du service dans Business Hub.",
+        "obligationsTracked": "{{count}} éléments suivis en interne."
+      },
+      "continuity": {
+        "title": "Opérations de continuité",
+        "heading": "Processus d’accueil guidé et d’accompagnement récurrent",
+        "intro": "Ce profil aide les clients à comprendre le service, à préparer leur demande et à suivre les prochaines étapes.",
+        "nextSession": "Rythme de la prochaine séance",
+        "trustSignals": "Signaux de confiance et d’accueil",
+        "packages": "Plans et parcours récurrents",
+        "emptyPackages": "Vous pouvez configurer plus de détails du service dans Business Hub.",
+        "clientsTracked": "{{count}} éléments suivis en interne."
+      }
+    }
   },
   "leads": {
     "title": "Demandes de Services",

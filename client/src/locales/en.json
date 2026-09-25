@@ -8647,7 +8647,73 @@
       "copyFailed": "Could not copy link",
       "defaultMessage": "Check out {{name}} on OxSteed: {{url}}"
     },
-    "contactBusiness": "Contact Business"
+    "contactBusiness": "Contact Business",
+    "operations": {
+      "common": {
+        "responsePromise": "Response promise"
+      },
+      "property": {
+        "title": "Property Operations",
+        "heading": "Tenant-ready maintenance workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "unitsTracked": "Units tracked",
+        "trustSignals": "Trusted process signals",
+        "emergencyLine": "Emergency line",
+        "afterHours": "After hours",
+        "packages": "Live service packages",
+        "emptyPackages": "More service details can be configured inside Business Hub."
+      },
+      "trades": {
+        "title": "Trades Operations",
+        "heading": "Diagnostic-first technical workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "estimateTurnaround": "Estimate turnaround",
+        "trustSignals": "Authority and proof",
+        "recommendations": "Live recommendation signals",
+        "emptyRecommendations": "More service details can be configured inside Business Hub.",
+        "criticalTracked": "{{count}} items tracked internally."
+      },
+      "beauty": {
+        "title": "Beauty Operations",
+        "heading": "Prep-aware booking and retention workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "rebookWindow": "Rebook window",
+        "trustSignals": "Prep and trust signals",
+        "packages": "Packages and repeat rituals",
+        "emptyPackages": "More service details can be configured inside Business Hub.",
+        "rebookedTracked": "{{count}} items tracked internally."
+      },
+      "creative": {
+        "title": "Creative Operations",
+        "heading": "Discovery-to-delivery project workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "deliveryWindow": "Delivery window",
+        "trustSignals": "Process and proof signals",
+        "packages": "Packages and project framing",
+        "emptyPackages": "More service details can be configured inside Business Hub.",
+        "proposalsTracked": "{{count}} items tracked internally."
+      },
+      "professional": {
+        "title": "Professional Operations",
+        "heading": "Engagement and obligation workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "reminderCadence": "Reminder cadence",
+        "trustSignals": "Process and trust signals",
+        "packages": "Packages and recurring support",
+        "emptyPackages": "More service details can be configured inside Business Hub.",
+        "obligationsTracked": "{{count}} items tracked internally."
+      },
+      "continuity": {
+        "title": "Continuity Operations",
+        "heading": "Guided intake and recurring support workflow",
+        "intro": "This profile gives customers a clear way to understand the service, prepare their request, and follow the next steps.",
+        "nextSession": "Next-session rhythm",
+        "trustSignals": "Trust and intake signals",
+        "packages": "Plans and recurring pathways",
+        "emptyPackages": "More service details can be configured inside Business Hub.",
+        "clientsTracked": "{{count}} items tracked internally."
+      }
+    }
   },
   "leads": {
     "title": "Service Requests",

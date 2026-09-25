@@ -8612,7 +8612,73 @@
       "copyFailed": "No se pudo copiar el enlace",
       "defaultMessage": "Mira {{name}} en OxSteed: {{url}}"
     },
-    "contactBusiness": "Contacto Empresa"
+    "contactBusiness": "Contacto Empresa",
+    "operations": {
+      "common": {
+        "responsePromise": "Compromiso de respuesta"
+      },
+      "property": {
+        "title": "Operaciones inmobiliarias",
+        "heading": "Flujo de mantenimiento listo para inquilinos",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "unitsTracked": "Unidades registradas",
+        "trustSignals": "Señales de un proceso confiable",
+        "emergencyLine": "Línea de emergencias",
+        "afterHours": "Fuera de horario",
+        "packages": "Paquetes de servicio activos",
+        "emptyPackages": "Puedes configurar más detalles del servicio en Business Hub."
+      },
+      "trades": {
+        "title": "Operaciones técnicas",
+        "heading": "Flujo técnico centrado en el diagnóstico",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "estimateTurnaround": "Tiempo para el presupuesto",
+        "trustSignals": "Autoridad y comprobantes",
+        "recommendations": "Señales de recomendaciones activas",
+        "emptyRecommendations": "Puedes configurar más detalles del servicio en Business Hub.",
+        "criticalTracked": "{{count}} elementos registrados internamente."
+      },
+      "beauty": {
+        "title": "Operaciones de belleza",
+        "heading": "Flujo de reservas y fidelización con preparación",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "rebookWindow": "Ventana para volver a reservar",
+        "trustSignals": "Señales de preparación y confianza",
+        "packages": "Paquetes y rutinas recurrentes",
+        "emptyPackages": "Puedes configurar más detalles del servicio en Business Hub.",
+        "rebookedTracked": "{{count}} elementos registrados internamente."
+      },
+      "creative": {
+        "title": "Operaciones creativas",
+        "heading": "Flujo de proyecto del descubrimiento a la entrega",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "deliveryWindow": "Plazo de entrega",
+        "trustSignals": "Señales de proceso y comprobantes",
+        "packages": "Paquetes y alcance del proyecto",
+        "emptyPackages": "Puedes configurar más detalles del servicio en Business Hub.",
+        "proposalsTracked": "{{count}} elementos registrados internamente."
+      },
+      "professional": {
+        "title": "Operaciones profesionales",
+        "heading": "Flujo de compromisos y obligaciones",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "reminderCadence": "Frecuencia de recordatorios",
+        "trustSignals": "Señales de proceso y confianza",
+        "packages": "Paquetes y apoyo recurrente",
+        "emptyPackages": "Puedes configurar más detalles del servicio en Business Hub.",
+        "obligationsTracked": "{{count}} elementos registrados internamente."
+      },
+      "continuity": {
+        "title": "Operaciones de continuidad",
+        "heading": "Flujo de recepción guiada y apoyo recurrente",
+        "intro": "Este perfil ayuda a los clientes a entender el servicio, preparar su solicitud y seguir los próximos pasos.",
+        "nextSession": "Ritmo de la próxima sesión",
+        "trustSignals": "Señales de confianza y recepción",
+        "packages": "Planes y rutas recurrentes",
+        "emptyPackages": "Puedes configurar más detalles del servicio en Business Hub.",
+        "clientsTracked": "{{count}} elementos registrados internamente."
+      }
+    }
   },
   "leads": {
     "title": "Solicitudes de Servicio",

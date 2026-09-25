@@ -8612,7 +8612,73 @@
       "copyFailed": "Pa t kapab kopye lyen an",
       "defaultMessage": "Gade {{name}} sou OxSteed: {{url}}"
     },
-    "contactBusiness": "Kontakte biznis"
+    "contactBusiness": "Kontakte biznis",
+    "operations": {
+      "common": {
+        "responsePromise": "Angajman pou reponn"
+      },
+      "property": {
+        "title": "Operasyon pwopriyete",
+        "heading": "Pwosesis antretyen ki pare pou lokatè",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "unitsTracked": "Inite yo swiv",
+        "trustSignals": "Siy yon pwosesis ki fyab",
+        "emergencyLine": "Liy ijans",
+        "afterHours": "Apre lè travay",
+        "packages": "Pakè sèvis ki aktif",
+        "emptyPackages": "Ou ka konfigire plis detay sèvis la nan Business Hub."
+      },
+      "trades": {
+        "title": "Operasyon metye",
+        "heading": "Pwosesis teknik ki kòmanse ak dyagnostik",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "estimateTurnaround": "Delè estimasyon",
+        "trustSignals": "Otorite ak prèv",
+        "recommendations": "Siy rekòmandasyon ki aktif",
+        "emptyRecommendations": "Ou ka konfigire plis detay sèvis la nan Business Hub.",
+        "criticalTracked": "{{count}} bagay yo swiv anndan sistèm nan."
+      },
+      "beauty": {
+        "title": "Operasyon bote",
+        "heading": "Pwosesis rezèvasyon ak retansyon ki mande preparasyon",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "rebookWindow": "Fenèt pou rezève ankò",
+        "trustSignals": "Siy preparasyon ak konfyans",
+        "packages": "Pakè ak woutin repete",
+        "emptyPackages": "Ou ka konfigire plis detay sèvis la nan Business Hub.",
+        "rebookedTracked": "{{count}} bagay yo swiv anndan sistèm nan."
+      },
+      "creative": {
+        "title": "Operasyon kreyatif",
+        "heading": "Pwosesis pwojè soti nan dekouvèt rive nan livrezon",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "deliveryWindow": "Delè livrezon",
+        "trustSignals": "Siy pwosesis ak prèv",
+        "packages": "Pakè ak kad pwojè",
+        "emptyPackages": "Ou ka konfigire plis detay sèvis la nan Business Hub.",
+        "proposalsTracked": "{{count}} bagay yo swiv anndan sistèm nan."
+      },
+      "professional": {
+        "title": "Operasyon pwofesyonèl",
+        "heading": "Pwosesis angajman ak obligasyon",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "reminderCadence": "Rit rapèl",
+        "trustSignals": "Siy pwosesis ak konfyans",
+        "packages": "Pakè ak sipò ki repete",
+        "emptyPackages": "Ou ka konfigire plis detay sèvis la nan Business Hub.",
+        "obligationsTracked": "{{count}} bagay yo swiv anndan sistèm nan."
+      },
+      "continuity": {
+        "title": "Operasyon kontinwite",
+        "heading": "Pwosesis resepsyon gide ak sipò ki repete",
+        "intro": "Pwofil sa a ede kliyan yo konprann sèvis la, prepare demann yo epi swiv pwochen etap yo.",
+        "nextSession": "Rit pwochen sesyon an",
+        "trustSignals": "Siy konfyans ak resepsyon",
+        "packages": "Plan ak chemen ki repete",
+        "emptyPackages": "Ou ka konfigire plis detay sèvis la nan Business Hub.",
+        "clientsTracked": "{{count}} bagay yo swiv anndan sistèm nan."
+      }
+    }
   },
   "leads": {
     "title": "Demann Sèvis",
