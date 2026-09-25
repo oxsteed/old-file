@@ -24,7 +24,7 @@ export default function MessengerGuestGate({
   initialEmail = '',
   entityKind = 'helper',
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState('contact'); // contact | otp
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
@@ -67,6 +67,7 @@ export default function MessengerGuestGate({
         ...(businessId ? { businessId } : {}),
         guestName: payload.name,
         guestEmail: payload.email,
+        language: i18n.language,
       });
       setSessionId(data.sessionId);
       setEmailMasked(data.emailMasked || payload.email);
@@ -138,6 +139,7 @@ export default function MessengerGuestGate({
       await api.post('/chat/sessions/guest/verify/resend', {
         sessionId,
         guestEmail: email.trim(),
+        language: i18n.language,
       });
     } catch (err) {
       setError(

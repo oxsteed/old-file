@@ -3,6 +3,7 @@
 
 const escapeHtml = require('./escapeHtml');
 const logger = require('./logger');
+const { renderOxSteedEmail } = require('./emailTemplate');
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.SMTP_FROM || 'noreply@oxsteed.com';
@@ -135,7 +136,7 @@ const EMAIL_COPY = {
       intro: 'Veuillez confirmer le changement d’e-mail demandé pour votre compte OxSteed.',
       oldEmailLabel: 'Email actuel',
       newEmailLabel: 'Nouvel e-mail',
-      body: 'Cliquez sur le bouton ci-dessous pour confirmer ce changement. هذا الرابط صالح لمدة ساعة واحدة.',
+      body: 'Cliquez sur le bouton ci-dessous pour confirmer ce changement. Ce lien expire dans 1 heure.',
       cta: 'Confirmer le changement',
     },
     es: {
@@ -143,7 +144,7 @@ const EMAIL_COPY = {
       intro: 'Confirma el cambio de correo solicitado para tu cuenta de OxSteed.',
       oldEmailLabel: 'Correo actual',
       newEmailLabel: 'Nuevo correo',
-      body: 'Haz clic en el botón de abajo para confirmar este cambio. هذا الرابط صالح لمدة ساعة واحدة.',
+      body: 'Haz clic en el botón de abajo para confirmar este cambio. Este enlace caduca en 1 hora.',
       cta: 'Confirmar cambio',
     },
     ht: {
@@ -262,6 +263,10 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
 
   const senderEmail = from || FROM_EMAIL;
   const senderName = fromName || FROM_NAME;
+  const safeSubject = String(subject || 'OxSteed').replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
+  const normalizedIdempotencyKey = idempotencyKey
+    ? String(idempotencyKey).trim().slice(0, 255)
+    : '';
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -269,15 +274,15 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
       headers: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
-        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+        ...(normalizedIdempotencyKey ? { 'Idempotency-Key': normalizedIdempotencyKey } : {}),
       },
       signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: `${senderName} <${senderEmail}>`,
         to: [to],
-        subject,
-        text,
-        html,
+        subject: safeSubject,
+        text: String(text || ''),
+        html: String(html || ''),
       }),
     });
 
@@ -286,43 +291,70 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
       logger.error('Resend API error', { to, status: response.status, error: data });
       return { success: false, error: data.message || 'Email send failed' };
     }
-    logger.info('Email sent', { to, subject });
+    logger.info('Email sent', { to, subject: safeSubject });
     return { success: true, id: data.id };
   } catch (err) {
-    logger.error('Email send failed', { to, subject, error: err.message });
+    logger.error('Email send failed', { to, subject: safeSubject, error: err.message });
     return { success: false, error: err.message };
   }
 }
 
 async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE) {
   const lang = normalizeEmailLanguage(language);
-  const copy = EMAIL_COPY.welcome[lang];
-  const safeName = escapeHtml(textSafe(user.first_name) || textSafe(user.email));
+  const copy = EMAIL_COPY.welcome[lang] || EMAIL_COPY.welcome[FALLBACK_LANGUAGE];
+  const safeName = textSafe(user.first_name) || textSafe(user.email);
   const subject = copy.subject || EMAIL_COPY.welcome[FALLBACK_LANGUAGE].subject;
+  const rendered = renderOxSteedEmail({
+    language: lang,
+    preheader: copy.lineOne,
+    eyebrow: 'WELCOME TO OXSTEED',
+    title: copy.subject.replace(/[!！]$/, ''),
+    intro: `Hi ${safeName},`,
+    bodyText: `${copy.lineOne}\n${copy.lineTwo}`,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(copy.lineOne)}</p><p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(copy.lineTwo)}</p>`,
+    cta: { label: lang === 'fr' ? 'Ouvrir OxSteed' : lang === 'es' ? 'Abrir OxSteed' : lang === 'ht' ? 'Louvri OxSteed' : lang === 'ar' ? 'فتح OxSteed' : 'Open OxSteed', url: '/dashboard' },
+    footerText: copy.footer,
+  });
   return sendEmail({
     to: user.email,
     subject,
-    text: `Hi ${textSafe(user.first_name)}, ${copy.lineOne} ${copy.lineTwo}`,
-    html: `<p>Hi <strong>${safeName}</strong>,</p><p>${copy.lineOne}</p><p>${copy.lineTwo}</p><p>- ${copy.footer}</p>`,
+    text: rendered.text,
+    html: rendered.html,
+    idempotencyKey: user.id ? `welcome:${user.id}` : undefined,
   });
 }
 
 async function sendOTPEmail(email, otp, language = FALLBACK_LANGUAGE, guestChatOptions = null) {
   const lang = normalizeEmailLanguage(language);
-  const copy = EMAIL_COPY.otp[lang];
+  const copy = EMAIL_COPY.otp[lang] || EMAIL_COPY.otp[FALLBACK_LANGUAGE];
   const accessCode = guestChatOptions?.accessCode ? textSafe(guestChatOptions.accessCode) : '';
   const accessCodeExpiresDays = Number(guestChatOptions?.accessCodeExpiresDays || 30);
   const guestAccessText = accessCode
-    ? ` Your guest chat access code is ${accessCode}. Keep it private. It remains valid for ${accessCodeExpiresDays} days, then you will need an OxSteed account to view this conversation.`
+    ? `Guest chat access code: ${accessCode}\nKeep this code private. It remains valid for ${accessCodeExpiresDays} days. After that, create an OxSteed account to access your chat history.`
     : '';
   const guestAccessHtml = accessCode
-    ? `<div style="margin-top:20px;padding:16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;"><p style="margin:0 0 8px;font-weight:bold;color:#9a3412;">Guest chat access code</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;color:#9a3412;margin:0 0 8px;">${escapeHtml(accessCode)}</p><p style="color:#7c2d12;margin:0;font-size:13px;">Keep this code private. It remains valid for ${accessCodeExpiresDays} days. After that, create an OxSteed account to access your chat history.</p></div>`
+    ? `<p style="margin:16px 0 0;color:#334155;font-size:15px;line-height:1.6;">${escapeHtml(lang === 'fr' ? 'Vous pourrez utiliser ce code pour rouvrir cette conversation pendant 30 jours.' : lang === 'es' ? 'Puedes usar este código para volver a abrir esta conversación durante 30 días.' : lang === 'ht' ? 'Ou ka sèvi ak kòd sa a pou relouvri konvèsasyon sa a pandan 30 jou.' : lang === 'ar' ? 'يمكنك استخدام هذا الرمز لإعادة فتح هذه المحادثة لمدة 30 يومًا.' : 'Use this code to reopen this conversation for 30 days.')}</p>`
     : '';
+  const rendered = renderOxSteedEmail({
+    language: lang,
+    preheader: copy.intro,
+    eyebrow: 'SECURITY CHECK',
+    title: copy.subject,
+    intro: copy.intro,
+    codeBlocks: [
+      { label: lang === 'fr' ? 'Code de vérification' : lang === 'es' ? 'Código de verificación' : lang === 'ht' ? 'Kòd verifikasyon' : lang === 'ar' ? 'رمز التحقق' : 'Verification code', code: textSafe(otp), note: copy.expires, tone: 'blue' },
+      ...(accessCode ? [{ label: lang === 'fr' ? 'Code d’accès au chat invité' : lang === 'es' ? 'Código de acceso al chat de invitado' : lang === 'ht' ? 'Kòd aksè chat envite' : lang === 'ar' ? 'رمز الوصول إلى محادثة الضيف' : 'Guest chat access code', code: accessCode, note: `Keep it private. Valid for ${accessCodeExpiresDays} days.`, tone: 'orange' }] : []),
+    ],
+    bodyHtml: guestAccessHtml,
+    bodyText: `${copy.expires} ${copy.note}. ${guestAccessText}`,
+    notice: { title: lang === 'fr' ? 'Vous n’avez pas demandé ce code ?' : lang === 'es' ? '¿No solicitaste este código?' : lang === 'ht' ? 'Ou pa t mande kòd sa a?' : lang === 'ar' ? 'لم تطلب هذا الرمز؟' : 'Didn’t request this code?', body: copy.note, tone: 'neutral' },
+    footerText: copy.note,
+  });
   return sendEmail({
     to: email,
     subject: copy.subject,
-    text: `${copy.intro} ${escapeHtml(textSafe(otp))}. ${copy.expires} ${copy.note}.${guestAccessText}`,
-    html: `<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed</h2><p>${copy.intro}</p><p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e40af; padding: 16px; background: #f0f4ff; border-radius: 8px; text-align: center;">${escapeHtml(textSafe(otp))}</p><p style="color: #666;">${copy.expires} ${copy.note}</p>${guestAccessHtml}<p style="color: #6b7280; margin-top: 12px;">${copy.button}</p></div>`,
+    text: rendered.text,
+    html: rendered.html,
   });
 }
 
@@ -342,7 +374,7 @@ async function sendPasswordResetEmail(email, resetInput, language = FALLBACK_LAN
 
   const isEmailChange = payload.type === 'email_change_confirmation';
   const copyKey = isEmailChange ? 'email_change_confirmation' : 'password_reset';
-  const copy = EMAIL_COPY[copyKey][localLanguage];
+  const copy = EMAIL_COPY[copyKey][localLanguage] || EMAIL_COPY[copyKey][FALLBACK_LANGUAGE];
 
   const subject = copy.subject || EMAIL_COPY[copyKey][FALLBACK_LANGUAGE].subject;
   const lines = [];
@@ -357,12 +389,29 @@ async function sendPasswordResetEmail(email, resetInput, language = FALLBACK_LAN
 
   const textBody = `${lines.filter(Boolean).join(' ')} Link: ${resetUrl}`.trim();
   const ctaText = copy.cta || 'Open link';
+  const details = isEmailChange ? [
+    payload.oldEmail ? { label: copy.oldEmailLabel, value: payload.oldEmail } : null,
+    payload.newEmail ? { label: copy.newEmailLabel, value: payload.newEmail } : null,
+  ].filter(Boolean) : [];
+  const rendered = renderOxSteedEmail({
+    language: localLanguage,
+    preheader: copy.intro,
+    eyebrow: isEmailChange ? 'ACCOUNT SECURITY' : 'PASSWORD RESET',
+    title: copy.subject,
+    intro: copy.intro,
+    bodyText: copy.body,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(copy.body)}</p>`,
+    details,
+    cta: { label: ctaText, url: resetUrl },
+    notice: { title: isEmailChange ? 'This link expires in 1 hour' : 'Keep your account safe', body: isEmailChange ? copy.body : 'If you did not request a password reset, you can ignore this email.', tone: 'warning' },
+  });
 
   return sendEmail({
     to: email,
     subject,
-    text: textBody,
-    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed</h2>${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')}<a style="display:inline-block;margin-top:12px;background:#2563eb;color:#ffffff;padding:12px 16px;border-radius:8px;text-decoration:none;" href="${escapeHtml(resetUrl)}">${escapeHtml(ctaText)}</a></div>`,
+    text: rendered.text || textBody,
+    html: rendered.html,
+    idempotencyKey: payload.idempotencyKey || undefined,
   });
 }
 
@@ -372,13 +421,26 @@ async function sendPrivacyRequestConfirmation(email, requestType, requestId, lan
   const safeType = textSafe(requestType);
   const safeRequestId = textSafe(requestId);
 
+  const rendered = renderOxSteedEmail({
+    language: lang,
+    preheader: copy.subject,
+    eyebrow: 'PRIVACY',
+    title: copy.subject,
+    bodyText: templateText(copy.body, { requestType: safeType }),
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(templateText(copy.body, { requestType: safeType }))}</p>`,
+    codeBlocks: [{ label: 'Request ID', code: safeRequestId, tone: 'blue' }],
+    notice: { title: copy.footer, body: copy.footer, tone: 'neutral' },
+    footerText: copy.closing,
+  });
+
   return sendEmail({
     to: email,
     from: EMAIL_ADDRESSES.privacy,
     fromName: 'OxSteed Privacy',
     subject: `${copy.subject} - ${safeType}`,
-    text: templateText(copy.body, { requestType: safeType }) + ` ${copy.footer} (${safeRequestId})`,
-    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed Privacy</h2><p>${templateText(copy.body, { requestType: safeType })}</p><p>Request ID: <code>${escapeHtml(safeRequestId)}</code></p><p>${copy.footer}</p><p>- ${copy.closing}</p></div>`,
+    text: rendered.text,
+    html: rendered.html,
+    idempotencyKey: `privacy:${safeRequestId}:${email}`,
   });
 }
 
@@ -388,13 +450,25 @@ async function sendSecurityAlertEmail(email, alertType, details, language = FALL
   const safeAlertType = textSafe(alertType);
   const safeDetails = textSafe(details);
 
+  const rendered = renderOxSteedEmail({
+    language: lang,
+    preheader: copy.subject,
+    eyebrow: 'SECURITY ALERT',
+    title: copy.subject,
+    bodyText: `${safeAlertType}\n${copy.detailsPrefix} ${safeDetails}`,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;"><strong>${escapeHtml(safeAlertType)}</strong></p><p style="margin:0;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(safeDetails)}</p>`,
+    notice: { title: copy.detailsPrefix, body: safeDetails, tone: 'danger' },
+    footerText: copy.closing,
+  });
+
   return sendEmail({
     to: email,
     from: EMAIL_ADDRESSES.security,
     fromName: 'OxSteed Security',
     subject: `${copy.subject}: ${safeAlertType}`,
-    text: `${templateText(copy.body, { alertType: safeAlertType })} ${copy.detailsPrefix} ${safeDetails}`,
-    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #dc2626;">OxSteed Security Alert</h2><p><strong>${escapeHtml(safeAlertType)}</strong></p><p>${escapeHtml(safeDetails)}</p><p>${copy.detailsPrefix} ${escapeHtml(safeDetails)}</p><p>— ${copy.closing}</p></div>`,
+    text: rendered.text,
+    html: rendered.html,
+    idempotencyKey: `security:${email}:${safeAlertType}:${safeDetails}`.slice(0, 255),
   });
 }
 

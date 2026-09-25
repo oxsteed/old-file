@@ -16,6 +16,7 @@ const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
 const { sendNotification } = require('../services/notificationService');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { isTerminalConversationStatus } = require('../services/supportConversationTerminal');
 const { getClientRequestId } = require('../utils/idempotency');
 const CLIENT_MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -2294,20 +2295,24 @@ async function sendConversationEmail(req, res) {
       );
     }
     const message = messageRows[0];
-    const safeName = escapeHtml(conversation.customer_name);
     const safeContent = escapeHtml(content).replace(/\n/g, '<br>');
+    const rendered = renderOxSteedEmail({
+      language: conversation.customer_language || 'en',
+      preheader: subject,
+      eyebrow: 'OXSTEED SUPPORT',
+      title: subject,
+      intro: `Hi ${conversation.customer_name},`,
+      bodyText: content,
+      bodyHtml: `<p style="margin:0;color:#334155;font-size:16px;line-height:1.7;">${safeContent}</p>`,
+      footerText: 'You are receiving this message because you have an open OxSteed support conversation.',
+    });
     const result = await sendEmail({
       to: conversation.customer_email,
       from: EMAIL_ADDRESSES.support,
       fromName: 'OxSteed Support',
       subject,
-      text: `Hi ${conversation.customer_name},\n\n${content}\n\nOxSteed Support`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
-        <h2 style="color:#ea580c">OxSteed Support</h2>
-        <p>Hi ${safeName},</p>
-        <p style="line-height:1.7">${safeContent}</p>
-        <p style="margin-top:28px;color:#6b7280">OxSteed Support<br>+1 (937) 408-5169</p>
-      </div>`,
+      text: rendered.text,
+      html: rendered.html,
       idempotencyKey: `support-conversation-email-${requestId}`,
     });
 

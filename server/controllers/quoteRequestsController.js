@@ -1,6 +1,8 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
+const escapeHtml = require('../utils/escapeHtml');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const {
   generatePublicReference,
   normalizeZipCode,
@@ -95,24 +97,35 @@ async function notifySupport(request) {
     .map((service) => cleanText(service?.name, 120))
     .filter(Boolean);
   const catalogServiceSummary = catalogServiceNames.length ? catalogServiceNames.join(', ') : '-';
+  const details = [
+    ['Name', `${request.first_name} ${request.last_name}`],
+    ['Email', request.email],
+    ['Phone', request.phone || '-'],
+    ['Company', request.company_name || '-'],
+    ['Service', request.service_category],
+    ['Catalog services', catalogServiceSummary],
+    ['Location', request.service_location],
+    ['Budget', request.budget_range || '-'],
+    ['Timeline', request.timeline || '-'],
+    ['Contact preference', request.preferred_contact_method],
+  ];
+  const rendered = renderOxSteedEmail({
+    language: request.metadata?.language || 'en',
+    preheader: 'New OxSteed quote request',
+    eyebrow: 'QUOTE REQUEST',
+    title: 'New quote request',
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">A customer submitted a new request for review.</p><h2 style="margin:22px 0 10px;color:#0f172a;font-size:17px;">Details</h2><p style="margin:0;color:#334155;font-size:15px;line-height:1.6;">${escapeHtml(request.details || '-').replace(/\n/g, '<br>')}</p>`,
+    bodyText: `A customer submitted a new request for review.\n\nDetails:\n${request.details || '-'}`,
+    details: details.map(([label, value]) => ({ label, value })),
+    cta: { label: 'Open quote requests', url: '/dashboard' },
+    footerText: 'This notification was sent to the OxSteed support team.',
+  });
   await sendEmail({
     to: supportEmail,
     subject: `New OxSteed quote request from ${request.first_name} ${request.last_name}`,
-    html: `
-      <h2>New quote request</h2>
-      <p><strong>Name:</strong> ${request.first_name} ${request.last_name}</p>
-      <p><strong>Email:</strong> ${request.email}</p>
-      <p><strong>Phone:</strong> ${request.phone || '-'}</p>
-      <p><strong>Company:</strong> ${request.company_name || '-'}</p>
-      <p><strong>Service:</strong> ${request.service_category}</p>
-      <p><strong>Catalog services:</strong> ${catalogServiceSummary}</p>
-      <p><strong>Location:</strong> ${request.service_location}</p>
-      <p><strong>Budget:</strong> ${request.budget_range || '-'}</p>
-      <p><strong>Timeline:</strong> ${request.timeline || '-'}</p>
-      <p><strong>Contact preference:</strong> ${request.preferred_contact_method}</p>
-      <p><strong>Details:</strong></p>
-      <p>${request.details.replace(/\n/g, '<br />')}</p>
-    `,
+    html: rendered.html,
+    text: rendered.text,
+    idempotencyKey: `quote-request:support:${request.id}`,
   });
 }
 
@@ -121,20 +134,29 @@ async function sendConfirmationEmail(request) {
     .map((service) => cleanText(service?.name, 120))
     .filter(Boolean);
   const catalogServiceSummary = catalogServiceNames.length ? catalogServiceNames.join(', ') : null;
+  const rendered = renderOxSteedEmail({
+    language: request.metadata?.language || 'en',
+    preheader: 'We received your OxSteed quote request',
+    eyebrow: 'QUOTE REQUEST RECEIVED',
+    title: 'Thanks for reaching out to OxSteed',
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">We received your quote request for <strong>${escapeHtml(request.service_category)}</strong>. Our team will review it and follow up soon.</p>`,
+    bodyText: `We received your quote request for ${request.service_category}. Our team will review it and follow up soon.`,
+    details: [
+      { label: 'Catalog services', value: catalogServiceSummary || '-' },
+      { label: 'Location', value: request.service_location },
+      { label: 'ZIP code', value: request.service_zip_code || '-' },
+      { label: 'Budget', value: request.budget_range || '-' },
+      { label: 'Timeline', value: request.timeline || '-' },
+      { label: 'Reference ID', value: request.public_reference || request.id },
+    ],
+    cta: { label: 'View OxSteed', url: '/dashboard' },
+  });
   await sendEmail({
     to: request.email,
     subject: 'We received your OxSteed quote request',
-    html: `
-      <h2>Thanks for reaching out to OxSteed</h2>
-      <p>We received your quote request for <strong>${request.service_category}</strong>.</p>
-      ${catalogServiceSummary ? `<p><strong>Requested catalog services:</strong> ${catalogServiceSummary}</p>` : ''}
-      <p>Our team will review it and follow up soon.</p>
-      <p><strong>Location:</strong> ${request.service_location}</p>
-      <p><strong>ZIP code:</strong> ${request.service_zip_code || '-'}</p>
-      <p><strong>Budget:</strong> ${request.budget_range || '-'}</p>
-      <p><strong>Timeline:</strong> ${request.timeline || '-'}</p>
-      <p>Reference ID: <code>${request.public_reference || request.id}</code></p>
-    `,
+    html: rendered.html,
+    text: rendered.text,
+    idempotencyKey: `quote-request:confirmation:${request.id}`,
   });
 }
 

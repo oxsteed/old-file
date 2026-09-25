@@ -1,6 +1,7 @@
 'use strict';
 
 const { sendEmail } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const smsNotificationService = require('./smsNotificationService');
 
 const EXTERNAL_CHANNELS = new Set(['email', 'sms', 'phone', 'social']);
@@ -63,13 +64,23 @@ async function deliverSupportChannel({ channel, recipient, content, subject, ide
   }
 
   if (normalizedChannel === 'email') {
+    const safeContent = String(content || '').slice(0, 20000);
+    const rendered = renderOxSteedEmail({
+      language: 'en',
+      preheader: subject || 'OxSteed Support',
+      eyebrow: 'OXSTEED SUPPORT',
+      title: String(subject || 'OxSteed Support').replace(/[\r\n]+/g, ' ').trim().slice(0, 200),
+      intro: 'A message from OxSteed Support',
+      bodyText: safeContent,
+      bodyHtml: `<p style="margin:0;color:#334155;font-size:16px;line-height:1.65;white-space:pre-wrap;">${safeContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`,
+      footerText: 'You are receiving this message from OxSteed Support.',
+    });
     const result = await sendEmail({
       to: normalizedRecipient,
       fromName: 'OxSteed Support',
       subject: String(subject || 'OxSteed Support').replace(/[\r\n]+/g, ' ').trim().slice(0, 200),
-      text: String(content || '').slice(0, 20000),
-      html: `<div style="font-family:Arial,sans-serif;white-space:pre-wrap">${String(content || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+      text: rendered.text,
+      html: rendered.html,
       idempotencyKey,
     });
     return result?.success

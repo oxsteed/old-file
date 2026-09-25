@@ -1,6 +1,8 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
+const escapeHtml = require('../utils/escapeHtml');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -659,11 +661,26 @@ async function sendClientConfirmationEmail(
     </div>
   `;
 
+  const rendered = renderOxSteedEmail({
+    language: 'en',
+    preheader: 'Your Founder Development Program request was received',
+    eyebrow: 'FOUNDER DEVELOPMENT PROGRAM',
+    title: 'Your request was received',
+    intro: `Hi ${firstName || 'there'},`,
+    bodyText: `Thank you for submitting your OxSteed Founder Development Program request. Selected package: ${packageName}. Package price: $${packagePrice}.`,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">Thank you for submitting your OxSteed Founder Development Program request. We are excited to help you turn your skill into a real business.</p><h2 style="margin:22px 0 10px;color:#0f172a;font-size:17px;">Selected package</h2><p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.6;"><strong>${escapeHtml(packageName)}</strong><br>$${escapeHtml(packagePrice)}</p><h2 style="margin:22px 0 10px;color:#0f172a;font-size:17px;">What happens next</h2><ol style="margin:0;padding-left:22px;color:#334155;font-size:15px;line-height:1.7;"><li>We review your request, usually within 24 hours.</li><li>We send a scheduling link for your kickoff call.</li><li>We send a pre-kickoff questionnaire.</li><li>Setup work begins after the kickoff call.</li></ol>`,
+    cta: { label: 'View your request', url: '/business-launch-status' },
+    notice: { title: 'Important', body: 'Founder Development Program provides implementation support only. Consult a licensed professional for legal, tax, or regulated financial advice.', tone: 'warning' },
+    footerText: 'Questions? Contact support@oxsteed.com.',
+  });
+
   try {
     await sendEmail({
       to: email,
       subject: 'Your OxSteed Business Launch Request Has Been Received',
-      html,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: `founder-program:confirmation:${email}:${packageSelected}`,
     });
   } catch (err) {
     logger.error('Failed to send confirmation email', { email, err });
@@ -750,11 +767,25 @@ async function sendStatusUpdateEmail(request, newStatus) {
     </div>
   `;
 
+  const rendered = renderOxSteedEmail({
+    language: 'en',
+    preheader: subject,
+    eyebrow: 'FOUNDER DEVELOPMENT PROGRAM',
+    title: subject,
+    intro: `Hi ${request.first_name || 'there'},`,
+    bodyText: message,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(message)}</p><h2 style="margin:22px 0 10px;color:#0f172a;font-size:17px;">Current status</h2><p style="margin:0 0 16px;color:#c2410c;font-size:18px;font-weight:800;letter-spacing:.5px;">${escapeHtml(newStatus.replace(/_/g, ' ').toUpperCase())}</p><h2 style="margin:22px 0 10px;color:#0f172a;font-size:17px;">Request details</h2><p style="margin:0;color:#334155;font-size:15px;line-height:1.7;"><strong>Package:</strong> ${escapeHtml(request.package_selected || '-')}<br><strong>Business focus:</strong> ${escapeHtml(request.skill_description || '-')}<br><strong>Target market:</strong> ${escapeHtml(request.target_market || '-')} ${request.business_name ? `<br><strong>Business name:</strong> ${escapeHtml(request.business_name)}` : ''}</p>`,
+    cta: { label: 'View application status', url: '/business-launch-status' },
+    footerText: 'Questions? Contact support@oxsteed.com.',
+  });
+
   try {
     await sendEmail({
       to: request.email,
       subject,
-      html,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: `founder-program:status:${request.id}:${newStatus}`,
     });
   } catch (err) {
     logger.error('Failed to send status update email', { email: request.email, err });
@@ -801,13 +832,35 @@ async function notifyAdminOfNewRequest(data) {
     </div>
   `;
 
+  const rendered = renderOxSteedEmail({
+    language: 'en',
+    preheader: 'New Founder Development Program request',
+    eyebrow: 'FOUNDER DEVELOPMENT PROGRAM',
+    title: 'New request for review',
+    intro: 'A new intake request is ready for the team.',
+    bodyText: `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nPackage: ${pkg}\nState: ${operating_state}\nUrgency: ${urgency}\nSetup items: ${setup_items_selected}`,
+    details: [
+      { label: 'Name', value: name },
+      { label: 'Email', value: email },
+      { label: 'Phone', value: phone },
+      { label: 'Package', value: pkg },
+      { label: 'State', value: operating_state },
+      { label: 'Urgency', value: urgency },
+      { label: 'Setup items', value: setup_items_selected },
+    ],
+    cta: { label: 'View full request', url: `/admin/consulting/business-launch/requests/${requestId}` },
+    footerText: 'This notification was sent to the OxSteed administration team.',
+  });
+
   try {
     // Send to admin email (would be configured in environment)
     const adminEmail = process.env.ADMIN_EMAIL || 'support@oxsteed.com';
     await sendEmail({
       to: adminEmail,
       subject: `[Business Launch] New Request from ${name}`,
-      html,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: `founder-program:admin:${requestId}`,
     });
   } catch (err) {
     logger.error('Failed to send admin notification', { err });

@@ -2,6 +2,8 @@
 const { sendEmail } = require('./email');
 const logger = require('./logger');
 const QRCode = require('qrcode');
+const escapeHtml = require('./escapeHtml');
+const { renderOxSteedEmail } = require('./emailTemplate');
 
 /**
  * Generate HTML email template for invoice
@@ -9,115 +11,35 @@ const QRCode = require('qrcode');
  * @param {string} qrCodeDataUrl - Base64 encoded QR code image
  * @returns {string} HTML email content
  */
-function renderInvoiceHTML(invoice, qrCodeDataUrl) {
-  const ownerName = `${invoice.owner_first} ${invoice.owner_last}`;
-  const customerName = `${invoice.customer_first} ${invoice.customer_last}`;
+function renderInvoiceHTML(invoice, qrCodeDataUrl, paymentLink = '') {
+  const ownerName = `${invoice.owner_first || ''} ${invoice.owner_last || ''}`.trim();
+  const customerName = `${invoice.customer_first || ''} ${invoice.customer_last || ''}`.trim();
   const paymentMethodDisplay = formatPaymentMethod(invoice.payment_type, invoice.payment_identifier);
-
-  return `
-    <!DOCTYPE html>
-    <html style="font-family: Arial, sans-serif;">
-      <head>
-        <style>
-          body { margin: 0; padding: 20px; background-color: #f5f5f5; }
-          .invoice-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-          .invoice-header { border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
-          .invoice-title { font-size: 28px; font-weight: bold; color: #1e40af; margin: 0 0 10px 0; }
-          .invoice-number { color: #666; font-size: 14px; }
-          .invoice-section { margin-bottom: 30px; }
-          .invoice-section-title { font-size: 14px; font-weight: bold; color: #1e40af; text-transform: uppercase; margin-bottom: 12px; }
-          .invoice-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-          .invoice-row.total { border-bottom: 2px solid #2563eb; font-weight: bold; font-size: 16px; padding: 16px 0; }
-          .invoice-label { color: #666; }
-          .invoice-value { text-align: right; }
-          .payment-info { background-color: #f0f4ff; padding: 16px; border-radius: 6px; margin: 20px 0; }
-          .qr-code-section { text-align: center; margin: 30px 0; }
-          .qr-code-section img { max-width: 200px; }
-          .footer-text { font-size: 12px; color: #999; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-          .warning-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; font-size: 13px; color: #856404; }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="invoice-header">
-            <div class="invoice-title">INVOICE</div>
-            <div class="invoice-number">Invoice #${invoice.invoice_number}</div>
-            <div class="invoice-number" style="margin-top: 4px;">Date: ${new Date(invoice.created_at).toLocaleDateString()}</div>
-          </div>
-
-          <div class="invoice-section">
-            <div class="invoice-section-title">Billing Information</div>
-            <div style="padding: 12px 0;">
-              <strong>${customerName}</strong><br/>
-              <a href="mailto:${invoice.customer_email}" style="color: #2563eb; text-decoration: none;">${invoice.customer_email}</a>
-            </div>
-          </div>
-
-          <div class="invoice-section">
-            <div class="invoice-section-title">Tool Owner</div>
-            <div style="padding: 12px 0;">
-              <strong>${ownerName}</strong><br/>
-              <a href="mailto:${invoice.owner_email}" style="color: #2563eb; text-decoration: none;">${invoice.owner_email}</a>
-            </div>
-          </div>
-
-          <div class="invoice-section">
-            <div class="invoice-section-title">Rental Details</div>
-            <div class="invoice-row">
-              <span class="invoice-label">Tool:</span>
-              <span class="invoice-value"><strong>${invoice.tool_name}</strong></span>
-            </div>
-            <div class="invoice-row">
-              <span class="invoice-label">Rental Period:</span>
-              <span class="invoice-value">${new Date(invoice.start_date).toLocaleDateString()} - ${new Date(invoice.end_date).toLocaleDateString()}</span>
-            </div>
-            <div class="invoice-row">
-              <span class="invoice-label">Daily Rate:</span>
-              <span class="invoice-value">$${parseFloat(invoice.daily_rate).toFixed(2)}/day</span>
-            </div>
-            <div class="invoice-row total">
-              <span class="invoice-label">Total Amount:</span>
-              <span class="invoice-value">$${parseFloat(invoice.total_amount).toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div class="invoice-section">
-            <div class="invoice-section-title">Payment Instructions</div>
-            <div class="payment-info">
-              <strong>Payment Method:</strong> ${paymentMethodDisplay.display}<br/>
-              <strong>Account:</strong> ${paymentMethodDisplay.masked}<br/>
-              <strong>Amount Due:</strong> $${parseFloat(invoice.total_amount).toFixed(2)}
-            </div>
-
-            <div class="qr-code-section">
-              <p style="margin: 0 0 12px 0; color: #666; font-size: 14px;">Scan QR code to pay:</p>
-              <img src="${qrCodeDataUrl}" alt="Payment QR Code" />
-            </div>
-
-            <p style="text-align: center; color: #666; font-size: 13px;">
-              Or make payment directly to the account details above.
-            </p>
-          </div>
-
-          <div class="warning-box">
-            <strong style="display: block; margin-bottom: 8px;">Important:</strong>
-            This invoice is issued by the tool owner. OxSteed is a technology platform that facilitates the connection but does not control rental disputes. If you have issues with the rental, please contact the owner directly or resolve via your bank's chargeback process.
-          </div>
-
-          <div class="footer-text">
-            <p style="margin: 0;">This is an automated message. Please do not reply to this email.</p>
-            <p style="margin: 8px 0 0 0;">For questions, contact <a href="mailto:support@oxsteed.com" style="color: #2563eb; text-decoration: none;">support@oxsteed.com</a></p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+  const invoiceNumber = invoice.invoice_number || invoice.id || '';
+  const createdDate = new Date(invoice.created_at).toLocaleDateString();
+  const startDate = new Date(invoice.start_date).toLocaleDateString();
+  const endDate = new Date(invoice.end_date).toLocaleDateString();
+  const dailyRate = Number.parseFloat(invoice.daily_rate || 0).toFixed(2);
+  const totalAmount = Number.parseFloat(invoice.total_amount || 0).toFixed(2);
+  const safeQrCode = escapeHtml(qrCodeDataUrl || '');
+  const bodyHtml = `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">Invoice <strong>#${escapeHtml(invoiceNumber)}</strong> was issued on ${escapeHtml(createdDate)}.</p><h2 style="margin:24px 0 10px;color:#0f172a;font-size:17px;">Billing information</h2><p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;"><strong>${escapeHtml(customerName)}</strong><br><a href="mailto:${escapeHtml(invoice.customer_email || '')}" style="color:#c2410c;">${escapeHtml(invoice.customer_email || '')}</a></p><h2 style="margin:24px 0 10px;color:#0f172a;font-size:17px;">Rental details</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;"><tr><td style="padding:9px 0;color:#64748b;">Tool</td><td style="padding:9px 0;text-align:right;color:#0f172a;font-weight:700;">${escapeHtml(invoice.tool_name || '')}</td></tr><tr><td style="padding:9px 0;color:#64748b;">Rental period</td><td style="padding:9px 0;text-align:right;color:#0f172a;">${escapeHtml(startDate)} – ${escapeHtml(endDate)}</td></tr><tr><td style="padding:9px 0;color:#64748b;">Daily rate</td><td style="padding:9px 0;text-align:right;color:#0f172a;">$${escapeHtml(dailyRate)}/day</td></tr><tr><td style="padding:12px 0;color:#0f172a;font-weight:700;">Total amount</td><td style="padding:12px 0;text-align:right;color:#c2410c;font-size:18px;font-weight:800;">$${escapeHtml(totalAmount)}</td></tr></table><h2 style="margin:24px 0 10px;color:#0f172a;font-size:17px;">Payment instructions</h2><p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;"><strong>Payment method:</strong> ${escapeHtml(paymentMethodDisplay.display)}<br><strong>Account:</strong> ${escapeHtml(paymentMethodDisplay.masked)}<br><strong>Amount due:</strong> $${escapeHtml(totalAmount)}</p><p style="margin:20px 0 8px;text-align:center;color:#64748b;font-size:14px;">Scan the QR code to pay:</p><p style="margin:0;text-align:center;"><img src="${safeQrCode}" alt="Payment QR code" width="200" style="display:inline-block;max-width:200px;height:auto;border:1px solid #e2e8f0;border-radius:8px;"></p>`;
+  return renderOxSteedEmail({
+    language: 'en',
+    preheader: `Invoice #${invoiceNumber} from OxSteed`,
+    eyebrow: 'OXSTEED INVOICE',
+    title: `Invoice #${invoiceNumber}`,
+    bodyHtml,
+    bodyText: renderInvoiceText(invoice),
+    notice: { title: 'Important', body: 'This invoice is issued by the tool owner. OxSteed facilitates the connection but does not control rental disputes.', tone: 'warning' },
+    cta: paymentLink ? { label: 'Open secure payment page', url: paymentLink } : null,
+    footerText: 'This is an automated message. For questions, contact support@oxsteed.com.',
+  }).html;
 }
 
 /**
  * Generate plain text version of invoice email
  */
-function renderInvoiceText(invoice) {
+function renderInvoiceText(invoice, paymentLink = '') {
   const ownerName = `${invoice.owner_first} ${invoice.owner_last}`;
   const customerName = `${invoice.customer_first} ${invoice.customer_last}`;
 
@@ -145,6 +67,7 @@ Account: ${invoice.payment_identifier}
 
 This invoice is issued by the tool owner. OxSteed is a technology platform that facilitates rentals but does not control disputes. Contact the owner directly or resolve via your bank's chargeback process.
 
+${paymentLink ? `\nSecure payment page: ${paymentLink}\n` : ''}
 For questions: support@oxsteed.com`;
 }
 
@@ -196,8 +119,8 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3) {
       const qrCodeDataUrl = await QRCode.toDataURL(paymentLink);
 
       // Render email
-      const html = renderInvoiceHTML(invoice, qrCodeDataUrl);
-      const text = renderInvoiceText(invoice);
+      const html = renderInvoiceHTML(invoice, qrCodeDataUrl, paymentLink);
+      const text = renderInvoiceText(invoice, paymentLink);
 
       // Send email
       const result = await sendEmail({
@@ -205,6 +128,7 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3) {
         subject: `Invoice #${invoice.invoice_number} - OxSteed Tool Rental`,
         text,
         html,
+        idempotencyKey: `invoice:${invoice.id || invoice.invoice_number}:${recipientEmail}`,
       });
 
       if (result.success) {

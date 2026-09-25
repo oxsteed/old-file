@@ -140,7 +140,7 @@ async function assertGuestContactAllowed(helperId) {
   }
 }
 
-async function sendVerificationCode(sessionId, email, name, db = pool) {
+async function sendVerificationCode(sessionId, email, name, db = pool, language = 'en') {
   const code = randomCode();
   const accessCode = randomHistoryAccessCode();
   await db.query(
@@ -165,7 +165,7 @@ async function sendVerificationCode(sessionId, email, name, db = pool) {
     [sessionId, hash(accessCode), String(HISTORY_ACCESS_CODE_TTL_DAYS)]
   );
 
-  const result = await sendOTPEmail(email, code, 'en', {
+  const result = await sendOTPEmail(email, code, language, {
     accessCode,
     accessCodeExpiresDays: HISTORY_ACCESS_CODE_TTL_DAYS,
   });
@@ -188,7 +188,7 @@ async function sendVerificationCode(sessionId, email, name, db = pool) {
   return { code, accessCode };
 }
 
-async function startGuestVerification({ helperId, businessId, guestName, guestEmail }) {
+async function startGuestVerification({ helperId, businessId, guestName, guestEmail, language = 'en' }) {
   const name = String(guestName || '').trim().slice(0, 200);
   const email = normalizeEmail(guestEmail);
   if (!name || !isValidEmail(email)) {
@@ -258,7 +258,7 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
       sessionId = inserted.rows[0].id;
     }
 
-    await sendVerificationCode(sessionId, email, name, client);
+    await sendVerificationCode(sessionId, email, name, client, language);
     const access = await client.query(
       `SELECT guest_history_access_code_expires_at
          FROM guest_profile_chat_inbound WHERE id = $1`,
@@ -401,7 +401,7 @@ async function verifyGuestCode({ sessionId, guestEmail, code, accessCode = '' })
   }
 }
 
-async function resendGuestCode({ sessionId, guestEmail }) {
+async function resendGuestCode({ sessionId, guestEmail, language = 'en' }) {
   const email = normalizeEmail(guestEmail);
   if (!isValidEmail(email)) {
     const err = new Error('Valid email is required');
@@ -423,7 +423,7 @@ async function resendGuestCode({ sessionId, guestEmail }) {
     throw err;
   }
 
-  await sendVerificationCode(sessionId, email, rows[0].guest_name);
+  await sendVerificationCode(sessionId, email, rows[0].guest_name, pool, language);
   return {
     sessionId,
     emailMasked: maskEmail(email),

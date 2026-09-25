@@ -7,6 +7,7 @@ const escapeHtml        = require('../utils/escapeHtml');
 const webPushService    = require('./webPushService');
 const mobilePushService = require('./mobilePushService');
 const { tNotif, tNotifEmail } = require('../utils/i18n');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -211,6 +212,7 @@ exports.sendNotification = async ({
         isBanned,
         language,
         fallbackTranslations: emailTranslations,
+        idempotencyKey: deliveryKey,
       });
       if (notifId) {
         await db.query(
@@ -273,6 +275,7 @@ async function sendEmailNotification({
   isBanned,
   language = 'en',
   fallbackTranslations = null,
+  idempotencyKey = null,
 }) {
   try {
     const translations = fallbackTranslations || tNotifEmail(type, language);
@@ -280,7 +283,7 @@ async function sendEmailNotification({
       || tNotifEmail('default', language).buttonText
       || 'View Dashboard';
 
-    const html = buildEmailTemplate({
+    const rendered = buildEmailTemplate({
       firstName: firstName || 'there',
       title,
       body,
@@ -292,13 +295,15 @@ async function sendEmailNotification({
       manageNotificationsText: translations.manageNotificationsText,
       unsubscribeText: translations.unsubscribeText,
       footerFallbackText: translations.footerFallbackText,
+      language,
     });
 
     await sendEmail({
       to,
       subject: title,
-      html,
-      text: body,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: idempotencyKey || undefined,
     });
   } catch (err) {
     logger.error('Send email notification failed', { to, type, error: err.message });
@@ -319,7 +324,8 @@ function buildEmailTemplate({
   footerPrefix = 'You are receiving this because you have an OxSteed account.',
   manageNotificationsText = 'Manage notifications',
   unsubscribeText = 'Unsubscribe',
-  footerFallbackText = 'You received this notification from OxSteed.'
+  footerFallbackText = 'You received this notification from OxSteed.',
+  language = 'en',
 }) {
   // action_url must be a relative path starting with '/' to prevent open redirect
   const safeActionUrl = (action_url && typeof action_url === 'string' && action_url.startsWith('/'))
@@ -331,56 +337,17 @@ function buildEmailTemplate({
     ? null
     : `${process.env.CLIENT_URL}/settings/notifications`;
 
-  const ctaBlock = safeActionUrl ? `
-    <table cellpadding="0" cellspacing="0" role="presentation">
-      <tr>
-        <td style="border-radius:10px;background:#f97316;">
-          <a href="${process.env.CLIENT_URL}${escapeHtml(safeActionUrl)}"
-             style="display:inline-block;padding:14px 28px;
-                    color:#ffffff;font-size:14px;
-                    font-weight:600;text-decoration:none;
-                    border-radius:10px;">
-            ${escapeHtml(buttonText)}
-          </a>
-        </td>
-      </tr>
-    </table>
-  ` : '';
-
-  const footerLinks = settingsUrl ? `
-    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">${escapeHtml(manageNotificationsText)}</a>
-    &nbsp;·&nbsp;
-    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">${escapeHtml(unsubscribeText)}</a>
-  ` : escapeHtml(footerFallbackText);
-
-  return `<!DOCTYPE html><html><head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  </head><body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,system-ui,sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-      <tr><td align="center" style="padding:40px 16px;">
-        <table width="560" cellpadding="0" cellspacing="0" role="presentation"
-               style="background:#ffffff;border-radius:16px;overflow:hidden;
-                      box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-          <tr><td style="background:#f97316;padding:28px 32px;">
-            <span style="color:#ffffff;font-size:22px;font-weight:800;">OxSteed</span>
-          </td></tr>
-          <tr><td style="padding:36px 32px;">
-            <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">Hi ${escapeHtml(firstName)},</p>
-            <h1 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:700;">${escapeHtml(title)}</h1>
-            <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.6;">${escapeHtml(body)}</p>
-            ${ctaBlock}
-          </td></tr>
-          <tr><td style="padding:20px 32px;border-top:1px solid #f3f4f6;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
-              ${escapeHtml(footerPrefix)}
-              ${footerLinks}
-            </p>
-          </td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body></html>`.trim();
+  return renderOxSteedEmail({
+    language,
+    preheader: title,
+    eyebrow: type.replace(/_/g, ' ').toUpperCase() || 'OXSTEED',
+    title,
+    intro: `Hi ${firstName || 'there'},`,
+    bodyText: body,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(body)}</p>`,
+    cta: safeActionUrl ? { label: buttonText, url: safeActionUrl } : null,
+    footerText: `${footerPrefix} ${settingsUrl ? `${manageNotificationsText} · ${unsubscribeText}` : footerFallbackText}`,
+  });
 }
 
 // ─── BULK NOTIFICATION (e.g. platform announcements) ──────────

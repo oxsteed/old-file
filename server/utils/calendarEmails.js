@@ -8,6 +8,7 @@
 'use strict';
 
 const { tNotif } = require('./i18n');
+const { renderOxSteedEmail } = require('./emailTemplate');
 
 const DEFAULT_LANGUAGE = 'en';
 const ALLOWED_LANGS = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -63,6 +64,13 @@ function interpolate(template, vars = {}) {
     .replace(/\n/g, '<br/>');
 }
 
+function textFromHtml(value) {
+  return String(value || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
 function fmtDate(d, language = DEFAULT_LANGUAGE) {
   if (!d) return '';
   try {
@@ -76,13 +84,17 @@ function fmtDate(d, language = DEFAULT_LANGUAGE) {
   }
 }
 
-function wrap(title, bodyHtml) {
-  return `<!doctype html><html><body style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: #111; max-width: 560px; margin: 0 auto; padding: 24px;">
-    <h2 style="margin-top:0">${escape(title)}</h2>
-    ${bodyHtml}
-    <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-    <p style="font-size:12px;color:#666">OxSteed - local trades marketplace</p>
-  </body></html>`;
+function wrap(title, bodyHtml, language = DEFAULT_LANGUAGE) {
+  const rendered = renderOxSteedEmail({
+    language,
+    preheader: title,
+    eyebrow: 'OXSTEED CALENDAR',
+    title,
+    bodyHtml,
+    bodyText: textFromHtml(bodyHtml),
+    footerText: 'OxSteed - local trades marketplace',
+  });
+  return rendered.html;
 }
 
 function buildBody(type, languageCode, vars) {
@@ -152,18 +164,18 @@ function renderAppointmentEmail(type, data = {}, language = DEFAULT_LANGUAGE) {
 
   switch (type) {
     case 'appointment_requested':
-      return wrap(title, `${safeBody}${detailLine}${reasonLine}`);
+      return wrap(title, `${safeBody}${detailLine}${reasonLine}`, languageCode);
     case 'appointment_confirmed':
-      return wrap(title, `${safeBody}${detailLine}${reasonLine}`);
+      return wrap(title, `${safeBody}${detailLine}${reasonLine}`, languageCode);
     case 'appointment_cancelled':
-      return wrap(title, `${safeBody}${reasonLine}`);
+      return wrap(title, `${safeBody}${reasonLine}`, languageCode);
     case 'appointment_completed':
-      return wrap(title, `${safeBody}<p>${thanksLine}</p>`);
+      return wrap(title, `${safeBody}<p>${thanksLine}</p>`, languageCode);
     case 'reminder_24h':
     case 'reminder_same_day':
     case 'reminder_2h':
     default:
-      return wrap(title || tNotif('appointment_requested', languageCode).title, `${safeBody}${detailLine}`);
+      return wrap(title || tNotif('appointment_requested', languageCode).title, `${safeBody}${detailLine}`, languageCode);
   }
 }
 

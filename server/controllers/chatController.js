@@ -1669,12 +1669,13 @@ exports.getProfileContext = async (req, res, next) => {
  */
 exports.startGuestProfileChatVerification = async (req, res, next) => {
   try {
-    const { helperId, businessId, guestName, guestEmail } = req.body || {};
+    const { helperId, businessId, guestName, guestEmail, language } = req.body || {};
     const result = await guestProfileVerify.startGuestVerification({
       helperId,
       businessId,
       guestName,
       guestEmail,
+      language: language || req.acceptsLanguages?.()[0] || 'en',
     });
     return res.status(201).json({ success: true, ...result });
   } catch (err) {
@@ -1721,8 +1722,12 @@ exports.verifyGuestProfileChatCode = async (req, res, next) => {
  */
 exports.resendGuestProfileChatCode = async (req, res, next) => {
   try {
-    const { sessionId, guestEmail } = req.body || {};
-    const result = await guestProfileVerify.resendGuestCode({ sessionId, guestEmail });
+    const { sessionId, guestEmail, language } = req.body || {};
+    const result = await guestProfileVerify.resendGuestCode({
+      sessionId,
+      guestEmail,
+      language: language || req.acceptsLanguages?.()[0] || 'en',
+    });
     return res.json({ success: true, ...result });
   } catch (err) {
     if (err.status) {
