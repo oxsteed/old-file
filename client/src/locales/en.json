@@ -7057,6 +7057,44 @@
         "deletePackage": "Delete this package?",
         "deleteRecord": "Delete this record?"
       }
+    },
+    "leads": {
+      "title": "Leads",
+      "subtitle": "Track prospects, follow up, and move opportunities toward completed work.",
+      "addLead": "Add lead",
+      "toastLoadFail": "Could not load leads",
+      "toastNameRequired": "Lead name is required",
+      "toastUpdated": "Lead updated",
+      "toastAdded": "Lead added",
+      "toastSaveFail": "Could not save lead",
+      "toastStageUpdated": "Lead stage updated",
+      "toastStageUpdateFail": "Could not update lead stage",
+      "confirmDelete": "Delete this lead?",
+      "toastDeleted": "Lead deleted",
+      "pipelineValue": "Pipeline Value",
+      "editLead": "Edit Lead",
+      "newLead": "New Lead",
+      "stages": {
+        "new": "New",
+        "contacted": "Contacted",
+        "quoted": "Quoted",
+        "negotiating": "Negotiating",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "fields": {
+        "name": "Name *",
+        "email": "Email",
+        "phone": "Phone",
+        "serviceInterest": "Service Interest",
+        "budget": "Budget ($)",
+        "source": "Source",
+        "notes": "Notes"
+      },
+      "noLeadsInStage": "No leads in this stage. Add your first prospect.",
+      "noLeadsYet": "No leads yet. Add your first prospect.",
+      "noContactInfo": "No contact info",
+      "via": "via"
     }
   },
   "plans": {

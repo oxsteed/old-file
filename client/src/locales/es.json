@@ -7022,6 +7022,44 @@
         "deletePackage": "¿Eliminar este paquete?",
         "deleteRecord": "¿Eliminar este registro?"
       }
+    },
+    "leads": {
+      "title": "Clientes potenciales",
+      "subtitle": "Haz seguimiento de prospectos y avanza las oportunidades hasta completar el trabajo.",
+      "addLead": "Agregar prospecto",
+      "toastLoadFail": "No se pudieron cargar los prospectos",
+      "toastNameRequired": "El nombre del prospecto es obligatorio",
+      "toastUpdated": "Prospecto actualizado",
+      "toastAdded": "Prospecto agregado",
+      "toastSaveFail": "No se pudo guardar el prospecto",
+      "toastStageUpdated": "Etapa del prospecto actualizada",
+      "toastStageUpdateFail": "No se pudo actualizar la etapa",
+      "confirmDelete": "¿Eliminar este prospecto?",
+      "toastDeleted": "Prospecto eliminado",
+      "pipelineValue": "Valor del embudo",
+      "editLead": "Editar prospecto",
+      "newLead": "Nuevo prospecto",
+      "stages": {
+        "new": "Nuevo",
+        "contacted": "Contactado",
+        "quoted": "Cotizado",
+        "negotiating": "Negociando",
+        "won": "Ganado",
+        "lost": "Perdido"
+      },
+      "fields": {
+        "name": "Nombre *",
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "serviceInterest": "Servicio de interés",
+        "budget": "Presupuesto ($)",
+        "source": "Fuente",
+        "notes": "Notas"
+      },
+      "noLeadsInStage": "No hay prospectos en esta etapa. Agrega tu primer prospecto.",
+      "noLeadsYet": "Aún no hay prospectos. Agrega tu primer prospecto.",
+      "noContactInfo": "Sin información de contacto",
+      "via": "por"
     }
   },
   "plans": {

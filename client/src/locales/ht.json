@@ -7107,6 +7107,44 @@
         "deletePackage": "Efase pake sa a?",
         "deleteRecord": "Efase dosye sa a?"
       }
+    },
+    "leads": {
+      "title": "Kandida",
+      "subtitle": "Swiv kandida yo, fè swivi, epi mennen opòtinite yo jiska travay la fini.",
+      "addLead": "Ajoute kandida",
+      "toastLoadFail": "Nou pa t kapab chaje kandida yo",
+      "toastNameRequired": "Non kandida a obligatwa",
+      "toastUpdated": "Kandida a mete ajou",
+      "toastAdded": "Kandida a ajoute",
+      "toastSaveFail": "Nou pa t kapab sove kandida a",
+      "toastStageUpdated": "Etap kandida a mete ajou",
+      "toastStageUpdateFail": "Nou pa t kapab mete etap la ajou",
+      "confirmDelete": "Efase kandida sa a?",
+      "toastDeleted": "Kandida a efase",
+      "pipelineValue": "Valè pipeline lan",
+      "editLead": "Modifye kandida a",
+      "newLead": "Nouvo kandida",
+      "stages": {
+        "new": "Nouvo",
+        "contacted": "Kontakte",
+        "quoted": "Bay pri",
+        "negotiating": "Negosyasyon",
+        "won": "Genyen",
+        "lost": "Pèdi"
+      },
+      "fields": {
+        "name": "Non *",
+        "email": "Imèl",
+        "phone": "Telefòn",
+        "serviceInterest": "Sèvis ki enterese",
+        "budget": "Bidjè ($)",
+        "source": "Sous",
+        "notes": "Nòt"
+      },
+      "noLeadsInStage": "Pa gen kandida nan etap sa a. Ajoute premye kandida ou.",
+      "noLeadsYet": "Pa gen kandida ankò. Ajoute premye kandida ou.",
+      "noContactInfo": "Pa gen enfòmasyon kontak",
+      "via": "pa"
     }
   },
   "plans": {

@@ -7022,6 +7022,44 @@
         "deletePackage": "Supprimer ce forfait ?",
         "deleteRecord": "Supprimer cet enregistrement ?"
       }
+    },
+    "leads": {
+      "title": "Prospects",
+      "subtitle": "Suivez les prospects et faites avancer les opportunités jusqu’à la réalisation du travail.",
+      "addLead": "Ajouter un prospect",
+      "toastLoadFail": "Impossible de charger les prospects",
+      "toastNameRequired": "Le nom du prospect est obligatoire",
+      "toastUpdated": "Prospect mis à jour",
+      "toastAdded": "Prospect ajouté",
+      "toastSaveFail": "Impossible d’enregistrer le prospect",
+      "toastStageUpdated": "Étape du prospect mise à jour",
+      "toastStageUpdateFail": "Impossible de mettre à jour l’étape",
+      "confirmDelete": "Supprimer ce prospect ?",
+      "toastDeleted": "Prospect supprimé",
+      "pipelineValue": "Valeur du pipeline",
+      "editLead": "Modifier le prospect",
+      "newLead": "Nouveau prospect",
+      "stages": {
+        "new": "Nouveau",
+        "contacted": "Contacté",
+        "quoted": "Devis envoyé",
+        "negotiating": "Négociation",
+        "won": "Gagné",
+        "lost": "Perdu"
+      },
+      "fields": {
+        "name": "Nom *",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "serviceInterest": "Service recherché",
+        "budget": "Budget ($)",
+        "source": "Source",
+        "notes": "Notes"
+      },
+      "noLeadsInStage": "Aucun prospect dans cette étape. Ajoutez votre premier prospect.",
+      "noLeadsYet": "Aucun prospect pour le moment. Ajoutez votre premier prospect.",
+      "noContactInfo": "Aucune coordonnée",
+      "via": "via"
     }
   },
   "plans": {
