@@ -18162,6 +18162,154 @@
           "Venta cruzada de entregables creativos relacionados"
         ]
     },
+    "health": {
+        "operatingModel": "Flujo de atención centrado en citas, retención y confianza",
+        "headline": "Convierte el interés por el cuidado en citas recurrentes con sesiones claras, políticas y seguimiento constante.",
+        "operatorBrief": "Los negocios de salud y bienestar ganan con confianza, ambiente y reservas recurrentes. El flujo debe proteger la privacidad y facilitar la continuidad del cuidado.",
+        "primaryDemand": [
+          "Consultas iniciales",
+          "Sesiones recurrentes",
+          "Planes de bienestar orientados a resultados"
+        ],
+        "workflowStages": [
+          "Presentar el camino de atención adecuado",
+          "Guiar la reserva al tipo de sesión correcto",
+          "Realizar la cita y registrar notas o próximos pasos",
+          "Impulsar la retención con nuevas reservas y continuidad"
+        ],
+        "intakeRequirements": [
+          "Objetivo o preocupación",
+          "Preferencia de sesión",
+          "Disponibilidad",
+          "Notas importantes de preparación"
+        ],
+        "records": [
+          "Paquetes de sesiones",
+          "Orientación del plan de atención",
+          "Calidad de la disponibilidad",
+          "Puntos de contacto de retención"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operaciones de continuidad",
+            "reason": "Gestiona admisión guiada, progreso y continuidad de sesiones desde una cola."
+          },
+          {
+            "label": "Servicios y reservas",
+            "reason": "Organiza tipos y duraciones de sesión."
+          },
+          {
+            "label": "Agenda y lista de espera",
+            "reason": "Cubre cancelaciones y concentra la demanda en una agenda."
+          },
+          {
+            "label": "Fidelidad",
+            "reason": "Impulsa la retención y las citas recurrentes."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar las sesiones de hoy",
+          "Confirmar citas del día siguiente",
+          "Cubrir espacios libres con la lista de espera"
+        ],
+        "weeklyCadence": [
+          "Comprobar la tasa de nuevas reservas",
+          "Actualizar ofertas de sesiones",
+          "Auditar patrones de cancelación"
+        ],
+        "monthlyCadence": [
+          "Perfeccionar paquetes",
+          "Revisar retención por servicio",
+          "Promover planes de varias sesiones"
+        ],
+        "qualityControls": [
+          "Lenguaje que transmite confianza",
+          "Reglas claras de cancelación",
+          "Camino listo para volver a reservar",
+          "Señales de continuidad de atención"
+        ],
+        "monetization": [
+          "Paquetes de varias sesiones",
+          "Membresías o planes",
+          "Programas de atención de mayor valor"
+        ]
+    },
+    "care": {
+        "operatingModel": "Flujo de apoyo recurrente centrado en la confianza",
+        "headline": "Usa la plantilla para convertir decisiones de confianza en relaciones estables de apoyo recurrente con una comunicación clara.",
+        "operatorBrief": "Las plantillas de cuidado deben ayudar a que los clientes se sientan seguros, entiendan las rutinas y mantengan la confianza en el apoyo recurrente.",
+        "primaryDemand": [
+          "Apoyo recurrente",
+          "Decisiones de confianza familiar",
+          "Trabajo de cuidado basado en rutinas"
+        ],
+        "workflowStages": [
+          "Crear confianza y aclarar el encaje",
+          "Capturar horarios y detalles de la rutina",
+          "Prestar el cuidado con constancia",
+          "Documentar preferencias e impulsar la continuidad"
+        ],
+        "intakeRequirements": [
+          "Necesidad de cuidado",
+          "Rutina de horarios",
+          "Notas especiales",
+          "Preferencias de contacto"
+        ],
+        "records": [
+          "Notas de rutina",
+          "Historial de preferencias",
+          "Comunicación con familia o propietario",
+          "Cadencia de nuevas reservas"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operaciones de continuidad",
+            "reason": "Registra rutinas, notas de confianza y admisiones de apoyo recurrente."
+          },
+          {
+            "label": "Clientes",
+            "reason": "Da contexto sobre personas, hogares o mascotas."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Gestiona el apoyo recurrente sin perder rutinas."
+          },
+          {
+            "label": "Mensajes",
+            "reason": "Conserva documentada la comunicación sensible."
+          },
+          {
+            "label": "Reseñas",
+            "reason": "Recopila pruebas de confianza con cuidado."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar las rutinas de hoy",
+          "Confirmar cambios de cuidado",
+          "Registrar cambios de preferencias después de las visitas"
+        ],
+        "weeklyCadence": [
+          "Comprobar la estabilidad del calendario recurrente",
+          "Dar seguimiento a inquietudes familiares",
+          "Revisar comentarios sobre el cuidado"
+        ],
+        "monthlyCadence": [
+          "Perfeccionar paquetes recurrentes",
+          "Detectar riesgo de abandono",
+          "Reforzar señales de confianza en perfil y mensajes"
+        ],
+        "qualityControls": [
+          "Comunicación que prioriza la confianza",
+          "Constancia de las rutinas",
+          "Notas y preferencias claras",
+          "Seguimiento tranquilizador"
+        ],
+        "monetization": [
+          "Planes recurrentes",
+          "Paquetes premium basados en confianza",
+          "Relaciones familiares de largo plazo"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

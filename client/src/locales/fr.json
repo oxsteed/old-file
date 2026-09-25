@@ -18162,6 +18162,154 @@
           "Vente croisée de livrables créatifs associés"
         ]
     },
+    "health": {
+        "operatingModel": "Flux de soins centré sur les rendez-vous, la fidélité et la confiance",
+        "headline": "Transformez l’intérêt pour les soins en rendez-vous récurrents grâce à une structure de séance, des règles et un suivi clairs.",
+        "operatorBrief": "Les activités de santé et de bien-être reposent sur la confiance, l’ambiance et les rendez-vous répétés. Le flux doit protéger la vie privée tout en facilitant la continuité des soins.",
+        "primaryDemand": [
+          "Premières consultations",
+          "Séances récurrentes",
+          "Programmes de bien-être axés sur les résultats"
+        ],
+        "workflowStages": [
+          "Présenter le parcours de soins adapté",
+          "Orienter la réservation vers le bon type de séance",
+          "Réaliser le rendez-vous et noter les prochaines étapes",
+          "Favoriser la fidélité par la reprise de rendez-vous et la continuité"
+        ],
+        "intakeRequirements": [
+          "Objectif ou préoccupation",
+          "Préférence de séance",
+          "Disponibilités",
+          "Notes de préparation importantes"
+        ],
+        "records": [
+          "Forfaits de séances",
+          "Conseils de parcours de soins",
+          "Qualité des disponibilités",
+          "Points de contact de fidélisation"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Opérations de continuité",
+            "reason": "Gérez l’accueil guidé, le progrès et la continuité depuis une seule file."
+          },
+          {
+            "label": "Services et réservations",
+            "reason": "Structurez les types et durées de séance."
+          },
+          {
+            "label": "Planning et liste d’attente",
+            "reason": "Comblez les annulations et centralisez la demande."
+          },
+          {
+            "label": "Fidélité",
+            "reason": "Encouragez la fidélité et les rendez-vous récurrents."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les séances du jour",
+          "Confirmer les rendez-vous du lendemain",
+          "Combler les créneaux avec la liste d’attente"
+        ],
+        "weeklyCadence": [
+          "Vérifier le taux de reprise",
+          "Actualiser les offres de séances",
+          "Auditer les annulations"
+        ],
+        "monthlyCadence": [
+          "Affiner les forfaits",
+          "Examiner la fidélité par service",
+          "Promouvoir les plans de plusieurs séances"
+        ],
+        "qualityControls": [
+          "Langage rassurant",
+          "Règles d’annulation claires",
+          "Parcours de reprise prêt",
+          "Signaux de continuité des soins"
+        ],
+        "monetization": [
+          "Forfaits de plusieurs séances",
+          "Abonnements ou plans",
+          "Programmes de soins à plus forte valeur"
+        ]
+    },
+    "care": {
+        "operatingModel": "Flux d’accompagnement récurrent fondé sur la confiance",
+        "headline": "Utilisez ce modèle pour transformer les décisions de confiance en relations d’accompagnement stables et récurrentes, avec une communication claire.",
+        "operatorBrief": "Les modèles d’accompagnement doivent rassurer rapidement, clarifier les routines et maintenir la confiance dans le soutien récurrent.",
+        "primaryDemand": [
+          "Accompagnement récurrent",
+          "Décisions de confiance de la famille",
+          "Accompagnement basé sur les routines"
+        ],
+        "workflowStages": [
+          "Créer la confiance et clarifier l’adéquation",
+          "Recueillir le planning et les détails de routine",
+          "Assurer un accompagnement régulier",
+          "Documenter les préférences et encourager la continuité"
+        ],
+        "intakeRequirements": [
+          "Besoin d’accompagnement",
+          "Routine du planning",
+          "Notes spéciales",
+          "Préférences de contact"
+        ],
+        "records": [
+          "Notes de routine",
+          "Historique des préférences",
+          "Échanges avec la famille ou le propriétaire",
+          "Cadence des réservations répétées"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Opérations de continuité",
+            "reason": "Suivez les routines, notes de confiance et demandes récurrentes au même endroit."
+          },
+          {
+            "label": "Clients",
+            "reason": "Suivez les personnes, foyers ou animaux avec leur contexte."
+          },
+          {
+            "label": "Planning",
+            "reason": "Gérez l’accompagnement récurrent sans oublier les routines."
+          },
+          {
+            "label": "Messages",
+            "reason": "Conservez les échanges sensibles documentés."
+          },
+          {
+            "label": "Avis",
+            "reason": "Recueillez avec soin les preuves de confiance."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les routines du jour",
+          "Confirmer les changements de soins",
+          "Noter les préférences après les visites"
+        ],
+        "weeklyCadence": [
+          "Vérifier la stabilité du planning récurrent",
+          "Relancer les préoccupations de la famille",
+          "Examiner les retours sur l’accompagnement"
+        ],
+        "monthlyCadence": [
+          "Affiner les forfaits récurrents",
+          "Repérer le risque de départ",
+          "Renforcer les signaux de confiance dans le profil et les messages"
+        ],
+        "qualityControls": [
+          "Communication axée sur la confiance",
+          "Régularité des routines",
+          "Notes et préférences claires",
+          "Relance rassurante"
+        ],
+        "monetization": [
+          "Plans récurrents",
+          "Forfaits premium fondés sur la confiance",
+          "Relations durables avec les foyers"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"

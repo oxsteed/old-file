@@ -18162,6 +18162,154 @@
           "Vann lòt livrable kreyatif ki gen rapò"
         ]
     },
+    "health": {
+        "operatingModel": "Pwosesis swen ki santre sou randevou, fidelite ak konfyans",
+        "headline": "Transfòme enterè pou swen an an randevou ki repete, ak sesyon, règ ak swivi ki klè.",
+        "operatorBrief": "Biznis sante ak byennèt mache sou konfyans, atmosfè ak randevou ki repete. Pwosesis la dwe pwoteje vi prive pandan li fè kontinwite swen pi fasil.",
+        "primaryDemand": [
+          "Premye konsiltasyon",
+          "Sesyon ki repete",
+          "Plan byennèt ki chita sou rezilta"
+        ],
+        "workflowStages": [
+          "Prezante bon chemen swen an",
+          "Gide rezèvasyon an sou bon kalite sesyon",
+          "Fè randevou a epi anrejistre nòt oswa pwochen etap",
+          "Ankouraje retansyon ak nouvo rezèvasyon ak kontinwite swen"
+        ],
+        "intakeRequirements": [
+          "Objektif oswa enkyetid",
+          "Preferans sesyon",
+          "Disponiblite",
+          "Nòt preparasyon enpòtan"
+        ],
+        "records": [
+          "Pakè sesyon",
+          "Gid chemen swen",
+          "Kalite disponiblite",
+          "Pwen kontak retansyon"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operasyon kontinwite",
+            "reason": "Jere admisyon gide, pwogrè ak kontinwite sesyon nan yon sèl lis."
+          },
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Mete kalite ak dire sesyon yo nan bon estrikti."
+          },
+          {
+            "label": "Orè ak lis datant",
+            "reason": "Ranpli anilasyon epi kenbe demann lan nan yon sèl orè."
+          },
+          {
+            "label": "Fidelite",
+            "reason": "Pouse retansyon ak randevou ki repete."
+          }
+        ],
+        "dailyCadence": [
+          "Revize sesyon jodi a",
+          "Konfime randevou demen",
+          "Ranpli espas ki vid ak lis datant"
+        ],
+        "weeklyCadence": [
+          "Tcheke pousantaj moun ki rebook",
+          "Mete òf sesyon yo ajou",
+          "Verifye modèl anilasyon"
+        ],
+        "monthlyCadence": [
+          "Amelyore pakè yo",
+          "Revize retansyon selon sèvis",
+          "Pwomouvwa plan ki gen plizyè sesyon"
+        ],
+        "qualityControls": [
+          "Langaj ki dous epi bay konfyans",
+          "Règ anilasyon ki klè",
+          "Chemen ki pare pou rebook",
+          "Siy kontinwite swen"
+        ],
+        "monetization": [
+          "Pakè plizyè sesyon",
+          "Manm oswa plan",
+          "Pwogram swen ki gen plis valè"
+        ]
+    },
+    "care": {
+        "operatingModel": "Pwosesis sipò ki repete epi ki sansib pou konfyans",
+        "headline": "Sèvi ak modèl la pou transfòme desizyon konfyans an relasyon sipò ki estab ak repete, ak bon siyal kominikasyon.",
+        "operatorBrief": "Modèl swen yo dwe ede kliyan yo santi yo an sekirite, konprann woutin yo epi rete konfyans nan sipò ki repete sou tan.",
+        "primaryDemand": [
+          "Sipò ki repete",
+          "Desizyon konfyans fanmi",
+          "Travay swen ki baze sou woutin"
+        ],
+        "workflowStages": [
+          "Bati konfyans epi klarifye si sa mache",
+          "Rasanble orè ak detay woutin",
+          "Bay swen an avèk regilarite",
+          "Dokimante preferans epi ankouraje kontinwite"
+        ],
+        "intakeRequirements": [
+          "Bezwen swen",
+          "Woutin orè",
+          "Nòt espesyal",
+          "Preferans kontak"
+        ],
+        "records": [
+          "Nòt woutin",
+          "Istwa preferans",
+          "Kominikasyon ak fanmi oswa pwopriyetè",
+          "Rit rezèvasyon ki repete"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operasyon kontinwite",
+            "reason": "Swiv woutin, nòt konfyans ak demann sipò ki repete nan yon sèl kote."
+          },
+          {
+            "label": "Kliyan",
+            "reason": "Swiv moun, kay oswa bèt ak kontèks yo."
+          },
+          {
+            "label": "Orè",
+            "reason": "Jere sipò ki repete san bliye woutin yo."
+          },
+          {
+            "label": "Mesaj",
+            "reason": "Kenbe kominikasyon sansib yo dokimante."
+          },
+          {
+            "label": "Evalyasyon",
+            "reason": "Rasanble prèv konfyans avèk prekosyon."
+          }
+        ],
+        "dailyCadence": [
+          "Revize woutin jodi a",
+          "Konfime nenpòt mizajou swen",
+          "Anrejistre chanjman preferans apre vizit yo"
+        ],
+        "weeklyCadence": [
+          "Tcheke estabilite orè ki repete",
+          "Swiv enkyetid fanmi yo",
+          "Revize fidbak sou swen"
+        ],
+        "monthlyCadence": [
+          "Amelyore pakè ki repete",
+          "Chèche risk kliyan ap kite",
+          "Ranfòse siy konfyans nan pwofil ak mesaj"
+        ],
+        "qualityControls": [
+          "Kominikasyon ki mete konfyans devan",
+          "Regilarite woutin",
+          "Nòt ak preferans ki klè",
+          "Swivi ki bay rasirans"
+        ],
+        "monetization": [
+          "Plan ki repete",
+          "Pakè premium ki chita sou konfyans",
+          "Relasyon kay ki dire lontan"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

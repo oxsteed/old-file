@@ -18113,6 +18113,154 @@
           "Cross-sell adjacent creative deliverables"
         ]
     },
+    "health": {
+        "operatingModel": "Appointment-centric care workflow with retention and trust at the center",
+        "headline": "Turn care-based interest into repeat appointments with clear session structure, policies, and follow-up rhythm.",
+        "operatorBrief": "Health and wellness businesses are won through trust, atmosphere, and repeat scheduling. The workflow should protect privacy while making it easy to maintain continuity of care.",
+        "primaryDemand": [
+          "Intro consults",
+          "Recurring sessions",
+          "Outcome-focused wellness plans"
+        ],
+        "workflowStages": [
+          "Present the right care path",
+          "Guide booking into the right session type",
+          "Deliver appointment and capture notes or next-step recommendations",
+          "Encourage retention through rebooking and care continuity"
+        ],
+        "intakeRequirements": [
+          "Goal or concern",
+          "Session preference",
+          "Availability",
+          "Any important prep notes"
+        ],
+        "records": [
+          "Session packages",
+          "Care-path guidance",
+          "Availability quality",
+          "Retention touchpoints"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Continuity Ops",
+            "reason": "Run guided intake, progress, and repeat-session continuity from one queue."
+          },
+          {
+            "label": "Services & Booking",
+            "reason": "Structure session types and durations."
+          },
+          {
+            "label": "Schedule & Waitlist",
+            "reason": "Backfill cancellations and hold demand from one schedule workspace."
+          },
+          {
+            "label": "Loyalty",
+            "reason": "Drive retention and repeat appointments."
+          }
+        ],
+        "dailyCadence": [
+          "Review today’s sessions",
+          "Confirm next-day appointments",
+          "Backfill openings from waitlist"
+        ],
+        "weeklyCadence": [
+          "Check rebooking rate",
+          "Refresh session offers",
+          "Audit cancellation patterns"
+        ],
+        "monthlyCadence": [
+          "Refine packages",
+          "Review retention by service type",
+          "Promote multi-session plans"
+        ],
+        "qualityControls": [
+          "Gentle trust language",
+          "Clear cancellation rules",
+          "Retention-ready rebooking path",
+          "Care continuity cues"
+        ],
+        "monetization": [
+          "Multi-session packages",
+          "Memberships or plans",
+          "Higher-value care programs"
+        ]
+    },
+    "care": {
+        "operatingModel": "Trust-sensitive repeat-support workflow",
+        "headline": "Use the template to turn trust decisions into stable, repeat support relationships with strong communication cues.",
+        "operatorBrief": "Care templates should help customers feel safe quickly, understand routines clearly, and stay confident about recurring support over time.",
+        "primaryDemand": [
+          "Recurring support",
+          "Family trust decisions",
+          "Routine-based care work"
+        ],
+        "workflowStages": [
+          "Build confidence and clarify fit",
+          "Capture schedule and routine details",
+          "Deliver care consistently",
+          "Document preferences and encourage continuity"
+        ],
+        "intakeRequirements": [
+          "Care need",
+          "Schedule routine",
+          "Special notes",
+          "Contact preferences"
+        ],
+        "records": [
+          "Routine notes",
+          "Preference history",
+          "Family or owner communication",
+          "Repeat-booking cadence"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Continuity Ops",
+            "reason": "Track routines, trust notes, and recurring support intake in one place."
+          },
+          {
+            "label": "Clients",
+            "reason": "Track people, households, or pets with context."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Run recurring support without missing routines."
+          },
+          {
+            "label": "Messages",
+            "reason": "Keep trust-sensitive communication documented."
+          },
+          {
+            "label": "Reviews",
+            "reason": "Collect trust-building social proof carefully."
+          }
+        ],
+        "dailyCadence": [
+          "Review today’s routines",
+          "Confirm any care updates",
+          "Log preference changes after visits"
+        ],
+        "weeklyCadence": [
+          "Check repeat schedule stability",
+          "Follow up on family concerns",
+          "Review care feedback"
+        ],
+        "monthlyCadence": [
+          "Refine recurring packages",
+          "Spot churn risk",
+          "Strengthen trust cues in profile and messaging"
+        ],
+        "qualityControls": [
+          "Trust-first communication",
+          "Routine consistency",
+          "Clear notes and preferences",
+          "Reassuring follow-up"
+        ],
+        "monetization": [
+          "Recurring plans",
+          "Premium trust-led packages",
+          "Longer-term household relationships"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"
