@@ -8,35 +8,35 @@ import '../../styles/CustomerLoyaltyManager.css';
 const TIER_CONFIGS = [
   {
     id: 'bronze',
-    name: 'Bronze',
+    nameKey: 'bronze',
     icon: Gift,
     color: '#cd7f32',
     minPoints: 0,
-    benefits: ['5% discount on services', 'Priority support']
+    benefitKeys: ['bronzeDiscount', 'prioritySupport']
   },
   {
     id: 'silver',
-    name: 'Silver',
+    nameKey: 'silver',
     icon: Zap,
     color: '#c0c0c0',
     minPoints: 500,
-    benefits: ['10% discount on services', 'Early booking access', 'Monthly bonus points']
+    benefitKeys: ['silverDiscount', 'earlyBooking', 'monthlyBonus']
   },
   {
     id: 'gold',
-    name: 'Gold',
+    nameKey: 'gold',
     icon: Crown,
     color: '#ffd700',
     minPoints: 1500,
-    benefits: ['15% discount on services', 'VIP support', 'Free service upgrade', 'Exclusive events']
+    benefitKeys: ['goldDiscount', 'vipSupport', 'freeUpgrade', 'exclusiveEvents']
   },
   {
     id: 'platinum',
-    name: 'Platinum',
+    nameKey: 'platinum',
     icon: Crown,
     color: '#e5e4e2',
     minPoints: 3500,
-    benefits: ['25% discount on services', 'Dedicated account manager', 'Custom pricing', 'Annual gift']
+    benefitKeys: ['platinumDiscount', 'accountManager', 'customPricing', 'annualGift']
   }
 ];
 
@@ -174,7 +174,7 @@ export function CustomerLoyaltyManager({ businessId }) {
 
           <div className="clm-form-row">
             <div className="clm-form-group">
-              <label>Tier Name *</label>
+              <label>{t('businessHub.loyalty.tierNameRequired')}</label>
               <select
                 value={formData.tier_name}
                 onChange={(e) => setFormData({ ...formData, tier_name: e.target.value })}
@@ -182,13 +182,13 @@ export function CustomerLoyaltyManager({ businessId }) {
               >
                 {TIER_CONFIGS.map(tier => (
                   <option key={tier.id} value={tier.id}>
-                    {tier.name}
+                    {t(`businessHub.loyalty.tiers.${tier.nameKey}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="clm-form-group">
-              <label>Minimum Points *</label>
+              <label>{t('businessHub.loyalty.minimumPointsRequired')}</label>
               <input
                 type="number"
                 min="0"
@@ -201,7 +201,7 @@ export function CustomerLoyaltyManager({ businessId }) {
 
           <div className="clm-form-row">
             <div className="clm-form-group">
-              <label>Discount Percentage *</label>
+              <label>{t('businessHub.loyalty.discountPercentageRequired')}</label>
               <input
                 type="number"
                 min="0"
@@ -211,12 +211,12 @@ export function CustomerLoyaltyManager({ businessId }) {
                 onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) })}
                 required
               />
-              <small>Percentage discount applied to services</small>
+              <small>{t('businessHub.loyalty.discountHint')}</small>
             </div>
           </div>
 
           <div className="clm-form-group">
-            <label>Benefits</label>
+            <label>{t('businessHub.loyalty.benefits')}</label>
             <textarea
               value={formData.benefits.join('\n')}
               onChange={(e) =>
@@ -225,18 +225,18 @@ export function CustomerLoyaltyManager({ businessId }) {
                   benefits: e.target.value.split('\n').filter(b => b.trim())
                 })
               }
-              placeholder="Enter each benefit on a new line&#10;E.g., Priority support&#10;Free service upgrade"
+              placeholder={t('businessHub.loyalty.benefitsPlaceholder')}
               rows="4"
             />
-            <small>Enter each benefit on a separate line</small>
+            <small>{t('businessHub.loyalty.benefitsHint')}</small>
           </div>
 
           <div className="clm-form-buttons">
             <button onClick={() => setShowForm(false)} className="clm-btn-cancel">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button onClick={handleSaveTier} className="clm-btn-save">
-              Save Tier
+              {t('businessHub.loyalty.saveTier')}
             </button>
           </div>
         </div>
@@ -246,18 +246,18 @@ export function CustomerLoyaltyManager({ businessId }) {
             onClick={() => setShowCustomerList(false)}
             className="clm-btn-back"
           >
-            ← Back to Tiers
+            ← {t('businessHub.loyalty.backToTiers')}
           </button>
-          <h4>Customers in this tier</h4>
+          <h4>{t('businessHub.loyalty.customersInTier')}</h4>
           {customers.length === 0 ? (
-            <p className="clm-no-customers">No customers in this tier yet</p>
+            <p className="clm-no-customers">{t('businessHub.loyalty.noCustomers')}</p>
           ) : (
             <div className="clm-customers-table">
               <div className="clm-table-header">
-                <div>Customer Name</div>
-                <div>Email</div>
-                <div>Loyalty Points</div>
-                <div>Appointments</div>
+                <div>{t('businessHub.loyalty.customerName')}</div>
+                <div>{t('businessHub.loyalty.email')}</div>
+                <div>{t('businessHub.loyalty.loyaltyPoints')}</div>
+                <div>{t('businessHub.loyalty.appointments')}</div>
               </div>
               {customers.map(customer => (
                 <div key={customer.id} className="clm-table-row">
@@ -273,15 +273,15 @@ export function CustomerLoyaltyManager({ businessId }) {
       ) : (
         <div className="clm-tiers-grid">
           {loading ? (
-            <div className="clm-loading">Loading loyalty tiers...</div>
+            <div className="clm-loading">{t('businessHub.loyalty.loading')}</div>
           ) : tiers.length === 0 ? (
             <div className="clm-empty">
-              <p>No loyalty tiers configured yet</p>
+              <p>{t('businessHub.loyalty.noTiers')}</p>
               <button
                 onClick={() => setShowForm(true)}
                 className="clm-btn-new-large"
               >
-                Set Up First Tier
+                {t('businessHub.loyalty.setupFirstTier')}
               </button>
             </div>
           ) : (
@@ -297,19 +297,19 @@ export function CustomerLoyaltyManager({ businessId }) {
                     >
                       <TierIcon size={24} color="white" />
                     </div>
-                    <h4>{config?.name || tier.tier_name}</h4>
+                    <h4>{config ? t(`businessHub.loyalty.tiers.${config.nameKey}`) : tier.tier_name}</h4>
                     <div className="clm-tier-actions">
                       <button
                         onClick={() => handleEditTier(tier)}
                         className="clm-btn-action"
-                        aria-label="Edit tier"
+                        aria-label={t('businessHub.loyalty.editTier')}
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteTier(tier.id)}
                         className="clm-btn-action delete"
-                        aria-label="Delete tier"
+                        aria-label={t('businessHub.loyalty.deleteTier')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -318,21 +318,21 @@ export function CustomerLoyaltyManager({ businessId }) {
 
                   <div className="clm-tier-details">
                     <div className="clm-detail">
-                      <span className="clm-label">Min Points:</span>
+                      <span className="clm-label">{t('businessHub.loyalty.minPoints')}</span>
                       <span className="clm-value">{tier.min_points}</span>
                     </div>
                     <div className="clm-detail">
-                      <span className="clm-label">Discount:</span>
+                      <span className="clm-label">{t('businessHub.loyalty.discount')}</span>
                       <span className="clm-value">{tier.discount_percent}%</span>
                     </div>
                   </div>
 
                   {tier.benefits && tier.benefits.length > 0 && (
                     <div className="clm-tier-benefits">
-                      <p className="clm-benefits-title">Benefits:</p>
+                      <p className="clm-benefits-title">{t('businessHub.loyalty.benefits')}:</p>
                       <ul>
                         {tier.benefits.map((benefit, idx) => (
-                          <li key={idx}>{benefit}</li>
+                    <li key={idx}>{benefit}</li>
                         ))}
                       </ul>
                     </div>
@@ -342,7 +342,7 @@ export function CustomerLoyaltyManager({ businessId }) {
                     onClick={() => loadCustomersByTier(tier.id)}
                     className="clm-btn-view-customers"
                   >
-                    View {tier.customer_count || 0} Customers
+                    {t('businessHub.loyalty.viewCustomers', { count: tier.customer_count || 0 })}
                   </button>
                 </div>
               );
