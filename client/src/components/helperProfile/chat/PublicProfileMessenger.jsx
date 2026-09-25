@@ -41,6 +41,7 @@ export default function PublicProfileMessenger({
   const [guestVerified, setGuestVerified] = useState(false);
   const [otpPending, setOtpPending] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
+  const savedGuestContact = isGuest ? readGuestContact(helperId, businessId) : null;
 
   useEffect(() => {
     if (open) setHasOpened(true);
@@ -133,6 +134,8 @@ export default function PublicProfileMessenger({
             displayName={helperName}
             helperId={helperId}
             businessId={businessId}
+            initialName={savedGuestContact?.name || ''}
+            initialEmail={savedGuestContact?.email || ''}
             onContinue={handleGuestContinue}
             onVerified={handleGuestVerified}
             entityKind={entityKind}

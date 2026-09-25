@@ -2373,6 +2373,7 @@
       "aria": "Provider deal tools",
       "schedule": "Schedule"
     },
+    "clientIntake": {"button":"Client intake","shareTitle":"Send client intake","title":"Client intake","titleLabel":"Form title","titlePlaceholder":"Tell us about your project","descriptionLabel":"Instructions","descriptionPlaceholder":"Optional note for the client","questionPlaceholder":"Question","addQuestion":"Add question","text":"Short answer","longText":"Long answer","number":"Number","date":"Date","choose":"Choose an option","send":"Send intake","submit":"Submit intake","completed":"Completed","waiting":"Waiting for the client to complete this intake.","thanks":"Your information was sent to the provider.","failed":"Could not save this intake. Please try again."},
     "creditRefund": {
       "title": "Refund OxSteed Credit",
       "button": "Refund",
@@ -6387,6 +6388,12 @@
       "guestOtpResendError": "Could not resend the code. Please wait and try again.",
       "guestOtpInvalid": "Enter the 6-digit code from your email.",
       "guestOtpBack": "Use a different email",
+      "guestAccessCodeLabel": "Guest chat access code",
+      "guestAccessCodePlaceholder": "Code from your email",
+      "guestAccessCodeHelp": "Use this code to reopen your conversation with this provider for 30 days.",
+      "guestAccessCodeInvalid": "That guest chat access code is invalid or expired.",
+      "guestHistoryExpired": "This guest chat history is older than 30 days.",
+      "createAccountToRecover": "Create an account to keep your chat history.",
       "guestLiveWaiting": "{{name}} is online — your message was delivered live.",
       "guestOfflineAi": "{{name}} is offline right now. You're chatting with their AI assistant — leave a message anytime.",
       "guestOfflineBanner": "Offline — AI assistant",

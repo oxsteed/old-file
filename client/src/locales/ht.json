@@ -2458,6 +2458,7 @@
       "aria": "Zouti founisè",
       "schedule": "Orè"
     },
+    "clientIntake": {"button":"Enfòmasyon kliyan","shareTitle":"Voye fòm kliyan","title":"Fòm kliyan","titleLabel":"Tit","titlePlaceholder":"Pale nou de pwojè ou","descriptionLabel":"Enstriksyon","descriptionPlaceholder":"Nòt si ou vle","questionPlaceholder":"Kesyon","addQuestion":"Ajoute kesyon","text":"Repons kout","longText":"Repons long","number":"Nimewo","date":"Dat","choose":"Chwazi yon opsyon","send":"Voye fòm","submit":"Voye repons","completed":"Fini","waiting":"N ap tann kliyan an ranpli fòm nan.","thanks":"Yo voye enfòmasyon an bay founisè a.","failed":"Nou pa t kapab sove fòm nan. Eseye ankò."},
     "creditRefund": {
       "title": "Rembouse OxSteed Credit",
       "button": "Rembouse",
@@ -6387,6 +6388,12 @@
       "guestOtpResendError": "Pa t kapab voye kòd la ankò. Tanpri rete tann epi eseye ankò.",
       "guestOtpInvalid": "Antre kòd 6 chif ki soti nan imèl ou.",
       "guestOtpBack": "Sèvi ak yon lòt imèl",
+      "guestAccessCodeLabel": "Kòd aksè chat envite",
+      "guestAccessCodePlaceholder": "Kòd ki nan imèl ou",
+      "guestAccessCodeHelp": "Sèvi ak kòd sa a pou relouvri konvèsasyon an pandan 30 jou.",
+      "guestAccessCodeInvalid": "Kòd aksè chat la pa valab oswa li ekspire.",
+      "guestHistoryExpired": "Istwa chat envite sa a gen plis pase 30 jou.",
+      "createAccountToRecover": "Kreye yon kont pou kenbe istwa chat ou.",
       "guestLiveWaiting": "{{name}} sou liy — mesaj ou te livré an dirèk.",
       "guestOfflineAi": "{{name}} pa sou liy kounye a. Ou ap pale ak asistan IA li — ou ka kite yon mesaj.",
       "guestOfflineBanner": "Pa sou liy — asistan IA",

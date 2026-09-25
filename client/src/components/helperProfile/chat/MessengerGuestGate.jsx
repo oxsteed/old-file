@@ -29,8 +29,11 @@ export default function MessengerGuestGate({
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [emailMasked, setEmailMasked] = useState('');
+  const [accessCodeRequired, setAccessCodeRequired] = useState(false);
+  const [historyExpired, setHistoryExpired] = useState(false);
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -67,6 +70,8 @@ export default function MessengerGuestGate({
       });
       setSessionId(data.sessionId);
       setEmailMasked(data.emailMasked || payload.email);
+      setAccessCodeRequired(Boolean(data.accessCodeRequired));
+      setHistoryExpired(Boolean(data.previousHistoryExpired));
       setStep('otp');
       onContinue?.(payload);
     } catch (err) {
@@ -93,6 +98,7 @@ export default function MessengerGuestGate({
         sessionId,
         guestEmail: email.trim(),
         code: otp,
+        ...(accessCode.trim() ? { accessCode: accessCode.trim() } : {}),
       });
       const verified = {
         guestToken: data.guestToken,
@@ -103,6 +109,7 @@ export default function MessengerGuestGate({
         businessId: data.businessId ?? businessId ?? null,
         providerOnline: Boolean(data.providerOnline),
         expiresInSeconds: data.expiresInSeconds || 24 * 3600,
+        historyAccessExpiresAt: data.historyAccessExpiresAt || null,
       };
       writeGuestVerifiedSession(helperId, businessId, verified);
       onVerified?.(verified);
@@ -114,7 +121,9 @@ export default function MessengerGuestGate({
       setError(
         expired
           ? t('helperProfile.messenger.guestOtpExpired')
-          : (err?.response?.data?.error || t('helperProfile.messenger.guestOtpInvalid')),
+          : (err?.response?.data?.code === 'invalid_access_code'
+            ? t('helperProfile.messenger.guestAccessCodeInvalid')
+            : (err?.response?.data?.error || t('helperProfile.messenger.guestOtpInvalid'))),
       );
     } finally {
       setBusy(false);
@@ -155,6 +164,12 @@ export default function MessengerGuestGate({
             name: displayName,
           })}
         </p>
+        {historyExpired ? (
+          <p className="messenger-guest-gate__notice" role="status">
+            {t('helperProfile.messenger.guestHistoryExpired')}{' '}
+            <Link to="/join">{t('helperProfile.messenger.createAccountToRecover')}</Link>
+          </p>
+        ) : null}
 
         <div className="messenger-guest-gate__fields">
           <label>
@@ -175,6 +190,24 @@ export default function MessengerGuestGate({
               required
             />
           </label>
+          <label>
+            <span className="messenger-guest-gate__label">
+              {t('helperProfile.messenger.guestAccessCodeLabel')}
+              {!accessCodeRequired ? ` (${t('common.optional') || 'optional'})` : ''}
+            </span>
+            <input
+              type="text"
+              inputMode="text"
+              maxLength={32}
+              className="messenger-guest-gate__input"
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 32).toUpperCase())}
+              placeholder={t('helperProfile.messenger.guestAccessCodePlaceholder')}
+              autoComplete="one-time-code"
+              required={accessCodeRequired}
+            />
+            <small className="messenger-guest-gate__help">{t('helperProfile.messenger.guestAccessCodeHelp')}</small>
+          </label>
           {error ? (
             <p className="messenger-guest-gate__error" role="alert">{error}</p>
           ) : null}
@@ -184,7 +217,7 @@ export default function MessengerGuestGate({
           <button
             type="submit"
             className="messenger-guest-gate__primary"
-            disabled={busy || code.trim().length !== 6}
+            disabled={busy || code.trim().length !== 6 || (accessCodeRequired && accessCode.trim().length < 8)}
           >
             {busy
               ? t('helperProfile.messenger.guestOtpVerifying')

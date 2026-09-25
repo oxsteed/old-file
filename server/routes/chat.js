@@ -28,6 +28,7 @@ const chatPop = require('../controllers/chatProofOfPaymentController');
 const chatAgreements = require('../controllers/chatAgreementsController');
 const chatCreditPay = require('../controllers/chatOxsteedCreditPaymentController');
 const chatBookingRequests = require('../controllers/chatBookingRequestsController');
+const chatClientIntakes = require('../controllers/chatClientIntakeController');
 
 const {
   extractGuestAuth,
@@ -93,6 +94,33 @@ router.post('/sessions/guest/verify/start', authLimiter, profileChatLimiter, sta
 router.post('/sessions/guest/verify', authLimiter, profileChatLimiter, verifyGuestProfileChatCode);
 router.post('/sessions/guest/verify/resend', authLimiter, profileChatLimiter, resendGuestProfileChatCode);
 
+// GET /api/chat/sessions/guest/messages - verified guest history for the bound session
+router.get('/sessions/guest/messages', chatLimiter, optionalAuth, async (req, res) => {
+  try {
+    const session = req.guestSession;
+    if (!session) return res.status(401).json({ error: 'Verified guest session required', code: 'auth_error' });
+    const { rows } = await pool.query(
+      `SELECT id, sender_type, sender_name, message, created_at
+         FROM guest_profile_chat_messages
+        WHERE session_id = $1
+        ORDER BY created_at ASC
+        LIMIT 500`,
+      [session.id],
+    );
+    res.json(rows.map((row) => ({
+      id: String(row.id),
+      itemType: 'message',
+      authorType: row.sender_type === 'guest' ? 'user' : 'helper_human',
+      sender_name: row.sender_name,
+      content: row.message,
+      timestamp: row.created_at,
+    })));
+  } catch (err) {
+    logger.error('Failed to load guest chat history', { error: err.message });
+    res.status(500).json({ error: 'Failed to load guest chat history' });
+  }
+});
+
 
 // ── In-chat quotes (helper + business) ───────────────────────────────────────
 router.get('/quotes/list', chatLimiter, authenticate, chatQuotes.listForThread);
@@ -137,6 +165,11 @@ router.post('/booking-requests/:id/customer-decline', chatLimiter, optionalAuth,
 
 // POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
 router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);
+
+// Optional client intake forms shared inside a helper/business guest chat.
+router.post('/intakes', chatLimiter, authenticate, chatClientIntakes.createIntake);
+router.get('/intakes/:id', chatLimiter, optionalAuth, chatClientIntakes.getIntake);
+router.post('/intakes/:id/respond', chatLimiter, optionalAuth, chatClientIntakes.respondToIntake);
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);

@@ -21,6 +21,7 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
+const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const modeRoleUtil = require('../utils/modeRole');
 const SALT_ROUNDS = 12;
@@ -230,6 +231,10 @@ async function register(req, res, next) {
       ]
     );
     const user = rows[0];
+
+    invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
+      logger.warn('Failed to invalidate guest chat access codes after registration', { userId: user.id, error: claimErr.message })
+    );
 
     if (isHelper) {
       await pool.query(
@@ -1162,6 +1167,9 @@ async function verifyRegistrationOTP(req, res) {
       ]
     );
     const user = userResult.rows[0];
+    invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
+      logger.warn('Failed to invalidate guest chat access codes after verified registration', { userId: user.id, error: claimErr.message })
+    );
     const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
     if (delRows.length === 0) {
       logger.warn('Pending registration cleanup failed', { token, userId: user.id });

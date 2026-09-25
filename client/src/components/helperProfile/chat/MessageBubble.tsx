@@ -11,11 +11,13 @@ import ProofOfPaymentCard from './ProofOfPaymentCard';
 import AgreementCard from './AgreementCard';
 import PaymentRequestCard from './PaymentRequestCard';
 import BookingRequestCard from './BookingRequestCard';
+import ClientIntakeCard from './ClientIntakeCard.jsx';
 import { parseQuoteMarker, stripQuoteMarkers } from './messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from './messengerPop.js';
 import { parseAgreementMarker, stripAgreementMarkers } from './messengerAgreements.js';
 import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from './messengerCreditPay.js';
 import { parseBookingRequestMarker, stripBookingRequestMarkers } from './messengerBookingRequests.js';
+import { parseClientIntakeMarker, parseClientIntakeResponseMarker, stripClientIntakeMarkers } from './messengerIntakes.js';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -211,12 +213,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               const agreementParsed = parseAgreementMarker(message.content);
               const payReqParsed = parsePaymentRequestMarker(message.content);
               const bookingReqParsed = parseBookingRequestMarker(message.content);
+              const intakeParsed = parseClientIntakeMarker(message.content);
+              const intakeResponseParsed = parseClientIntakeResponseMarker(message.content);
               let displayText = message.content;
               if (quoteParsed) displayText = stripQuoteMarkers(displayText);
               if (popParsed) displayText = stripPopMarkers(displayText);
               if (agreementParsed) displayText = stripAgreementMarkers(displayText);
               if (payReqParsed) displayText = stripPaymentRequestMarkers(displayText);
               if (bookingReqParsed) displayText = stripBookingRequestMarkers(displayText);
+              if (intakeParsed || intakeResponseParsed) displayText = stripClientIntakeMarkers(displayText);
               return (
                 <>
                   {displayText ? (
@@ -295,6 +300,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         conversationId={conversationId}
                         onProposeTime={onProposeTime}
                       />
+                    </div>
+                  ) : null}
+                  {intakeParsed ? (
+                    <div className="mt-2">
+                      <ClientIntakeCard
+                        intake={intakeParsed}
+                        isProvider={isProviderView}
+                        guestVerified={guestVerified}
+                        guestAuthHeaders={guestAuthHeaders}
+                      />
+                    </div>
+                  ) : null}
+                  {intakeResponseParsed ? (
+                    <div className="mt-2">
+                      <ClientIntakeCard intake={{ ...intakeResponseParsed, status: 'completed' }} isProvider={isProviderView} />
                     </div>
                   ) : null}
                 </>

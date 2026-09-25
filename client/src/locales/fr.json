@@ -2373,6 +2373,7 @@
       "aria": "Outils prestataire",
       "schedule": "Planning"
     },
+    "clientIntake": {"button":"Infos client","shareTitle":"Envoyer les infos client","title":"Infos client","titleLabel":"Titre","titlePlaceholder":"Parlez-nous de votre projet","descriptionLabel":"Instructions","descriptionPlaceholder":"Note facultative","questionPlaceholder":"Question","addQuestion":"Ajouter une question","text":"Réponse courte","longText":"Réponse longue","number":"Nombre","date":"Date","choose":"Choisir une option","send":"Envoyer le formulaire","submit":"Envoyer les réponses","completed":"Terminé","waiting":"En attente de la réponse du client.","thanks":"Les informations ont été envoyées au prestataire.","failed":"Impossible d’enregistrer le formulaire. Réessayez."},
     "creditRefund": {
       "title": "Rembourser OxSteed Credit",
       "button": "Rembourser",
@@ -6387,6 +6388,12 @@
       "guestOtpResendError": "Impossible de renvoyer le code. Patientez et réessayez.",
       "guestOtpInvalid": "Saisissez le code à 6 chiffres reçu par e-mail.",
       "guestOtpBack": "Utiliser un autre e-mail",
+      "guestAccessCodeLabel": "Code d’accès au chat invité",
+      "guestAccessCodePlaceholder": "Code reçu par e-mail",
+      "guestAccessCodeHelp": "Utilisez ce code pour rouvrir la conversation pendant 30 jours.",
+      "guestAccessCodeInvalid": "Ce code d’accès au chat est invalide ou expiré.",
+      "guestHistoryExpired": "Cet historique de chat invité date de plus de 30 jours.",
+      "createAccountToRecover": "Créez un compte pour conserver votre historique.",
       "guestLiveWaiting": "{{name}} est en ligne — votre message a été livré en direct.",
       "guestOfflineAi": "{{name}} est hors ligne. Vous discutez avec son assistant IA — laissez un message à tout moment.",
       "guestOfflineBanner": "Hors ligne — assistant IA",

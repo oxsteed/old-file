@@ -1411,7 +1411,9 @@ exports.claimGuestProfileChatSessions = async (req, res, next) => {
             `UPDATE guest_profile_chat_inbound
                 SET claimed_user_id = $1,
                     guest_id = COALESCE(guest_id, $1),
-                    claimed_at = NOW()
+                    claimed_at = NOW(),
+                    guest_history_access_code_used_at = NOW(),
+                    guest_history_access_code_expires_at = NOW()
               WHERE id = $2`,
             [userId, session.id]
           );
@@ -1515,7 +1517,9 @@ exports.claimGuestProfileChatSessions = async (req, res, next) => {
               SET claimed_user_id = $1,
                   guest_id = COALESCE(guest_id, $1),
                   claimed_conversation_id = $2,
-                  claimed_at = NOW()
+                  claimed_at = NOW(),
+                  guest_history_access_code_used_at = NOW(),
+                  guest_history_access_code_expires_at = NOW()
             WHERE id = $3`,
           [userId, conversationId, session.id]
         );
@@ -1687,8 +1691,8 @@ exports.startGuestProfileChatVerification = async (req, res, next) => {
  */
 exports.verifyGuestProfileChatCode = async (req, res, next) => {
   try {
-    const { sessionId, guestEmail, code } = req.body || {};
-    const result = await guestProfileVerify.verifyGuestCode({ sessionId, guestEmail, code });
+    const { sessionId, guestEmail, code, accessCode } = req.body || {};
+    const result = await guestProfileVerify.verifyGuestCode({ sessionId, guestEmail, code, accessCode });
 
     // Include provider online hint for client routing UI
     let providerOnline = false;

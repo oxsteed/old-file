@@ -307,14 +307,22 @@ async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE) {
   });
 }
 
-async function sendOTPEmail(email, otp, language = FALLBACK_LANGUAGE) {
+async function sendOTPEmail(email, otp, language = FALLBACK_LANGUAGE, guestChatOptions = null) {
   const lang = normalizeEmailLanguage(language);
   const copy = EMAIL_COPY.otp[lang];
+  const accessCode = guestChatOptions?.accessCode ? textSafe(guestChatOptions.accessCode) : '';
+  const accessCodeExpiresDays = Number(guestChatOptions?.accessCodeExpiresDays || 30);
+  const guestAccessText = accessCode
+    ? ` Your guest chat access code is ${accessCode}. Keep it private. It remains valid for ${accessCodeExpiresDays} days, then you will need an OxSteed account to view this conversation.`
+    : '';
+  const guestAccessHtml = accessCode
+    ? `<div style="margin-top:20px;padding:16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;"><p style="margin:0 0 8px;font-weight:bold;color:#9a3412;">Guest chat access code</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;color:#9a3412;margin:0 0 8px;">${escapeHtml(accessCode)}</p><p style="color:#7c2d12;margin:0;font-size:13px;">Keep this code private. It remains valid for ${accessCodeExpiresDays} days. After that, create an OxSteed account to access your chat history.</p></div>`
+    : '';
   return sendEmail({
     to: email,
     subject: copy.subject,
-    text: `${copy.intro} ${escapeHtml(textSafe(otp))}. ${copy.expires} ${copy.note}`,
-    html: `<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed</h2><p>${copy.intro}</p><p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e40af; padding: 16px; background: #f0f4ff; border-radius: 8px; text-align: center;">${escapeHtml(textSafe(otp))}</p><p style="color: #666;">${copy.expires} ${copy.note}</p><p style="color: #6b7280; margin-top: 12px;">${copy.button}</p></div>`,
+    text: `${copy.intro} ${escapeHtml(textSafe(otp))}. ${copy.expires} ${copy.note}.${guestAccessText}`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed</h2><p>${copy.intro}</p><p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e40af; padding: 16px; background: #f0f4ff; border-radius: 8px; text-align: center;">${escapeHtml(textSafe(otp))}</p><p style="color: #666;">${copy.expires} ${copy.note}</p>${guestAccessHtml}<p style="color: #6b7280; margin-top: 12px;">${copy.button}</p></div>`,
   });
 }
 

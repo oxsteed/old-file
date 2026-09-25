@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 
 const CODE_TTL_MINUTES = 15;
 const TOKEN_TTL_HOURS = 24;
+const HISTORY_ACCESS_CODE_TTL_DAYS = 30;
 const MAX_ATTEMPTS = 5;
 
 function hash(value) {
@@ -30,6 +31,10 @@ function isValidEmail(value) {
 
 function randomCode() {
   return String(crypto.randomInt(100000, 1000000));
+}
+
+function randomHistoryAccessCode() {
+  return crypto.randomBytes(9).toString('hex').toUpperCase();
 }
 
 function maskEmail(email) {
@@ -137,6 +142,7 @@ async function assertGuestContactAllowed(helperId) {
 
 async function sendVerificationCode(sessionId, email, name, db = pool) {
   const code = randomCode();
+  const accessCode = randomHistoryAccessCode();
   await db.query(
     `UPDATE guest_profile_chat_verifications
      SET consumed_at = NOW()
@@ -150,7 +156,19 @@ async function sendVerificationCode(sessionId, email, name, db = pool) {
     [sessionId, email, hash(code), String(CODE_TTL_MINUTES)]
   );
 
-  const result = await sendOTPEmail(email, code);
+  await db.query(
+    `UPDATE guest_profile_chat_inbound
+        SET guest_history_access_code_hash = $2,
+            guest_history_access_code_expires_at = NOW() + ($3 || ' days')::interval,
+            guest_history_access_code_used_at = NULL
+      WHERE id = $1`,
+    [sessionId, hash(accessCode), String(HISTORY_ACCESS_CODE_TTL_DAYS)]
+  );
+
+  const result = await sendOTPEmail(email, code, 'en', {
+    accessCode,
+    accessCodeExpiresDays: HISTORY_ACCESS_CODE_TTL_DAYS,
+  });
   if (result && result.success === false) {
     const deliveryError = new Error(
       result.error === 'Email not configured'
@@ -167,7 +185,7 @@ async function sendVerificationCode(sessionId, email, name, db = pool) {
     email: maskEmail(email),
     guestName: name,
   });
-  return code;
+  return { code, accessCode };
 }
 
 async function startGuestVerification({ helperId, businessId, guestName, guestEmail }) {
@@ -188,12 +206,16 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
     await client.query('BEGIN');
 
     const existing = await client.query(
-      `SELECT id FROM guest_profile_chat_inbound
+      `SELECT id, guest_verified_at, guest_history_access_code_expires_at
+       FROM guest_profile_chat_inbound
        WHERE helper_id = $1
          AND (($2::int IS NULL AND business_id IS NULL) OR business_id = $2)
          AND lower(guest_email) = $3
-         AND guest_verified_at IS NULL
-         AND created_at > NOW() - INTERVAL '24 hours'
+         AND claimed_user_id IS NULL
+         AND (
+           (guest_verified_at IS NULL AND created_at > NOW() - INTERVAL '24 hours')
+           OR (guest_verified_at IS NOT NULL AND guest_history_access_code_expires_at > NOW())
+         )
        ORDER BY created_at DESC
        LIMIT 1
        FOR UPDATE`,
@@ -201,8 +223,11 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
     );
 
     let sessionId;
+    let hasPreviousConversation = false;
+    let previousHistoryExpired = false;
     if (existing.rows.length) {
       sessionId = existing.rows[0].id;
+      hasPreviousConversation = Boolean(existing.rows[0].guest_verified_at);
       await client.query(
         `UPDATE guest_profile_chat_inbound
          SET guest_name = $2, verification_status = 'pending'
@@ -210,6 +235,17 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
         [sessionId, name]
       );
     } else {
+      const expired = await client.query(
+        `SELECT id FROM guest_profile_chat_inbound
+         WHERE helper_id = $1
+           AND (($2::int IS NULL AND business_id IS NULL) OR business_id = $2)
+           AND lower(guest_email) = $3
+           AND guest_verified_at IS NOT NULL
+           AND claimed_user_id IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [resolvedHelperId, resolvedBusinessId, email]
+      );
+      previousHistoryExpired = expired.rows.length > 0;
       const inserted = await client.query(
         `INSERT INTO guest_profile_chat_inbound
            (helper_id, business_id, guest_name, guest_email, message, verification_status,
@@ -223,6 +259,11 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
     }
 
     await sendVerificationCode(sessionId, email, name, client);
+    const access = await client.query(
+      `SELECT guest_history_access_code_expires_at
+         FROM guest_profile_chat_inbound WHERE id = $1`,
+      [sessionId],
+    );
     await client.query('COMMIT');
 
     return {
@@ -232,6 +273,9 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
       expiresInSeconds: CODE_TTL_MINUTES * 60,
       helperId: resolvedHelperId,
       businessId: resolvedBusinessId,
+      accessCodeRequired: hasPreviousConversation,
+      previousHistoryExpired,
+      historyAccessExpiresAt: access.rows[0]?.guest_history_access_code_expires_at || null,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -250,7 +294,7 @@ async function startGuestVerification({ helperId, businessId, guestName, guestEm
   }
 }
 
-async function verifyGuestCode({ sessionId, guestEmail, code }) {
+async function verifyGuestCode({ sessionId, guestEmail, code, accessCode = '' }) {
   const email = normalizeEmail(guestEmail);
   const otp = String(code || '').trim();
   if (!isValidEmail(email) || !/^\d{6}$/.test(otp)) {
@@ -264,7 +308,8 @@ async function verifyGuestCode({ sessionId, guestEmail, code }) {
   try {
     await client.query('BEGIN');
     const sessionRes = await client.query(
-      `SELECT id, helper_id, business_id, guest_email, guest_verified_at
+      `SELECT id, helper_id, business_id, guest_email, guest_verified_at,
+              guest_history_access_code_hash, guest_history_access_code_expires_at
        FROM guest_profile_chat_inbound
        WHERE id = $1 AND lower(guest_email) = $2
        FOR UPDATE`,
@@ -278,6 +323,21 @@ async function verifyGuestCode({ sessionId, guestEmail, code }) {
       throw err;
     }
     const session = sessionRes.rows[0];
+
+    if (session.guest_verified_at) {
+      const suppliedAccessCode = String(accessCode || '').trim().toUpperCase();
+      const accessValid = suppliedAccessCode
+        && session.guest_history_access_code_expires_at
+        && new Date(session.guest_history_access_code_expires_at).getTime() > Date.now()
+        && hashesMatch(hash(suppliedAccessCode), session.guest_history_access_code_hash);
+      if (!accessValid) {
+        await client.query('ROLLBACK');
+        const err = new Error('Enter the guest chat access code from your email to reopen this conversation');
+        err.status = 401;
+        err.code = 'invalid_access_code';
+        throw err;
+      }
+    }
 
     const { rows } = await client.query(
       `SELECT id, code_hash FROM guest_profile_chat_verifications
@@ -331,6 +391,7 @@ async function verifyGuestCode({ sessionId, guestEmail, code }) {
       helperId: session.helper_id,
       businessId: session.business_id,
       expiresInSeconds: TOKEN_TTL_HOURS * 3600,
+      historyAccessExpiresAt: session.guest_history_access_code_expires_at || null,
     };
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch { /* ignore */ }
@@ -370,6 +431,21 @@ async function resendGuestCode({ sessionId, guestEmail }) {
   };
 }
 
+/** Invalidate guest history codes as soon as the matching email becomes an account. */
+async function invalidateGuestHistoryAccessCodesForEmail(email) {
+  const normalized = normalizeEmail(email);
+  if (!isValidEmail(normalized)) return 0;
+  const result = await pool.query(
+    `UPDATE guest_profile_chat_inbound
+        SET guest_history_access_code_used_at = NOW(),
+            guest_history_access_code_expires_at = NOW()
+      WHERE lower(guest_email) = $1
+        AND claimed_user_id IS NULL`,
+    [normalized],
+  );
+  return result.rowCount || 0;
+}
+
 async function loadVerifiedGuestSession(token, sessionId) {
   if (!token || !sessionId) return null;
   const { rows } = await pool.query(
@@ -402,6 +478,7 @@ function extractGuestAuth(req) {
 module.exports = {
   CODE_TTL_MINUTES,
   TOKEN_TTL_HOURS,
+  HISTORY_ACCESS_CODE_TTL_DAYS,
   MAX_ATTEMPTS,
   hash,
   hashesMatch,
@@ -409,12 +486,14 @@ module.exports = {
   isValidEmail,
   maskEmail,
   randomCode,
+  randomHistoryAccessCode,
   generateGuestToken,
   tokenMatchesProfile,
   canEnterLiveMode,
   startGuestVerification,
   verifyGuestCode,
   resendGuestCode,
+  invalidateGuestHistoryAccessCodesForEmail,
   loadVerifiedGuestSession,
   extractGuestAuth,
   sendVerificationCode,

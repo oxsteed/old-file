@@ -243,6 +243,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingOlderScrollRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
   const loadingOlderRef = useRef(false);
+  const guestHistoryLoadedRef = useRef<string | null>(null);
 
   const updateMessageDeliveryStatus = useCallback((
     messageId: string,
@@ -347,13 +348,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const guestTokenKey = `oxs:guest-token:${helperId}:${businessId ?? 'personal'}`;
   // Prefer opaque verified guest session (OTP) over legacy JWT-shaped guest tokens.
   useEffect(() => {
-    if (!isGuest) return;
+    if (!isGuest && !user) return;
     const verified = readGuestVerifiedSession(helperId, businessId);
-    if (!verified) return;
-    if (verified.name) setGuestName(verified.name);
-    if (verified.email) setGuestEmail(verified.email);
-    setGuestContactSaved(true);
-  }, [isGuest, helperId, businessId]);
+    const saved = readGuestContact(helperId, businessId);
+    if (verified) {
+      if (verified.name) setGuestName(verified.name);
+      if (verified.email) setGuestEmail(verified.email);
+      setGuestContactSaved(true);
+    } else if (saved) {
+      setGuestName(saved.name || '');
+      setGuestEmail(saved.email || '');
+      setGuestContactSaved(true);
+    }
+  }, [isGuest, user, helperId, businessId]);
 
 
   useEffect(() => {
@@ -429,7 +436,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [isGuest, guestStorageKey, guestTokenKey]);
 
   useEffect(() => {
-    if (!isGuest || !isProviderChatDestination(session.destination)) return;
+    if (!isProviderChatDestination(session.destination)) return;
     if (!user?.email || !guestContactSaved) return;
 
     const guestEmailNormalized = guestEmail.trim().toLowerCase();
@@ -581,6 +588,45 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     onMessage: handleGuestLiveMessage,
     onExpired: handleGuestSocketExpired,
   });
+
+  // Restore the persisted guest thread when a visitor reopens it with the
+  // email verification code and 30-day access code. This keeps the live
+  // session connected to the same history instead of starting with a blank UI.
+  useEffect(() => {
+    if (!isGuest || !verifiedGuestSession?.sessionId || !isProviderChatDestination(session.destination)) return;
+    const sessionKey = String(verifiedGuestSession.sessionId);
+    if (guestHistoryLoadedRef.current === sessionKey) return;
+    guestHistoryLoadedRef.current = sessionKey;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/chat/sessions/guest/messages', {
+          headers: {
+            'X-Guest-Profile-Token': verifiedGuestSession.guestToken,
+            'X-Guest-Session-Id': verifiedGuestSession.sessionId,
+          },
+        });
+        if (cancelled || !Array.isArray(data)) return;
+        const restored: ChatMessage[] = data.map((item: any) => ({
+          id: String(item.id),
+          itemType: 'message' as const,
+          authorType: (item.authorType === 'user' ? 'user' : 'helper_human') as ChatMessage['authorType'],
+          sender_name: item.sender_name,
+          content: item.content || item.message || '',
+          timestamp: item.timestamp || item.created_at,
+        }));
+        setSession((prev) => ({
+          ...prev,
+          timeline: restored.length
+            ? [...restored, ...prev.timeline.filter((entry) => !restored.some((row) => row.id === entry.id))]
+            : prev.timeline,
+        }));
+      } catch {
+        guestHistoryLoadedRef.current = null;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isGuest, session.destination, verifiedGuestSession]);
 
   const currentStatus =
     isProviderChatDestination(session.destination) ? session.helperStatus : session.oxsteedStatus;

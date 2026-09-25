@@ -2373,6 +2373,7 @@
       "aria": "أدوات مقدّم الخدمة",
       "schedule": "الجدولة"
     },
+    "clientIntake": {"button":"بيانات العميل","shareTitle":"إرسال بيانات العميل","title":"بيانات العميل","titleLabel":"العنوان","titlePlaceholder":"أخبرنا عن مشروعك","descriptionLabel":"التعليمات","descriptionPlaceholder":"ملاحظة اختيارية","questionPlaceholder":"السؤال","addQuestion":"إضافة سؤال","text":"إجابة قصيرة","longText":"إجابة طويلة","number":"رقم","date":"تاريخ","choose":"اختر خيارًا","send":"إرسال النموذج","submit":"إرسال الإجابات","completed":"مكتمل","waiting":"بانتظار إكمال العميل للنموذج.","thanks":"تم إرسال معلوماتك إلى مقدم الخدمة.","failed":"تعذر حفظ النموذج. حاول مرة أخرى."},
     "creditRefund": {
       "title": "استرداد OxSteed Credit",
       "button": "استرداد",
@@ -6387,6 +6388,12 @@
       "guestOtpResendError": "تعذر إعادة إرسال الرمز. يرجى الانتظار والمحاولة مرة أخرى.",
       "guestOtpInvalid": "أدخل الرمز المكون من 6 أرقام من بريدك الإلكتروني.",
       "guestOtpBack": "استخدم بريدًا إلكترونيًا آخر",
+      "guestAccessCodeLabel": "رمز دخول محادثة الضيف",
+      "guestAccessCodePlaceholder": "الرمز الموجود في بريدك",
+      "guestAccessCodeHelp": "استخدم هذا الرمز لإعادة فتح المحادثة لمدة 30 يومًا.",
+      "guestAccessCodeInvalid": "رمز دخول المحادثة غير صالح أو منتهي الصلاحية.",
+      "guestHistoryExpired": "مرّ أكثر من 30 يومًا على سجل محادثة الضيف هذه.",
+      "createAccountToRecover": "أنشئ حسابًا للاحتفاظ بسجل محادثتك.",
       "guestLiveWaiting": "{{name}} متصل — تم تسليم رسالتك مباشرة.",
       "guestOfflineAi": "{{name}} غير متصل الآن. أنت تتحدث مع مساعده الذكي — يمكنك ترك رسالة في أي وقت.",
       "guestOfflineBanner": "غير متصل — مساعد ذكي",

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail, ArrowLeft, Send, Loader2, FileText, Receipt, ScrollText } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Loader2, FileText, Receipt, ScrollText, ClipboardList } from 'lucide-react';
 import QuoteCard from '../helperProfile/chat/QuoteCard';
 import QuoteSharePanel from '../helperProfile/chat/QuoteSharePanel';
 import PopSharePanel from '../helperProfile/chat/PopSharePanel';
@@ -9,10 +9,13 @@ import AgreementSharePanel from '../helperProfile/chat/AgreementSharePanel';
 import ProofOfPaymentCard from '../helperProfile/chat/ProofOfPaymentCard';
 import PaymentRequestCard from '../helperProfile/chat/PaymentRequestCard';
 import AgreementCard from '../helperProfile/chat/AgreementCard';
+import ClientIntakeCard from '../helperProfile/chat/ClientIntakeCard.jsx';
+import ClientIntakeSharePanel from '../helperProfile/chat/ClientIntakeSharePanel.jsx';
 import { parseQuoteMarker, stripQuoteMarkers } from '../helperProfile/chat/messengerQuotes.js';
 import { parsePopMarker, stripPopMarkers } from '../helperProfile/chat/messengerPop.js';
 import { parsePaymentRequestMarker, stripPaymentRequestMarkers } from '../helperProfile/chat/messengerCreditPay.js';
 import { parseAgreementMarker, stripAgreementMarkers } from '../helperProfile/chat/messengerAgreements.js';
+import { parseClientIntakeMarker, parseClientIntakeResponseMarker, stripClientIntakeMarkers } from '../helperProfile/chat/messengerIntakes.js';
 import '../helperProfile/chat/MessengerDock.css';
 import api from '../../api/axios';
 import { createMessageRequestId } from '../../lib/messageRequestId';
@@ -45,6 +48,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const [showQuoteShare, setShowQuoteShare] = useState(false);
   const [showPopShare, setShowPopShare] = useState(false);
   const [showAgreementShare, setShowAgreementShare] = useState(false);
+  const [showIntakeShare, setShowIntakeShare] = useState(false);
   const bottomRef = useRef(null);
 
   const inquiryUuid = useMemo(() => {
@@ -317,11 +321,14 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                     const quoteParsed = parseQuoteMarker(raw);
                     const popParsed = parsePopMarker(raw);
                     const agreementParsed = parseAgreementMarker(raw);
+                    const intakeParsed = parseClientIntakeMarker(raw);
+                    const intakeResponseParsed = parseClientIntakeResponseMarker(raw);
                     const payReqParsed = parsePaymentRequestMarker(raw);
                     let body = raw;
                     if (quoteParsed) body = stripQuoteMarkers(body);
                     if (popParsed) body = stripPopMarkers(body);
                     if (agreementParsed) body = stripAgreementMarkers(body);
+                    if (intakeParsed || intakeResponseParsed) body = stripClientIntakeMarkers(body);
                     if (payReqParsed) body = stripPaymentRequestMarkers(body);
                     return (
                       <>
@@ -338,6 +345,8 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                         {agreementParsed ? (
                           <AgreementCard markerText={raw} isProvider isAuthenticated />
                         ) : null}
+                        {intakeParsed ? <ClientIntakeCard intake={intakeParsed} isProvider /> : null}
+                        {intakeResponseParsed ? <ClientIntakeCard intake={{ ...intakeResponseParsed, status: 'completed' }} isProvider /> : null}
                       </>
                     );
                   })()}
@@ -371,6 +380,14 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
             >
               <ScrollText size={14} aria-hidden />
               {t('messages.agreementShare.button')}
+            </button>
+            <button
+              type="button"
+              className="messages-quote-share-btn"
+              onClick={() => setShowIntakeShare(true)}
+            >
+              <ClipboardList size={14} aria-hidden />
+              {t('messages.clientIntake.button')}
             </button>
           </div>
           {showQuoteShare && (
@@ -433,6 +450,33 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                   }]);
                 }
                 setShowAgreementShare(false);
+              }}
+            />
+          )}
+          {showIntakeShare && (
+            <ClientIntakeSharePanel
+              open={showIntakeShare}
+              onClose={() => setShowIntakeShare(false)}
+              guestSessionId={inquiryUuid}
+              onShared={(data) => {
+                if (data?.intake) {
+                  const marker = `[[OXS_CLIENT_INTAKE]]${JSON.stringify({
+                    id: data.intake.id,
+                    title: data.intake.title,
+                    description: data.intake.description,
+                    fields: data.intake.fields,
+                    status: data.intake.status,
+                  })}`;
+                  setMessages((prev) => [...prev, {
+                    id: data.messageId || `intake-${Date.now()}`,
+                    sender_type: 'helper',
+                    sender_name: '',
+                    message: marker,
+                    content: marker,
+                    created_at: new Date().toISOString(),
+                  }]);
+                }
+                setShowIntakeShare(false);
               }}
             />
           )}

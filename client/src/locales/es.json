@@ -2373,6 +2373,7 @@
       "aria": "Herramientas del proveedor",
       "schedule": "Agenda"
     },
+    "clientIntake": {"button":"Datos del cliente","shareTitle":"Enviar datos del cliente","title":"Datos del cliente","titleLabel":"Título","titlePlaceholder":"Cuéntanos sobre tu proyecto","descriptionLabel":"Instrucciones","descriptionPlaceholder":"Nota opcional","questionPlaceholder":"Pregunta","addQuestion":"Añadir pregunta","text":"Respuesta corta","longText":"Respuesta larga","number":"Número","date":"Fecha","choose":"Elige una opción","send":"Enviar formulario","submit":"Enviar respuestas","completed":"Completado","waiting":"Esperando que el cliente complete este formulario.","thanks":"La información se envió al proveedor.","failed":"No se pudo guardar el formulario. Inténtalo de nuevo."},
     "creditRefund": {
       "title": "Reembolsar OxSteed Credit",
       "button": "Reembolsar",
@@ -6387,6 +6388,12 @@
       "guestOtpResendError": "No se pudo reenviar el código. Espera e inténtalo de nuevo.",
       "guestOtpInvalid": "Introduce el código de 6 dígitos de tu correo.",
       "guestOtpBack": "Usar otro correo",
+      "guestAccessCodeLabel": "Código de acceso al chat de invitado",
+      "guestAccessCodePlaceholder": "Código del correo",
+      "guestAccessCodeHelp": "Usa este código para volver a abrir la conversación durante 30 días.",
+      "guestAccessCodeInvalid": "El código de acceso del chat no es válido o ha caducado.",
+      "guestHistoryExpired": "Este historial de chat de invitado tiene más de 30 días.",
+      "createAccountToRecover": "Crea una cuenta para conservar tu historial.",
       "guestLiveWaiting": "{{name}} está en línea — tu mensaje se entregó en vivo.",
       "guestOfflineAi": "{{name}} está desconectado. Estás hablando con su asistente de IA — puedes dejar un mensaje.",
       "guestOfflineBanner": "Desconectado — asistente de IA",
