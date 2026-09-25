@@ -142,7 +142,7 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
               ? `–$${data.hourlyRateMax}`
               : ''}
           </span>
-          <span className="text-sm text-gray-400 ml-1">/hr</span>
+          <span className="text-sm text-gray-400 ml-1">{t('helperProfile.chat.perHour')}</span>
           {data.flatRateAvailable && (
             <span className="ml-2 text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
               {t('helperProfile.chat.flatRatesAvailable')}
@@ -156,7 +156,7 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
             <li key={svc.name} className="flex justify-between text-sm">
               <span className="text-gray-300">{svc.name}</span>
               <span className="text-gray-400">
-                {svc.hourlyRate ? `$${svc.hourlyRate}/hr` : svc.flatRate ? `$${svc.flatRate}` : t('helperProfile.chat.contact')}
+                {svc.hourlyRate ? `$${svc.hourlyRate}${t('helperProfile.chat.perHour')}` : svc.flatRate ? `$${svc.flatRate}` : t('helperProfile.chat.contact')}
               </span>
             </li>
           ))}
@@ -168,7 +168,7 @@ export const PricingBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
 
 // ── Slots This Week Block ───────────────────────────────────────────────────
 export const SlotsBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<HelperSlotData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -199,7 +199,7 @@ export const SlotsBlock: React.FC<{ helperId: string }> = ({ helperId }) => {
       <div className="space-y-2">
         {data.slots.map((slot) => {
           const dateObj = new Date(slot.date + 'T12:00:00');
-          const dayLabel = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+          const dayLabel = dateObj.toLocaleDateString(i18n.resolvedLanguage || i18n.language, { weekday: 'short', month: 'short', day: 'numeric' });
           return (
             <div
               key={slot.date}
