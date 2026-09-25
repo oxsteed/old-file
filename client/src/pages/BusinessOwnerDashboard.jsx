@@ -104,6 +104,7 @@ function BusinessCard({ biz, currency, signals, t }) {
     [restaurantWorkspacePath(biz, 'menu'), UtensilsCrossed, t('dashboards.businessOwner.menu', { defaultValue: 'Menu' }), ['menu.view', 'menu.manage']],
     [restaurantWorkspacePath(biz, 'store'), Settings2, t('dashboards.businessOwner.storeDevices', { defaultValue: 'Store & devices' }), ['settings.view', 'settings.manage', 'credit.manage', 'display.manage']],
     [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' }), ['display.view', 'display.manage'], 'queue'],
+    [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' }), ['messages.view_all', 'messages.view_assigned', 'messages.reply'], 'messages'],
   ] : [
     [`/business/${businessId}/workspace/services`, Wrench, t('dashboards.businessOwner.services', { defaultValue: 'Services' }), ['business.view', 'business.edit_profile']],
     [`/business/${businessId}/workspace/clients`, Users, t('dashboards.businessOwner.clients', { defaultValue: 'Clients' }), ['clients.view', 'clients.manage', 'business.view']],
@@ -367,14 +368,19 @@ export default function BusinessOwnerDashboard() {
         const empty = { messages: 0, orders: 0, queue: 0, schedule: 0 };
         try {
           if (kind === 'restaurant' && biz.restaurant_id) {
-            const [ordersResult, queueResult] = await Promise.allSettled([
+            const [ordersResult, queueResult, messagesResult] = await Promise.allSettled([
               api.get(`/food/restaurants/${biz.restaurant_id}/orders`, { params: { includeMeta: 'true', scope: 'active', limit: 1 } }),
               api.get(`/food/restaurants/${biz.restaurant_id}/queue-board`),
+              api.get(`/businesses/${id}/messages`, { params: { limit: 100, offset: 0 } }),
             ]);
             const summary = ordersResult.status === 'fulfilled' ? ordersResult.value.data?.summary || {} : {};
             const queue = queueResult.status === 'fulfilled' ? queueResult.value.data || {} : {};
+            const conversations = messagesResult.status === 'fulfilled'
+              ? messagesResult.value.data?.conversations || []
+              : [];
             return [String(id), {
               ...empty,
+              messages: conversations.reduce((total, conversation) => total + Number(conversation.unread_count || 0), 0),
               orders: Number(summary.new_orders || 0),
               queue: (Array.isArray(queue.preparing) ? queue.preparing.length : 0)
                 + (Array.isArray(queue.ready) ? queue.ready.length : 0),
