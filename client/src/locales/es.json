@@ -7178,8 +7178,7 @@
           "help": "La plantilla es más sólida cuando el equipo usa los sistemas recomendados."
         }
       }
-    }
-  },
+    }},
   "plans": {
     "free": "Gratis",
     "pro": "Pro",
@@ -17796,5 +17795,84 @@
         "void": "Anulada",
         "cancelled": "Cancelada"
       }
+  },
+  "templateWorkflowContent": {
+    "general": {
+      "operatingModel": "Negocio de servicios locales general",
+      "headline": "Gestiona el negocio con un ciclo sencillo de servicio, agenda, entrega y clientes recurrentes.",
+      "operatorBrief": "Esta plantilla está pensada para proveedores que necesitan una presentación clara, contacto rápido, una agenda confiable y un seguimiento sencillo de clientes recurrentes.",
+      "primaryDemand": [
+        "Solicitudes de cotización locales",
+        "Reservas directas de servicios",
+        "Trabajos recurrentes del vecindario"
+      ],
+      "workflowStages": [
+        "Captar la consulta o intención de reserva",
+        "Aclarar el alcance y la agenda",
+        "Prestar el servicio y documentar el resultado",
+        "Solicitar una reseña y pasar al flujo de trabajo recurrente"
+      ],
+      "intakeRequirements": [
+        "Servicio solicitado",
+        "Ubicación",
+        "Horario preferido",
+        "Presupuesto o notas del alcance"
+      ],
+      "records": [
+        "Precisión del menú de servicios",
+        "Horarios y disponibilidad",
+        "Mensajes de clientes",
+        "Notas de seguimiento posteriores al trabajo"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Servicios y reservas",
+          "reason": "Mantén las ofertas claras y fáciles de comprar."
+        },
+        {
+          "label": "Agenda",
+          "reason": "Coordina horarios, citas y seguimientos."
+        },
+        {
+          "label": "Clientes",
+          "reason": "Registra el historial y los trabajos recurrentes."
+        },
+        {
+          "label": "Mensajes",
+          "reason": "Cierra dudas sobre el alcance y confirma detalles rápidamente."
+        }
+      ],
+      "dailyCadence": [
+        "Responder consultas nuevas",
+        "Confirmar las reservas de hoy",
+        "Revisar la cola de seguimiento"
+      ],
+      "weeklyCadence": [
+        "Actualizar servicios destacados",
+        "Revisar comentarios de clientes",
+        "Enviar recordatorios de nuevas reservas"
+      ],
+      "monthlyCadence": [
+        "Revisar ingresos por servicio",
+        "Ajustar precios y políticas",
+        "Retirar ofertas con bajo rendimiento"
+      ],
+      "qualityControls": [
+        "Respuesta rápida",
+        "Precios o cotizaciones claras",
+        "Políticas visibles",
+        "Capturar reseñas después del servicio"
+      ],
+      "monetization": [
+        "Clientes recurrentes",
+        "Paquetes de mayor valor",
+        "Venta cruzada de servicios relacionados"
+      ]
+    },
+    "templates": {
+      "default": {
+        "operatingModel": "Flujo general de negocio OxSteed"
+      }
+    }
   }
 }

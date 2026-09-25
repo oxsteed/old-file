@@ -147,6 +147,36 @@ function buildReadinessChecklist({ currentBiz, services, gallery, faqs, hours, m
   ];
 }
 
+function localizeWorkflow(workflow, category, slug, t) {
+  const translate = (path, value, options = {}) => t(`templateWorkflowContent.${category}.${path}`, { ...options, defaultValue: value });
+  const translateArray = (key, values) => values.map((value, index) => translate(`${key}.${index}`, value));
+  const localized = {
+    ...workflow,
+    operatingModel: translate('operatingModel', workflow.operatingModel),
+    headline: translate('headline', workflow.headline),
+    operatorBrief: translate('operatorBrief', workflow.operatorBrief),
+    primaryDemand: translateArray('primaryDemand', workflow.primaryDemand),
+    workflowStages: translateArray('workflowStages', workflow.workflowStages),
+    intakeRequirements: translateArray('intakeRequirements', workflow.intakeRequirements),
+    records: translateArray('records', workflow.records),
+    dailyCadence: translateArray('dailyCadence', workflow.dailyCadence),
+    weeklyCadence: translateArray('weeklyCadence', workflow.weeklyCadence),
+    monthlyCadence: translateArray('monthlyCadence', workflow.monthlyCadence),
+    qualityControls: translateArray('qualityControls', workflow.qualityControls),
+    monetization: translateArray('monetization', workflow.monetization),
+    unlockedSystems: workflow.unlockedSystems.map((system, index) => ({
+      ...system,
+      label: translate(`unlockedSystems.${index}.label`, system.label),
+      reason: translate(`unlockedSystems.${index}.reason`, system.reason),
+    })),
+  };
+
+  if (slug === 'default' && category === 'general') {
+    localized.operatingModel = t('templateWorkflowContent.templates.default.operatingModel', { defaultValue: localized.operatingModel });
+  }
+  return localized;
+}
+
 function buildPriorityActions(checklist, workflow, t) {
   return checklist
     .filter((item) => !item.done)
@@ -186,7 +216,7 @@ export default function TemplateWorkflowSystemTab({
 }) {
   const { t } = useTranslation();
   const registryEntry = TEMPLATE_REGISTRY[activeTemplate] || TEMPLATE_REGISTRY.default;
-  const workflow = getTemplateWorkflowSystem(activeTemplate, registryEntry.category);
+  const workflow = localizeWorkflow(getTemplateWorkflowSystem(activeTemplate, registryEntry.category), registryEntry.category, activeTemplate, t);
   const score = CompletionScore({ currentBiz, services, gallery, reviews, faqs, hours, members });
   const monthlyRevenue = analytics?.monthly_revenue ?? analytics?.revenue_this_month ?? 0;
   const openItems = analytics?.open_jobs ?? analytics?.active_jobs ?? 0;

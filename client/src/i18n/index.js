@@ -17,6 +17,7 @@ const localeLoaders = {
   en: () => Promise.all([
     import('../locales/generated/en-0.json'),
     import('../locales/generated/en-1.json'),
+    import('../locales/generated/en-2.json'),
     import('./locales/en/common.json'),
     import('./locales/en/translator.json'),
     import('./locales/en/credit.json'),
@@ -24,6 +25,7 @@ const localeLoaders = {
   es: () => Promise.all([
     import('../locales/generated/es-0.json'),
     import('../locales/generated/es-1.json'),
+    import('../locales/generated/es-2.json'),
     import('./locales/es/common.json'),
     import('./locales/es/translator.json'),
     import('./locales/es/credit.json'),
@@ -31,6 +33,7 @@ const localeLoaders = {
   fr: () => Promise.all([
     import('../locales/generated/fr-0.json'),
     import('../locales/generated/fr-1.json'),
+    import('../locales/generated/fr-2.json'),
     import('./locales/fr/common.json'),
     import('./locales/fr/translator.json'),
     import('./locales/fr/credit.json'),
@@ -38,6 +41,7 @@ const localeLoaders = {
   ht: () => Promise.all([
     import('../locales/generated/ht-0.json'),
     import('../locales/generated/ht-1.json'),
+    import('../locales/generated/ht-2.json'),
     import('./locales/ht/common.json'),
     import('./locales/ht/translator.json'),
     import('./locales/ht/credit.json'),
@@ -45,6 +49,7 @@ const localeLoaders = {
   ar: () => Promise.all([
     import('../locales/generated/ar-0.json'),
     import('../locales/generated/ar-1.json'),
+    import('../locales/generated/ar-2.json'),
     import('./locales/ar/common.json'),
     import('./locales/ar/translator.json'),
     import('./locales/ar/credit.json'),
@@ -78,11 +83,12 @@ const localePromises = new Map();
 const legalLocalePromises = new Map();
 
 function getLocaleResources(modules) {
-  const [legacyPartOne, legacyPartTwo, common, translator, credit] = modules;
+  const [legacyPartOne, legacyPartTwo, legacyPartThree, common, translator, credit] = modules;
   return {
     translation: {
       ...legacyPartOne.default,
       ...legacyPartTwo.default,
+      ...legacyPartThree.default,
     },
     common: common.default,
     translator: translator.default,

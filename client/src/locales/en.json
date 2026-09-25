@@ -7213,8 +7213,7 @@
           "help": "This template is strongest when the team actively uses the recommended systems below."
         }
       }
-    }
-  },
+    }},
   "plans": {
     "free": "Free",
     "pro": "Pro",
@@ -17747,5 +17746,84 @@
         "void": "Void",
         "cancelled": "Cancelled"
       }
+  },
+  "templateWorkflowContent": {
+    "general": {
+      "operatingModel": "General local service business",
+      "headline": "Run the business from a simple service -> schedule -> delivery -> repeat-client loop.",
+      "operatorBrief": "This template is meant for providers who need clean service presentation, fast contact handling, dependable scheduling, and straightforward repeat-customer follow-through.",
+      "primaryDemand": [
+        "Local quote requests",
+        "Direct service bookings",
+        "Neighborhood repeat work"
+      ],
+      "workflowStages": [
+        "Capture inquiry or booking intent",
+        "Clarify scope and schedule",
+        "Deliver service and document outcome",
+        "Ask for review and move customer into repeat-work flow"
+      ],
+      "intakeRequirements": [
+        "Service requested",
+        "Location",
+        "Preferred time",
+        "Budget or scope notes"
+      ],
+      "records": [
+        "Service menu accuracy",
+        "Hours and availability",
+        "Client messages",
+        "Post-job follow-up notes"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Services & Booking",
+          "reason": "Keep offers clear and easy to buy."
+        },
+        {
+          "label": "Schedule",
+          "reason": "Coordinate hours, appointments, and follow-ups."
+        },
+        {
+          "label": "Clients",
+          "reason": "Track customer history and repeat work."
+        },
+        {
+          "label": "Messages",
+          "reason": "Close scope gaps and confirm details fast."
+        }
+      ],
+      "dailyCadence": [
+        "Reply to new inquiries",
+        "Confirm today’s bookings",
+        "Check follow-up queue"
+      ],
+      "weeklyCadence": [
+        "Refresh featured services",
+        "Review customer feedback",
+        "Send repeat-booking prompts"
+      ],
+      "monthlyCadence": [
+        "Review revenue by service",
+        "Tune prices and policies",
+        "Retire low-performing offers"
+      ],
+      "qualityControls": [
+        "Fast response time",
+        "Clear pricing or quoting",
+        "Visible policies",
+        "Review capture after service"
+      ],
+      "monetization": [
+        "Repeat clients",
+        "Higher-value packages",
+        "Cross-sell related services"
+      ]
+    },
+    "templates": {
+      "default": {
+        "operatingModel": "General OxSteed business workflow"
+      }
+    }
   }
 }

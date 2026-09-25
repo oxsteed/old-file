@@ -7,6 +7,7 @@ const localeDirectory = join(scriptDirectory, '../src/locales');
 const outputDirectory = join(localeDirectory, 'generated');
 const languages = ['en', 'es', 'fr', 'ht', 'ar'];
 const maxShardBytes = 450 * 1024;
+const shardCount = 3;
 
 await mkdir(outputDirectory, { recursive: true });
 
@@ -15,14 +16,14 @@ for (const language of languages) {
     await readFile(join(localeDirectory, `${language}.json`), 'utf8'),
   );
   const entries = Object.entries(catalog);
-  const shards = [[], []];
-  const shardSizes = [0, 0];
+  const shards = Array.from({ length: shardCount }, () => []);
+  const shardSizes = Array.from({ length: shardCount }, () => 0);
   const assignments = new Map();
 
   for (const { key, size } of entries
     .map(([key, value]) => ({ key, value, size: Buffer.byteLength(JSON.stringify({ [key]: value })) - 2 }))
     .sort((left, right) => right.size - left.size)) {
-    const shardIndex = shardSizes[0] <= shardSizes[1] ? 0 : 1;
+    const shardIndex = shardSizes.indexOf(Math.min(...shardSizes));
     assignments.set(key, shardIndex);
     shardSizes[shardIndex] += size;
   }

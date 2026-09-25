@@ -7178,8 +7178,7 @@
           "help": "Le modèle est plus efficace lorsque l’équipe utilise les systèmes recommandés."
         }
       }
-    }
-  },
+    }},
   "plans": {
     "free": "Gratuit",
     "pro": "Pro",
@@ -17796,5 +17795,84 @@
         "void": "Annulée",
         "cancelled": "Annulée"
       }
+  },
+  "templateWorkflowContent": {
+    "general": {
+      "operatingModel": "Entreprise générale de services locaux",
+      "headline": "Gérez l’entreprise avec une boucle simple : service, planning, livraison, puis fidélisation.",
+      "operatorBrief": "Ce modèle s’adresse aux prestataires qui ont besoin d’une présentation claire des services, de contacts rapides, d’un planning fiable et d’un suivi simple des clients récurrents.",
+      "primaryDemand": [
+        "Demandes de devis locales",
+        "Réservations directes de services",
+        "Travaux récurrents de quartier"
+      ],
+      "workflowStages": [
+        "Recevoir la demande ou l’intention de réservation",
+        "Clarifier le périmètre et le planning",
+        "Réaliser le service et documenter le résultat",
+        "Demander un avis et orienter le client vers un suivi récurrent"
+      ],
+      "intakeRequirements": [
+        "Service demandé",
+        "Lieu",
+        "Horaire souhaité",
+        "Budget ou notes du périmètre"
+      ],
+      "records": [
+        "Exactitude du menu de services",
+        "Horaires et disponibilités",
+        "Messages clients",
+        "Notes de suivi après intervention"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Services et réservations",
+          "reason": "Gardez des offres claires et faciles à acheter."
+        },
+        {
+          "label": "Planning",
+          "reason": "Coordonnez les horaires, rendez-vous et suivis."
+        },
+        {
+          "label": "Clients",
+          "reason": "Suivez l’historique client et les travaux récurrents."
+        },
+        {
+          "label": "Messages",
+          "reason": "Clarifiez le périmètre et confirmez rapidement les détails."
+        }
+      ],
+      "dailyCadence": [
+        "Répondre aux nouvelles demandes",
+        "Confirmer les réservations du jour",
+        "Vérifier la file de suivi"
+      ],
+      "weeklyCadence": [
+        "Actualiser les services mis en avant",
+        "Examiner les retours clients",
+        "Envoyer des rappels de réservation"
+      ],
+      "monthlyCadence": [
+        "Examiner les revenus par service",
+        "Ajuster les prix et politiques",
+        "Retirer les offres peu performantes"
+      ],
+      "qualityControls": [
+        "Réponse rapide",
+        "Tarifs ou devis clairs",
+        "Politiques visibles",
+        "Demander un avis après le service"
+      ],
+      "monetization": [
+        "Clients récurrents",
+        "Forfaits à plus forte valeur",
+        "Vente croisée de services associés"
+      ]
+    },
+    "templates": {
+      "default": {
+        "operatingModel": "Workflow général d’entreprise OxSteed"
+      }
+    }
   }
 }

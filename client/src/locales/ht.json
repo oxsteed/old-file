@@ -7263,8 +7263,7 @@
           "help": "Modèl la pi solid lè ekip la sèvi ak sistèm yo rekòmande yo."
         }
       }
-    }
-  },
+    }},
   "plans": {
     "free": "Gratis",
     "pro": "Pro",
@@ -17796,5 +17795,84 @@
         "void": "Anile",
         "cancelled": "Anile"
       }
+  },
+  "templateWorkflowContent": {
+    "general": {
+      "operatingModel": "Biznis sèvis lokal jeneral",
+      "headline": "Fè biznis la mache ak yon sik senp: sèvis, orè, livrezon, epi kliyan ki retounen.",
+      "operatorBrief": "Modèl sa a fèt pou founisè ki bezwen prezante sèvis yo byen, reponn vit, kenbe yon orè serye, epi suiv kliyan ki retounen.",
+      "primaryDemand": [
+        "Demann pri nan zòn nan",
+        "Rezèvasyon sèvis dirèk",
+        "Travay ki repete nan katye a"
+      ],
+      "workflowStages": [
+        "Resevwa demann lan oswa entansyon pou rezève",
+        "Klarifye sa travay la mande ak orè a",
+        "Bay sèvis la epi dokimante rezilta a",
+        "Mande yon revi epi mete kliyan an nan sik travay ki repete"
+      ],
+      "intakeRequirements": [
+        "Sèvis yo mande",
+        "Kote a",
+        "Lè yo prefere",
+        "Bidjè oswa nòt sou travay la"
+      ],
+      "records": [
+        "Presizyon meni sèvis la",
+        "Lè ak disponiblite",
+        "Mesaj kliyan yo",
+        "Nòt swivi apre travay la"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Sèvis ak rezèvasyon",
+          "reason": "Kenbe òf yo klè epi fasil pou achte."
+        },
+        {
+          "label": "Orè",
+          "reason": "Kowòdone lè, randevou ak swivi."
+        },
+        {
+          "label": "Kliyan",
+          "reason": "Swiv istwa kliyan ak travay ki repete."
+        },
+        {
+          "label": "Mesaj",
+          "reason": "Fè limit travay la klè epi konfime detay yo vit."
+        }
+      ],
+      "dailyCadence": [
+        "Reponn nouvo demann yo",
+        "Konfime rezèvasyon jodi a",
+        "Tcheke lis swivi a"
+      ],
+      "weeklyCadence": [
+        "Mete sèvis ki pi enpòtan yo ajou",
+        "Revize kòmantè kliyan yo",
+        "Voye rapèl pou rezève ankò"
+      ],
+      "monthlyCadence": [
+        "Revize revni pa sèvis",
+        "Ajiste pri ak règleman",
+        "Retire òf ki pa mache byen"
+      ],
+      "qualityControls": [
+        "Repons rapid",
+        "Pri oswa devis ki klè",
+        "Règleman vizib",
+        "Mande revi apre sèvis la"
+      ],
+      "monetization": [
+        "Kliyan ki retounen",
+        "Pake ki gen plis valè",
+        "Vann sèvis ki mache ansanm"
+      ]
+    },
+    "templates": {
+      "default": {
+        "operatingModel": "Workflow jeneral biznis OxSteed"
+      }
+    }
   }
 }
