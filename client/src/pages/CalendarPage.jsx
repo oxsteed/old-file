@@ -25,6 +25,7 @@ function isSameDay(a, b) {
 }
 
 function MiniCalendar({ selectedDate, onDateChange }) {
+  const { t } = useTranslation();
   const today = new Date();
 
   const [viewMonth, setViewMonth] = useState(() => {
@@ -75,13 +76,13 @@ function MiniCalendar({ selectedDate, onDateChange }) {
   return (
     <div className="mini-calendar">
       <div className="mini-calendar-header">
-        <button onClick={prevMonth} aria-label="Previous month">{"<"}</button>
+        <button onClick={prevMonth} aria-label={t('calendar.previousMonth')}>{"<"}</button>
         <span>{monthLabel}</span>
-        <button onClick={nextMonth} aria-label="Next month">{">"}</button>
+        <button onClick={nextMonth} aria-label={t('calendar.nextMonth')}>{">"}</button>
       </div>
       <div className="mini-calendar-grid">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <span key={i} className="mini-calendar-dow">{d}</span>
+        {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day, i) => (
+          <span key={i} className="mini-calendar-dow">{t(`calendar.dayShort.${day}`)}</span>
         ))}
         {days.map((day, idx) => {
           if (!day) return <span key={`empty-${idx}`} />;
@@ -139,45 +140,53 @@ export default function CalendarPage() {
     year: 'numeric',
   });
 
+  const viewModeLabel = (mode) => ({
+    day: t('calendar.day'),
+    week: t('calendar.week'),
+    month: t('calendar.month'),
+    agenda: t('calendar.agenda'),
+    'booking-requests': t('calendar.bookingRequests'),
+  }[mode] || mode);
+
   const summaryCards = isHelper
     ? [
         {
           icon: CalendarClock,
-          label: 'Current view',
-          value: viewMode === 'booking-requests' ? 'Requests' : viewMode.charAt(0).toUpperCase() + viewMode.slice(1),
-          hint: 'Switch between schedule planning and incoming booking demand.',
+          label: t('calendar.summaryCurrentView'),
+          value: viewModeLabel(viewMode),
+          hint: t('calendar.summaryHelperViewHint'),
         },
         {
           icon: Clock3,
-          label: 'Date focus',
+          label: t('calendar.summaryDateFocus'),
           value: selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          hint: 'The active day anchoring your current planning view.',
+          hint: t('calendar.summaryDateHint'),
         },
         {
           icon: ShieldCheck,
-          label: 'Availability control',
-          value: 'Live',
-          hint: 'Protect time quickly when you need to stay realistic.',
+          label: t('calendar.summaryAvailability'),
+          value: t('calendar.blockAvailable'),
+          hint: t('calendar.summaryAvailabilityHint'),
         },
       ]
     : [
         {
           icon: CalendarClock,
-          label: 'Current view',
-          value: viewMode.charAt(0).toUpperCase() + viewMode.slice(1),
-          hint: 'Move between day, week, month, and agenda planning.',
+          label: t('calendar.summaryCurrentView'),
+          value: viewModeLabel(viewMode),
+          hint: t('calendar.summaryCustomerViewHint'),
         },
         {
           icon: Clock3,
-          label: 'Date focus',
+          label: t('calendar.summaryDateFocus'),
           value: selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          hint: 'Use this to center the timeline around the day you care about.',
+          hint: t('calendar.summaryDateHint'),
         },
         {
           icon: ListTodo,
-          label: 'Calendar role',
-          value: 'Planning',
-          hint: 'Track appointments, service commitments, and upcoming work.',
+          label: t('calendar.summaryCalendarRole'),
+          value: t('calendar.summaryPlanning'),
+          hint: t('calendar.summaryPlanningHint'),
         },
       ];
 
@@ -189,7 +198,7 @@ export default function CalendarPage() {
           <div className="calendar-hero-copy">
             <div className="calendar-hero-badge">
               <Sparkles size={14} />
-              Calendar workspace
+              {t('calendar.workspaceBadge')}
             </div>
             <div className="calendar-title-block">
               <h1>{t('calendar.title')}</h1>
@@ -199,8 +208,8 @@ export default function CalendarPage() {
               <span className="calendar-focus-pill">{selectedDateLabel}</span>
               <span className="calendar-focus-text">
                 {isHelper
-                  ? 'Protect open time, review booking demand, and keep your service week realistic.'
-                  : 'See your upcoming appointments and commitments in one cleaner planning surface.'}
+                  ? t('calendar.focusHelper')
+                  : t('calendar.focusCustomer')}
               </span>
             </div>
           </div>
@@ -275,7 +284,7 @@ export default function CalendarPage() {
               <div className="calendar-sidebar-panel-header">
                 <LayoutGrid size={18} />
                 <div>
-                  <h3>Calendar focus</h3>
+                  <h3>{t('calendar.focusTitle')}</h3>
                   <p>{selectedMonthLabel}</p>
                 </div>
               </div>
@@ -286,27 +295,27 @@ export default function CalendarPage() {
               <div className="calendar-sidebar-panel-header">
                 <CalendarClock size={18} />
                 <div>
-                  <h3>{isHelper ? 'Today at a glance' : 'Planning note'}</h3>
+                  <h3>{isHelper ? t('calendar.todayAtGlance') : t('calendar.planningNote')}</h3>
                   <p>{selectedDateLabel}</p>
                 </div>
               </div>
               <p className="calendar-brief-copy">
                 {isHelper
-                  ? 'Use booking requests to capture demand, then switch back to agenda or week view to balance confirmed work.'
-                  : 'Agenda view is the fastest way to scan what is coming next if you only need the upcoming timeline.'}
+                  ? t('calendar.briefHelper')
+                  : t('calendar.briefCustomer')}
               </p>
               <div className="calendar-quick-links">
                 {isHelper ? (
                   <>
-                    <Link to="/helper-dashboard">Helper dashboard</Link>
-                    <Link to="/helper/messages">Messages</Link>
-                    <Link to="/my-bookings">My bookings</Link>
+                    <Link to="/helper-dashboard">{t('calendar.helperDashboard')}</Link>
+                    <Link to="/helper/messages">{t('calendar.messages')}</Link>
+                    <Link to="/my-bookings">{t('calendar.myBookings')}</Link>
                   </>
                 ) : (
                   <>
-                    <Link to="/my-bookings">My bookings</Link>
-                    <Link to="/messages">Messages</Link>
-                    <Link to="/dashboard">Dashboard</Link>
+                    <Link to="/my-bookings">{t('calendar.myBookings')}</Link>
+                    <Link to="/messages">{t('calendar.messages')}</Link>
+                    <Link to="/dashboard">{t('calendar.dashboard')}</Link>
                   </>
                 )}
               </div>
@@ -341,7 +350,7 @@ export default function CalendarPage() {
                   <h2>{selectedDateLabel}</h2>
                 </div>
                 <div className="calendar-main-shell-meta">
-                  {isHelper ? 'Helper operations' : 'Customer planning'}
+                  {isHelper ? t('calendar.helperOperations') : t('calendar.customerPlanning')}
                 </div>
               </div>
 
