@@ -15,7 +15,7 @@ import { formatMoney } from '../../lib/format';
 
 const EMPTY_SETTINGS = {
   response_promise_hours: 24,
-  consultation_label: 'Engagement intake and consultation planning',
+  consultation_label: '',
   recurring_reminder_days: 30,
   preferred_contact_channel: 'email',
   document_checklist: '',
@@ -116,6 +116,7 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
     setSettingsForm({
       ...EMPTY_SETTINGS,
       ...settings,
+      consultation_label: settings.consultation_label || copy('defaultConsultationLabel'),
       document_checklist: (settings.document_checklist || []).join(', '),
       obligation_types: (settings.obligation_types || []).join(', '),
       trust_artifacts: (settings.trust_artifacts || []).join(', '),
@@ -268,36 +269,36 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
       </div>
 
       <Section
-        title="Engagement and obligation settings"
-        subtitle="Define response speed, document expectations, trust signals, and recurring obligation rhythm for professional-service work."
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+        title={copy('settingsTitle')}
+        subtitle={copy('settingsSubtitle')}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
-          <Input label="Consultation label"><TextInput value={settingsForm.consultation_label} onChange={(e) => setSettingsForm((current) => ({ ...current, consultation_label: e.target.value }))} /></Input>
-          <Input label="Recurring reminder days"><TextInput type="number" min="1" value={settingsForm.recurring_reminder_days} onChange={(e) => setSettingsForm((current) => ({ ...current, recurring_reminder_days: e.target.value }))} /></Input>
-          <Input label="Preferred contact channel"><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}><option value="email">Email</option><option value="call">Call</option><option value="meeting">Meeting</option><option value="message">Message</option></Select></Input>
-          <Input label="Document checklist" wide><TextInput value={settingsForm.document_checklist} onChange={(e) => setSettingsForm((current) => ({ ...current, document_checklist: e.target.value }))} placeholder="Bank statements, prior filings, source docs, discovery notes" /></Input>
-          <Input label="Obligation types" wide><TextInput value={settingsForm.obligation_types} onChange={(e) => setSettingsForm((current) => ({ ...current, obligation_types: e.target.value }))} placeholder="Monthly review, filing, check-in, coaching milestone" /></Input>
-          <Input label="Trust artifacts" wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Confidentiality process, document discipline, recurring obligation tracking" /></Input>
-          <Input label="Follow-up prompt" wide><TextArea rows={3} value={settingsForm.follow_up_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_prompt: e.target.value }))} /></Input>
-          <Input label="Engagement policy" wide><TextArea rows={3} value={settingsForm.engagement_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, engagement_policy: e.target.value }))} /></Input>
+          <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
+          <Input label={copy('consultationLabel')}><TextInput value={settingsForm.consultation_label} onChange={(e) => setSettingsForm((current) => ({ ...current, consultation_label: e.target.value }))} /></Input>
+          <Input label={copy('recurringReminder')}><TextInput type="number" min="1" value={settingsForm.recurring_reminder_days} onChange={(e) => setSettingsForm((current) => ({ ...current, recurring_reminder_days: e.target.value }))} /></Input>
+          <Input label={copy('preferredContact')}><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}>{['email', 'call', 'meeting', 'message'].map((channel) => <option key={channel} value={channel}>{copy(channel)}</option>)}</Select></Input>
+          <Input label={copy('documentChecklist')} wide><TextInput value={settingsForm.document_checklist} onChange={(e) => setSettingsForm((current) => ({ ...current, document_checklist: e.target.value }))} placeholder={copy('documentChecklistPlaceholder')} /></Input>
+          <Input label={copy('obligationTypes')} wide><TextInput value={settingsForm.obligation_types} onChange={(e) => setSettingsForm((current) => ({ ...current, obligation_types: e.target.value }))} placeholder={copy('obligationTypesPlaceholder')} /></Input>
+          <Input label={copy('trustArtifacts')} wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder={copy('trustArtifactsPlaceholder')} /></Input>
+          <Input label={copy('followUpPrompt')} wide><TextArea rows={3} value={settingsForm.follow_up_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_prompt: e.target.value }))} /></Input>
+          <Input label={copy('engagementPolicy')} wide><TextArea rows={3} value={settingsForm.engagement_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, engagement_policy: e.target.value }))} /></Input>
         </div>
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Section title="Packages and retainer logic" subtitle="Turn consultations, filings, ongoing support, and retainers into structured packages the team can sell and deliver consistently.">
+        <Section title={copy('packagesTitle')} subtitle={copy('packagesSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage}>
-            <Input label="Package name"><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
-            <Input label="Type"><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}><option value="engagement">Engagement</option><option value="session">Session</option><option value="retainer">Retainer</option><option value="filing">Filing</option></Select></Input>
-            <Input label="Price cents"><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
-            <Input label="Cadence label"><TextInput value={packageForm.cadence_label} onChange={(e) => setPackageForm((current) => ({ ...current, cadence_label: e.target.value }))} placeholder="Monthly, quarterly, one-time filing" /></Input>
-            <Input label="Target templates" wide><TextInput value={packageForm.target_templates} onChange={(e) => setPackageForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder="accountant, consulting_coaching, legal_admin" /></Input>
-            <Input label="Deliverables" wide><TextInput value={packageForm.deliverables} onChange={(e) => setPackageForm((current) => ({ ...current, deliverables: e.target.value }))} placeholder="Review meeting, filing packet, strategy notes, compliance checklist" /></Input>
-            <Input label="Description" wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <Input label={copy('packageName')}><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
+            <Input label={copy('type')}><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}>{['engagement', 'session', 'retainer', 'filing'].map((type) => <option key={type} value={type}>{copy(`packageTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('priceCents')}><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
+            <Input label={copy('cadenceLabel')}><TextInput value={packageForm.cadence_label} onChange={(e) => setPackageForm((current) => ({ ...current, cadence_label: e.target.value }))} placeholder={copy('cadencePlaceholder')} /></Input>
+            <Input label={copy('targetTemplates')} wide><TextInput value={packageForm.target_templates} onChange={(e) => setPackageForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder={copy('targetTemplatesPlaceholder')} /></Input>
+            <Input label={copy('deliverables')} wide><TextInput value={packageForm.deliverables} onChange={(e) => setPackageForm((current) => ({ ...current, deliverables: e.target.value }))} placeholder={copy('deliverablesPlaceholder')} /></Input>
+            <Input label={copy('descriptionField')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? 'Update package' : 'Add package'}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -307,7 +308,7 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.package_name}</p>
-                      <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">{item.package_type}</span>
+                      <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">{copy(`packageTypes.${item.package_type}`)}</span>
                     </div>
                     {item.description ? <p className="mt-1 text-sm text-gray-400">{item.description}</p> : null}
                     <p className="mt-2 text-sm font-semibold text-white">{formatMoney((item.price_cents || 0) / 100, { currency })}</p>
@@ -325,8 +326,8 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
                         deliverables: (item.deliverables || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>Edit</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteProfessionalPackage(businessId, item.id); toast.success('Package deleted'); await onRefresh?.(); }}>Delete</button>
+                    }}>{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteProfessionalPackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -334,18 +335,18 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
           </div>
         </Section>
 
-        <Section title="Compliance and obligation records" subtitle="Track deadlines, required documents, engagement deliverables, and recurring follow-up obligations in one queue.">
+        <Section title={copy('recordsTitle')} subtitle={copy('recordsSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecord}>
-            <Input label="Engagement request"><Select value={recordForm.engagement_request_id} onChange={(e) => setRecordForm((current) => ({ ...current, engagement_request_id: e.target.value }))}><option value="">Unlinked</option>{engagementRequests.map((item) => <option key={item.id} value={item.id}>{item.service_need}</option>)}</Select></Input>
-            <Input label="Record type"><Select value={recordForm.record_type} onChange={(e) => setRecordForm((current) => ({ ...current, record_type: e.target.value }))}><option value="document">Document</option><option value="deadline">Deadline</option><option value="compliance">Compliance</option><option value="deliverable">Deliverable</option><option value="license">License</option><option value="follow_up">Follow-up</option></Select></Input>
-            <Input label="Title"><TextInput value={recordForm.title} onChange={(e) => setRecordForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-            <Input label="Status"><Select value={recordForm.status} onChange={(e) => setRecordForm((current) => ({ ...current, status: e.target.value }))}><option value="pending">Pending</option><option value="ready">Ready</option><option value="completed">Completed</option><option value="expired">Expired</option><option value="archived">Archived</option></Select></Input>
-            <Input label="Due at"><TextInput type="datetime-local" value={recordForm.due_at} onChange={(e) => setRecordForm((current) => ({ ...current, due_at: e.target.value }))} /></Input>
-            <Input label="Document URL"><TextInput value={recordForm.document_url} onChange={(e) => setRecordForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
-            <Input label="Notes" wide><TextArea rows={2} value={recordForm.notes} onChange={(e) => setRecordForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <Input label={copy('engagementRequest')}><Select value={recordForm.engagement_request_id} onChange={(e) => setRecordForm((current) => ({ ...current, engagement_request_id: e.target.value }))}><option value="">{copy('unlinked')}</option>{engagementRequests.map((item) => <option key={item.id} value={item.id}>{item.service_need}</option>)}</Select></Input>
+            <Input label={copy('recordType')}><Select value={recordForm.record_type} onChange={(e) => setRecordForm((current) => ({ ...current, record_type: e.target.value }))}>{['document', 'deadline', 'compliance', 'deliverable', 'license', 'follow_up'].map((type) => <option key={type} value={type}>{copy(`recordTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('titleField')}><TextInput value={recordForm.title} onChange={(e) => setRecordForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label={copy('statusField')}><Select value={recordForm.status} onChange={(e) => setRecordForm((current) => ({ ...current, status: e.target.value }))}>{['pending', 'ready', 'completed', 'expired', 'archived'].map((status) => <option key={status} value={status}>{copy(`statuses.${status}`)}</option>)}</Select></Input>
+            <Input label={copy('dueAt')}><TextInput type="datetime-local" value={recordForm.due_at} onChange={(e) => setRecordForm((current) => ({ ...current, due_at: e.target.value }))} /></Input>
+            <Input label={copy('documentUrl')}><TextInput value={recordForm.document_url} onChange={(e) => setRecordForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
+            <Input label={copy('notesField')} wide><TextArea rows={2} value={recordForm.notes} onChange={(e) => setRecordForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingRecordId ? 'Update record' : 'Add record'}</button>
-              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingRecordId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -355,8 +356,8 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
-                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.record_type}</span>
-                      <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">{item.status}</span>
+                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{copy(`recordTypes.${item.record_type}`)}</span>
+                      <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">{copy(`statuses.${item.status}`)}</span>
                     </div>
                     {item.notes ? <p className="mt-1 text-sm text-gray-400">{item.notes}</p> : null}
                   </div>
@@ -372,8 +373,8 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
                         document_url: item.document_url || '',
                         notes: item.notes || '',
                       });
-                    }}>Edit</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteProfessionalComplianceRecord(businessId, item.id); toast.success('Compliance record deleted'); await onRefresh?.(); }}>Delete</button>
+                    }}>{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteProfessionalComplianceRecord(businessId, item.id); toast.success(copy('recordDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
