@@ -220,7 +220,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory', 'Local Food Directory')}</NavLink>
+                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory')}</NavLink>
                 <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
                   {t('nav.messages')}
@@ -355,7 +355,7 @@ export default function Navbar() {
               <>
                 <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory', 'Local Food Directory')}</NavLink>
+                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory')}</NavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
                 )}
@@ -423,7 +423,7 @@ export default function Navbar() {
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory', 'Local Food Directory')}</MobileNavLink>
+                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory')}</MobileNavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <>
                     <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
@@ -478,7 +478,7 @@ export default function Navbar() {
               <>
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory', 'Local Food Directory')}</MobileNavLink>
+                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory')}</MobileNavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
                 )}

@@ -523,7 +523,7 @@ export default function InventoryHelpCenterPage({ appKey }) {
                 fontWeight: 900,
                 textDecoration: 'none',
               }}>
-                {t('inventoryHelpCenter.contactSupport', { defaultValue: 'Contact support' })} <ArrowRight size={18} />
+                {t('inventoryHelpCenter.contactSupport')} <ArrowRight size={18} />
               </a>
             </div>
             <div style={{

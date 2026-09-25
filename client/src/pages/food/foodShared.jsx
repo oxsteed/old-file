@@ -26,7 +26,7 @@ export function FoodLogo({ size = 32 }) {
 
 export function FoodBrand({ size = 32, label }) {
   const { t } = useTranslation();
-  const resolvedLabel = label || t('nav.localFoodDirectory', { defaultValue: 'Local Food Directory' });
+  const resolvedLabel = label || t('nav.localFoodDirectory');
   return (
     <span className="fd-brand-badge">
       <FoodLogo size={size} />
