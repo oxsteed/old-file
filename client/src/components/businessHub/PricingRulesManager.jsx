@@ -247,7 +247,7 @@ export function PricingRulesManager({ businessId }) {
                 </select>
               </div>
               <div className="prm-form-group">
-                <label>Price Multiplier</label>
+                <label>{t('businessHub.pricingRules.priceMultiplier')}</label>
                 <input
                   type="number" step="0.05" min="0.1"
                   value={formData.volume.price_multiplier}
@@ -279,7 +279,7 @@ export function PricingRulesManager({ businessId }) {
                 </select>
               </div>
               <div className="prm-form-group">
-                <label>Price Multiplier</label>
+                <label>{t('businessHub.pricingRules.priceMultiplier')}</label>
                 <input
                   type="number" step="0.05" min="0.1"
                   value={formData.segment.price_multiplier}
