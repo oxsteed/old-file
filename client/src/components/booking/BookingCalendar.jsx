@@ -21,6 +21,7 @@ export default function BookingCalendar({
   const [availability, setAvailability] = useState(null);
   const [services, setServices] = useState([]);
   const [serviceId, setServiceId] = useState('');
+  const [customService, setCustomService] = useState(false);
   const [serviceData, setServiceData] = useState({ serviceName: initialServiceName || '', serviceLocation: '', description: '' });
   const [fallbackChoice, setFallbackChoice] = useState('post');
   const [loading, setLoading] = useState(false);
@@ -83,8 +84,15 @@ export default function BookingCalendar({
   };
 
   const updateService = (value) => {
+    if (value === '__custom__') {
+      setServiceId('');
+      setCustomService(true);
+      setServiceData((d) => ({ ...d, serviceName: '' }));
+      return;
+    }
     const selected = services.find((service) => String(service.id) === String(value));
     setServiceId(value);
+    setCustomService(false);
     setServiceData((d) => ({ ...d, serviceName: selected?.name || d.serviceName }));
     if (selectedDate) loadAvailability(selectedDate, value);
   };
@@ -124,13 +132,17 @@ export default function BookingCalendar({
         <div className="booking-panel-heading"><div><span className="booking-eyebrow">{t('booking.selectService')}</span><h3>{businessName || helperName || t('booking.serviceRequest')}</h3></div><span className="booking-step-pill">1 / 2</span></div>
         <div className="booking-form-group">
           <label htmlFor="booking-service-name">{t('booking.serviceName')}</label>
-          {businessId && services.length > 0 ? (
+          {businessId && services.length > 0 && !customService ? (
             <select id="booking-service-name" className="booking-input" value={serviceId} onChange={(e) => updateService(e.target.value)} disabled={servicesLoading}>
               <option value="">{t('booking.chooseService')}</option>
               {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+              <option value="__custom__">{t('booking.otherService')}</option>
             </select>
           ) : (
-            <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => setServiceData({ ...serviceData, serviceName: e.target.value })} className="booking-input" />
+            <div className="booking-custom-service">
+              <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => setServiceData({ ...serviceData, serviceName: e.target.value })} className="booking-input" />
+              {businessId && services.length > 0 && <button type="button" className="booking-inline-action" onClick={() => { setCustomService(false); setServiceId(''); setServiceData((d) => ({ ...d, serviceName: '' })); }}>{t('booking.backToServices')}</button>}
+            </div>
           )}
         </div>
         <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label><input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => setServiceData({ ...serviceData, serviceLocation: e.target.value })} className="booking-input" /></div>

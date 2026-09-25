@@ -149,10 +149,7 @@ exports.createBookingRequest = async (req, res) => {
     if (!requestOnly && !requestedEndTime) errors.requestedEndTime = 'End time is required';
 
     let hours = DEFAULT_CONFIRMATION_HOURS;
-    if (requestOnly) {
-      // A provider without published hours gets one clear 72 hour response window.
-      hours = 72;
-    } else if (confirmationHours !== undefined && confirmationHours !== null && confirmationHours !== '') {
+    if (confirmationHours !== undefined && confirmationHours !== null && confirmationHours !== '') {
       const n = parseInt(String(confirmationHours), 10);
       if (!Number.isFinite(n) || n < MIN_CONFIRMATION_HOURS || n > MAX_CONFIRMATION_HOURS) {
         errors.confirmationHours = `Must be between ${MIN_CONFIRMATION_HOURS} and ${MAX_CONFIRMATION_HOURS}`;
@@ -178,6 +175,31 @@ exports.createBookingRequest = async (req, res) => {
     today.setHours(0, 0, 0, 0);
     if (reqDate < today) {
       return sendValidationError(res, { requestedDate: 'Cannot book in the past' });
+    }
+
+    // The confirmation deadline cannot extend beyond the requested service
+    // date (or selected start time). This keeps the deadline usable for
+    // next-day requests while still allowing longer windows for later dates.
+    const deadlineTarget = requestOnly
+      ? new Date(`${requestedDate}T23:59:00`)
+      : new Date(`${requestedDate}T${requestedStartTime}:00`);
+    const deadlineLimitHours = Math.max(
+      MIN_CONFIRMATION_HOURS,
+      Math.min(MAX_CONFIRMATION_HOURS, Math.floor((deadlineTarget.getTime() - Date.now()) / 3600000)),
+    );
+    if (Number.isNaN(deadlineTarget.getTime())) {
+      return sendValidationError(res, { requestedDate: 'Invalid date' });
+    }
+    if (!requestOnly && deadlineTarget <= new Date()) {
+      return sendValidationError(res, { requestedStartTime: 'Requested start time must be in the future' });
+    }
+    if (confirmationHours === undefined || confirmationHours === null || confirmationHours === '') {
+      hours = Math.min(DEFAULT_CONFIRMATION_HOURS, deadlineLimitHours);
+    }
+    if (hours > deadlineLimitHours) {
+      return sendValidationError(res, {
+        confirmationHours: `Deadline must be no later than ${deadlineLimitHours} hours before the requested service date`,
+      });
     }
 
     const helperResult = await pool.query(
@@ -786,7 +808,7 @@ exports.getHelperAvailableSlots = async (req, res) => {
  * Public business availability. Businesses may publish hours at the business
  * level, independently from the owner's helper profile. An empty schedule is
  * returned as a valid request-only state so the booking UI can offer the
- * 72-hour request fallback instead of showing a server error.
+ * request-only fallback instead of showing a server error.
  */
 exports.getBusinessAvailableSlots = async (req, res) => {
   try {
@@ -1366,7 +1388,7 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
 
 /**
  * Atomically turn an opted-in request-only booking into a public job when its
- * 72 hour confirmation window expires. The booking remains an expired record
+ * customer-selected confirmation window expires. The booking remains an expired record
  * and keeps the job id so both sides can follow the handoff.
  */
 async function autoPostExpiredBooking(bookingId) {
@@ -1416,7 +1438,7 @@ async function autoPostExpiredBooking(bookingId) {
               marketplace_posted_at = CURRENT_TIMESTAMP,
               helper_response_reason = COALESCE(
                 helper_response_reason,
-                'Published as a public job after the 72 hour request window expired'
+                'Published as a public job after the request window expired'
               ),
               updated_at = CURRENT_TIMESTAMP
         WHERE id = $1 AND status = 'pending'

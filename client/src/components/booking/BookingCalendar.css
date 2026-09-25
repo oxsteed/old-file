@@ -243,6 +243,8 @@
 .booking-choice span { display: grid; gap: 3px; }
 .booking-choice small { color: var(--muted-text); line-height: 1.4; }
 .booking-request-button { width: 100%; margin-top: 14px; }
+.booking-custom-service { display: grid; gap: 6px; }
+.booking-custom-service .booking-inline-action { justify-self: start; margin-left: 0; padding: 0; }
 
 @media (max-width: 820px) {
   .booking-calendar { grid-template-columns: 1fr; }

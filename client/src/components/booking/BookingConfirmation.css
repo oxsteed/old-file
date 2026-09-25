@@ -215,3 +215,21 @@
 }
 
 .booking-fallback-summary p { margin: 6px 0 0; color: var(--muted-text); line-height: 1.45; }
+
+.booking-deadline-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted-text);
+  font-size: 0.85rem;
+}
+
+.booking-deadline-custom input {
+  width: 86px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--app-text);
+}

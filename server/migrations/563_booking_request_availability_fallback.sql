@@ -1,6 +1,6 @@
 -- Booking requests can be sent when a provider has not published availability.
--- The request still expires after the normal confirmation window; customers may
--- opt into automatically publishing a public job when the 72 hour window ends.
+-- The request still expires after the customer-selected confirmation window;
+-- customers may opt into automatically publishing a public job when it ends.
 
 BEGIN;
 
@@ -23,7 +23,7 @@ ALTER TABLE booking_requests
 COMMENT ON COLUMN booking_requests.availability_mode IS
   'scheduled when published slots were selected; request_only when the provider has not published availability.';
 COMMENT ON COLUMN booking_requests.auto_post_on_expiry IS
-  'For request_only bookings, publish a public job when the 72 hour confirmation window expires.';
+  'For request_only bookings, publish a public job when the customer-selected confirmation window expires.';
 COMMENT ON COLUMN booking_requests.marketplace_posted_at IS
   'Timestamp at which the request was automatically converted into a public marketplace job.';
 

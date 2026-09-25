@@ -124,7 +124,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
             </p>
           )}
           {live.status === 'pending' && live.autoPostOnExpiry && (
-            <p className="booking-countdown">{t('booking.autoPostPending')}</p>
+            <p className="booking-countdown">{t('booking.autoPostPending', { hours: live.confirmationHours || 1 })}</p>
           )}
           {live.helperResponseReason && (
             <p className="booking-reason">{live.helperResponseReason}</p>

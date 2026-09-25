@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, MapPin, FileText, AlertCircle } from 'lucide-react';
@@ -9,6 +9,14 @@ function formatTime(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(2000, 0, 1, h, m || 0);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function getDeadlineLimitHours(dateStr, timeStr) {
+  if (!dateStr) return 168;
+  const target = new Date(`${dateStr}T${timeStr || '23:59'}:00`);
+  if (Number.isNaN(target.getTime())) return 168;
+  const hours = Math.floor((target.getTime() - Date.now()) / (60 * 60 * 1000));
+  return Math.max(1, Math.min(168, hours));
 }
 
 /**
@@ -27,7 +35,25 @@ export default function BookingConfirmation({
   const locale = i18n.language || 'en';
   const [agreed, setAgreed] = useState(false);
   const [confirmationHours, setConfirmationHours] = useState(24);
-  const effectiveConfirmationHours = bookingData.availabilityMode === 'request_only' ? 72 : confirmationHours;
+  const deadlineLimitHours = useMemo(
+    () => getDeadlineLimitHours(bookingData.requestedDate, bookingData.requestedStartTime),
+    [bookingData.requestedDate, bookingData.requestedStartTime],
+  );
+  const deadlineOptions = useMemo(
+    () => [...new Set([
+      ...[6, 12, 24, 48, 72, 96, 120, 168].filter((hours) => hours <= deadlineLimitHours),
+      deadlineLimitHours,
+    ])].sort((a, b) => a - b),
+    [deadlineLimitHours],
+  );
+  const effectiveConfirmationHours = Math.min(
+    deadlineLimitHours,
+    Math.max(1, Number(confirmationHours) || 1),
+  );
+
+  useEffect(() => {
+    setConfirmationHours((current) => Math.min(deadlineLimitHours, Math.max(1, Number(current) || 1)));
+  }, [deadlineLimitHours]);
 
   const handleConfirm = () => {
     if (!agreed) {
@@ -37,9 +63,7 @@ export default function BookingConfirmation({
 
     onConfirm({
       ...bookingData,
-      confirmationHours: bookingData.availabilityMode === 'request_only'
-        ? 72
-        : Math.min(168, Math.max(1, Number(confirmationHours) || 24)),
+      confirmationHours: effectiveConfirmationHours,
     });
   };
 
@@ -112,7 +136,7 @@ export default function BookingConfirmation({
         {bookingData.availabilityMode === 'request_only' && (
           <div className="booking-fallback-summary">
             <strong>{t('booking.noScheduleTitle')}</strong>
-            <p>{bookingData.autoPostOnExpiry ? t('booking.autoPostSummary') : t('booking.expireSummary')}</p>
+            <p>{bookingData.autoPostOnExpiry ? t('booking.autoPostSummary', { hours: effectiveConfirmationHours }) : t('booking.expireSummary', { hours: effectiveConfirmationHours })}</p>
           </div>
         )}
 
@@ -134,18 +158,31 @@ export default function BookingConfirmation({
           <select
             id="booking-confirm-hours"
             className="booking-input"
-            value={bookingData.availabilityMode === 'request_only' ? 72 : confirmationHours}
+            value={confirmationHours}
             onChange={(e) => setConfirmationHours(Number(e.target.value))}
-            disabled={bookingData.availabilityMode === 'request_only'}
+            min="1"
+            max={deadlineLimitHours}
           >
-            {[6, 12, 24, 48, 72, 96, 120, 168].map((h) => (
+            {deadlineOptions.map((h) => (
               <option key={h} value={h}>
                 {t('booking.hoursCount', { count: h })}
               </option>
             ))}
           </select>
+          <div className="booking-deadline-custom">
+            <span>{t('booking.customDeadline')}</span>
+            <input
+              type="number"
+              min="1"
+              max={deadlineLimitHours}
+              value={confirmationHours}
+              onChange={(e) => setConfirmationHours(Number(e.target.value))}
+              aria-label={t('booking.customDeadline')}
+            />
+            <span>{t('booking.hourLabel')}</span>
+          </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)', marginTop: '0.35rem' }}>
-            {bookingData.availabilityMode === 'request_only' ? t('booking.requestOnlyWindowHint') : t('booking.confirmationWindowHint')}
+            {t('booking.deadlineHint', { hours: deadlineLimitHours })}
           </p>
         </div>
 
