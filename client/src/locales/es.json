@@ -10400,6 +10400,14 @@
     "bestSetup": "Mejor configuración para este modo",
     "connectedFeatures": "Funciones de OxSteed conectadas"
   },
+  "profileTemplates": {
+  "popular": "Popular",
+  "rating": "Calificación",
+  "reviews": "Reseñas",
+  "jobsDone": "Trabajos completados",
+  "verified": "Verificado",
+  "ratingStars": "{{count}} estrellas"
+},
   "payment": {
     "purchaseConsulting": "Comprar Paquete de Consultoría",
     "selectPackage": "Seleccionar Paquete",

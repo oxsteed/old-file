@@ -2,11 +2,13 @@
 // Shared sub-components used across profile templates
 
 import { Star, MapPin, Shield, CheckCircle, Clock, Phone, Globe, Users, Check, X, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /** Star rating display */
 export function StarRating({ rating = 0, size = 16, color = '#f59e0b' }) {
+  const { t } = useTranslation();
   return (
-    <span className="flex items-center gap-0.5" aria-label={`${rating.toFixed(1)} stars`}>
+    <span className="flex items-center gap-0.5" aria-label={t('profileTemplates.ratingStars', { count: rating.toFixed(1) })}>
       {[1,2,3,4,5].map(n => (
         <Star
           key={n}
@@ -62,6 +64,7 @@ export function BadgeList({ badges = [], badgeClass = '' }) {
 
 /** Simple service card */
 export function ServiceCard({ service, cardClass = '', priceClass = '' }) {
+  const { t } = useTranslation();
   const priceStr = service.price
     ? `$${service.price.toFixed(2)}/${service.priceUnit || 'hr'}`
     : '';
@@ -70,7 +73,7 @@ export function ServiceCard({ service, cardClass = '', priceClass = '' }) {
       <div className="flex justify-between items-start gap-2">
         <div>
           {service.popular && (
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-wide mb-1 block">Popular</span>
+            <span className="text-xs font-bold text-orange-400 uppercase tracking-wide mb-1 block">{t('profileTemplates.popular')}</span>
           )}
           <h4 className="font-semibold text-sm leading-tight">{service.name}</h4>
           {service.description && <p className="text-xs mt-1 opacity-70 line-clamp-2">{service.description}</p>}
@@ -139,10 +142,11 @@ export function LocationChip({ city, state, className = '' }) {
 
 /** Stats row */
 export function StatsRow({ rating, reviewCount, jobsCompleted, statClass = '', labelClass = '' }) {
+  const { t } = useTranslation();
   const stats = [
-    { value: rating?.toFixed(1) ?? '—', label: 'Rating' },
-    { value: reviewCount ?? 0, label: 'Reviews' },
-    { value: jobsCompleted ?? 0, label: 'Jobs Done' },
+    { value: rating?.toFixed(1) ?? '—', label: t('profileTemplates.rating') },
+    { value: reviewCount ?? 0, label: t('profileTemplates.reviews') },
+    { value: jobsCompleted ?? 0, label: t('profileTemplates.jobsDone') },
   ];
   return (
     <div className="flex gap-6">
@@ -182,10 +186,11 @@ export function SectionHead({ children, className = '' }) {
 
 /** Verified badge inline */
 export function VerifiedBadge({ className = '' }) {
+  const { t } = useTranslation();
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-bold ${className}`}>
       <CheckCircle size={12} />
-      Verified
+      {t('profileTemplates.verified')}
     </span>
   );
 }
@@ -206,11 +211,12 @@ export function ChecklistRow({ children, checked = true, iconColor = '#22c55e', 
 
 /** Horizontal service bar — full-width row with left accent */
 export function HorizontalServiceBar({ service, accentColor = '#3b82f6', bgClass = '', textClass = '', priceClass = '' }) {
+  const { t } = useTranslation();
   return (
     <div className={`flex justify-between items-center px-4 py-3 rounded-xl border-l-4 ${bgClass}`}
       style={{ borderLeftColor: accentColor }}>
       <div className="flex-1 min-w-0">
-        {service.popular && <span className="text-xs font-bold uppercase tracking-wide opacity-60 block">Popular</span>}
+        {service.popular && <span className="text-xs font-bold uppercase tracking-wide opacity-60 block">{t('profileTemplates.popular')}</span>}
         <p className={`font-semibold text-sm ${textClass}`}>{service.name}</p>
         {service.description && <p className="text-xs opacity-60 mt-0.5 line-clamp-1">{service.description}</p>}
       </div>

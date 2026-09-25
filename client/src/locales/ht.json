@@ -10400,6 +10400,14 @@
     "bestSetup": "Pi bon konfigirasyon pou mòd sa a",
     "connectedFeatures": "Fonksyon OxSteed ki konekte"
   },
+  "profileTemplates": {
+  "popular": "Popilè",
+  "rating": "Evalyasyon",
+  "reviews": "Revizyon",
+  "jobsDone": "Travay fini",
+  "verified": "Verifye",
+  "ratingStars": "{{count}} etwal"
+},
   "payment": {
     "purchaseConsulting": "Achte Pakèt Konsiltasyon",
     "selectPackage": "Chwazi Pakèt",

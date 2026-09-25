@@ -10406,6 +10406,14 @@
     "bestSetup": "Best setup for this mode",
     "connectedFeatures": "Connected OxSteed features"
   },
+  "profileTemplates": {
+  "popular": "Popular",
+  "rating": "Rating",
+  "reviews": "Reviews",
+  "jobsDone": "Jobs Done",
+  "verified": "Verified",
+  "ratingStars": "{{count}} stars"
+},
   "payment": {
     "purchaseConsulting": "Purchase Consulting Package",
     "selectPackage": "Select Package",

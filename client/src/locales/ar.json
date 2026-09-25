@@ -10400,6 +10400,14 @@
     "bestSetup": "أفضل إعداد لهذا الوضع",
     "connectedFeatures": "ميزات OxSteed المتصلة"
   },
+  "profileTemplates": {
+  "popular": "شائع",
+  "rating": "التقييم",
+  "reviews": "المراجعات",
+  "jobsDone": "أعمال مكتملة",
+  "verified": "موثّق",
+  "ratingStars": "{{count}} نجوم"
+},
   "payment": {
     "purchaseConsulting": "شراء حزمة الاستشارات",
     "selectPackage": "حدد الحزمة",

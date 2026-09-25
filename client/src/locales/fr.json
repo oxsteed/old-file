@@ -10400,6 +10400,14 @@
     "bestSetup": "Configuration recommandée pour ce mode",
     "connectedFeatures": "Fonctionnalités OxSteed connectées"
   },
+  "profileTemplates": {
+  "popular": "Populaire",
+  "rating": "Note",
+  "reviews": "Avis",
+  "jobsDone": "Emplois réalisés",
+  "verified": "Vérifié",
+  "ratingStars": "{{count}} étoiles"
+},
   "payment": {
     "purchaseConsulting": "Acheter un forfait de consultation",
     "selectPackage": "Sélectionner un forfait",
