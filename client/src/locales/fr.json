@@ -18310,6 +18310,150 @@
           "Relations durables avec les foyers"
         ]
     },
+    "events": {
+        "operatingModel": "Flux de vente et de livraison d’événements par forfaits",
+        "headline": "Faites passer les prospects de la vision de l’événement au choix du forfait, à la logistique confirmée et à une livraison soignée.",
+        "operatorBrief": "Les activités événementielles ont besoin de niveaux plus clairs, d’une meilleure coordination en amont et d’un suivi discipliné pour que chaque réservation soit soignée plutôt qu’improvisée.",
+        "primaryDemand": [
+          "Comparaison de forfaits",
+          "Vérification des dates",
+          "Demandes de périmètre événementiel personnalisé"
+        ],
+        "workflowStages": [
+          "Qualifier le type et la date de l’événement",
+          "Associer le client à un forfait ou un devis personnalisé",
+          "Confirmer la logistique, les livrables et le timing",
+          "Réaliser l’événement et obtenir des preuves sociales ou des recommandations"
+        ],
+        "intakeRequirements": [
+          "Type d’événement",
+          "Date",
+          "Nombre d’invités ou ampleur",
+          "Ambiance ou périmètre souhaité"
+        ],
+        "records": [
+          "Menu des forfaits",
+          "Notes de calendrier",
+          "Logistique client",
+          "Occasions de recommandation"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Vendez des forfaits au lieu d’offres vagues."
+          },
+          {
+            "label": "Devis",
+            "reason": "Cadrez les événements personnalisés sans perdre de marge."
+          },
+          {
+            "label": "Planning",
+            "reason": "Protégez les opérations et le calendrier de l’événement."
+          },
+          {
+            "label": "Centre de croissance",
+            "reason": "Présentez les preuves d’événement et les supports prêts à être recommandés."
+          }
+        ],
+        "dailyCadence": [
+          "Vérifier les demandes de date",
+          "Faire avancer les échanges logistiques",
+          "Consigner les changements de livrables"
+        ],
+        "weeklyCadence": [
+          "Examiner le mix de forfaits",
+          "Actualiser les preuves d’événements",
+          "Relancer les devis chauds"
+        ],
+        "monthlyCadence": [
+          "Lancer des forfaits saisonniers",
+          "Analyser la rentabilité des événements",
+          "Collecter les supports de recommandation"
+        ],
+        "qualityControls": [
+          "Clarté des forfaits",
+          "Rigueur logistique",
+          "Marketing riche en preuves",
+          "Collecte de recommandations après l’événement"
+        ],
+        "monetization": [
+          "Niveaux premium",
+          "Ventes additionnelles",
+          "Demande récurrente et saisonnière portée par les recommandations"
+        ]
+    },
+    "beauty": {
+        "operatingModel": "Flux premium de rendez-vous et de fidélisation",
+        "headline": "Transformez la demande de looks en rendez-vous récurrents avec une réservation soignée et des parcours de service plus clairs.",
+        "operatorBrief": "Les activités beauté ont besoin de plus qu’une liste de prix : une sensation premium, des preuves visuelles, un parcours de rendez-vous solide et des systèmes de fidélisation.",
+        "primaryDemand": [
+          "Réservations régulières",
+          "Services de transformation",
+          "Intérêt pour des rendez-vous guidés par le style"
+        ],
+        "workflowStages": [
+          "Guider le client vers le bon service ou look",
+          "Convertir avec des disponibilités et règles claires",
+          "Livrer l’expérience du rendez-vous",
+          "Faire reprendre rendez-vous et développer la fidélité"
+        ],
+        "intakeRequirements": [
+          "Look ou service souhaité",
+          "Horaire préféré",
+          "Notes de préparation",
+          "Demandes particulières"
+        ],
+        "records": [
+          "Preuves du lookbook",
+          "Conseils de préparation",
+          "Notes de fidélisation",
+          "Tendances d’annulation ou d’absence"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Organisez les services par résultat et durée."
+          },
+          {
+            "label": "Galerie",
+            "reason": "Vendez les résultats visuels, pas seulement les noms et prix."
+          },
+          {
+            "label": "Planning",
+            "reason": "Protégez le flux et le temps de rotation des rendez-vous."
+          },
+          {
+            "label": "Fidélité",
+            "reason": "Encouragez la reprise de rendez-vous."
+          }
+        ],
+        "dailyCadence": [
+          "Vérifier les rendez-vous du jour",
+          "Combler les créneaux",
+          "Proposer une nouvelle réservation à la fin"
+        ],
+        "weeklyCadence": [
+          "Examiner les services performants",
+          "Actualiser les preuves du portfolio",
+          "Vérifier le rythme de fidélisation"
+        ],
+        "monthlyCadence": [
+          "Lancer des campagnes de looks ou saisonnières",
+          "Examiner la rentabilité des rendez-vous",
+          "Réduire les frictions des règles"
+        ],
+        "qualityControls": [
+          "Preuves visuelles récentes",
+          "Présentation premium",
+          "Conseils clairs de préparation et de règles",
+          "Rigueur de reprise de rendez-vous"
+        ],
+        "monetization": [
+          "Plans de fidélisation",
+          "Transformations premium",
+          "Soins et produits additionnels"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"

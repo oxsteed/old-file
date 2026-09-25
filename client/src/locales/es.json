@@ -18310,6 +18310,150 @@
           "Relaciones familiares de largo plazo"
         ]
     },
+    "events": {
+        "operatingModel": "Flujo de ventas y entrega de eventos basado en paquetes",
+        "headline": "Lleva los clientes desde la idea del evento hasta la selección del paquete, la logística confirmada y una entrega impecable.",
+        "operatorBrief": "Los negocios de eventos necesitan niveles más claros, mejor coordinación previa y seguimiento disciplinado para que cada reserva se sienta cuidada y no improvisada.",
+        "primaryDemand": [
+          "Comparación de paquetes",
+          "Consultas de disponibilidad",
+          "Solicitudes de alcance personalizado"
+        ],
+        "workflowStages": [
+          "Calificar tipo y fecha del evento",
+          "Relacionar al cliente con un paquete o presupuesto personalizado",
+          "Confirmar logística, entregables y horarios",
+          "Realizar el evento y obtener pruebas sociales o referencias"
+        ],
+        "intakeRequirements": [
+          "Tipo de evento",
+          "Fecha",
+          "Número de invitados o escala",
+          "Ambiente o alcance deseado"
+        ],
+        "records": [
+          "Menú de paquetes",
+          "Notas de calendario",
+          "Logística del cliente",
+          "Oportunidades de referencia"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Vende paquetes en lugar de ofertas imprecisas."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Define eventos personalizados sin perder margen."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Protege las operaciones y los horarios del evento."
+          },
+          {
+            "label": "Centro de crecimiento",
+            "reason": "Muestra pruebas del evento y materiales listos para referencias."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar consultas de fechas",
+          "Avanzar conversaciones logísticas",
+          "Registrar cambios en entregables"
+        ],
+        "weeklyCadence": [
+          "Revisar la mezcla de paquetes",
+          "Actualizar pruebas de eventos",
+          "Dar seguimiento a presupuestos activos"
+        ],
+        "monthlyCadence": [
+          "Lanzar paquetes estacionales",
+          "Analizar la rentabilidad de eventos",
+          "Recopilar recursos para referencias"
+        ],
+        "qualityControls": [
+          "Claridad de paquetes",
+          "Disciplina logística",
+          "Marketing con buenas pruebas",
+          "Captura de referencias después del evento"
+        ],
+        "monetization": [
+          "Niveles premium",
+          "Ventas adicionales",
+          "Demanda recurrente y estacional basada en referencias"
+        ]
+    },
+    "beauty": {
+        "operatingModel": "Flujo premium de citas y retención",
+        "headline": "Convierte la demanda basada en looks en citas recurrentes con una reserva pulida y caminos de servicio más claros.",
+        "operatorBrief": "Los negocios de belleza necesitan más que una lista de precios: sensación premium, pruebas visuales, buen flujo de citas y sistemas de retención que mantengan la agenda llena.",
+        "primaryDemand": [
+          "Reservas habituales",
+          "Servicios de transformación",
+          "Interés por citas guiadas por estilo"
+        ],
+        "workflowStages": [
+          "Guiar al cliente al servicio o look adecuado",
+          "Convertir con disponibilidad y políticas claras",
+          "Entregar la experiencia de la cita",
+          "Volver a reservar y aumentar la fidelidad después de la visita"
+        ],
+        "intakeRequirements": [
+          "Look o servicio deseado",
+          "Horario preferido",
+          "Notas de preparación",
+          "Solicitudes especiales"
+        ],
+        "records": [
+          "Pruebas del catálogo de looks",
+          "Guía de preparación",
+          "Notas de retención",
+          "Patrones de cancelación o ausencia"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Organiza los servicios por resultado y duración."
+          },
+          {
+            "label": "Galería",
+            "reason": "Vende resultados visuales, no solo nombres y precios."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Protege el flujo y el tiempo entre citas."
+          },
+          {
+            "label": "Fidelidad",
+            "reason": "Impulsa el comportamiento de nuevas reservas."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar las citas de hoy",
+          "Cubrir espacios libres",
+          "Invitar a volver a reservar al cerrar"
+        ],
+        "weeklyCadence": [
+          "Revisar servicios de mejor rendimiento",
+          "Actualizar pruebas del portafolio",
+          "Comprobar la cadencia de retención"
+        ],
+        "monthlyCadence": [
+          "Lanzar campañas de looks o temporadas",
+          "Revisar rentabilidad de citas",
+          "Reducir fricciones de políticas"
+        ],
+        "qualityControls": [
+          "Pruebas visuales recientes",
+          "Presentación de servicio premium",
+          "Guía clara de preparación y políticas",
+          "Disciplina para volver a reservar"
+        ],
+        "monetization": [
+          "Planes de retención",
+          "Transformaciones premium",
+          "Tratamientos y productos adicionales"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

@@ -18261,6 +18261,150 @@
           "Longer-term household relationships"
         ]
     },
+    "events": {
+        "operatingModel": "Package-led event sales and delivery workflow",
+        "headline": "Move leads from event vision into package selection, logistics confirmation, and polished delivery.",
+        "operatorBrief": "Event businesses need clearer tiers, stronger pre-event coordination, and disciplined follow-up so every booking feels high-touch instead of improvised.",
+        "primaryDemand": [
+          "Package comparisons",
+          "Date availability checks",
+          "Custom event scope requests"
+        ],
+        "workflowStages": [
+          "Qualify event type and date",
+          "Match client to package or custom quote",
+          "Confirm logistics, deliverables, and timing",
+          "Deliver event and secure social proof or referrals"
+        ],
+        "intakeRequirements": [
+          "Event type",
+          "Date",
+          "Guest count or scale",
+          "Desired atmosphere or scope"
+        ],
+        "records": [
+          "Package menu",
+          "Timeline notes",
+          "Client logistics",
+          "Referral opportunities"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Sell packages instead of vague offers."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Scope custom events without losing margin."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Protect event-date operations and timing."
+          },
+          {
+            "label": "Growth Center",
+            "reason": "Showcase event proof and referral-ready materials."
+          }
+        ],
+        "dailyCadence": [
+          "Check date inquiries",
+          "Advance event logistics threads",
+          "Capture deliverable changes"
+        ],
+        "weeklyCadence": [
+          "Review package mix",
+          "Update event proof",
+          "Follow up on warm quotes"
+        ],
+        "monthlyCadence": [
+          "Launch seasonal packages",
+          "Analyze event profitability",
+          "Collect referral assets"
+        ],
+        "qualityControls": [
+          "Package clarity",
+          "Event logistics discipline",
+          "Proof-rich marketing",
+          "Post-event referral capture"
+        ],
+        "monetization": [
+          "Premium tiers",
+          "Add-on upsells",
+          "Referral-heavy repeat and seasonal demand"
+        ]
+    },
+    "beauty": {
+        "operatingModel": "Premium appointment and retention workflow",
+        "headline": "Turn look-based demand into repeat appointments with a polished booking experience and clearer service paths.",
+        "operatorBrief": "Beauty businesses need more than a price list. They need a premium feel, visible visual proof, strong appointment flow, and retention systems that keep the chair full.",
+        "primaryDemand": [
+          "Routine bookings",
+          "Transformation services",
+          "Style-led appointment interest"
+        ],
+        "workflowStages": [
+          "Guide client to the right service or look",
+          "Convert with availability and policy clarity",
+          "Deliver the appointment experience",
+          "Rebook and grow loyalty after the visit"
+        ],
+        "intakeRequirements": [
+          "Desired look or service",
+          "Preferred timing",
+          "Prep notes",
+          "Any special requests"
+        ],
+        "records": [
+          "Look-book proof",
+          "Prep guidance",
+          "Retention notes",
+          "Cancellation/no-show patterns"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Organize services by outcome and time."
+          },
+          {
+            "label": "Gallery",
+            "reason": "Sell visual results, not just names and prices."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Protect appointment flow and turnaround."
+          },
+          {
+            "label": "Loyalty",
+            "reason": "Drive repeat-booking behavior."
+          }
+        ],
+        "dailyCadence": [
+          "Check today’s appointments",
+          "Backfill openings",
+          "Prompt rebook at closeout"
+        ],
+        "weeklyCadence": [
+          "Review high-performing services",
+          "Refresh portfolio proof",
+          "Check retention cadence"
+        ],
+        "monthlyCadence": [
+          "Launch look or seasonal campaigns",
+          "Review appointment profitability",
+          "Tune policy friction points"
+        ],
+        "qualityControls": [
+          "Visual proof freshness",
+          "Premium service framing",
+          "Clear prep/policy guidance",
+          "Rebooking discipline"
+        ],
+        "monetization": [
+          "Retention plans",
+          "Premium transformations",
+          "Add-on treatments and products"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"

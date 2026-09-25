@@ -18310,6 +18310,150 @@
           "Relasyon kay ki dire lontan"
         ]
     },
+    "events": {
+        "operatingModel": "Pwosesis lavant ak livrezon evènman ki chita sou pakè",
+        "headline": "Mennen kliyan yo soti nan vizyon evènman an pou rive nan chwa pakè, lojistik konfime ak yon livrezon byen fèt.",
+        "operatorBrief": "Biznis evènman bezwen nivo ki pi klè, pi bon kowòdinasyon anvan evènman an ak swivi disipline pou chak rezèvasyon santi li byen okipe olye li sanble enpwovize.",
+        "primaryDemand": [
+          "Konparezon pakè",
+          "Tcheke disponiblite dat",
+          "Demann dimansyon evènman pèsonalize"
+        ],
+        "workflowStages": [
+          "Kalifye kalite ak dat evènman an",
+          "Mete kliyan an sou pakè oswa devis ki bon an",
+          "Konfime lojistik, livrable ak lè yo",
+          "Fè evènman an epi jwenn prèv sosyal oswa referans"
+        ],
+        "intakeRequirements": [
+          "Kalite evènman",
+          "Dat",
+          "Kantite envite oswa gwosè",
+          "Anbyans oswa dimansyon yo vle"
+        ],
+        "records": [
+          "Meni pakè",
+          "Nòt delè",
+          "Lojistik kliyan",
+          "Opòtinite referans"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Vann pakè olye òf ki pa klè."
+          },
+          {
+            "label": "Devis",
+            "reason": "Defini evènman pèsonalize san pèdi maj."
+          },
+          {
+            "label": "Orè",
+            "reason": "Pwoteje operasyon ak lè evènman an."
+          },
+          {
+            "label": "Sant kwasans",
+            "reason": "Montre prèv evènman ak materyèl ki pare pou referans."
+          }
+        ],
+        "dailyCadence": [
+          "Tcheke kesyon sou dat",
+          "Fè fil lojistik evènman yo avanse",
+          "Anrejistre chanjman nan livrable"
+        ],
+        "weeklyCadence": [
+          "Revize melanj pakè yo",
+          "Mete prèv evènman an ajou",
+          "Swiv devis ki cho yo"
+        ],
+        "monthlyCadence": [
+          "Lanse pakè sezon",
+          "Analize pwofitabilite evènman",
+          "Rasanble materyèl referans"
+        ],
+        "qualityControls": [
+          "Klète pakè",
+          "Disiplin lojistik evènman",
+          "Maketing ki gen bon prèv",
+          "Rasanble referans apre evènman"
+        ],
+        "monetization": [
+          "Nivo premium",
+          "Vant siplemantè",
+          "Demann repete ak sezon ki soti nan referans"
+        ]
+    },
+    "beauty": {
+        "operatingModel": "Pwosesis randevou premium ak retansyon",
+        "headline": "Transfòme demann pou look an randevou ki repete ak yon eksperyans rezèvasyon ki bèl epi chemen sèvis ki pi klè.",
+        "operatorBrief": "Biznis bote bezwen plis pase yon lis pri: yon santiman premium, prèv vizyèl, bon kou randevou ak sistèm retansyon ki kenbe chèz yo plen.",
+        "primaryDemand": [
+          "Rezèvasyon regilye",
+          "Sèvis transfòmasyon",
+          "Enterè pou randevou ki baze sou stil"
+        ],
+        "workflowStages": [
+          "Gide kliyan an sou bon sèvis oswa look",
+          "Konvèti ak disponiblite ak règleman ki klè",
+          "Livre eksperyans randevou a",
+          "Fè kliyan an rebook epi devlope fidelite apre vizit la"
+        ],
+        "intakeRequirements": [
+          "Look oswa sèvis yo vle",
+          "Lè yo prefere",
+          "Nòt preparasyon",
+          "Nenpòt demann espesyal"
+        ],
+        "records": [
+          "Prèv liv look",
+          "Gid preparasyon",
+          "Nòt retansyon",
+          "Modèl anilasyon oswa moun ki pa vini"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Òganize sèvis yo selon rezilta ak dire."
+          },
+          {
+            "label": "Galri",
+            "reason": "Vann rezilta vizyèl, pa sèlman non ak pri."
+          },
+          {
+            "label": "Orè",
+            "reason": "Pwoteje kou randevou ak tan ant kliyan yo."
+          },
+          {
+            "label": "Fidelite",
+            "reason": "Pouse abitid rebook."
+          }
+        ],
+        "dailyCadence": [
+          "Tcheke randevou jodi a",
+          "Ranpli espas vid",
+          "Pwopoze rebook lè sèvis la fini"
+        ],
+        "weeklyCadence": [
+          "Revize sèvis ki mache pi byen",
+          "Mete prèv pòtfolyo a ajou",
+          "Tcheke ritm retansyon"
+        ],
+        "monthlyCadence": [
+          "Lanse kanpay look oswa sezon",
+          "Revize pwofi randevou yo",
+          "Diminye friksyon nan règleman yo"
+        ],
+        "qualityControls": [
+          "Prèv vizyèl ki resan",
+          "Prezantasyon sèvis premium",
+          "Gid preparasyon ak règleman ki klè",
+          "Disiplin rebook"
+        ],
+        "monetization": [
+          "Plan retansyon",
+          "Transfòmasyon premium",
+          "Tretman ak pwodwi siplemantè"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"
