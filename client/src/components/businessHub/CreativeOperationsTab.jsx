@@ -15,7 +15,7 @@ import { formatMoney } from '../../lib/format';
 
 const EMPTY_SETTINGS = {
   response_promise_hours: 12,
-  discovery_call_label: 'Creative discovery intake',
+  discovery_call_label: '',
   delivery_window_days: 14,
   approval_turnaround_hours: 48,
   revision_policy: '',
@@ -119,6 +119,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
     setSettingsForm({
       ...EMPTY_SETTINGS,
       ...settings,
+      discovery_call_label: settings.discovery_call_label || copy('defaultDiscoveryLabel'),
       gallery_focus_tags: (settings.gallery_focus_tags || []).join(', '),
       deliverable_types: (settings.deliverable_types || []).join(', '),
       trust_artifacts: (settings.trust_artifacts || []).join(', '),
@@ -294,18 +295,18 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Section title="Packages and scope logic" subtitle="Turn portfolio interest into productized projects, session packages, and retainers the team can quote consistently.">
+        <Section title={copy('packagesTitle')} subtitle={copy('packagesSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={savePackage}>
-            <Input label="Package name"><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
-            <Input label="Type"><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}><option value="project">Project</option><option value="session">Session</option><option value="campaign">Campaign</option><option value="retainer">Retainer</option></Select></Input>
-            <Input label="Price cents"><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
-            <Input label="Revision rounds"><TextInput type="number" min="0" value={packageForm.revision_rounds} onChange={(e) => setPackageForm((current) => ({ ...current, revision_rounds: e.target.value }))} /></Input>
-            <Input label="Target templates" wide><TextInput value={packageForm.target_templates} onChange={(e) => setPackageForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder="photographer, creative_studio, graphic_design" /></Input>
-            <Input label="Deliverables" wide><TextInput value={packageForm.deliverables} onChange={(e) => setPackageForm((current) => ({ ...current, deliverables: e.target.value }))} placeholder="Retouched gallery, logo suite, ad variations, usage guide" /></Input>
-            <Input label="Description" wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <Input label={copy('packageName')}><TextInput value={packageForm.package_name} onChange={(e) => setPackageForm((current) => ({ ...current, package_name: e.target.value }))} /></Input>
+            <Input label={copy('type')}><Select value={packageForm.package_type} onChange={(e) => setPackageForm((current) => ({ ...current, package_type: e.target.value }))}>{['project', 'session', 'campaign', 'retainer'].map((type) => <option key={type} value={type}>{copy(`packageTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('priceCents')}><TextInput type="number" min="0" value={packageForm.price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
+            <Input label={copy('revisionRounds')}><TextInput type="number" min="0" value={packageForm.revision_rounds} onChange={(e) => setPackageForm((current) => ({ ...current, revision_rounds: e.target.value }))} /></Input>
+            <Input label={copy('targetTemplates')} wide><TextInput value={packageForm.target_templates} onChange={(e) => setPackageForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder={copy('targetTemplatesPlaceholder')} /></Input>
+            <Input label={copy('deliverables')} wide><TextInput value={packageForm.deliverables} onChange={(e) => setPackageForm((current) => ({ ...current, deliverables: e.target.value }))} placeholder={copy('deliverablesPlaceholder')} /></Input>
+            <Input label={copy('descriptionField')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? 'Update package' : 'Add package'}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingPackageId ? copy('updatePackage') : copy('addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -315,7 +316,7 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.package_name}</p>
-                      <span className="rounded-full bg-orange-400/10 px-2.5 py-1 text-[11px] font-semibold text-orange-200">{item.package_type}</span>
+                      <span className="rounded-full bg-orange-400/10 px-2.5 py-1 text-[11px] font-semibold text-orange-200">{copy(`packageTypes.${item.package_type}`)}</span>
                     </div>
                     {item.description ? <p className="mt-1 text-sm text-gray-400">{item.description}</p> : null}
                     <p className="mt-2 text-sm font-semibold text-white">{formatMoney((item.price_cents || 0) / 100, { currency })}</p>
@@ -333,8 +334,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                         deliverables: (item.deliverables || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>Edit</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativePackage(businessId, item.id); toast.success('Package deleted'); await onRefresh?.(); }}>Delete</button>
+                    }}>{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativePackage(businessId, item.id); toast.success(copy('packageDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -342,18 +343,18 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
           </div>
         </Section>
 
-        <Section title="Approval and delivery records" subtitle="Track briefs, proofs, client approvals, final deliveries, and testimonial permissions in one proof-ready queue.">
+        <Section title={copy('recordsTitle')} subtitle={copy('recordsSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecord}>
-            <Input label="Intake request"><Select value={recordForm.intake_request_id} onChange={(e) => setRecordForm((current) => ({ ...current, intake_request_id: e.target.value }))}><option value="">Unlinked</option>{intakeRequests.map((item) => <option key={item.id} value={item.id}>{item.project_type}</option>)}</Select></Input>
-            <Input label="Record type"><Select value={recordForm.record_type} onChange={(e) => setRecordForm((current) => ({ ...current, record_type: e.target.value }))}><option value="approval">Approval</option><option value="brief">Brief</option><option value="proof">Proof</option><option value="delivery">Delivery</option><option value="usage_rights">Usage rights</option><option value="testimonial">Testimonial</option></Select></Input>
-            <Input label="Title"><TextInput value={recordForm.title} onChange={(e) => setRecordForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-            <Input label="Status"><Select value={recordForm.status} onChange={(e) => setRecordForm((current) => ({ ...current, status: e.target.value }))}><option value="pending">Pending</option><option value="approved">Approved</option><option value="revisions_requested">Revisions requested</option><option value="delivered">Delivered</option><option value="archived">Archived</option></Select></Input>
-            <Input label="Due at"><TextInput type="datetime-local" value={recordForm.due_at} onChange={(e) => setRecordForm((current) => ({ ...current, due_at: e.target.value }))} /></Input>
-            <Input label="Asset URL"><TextInput value={recordForm.asset_url} onChange={(e) => setRecordForm((current) => ({ ...current, asset_url: e.target.value }))} /></Input>
-            <Input label="Notes" wide><TextArea rows={2} value={recordForm.notes} onChange={(e) => setRecordForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <Input label={copy('intakeRequest')}><Select value={recordForm.intake_request_id} onChange={(e) => setRecordForm((current) => ({ ...current, intake_request_id: e.target.value }))}><option value="">{copy('unlinked')}</option>{intakeRequests.map((item) => <option key={item.id} value={item.id}>{item.project_type}</option>)}</Select></Input>
+            <Input label={copy('recordType')}><Select value={recordForm.record_type} onChange={(e) => setRecordForm((current) => ({ ...current, record_type: e.target.value }))}>{['approval', 'brief', 'proof', 'delivery', 'usage_rights', 'testimonial'].map((type) => <option key={type} value={type}>{copy(`recordTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('titleField')}><TextInput value={recordForm.title} onChange={(e) => setRecordForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label={copy('statusField')}><Select value={recordForm.status} onChange={(e) => setRecordForm((current) => ({ ...current, status: e.target.value }))}>{['pending', 'approved', 'revisions_requested', 'delivered', 'archived'].map((status) => <option key={status} value={status}>{copy(`statuses.${status}`)}</option>)}</Select></Input>
+            <Input label={copy('dueAt')}><TextInput type="datetime-local" value={recordForm.due_at} onChange={(e) => setRecordForm((current) => ({ ...current, due_at: e.target.value }))} /></Input>
+            <Input label={copy('assetUrl')}><TextInput value={recordForm.asset_url} onChange={(e) => setRecordForm((current) => ({ ...current, asset_url: e.target.value }))} /></Input>
+            <Input label={copy('notesField')} wide><TextArea rows={2} value={recordForm.notes} onChange={(e) => setRecordForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingRecordId ? 'Update record' : 'Add record'}</button>
-              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingRecordId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingRecordId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecordId(null); setRecordForm(EMPTY_RECORD); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -363,8 +364,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
-                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.record_type}</span>
-                      <span className="rounded-full bg-orange-400/10 px-2.5 py-1 text-[11px] font-semibold text-orange-200">{item.status}</span>
+                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{copy(`recordTypes.${item.record_type}`)}</span>
+                      <span className="rounded-full bg-orange-400/10 px-2.5 py-1 text-[11px] font-semibold text-orange-200">{copy(`statuses.${item.status}`)}</span>
                     </div>
                     {item.notes ? <p className="mt-1 text-sm text-gray-400">{item.notes}</p> : null}
                   </div>
@@ -380,8 +381,8 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                         asset_url: item.asset_url || '',
                         notes: item.notes || '',
                       });
-                    }}>Edit</button>
-                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativeApprovalRecord(businessId, item.id); toast.success('Approval record deleted'); await onRefresh?.(); }}>Delete</button>
+                    }}>{copy('edit')}</button>
+                    <button className="bh-btn sm" type="button" onClick={async () => { await deleteCreativeApprovalRecord(businessId, item.id); toast.success(copy('recordDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
