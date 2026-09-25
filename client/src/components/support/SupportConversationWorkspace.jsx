@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import io from 'socket.io-client';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   BookOpen,
@@ -53,9 +54,9 @@ const PRIORITY = {
 
 const CONVERSATION_PAGE_SIZE = 100;
 
-function statusBadge(status) {
+function statusBadge(status, t) {
   const [label, className] = STATUS[status] || [status || 'Unknown', 'border-slate-700 bg-slate-800 text-slate-300'];
-  return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{label}</span>;
+  return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{t ? t(`support.workspace.status.${status}`, { defaultValue: label }) : label}</span>;
 }
 
 function formatWhen(value) {
@@ -103,6 +104,8 @@ function SlaTimer({ target, label }) {
 }
 
 export default function SupportConversationWorkspace({ businessId = null, embedded = false }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`support.workspace.${key}`, options);
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -623,7 +626,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     if (priorityFilter !== 'all' && conversation.priority !== priorityFilter) return false;
     if (messageFilter === 'unread' && Number(conversation.unread_count || 0) < 1) return false;
     if (categoryFilter !== 'all' && (conversation.category || 'general') !== categoryFilter) return false;
-    if (channelFilter !== 'all' && (conversation.channel || 'web_chat') !== channelFilter) return false;
+    if (channelFilter !== 'all' && (conversation.channel || copy('channels.webChat')) !== channelFilter) return false;
     return true;
   }), [categoryFilter, channelFilter, conversations, messageFilter, ownershipFilter, priorityFilter, search, statusFilter, user?.id]);
 
@@ -1008,7 +1011,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-orange-300">
-              <Headphones size={16} /> Live support workspace
+              <Headphones size={16} /> {copy('title')}
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${
                   realtimeStatus === 'connected'
@@ -1018,17 +1021,17 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       : 'border-slate-700 bg-slate-900 text-slate-400'
                 }`}
                 aria-live="polite"
-                title="Live updates connection status"
+                title={copy('connectionTitle')}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${
                   realtimeStatus === 'connected' ? 'bg-emerald-400' : realtimeStatus === 'offline' ? 'bg-slate-500' : 'bg-amber-400'
                 }`} />
-                {realtimeStatus === 'connected' ? 'Live updates on' : realtimeStatus === 'offline' ? 'Live updates off' : 'Reconnecting live updates'}
+                {realtimeStatus === 'connected' ? copy('liveOn') : realtimeStatus === 'offline' ? copy('liveOff') : copy('reconnecting')}
               </span>
             </div>
-            <h2 className="mt-2 text-2xl font-semibold">Respond, coordinate, and resolve in one place</h2>
+            <h2 className="mt-2 text-2xl font-semibold">{copy('headline')}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Claim customer conversations before replying, keep private team context in internal notes, and use clear statuses so no request disappears between shifts.
+              {copy('description')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1040,7 +1043,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-50 ${agentEmployment.is_available ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-700 bg-slate-900 text-slate-300'}`}
               >
                 {agentEmployment.is_available ? <Wifi size={15} /> : <WifiOff size={15} />}
-                {agentEmployment.is_available ? 'Online for live support' : 'Go online'}
+                {agentEmployment.is_available ? copy('onlineForSupport') : copy('goOnline')}
               </button>
             )}
             <button
@@ -1049,22 +1052,22 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               disabled={loading}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-orange-500/50 disabled:opacity-50"
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {copy('refresh')}
             </button>
           </div>
         </div>
         {queueError && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">
             <span>{queueError}</span>
-            <button type="button" onClick={() => loadConversations()} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">Try again</button>
+            <button type="button" onClick={() => loadConversations()} disabled={loading} className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-semibold hover:bg-red-500/10 disabled:opacity-50">{copy('tryAgain')}</button>
           </div>
         )}
-        {queueUpdatedAt && !queueError && <div className="mt-2 text-right text-[11px] text-slate-600">Queue updated {queueUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
+        {queueUpdatedAt && !queueError && <div className="mt-2 text-right text-[11px] text-slate-600">{copy('queueUpdated')} {queueUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>}
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[
-            ['Active queue', openCount, Inbox],
-            ['Unassigned', unassignedCount, AlertTriangle],
-            ['Mine', mineCount, Lock],
+            [copy('stats.active'), openCount, Inbox],
+            [copy('stats.unassigned'), unassignedCount, AlertTriangle],
+            [copy('stats.mine'), mineCount, Lock],
           ].map(([label, value, Icon]) => (
             <div key={label} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 sm:p-4">
               <Icon size={15} className="text-orange-300" />
@@ -1083,58 +1086,58 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               ref={queueSearchRef}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer, subject, or message"
+              placeholder={copy('searchPlaceholder')}
               className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-10 pr-3 text-sm outline-none focus:border-orange-500"
             />
           </div>
-          <p className="mt-2 text-[11px] text-slate-600">Shortcuts: <span className="text-slate-400">/</span> search · <span className="text-slate-400">j/k</span> move · <span className="text-slate-400">r</span> reply</p>
+          <p className="mt-2 text-[11px] text-slate-600">{copy('shortcuts')}: <span className="text-slate-400">/</span> search · <span className="text-slate-400">j/k</span> move · <span className="text-slate-400">r</span> reply</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="active">Active</option>
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="reopened">Reopened</option>
-              <option value="waiting_for_agent">Waiting for agent</option>
-              <option value="in_progress">In progress</option>
-              <option value="waiting_for_customer">Waiting for customer</option>
-              <option value="escalated">Escalated</option>
-              <option value="resolved">Resolved</option>
-              <option value="merged">Merged</option>
+              <option value="active">{copy('status.active')}</option>
+              <option value="all">{copy('allStatuses')}</option>
+              <option value="pending">{copy('status.pending')}</option>
+              <option value="reopened">{copy('status.reopened')}</option>
+              <option value="waiting_for_agent">{copy('status.waitingForAgent')}</option>
+              <option value="in_progress">{copy('status.inProgress')}</option>
+              <option value="waiting_for_customer">{copy('status.waitingForCustomer')}</option>
+              <option value="escalated">{copy('status.escalated')}</option>
+              <option value="resolved">{copy('status.resolved')}</option>
+              <option value="merged">{copy('status.merged')}</option>
             </select>
             <select value={ownershipFilter} onChange={(event) => setOwnershipFilter(event.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="all">All owners</option>
-              <option value="mine">Assigned to me</option>
-              <option value="unassigned">Unassigned</option>
+              <option value="all">{copy('allOwners')}</option>
+              <option value="mine">{copy('assignedToMe')}</option>
+              <option value="unassigned">{copy('stats.unassigned')}</option>
             </select>
             <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="all">All priorities</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">High</option>
-              <option value="normal">Normal</option>
-              <option value="low">Low</option>
+              <option value="all">{copy('allPriorities')}</option>
+              <option value="urgent">{copy('priority.urgent')}</option>
+              <option value="high">{copy('priority.high')}</option>
+              <option value="normal">{copy('priority.normal')}</option>
+              <option value="low">{copy('priority.low')}</option>
             </select>
             <select value={messageFilter} onChange={(event) => setMessageFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="all">All messages</option>
-              <option value="unread">Unread customer messages</option>
+              <option value="all">{copy('allMessages')}</option>
+              <option value="unread">{copy('unreadCustomer')}</option>
             </select>
             <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="all">All categories</option>
+              <option value="all">{copy('allCategories')}</option>
               {categories.map((category) => <option key={category} value={category}>{category.replace(/_/g, ' ')}</option>)}
             </select>
             <select value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)} className="col-span-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
-              <option value="all">All channels</option>
-              <option value="web_chat">Web chat</option>
-              <option value="email">Email</option>
-              <option value="sms">SMS</option>
-              <option value="phone">Phone</option>
-              <option value="social">Social</option>
+              <option value="all">{copy('allChannels')}</option>
+              <option value="web_chat">{copy('channels.webChat')}</option>
+              <option value="email">{copy('channels.email')}</option>
+              <option value="sms">{copy('channels.sms')}</option>
+              <option value="phone">{copy('channels.phone')}</option>
+              <option value="social">{copy('channels.social')}</option>
             </select>
           </div>
 
           <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
             {!loading && visibleConversations.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-700 p-6 text-center text-sm text-slate-500">
-                {queueError ? 'Support queue unavailable.' : 'No conversations match this view.'}
+                {queueError ? copy('queueUnavailable') : copy('noMatches')}
               </div>
             )}
             {visibleConversations.map((conversation) => (
@@ -1146,19 +1149,19 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{conversation.customer_name || conversation.customer_email || 'Customer'}</div>
+                    <div className="truncate text-sm font-semibold">{conversation.customer_name || conversation.customer_email || copy('customer')}</div>
                     <div className="mt-1 truncate text-xs text-slate-500">{conversation.subject}</div>
                   </div>
-                  <span className={`text-[11px] font-semibold uppercase ${PRIORITY[conversation.priority] || 'text-slate-400'}`}>{conversation.priority || 'normal'}</span>
+                  <span className={`text-[11px] font-semibold uppercase ${PRIORITY[conversation.priority] || 'text-slate-400'}`}>{conversation.priority || copy('priority.normal')}</span>
                 </div>
-                <div className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{conversation.last_message || conversation.description || 'No message preview.'}</div>
+                <div className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{conversation.last_message || conversation.description || copy('noPreview')}</div>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {statusBadge(conversation.status)}
-                    <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{conversation.channel || 'web_chat'}</span>
+                    {statusBadge(conversation.status, t)}
+                    <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{conversation.channel || copy('channels.webChat')}</span>
                     {Number(conversation.unread_count || 0) > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[11px] font-semibold text-orange-200" aria-label={`${conversation.unread_count} unread customer messages`}>
-                        <MessageSquare size={11} /> {conversation.unread_count} new
+                      <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[11px] font-semibold text-orange-200" aria-label={copy('unreadAria', { count: conversation.unread_count })}>
+                        <MessageSquare size={11} /> {copy('newCount', { count: conversation.unread_count })}
                       </span>
                     )}
                   </div>
@@ -1173,7 +1176,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 disabled={loadingMore}
                 className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-orange-500/50 disabled:opacity-50"
               >
-                {loadingMore ? 'Loading more conversations…' : 'Load more conversations'}
+                {loadingMore ? copy('loadingMore') : copy('loadMore')}
               </button>
             )}
           </div>
@@ -1183,8 +1186,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
           {!selected ? (
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
               <UserRound size={42} className="text-slate-700" />
-              <h3 className="mt-4 text-lg font-semibold">Select a customer conversation</h3>
-              <p className="mt-2 max-w-md text-sm text-slate-500">Choose a request from the queue to review its history and begin helping.</p>
+              <h3 className="mt-4 text-lg font-semibold">{copy('selectConversation')}</h3>
+              <p className="mt-2 max-w-md text-sm text-slate-500">{copy('selectDescription')}</p>
             </div>
           ) : (
             <>
@@ -1192,7 +1195,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      {statusBadge(selected.status)}
+                      {statusBadge(selected.status, t)}
                       <span className={`text-xs font-semibold uppercase ${PRIORITY[selected.priority] || 'text-slate-400'}`}>{selected.priority || 'normal'} priority</span>
                     </div>
                     <h3 className="mt-3 text-xl font-semibold">{selected.subject}</h3>
@@ -1240,7 +1243,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     </div>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
                       <span>Opened {formatWhen(selected.created_at)}</span>
-                      <span>{selected.agent_name ? `Assigned to ${selected.agent_name}` : 'Unassigned'}</span>
+                      <span>{selected.agent_name ? copy('assignedTo', { name: selected.agent_name }) : copy('stats.unassigned')}</span>
                       {selected.first_response_at && <span>First response {formatWhen(selected.first_response_at)}</span>}
                       <SlaTimer target={selected.sla_first_response_target} label="First response" />
                       <SlaTimer target={selected.sla_resolution_target} label="Resolution" />
@@ -1329,7 +1332,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                     {selected.resolution_summary && isClosed && <div className="max-w-2xl rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs text-orange-100"><span className="font-semibold">Resolution summary:</span> {selected.resolution_summary}{selected.resolution_reason_code && <span className="ml-2 text-orange-200/70">({selected.resolution_reason_code})</span>}</div>}
                     {!isClosed && <label className="block max-w-2xl text-xs text-slate-400">Resolution reason
                       <select value={resolutionReasonCode} onChange={(event) => setResolutionReasonCode(event.target.value)} disabled={busy} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-500">
-                        <option value="resolved">Resolved</option>
+                        <option value="resolved">{copy('status.resolved')}</option>
                         <option value="bug_fixed">Bug fixed</option>
                         <option value="billing">Billing</option>
                         <option value="how_to">How-to guidance</option>
@@ -1406,7 +1409,7 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                               <summary className="cursor-pointer list-none px-3 py-3 text-sm">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <span className="font-semibold text-slate-200">{history.subject}</span>
-                                  <span className="text-xs text-slate-500">{statusBadge(history.status)} · {formatWhen(history.created_at)}</span>
+                                  <span className="text-xs text-slate-500">{statusBadge(history.status, t)} · {formatWhen(history.created_at)}</span>
                                 </div>
                                 <div className="mt-1 text-xs text-slate-500">
                                   {history.customer_message_count || 0} customer message{history.customer_message_count === 1 ? '' : 's'} · {history.agent_message_count || 0} support message{history.agent_message_count === 1 ? '' : 's'}
