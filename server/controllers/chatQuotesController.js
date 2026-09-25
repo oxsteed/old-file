@@ -1394,6 +1394,7 @@ exports.listHistory = async (req, res, next) => {
     }
     const businessId = req.query.businessId || req.query.business_id || null;
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const history = [];
 
     if (kind === 'all' || kind === 'helper') {
@@ -1412,8 +1413,8 @@ exports.listHistory = async (req, res, next) => {
            LEFT JOIN jobs j ON j.id = COALESCE(hq.job_id, c.job_id)
           WHERE hq.helper_id = $1 AND hq.status <> 'draft'
           ORDER BY hq.updated_at DESC NULLS LAST, hq.created_at DESC
-          LIMIT $2`,
-        [userId, limit],
+          LIMIT $2 OFFSET $3`,
+        [userId, limit, offset],
       );
       history.push(...rows.map((row) => historyQuote('helper', row)));
     }
@@ -1453,8 +1454,8 @@ exports.listHistory = async (req, res, next) => {
              LEFT JOIN jobs j ON j.id = c.job_id
             WHERE bq.business_id = ANY($1::INTEGER[]) AND bq.status <> 'draft'
             ORDER BY bq.updated_at DESC NULLS LAST, bq.created_at DESC
-            LIMIT $2`,
-          [businessIds, limit],
+            LIMIT $2 OFFSET $3`,
+          [businessIds, limit, offset],
         );
         history.push(...rows.map((row) => historyQuote('business', row)));
       }

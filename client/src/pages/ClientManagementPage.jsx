@@ -18,6 +18,22 @@ import '../styles/ClientManagementPage.css';
 
 const EMPTY_DATA = { conversations: [], guestInquiries: [], quotes: [] };
 
+async function fetchAllHelperQuotes() {
+  const pageSize = 200;
+  const quotes = [];
+  let offset = 0;
+
+  while (true) {
+    const response = await api.get('/chat/quotes/history', {
+      params: { kind: 'helper', limit: pageSize, offset },
+    });
+    const page = asArray(response?.data?.quotes || response?.data);
+    quotes.push(...page);
+    if (page.length < pageSize) return quotes;
+    offset += page.length;
+  }
+}
+
 function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -28,6 +44,10 @@ function normalized(value) {
 
 function quoteStatusLabel(status) {
   return String(status || 'sent').replace(/_/g, ' ');
+}
+
+function quoteRecipientName(quote) {
+  return quote.recipient_name || quote.client_name || quote.guest_name || '';
 }
 
 function mergeClient(target, source) {
@@ -48,6 +68,11 @@ function mergeClient(target, source) {
 function buildClients({ conversations, guestInquiries, quotes }) {
   const clients = new Map();
   const quoteRows = asArray(quotes);
+  const clientsByConversation = new Map();
+  const clientsByGuestSession = new Map();
+  const clientsByEmail = new Map();
+  const clientsByJob = new Map();
+  const clientsByName = new Map();
 
   const getOrCreate = (key, details) => {
     if (!clients.has(key)) {
@@ -74,34 +99,75 @@ function buildClients({ conversations, guestInquiries, quotes }) {
     const key = conversation.other_user_id
       ? `account:${conversation.other_user_id}`
       : `conversation:${conversation.id}`;
-    mergeClient(getOrCreate(key, {
+    const client = mergeClient(getOrCreate(key, {
       name: conversation.other_user_name,
       kind: 'account',
       userId: conversation.other_user_id,
     }), conversation);
+    if (conversation.id != null) clientsByConversation.set(String(conversation.id), client);
+    if (conversation.job_id != null) clientsByJob.set(String(conversation.job_id), client);
+    if (client.email) clientsByEmail.set(normalized(client.email), client);
+    if (client.name) clientsByName.set(normalized(client.name), client);
   });
 
   asArray(guestInquiries).forEach((inquiry) => {
     const emailKey = normalized(inquiry.guest_email);
     const key = emailKey ? `guest:${emailKey}` : `guest:${inquiry.id}`;
-    mergeClient(getOrCreate(key, {
+    const client = mergeClient(getOrCreate(key, {
       name: inquiry.other_user_name || inquiry.guest_name,
       email: inquiry.guest_email,
       kind: 'guest',
     }), inquiry);
+    if (inquiry.id) clientsByGuestSession.set(String(inquiry.id).replace(/^guest-/, ''), client);
+    if (client.email) clientsByEmail.set(normalized(client.email), client);
+    if (client.name) clientsByName.set(normalized(client.name), client);
   });
 
   quoteRows.forEach((quote) => {
     const jobId = quote.job_id == null ? '' : String(quote.job_id);
-    const matching = [...clients.values()].find((client) => client.jobIds.has(jobId));
-    const nameKey = normalized(quote.client_name);
+    const conversationId = quote.conversation_id == null ? '' : String(quote.conversation_id);
+    const guestSessionId = quote.guest_session_id == null ? '' : String(quote.guest_session_id);
+    const recipientName = quoteRecipientName(quote);
+    const nameKey = normalized(recipientName);
+    const matching = clientsByConversation.get(conversationId)
+      || clientsByGuestSession.get(guestSessionId)
+      || (jobId && clientsByJob.get(jobId))
+      || (normalized(quote.client_email || quote.guest_email) && clientsByEmail.get(normalized(quote.client_email || quote.guest_email)))
+      || (nameKey && clientsByName.get(nameKey));
     const client = matching || getOrCreate(
-      nameKey ? `quote-client:${nameKey}` : `quote-job:${jobId || quote.id}`,
-      { name: quote.client_name, kind: 'quote' },
+      conversationId
+        ? `conversation:${conversationId}`
+        : guestSessionId
+          ? `guest:${guestSessionId}`
+          : nameKey
+            ? `quote-client:${nameKey}`
+            : `quote-job:${jobId || quote.id}`,
+      {
+        name: recipientName,
+        email: quote.client_email || quote.guest_email,
+        kind: guestSessionId ? 'guest' : conversationId ? 'account' : 'quote',
+      },
     );
+    if (recipientName && !client.name) client.name = recipientName;
+    if (quote.client_email || quote.guest_email) client.email = quote.client_email || quote.guest_email;
+    if (guestSessionId) client.kind = 'guest';
+    else if (conversationId && client.kind === 'quote') client.kind = 'account';
+    if (conversationId) {
+      client.conversationId = conversationId;
+      clientsByConversation.set(conversationId, client);
+    }
+    if (guestSessionId) {
+      client.guestInquiryId = guestSessionId;
+      clientsByGuestSession.set(guestSessionId, client);
+    }
     client.quotes.push(quote);
     if (quote.job_title && !client.jobTitles.includes(quote.job_title)) client.jobTitles.push(quote.job_title);
-    if (jobId) client.jobIds.add(jobId);
+    if (jobId) {
+      client.jobIds.add(jobId);
+      clientsByJob.set(jobId, client);
+    }
+    if (client.email) clientsByEmail.set(normalized(client.email), client);
+    if (client.name) clientsByName.set(normalized(client.name), client);
     client.lastAt = [client.lastAt, quote.created_at, quote.updated_at]
       .filter(Boolean)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || client.lastAt;
@@ -203,7 +269,9 @@ export default function ClientManagementPage() {
     const requests = await Promise.allSettled([
       api.get('/messages/conversations'),
       api.get('/messages/guest-inquiries'),
-      api.get('/helper-quotes/sent'),
+      // This is the canonical provider history. It includes quotes shared in
+      // authenticated conversations and guest live-chat sessions.
+      fetchAllHelperQuotes(),
     ]);
     const [conversations, guestInquiries, quotes] = requests;
     const successful = requests.some((result) => result.status === 'fulfilled');
@@ -211,7 +279,7 @@ export default function ClientManagementPage() {
     setData({
       conversations: conversations.status === 'fulfilled' ? asArray(conversations.value?.data) : [],
       guestInquiries: guestInquiries.status === 'fulfilled' ? asArray(guestInquiries.value?.data) : [],
-      quotes: quotes.status === 'fulfilled' ? asArray(quotes.value?.data?.quotes || quotes.value?.data) : [],
+      quotes: quotes.status === 'fulfilled' ? asArray(quotes.value) : [],
     });
     setLoading(false);
   }, []);
