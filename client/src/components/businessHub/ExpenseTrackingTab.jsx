@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { formatCents, formatDate } from '../../lib/format';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORIES = ['materials','labor','vehicle','software','marketing','equipment','utilities','other'];
 
@@ -12,6 +13,7 @@ function fmtCents(cents, currency = 'USD') {
 const DEFAULT_FORM = { category: 'materials', description: '', amount: '', expense_date: new Date().toISOString().split('T')[0], receipt_url: '', notes: '' };
 
 export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
+  const { t } = useTranslation();
   const [expenses, setExpenses] = useState([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState({ total_cents: 0, by_category: [] });
@@ -34,7 +36,7 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
       setTotal(data.total || 0);
       setSummary(data.summary || { total_cents: 0, by_category: [] });
     } catch {
-      toast.error('Could not load expenses');
+      toast.error(t('businessHub.expenseTracking.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -57,8 +59,8 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
   }
 
   async function handleSave() {
-    if (!form.description.trim()) return toast.error('Description required');
-    if (!form.amount || parseFloat(form.amount) <= 0) return toast.error('Amount must be > 0');
+    if (!form.description.trim()) return toast.error(t('businessHub.expenseTracking.descriptionRequired'));
+    if (!form.amount || parseFloat(form.amount) <= 0) return toast.error(t('businessHub.expenseTracking.amountPositive'));
     setSaving(true);
     try {
       const payload = {
@@ -71,29 +73,29 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
       };
       if (editId) {
         await api.put(`/businesses/${businessId}/expenses/${editId}`, payload);
-        toast.success('Expense updated');
+        toast.success(t('businessHub.expenseTracking.updated'));
       } else {
         await api.post(`/businesses/${businessId}/expenses`, payload);
-        toast.success('Expense added');
+        toast.success(t('businessHub.expenseTracking.added'));
       }
       setShowForm(false);
       setEditId(null);
       await load();
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Could not save expense');
+      toast.error(e?.response?.data?.error || t('businessHub.expenseTracking.saveFailed'));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this expense?')) return;
+    if (!window.confirm(t('businessHub.expenseTracking.deleteConfirm'))) return;
     try {
       await api.delete(`/businesses/${businessId}/expenses/${id}`);
-      toast.success('Expense deleted');
+      toast.success(t('businessHub.expenseTracking.deleted'));
       await load();
     } catch {
-      toast.error('Could not delete expense');
+      toast.error(t('businessHub.expenseTracking.deleteFailed'));
     }
   }
 
@@ -102,24 +104,24 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
   return (
     <div className="p-4 text-white">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">Expense Tracking</h2>
+        <h2 className="text-xl font-bold text-white">{t('businessHub.expenseTracking.title')}</h2>
         <button
           onClick={openNew}
           className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          + Add Expense
+          + {t('businessHub.expenseTracking.addExpense')}
         </button>
       </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Total This Period</div>
+          <div className="text-xs text-gray-400 mb-1">{t('businessHub.expenseTracking.totalPeriod')}</div>
           <div className="text-lg font-bold text-orange-400">{fmtCents(summary.total_cents, currency)}</div>
         </div>
         {topCategories.map(cat => (
           <div key={cat.category} className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1 capitalize">{cat.category}</div>
+            <div className="text-xs text-gray-400 mb-1 capitalize">{t(`businessHub.expenseTracking.categories.${cat.category}`, cat.category)}</div>
             <div className="text-lg font-bold text-white">{fmtCents(cat.total_cents, currency)}</div>
           </div>
         ))}
@@ -132,42 +134,42 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
           onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
           className="bg-gray-800 border border-gray-700 text-white rounded px-3 py-2 text-sm"
         >
-          <option value="">All Categories</option>
-          {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+          <option value="">{t('businessHub.expenseTracking.allCategories')}</option>
+          {CATEGORIES.map(c => <option key={c} value={c}>{t(`businessHub.expenseTracking.categories.${c}`, c)}</option>)}
         </select>
         <input
           type="date"
           value={filters.from_date}
           onChange={e => setFilters(f => ({ ...f, from_date: e.target.value }))}
           className="bg-gray-800 border border-gray-700 text-white rounded px-3 py-2 text-sm"
-          placeholder="From"
+          aria-label={t('businessHub.expenseTracking.fromDate')}
         />
         <input
           type="date"
           value={filters.to_date}
           onChange={e => setFilters(f => ({ ...f, to_date: e.target.value }))}
           className="bg-gray-800 border border-gray-700 text-white rounded px-3 py-2 text-sm"
-          placeholder="To"
+          aria-label={t('businessHub.expenseTracking.toDate')}
         />
       </div>
 
       {/* Inline add/edit form */}
       {showForm && (
         <div className="bg-gray-800 border border-orange-500/30 rounded-xl p-4 mb-4">
-          <h3 className="text-base font-semibold mb-3 text-orange-400">{editId ? 'Edit Expense' : 'New Expense'}</h3>
+          <h3 className="text-base font-semibold mb-3 text-orange-400">{editId ? t('businessHub.expenseTracking.editExpense') : t('businessHub.expenseTracking.newExpense')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Category</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.category')}</label>
               <select
                 value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
               >
-                {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+                {CATEGORIES.map(c => <option key={c} value={c}>{t(`businessHub.expenseTracking.categories.${c}`, c)}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Amount ($)</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.amount', { currency })}</label>
               <input
                 type="number"
                 value={form.amount}
@@ -179,17 +181,17 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Description *</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.descriptionRequiredLabel')}</label>
               <input
                 type="text"
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
-                placeholder="Description"
+                placeholder={t('businessHub.expenseTracking.description')}
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Date</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.date')}</label>
               <input
                 type="date"
                 value={form.expense_date}
@@ -198,7 +200,7 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Receipt URL</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.receiptUrl')}</label>
               <input
                 type="url"
                 value={form.receipt_url}
@@ -208,13 +210,13 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Notes</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('businessHub.expenseTracking.notes')}</label>
               <input
                 type="text"
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
-                placeholder="Optional notes"
+                placeholder={t('businessHub.expenseTracking.notesOptional')}
               />
             </div>
           </div>
@@ -224,13 +226,13 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
               disabled={saving}
               className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium disabled:opacity-50"
             >
-              {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Expense'}
+              {saving ? t('businessHub.expenseTracking.saving') : editId ? t('businessHub.expenseTracking.saveChanges') : t('businessHub.expenseTracking.addExpense')}
             </button>
             <button
               onClick={() => { setShowForm(false); setEditId(null); }}
               className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -238,23 +240,23 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
 
       {/* Table */}
       {loading ? (
-        <div className="text-gray-400 text-center py-8">Loading expenses...</div>
+        <div className="text-gray-400 text-center py-8">{t('businessHub.expenseTracking.loading')}</div>
       ) : expenses.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <div className="text-4xl mb-3">💰</div>
-          <p className="font-medium">No expenses found</p>
-          <p className="text-sm mt-1">Add your first expense to start tracking costs</p>
+          <p className="font-medium">{t('businessHub.expenseTracking.emptyTitle')}</p>
+          <p className="text-sm mt-1">{t('businessHub.expenseTracking.emptyHint')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-700 text-gray-400 text-left">
-                <th className="pb-2 pr-4">Date</th>
-                <th className="pb-2 pr-4">Category</th>
-                <th className="pb-2 pr-4">Description</th>
-                <th className="pb-2 pr-4 text-right">Amount</th>
-                <th className="pb-2 text-right">Actions</th>
+                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.date')}</th>
+                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.category')}</th>
+                <th className="pb-2 pr-4">{t('businessHub.expenseTracking.descriptionHeader')}</th>
+                <th className="pb-2 pr-4 text-right">{t('businessHub.expenseTracking.amountHeader')}</th>
+                <th className="pb-2 text-right">{t('businessHub.expenseTracking.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -265,20 +267,20 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
                   </td>
                   <td className="py-3 pr-4">
                     <span className="capitalize bg-gray-700 text-orange-300 text-xs px-2 py-0.5 rounded-full">
-                      {exp.category}
+                      {t(`businessHub.expenseTracking.categories.${exp.category}`, exp.category)}
                     </span>
                   </td>
                   <td className="py-3 pr-4 text-gray-200">{exp.description}</td>
                   <td className="py-3 pr-4 text-right font-medium text-white">{fmtCents(exp.amount_cents, currency)}</td>
                   <td className="py-3 text-right">
-                    <button onClick={() => openEdit(exp)} className="text-blue-400 hover:text-blue-300 mr-3 text-xs">Edit</button>
-                    <button onClick={() => handleDelete(exp.id)} className="text-red-400 hover:text-red-300 text-xs">Delete</button>
+                    <button onClick={() => openEdit(exp)} className="text-blue-400 hover:text-blue-300 mr-3 text-xs">{t('common.edit')}</button>
+                    <button onClick={() => handleDelete(exp.id)} className="text-red-400 hover:text-red-300 text-xs">{t('common.delete')}</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-xs text-gray-500 mt-2">{total} total expense{total !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-500 mt-2">{t('businessHub.expenseTracking.totalCount', { count: total })}</p>
         </div>
       )}
     </div>
