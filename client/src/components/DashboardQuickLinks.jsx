@@ -80,10 +80,10 @@ export default function DashboardQuickLinks({ items, className = '', activity = 
   return (
     <nav
       className={`dashboard-quick-links ${className}`.trim()}
-      aria-label={t('dashboard.quickLinks', { defaultValue: 'Quick links' })}
+      aria-label={t('dashboard.customer.quickLinks', { defaultValue: 'Quick links' })}
     >
       <span className="dashboard-quick-links__label">
-        {t('dashboard.quickLinks', { defaultValue: 'Quick links' })}
+        {t('dashboard.customer.quickLinks', { defaultValue: 'Quick links' })}
       </span>
       {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action }) => (
         <Link

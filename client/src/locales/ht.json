@@ -3430,6 +3430,17 @@
     "openConversation": "Louvri konvèsasyon"
   },
   "helperDashboard": {
+    "workspaceEyebrow": "Espas travay OxSteed ou",
+    "workspaceRoles": "Wòl OxSteed ou yo",
+    "helperRole": "Touche lajan kòm èd",
+    "customerRole": "Jwenn èd kòm kliyan",
+    "customerLaneEyebrow": "Lòt bò OxSteed",
+    "customerLaneTitle": "Ou bezwen yon kout men?",
+    "customerLaneCopy": "Kont èd ou a se kont kliyan ou tou. Fè travay, rezève èd lokal, oswa kòmande manje san ou pa kreye yon lòt pwofil.",
+    "findAHelper": "Jwenn yon èd",
+    "postYourJob": "Pibliye yon travay",
+    "orderFood": "Kòmande manje",
+    "viewHistory": "Wè istwa a",
     "client": "Kliyan",
     "newActivityCount": "{{count}} nouvo aktivite",
     "nearbyLoading": "N ap chèche travay lokal…",

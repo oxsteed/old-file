@@ -3345,6 +3345,17 @@
     "openConversation": "Ouvrir la conversation"
   },
   "helperDashboard": {
+    "workspaceEyebrow": "Votre espace OxSteed",
+    "workspaceRoles": "Vos rôles OxSteed",
+    "helperRole": "Gagner comme aidant",
+    "customerRole": "Obtenir de l’aide comme client",
+    "customerLaneEyebrow": "L’autre côté d’OxSteed",
+    "customerLaneTitle": "Besoin d’un coup de main ?",
+    "customerLaneCopy": "Votre compte d’aidant est aussi votre compte client. Faites réaliser vos travaux, réservez une aide locale ou commandez à manger sans créer un autre profil.",
+    "findAHelper": "Trouver un aidant",
+    "postYourJob": "Publier une mission",
+    "orderFood": "Commander à manger",
+    "viewHistory": "Voir l’historique",
     "client": "Client",
     "newActivityCount": "{{count}} nouvelles activités",
     "nearbyLoading": "Recherche d'offres locales…",

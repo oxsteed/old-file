@@ -3345,6 +3345,17 @@
     "openConversation": "Open conversation"
   },
   "helperDashboard": {
+    "workspaceEyebrow": "Your OxSteed workspace",
+    "workspaceRoles": "Your OxSteed roles",
+    "helperRole": "Earn as a helper",
+    "customerRole": "Get help as a customer",
+    "customerLaneEyebrow": "The other side of OxSteed",
+    "customerLaneTitle": "Need a hand yourself?",
+    "customerLaneCopy": "Your helper account is also your customer account. Get work done, book local help, or order food without creating another profile.",
+    "findAHelper": "Find a helper",
+    "postYourJob": "Post a job",
+    "orderFood": "Order food",
+    "viewHistory": "View history",
     "client": "Client",
     "newActivityCount": "{{count}} new updates",
     "nearbyLoading": "Finding local jobs…",

@@ -3345,6 +3345,17 @@
     "openConversation": "فتح المحادثة"
   },
   "helperDashboard": {
+    "workspaceEyebrow": "مساحة عملك في OxSteed",
+    "workspaceRoles": "أدوارك في OxSteed",
+    "helperRole": "اكسب كمساعد",
+    "customerRole": "احصل على المساعدة كعميل",
+    "customerLaneEyebrow": "الجانب الآخر من OxSteed",
+    "customerLaneTitle": "هل تحتاج إلى مساعدة؟",
+    "customerLaneCopy": "حسابك كمساعد هو أيضًا حسابك كعميل. أنجز أعمالك أو احجز مساعدة محلية أو اطلب الطعام دون إنشاء ملف آخر.",
+    "findAHelper": "ابحث عن مساعد",
+    "postYourJob": "انشر مهمة",
+    "orderFood": "اطلب الطعام",
+    "viewHistory": "عرض السجل",
     "client": "العميل",
     "newActivityCount": "{{count}} تحديثات جديدة",
     "nearbyLoading": "جارٍ البحث عن وظائف محلية…",
