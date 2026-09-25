@@ -6075,7 +6075,15 @@
       "customerFallback": "Kliyan",
       "preferredPrefix": "Prefere",
       "anyDate": "Nenpòt dat",
-      "confirmRemove": "Retire moun sa a nan lis datant la?",
+      "status": {
+      "waiting": "Ap tann",
+      "notified": "Notifye",
+      "booked": "Rezève",
+      "removed": "Retire"
+    },
+    "markNotified": "Make kòm notifye",
+    "remove": "Retire",
+    "confirmRemove": "Retire moun sa a nan lis datant la?",
       "toastLoadFail": "Pa ka chaje lis datant la.",
       "toastCustomerNotified": "Kliyan an resevwa avi.",
       "toastStatusUpdated": "Lis datant la mete ajou.",

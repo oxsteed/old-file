@@ -6038,7 +6038,15 @@
       "customerFallback": "Client",
       "preferredPrefix": "Préférence",
       "anyDate": "Toute date",
-      "confirmRemove": "Retirer cette personne de la liste d’attente ?",
+      "status": {
+      "waiting": "En attente",
+      "notified": "Notifié",
+      "booked": "Réservé",
+      "removed": "Supprimé"
+    },
+    "markNotified": "Marquer comme notifié",
+    "remove": "Supprimer",
+    "confirmRemove": "Retirer cette personne de la liste d’attente ?",
       "toastLoadFail": "Impossible de charger la liste d’attente.",
       "toastCustomerNotified": "Client prévenu.",
       "toastStatusUpdated": "Liste d’attente mise à jour.",

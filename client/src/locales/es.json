@@ -6038,7 +6038,15 @@
       "customerFallback": "Cliente",
       "preferredPrefix": "Preferencia",
       "anyDate": "Cualquier fecha",
-      "confirmRemove": "¿Quitar a esta persona de la lista de espera?",
+      "status": {
+      "waiting": "En espera",
+      "notified": "Notificado",
+      "booked": "Reservado",
+      "removed": "Eliminado"
+    },
+    "markNotified": "Marcar como notificado",
+    "remove": "Eliminar",
+    "confirmRemove": "¿Quitar a esta persona de la lista de espera?",
       "toastLoadFail": "No se pudo cargar la lista de espera.",
       "toastCustomerNotified": "Cliente notificado.",
       "toastStatusUpdated": "Lista de espera actualizada.",

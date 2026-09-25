@@ -6038,7 +6038,15 @@
       "customerFallback": "العميل",
       "preferredPrefix": "المفضل",
       "anyDate": "أي تاريخ",
-      "confirmRemove": "إزالة هذا الشخص من قائمة الانتظار؟",
+      "status": {
+      "waiting": "قيد الانتظار",
+      "notified": "تم الإخطار",
+      "booked": "محجوز",
+      "removed": "تمت الإزالة"
+    },
+    "markNotified": "وضع علامة تم الإخطار",
+    "remove": "إزالة",
+    "confirmRemove": "إزالة هذا الشخص من قائمة الانتظار؟",
       "toastLoadFail": "تعذر تحميل قائمة الانتظار.",
       "toastCustomerNotified": "تم إشعار العميل.",
       "toastStatusUpdated": "تم تحديث قائمة الانتظار.",

@@ -6073,7 +6073,15 @@
       "customerFallback": "Customer",
       "preferredPrefix": "Preferred",
       "anyDate": "Any date",
-      "confirmRemove": "Remove this person from the waitlist?",
+      "status": {
+      "waiting": "Waiting",
+      "notified": "Notified",
+      "booked": "Booked",
+      "removed": "Removed"
+    },
+    "markNotified": "Mark as notified",
+    "remove": "Remove",
+    "confirmRemove": "Remove this person from the waitlist?",
       "toastLoadFail": "Could not load the waitlist.",
       "toastCustomerNotified": "Customer notified.",
       "toastStatusUpdated": "Waitlist updated.",

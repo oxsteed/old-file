@@ -36,7 +36,12 @@ export function WaitlistManager({ businessId }) {
     catch { toast.error(t('common.failed')); }
   };
 
-  const STATUS_LABEL = { waiting: 'Waiting', notified: 'Notified', booked: 'Booked', removed: 'Removed' };
+  const STATUS_LABEL = {
+    waiting: t('businessHub.waitlist.status.waiting'),
+    notified: t('businessHub.waitlist.status.notified'),
+    booked: t('businessHub.waitlist.status.booked'),
+    removed: t('businessHub.waitlist.status.removed'),
+  };
   const STATUS_COLOR = { waiting: '#f59e0b', notified: '#3b82f6', booked: '#10b981', removed: '#94a3b8' };
 
   return (
@@ -77,8 +82,8 @@ export function WaitlistManager({ businessId }) {
               </div>
               <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.5rem', borderRadius: '999px', background: STATUS_COLOR[e.status] + '22', color: STATUS_COLOR[e.status], fontWeight: 600 }}>{STATUS_LABEL[e.status]}</span>
               <div style={{ display: 'flex', gap: '0.25rem' }}>
-                {e.status === 'waiting' && <button onClick={() => update(e.id, 'notified')} title="Mark as notified" style={{ padding: '0.35rem', background: '#3b82f622', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#3b82f6' }}><Check size={14} /></button>}
-                {e.status !== 'removed' && <button onClick={() => remove(e.id)} title="Remove" style={{ padding: '0.35rem', background: '#ef444422', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#ef4444' }}><X size={14} /></button>}
+                {e.status === 'waiting' && <button onClick={() => update(e.id, 'notified')} title={t('businessHub.waitlist.markNotified')} style={{ padding: '0.35rem', background: '#3b82f622', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#3b82f6' }}><Check size={14} /></button>}
+                {e.status !== 'removed' && <button onClick={() => remove(e.id)} title={t('businessHub.waitlist.remove')} style={{ padding: '0.35rem', background: '#ef444422', border: 'none', borderRadius: '0.35rem', cursor: 'pointer', color: '#ef4444' }}><X size={14} /></button>}
               </div>
             </div>
           ))}
