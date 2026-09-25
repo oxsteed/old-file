@@ -104,8 +104,7 @@ function PublicInvoiceView() {
           <AlertCircle size={34} aria-hidden="true" />
           <h1>{t('common.notFound')}</h1>
           <p>
-            {error || 'Invoice not found'} This can happen when a link is expired, mistyped, or
-            the invoice was replaced by a newer version.
+            {error || t('publicInvoice.notFound')} {t('publicInvoice.errorBody')}
           </p>
           <div className="piv-state-actions">
             <Link to="/" className="piv-button piv-button-primary">
@@ -113,7 +112,7 @@ function PublicInvoiceView() {
               {t('common.backHome')}
             </Link>
             <Link to="/support/escalation" className="piv-button piv-button-secondary">
-              Contact support
+              {t('supportWidget.talkToHuman')}
             </Link>
           </div>
         </div>
@@ -124,8 +123,8 @@ function PublicInvoiceView() {
   return (
     <div className="piv-page">
       <PageMeta
-        title={`${invoice.invoice_number || 'Invoice'} from ${business?.business_name || 'OxSteed'}`}
-        description="View a secure OxSteed invoice, confirm the business details, and continue to payment."
+        title={`${invoice.invoice_number || t('publicInvoice.invoice')} ${t('publicInvoice.from')} ${business?.business_name || 'OxSteed'}`}
+        description={t('publicInvoice.metaDescription')}
         noIndex
       />
 
@@ -147,9 +146,9 @@ function PublicInvoiceView() {
             <div>
               <div className="piv-eyebrow">
                 <ShieldCheck size={16} aria-hidden="true" />
-                Secure OxSteed invoice
+                {t('publicInvoice.secureInvoice')}
               </div>
-              <h1 id="invoice-title">{business?.business_name || 'OxSteed invoice'}</h1>
+              <h1 id="invoice-title">{business?.business_name || t('publicInvoice.oxsteedInvoice')}</h1>
               <div className="piv-business-meta">
                 {business?.phone && <span>{business.phone}</span>}
                 {websiteHref && (
