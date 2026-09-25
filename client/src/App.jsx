@@ -30,6 +30,7 @@ const FranchiseApplicantDashboard = lazyWithRetry(() => import('./pages/Franchis
 const FranchiseTerritoryOpsPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryOpsPage'));
 const SmartDashboard = lazyWithRetry(() => import('./pages/SmartDashboard'));
 const HelperDashboard = lazyWithRetry(() => import('./pages/HelperDashboard'));
+const ClientManagementPage = lazyWithRetry(routeLoaders.clientManagement, { name: 'clientManagement' });
 const UpgradePage = lazyWithRetry(() => import('./pages/UpgradePage'));
 const ActivityPage = lazyWithRetry(() => import('./pages/ActivityPage'));
 const JobListPage = lazyWithRetry(routeLoaders.jobs, { name: 'jobs' });
@@ -403,6 +404,7 @@ export default function App() {
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/clients" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ClientManagementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/activity"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><ActivityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />

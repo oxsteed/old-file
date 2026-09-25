@@ -21,6 +21,7 @@ export const routeLoaders = Object.freeze({
   qrGenerator: createLoader('qrGenerator', () => import('../pages/QRCodeGeneratorPage')),
   careers: createLoader('careers', () => import('../pages/CareersPage')),
   jobs: createLoader('jobs', () => import('../pages/JobListPage')),
+  clientManagement: createLoader('clientManagement', () => import('../pages/ClientManagementPage')),
 });
 
 const routeByPath = [
@@ -29,6 +30,7 @@ const routeByPath = [
   [/^\/qr-generator(?:\/|$)/, 'qrGenerator'],
   [/^\/careers(?:\/|$)/, 'careers'],
   [/^\/jobs(?:\/|$)/, 'jobs'],
+  [/^\/helper\/clients(?:\/|$)/, 'clientManagement'],
 ];
 
 function connectionAllowsPrefetch() {

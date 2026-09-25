@@ -124,7 +124,7 @@ const signedMoney = (value, type) => `${type === 'income' ? '+' : '-'}${formatMo
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
   const { t } = useTranslation();
-  const { user, initialized, isOnboardingComplete, refreshUser, switchRole } = useAuth();
+  const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
   const { capabilities } = useCapabilities();
   const backgroundChecksAvailable = SHOW_HELPER_BACKGROUND_CHECKS && capabilities.backgroundChecks?.available === true;
   const { subscription, refresh: refreshSubscription } = useSubscription();
@@ -143,26 +143,6 @@ export default function HelperDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialDashboardLoadForUserRef = useRef(null);
-  const [switchingToClient, setSwitchingToClient] = useState(false);
-
-  const handleQuickLinkAction = useCallback(async (action, event) => {
-    if (action !== 'switchToCustomer') return;
-    event.preventDefault();
-    if (switchingToClient) return;
-
-    setSwitchingToClient(true);
-    try {
-      await switchRole('customer');
-      navigate('/dashboard', { replace: true });
-      window.location.reload();
-    } catch (err) {
-      setSwitchingToClient(false);
-      toast.error(err?.response?.data?.error || t('modeSwitcher.switchFailed', {
-        defaultValue: 'Could not switch to Client',
-      }));
-    }
-  }, [navigate, switchRole, switchingToClient, t]);
-
   const [verification, setVerification] = useState({backgroundCheck:null,identity:null});
   const [notifications, setNotifications] = useState([]);
   const [myBids, setMyBids] = useState([]);
@@ -2289,7 +2269,6 @@ export default function HelperDashboard() {
         items={DASHBOARD_QUICK_LINKS.helper}
         activity={activityCounts}
         onActivityOpen={onActivityOpen}
-        onAction={handleQuickLinkAction}
         className="mx-4 mb-6 lg:mx-auto lg:w-full lg:max-w-6xl"
       />
 

@@ -26,7 +26,7 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
-    link('/dashboard', 'helperDashboard.client', 'Client', LayoutDashboard, '', '', 'switchToCustomer'),
+    link('/helper/clients', 'helperDashboard.client', 'Client', LayoutDashboard),
     link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
     link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
