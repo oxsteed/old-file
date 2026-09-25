@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   createContinuityPlan,
@@ -102,6 +103,8 @@ function Select(props) {
 }
 
 export default function ContinuityOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`businessHub.continuityOps.${key}`, options);
   const settings = workspace?.settings || {};
   const intakeRequests = workspace?.intakeRequests || [];
   const plans = workspace?.plans || [];
@@ -145,10 +148,10 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
         progress_prompts: parseCommaList(settingsForm.progress_prompts),
         consent_requirements: parseCommaList(settingsForm.consent_requirements),
       });
-      toast.success('Continuity settings saved');
+      toast.success(copy('settingsSaved'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save continuity settings');
+      toast.error(error?.response?.data?.error || copy('settingsSaveFailed'));
     } finally {
       setSavingSettings(false);
     }
@@ -166,12 +169,12 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
       };
       if (editingPlanId) await updateContinuityPlan(businessId, editingPlanId, payload);
       else await createContinuityPlan(businessId, payload);
-      toast.success(editingPlanId ? 'Plan updated' : 'Plan added');
+      toast.success(editingPlanId ? copy('planUpdated') : copy('planAdded'));
       setPlanForm(EMPTY_PLAN);
       setEditingPlanId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save plan');
+      toast.error(error?.response?.data?.error || copy('planSaveFailed'));
     }
   }
 
@@ -180,22 +183,22 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
     try {
       if (editingTrustId) await updateContinuityTrustRecord(businessId, editingTrustId, trustForm);
       else await createContinuityTrustRecord(businessId, trustForm);
-      toast.success(editingTrustId ? 'Trust record updated' : 'Trust record added');
+      toast.success(editingTrustId ? copy('trustRecordUpdated') : copy('trustRecordAdded'));
       setTrustForm(EMPTY_TRUST);
       setEditingTrustId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save trust record');
+      toast.error(error?.response?.data?.error || copy('trustRecordSaveFailed'));
     }
   }
 
   async function quickUpdateRequest(requestId, patch) {
     try {
       await updateContinuityIntakeRequest(businessId, requestId, patch);
-      toast.success('Continuity intake updated');
+      toast.success(copy('intakeUpdated'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not update continuity intake');
+      toast.error(error?.response?.data?.error || copy('intakeUpdateFailed'));
     }
   }
 
@@ -205,32 +208,32 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
-              Continuity Ops
+              {copy('label')}
             </span>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Recurring intake, progress, and retention operating system</h2>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{copy('title')}</h2>
             <p className="mt-3 text-sm leading-7 text-gray-300">
-              Run guided intake, continuity plans, guardian or trust expectations, and next-session follow-through for wellness, care, tutoring, and other relationship-led templates.
+              {copy('description')}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
-            <Card label="Open intakes" value={metrics.open_requests || 0} hint={`${metrics.upcoming_appointments || 0} upcoming appointments`} />
-            <Card label="Continuing clients" value={metrics.continuity_clients || 0} hint={`${metrics.follow_up_due || 0} follow-ups due`} />
+            <Card label={copy('openIntakes')} value={metrics.open_requests || 0} hint={copy('upcomingAppointments', { count: metrics.upcoming_appointments || 0 })} />
+            <Card label={copy('continuingClients')} value={metrics.continuity_clients || 0} hint={copy('followUpsDue', { count: metrics.follow_up_due || 0 })} />
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <Card label="Next sessions due" value={metrics.next_sessions_due || 0} hint="People who need their next recommended touchpoint" />
-        <Card label="Completed 30d" value={metrics.completed_last_30 || 0} hint="Appointments closed in the last month" />
-        <Card label="Active plans" value={metrics.active_plans || 0} hint={`${formatMoney((metrics.plan_value_cents || 0) / 100, { currency })} in live continuity pricing`} />
-        <Card label="Trust records" value={metrics.active_trust_records || 0} hint={`${metrics.trust_expiring || 0} expiring or expired`} />
+        <Card label={copy('nextSessionsDue')} value={metrics.next_sessions_due || 0} hint={copy('nextSessionsDueHint')} />
+        <Card label={copy('completed30d')} value={metrics.completed_last_30 || 0} hint={copy('completed30dHint')} />
+        <Card label={copy('activePlans')} value={metrics.active_plans || 0} hint={`${formatMoney((metrics.plan_value_cents || 0) / 100, { currency })} ${copy('liveContinuityPricing')}`} />
+        <Card label={copy('trustRecords')} value={metrics.active_trust_records || 0} hint={copy('trustExpiring', { count: metrics.trust_expiring || 0 })} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
         <Section
-          title="Continuity intake pipeline"
-          subtitle="Move new goals into qualification, scheduled sessions, progress review, and retention follow-up without losing context."
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')}>Open schedule</button>}
+          title={copy('intakePipeline')}
+          subtitle={copy('intakePipelineSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('calendar')}>{copy('openSchedule')}</button>}
         >
           <div className="space-y-4">
             {intakeRequests.slice(0, 12).map((item) => (
@@ -244,39 +247,39 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                     </div>
                     <p className="mt-2 text-sm font-semibold text-white">{item.primary_goal}</p>
                     <p className="mt-1 text-sm text-gray-400">
-                      {item.progress_target || 'No progress target yet'}{item.age_or_level ? ` · ${item.age_or_level}` : ''}{item.contact_name ? ` · ${item.contact_name}` : ''}
+                      {item.progress_target || copy('noProgressTarget')}{item.age_or_level ? ` · ${item.age_or_level}` : ''}{item.contact_name ? ` · ${item.contact_name}` : ''}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'scheduled', workflow_stage: 'scheduling' })}>Schedule</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'continuing', workflow_stage: 'retention' })}>Continuing</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'scheduled', workflow_stage: 'scheduling' })}>{copy('schedule')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'continuing', workflow_stage: 'retention' })}>{copy('continuing')}</button>
                   </div>
                 </div>
               </div>
             ))}
-            {intakeRequests.length === 0 ? <p className="text-sm text-gray-400">No continuity intake requests yet. Public guided intake will feed new recurring demand here.</p> : null}
+            {intakeRequests.length === 0 ? <p className="text-sm text-gray-400">{copy('noIntakes')}</p> : null}
           </div>
         </Section>
 
-        <Section title="Queue snapshot" subtitle="Simple view of how recurring demand is moving across intake, live service, and retention.">
+        <Section title={copy('queueSnapshot')} subtitle={copy('queueSnapshotSubtitle')}>
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">New and qualified</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.intake.length} people still need fit review, expectation-setting, or scheduling outreach.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('newQualified')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('newQualifiedHint', { count: groupedRequests.intake.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Active support</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.active.length} requests are in scheduling, live sessions, or progress-review mode.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('activeSupport')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('activeSupportHint', { count: groupedRequests.active.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Retention rhythm</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.retention.length} people are in continuing or completed follow-through, where the next plan matters.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('retentionRhythm')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('retentionRhythmHint', { count: groupedRequests.retention.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Upcoming appointments</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('upcomingTitle')}</p>
               <div className="mt-2 space-y-2">
-                {upcomingAppointments.length === 0 ? <p className="text-sm text-gray-400">No upcoming appointments linked yet.</p> : upcomingAppointments.slice(0, 4).map((item) => (
-                  <p key={item.id} className="text-sm text-gray-300">{item.service_name || 'Session'} · {new Date(item.start_time).toLocaleString()}</p>
+                {upcomingAppointments.length === 0 ? <p className="text-sm text-gray-400">{copy('noLinkedAppointments')}</p> : upcomingAppointments.slice(0, 4).map((item) => (
+                  <p key={item.id} className="text-sm text-gray-300">{item.service_name || copy('session')} · {new Date(item.start_time).toLocaleString()}</p>
                 ))}
               </div>
             </div>
@@ -285,25 +288,25 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
       </div>
 
       <Section
-        title="Intake, trust, and continuity settings"
-        subtitle="Control the intake promise, consent expectations, guardian guidance, and continuity framing customers see before they commit."
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+        title={copy('settingsTitle')}
+        subtitle={copy('settingsSubtitle')}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
-          <Input label="Intake label"><TextInput value={settingsForm.intake_label} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_label: e.target.value }))} /></Input>
-          <Input label="Follow-up window (days)"><TextInput type="number" min="1" value={settingsForm.follow_up_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_window_days: e.target.value }))} /></Input>
-          <Input label="Next-session window (days)"><TextInput type="number" min="1" value={settingsForm.next_session_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, next_session_window_days: e.target.value }))} /></Input>
-          <Input label="Preferred contact channel"><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}><option value="message">Message</option><option value="email">Email</option><option value="call">Call</option><option value="text">Text</option><option value="meeting">Meeting</option></Select></Input>
-          <Input label="Emergency / front desk phone"><TextInput value={settingsForm.emergency_contact_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_contact_phone: e.target.value }))} /></Input>
-          <Input label="Intake focuses" wide><TextInput value={settingsForm.intake_focuses} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_focuses: e.target.value }))} placeholder="Goals, routines, support context, recurring cadence" /></Input>
-          <Input label="Trust artifacts" wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Safety-aware intake, guardian communication, progress updates" /></Input>
-          <Input label="Plan focuses" wide><TextInput value={settingsForm.plan_focuses} onChange={(e) => setSettingsForm((current) => ({ ...current, plan_focuses: e.target.value }))} placeholder="Session packs, memberships, learning plans, recurring support" /></Input>
-          <Input label="Progress prompts" wide><TextInput value={settingsForm.progress_prompts} onChange={(e) => setSettingsForm((current) => ({ ...current, progress_prompts: e.target.value }))} placeholder="Rebook suggestion, progress note, next-goal conversation" /></Input>
-          <Input label="Consent requirements" wide><TextInput value={settingsForm.consent_requirements} onChange={(e) => setSettingsForm((current) => ({ ...current, consent_requirements: e.target.value }))} placeholder="Intake acknowledgement, communication preferences, guardian approval" /></Input>
-          <Input label="Guardian / family policy" wide><TextArea rows={3} value={settingsForm.guardian_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, guardian_policy: e.target.value }))} /></Input>
-          <Input label="Prep expectations" wide><TextArea rows={3} value={settingsForm.prep_expectations} onChange={(e) => setSettingsForm((current) => ({ ...current, prep_expectations: e.target.value }))} /></Input>
-          <Input label="Continuity pitch" wide><TextArea rows={3} value={settingsForm.continuity_pitch} onChange={(e) => setSettingsForm((current) => ({ ...current, continuity_pitch: e.target.value }))} /></Input>
+          <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
+          <Input label={copy('intakeLabel')}><TextInput value={settingsForm.intake_label} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_label: e.target.value }))} /></Input>
+          <Input label={copy('followUpWindow')}><TextInput type="number" min="1" value={settingsForm.follow_up_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_window_days: e.target.value }))} /></Input>
+          <Input label={copy('nextSessionWindow')}><TextInput type="number" min="1" value={settingsForm.next_session_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, next_session_window_days: e.target.value }))} /></Input>
+          <Input label={copy('preferredContact')}><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}><option value="message">{copy('message')}</option><option value="email">{copy('email')}</option><option value="call">{copy('call')}</option><option value="text">{copy('text')}</option><option value="meeting">{copy('meeting')}</option></Select></Input>
+          <Input label={copy('emergencyPhone')}><TextInput value={settingsForm.emergency_contact_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_contact_phone: e.target.value }))} /></Input>
+          <Input label={copy('intakeFocuses')} wide><TextInput value={settingsForm.intake_focuses} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_focuses: e.target.value }))} placeholder={copy('intakeFocusesPlaceholder')} /></Input>
+          <Input label={copy('trustArtifacts')} wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder={copy('trustArtifactsPlaceholder')} /></Input>
+          <Input label={copy('planFocuses')} wide><TextInput value={settingsForm.plan_focuses} onChange={(e) => setSettingsForm((current) => ({ ...current, plan_focuses: e.target.value }))} placeholder={copy('planFocusesPlaceholder')} /></Input>
+          <Input label={copy('progressPrompts')} wide><TextInput value={settingsForm.progress_prompts} onChange={(e) => setSettingsForm((current) => ({ ...current, progress_prompts: e.target.value }))} placeholder={copy('progressPromptsPlaceholder')} /></Input>
+          <Input label={copy('consentRequirements')} wide><TextInput value={settingsForm.consent_requirements} onChange={(e) => setSettingsForm((current) => ({ ...current, consent_requirements: e.target.value }))} placeholder={copy('consentRequirementsPlaceholder')} /></Input>
+          <Input label={copy('guardianPolicy')} wide><TextArea rows={3} value={settingsForm.guardian_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, guardian_policy: e.target.value }))} /></Input>
+          <Input label={copy('prepExpectations')} wide><TextArea rows={3} value={settingsForm.prep_expectations} onChange={(e) => setSettingsForm((current) => ({ ...current, prep_expectations: e.target.value }))} /></Input>
+          <Input label={copy('continuityPitch')} wide><TextArea rows={3} value={settingsForm.continuity_pitch} onChange={(e) => setSettingsForm((current) => ({ ...current, continuity_pitch: e.target.value }))} /></Input>
         </div>
       </Section>
 
