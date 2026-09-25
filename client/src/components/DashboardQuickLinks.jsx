@@ -26,12 +26,12 @@ const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', act
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
-    link('/helper/clients', 'helperDashboard.client', 'Client', LayoutDashboard),
     link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
     link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
     link('/my-bids', 'helperDashboard.myBids', 'My bids', FileText, '', 'bids'),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays, '', 'calendar'),
+    link('/helper/clients', 'helperDashboard.client', 'Client', LayoutDashboard),
     link('/helper/messages', 'nav.messages', 'Messages', MessageSquare, '', 'messages'),
     link('/disputes', 'helperDashboard.disputes', 'Disputes', ShieldCheck, '', 'disputes'),
     link('/settings', 'nav.settings', 'Settings', Settings),
