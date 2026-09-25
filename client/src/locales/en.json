@@ -9262,6 +9262,16 @@
   },
   "financialAdvisor": {
     "title": "💰 AI Finance Calculator",
+    "subtitle": "Ask questions about your finances",
+    "analyze": "Analyze:",
+    "suggestedQuestions": "Suggested questions:",
+    "questions": {
+      "vacation": "Can I afford a vacation this year?",
+      "prioritize": "What should I prioritize - car repair or home improvement?",
+      "healthScore": "How can I improve my financial health score?",
+      "goals": "Am I on track to meet my goals?",
+      "rateIncrease": "What would happen if I increased my rates by 10%?"
+    },
     "disclaimerTitle": "AI Disclaimer - Not Financial Advice",
     "disclaimerBody": "This AI can make mistakes and does not constitute professional financial advice. Always consult a licensed financial advisor before making financial decisions. Responses are based on your account data and may be inaccurate.",
     "emptyPrompt": "Ask me anything about your finances - income, expenses, goals, or planned needs.",

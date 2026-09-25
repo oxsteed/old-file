@@ -40,7 +40,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
         ]);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to get advice. Please try again.');
+      setError(err.response?.data?.error || t('financialAdvisor.error'));
       setMessages(prev => prev.slice(0, -1)); // Remove the user message if request fails
     } finally {
       setLoading(false);
@@ -56,11 +56,11 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const suggestedQuestions = [
-    'Can I afford a vacation this year?',
-    'What should I prioritize - car repair or home improvement?',
-    'How can I improve my financial health score?',
-    'Am I on track to meet my goals?',
-    'What would happen if I increased my rates by 10%?',
+    t('financialAdvisor.questions.vacation'),
+    t('financialAdvisor.questions.prioritize'),
+    t('financialAdvisor.questions.healthScore'),
+    t('financialAdvisor.questions.goals'),
+    t('financialAdvisor.questions.rateIncrease'),
   ];
 
   return (
@@ -104,14 +104,15 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
         >
           <div>
             <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600 }}>
-              💰 AI Finance Calculator
+              {t('financialAdvisor.title')}
             </h2>
             <p style={{ margin: '0.5rem 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-muted-text)' }}>
-              Ask questions about your finances
+              {t('financialAdvisor.subtitle')}
             </p>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('common.aria.closeButton')}
             style={{
               background: 'none',
               border: 'none',
@@ -135,7 +136,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
           }}
         >
           <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>
-            Analyze:
+            {t('financialAdvisor.analyze')}
           </label>
           {['1m', '3m', '6m', '1y'].map(w => (
             <button
@@ -171,11 +172,11 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
           {messages.length === 0 && !error && (
             <div style={{ textAlign: 'center', color: 'var(--color-muted-text)' }}>
               <p style={{ marginBottom: 'var(--space-3)' }}>
-                Ask me anything about your finances based on your real data
+                {t('financialAdvisor.emptyPrompt')}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, marginBottom: 'var(--space-2)' }}>
-                  Suggested questions:
+                  {t('financialAdvisor.suggestedQuestions')}
                 </p>
                 {suggestedQuestions.map((q, i) => (
                   <button
@@ -291,7 +292,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
                 handleSendMessage();
               }
             }}
-            placeholder="Ask about your finances..."
+            placeholder={t('financialAdvisor.inputPlaceholder')}
             disabled={loading}
             style={{
               flex: 1,
@@ -327,7 +328,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
               transition: 'opacity var(--transition-fast)',
             }}
           >
-            Send
+            {t('common.send')}
           </button>
           {messages.length > 0 && (
             <button
@@ -342,7 +343,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
                 fontSize: 'var(--text-sm)',
               }}
             >
-              Reset
+              {t('common.reset')}
             </button>
           )}
         </div>

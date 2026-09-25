@@ -9227,6 +9227,16 @@
   },
   "financialAdvisor": {
     "title": "💰 Calculatrice Financière IA",
+    "subtitle": "Posez vos questions sur vos finances",
+    "analyze": "Analyser :",
+    "suggestedQuestions": "Questions suggérées :",
+    "questions": {
+      "vacation": "Puis-je me permettre des vacances cette année ?",
+      "prioritize": "Que dois-je prioriser : réparer la voiture ou améliorer la maison ?",
+      "healthScore": "Comment améliorer ma santé financière ?",
+      "goals": "Suis-je sur la bonne voie pour atteindre mes objectifs ?",
+      "rateIncrease": "Que se passerait-il si j’augmentais mes tarifs de 10 % ?"
+    },
     "disclaimerTitle": "Avertissement IA - Pas un Conseil Financier",
     "disclaimerBody": "Cette IA peut faire des erreurs et ne constitue pas un conseil financier professionnel. Consultez toujours un conseiller financier agréé avant de prendre des décisions financières. Les réponses sont basées sur les données de votre compte et peuvent être inexactes.",
     "emptyPrompt": "Posez-moi n'importe quelle question sur vos finances - revenus, dépenses, objectifs ou besoins prévus.",

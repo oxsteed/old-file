@@ -9227,6 +9227,16 @@
   },
   "financialAdvisor": {
     "title": "💰 Kalkil Finansyal IA",
+    "subtitle": "Poze kesyon sou finans ou",
+    "analyze": "Analize:",
+    "suggestedQuestions": "Kesyon yo sijere:",
+    "questions": {
+      "vacation": "Èske mwen ka peye yon vakans ane sa a?",
+      "prioritize": "Kisa mwen dwe bay priyorite: repare machin nan oswa amelyore kay la?",
+      "healthScore": "Kijan mwen ka amelyore sante finansye mwen?",
+      "goals": "Èske mwen sou bon chemen pou rive nan objektif mwen yo?",
+      "rateIncrease": "Kisa ki ta rive si mwen ogmante tarif mwen yo 10%?"
+    },
     "disclaimerTitle": "Avètisman IA - Pa Konsey Finansyal",
     "disclaimerBody": "IA sa a ka fè erè e li pa konstitiye konsey finansyal pwofesyonel. Toujou konsil yon konsèyè finansyal otorize anvan ou fè desizyon finansyal. Repons yo baze sou done kont ou e yo ka eneksak.",
     "emptyPrompt": "Poze m' nenpot kesyon sou finansyal ou - revni, depans, objektif oswa bezwen planifye.",
