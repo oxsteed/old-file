@@ -18746,6 +18746,78 @@
           "Complementos y mejoras"
         ]
     },
+    "automotive": {
+        "operatingModel": "Flujo automotriz de confianza y toma de decisiones",
+        "headline": "Usa la plantilla para convertir el interés por un vehículo en próximos pasos seguros de servicio, venta o consulta.",
+        "operatorBrief": "Las plantillas automotrices necesitan señales de confianza específicas, detalles listos para decidir y caminos claros para servicio o inventario.",
+        "primaryDemand": [
+          "Necesidades de reparación o servicio",
+          "Comparación de vehículos",
+          "Interés por sala o inventario"
+        ],
+        "workflowStages": [
+          "Calificar la necesidad del vehículo",
+          "Dirigir al camino de servicio, consulta o venta",
+          "Confirmar alcance, disponibilidad o siguientes pasos del comprador",
+          "Retener para mantenimiento futuro u oportunidades de compra"
+        ],
+        "intakeRequirements": [
+          "Tipo o problema del vehículo",
+          "Momento deseado",
+          "Presupuesto o urgencia",
+          "Historial o preferencias previas"
+        ],
+        "records": [
+          "Notas del vehículo",
+          "Camino de oferta elegido",
+          "Historial de servicio o compra",
+          "Oportunidades de seguimiento"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Separa diagnósticos, mantenimiento y ofertas premium."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Coordina espacios de servicio o citas."
+          },
+          {
+            "label": "Clientes",
+            "reason": "Conserva el historial del comprador o propietario."
+          },
+          {
+            "label": "Centro de crecimiento",
+            "reason": "Promueve inventario, reparaciones o revisiones estacionales."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar nuevos clientes de vehículos",
+          "Confirmar agenda de servicio o consulta",
+          "Registrar oportunidades de seguimiento"
+        ],
+        "weeklyCadence": [
+          "Revisar mezcla de servicios o interés de compradores",
+          "Actualizar pruebas y ofertas visibles",
+          "Dar seguimiento a clientes activos"
+        ],
+        "monthlyCadence": [
+          "Promover demanda estacional de vehículos",
+          "Revisar conversión por camino de oferta",
+          "Retener con recordatorios de servicio futuro"
+        ],
+        "qualityControls": [
+          "Claridad específica del vehículo",
+          "Próximos pasos listos para decidir",
+          "Presentación que transmite confianza",
+          "Disciplina de seguimiento"
+        ],
+        "monetization": [
+          "Paquetes de servicio de mayor valor",
+          "Mejoras o complementos del vehículo",
+          "Mantenimiento recurrente o relaciones de ciclo largo"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

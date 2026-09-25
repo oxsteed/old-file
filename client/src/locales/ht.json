@@ -18746,6 +18746,78 @@
           "Ajout ak amelyorasyon"
         ]
     },
+    "automotive": {
+        "operatingModel": "Pwosesis konfyans ak desizyon pou otomobil",
+        "headline": "Sèvi ak modèl la pou mennen enterè sou machin nan nan pwochen etap ki klè pou sèvis, lavant oswa konsiltasyon.",
+        "operatorBrief": "Modèl otomobil bezwen siy konfyans ki mache ak machin nan, detay ki pare pou desizyon ak chemen klè pou sèvis oswa envantè.",
+        "primaryDemand": [
+          "Bezwen reparasyon oswa sèvis",
+          "Konparezon machin",
+          "Enterè pou showroom oswa envantè"
+        ],
+        "workflowStages": [
+          "Kalifye bezwen machin nan",
+          "Voye l sou chemen sèvis, konsiltasyon oswa lavant",
+          "Konfime dimansyon, disponiblite oswa pwochen etap achtè a",
+          "Kenbe kliyan an pou antretyen oswa acha ki ka fèt pita"
+        ],
+        "intakeRequirements": [
+          "Kalite oswa pwoblèm machin nan",
+          "Lè yo vle a",
+          "Bidjè oswa ijans",
+          "Istwa oswa preferans anvan"
+        ],
+        "records": [
+          "Nòt machin",
+          "Chemen òf yo chwazi",
+          "Istwa sèvis oswa acha",
+          "Opòtinite pou swiv"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Separe dyagnostik, antretyen ak òf premium."
+          },
+          {
+            "label": "Orè",
+            "reason": "Kowòdone plas sèvis oswa randevou."
+          },
+          {
+            "label": "Kliyan",
+            "reason": "Swiv istwa achtè oswa pwopriyetè a."
+          },
+          {
+            "label": "Sant kwasans",
+            "reason": "Pwomouvwa envantè, reparasyon oswa verifikasyon sezon."
+          }
+        ],
+        "dailyCadence": [
+          "Revize nouvo kliyan machin",
+          "Konfime orè sèvis oswa konsiltasyon",
+          "Anrejistre opòtinite swivi"
+        ],
+        "weeklyCadence": [
+          "Revize melanj sèvis oswa enterè achtè",
+          "Mete prèv ak òf ki vizib yo ajou",
+          "Swiv kliyan ki enterese yo"
+        ],
+        "monthlyCadence": [
+          "Pwomouvwa demann machin sezon",
+          "Revize konvèsyon selon chemen òf",
+          "Kenbe kliyan an ak rapèl sèvis pita"
+        ],
+        "qualityControls": [
+          "Klète ki espesifik pou machin",
+          "Pwochen etap ki pare pou desizyon",
+          "Prezantasyon ki bay konfyans",
+          "Disiplin nan swivi"
+        ],
+        "monetization": [
+          "Pakè sèvis ki gen plis valè",
+          "Amelyorasyon oswa opsyon machin",
+          "Antretyen repete oswa relasyon alontèm"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

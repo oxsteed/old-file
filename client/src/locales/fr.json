@@ -18746,6 +18746,78 @@
           "Compléments et améliorations"
         ]
     },
+    "automotive": {
+        "operatingModel": "Flux automobile de confiance et de décision",
+        "headline": "Utilisez ce modèle pour faire passer l’intérêt automobile vers des étapes sûres de service, de vente ou de consultation.",
+        "operatorBrief": "Les modèles automobiles ont besoin de signaux de confiance propres au véhicule, de détails prêts à décider et de parcours clairs pour le service ou l’inventaire.",
+        "primaryDemand": [
+          "Besoins de réparation ou de service",
+          "Comparaison de véhicules",
+          "Intérêt pour le showroom ou le stock"
+        ],
+        "workflowStages": [
+          "Qualifier le besoin du véhicule",
+          "Orienter vers le service, la consultation ou la vente",
+          "Confirmer le périmètre, la disponibilité ou la prochaine étape d’achat",
+          "Fidéliser pour la maintenance future ou les occasions d’achat"
+        ],
+        "intakeRequirements": [
+          "Type ou problème du véhicule",
+          "Moment souhaité",
+          "Budget ou urgence",
+          "Historique ou préférences antérieures"
+        ],
+        "records": [
+          "Notes du véhicule",
+          "Parcours d’offre choisi",
+          "Historique de service ou d’achat",
+          "Possibilités de relance"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Séparez diagnostics, maintenance et offres premium."
+          },
+          {
+            "label": "Planning",
+            "reason": "Coordonnez les créneaux de service ou les rendez-vous."
+          },
+          {
+            "label": "Clients",
+            "reason": "Suivez l’historique de l’acheteur ou du propriétaire."
+          },
+          {
+            "label": "Centre de croissance",
+            "reason": "Promouvez le stock, les réparations ou les contrôles saisonniers."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les nouveaux prospects automobiles",
+          "Confirmer le planning de service ou de consultation",
+          "Consigner les occasions de relance"
+        ],
+        "weeklyCadence": [
+          "Examiner le mix de services ou l’intérêt acheteur",
+          "Actualiser les preuves et offres visibles",
+          "Relancer les prospects intéressés"
+        ],
+        "monthlyCadence": [
+          "Promouvoir la demande automobile saisonnière",
+          "Examiner la conversion par parcours d’offre",
+          "Fidéliser avec des rappels de service futur"
+        ],
+        "qualityControls": [
+          "Clarté propre au véhicule",
+          "Prochaines étapes prêtes à décider",
+          "Présentation qui inspire confiance",
+          "Rigueur de relance"
+        ],
+        "monetization": [
+          "Forfaits de service à plus forte valeur",
+          "Améliorations ou options du véhicule",
+          "Maintenance récurrente ou relations de long cycle"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"

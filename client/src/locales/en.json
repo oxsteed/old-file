@@ -18697,6 +18697,78 @@
           "Add-ons and upgrades"
         ]
     },
+    "automotive": {
+        "operatingModel": "Automotive trust and decision workflow",
+        "headline": "Use the template to move vehicle interest into confident service, sales, or consultation next steps.",
+        "operatorBrief": "Automotive templates need stronger vehicle-specific trust cues, decision-ready details, and clearer paths for either service or inventory-led conversions.",
+        "primaryDemand": [
+          "Repair or service needs",
+          "Vehicle comparison",
+          "Showroom or inventory interest"
+        ],
+        "workflowStages": [
+          "Qualify vehicle need",
+          "Route to service, consultation, or sales path",
+          "Confirm scope, availability, or buyer next steps",
+          "Retain for future maintenance or future purchase opportunities"
+        ],
+        "intakeRequirements": [
+          "Vehicle type or issue",
+          "Desired timing",
+          "Budget or urgency",
+          "Any prior history or preferences"
+        ],
+        "records": [
+          "Vehicle notes",
+          "Offer path chosen",
+          "Service or buyer history",
+          "Future follow-up opportunities"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Separate diagnostics, maintenance, and premium offers."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Coordinate service slots or appointments."
+          },
+          {
+            "label": "Clients",
+            "reason": "Track buyer or owner history."
+          },
+          {
+            "label": "Growth Center",
+            "reason": "Promote inventory, repairs, or seasonal checkups."
+          }
+        ],
+        "dailyCadence": [
+          "Review new vehicle leads",
+          "Confirm service or consult schedule",
+          "Log follow-up opportunities"
+        ],
+        "weeklyCadence": [
+          "Review service mix or buyer interest",
+          "Update visible proof and offers",
+          "Follow up on warm leads"
+        ],
+        "monthlyCadence": [
+          "Promote seasonal vehicle demand",
+          "Review conversion by offer path",
+          "Retain through future-service reminders"
+        ],
+        "qualityControls": [
+          "Vehicle-specific clarity",
+          "Decision-ready next steps",
+          "Trust-forward presentation",
+          "Follow-up discipline"
+        ],
+        "monetization": [
+          "Higher-value service packages",
+          "Vehicle upgrades or add-ons",
+          "Repeat maintenance or long-cycle relationships"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"
