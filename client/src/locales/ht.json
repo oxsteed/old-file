@@ -7465,6 +7465,19 @@
     "setPasswordCancel": "Anile",
     "setPasswordSaving": "Anrejistre…"
   },
+  "auditLogFilter": {
+    "filter": "Filtre",
+    "adminUserId": "ID itilizatè admin",
+    "targetUserId": "ID itilizatè sib la",
+    "actionType": "Kalite aksyon",
+    "region": "Rejyon",
+    "fromDate": "Dat kòmansman",
+    "toDate": "Dat fen",
+    "idPlaceholder": "UUID oswa nimewo",
+    "any": "- nenpòt -",
+    "clear": "Netwaye",
+    "apply": "Aplike"
+  },
   "adminTemplates": {
     "pageTitle": "Jesyon modèl - Admin",
     "heading": "Modèl pwofil",

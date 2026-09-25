@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Filter bar for the user-action audit log.
@@ -30,6 +31,7 @@ const ACTION_TYPES = [
 ];
 
 export default function AuditLogFilter({ value, onChange, regions = [] }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(value);
   useEffect(() => { setDraft(value); }, [value]);
 
@@ -54,55 +56,55 @@ export default function AuditLogFilter({ value, onChange, regions = [] }) {
     <div className="rounded-lg border border-gray-800 bg-gray-950 p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
         <Filter size={14} className="text-gray-400" />
-        <span className="text-sm font-medium text-gray-300">Filter</span>
+        <span className="text-sm font-medium text-gray-300">{t('auditLogFilter.filter')}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div>
-          <label className={labelCls}>Admin user ID</label>
+          <label className={labelCls}>{t('auditLogFilter.adminUserId')}</label>
           <input
             className={inputCls}
             value={draft.admin_id || ''}
             onChange={e => setField('admin_id', e.target.value)}
-            placeholder="UUID or numeric"
+            placeholder={t('auditLogFilter.idPlaceholder')}
           />
         </div>
         <div>
-          <label className={labelCls}>Target user ID</label>
+          <label className={labelCls}>{t('auditLogFilter.targetUserId')}</label>
           <input
             className={inputCls}
             value={draft.target_user_id || ''}
             onChange={e => setField('target_user_id', e.target.value)}
-            placeholder="UUID or numeric"
+            placeholder={t('auditLogFilter.idPlaceholder')}
           />
         </div>
         <div>
-          <label className={labelCls}>Action type</label>
+          <label className={labelCls}>{t('auditLogFilter.actionType')}</label>
           <select
             className={inputCls}
             value={draft.action_type || ''}
             onChange={e => setField('action_type', e.target.value)}
           >
             {ACTION_TYPES.map(a => (
-              <option key={a} value={a}>{a || '- any -'}</option>
+              <option key={a} value={a}>{a || t('auditLogFilter.any')}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className={labelCls}>Region</label>
+          <label className={labelCls}>{t('auditLogFilter.region')}</label>
           <select
             className={inputCls}
             value={draft.region_id || ''}
             onChange={e => setField('region_id', e.target.value)}
           >
-            <option value="">- any -</option>
+            <option value="">{t('auditLogFilter.any')}</option>
             {regions.map(r => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className={labelCls}>From date</label>
+          <label className={labelCls}>{t('auditLogFilter.fromDate')}</label>
           <input
             type="date"
             className={inputCls}
@@ -111,7 +113,7 @@ export default function AuditLogFilter({ value, onChange, regions = [] }) {
           />
         </div>
         <div>
-          <label className={labelCls}>To date</label>
+          <label className={labelCls}>{t('auditLogFilter.toDate')}</label>
           <input
             type="date"
             className={inputCls}
@@ -128,14 +130,14 @@ export default function AuditLogFilter({ value, onChange, regions = [] }) {
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs text-gray-400 hover:text-white"
         >
           <X size={12} />
-          Clear
+          {t('auditLogFilter.clear')}
         </button>
         <button
           onClick={apply}
           type="button"
           className="px-3 py-1.5 rounded text-xs font-medium bg-orange-600 hover:bg-orange-500 text-white"
         >
-          Apply
+          {t('auditLogFilter.apply')}
         </button>
       </div>
     </div>

@@ -7465,6 +7465,19 @@
     "setPasswordCancel": "Cancel",
     "setPasswordSaving": "Saving…"
   },
+  "auditLogFilter": {
+    "filter": "Filter",
+    "adminUserId": "Admin user ID",
+    "targetUserId": "Target user ID",
+    "actionType": "Action type",
+    "region": "Region",
+    "fromDate": "From date",
+    "toDate": "To date",
+    "idPlaceholder": "UUID or numeric",
+    "any": "- any -",
+    "clear": "Clear",
+    "apply": "Apply"
+  },
   "adminTemplates": {
     "pageTitle": "Template Management - Admin",
     "heading": "Profile Templates",

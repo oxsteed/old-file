@@ -7465,6 +7465,19 @@
     "setPasswordCancel": "يلغي",
     "setPasswordSaving": "توفير…"
   },
+  "auditLogFilter": {
+    "filter": "تصفية",
+    "adminUserId": "معرّف مستخدم المسؤول",
+    "targetUserId": "معرّف المستخدم المستهدف",
+    "actionType": "نوع الإجراء",
+    "region": "المنطقة",
+    "fromDate": "من التاريخ",
+    "toDate": "إلى التاريخ",
+    "idPlaceholder": "UUID أو رقم",
+    "any": "- أي -",
+    "clear": "مسح",
+    "apply": "تطبيق"
+  },
   "adminTemplates": {
     "pageTitle": "إدارة القالب - المشرف",
     "heading": "قوالب الملف الشخصي",

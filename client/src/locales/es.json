@@ -7465,6 +7465,19 @@
     "setPasswordCancel": "Cancelar",
     "setPasswordSaving": "Guardando…"
   },
+  "auditLogFilter": {
+    "filter": "Filtrar",
+    "adminUserId": "ID del administrador",
+    "targetUserId": "ID del usuario objetivo",
+    "actionType": "Tipo de acción",
+    "region": "Región",
+    "fromDate": "Desde la fecha",
+    "toDate": "Hasta la fecha",
+    "idPlaceholder": "UUID o numérico",
+    "any": "- cualquiera -",
+    "clear": "Borrar",
+    "apply": "Aplicar"
+  },
   "adminTemplates": {
     "pageTitle": "Gestión de plantillas - Admin",
     "heading": "Plantillas de perfil",

@@ -7465,6 +7465,19 @@
     "setPasswordCancel": "Annuler",
     "setPasswordSaving": "Enregistrement…"
   },
+  "auditLogFilter": {
+    "filter": "Filtrer",
+    "adminUserId": "ID de l'administrateur",
+    "targetUserId": "ID de l'utilisateur cible",
+    "actionType": "Type d'action",
+    "region": "Région",
+    "fromDate": "Date de début",
+    "toDate": "Date de fin",
+    "idPlaceholder": "UUID ou numérique",
+    "any": "- n'importe lequel -",
+    "clear": "Effacer",
+    "apply": "Appliquer"
+  },
   "adminTemplates": {
     "pageTitle": "Gestion des modèles - Admin",
     "heading": "Modèles de profil",
