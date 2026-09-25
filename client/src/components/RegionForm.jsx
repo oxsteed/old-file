@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../lib/adminApi';
 import CountrySelect from './CountrySelect';
 import RegionInput from './RegionInput';
@@ -13,11 +14,11 @@ import RegionInput from './RegionInput';
  *   onCancel  – callback when user cancels
  */
 const BOUNDARY_TYPES = [
-  { value: 'zip_range',       label: 'ZIP code ranges (US)' },
-  { value: 'city_state',      label: 'City + state list (US)' },
-  { value: 'geo_radius',      label: 'Geographic radius' },
-  { value: 'country_region',  label: 'Country + region (international)' },
-  { value: 'country_only',    label: 'Whole country (international)' },
+  { value: 'zip_range',       labelKey: 'zipRanges' },
+  { value: 'city_state',      labelKey: 'cityState' },
+  { value: 'geo_radius',      labelKey: 'geoRadius' },
+  { value: 'country_region',  labelKey: 'countryRegion' },
+  { value: 'country_only',    labelKey: 'countryOnly' },
 ];
 
 function defaultBoundary(type) {
@@ -32,6 +33,7 @@ function defaultBoundary(type) {
 }
 
 export default function RegionForm({ region, onSaved, onCancel }) {
+  const { t } = useTranslation();
   const editing = !!region?.id;
 
   const [name,        setName]        = useState(region?.name || '');
@@ -57,7 +59,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
     setServerError(null);
 
     if (!name.trim()) {
-      setServerError('Name is required.');
+      setServerError(t('regionForm.nameRequired'));
       return;
     }
 
@@ -75,7 +77,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
 
       if (onSaved) onSaved(data.region);
     } catch (err) {
-      setServerError(err.response?.data?.error || 'Failed to save region.');
+      setServerError(err.response?.data?.error || t('regionForm.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -98,32 +100,32 @@ export default function RegionForm({ region, onSaved, onCancel }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className={labelCls}>Name *</label>
+          <label className={labelCls}>{t('regionForm.name')}</label>
           <input
             type="text"
             className={inputCls}
             value={name}
             onChange={e => setName(e.target.value)}
             required
-            placeholder="Bay Area, North Texas, ..."
+            placeholder={t('regionForm.namePlaceholder')}
           />
         </div>
         <div>
-          <label className={labelCls}>Boundary type</label>
+          <label className={labelCls}>{t('regionForm.boundaryType')}</label>
           <select
             className={inputCls}
             value={boundary.type}
             onChange={e => setType(e.target.value)}
           >
-            {BOUNDARY_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {BOUNDARY_TYPES.map(type => (
+              <option key={type.value} value={type.value}>{t(`regionForm.boundaryTypes.${type.labelKey}`)}</option>
             ))}
           </select>
         </div>
       </div>
 
       <div>
-        <label className={labelCls}>Description</label>
+        <label className={labelCls}>{t('regionForm.description')}</label>
         <textarea
           className={inputCls + ' min-h-[60px]'}
           value={description}
@@ -132,19 +134,19 @@ export default function RegionForm({ region, onSaved, onCancel }) {
       </div>
 
       {boundary.type === 'zip_range' && (
-        <ZipRangeEditor boundary={boundary} setBoundary={setBoundary} />
+        <ZipRangeEditor boundary={boundary} setBoundary={setBoundary} t={t} />
       )}
       {boundary.type === 'city_state' && (
-        <CityStateEditor boundary={boundary} setBoundary={setBoundary} />
+        <CityStateEditor boundary={boundary} setBoundary={setBoundary} t={t} />
       )}
       {boundary.type === 'geo_radius' && (
-        <GeoRadiusEditor boundary={boundary} setBoundary={setBoundary} />
+        <GeoRadiusEditor boundary={boundary} setBoundary={setBoundary} t={t} />
       )}
       {boundary.type === 'country_region' && (
-        <CountryRegionEditor boundary={boundary} setBoundary={setBoundary} />
+        <CountryRegionEditor boundary={boundary} setBoundary={setBoundary} t={t} />
       )}
       {boundary.type === 'country_only' && (
-        <CountryOnlyEditor boundary={boundary} setBoundary={setBoundary} />
+        <CountryOnlyEditor boundary={boundary} setBoundary={setBoundary} t={t} />
       )}
 
       <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-800">
@@ -155,7 +157,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
             disabled={submitting}
             className="px-4 py-2 rounded-md text-sm text-gray-300 hover:text-white"
           >
-            Cancel
+            {t('regionForm.cancel')}
           </button>
         )}
         <button
@@ -164,7 +166,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? 'Saving…' : (editing ? 'Update region' : 'Create region')}
+          {submitting ? t('regionForm.saving') : (editing ? t('regionForm.updateRegion') : t('regionForm.createRegion'))}
         </button>
       </div>
     </form>
@@ -173,7 +175,7 @@ export default function RegionForm({ region, onSaved, onCancel }) {
 
 // ── Sub-editors ──────────────────────────────────────────────────────────────
 
-function ZipRangeEditor({ boundary, setBoundary }) {
+function ZipRangeEditor({ boundary, setBoundary, t }) {
   const update = (idx, field, value) => {
     const ranges = [...boundary.ranges];
     ranges[idx] = { ...ranges[idx], [field]: value === '' ? '' : Number(value) };
@@ -191,13 +193,13 @@ function ZipRangeEditor({ boundary, setBoundary }) {
   return (
     <section>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-300">ZIP ranges</h4>
+        <h4 className="text-sm font-medium text-gray-300">{t('regionForm.zipRanges')}</h4>
         <button
           type="button"
           onClick={add}
           className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
         >
-          <Plus size={12} /> Add range
+          <Plus size={12} /> {t('regionForm.addRange')}
         </button>
       </div>
       <div className="space-y-2">
@@ -208,7 +210,7 @@ function ZipRangeEditor({ boundary, setBoundary }) {
               className="flex-1 px-2 py-1.5 rounded bg-gray-900 border border-gray-700 text-gray-100 text-sm"
               value={r.start}
               onChange={e => update(i, 'start', e.target.value)}
-              placeholder="Start"
+              placeholder={t('regionForm.start')}
             />
             <span className="text-gray-500">–</span>
             <input
@@ -216,7 +218,7 @@ function ZipRangeEditor({ boundary, setBoundary }) {
               className="flex-1 px-2 py-1.5 rounded bg-gray-900 border border-gray-700 text-gray-100 text-sm"
               value={r.end}
               onChange={e => update(i, 'end', e.target.value)}
-              placeholder="End"
+              placeholder={t('regionForm.end')}
             />
             <button
               type="button"
@@ -233,7 +235,7 @@ function ZipRangeEditor({ boundary, setBoundary }) {
   );
 }
 
-function CityStateEditor({ boundary, setBoundary }) {
+function CityStateEditor({ boundary, setBoundary, t }) {
   const update = (idx, field, value) => {
     const entries = [...boundary.entries];
     entries[idx] = {
@@ -254,13 +256,13 @@ function CityStateEditor({ boundary, setBoundary }) {
   return (
     <section>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-300">Cities</h4>
+        <h4 className="text-sm font-medium text-gray-300">{t('regionForm.cities')}</h4>
         <button
           type="button"
           onClick={add}
           className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
         >
-          <Plus size={12} /> Add city
+          <Plus size={12} /> {t('regionForm.addCity')}
         </button>
       </div>
       <div className="space-y-2">
@@ -271,7 +273,7 @@ function CityStateEditor({ boundary, setBoundary }) {
               className="flex-1 px-2 py-1.5 rounded bg-gray-900 border border-gray-700 text-gray-100 text-sm"
               value={e.city}
               onChange={ev => update(i, 'city', ev.target.value)}
-              placeholder="City"
+              placeholder={t('regionForm.city')}
             />
             <input
               type="text"
@@ -279,7 +281,7 @@ function CityStateEditor({ boundary, setBoundary }) {
               value={e.state}
               onChange={ev => update(i, 'state', ev.target.value)}
               maxLength={2}
-              placeholder="ST"
+              placeholder={t('regionForm.stateCode')}
             />
             <button
               type="button"
@@ -296,7 +298,7 @@ function CityStateEditor({ boundary, setBoundary }) {
   );
 }
 
-function CountryRegionEditor({ boundary, setBoundary }) {
+function CountryRegionEditor({ boundary, setBoundary, t }) {
   const update = (idx, field, value) => {
     const entries = [...boundary.entries];
     if (field === 'country') {
@@ -322,13 +324,13 @@ function CountryRegionEditor({ boundary, setBoundary }) {
   return (
     <section>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-300">Country + region pairs</h4>
+        <h4 className="text-sm font-medium text-gray-300">{t('regionForm.countryRegionPairs')}</h4>
         <button
           type="button"
           onClick={add}
           className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
         >
-          <Plus size={12} /> Add pair
+          <Plus size={12} /> {t('regionForm.addPair')}
         </button>
       </div>
       <div className="space-y-2">
@@ -348,7 +350,7 @@ function CountryRegionEditor({ boundary, setBoundary }) {
                 value={e.region}
                 onChange={v => update(i, 'region', v)}
                 className={cellCls}
-                placeholder="State / province / region"
+                placeholder={t('regionForm.stateProvinceRegion')}
               />
             </div>
             <button
@@ -366,7 +368,7 @@ function CountryRegionEditor({ boundary, setBoundary }) {
   );
 }
 
-function CountryOnlyEditor({ boundary, setBoundary }) {
+function CountryOnlyEditor({ boundary, setBoundary, t }) {
   const update = (idx, value) => {
     const countries = [...boundary.countries];
     countries[idx] = (value || '').toUpperCase();
@@ -388,13 +390,13 @@ function CountryOnlyEditor({ boundary, setBoundary }) {
   return (
     <section>
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-300">Countries</h4>
+        <h4 className="text-sm font-medium text-gray-300">{t('regionForm.countries')}</h4>
         <button
           type="button"
           onClick={add}
           className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
         >
-          <Plus size={12} /> Add country
+          <Plus size={12} /> {t('regionForm.addCountry')}
         </button>
       </div>
       <div className="space-y-2">
@@ -423,7 +425,7 @@ function CountryOnlyEditor({ boundary, setBoundary }) {
   );
 }
 
-function GeoRadiusEditor({ boundary, setBoundary }) {
+function GeoRadiusEditor({ boundary, setBoundary, t }) {
   const labelCls = 'block text-xs font-medium text-gray-400 mb-1';
   const inputCls =
     'w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 ' +
@@ -432,7 +434,7 @@ function GeoRadiusEditor({ boundary, setBoundary }) {
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <label className={labelCls}>Center latitude</label>
+        <label className={labelCls}>{t('regionForm.centerLatitude')}</label>
         <input
           type="number"
           step="0.000001"
@@ -445,7 +447,7 @@ function GeoRadiusEditor({ boundary, setBoundary }) {
         />
       </div>
       <div>
-        <label className={labelCls}>Center longitude</label>
+        <label className={labelCls}>{t('regionForm.centerLongitude')}</label>
         <input
           type="number"
           step="0.000001"
@@ -458,7 +460,7 @@ function GeoRadiusEditor({ boundary, setBoundary }) {
         />
       </div>
       <div>
-        <label className={labelCls}>Radius (miles)</label>
+        <label className={labelCls}>{t('regionForm.radiusMiles')}</label>
         <input
           type="number"
           step="0.1"
