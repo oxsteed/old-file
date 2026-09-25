@@ -4,7 +4,8 @@ const logger = require('../utils/logger');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { invalidateHelperContext } = require('../services/helperContext');
 const {
-  generateHelperProfileQRCode,
+  generateQRCodeBuffer,
+  generateQRCodeSVG,
   buildHelperProfileURL
 } = require('../utils/qrCodeGenerator');
 
@@ -20,7 +21,7 @@ exports.getHelperProfileQRCodePng = async (req, res) => {
     logger.info('Generating profile QR code', { helperId, width });
 
     const profileUrl = buildHelperProfileURL(helperId);
-    const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+    const pngBuffer = await generateQRCodeBuffer(profileUrl, { width });
 
     if (!pngBuffer) {
       return sendError(res, 500, 'Failed to generate QR code');
@@ -59,9 +60,8 @@ exports.generateQRCode = async (req, res) => {
 
     const profileUrl = buildHelperProfileURL(helperId);
 
-    // For now, return PNG format (most common)
-    if (format === 'png' || format === 'dataurl') {
-      const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+    if (format === 'png' || format === 'buffer' || format === 'dataurl') {
+      const pngBuffer = await generateQRCodeBuffer(profileUrl, { width });
       if (!pngBuffer) {
         return sendError(res, 500, 'Failed to generate QR code');
       }
@@ -78,8 +78,14 @@ exports.generateQRCode = async (req, res) => {
       }
     }
 
-    // SVG format (optional - would require svg library)
-    return sendError(res, 400, 'SVG format not yet supported');
+    if (format === 'svg') {
+      const svg = await generateQRCodeSVG(profileUrl, { width });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(svg);
+    }
+
+    return sendError(res, 400, 'Unsupported QR code format');
   } catch (err) {
     logger.error('Error generating QR code', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to generate QR code');
@@ -107,7 +113,7 @@ exports.generateMultiSizeQRCode = async (req, res) => {
 
     const qrCodes = {};
     for (const [label, width] of Object.entries(sizes)) {
-      const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+      const pngBuffer = await generateQRCodeBuffer(profileUrl, { width });
       if (pngBuffer) {
         qrCodes[label] = `data:image/png;base64,${pngBuffer.toString('base64')}`;
       }

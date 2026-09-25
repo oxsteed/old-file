@@ -41,49 +41,70 @@ const QRCodeGeneratorPage = () => {
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
 
-  // Initialize QR code instance and regenerate on changes
+  // Initialize QR code instance and regenerate on changes. Keep the async
+  // preview work inside the effect so rejected image generation is surfaced
+  // instead of becoming an unhandled promise rejection.
   useEffect(() => {
-    if (!formData.url) return;
+    let cancelled = false;
+    let previewUrl = null;
 
-    try {
-      const qr = new QRCodeStyling({
-        width: formData.size,
-        height: formData.size,
-        data: formData.url,
-        image: logoDataUrl || undefined,
-        imageOptions: logoDataUrl ? {
-          hideBackgroundDots: true,
-          imageSize: 0.22,
-          margin: 5,
-        } : undefined,
-        qrOptions: logoDataUrl ? { errorCorrectionLevel: 'H' } : undefined,
-        dotsOptions: {
-          color: formData.dotColor,
-          type: formData.dotStyle,
-        },
-        backgroundOptions: {
-          color: formData.backgroundColor,
-        },
-        margin: 10,
-      });
-
-      setQRInstance(qr);
-
-      // Append to container
-      if (qrRef.current) {
-        qrRef.current.innerHTML = '';
-        qr.append(qrRef.current);
-      }
-
-      // Generate canvas preview
-      qr.getRawData('png').then((blob) => {
-        const url = URL.createObjectURL(blob);
-        setQRCode(url);
-      });
-    } catch (err) {
-      logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
-      toast.error(t('qrGenerator.errorGenerating'));
+    if (!formData.url) {
+      setQRInstance(null);
+      setQRCode(null);
+      if (qrRef.current) qrRef.current.innerHTML = '';
+      return undefined;
     }
+
+    const generatePreview = async () => {
+      try {
+        const qr = new QRCodeStyling({
+          width: Number(formData.size),
+          height: Number(formData.size),
+          data: formData.url,
+          image: logoDataUrl || undefined,
+          imageOptions: logoDataUrl ? {
+            hideBackgroundDots: true,
+            imageSize: 0.22,
+            margin: 5,
+          } : undefined,
+          qrOptions: logoDataUrl ? { errorCorrectionLevel: 'H' } : undefined,
+          dotsOptions: {
+            color: formData.dotColor,
+            type: formData.dotStyle,
+          },
+          backgroundOptions: {
+            color: formData.backgroundColor,
+          },
+          margin: 10,
+        });
+
+        if (cancelled) return;
+        setQRInstance(qr);
+
+        if (qrRef.current) {
+          qrRef.current.innerHTML = '';
+          qr.append(qrRef.current);
+        }
+
+        const blob = await qr.getRawData('png');
+        if (cancelled) return;
+        previewUrl = URL.createObjectURL(blob);
+        setQRCode(previewUrl);
+      } catch (err) {
+        if (cancelled) return;
+        setQRInstance(null);
+        setQRCode(null);
+        logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
+        toast.error(t('qrGenerator.errorGenerating'));
+      }
+    };
+
+    generatePreview();
+
+    return () => {
+      cancelled = true;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
   }, [formData, logoDataUrl, t]);
 
   // Fetch saved QR codes only after the same Pro entitlement check used by
@@ -116,7 +137,7 @@ const QRCodeGeneratorPage = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'size' ? Number(value) : value,
     }));
   };
 

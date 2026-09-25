@@ -15,20 +15,18 @@ const {
   downloadQRCode,
 } = require('../controllers/qrCodesController');
 
-// QR generation is a Pro helper feature. A helper can reach Pro through
-// the dedicated helper_pro/broker role, a current Pro membership, or an
-// active Pro trial. Keep the legacy tier2 value valid during migration.
+// QR generation is a Pro feature. Any authenticated account with a current
+// Pro membership or first-year Pro trial can use it, regardless of mode.
 const requireProTier = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const helperRole = ['helper', 'helper_pro', 'broker'].includes(req.user.role);
-  if (!helperRole || !hasProAccess(req.user)) {
+  if (!hasProAccess(req.user)) {
     return res.status(403).json({
       error: 'Pro tier required',
       code: 'QR_PRO_REQUIRED',
-      message: 'This feature is only available for Pro helpers'
+      message: 'This feature is available with Pro access'
     });
   }
   next();

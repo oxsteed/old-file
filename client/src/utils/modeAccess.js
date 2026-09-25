@@ -109,12 +109,11 @@ export function canAccessBusinessHub(user) {
   return ['admin', 'super_admin'].includes(user.role) || getMode(user) === 'admin';
 }
 
-// QR code creation and saved-code storage are Pro helper features on the API.
+// QR code creation and saved-code storage are Pro features on the API.
 // Keep the client entitlement check aligned with server/routes/qrCodes.js so
 // users without access do not see a page that can only fail with 403.
 export function canUseQrGenerator(user) {
-  if (!user || !['helper', 'helper_pro', 'broker'].includes(user.role)) return false;
-  return hasProAccess(user);
+  return Boolean(user && hasProAccess(user));
 }
 
 export function canOfferConsulting(user) {

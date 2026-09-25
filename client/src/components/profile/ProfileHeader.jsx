@@ -32,7 +32,9 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
 
       if (response.ok) {
         const data = await response.json();
-        setQRCode(data.data.qrCode);
+        const image = data.data?.qr_code || data.data?.qrCode;
+        if (!image) throw new Error(t('profile.qrCode.generationFailed'));
+        setQRCode(image);
       }
     } catch (err) {
       console.error('Failed to load QR code:', err);
@@ -45,7 +47,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
     e.stopPropagation();
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=medium&format=buffer`
+        `/api/helper-profile/${helperId}/qr-code?size=medium&format=png`
       );
 
       if (response.ok) {

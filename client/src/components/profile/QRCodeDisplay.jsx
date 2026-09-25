@@ -39,7 +39,9 @@ export default function QRCodeDisplay({ helperId, helperName }) {
       }
 
       const data = await response.json();
-      setQRCode(data.data.qrCode);
+      const image = data.data?.qr_code || data.data?.qrCode;
+      if (!image) throw new Error(t('profile.qrCode.generationFailed'));
+      setQRCode(image);
     } catch (err) {
       setError(err.message || t('profile.qrCode.generationFailed'));
       console.error('QR code generation error:', err);
@@ -51,7 +53,7 @@ export default function QRCodeDisplay({ helperId, helperName }) {
   const handleDownload = async () => {
     try {
       const response = await fetch(
-        `/api/helper-profile/${helperId}/qr-code?size=${size}&format=buffer`
+        `/api/helper-profile/${helperId}/qr-code?size=${size}&format=png`
       );
 
       if (!response.ok) {
