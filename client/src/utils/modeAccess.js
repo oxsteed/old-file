@@ -113,12 +113,7 @@ export function canAccessBusinessHub(user) {
 // Keep the client entitlement check aligned with server/routes/qrCodes.js so
 // users without access do not see a page that can only fail with 403.
 export function canUseQrGenerator(user) {
-<<<<<<< Updated upstream
   return Boolean(user && hasProAccess(user));
-=======
-  if (!user || !['helper', 'helper_pro', 'broker'].includes(user.role)) return false;
-  return hasProAccess(user);
->>>>>>> Stashed changes
 }
 
 export function canOfferConsulting(user) {

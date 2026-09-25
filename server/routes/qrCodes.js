@@ -22,12 +22,7 @@ const requireProTier = (req, res, next) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-<<<<<<< Updated upstream
   if (!hasProAccess(req.user)) {
-=======
-  const helperRole = ['helper', 'helper_pro', 'broker'].includes(req.user.role);
-  if (!helperRole || !hasProAccess(req.user)) {
->>>>>>> Stashed changes
     return res.status(403).json({
       error: 'Pro tier required',
       code: 'QR_PRO_REQUIRED',
