@@ -120,13 +120,13 @@ function playPing() {
 }
 
 // ── 10. Export transcript ─────────────────────────────────────────────────────
-function exportTranscript(messages, locale) {
+function exportTranscript(messages, locale, labels) {
   const lines = messages.map(m => {
-    const who = m.role === 'user' ? 'You' : 'OxSteed AI';
+    const who = m.role === 'user' ? labels.you : labels.assistant;
     const time = new Date(m.ts).toLocaleString(locale || undefined);
     return `[${time}] ${who}:\n${m.content}`;
   });
-  const text = `OxSteed AI Support Transcript\nExported: ${new Date().toLocaleString(locale || undefined)}\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}`;
+  const text = `${labels.title}\n${labels.exported}: ${new Date().toLocaleString(locale || undefined)}\n${'─'.repeat(40)}\n\n${lines.join('\n\n')}`;
   const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -167,6 +167,12 @@ function AISupportWidget() {
     t('supportWidget.suggestionDispute'),
     t('supportWidget.suggestionBidding'),
   ];
+  const transcriptLabels = {
+    title: t('supportWidget.transcriptTitle'),
+    exported: t('supportWidget.transcriptExported'),
+    you: t('supportWidget.transcriptYou'),
+    assistant: t('supportWidget.transcriptAssistant'),
+  };
 
   // Close floating widget when navigating to a helper profile (in-page chat replaces it)
   useEffect(() => {
@@ -424,7 +430,7 @@ function AISupportWidget() {
                 {/* 10. Export transcript */}
                 {messages.length > 1 && (
                   <button
-                    onClick={() => exportTranscript(messages, i18n.language)}
+                    onClick={() => exportTranscript(messages, i18n.language, transcriptLabels)}
                     title={t('supportWidget.exportTranscript')}
                     className="p-1.5 text-gray-500 hover:text-gray-300 transition rounded-lg hover:bg-gray-800"
                     aria-label={t('supportWidget.exportTranscript')}
@@ -458,9 +464,9 @@ function AISupportWidget() {
                 {!isMobile && (
                   <button
                     onClick={() => setMinimized(m => !m)}
-                    title={minimized ? 'Expand' : 'Minimize'}
+                    title={minimized ? t('supportWidget.expand') : t('supportWidget.minimize')}
                     className="p-1.5 text-gray-500 hover:text-gray-300 transition rounded-lg hover:bg-gray-800"
-                    aria-label={minimized ? 'Expand chat' : 'Minimize chat'}
+                    aria-label={minimized ? t('supportWidget.expandChat') : t('supportWidget.minimizeChat')}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       {minimized
@@ -475,7 +481,7 @@ function AISupportWidget() {
                 <button
                   onClick={() => setOpen(false)}
                   className="p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"
-                  aria-label="Close chat"
+                  aria-label={t('supportWidget.closeChat')}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
