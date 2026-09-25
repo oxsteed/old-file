@@ -193,19 +193,23 @@ const QRCodeGeneratorPage = () => {
       return;
     }
 
+    if (!qrInstance) {
+      toast.error(t('qrGenerator.errorGenerating'));
+      return;
+    }
+
     try {
       setLoading(true);
 
       // Get current QR code image
       let imageData = null;
-      if (qrInstance) {
-        const blob = await qrInstance.getRawData('png');
-        imageData = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-      }
+      const blob = await qrInstance.getRawData('png');
+      imageData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read generated QR image'));
+        reader.readAsDataURL(blob);
+      });
 
       const payload = {
         title: formData.title,
@@ -238,6 +242,32 @@ const QRCodeGeneratorPage = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadSavedQR = async (qr) => {
+    try {
+      const format = qr.image_format === 'svg' ? 'svg' : 'png';
+      const { data } = await qrCodesApi.download(qr.id, format);
+      const imageUrl = data.data?.imageUrl || qr.image_url;
+
+      if (!imageUrl) {
+        throw new Error('Saved QR image is unavailable');
+      }
+
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `${qr.title || 'qr-code'}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(t('qrGenerator.downloadSuccess'));
+    } catch (err) {
+      logger.error('QRCodeGeneratorPage: saved QR download error', {
+        err: err.message,
+        status: err.response?.status,
+      });
+      toast.error(t('qrGenerator.downloadError'));
     }
   };
 
@@ -509,6 +539,13 @@ const QRCodeGeneratorPage = () => {
                       title={t('common.copy')}
                     >
                       {copiedId === qr.url ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                    <button
+                      onClick={() => handleDownloadSavedQR(qr)}
+                      className="qrg-action-btn"
+                      title={t('qrGenerator.downloadPNG')}
+                    >
+                      <Download size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteQR(qr.id)}

@@ -344,7 +344,9 @@ exports.downloadQRCode = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { format = 'png' } = req.query;
+    // Accept query parameters for the browser client and the legacy body form
+    // so the endpoint remains compatible with existing callers.
+    const format = req.query.format || req.body?.format || 'png';
 
     if (!['png', 'svg'].includes(format)) {
       return res.status(400).json({ error: 'format must be png or svg' });

@@ -21,7 +21,7 @@ export const qrCodesApi = {
 
   // Download QR code (with tracking)
   download: (id, format = 'png') =>
-    api.post(`/qr-codes/${id}/download`, { format }),
+    api.post(`/qr-codes/${id}/download`, null, { params: { format } }),
 };
 
 export default qrCodesApi;
