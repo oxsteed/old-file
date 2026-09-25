@@ -73,7 +73,11 @@ function getRestaurantReadiness(biz) {
   return { key: 'live', color: '#34d399' };
 }
 
-function BusinessCard({ biz, currency, t }) {
+function signalCount(signals, key) {
+  return Number(signals?.[key] || 0);
+}
+
+function BusinessCard({ biz, currency, signals, t }) {
   const accent = colorFromName(biz.business_name);
   const businessId = getBusinessId(biz);
   const kind = getBusinessKind(biz);
@@ -96,16 +100,22 @@ function BusinessCard({ biz, currency, t }) {
   };
   const roleLabel = t(`dashboards.businessOwner.${roleKeys[biz.role] || 'member'}`);
   const actionLinks = (isRestaurant ? [
-    [restaurantWorkspacePath(biz, 'orders'), ClipboardList, t('dashboards.businessOwner.orders', { defaultValue: 'Orders' }), ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']],
+    [restaurantWorkspacePath(biz, 'orders'), ClipboardList, t('dashboards.businessOwner.orders', { defaultValue: 'Orders' }), ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'], 'orders'],
     [restaurantWorkspacePath(biz, 'menu'), UtensilsCrossed, t('dashboards.businessOwner.menu', { defaultValue: 'Menu' }), ['menu.view', 'menu.manage']],
     [restaurantWorkspacePath(biz, 'store'), Settings2, t('dashboards.businessOwner.storeDevices', { defaultValue: 'Store & devices' }), ['settings.view', 'settings.manage', 'credit.manage', 'display.manage']],
-    [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' }), ['display.view', 'display.manage']],
+    [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' }), ['display.view', 'display.manage'], 'queue'],
   ] : [
     [`/business/${businessId}/workspace/services`, Wrench, t('dashboards.businessOwner.services', { defaultValue: 'Services' }), ['business.view', 'business.edit_profile']],
     [`/business/${businessId}/workspace/clients`, Users, t('dashboards.businessOwner.clients', { defaultValue: 'Clients' }), ['clients.view', 'clients.manage', 'business.view']],
-    [`/business/${businessId}/workspace/calendar`, Calendar, t('dashboards.businessOwner.schedule', { defaultValue: 'Schedule' }), ['calendar.view_all', 'calendar.view_self', 'calendar.manage_all', 'calendar.manage_self']],
-    [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' }), ['messages.view_all', 'messages.view_assigned', 'messages.reply']],
+    [`/business/${businessId}/workspace/calendar`, Calendar, t('dashboards.businessOwner.schedule', { defaultValue: 'Schedule' }), ['calendar.view_all', 'calendar.view_self', 'calendar.manage_all', 'calendar.manage_self'], 'schedule'],
+    [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' }), ['messages.view_all', 'messages.view_assigned', 'messages.reply'], 'messages'],
   ]).filter(([, , , permissions]) => hasPermission(biz, permissions));
+  const activeSignals = [
+    signalCount(signals, 'messages') > 0 && { key: 'messages', label: t('dashboards.businessOwner.newMessages', { defaultValue: 'New messages' }), to: `/business/${businessId}/workspace/messages` },
+    isRestaurant && signalCount(signals, 'orders') > 0 && { key: 'orders', label: t('dashboards.businessOwner.newOrders', { defaultValue: 'New orders' }), to: restaurantWorkspacePath(biz, 'orders') },
+    isRestaurant && signalCount(signals, 'queue') > 0 && { key: 'queue', label: t('dashboards.businessOwner.queueActivity', { defaultValue: 'Queue activity' }), to: biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store') },
+    !isRestaurant && signalCount(signals, 'schedule') > 0 && { key: 'schedule', label: t('dashboards.businessOwner.scheduleRequests', { defaultValue: 'Schedule requests' }), to: `/business/${businessId}/workspace/calendar` },
+  ].filter(Boolean);
   const initials = String(biz.business_name || '?')
     .split(/\s+/)
     .map(w => w[0])
@@ -151,6 +161,16 @@ function BusinessCard({ biz, currency, t }) {
             )}
             {biz.is_primary && (
               <span className="text-orange-400">{t('dashboards.businessOwner.primary', { defaultValue: 'Primary' })}</span>
+            )}
+            {activeSignals.length > 0 && (
+              <span
+                className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+                style={{ background: 'rgba(249,115,22,0.16)', color: '#fb923c' }}
+                title={activeSignals.map((item) => `${item.label}: ${signalCount(signals, item.key)}`).join(' · ')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" aria-hidden="true" />
+                {activeSignals.reduce((total, item) => total + signalCount(signals, item.key), 0)}
+              </span>
             )}
             {(biz.setup_status === 'draft' || biz.restaurant_status === 'draft') && (
               <span
@@ -207,14 +227,24 @@ function BusinessCard({ biz, currency, t }) {
       </div>
 
       <div className="px-5 py-4 grid grid-cols-2 gap-2 flex-1">
-        {actionLinks.map(([to, Icon, label]) => (
+        {actionLinks.map(([to, Icon, label, , signalKey]) => (
           <Link
             key={label}
             to={to}
             className="min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold inline-flex items-center gap-2 transition hover:bg-orange-500/5"
             style={{ borderColor: 'var(--color-border)' }}
           >
-            <Icon size={14} style={{ color: accent }} /> {label}
+            <Icon size={14} style={{ color: accent }} />
+            <span className="flex-1">{label}</span>
+            {signalKey && signalCount(signals, signalKey) > 0 && (
+              <span
+                className="inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                style={{ background: accent }}
+                aria-label={`${signalCount(signals, signalKey)} ${label}`}
+              >
+                {signalCount(signals, signalKey) > 99 ? '99+' : signalCount(signals, signalKey)}
+              </span>
+            )}
           </Link>
         ))}
         {actionLinks.length === 0 && (
@@ -262,6 +292,7 @@ export default function BusinessOwnerDashboard() {
 
   const [businesses, setBusinesses] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [workspaceSignals, setWorkspaceSignals] = useState({});
 
   // 1. Load the unified business list (cheap — one round-trip).
   useEffect(() => {
@@ -319,6 +350,61 @@ export default function BusinessOwnerDashboard() {
     });
     return () => { cancelled = true; };
   }, [serviceBusinessIds]);
+
+  // Load small, actionable attention counts for every workspace. These are
+  // intentionally separate from the portfolio analytics request so a missing
+  // optional feed never prevents the dashboard from rendering.
+  useEffect(() => {
+    if (!businesses.length) {
+      setWorkspaceSignals({});
+      return undefined;
+    }
+    let cancelled = false;
+    const loadSignals = async () => {
+      const entries = await Promise.all(businesses.map(async (biz) => {
+        const id = getBusinessId(biz);
+        const kind = getBusinessKind(biz);
+        const empty = { messages: 0, orders: 0, queue: 0, schedule: 0 };
+        try {
+          if (kind === 'restaurant' && biz.restaurant_id) {
+            const [ordersResult, queueResult] = await Promise.allSettled([
+              api.get(`/food/restaurants/${biz.restaurant_id}/orders`, { params: { includeMeta: 'true', scope: 'active', limit: 1 } }),
+              api.get(`/food/restaurants/${biz.restaurant_id}/queue-board`),
+            ]);
+            const summary = ordersResult.status === 'fulfilled' ? ordersResult.value.data?.summary || {} : {};
+            const queue = queueResult.status === 'fulfilled' ? queueResult.value.data || {} : {};
+            return [String(id), {
+              ...empty,
+              orders: Number(summary.new_orders || 0),
+              queue: (Array.isArray(queue.preparing) ? queue.preparing.length : 0)
+                + (Array.isArray(queue.ready) ? queue.ready.length : 0),
+            }];
+          }
+
+          const [messagesResult, appointmentsResult] = await Promise.allSettled([
+            api.get(`/businesses/${id}/messages`, { params: { limit: 100, offset: 0 } }),
+            api.get(`/businesses/${id}/appointments`, { params: { status: 'pending', limit: 1, offset: 0 } }),
+          ]);
+          const conversations = messagesResult.status === 'fulfilled'
+            ? messagesResult.value.data?.conversations || []
+            : [];
+          const pendingAppointments = appointmentsResult.status === 'fulfilled'
+            ? Number(appointmentsResult.value.data?.total || 0)
+            : 0;
+          return [String(id), {
+            ...empty,
+            messages: conversations.reduce((total, conversation) => total + Number(conversation.unread_count || 0), 0),
+            schedule: pendingAppointments,
+          }];
+        } catch {
+          return [String(id), empty];
+        }
+      }));
+      if (!cancelled) setWorkspaceSignals(Object.fromEntries(entries));
+    };
+    loadSignals();
+    return () => { cancelled = true; };
+  }, [businesses]);
 
   const totals = useMemo(() => {
     const restaurants = businesses.filter((b) => getBusinessKind(b) === 'restaurant').length;
@@ -445,6 +531,7 @@ export default function BusinessOwnerDashboard() {
               key={b.business_id || b.id}
               biz={b}
               currency={b.currency_code || 'USD'}
+              signals={workspaceSignals[String(getBusinessId(b))]}
               t={t}
             />
           ))}

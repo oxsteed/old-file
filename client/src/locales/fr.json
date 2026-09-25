@@ -12599,6 +12599,10 @@
         }
     },
     "businessOwner": {
+      "newMessages": "Nouveaux messages",
+      "newOrders": "Nouvelles commandes",
+      "queueActivity": "Activité de file",
+      "scheduleRequests": "Demandes de planning",
       "title": "Vos entreprises",
       "subtitleSingular": "Pilotez votre espace de travail et suivez les performances.",
       "subtitlePlural": "{{count}} espaces. Basculez entre eux ou ouvrez celui qui vous attend.",

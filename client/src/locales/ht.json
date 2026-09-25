@@ -12599,6 +12599,10 @@
         }
     },
     "businessOwner": {
+      "newMessages": "Nouvo mesaj",
+      "newOrders": "Nouvo kòmand",
+      "queueActivity": "Aktivite nan ke a",
+      "scheduleRequests": "Demann orè",
       "title": "Biznis ou yo",
       "subtitleSingular": "Opere espas travay ou epi swiv pèfòmans.",
       "subtitlePlural": "{{count}} espas. Chanje ant yo oswa ouvri sa ki bezwen w lan.",

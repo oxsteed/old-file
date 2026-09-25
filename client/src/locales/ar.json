@@ -12602,6 +12602,10 @@
         }
     },
     "businessOwner": {
+      "newMessages": "رسائل جديدة",
+      "newOrders": "طلبات جديدة",
+      "queueActivity": "نشاط قائمة الانتظار",
+      "scheduleRequests": "طلبات الجدولة",
       "title": "أعمالك",
       "subtitleSingular": "أدر مساحة العمل الخاصة بك وتابع الأداء.",
       "subtitlePlural": "{{count}} مساحات عمل. بدّل بينها أو افتح المساحة التي تحتاجك.",

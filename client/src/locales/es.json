@@ -12599,6 +12599,10 @@
         }
     },
     "businessOwner": {
+      "newMessages": "Nuevos mensajes",
+      "newOrders": "Nuevos pedidos",
+      "queueActivity": "Actividad de cola",
+      "scheduleRequests": "Solicitudes de agenda",
       "title": "Tus negocios",
       "subtitleSingular": "Opera tu espacio de trabajo y sigue el desempeño.",
       "subtitlePlural": "{{count}} espacios. Cambia entre ellos o abre el que te necesita.",

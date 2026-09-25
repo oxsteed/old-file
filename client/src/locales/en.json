@@ -12581,6 +12581,10 @@
         }
     },
     "businessOwner": {
+      "newMessages": "New messages",
+      "newOrders": "New orders",
+      "queueActivity": "Queue activity",
+      "scheduleRequests": "Schedule requests",
       "title": "Your businesses",
       "subtitleSingular": "Operate your workspace and track performance.",
       "subtitlePlural": "{{count}} workspaces. Switch between them or open the one that needs you.",

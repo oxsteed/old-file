@@ -7,9 +7,11 @@ import {
   FileText,
   LayoutDashboard,
   MessageSquare,
+  Search,
   Settings,
   ShieldCheck,
   Store,
+  UtensilsCrossed,
   Wrench,
 } from 'lucide-react';
 import '../styles/Dashboard.css';
@@ -61,6 +63,9 @@ export const DASHBOARD_QUICK_LINKS = {
     link('/settings', 'nav.settings', 'Settings', Settings),
   ],
   businessOwner: [
+    link('/jobs', 'nav.browseJobs', 'Browse Jobs', Search),
+    link('/restaurants', 'nav.localFoodDirectory', 'Local Food Directory', UtensilsCrossed),
+    link('/post-job', 'nav.postJob', 'Post a Job', FileText),
     link('/business-hub', 'nav.business', 'Business hub', Store),
     link('/messages', 'nav.messages', 'Messages', MessageSquare),
     link('/calendar', 'nav.calendar', 'Calendar', CalendarDays),
