@@ -5028,7 +5028,8 @@
       "toastDiscountRequired": "Kalite rabè ak valè obligatwa",
       "toastPromoCreated": "Kòd pwomo kreye",
       "toastPromoCreateFail": "Nou pa t kapab kreye kòd pwomo a",
-      "toastUpdated": "Mete ajou"
+      "toastUpdated": "Mete ajou",
+      "newBroadcast": "Nouvo difizyon", "subjectRequired": "Sijè *", "subjectPlaceholder": "Sijè anons lan…", "messageRequired": "Mesaj *", "messagePlaceholder": "Mesaj ou…", "channel": "Kanal", "channels": { "email": "Imèl", "sms": "SMS", "push": "Notifikasyon" }, "saveDraft": "Sove bouyon", "noBroadcasts": "Pa gen difizyon ankò.", "recipients": "{{count}} moun k ap resevwa", "send": "Voye", "newCode": "Nouvo kòd", "newPromoCode": "Nouvo kòd pwomosyon", "codeLabel": "Kòd (ap kreye otomatikman si vid)", "description": "Deskripsyon", "discountTypeRequired": "Kalite rabè *", "discountTypes": { "percent": "Pousantaj (%)", "fixed": "Fiks ($)" }, "discountValueRequired": "Valè rabè *", "maxUses": "Maksimòm itilizasyon", "expires": "Ekspire", "create": "Kreye", "noPromoCodes": "Pa gen kòd pwomosyon ankò.", "percentOff": "{{value}}% rabè", "fixedOff": "{{value}} $ rabè", "expiresShort": "Ekspire:", "uses": "{{count}}{{max}} itilizasyon", "statuses": { "draft": "Bouyon", "sent": "Voye", "failed": "Echwe" }
     },
     "packages": {
       "title": "Pakè sèvis",

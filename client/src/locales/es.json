@@ -4943,7 +4943,8 @@
       "toastDiscountRequired": "Se requiere tipo y valor de descuento",
       "toastPromoCreated": "Código promocional creado",
       "toastPromoCreateFail": "No se pudo crear el código promocional",
-      "toastUpdated": "Actualizado"
+      "toastUpdated": "Actualizado",
+      "newBroadcast": "Nueva difusión", "subjectRequired": "Asunto *", "subjectPlaceholder": "Asunto del anuncio…", "messageRequired": "Mensaje *", "messagePlaceholder": "Tu mensaje…", "channel": "Canal", "channels": { "email": "Correo", "sms": "SMS", "push": "Notificación" }, "saveDraft": "Guardar borrador", "noBroadcasts": "Aún no hay difusiones.", "recipients": "{{count}} destinatarios", "send": "Enviar", "newCode": "Nuevo código", "newPromoCode": "Nuevo código promocional", "codeLabel": "Código (se genera automáticamente si está vacío)", "description": "Descripción", "discountTypeRequired": "Tipo de descuento *", "discountTypes": { "percent": "Porcentaje (%)", "fixed": "Fijo ($)" }, "discountValueRequired": "Valor del descuento *", "maxUses": "Usos máximos", "expires": "Caduca", "create": "Crear", "noPromoCodes": "Aún no hay códigos promocionales.", "percentOff": "{{value}}% de descuento", "fixedOff": "{{value}} $ de descuento", "expiresShort": "Caduca:", "uses": "{{count}}{{max}} usos", "statuses": { "draft": "Borrador", "sent": "Enviado", "failed": "Fallido" }
     },
     "packages": {
       "title": "Paquetes de servicios",

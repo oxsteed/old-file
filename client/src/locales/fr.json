@@ -5503,7 +5503,8 @@
       "toastDiscountRequired": "Type et valeur de réduction requis",
       "toastPromoCreated": "Code promo créé",
       "toastPromoCreateFail": "Impossible de créer le code promo",
-      "toastUpdated": "Mis à jour"
+      "toastUpdated": "Mis à jour",
+      "newBroadcast": "Nouvelle diffusion", "subjectRequired": "Objet *", "subjectPlaceholder": "Objet de l’annonce…", "messageRequired": "Message *", "messagePlaceholder": "Votre message…", "channel": "Canal", "channels": { "email": "E-mail", "sms": "SMS", "push": "Notification" }, "saveDraft": "Enregistrer le brouillon", "noBroadcasts": "Aucune diffusion pour le moment.", "recipients": "{{count}} destinataires", "send": "Envoyer", "newCode": "Nouveau code", "newPromoCode": "Nouveau code promotionnel", "codeLabel": "Code (généré automatiquement si vide)", "description": "Description", "discountTypeRequired": "Type de remise *", "discountTypes": { "percent": "Pourcentage (%)", "fixed": "Montant fixe ($)" }, "discountValueRequired": "Valeur de la remise *", "maxUses": "Utilisations max.", "expires": "Expire", "create": "Créer", "noPromoCodes": "Aucun code promotionnel pour le moment.", "percentOff": "{{value}} % de remise", "fixedOff": "{{value}} $ de remise", "expiresShort": "Expire :", "uses": "{{count}}{{max}} utilisations", "statuses": { "draft": "Brouillon", "sent": "Envoyé", "failed": "Échec" }
     },
     "packages": {
       "title": "Forfaits de services",

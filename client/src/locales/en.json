@@ -5538,7 +5538,8 @@
       "toastDiscountRequired": "Discount type and value required",
       "toastPromoCreated": "Promo code created",
       "toastPromoCreateFail": "Failed to create promo code",
-      "toastUpdated": "Updated"
+      "toastUpdated": "Updated",
+      "newBroadcast": "New Broadcast", "subjectRequired": "Subject *", "subjectPlaceholder": "Announcement subject…", "messageRequired": "Message *", "messagePlaceholder": "Your message…", "channel": "Channel", "channels": { "email": "Email", "sms": "SMS", "push": "Push" }, "saveDraft": "Save Draft", "noBroadcasts": "No broadcasts yet.", "recipients": "{{count}} recipients", "send": "Send", "newCode": "New Code", "newPromoCode": "New Promo Code", "codeLabel": "Code (auto-generated if blank)", "description": "Description", "discountTypeRequired": "Discount Type *", "discountTypes": { "percent": "Percent (%)", "fixed": "Fixed ($)" }, "discountValueRequired": "Discount Value *", "maxUses": "Max Uses", "expires": "Expires", "create": "Create", "noPromoCodes": "No promo codes yet.", "percentOff": "{{value}}% off", "fixedOff": "${{value}} off", "expiresShort": "Exp:", "uses": "{{count}}{{max}} uses", "statuses": { "draft": "Draft", "sent": "Sent", "failed": "Failed" }
     },
     "packages": {
       "title": "Service Packages",

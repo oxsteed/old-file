@@ -5503,7 +5503,8 @@
       "toastDiscountRequired": "نوع الخصم والقيمة المطلوبة",
       "toastPromoCreated": "تم إنشاء الرمز الترويجي",
       "toastPromoCreateFail": "فشل إنشاء الرمز الترويجي",
-      "toastUpdated": "تم التحديث"
+      "toastUpdated": "تم التحديث",
+      "newBroadcast": "إرسال جماعي جديد", "subjectRequired": "الموضوع *", "subjectPlaceholder": "موضوع الإعلان…", "messageRequired": "الرسالة *", "messagePlaceholder": "رسالتك…", "channel": "القناة", "channels": { "email": "البريد الإلكتروني", "sms": "رسائل SMS", "push": "إشعار" }, "saveDraft": "حفظ المسودة", "noBroadcasts": "لا توجد رسائل جماعية بعد.", "recipients": "{{count}} من المستلمين", "send": "إرسال", "newCode": "رمز جديد", "newPromoCode": "رمز ترويجي جديد", "codeLabel": "الرمز (يُنشأ تلقائيًا إذا كان فارغًا)", "description": "الوصف", "discountTypeRequired": "نوع الخصم *", "discountTypes": { "percent": "نسبة مئوية (%)", "fixed": "مبلغ ثابت ($)" }, "discountValueRequired": "قيمة الخصم *", "maxUses": "الحد الأقصى للاستخدامات", "expires": "انتهاء الصلاحية", "create": "إنشاء", "noPromoCodes": "لا توجد رموز ترويجية بعد.", "percentOff": "خصم {{value}}%", "fixedOff": "خصم ${{value}}", "expiresShort": "ينتهي:", "uses": "{{count}}{{max}} استخدام", "statuses": { "draft": "مسودة", "sent": "مرسل", "failed": "فشل" }
     },
     "packages": {
       "title": "حزم الخدمة",
