@@ -25,7 +25,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
       setPackages(nextPackages);
       setSelectedPackage((current) => current || nextPackages[0]?.id || null);
     } catch (err) {
-      toast.error(t('payment.loadPackagesFailed') || 'Failed to load packages');
+      toast.error(t('payment.loadPackagesFailed'));
       console.error('Failed to load packages', err);
     } finally {
       setLoading(false);
@@ -71,10 +71,11 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text)' }}>
-              {t('payment.purchaseConsulting') || 'Purchase Consulting Package'}
+              {t('payment.purchaseConsulting')}
             </h2>
             <button
               onClick={onClose}
+              aria-label={t('common.aria.closeButton')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -89,18 +90,17 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
           </div>
 
           <p style={{ margin: '0 0 1.25rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-            Launch uses direct payment with proof capture instead of a card checkout screen.
-            Choose the package, then record the payment method, confirmation, and proof in the app.
+            {t('payment.consultingIntro')}
           </p>
 
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.75rem', color: 'var(--color-text)' }}>
-                {t('payment.selectPackage') || 'Select Package'}
+                {t('payment.selectPackage')}
               </label>
               {loading ? (
                 <div style={{ padding: '1rem', color: 'var(--color-text-muted)' }}>
-                  {t('common.loading') || 'Loading…'}
+                  {t('common.loading')}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem' }}>
@@ -123,7 +123,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                         ${(pkg.base_price / 100).toFixed(2)}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.3rem' }}>
-                        {pkg.duration_hours} {t('payment.hours') || 'hours'}
+                        {pkg.duration_hours} {t('payment.hours')}
                       </div>
                     </button>
                   ))}
@@ -138,12 +138,12 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 </div>
                 {selectedPkg.includes_deliverables && (
                   <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    ✓ {t('payment.includesDeliverables') || 'Includes deliverables'}
+                    ✓ {t('payment.includesDeliverables')}
                   </div>
                 )}
                 {selectedPkg.max_revisions > 0 && (
                   <div style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    ✓ {selectedPkg.max_revisions} {t('payment.revisions') || 'revisions'}
+                    ✓ {selectedPkg.max_revisions} {t('payment.revisions')}
                   </div>
                 )}
               </div>
@@ -164,7 +164,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 cursor: 'pointer',
               }}
             >
-              {t('common.cancel') || 'Cancel'}
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -181,7 +181,7 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
                 opacity: selectedPkg ? 1 : 0.6,
               }}
             >
-              Record direct payment
+              {t('payment.recordDirectButton')}
             </button>
           </div>
         </div>
@@ -189,11 +189,11 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
 
       <DirectPaymentRecordModal
         isOpen={showRecordModal && !!selectedPkg}
-        title="Record consulting payment"
-        subtitle="Store the payment method, reference, and proof so the session can be matched later."
+        title={t('payment.recordConsultingTitle')}
+        subtitle={t('payment.recordConsultingSubtitle')}
         sourceType="other"
         sourceId={sessionId}
-        sourceLabel={selectedPkg ? `Consulting package · ${selectedPkg.package_name}` : 'Consulting package'}
+        sourceLabel={selectedPkg ? t('payment.consultingPackageLabel', { name: selectedPkg.package_name }) : t('payment.consultingPackage')}
         amountCents={selectedPkg?.base_price || 0}
         currencyCode="USD"
         payerId={null}

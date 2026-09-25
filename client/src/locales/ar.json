@@ -10134,6 +10134,12 @@
     "directNotePlaceholder": "أضف السياق أو توقيت الدفع أو أي شيء يجب على الطرف الآخر تأكيده.",
     "saving": "جارٍ الحفظ…",
     "saveRecord": "حفظ سجل الدفع",
+    "consultingIntro": "يستخدم الإطلاق دفعاً مباشراً مع إثبات بدلاً من شاشة الدفع بالبطاقة. اختر الحزمة ثم سجّل طريقة الدفع والتأكيد والإثبات في التطبيق.",
+    "recordDirectButton": "تسجيل دفعة مباشرة",
+    "recordConsultingTitle": "تسجيل دفعة استشارية",
+    "recordConsultingSubtitle": "احفظ طريقة الدفع والمرجع والإثبات لربطها بالجلسة لاحقاً.",
+    "consultingPackageLabel": "حزمة استشارية · {{name}}",
+    "consultingPackage": "حزمة استشارية",
     "providers": { "cash": "نقداً", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "تحويل مصرفي", "other": "أخرى" }
   },
   "invoices": {

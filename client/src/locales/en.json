@@ -10140,6 +10140,12 @@
     "directNotePlaceholder": "Add context, payment timing, or anything the other party should confirm.",
     "saving": "Saving…",
     "saveRecord": "Save payment record",
+    "consultingIntro": "Launch uses direct payment with proof capture instead of a card checkout screen. Choose the package, then record the payment method, confirmation, and proof in the app.",
+    "recordDirectButton": "Record direct payment",
+    "recordConsultingTitle": "Record consulting payment",
+    "recordConsultingSubtitle": "Store the payment method, reference, and proof so the session can be matched later.",
+    "consultingPackageLabel": "Consulting package · {{name}}",
+    "consultingPackage": "Consulting package",
     "providers": { "cash": "Cash", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Bank transfer", "other": "Other" }
   },
   "invoices": {

@@ -10134,6 +10134,12 @@
     "directNotePlaceholder": "Añade contexto, fecha del pago o cualquier dato que la otra parte deba confirmar.",
     "saving": "Guardando…",
     "saveRecord": "Guardar registro de pago",
+    "consultingIntro": "El lanzamiento usa pagos directos con comprobante en lugar de una pantalla de pago con tarjeta. Elige el paquete y registra el método, la confirmación y el comprobante en la aplicación.",
+    "recordDirectButton": "Registrar pago directo",
+    "recordConsultingTitle": "Registrar pago de consultoría",
+    "recordConsultingSubtitle": "Guarda el método de pago, la referencia y el comprobante para relacionarlos con la sesión.",
+    "consultingPackageLabel": "Paquete de consultoría · {{name}}",
+    "consultingPackage": "Paquete de consultoría",
     "providers": { "cash": "Efectivo", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Transferencia bancaria", "other": "Otro" }
   },
   "invoices": {

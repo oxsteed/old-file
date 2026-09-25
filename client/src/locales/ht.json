@@ -10134,6 +10134,12 @@
     "directNotePlaceholder": "Ajoute kontèks, lè peman an, oswa nenpòt bagay lòt pati a dwe konfime.",
     "saving": "Sove…",
     "saveRecord": "Sove dosye peman",
+    "consultingIntro": "Lansman an sèvi ak peman dirèk ak prèv olye yon paj peman ak kat. Chwazi pake a, epi anrejistre metòd peman an, konfimasyon an ak prèv la nan aplikasyon an.",
+    "recordDirectButton": "Anrejistre peman dirèk",
+    "recordConsultingTitle": "Anrejistre peman konsiltasyon",
+    "recordConsultingSubtitle": "Sere metòd peman an, referans lan ak prèv la pou konekte ak sesyon an.",
+    "consultingPackageLabel": "Pake konsiltasyon · {{name}}",
+    "consultingPackage": "Pake konsiltasyon",
     "providers": { "cash": "Lajan kach", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Transfè labank", "other": "Lòt" }
   },
   "invoices": {

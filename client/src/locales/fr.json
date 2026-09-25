@@ -10134,6 +10134,12 @@
     "directNotePlaceholder": "Ajoutez le contexte, la date du paiement ou toute information à confirmer.",
     "saving": "Enregistrement…",
     "saveRecord": "Enregistrer le paiement",
+    "consultingIntro": "Le lancement utilise un paiement direct avec justificatif au lieu d’un paiement par carte. Choisissez le forfait, puis enregistrez le mode de paiement, la confirmation et le justificatif dans l’application.",
+    "recordDirectButton": "Enregistrer le paiement direct",
+    "recordConsultingTitle": "Enregistrer le paiement de conseil",
+    "recordConsultingSubtitle": "Conservez le mode de paiement, la référence et le justificatif pour relier la session.",
+    "consultingPackageLabel": "Forfait de conseil · {{name}}",
+    "consultingPackage": "Forfait de conseil",
     "providers": { "cash": "Espèces", "cashApp": "Cash App", "venmo": "Venmo", "zelle": "Zelle", "bankTransfer": "Virement bancaire", "other": "Autre" }
   },
   "invoices": {
