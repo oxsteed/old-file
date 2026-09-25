@@ -17820,6 +17820,151 @@
         "Cross-sell related services"
       ]
     },
+    "property": {
+      "operatingModel": "Property operations and maintenance coordination",
+      "headline": "Move maintenance issues from intake to scheduling to repair documentation without losing the tenant thread.",
+      "operatorBrief": "This template should behave like an operating console for units, repairs, vendors, tenant communication, and cost history rather than a generic services page.",
+      "primaryDemand": [
+        "Tenant issue reports",
+        "Turnover prep",
+        "Preferred-vendor coordination"
+      ],
+      "workflowStages": [
+        "Collect issue, urgency, and access notes",
+        "Triage and assign internal staff or helper",
+        "Schedule repair window and communicate updates",
+        "Capture cost, outcome, and property record"
+      ],
+      "intakeRequirements": [
+        "Property or unit",
+        "Issue category",
+        "Urgency",
+        "Access instructions",
+        "Photos"
+      ],
+      "records": [
+        "Maintenance logs",
+        "Tenant-visible updates",
+        "Vendor costs",
+        "Property history"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Maintenance",
+          "reason": "Run the request pipeline and convert work into jobs."
+        },
+        {
+          "label": "Schedule",
+          "reason": "Coordinate repair windows and access times."
+        },
+        {
+          "label": "Clients",
+          "reason": "Track tenants, owners, and repeat contacts."
+        },
+        {
+          "label": "Messages",
+          "reason": "Keep repair communication documented."
+        }
+      ],
+      "dailyCadence": [
+        "Review new issue reports",
+        "Check urgent repairs",
+        "Send status updates"
+      ],
+      "weeklyCadence": [
+        "Review turnaround time",
+        "Audit unresolved units",
+        "Confirm vendor readiness"
+      ],
+      "monthlyCadence": [
+        "Analyze recurring issue categories",
+        "Review maintenance cost trends",
+        "Update preferred vendor plan"
+      ],
+      "qualityControls": [
+        "Urgency triage discipline",
+        "Visible repair timelines",
+        "Documented closeout notes",
+        "Clear access guidance"
+      ],
+      "monetization": [
+        "Recurring management retainers",
+        "Preferred vendor markup opportunities",
+        "Turnover packages"
+      ]
+    },
+    "home": {
+      "operatingModel": "Home-service dispatch and repeat-work business",
+      "headline": "Use the template to turn household needs into bookable offers, organized schedules, and recurring service relationships.",
+      "operatorBrief": "Home-service operators need clarity around service area, availability, photos, and practical next steps, with enough structure to support both one-off jobs and recurring work.",
+      "primaryDemand": [
+        "Household repairs",
+        "Seasonal maintenance",
+        "Install or improvement requests"
+      ],
+      "workflowStages": [
+        "Surface the right service quickly",
+        "Collect scope and property context",
+        "Schedule and perform the work",
+        "Offer ongoing maintenance or related follow-up service"
+      ],
+      "intakeRequirements": [
+        "Problem or task",
+        "Property type",
+        "Preferred date",
+        "Budget or urgency"
+      ],
+      "records": [
+        "Before-and-after proof",
+        "Repeat-customer notes",
+        "Service area coverage",
+        "Policy consistency"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Services & Booking",
+          "reason": "Package routine home work into clearer offers."
+        },
+        {
+          "label": "Schedule",
+          "reason": "Run recurring jobs and time windows."
+        },
+        {
+          "label": "Growth Center",
+          "reason": "Push seasonal promotions and neighborhood offers."
+        },
+        {
+          "label": "Reviews",
+          "reason": "Turn completed jobs into trust at scale."
+        }
+      ],
+      "dailyCadence": [
+        "Check new bookings",
+        "Prepare route and service window",
+        "Follow up on yesterday’s jobs"
+      ],
+      "weeklyCadence": [
+        "Promote seasonal offers",
+        "Review no-show or cancellation patterns",
+        "Update gallery with recent work"
+      ],
+      "monthlyCadence": [
+        "Bundle recurring services",
+        "Reprice common jobs",
+        "Review service area demand"
+      ],
+      "qualityControls": [
+        "Arrival-time reliability",
+        "Scope confirmation before visit",
+        "Proof-of-work photos",
+        "Repeat-work prompts"
+      ],
+      "monetization": [
+        "Maintenance plans",
+        "Seasonal packages",
+        "Cross-sell adjacent household services"
+      ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"

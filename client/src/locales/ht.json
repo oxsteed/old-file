@@ -17869,6 +17869,151 @@
         "Vann sèvis ki mache ansanm"
       ]
     },
+    "property": {
+      "operatingModel": "Kowòdinasyon operasyon ak antretyen pwopriyete",
+      "headline": "Fè pwoblèm antretyen yo pase soti nan demann rive nan planifikasyon ak dokiman reparasyon an san pèdi fil ak lokatè a.",
+      "operatorBrief": "Modèl sa a dwe sèvi kòm yon sant operasyon pou inite yo, reparasyon yo, founisè yo, kominikasyon ak lokatè yo, ak istwa depans yo, olye li ta yon paj sèvis jeneral.",
+      "primaryDemand": [
+        "Rapò pwoblèm lokatè yo",
+        "Preparasyon pou chanjman lokatè",
+        "Kowòdinasyon founisè prefere yo"
+      ],
+      "workflowStages": [
+        "Rasanble pwoblèm nan, ijans lan ak nòt sou aksè",
+        "Triye epi bay anplwaye entèn oswa yon asistan travay la",
+        "Planifye reparasyon an epi kominike mizajou yo",
+        "Anrejistre depans, rezilta ak istwa pwopriyete a"
+      ],
+      "intakeRequirements": [
+        "Pwopriyete oswa inite",
+        "Kategori pwoblèm nan",
+        "Ijans",
+        "Enstriksyon aksè",
+        "Foto"
+      ],
+      "records": [
+        "Jounal antretyen",
+        "Mizajou lokatè a ka wè",
+        "Depans founisè yo",
+        "Istwa pwopriyete a"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Antretyen",
+          "reason": "Jere demann yo epi transfòme yo an travay."
+        },
+        {
+          "label": "Orè",
+          "reason": "Kowòdone lè reparasyon ak lè aksè yo."
+        },
+        {
+          "label": "Kliyan",
+          "reason": "Swiv lokatè, pwopriyetè ak kontak ki retounen."
+        },
+        {
+          "label": "Mesaj",
+          "reason": "Kenbe kominikasyon reparasyon yo dokimante."
+        }
+      ],
+      "dailyCadence": [
+        "Revize nouvo rapò pwoblèm",
+        "Verifye reparasyon ijan",
+        "Voye mizajou sou sitiyasyon an"
+      ],
+      "weeklyCadence": [
+        "Revize tan tretman an",
+        "Verifye inite ki poko rezoud",
+        "Konfime preparasyon founisè yo"
+      ],
+      "monthlyCadence": [
+        "Analize kategori pwoblèm ki repete",
+        "Revize tandans depans antretyen",
+        "Mete plan founisè prefere yo ajou"
+      ],
+      "qualityControls": [
+        "Disiplin nan triye ijans",
+        "Delè reparasyon ki vizib",
+        "Nòt fèmti ki dokimante",
+        "Enstriksyon aksè ki klè"
+      ],
+      "monetization": [
+        "Kontra jesyon ki repete",
+        "Posiblite maj ak founisè prefere",
+        "Pakè pou chanjman lokatè"
+      ]
+    },
+    "home": {
+      "operatingModel": "Biznis sèvis kay ak travay ki repete",
+      "headline": "Sèvi ak modèl la pou transfòme bezwen kay yo an òf moun ka rezève, orè ki òganize ak relasyon sèvis ki repete.",
+      "operatorBrief": "Founisè sèvis kay bezwen klète sou zòn sèvis, disponiblite, foto ak pwochen etap yo, ak ase estrikti pou travay yon sèl fwa oswa travay ki repete.",
+      "primaryDemand": [
+        "Reparasyon kay",
+        "Antretyen sezon",
+        "Demann enstalasyon oswa amelyorasyon"
+      ],
+      "workflowStages": [
+        "Montre bon sèvis la rapid",
+        "Rasanble detay travay la ak kontèks pwopriyete a",
+        "Planifye epi fè travay la",
+        "Ofri antretyen kontinyèl oswa sèvis ki gen rapò"
+      ],
+      "intakeRequirements": [
+        "Pwoblèm oswa travay",
+        "Kalite pwopriyete",
+        "Dat prefere",
+        "Bidjè oswa ijans"
+      ],
+      "records": [
+        "Prèv anvan ak apre",
+        "Nòt kliyan ki retounen",
+        "Kouvèti zòn sèvis la",
+        "Règleman ki toujou menm"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Sèvis ak rezèvasyon",
+          "reason": "Mete travay kay ki nòmal yo nan òf ki pi klè."
+        },
+        {
+          "label": "Orè",
+          "reason": "Jere travay ki repete ak fenèt tan yo."
+        },
+        {
+          "label": "Sant kwasans",
+          "reason": "Pouse pwomosyon sezon ak òf nan katye a."
+        },
+        {
+          "label": "Evalyasyon",
+          "reason": "Fè travay ki fini yo tounen konfyans sou tout platfòm la."
+        }
+      ],
+      "dailyCadence": [
+        "Tcheke nouvo rezèvasyon",
+        "Prepare wout ak lè sèvis la",
+        "Swiv travay yè yo"
+      ],
+      "weeklyCadence": [
+        "Pwomouvwa òf sezon yo",
+        "Revize absans oswa anilasyon",
+        "Mete galri a ajou ak travay ki resan"
+      ],
+      "monthlyCadence": [
+        "Kreye pakè sèvis ki repete",
+        "Mete pri travay komen yo ajou",
+        "Revize demann nan zòn sèvis la"
+      ],
+      "qualityControls": [
+        "Rive alè",
+        "Konfime sa travay la mande anvan vizit la",
+        "Foto prèv travay la",
+        "Rapèl pou travay ki repete"
+      ],
+      "monetization": [
+        "Plan antretyen",
+        "Pakè sezon",
+        "Vann lòt sèvis kay ki gen rapò"
+      ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

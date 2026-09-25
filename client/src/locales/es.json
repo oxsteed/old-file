@@ -17869,6 +17869,151 @@
         "Venta cruzada de servicios relacionados"
       ]
     },
+    "property": {
+      "operatingModel": "Coordinación de operaciones y mantenimiento de propiedades",
+      "headline": "Lleva los problemas de mantenimiento desde la solicitud hasta la programación y la documentación de la reparación sin perder el hilo del inquilino.",
+      "operatorBrief": "Esta plantilla funciona como un centro de operaciones para unidades, reparaciones, proveedores, comunicación con inquilinos e historial de costos, en lugar de una página genérica de servicios.",
+      "primaryDemand": [
+        "Reportes de problemas de inquilinos",
+        "Preparación para cambios de inquilino",
+        "Coordinación con proveedores preferidos"
+      ],
+      "workflowStages": [
+        "Recopilar el problema, la urgencia y las instrucciones de acceso",
+        "Clasificar y asignar al personal interno o a un ayudante",
+        "Programar la reparación y comunicar las novedades",
+        "Registrar el costo, el resultado y el historial de la propiedad"
+      ],
+      "intakeRequirements": [
+        "Propiedad o unidad",
+        "Categoría del problema",
+        "Urgencia",
+        "Instrucciones de acceso",
+        "Fotos"
+      ],
+      "records": [
+        "Registros de mantenimiento",
+        "Actualizaciones visibles para el inquilino",
+        "Costos de proveedores",
+        "Historial de la propiedad"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Mantenimiento",
+          "reason": "Gestiona las solicitudes y conviértelas en trabajos."
+        },
+        {
+          "label": "Agenda",
+          "reason": "Coordina los horarios de reparación y acceso."
+        },
+        {
+          "label": "Clientes",
+          "reason": "Da seguimiento a inquilinos, propietarios y contactos frecuentes."
+        },
+        {
+          "label": "Mensajes",
+          "reason": "Mantén documentada la comunicación sobre reparaciones."
+        }
+      ],
+      "dailyCadence": [
+        "Revisar nuevos reportes",
+        "Comprobar reparaciones urgentes",
+        "Enviar actualizaciones de estado"
+      ],
+      "weeklyCadence": [
+        "Revisar el tiempo de respuesta",
+        "Auditar unidades sin resolver",
+        "Confirmar la disponibilidad de proveedores"
+      ],
+      "monthlyCadence": [
+        "Analizar categorías de problemas recurrentes",
+        "Revisar tendencias de costos de mantenimiento",
+        "Actualizar el plan de proveedores preferidos"
+      ],
+      "qualityControls": [
+        "Clasificación rigurosa de urgencias",
+        "Cronogramas de reparación visibles",
+        "Notas de cierre documentadas",
+        "Instrucciones de acceso claras"
+      ],
+      "monetization": [
+        "Contratos recurrentes de administración",
+        "Oportunidades de margen con proveedores preferidos",
+        "Paquetes para cambios de inquilino"
+      ]
+    },
+    "home": {
+      "operatingModel": "Negocio de despacho de servicios para el hogar y trabajos recurrentes",
+      "headline": "Usa la plantilla para convertir las necesidades del hogar en ofertas reservables, agendas organizadas y relaciones de servicio recurrentes.",
+      "operatorBrief": "Los proveedores de servicios para el hogar necesitan claridad sobre el área de servicio, la disponibilidad, las fotos y los próximos pasos, con suficiente estructura para trabajos únicos y recurrentes.",
+      "primaryDemand": [
+        "Reparaciones del hogar",
+        "Mantenimiento estacional",
+        "Solicitudes de instalación o mejora"
+      ],
+      "workflowStages": [
+        "Mostrar rápidamente el servicio adecuado",
+        "Recopilar el alcance y el contexto de la propiedad",
+        "Programar y realizar el trabajo",
+        "Ofrecer mantenimiento continuo o servicios relacionados"
+      ],
+      "intakeRequirements": [
+        "Problema o tarea",
+        "Tipo de propiedad",
+        "Fecha preferida",
+        "Presupuesto o urgencia"
+      ],
+      "records": [
+        "Pruebas del antes y después",
+        "Notas de clientes frecuentes",
+        "Cobertura del área de servicio",
+        "Coherencia de las políticas"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Servicios y reservas",
+          "reason": "Presenta el trabajo habitual del hogar en ofertas más claras."
+        },
+        {
+          "label": "Agenda",
+          "reason": "Gestiona trabajos recurrentes y franjas horarias."
+        },
+        {
+          "label": "Centro de crecimiento",
+          "reason": "Impulsa promociones estacionales y ofertas vecinales."
+        },
+        {
+          "label": "Reseñas",
+          "reason": "Convierte los trabajos terminados en confianza a escala."
+        }
+      ],
+      "dailyCadence": [
+        "Revisar nuevas reservas",
+        "Preparar la ruta y la franja de servicio",
+        "Dar seguimiento a los trabajos de ayer"
+      ],
+      "weeklyCadence": [
+        "Promover ofertas estacionales",
+        "Revisar patrones de ausencias o cancelaciones",
+        "Actualizar la galería con trabajos recientes"
+      ],
+      "monthlyCadence": [
+        "Crear paquetes de servicios recurrentes",
+        "Actualizar precios de trabajos comunes",
+        "Revisar la demanda del área de servicio"
+      ],
+      "qualityControls": [
+        "Puntualidad de llegada",
+        "Confirmación del alcance antes de la visita",
+        "Fotos del trabajo realizado",
+        "Recordatorios para trabajos recurrentes"
+      ],
+      "monetization": [
+        "Planes de mantenimiento",
+        "Paquetes estacionales",
+        "Venta cruzada de servicios complementarios para el hogar"
+      ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

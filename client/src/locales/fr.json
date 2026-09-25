@@ -17869,6 +17869,151 @@
         "Vente croisée de services associés"
       ]
     },
+    "property": {
+      "operatingModel": "Coordination des opérations et de la maintenance immobilières",
+      "headline": "Faites passer les problèmes de maintenance de la demande à la planification puis au suivi des réparations sans perdre le fil avec le locataire.",
+      "operatorBrief": "Ce modèle sert de console pour les logements, les réparations, les prestataires, les échanges avec les locataires et l’historique des coûts, plutôt que de simple page de services.",
+      "primaryDemand": [
+        "Signalements des locataires",
+        "Préparation des changements de locataire",
+        "Coordination des prestataires privilégiés"
+      ],
+      "workflowStages": [
+        "Recueillir le problème, l’urgence et les consignes d’accès",
+        "Trier et attribuer au personnel interne ou à un intervenant",
+        "Planifier la réparation et communiquer les mises à jour",
+        "Enregistrer le coût, le résultat et l’historique du bien"
+      ],
+      "intakeRequirements": [
+        "Bien ou logement",
+        "Catégorie du problème",
+        "Urgence",
+        "Consignes d’accès",
+        "Photos"
+      ],
+      "records": [
+        "Journaux de maintenance",
+        "Mises à jour visibles par le locataire",
+        "Coûts des prestataires",
+        "Historique du bien"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Maintenance",
+          "reason": "Gérez les demandes et transformez-les en travaux."
+        },
+        {
+          "label": "Planning",
+          "reason": "Coordonnez les créneaux de réparation et d’accès."
+        },
+        {
+          "label": "Clients",
+          "reason": "Suivez les locataires, propriétaires et contacts réguliers."
+        },
+        {
+          "label": "Messages",
+          "reason": "Conservez les échanges sur les réparations."
+        }
+      ],
+      "dailyCadence": [
+        "Examiner les nouveaux signalements",
+        "Vérifier les réparations urgentes",
+        "Envoyer les mises à jour"
+      ],
+      "weeklyCadence": [
+        "Examiner les délais de traitement",
+        "Auditer les logements non résolus",
+        "Confirmer la disponibilité des prestataires"
+      ],
+      "monthlyCadence": [
+        "Analyser les catégories de problèmes récurrents",
+        "Examiner les tendances des coûts de maintenance",
+        "Mettre à jour le plan des prestataires privilégiés"
+      ],
+      "qualityControls": [
+        "Triage rigoureux des urgences",
+        "Délais de réparation visibles",
+        "Notes de clôture documentées",
+        "Consignes d’accès claires"
+      ],
+      "monetization": [
+        "Forfaits de gestion récurrents",
+        "Possibilités de marge avec les prestataires privilégiés",
+        "Forfaits de remise en état"
+      ]
+    },
+    "home": {
+      "operatingModel": "Entreprise de services à domicile et de travaux récurrents",
+      "headline": "Utilisez ce modèle pour transformer les besoins du foyer en offres réservables, plannings organisés et relations de service durables.",
+      "operatorBrief": "Les prestataires à domicile ont besoin de clarté sur leur zone, leurs disponibilités, leurs photos et les prochaines étapes, avec une structure adaptée aux travaux ponctuels comme récurrents.",
+      "primaryDemand": [
+        "Réparations du foyer",
+        "Maintenance saisonnière",
+        "Demandes d’installation ou d’amélioration"
+      ],
+      "workflowStages": [
+        "Présenter rapidement le bon service",
+        "Recueillir le périmètre et le contexte du logement",
+        "Planifier et réaliser le travail",
+        "Proposer une maintenance continue ou un service complémentaire"
+      ],
+      "intakeRequirements": [
+        "Problème ou tâche",
+        "Type de logement",
+        "Date souhaitée",
+        "Budget ou urgence"
+      ],
+      "records": [
+        "Preuves avant-après",
+        "Notes sur les clients réguliers",
+        "Couverture de la zone de service",
+        "Cohérence des politiques"
+      ],
+      "unlockedSystems": [
+        {
+          "label": "Services et réservations",
+          "reason": "Présentez les travaux courants du foyer dans des offres plus claires."
+        },
+        {
+          "label": "Planning",
+          "reason": "Gérez les travaux récurrents et les créneaux."
+        },
+        {
+          "label": "Centre de croissance",
+          "reason": "Diffusez des promotions saisonnières et locales."
+        },
+        {
+          "label": "Avis",
+          "reason": "Transformez les travaux terminés en confiance durable."
+        }
+      ],
+      "dailyCadence": [
+        "Vérifier les nouvelles réservations",
+        "Préparer la tournée et le créneau",
+        "Relancer les travaux d’hier"
+      ],
+      "weeklyCadence": [
+        "Promouvoir les offres saisonnières",
+        "Examiner les absences ou annulations",
+        "Mettre la galerie à jour avec les travaux récents"
+      ],
+      "monthlyCadence": [
+        "Créer des forfaits récurrents",
+        "Réviser le prix des travaux courants",
+        "Examiner la demande dans la zone de service"
+      ],
+      "qualityControls": [
+        "Ponctualité d’arrivée",
+        "Confirmation du périmètre avant la visite",
+        "Photos du travail réalisé",
+        "Relances pour travaux récurrents"
+      ],
+      "monetization": [
+        "Plans de maintenance",
+        "Forfaits saisonniers",
+        "Vente croisée de services complémentaires pour le foyer"
+      ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"
