@@ -18405,6 +18405,150 @@
           "Add-on treatments and products"
         ]
     },
+    "tech": {
+        "operatingModel": "Consultation-led technical delivery workflow",
+        "headline": "Use the template to route people from problem discovery into scoped technical work with stronger packaging and proof.",
+        "operatorBrief": "Tech businesses need better framing around diagnostics, consulting, implementation, and retained support. The workflow should reduce ambiguity while preserving expertise.",
+        "primaryDemand": [
+          "Technical consultations",
+          "Implementation scopes",
+          "Retained support conversations"
+        ],
+        "workflowStages": [
+          "Understand problem or goal",
+          "Recommend the right consult or offer",
+          "Scope delivery with timeline and milestones",
+          "Convert successful work into retained support or larger builds"
+        ],
+        "intakeRequirements": [
+          "Problem to solve",
+          "Business or project context",
+          "Desired timeline",
+          "Current tools or setup"
+        ],
+        "records": [
+          "Discovery notes",
+          "Scope versions",
+          "Offer packaging",
+          "Retainer opportunities"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Differentiate consultation from implementation offers."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Scope builds and larger technical work."
+          },
+          {
+            "label": "Documents & Records",
+            "reason": "Use repeatable plans, scopes, and templates."
+          },
+          {
+            "label": "Analytics",
+            "reason": "Track what technical offers actually convert."
+          }
+        ],
+        "dailyCadence": [
+          "Review discovery leads",
+          "Advance scope conversations",
+          "Log delivery milestone updates"
+        ],
+        "weeklyCadence": [
+          "Audit proposal conversion",
+          "Refresh offer clarity",
+          "Review retainer pipeline"
+        ],
+        "monthlyCadence": [
+          "Retune service packaging",
+          "Analyze margin by offer type",
+          "Build proof from successful implementations"
+        ],
+        "qualityControls": [
+          "Problem-to-offer clarity",
+          "Scope discipline",
+          "Milestone communication",
+          "Retainer follow-up"
+        ],
+        "monetization": [
+          "Discovery sessions",
+          "Implementation sprints",
+          "Monthly retainers"
+        ]
+    },
+    "professional": {
+        "operatingModel": "Professional-service trust and engagement workflow",
+        "headline": "Use the template to turn trust-sensitive leads into structured engagements with clearer records and client handoff.",
+        "operatorBrief": "Professional services need seriousness, documentation, and disciplined engagement management. The workflow should reduce uncertainty while preserving authority.",
+        "primaryDemand": [
+          "Consultation requests",
+          "Document or filing help",
+          "Recurring advisory work"
+        ],
+        "workflowStages": [
+          "Qualify trust-sensitive lead",
+          "Clarify scope and engagement type",
+          "Deliver service with documented process",
+          "Move client into recurring support or compliance cadence"
+        ],
+        "intakeRequirements": [
+          "Service needed",
+          "Timeline",
+          "Any records or documents involved",
+          "Preferred communication flow"
+        ],
+        "records": [
+          "Engagement notes",
+          "Document status",
+          "Recurring obligations",
+          "Upsell or continuation opportunities"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Structure consultations and engagement types."
+          },
+          {
+            "label": "Documents & Records",
+            "reason": "Keep process and deliverable artifacts in one workflow."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Frame larger engagements more professionally."
+          },
+          {
+            "label": "Messages",
+            "reason": "Maintain documented client communication."
+          }
+        ],
+        "dailyCadence": [
+          "Review new consult leads",
+          "Advance document or process status",
+          "Confirm delivery milestones"
+        ],
+        "weeklyCadence": [
+          "Check pipeline by engagement type",
+          "Review recurring client obligations",
+          "Tune service framing"
+        ],
+        "monthlyCadence": [
+          "Launch seasonal or compliance offers",
+          "Review repeat-client revenue",
+          "Update credibility proof"
+        ],
+        "qualityControls": [
+          "Professional tone",
+          "Document discipline",
+          "Clear engagement boundaries",
+          "Recurring support readiness"
+        ],
+        "monetization": [
+          "Engagement expansions",
+          "Recurring advisory",
+          "Seasonal service demand"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"

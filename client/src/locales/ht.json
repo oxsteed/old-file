@@ -18454,6 +18454,150 @@
           "Tretman ak pwodwi siplemantè"
         ]
     },
+    "tech": {
+        "operatingModel": "Pwosesis livrezon teknik ki gide pa konsiltasyon",
+        "headline": "Sèvi ak modèl la pou mennen moun soti nan dekouvèt pwoblèm rive nan travay teknik ki byen defini ak pi bon pakè ak prèv.",
+        "operatorBrief": "Biznis teknoloji bezwen pi bon fason pou prezante dyagnostik, konsiltasyon, aplikasyon ak sipò ki repete. Pwosesis la dwe diminye konfizyon pandan li kenbe ekspètiz la.",
+        "primaryDemand": [
+          "Konsiltasyon teknik",
+          "Dimansyon aplikasyon",
+          "Konvèsasyon sipò ki repete"
+        ],
+        "workflowStages": [
+          "Konprann pwoblèm oswa objektif la",
+          "Rekòmande bon konsiltasyon oswa òf la",
+          "Defini livrezon an ak delè ak etap",
+          "Transfòme bon travay an sipò ki repete oswa pi gwo pwojè"
+        ],
+        "intakeRequirements": [
+          "Pwoblèm pou rezoud",
+          "Kontèks biznis oswa pwojè",
+          "Delè yo vle",
+          "Zouti oswa konfigirasyon aktyèl"
+        ],
+        "records": [
+          "Nòt dekouvèt",
+          "Vèsyon dimansyon an",
+          "Pakè òf",
+          "Opòtinite kontra repete"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Separe konsiltasyon ak òf aplikasyon yo."
+          },
+          {
+            "label": "Devis",
+            "reason": "Defini devlopman ak pi gwo travay teknik."
+          },
+          {
+            "label": "Dokiman ak dosye",
+            "reason": "Sèvi ak plan, dimansyon ak modèl ki ka repete."
+          },
+          {
+            "label": "Analitik",
+            "reason": "Swiv ki òf teknik ki konvèti vre."
+          }
+        ],
+        "dailyCadence": [
+          "Revize kliyan dekouvèt yo",
+          "Fè konvèsasyon dimansyon yo avanse",
+          "Anrejistre mizajou etap livrezon"
+        ],
+        "weeklyCadence": [
+          "Verifye konvèsyon pwopozisyon",
+          "Mete klète òf yo ajou",
+          "Revize lis kontra repete"
+        ],
+        "monthlyCadence": [
+          "Ajiste pakè sèvis yo",
+          "Analize maj selon kalite òf",
+          "Kreye prèv nan aplikasyon ki reyisi"
+        ],
+        "qualityControls": [
+          "Klète ant pwoblèm ak òf",
+          "Disiplin dimansyon",
+          "Kominikasyon etap",
+          "Swivi kontra repete"
+        ],
+        "monetization": [
+          "Sesyon dekouvèt",
+          "Sprint aplikasyon",
+          "Kontra chak mwa"
+        ]
+    },
+    "professional": {
+        "operatingModel": "Pwosesis konfyans ak jesyon sèvis pwofesyonèl",
+        "headline": "Sèvi ak modèl la pou transfòme kliyan ki bezwen konfyans an angajman ki òganize ak dosye ak pase bay kliyan ki pi klè.",
+        "operatorBrief": "Sèvis pwofesyonèl bezwen gravite, dokiman ak jesyon angajman ki disipline. Pwosesis la dwe diminye ensètitid pandan li kenbe otorite.",
+        "primaryDemand": [
+          "Demann konsiltasyon",
+          "Èd ak dokiman oswa dosye",
+          "Konsèy ki repete"
+        ],
+        "workflowStages": [
+          "Kalifye kliyan ki sansib pou konfyans",
+          "Klarifye dimansyon ak kalite angajman",
+          "Bay sèvis la ak yon pwosesis ki dokimante",
+          "Mennen kliyan an nan sipò ki repete oswa rit konfòmite"
+        ],
+        "intakeRequirements": [
+          "Sèvis ki nesesè",
+          "Delè",
+          "Dosye oswa dokiman ki konsène",
+          "Fason kominikasyon yo prefere"
+        ],
+        "records": [
+          "Nòt angajman",
+          "Estati dokiman",
+          "Obligasyon ki repete",
+          "Opòtinite pou kontinye oswa vann plis"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Mete konsiltasyon ak kalite angajman yo nan bon estrikti."
+          },
+          {
+            "label": "Dokiman ak dosye",
+            "reason": "Kenbe pwosesis ak livrable yo nan yon sèl koule."
+          },
+          {
+            "label": "Devis",
+            "reason": "Prezante gwo angajman yo pi pwofesyonèl."
+          },
+          {
+            "label": "Mesaj",
+            "reason": "Kenbe kominikasyon kliyan an dokimante."
+          }
+        ],
+        "dailyCadence": [
+          "Revize nouvo demann konsiltasyon",
+          "Fè estati dokiman oswa pwosesis la avanse",
+          "Konfime etap livrezon"
+        ],
+        "weeklyCadence": [
+          "Tcheke lis la selon kalite angajman",
+          "Revize obligasyon kliyan ki repete",
+          "Ajiste fason sèvis la prezante"
+        ],
+        "monthlyCadence": [
+          "Lanse òf sezon oswa konfòmite",
+          "Revize revni kliyan ki repete",
+          "Mete prèv kredibilite ajou"
+        ],
+        "qualityControls": [
+          "Ton pwofesyonèl",
+          "Disiplin nan dokiman",
+          "Limit angajman ki klè",
+          "Preparasyon pou sipò ki repete"
+        ],
+        "monetization": [
+          "Elajisman angajman",
+          "Konsèy ki repete",
+          "Demann sèvis sezon"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

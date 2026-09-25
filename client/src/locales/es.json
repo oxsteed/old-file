@@ -18454,6 +18454,150 @@
           "Tratamientos y productos adicionales"
         ]
     },
+    "tech": {
+        "operatingModel": "Flujo de entrega técnica guiado por consultas",
+        "headline": "Usa la plantilla para llevar a las personas del descubrimiento del problema a un trabajo técnico definido con mejores paquetes y pruebas.",
+        "operatorBrief": "Los negocios tecnológicos necesitan presentar mejor el diagnóstico, la consultoría, la implementación y el soporte recurrente. El flujo debe reducir la ambigüedad y conservar la experiencia.",
+        "primaryDemand": [
+          "Consultas técnicas",
+          "Alcances de implementación",
+          "Conversaciones de soporte recurrente"
+        ],
+        "workflowStages": [
+          "Entender el problema o el objetivo",
+          "Recomendar la consulta u oferta adecuada",
+          "Definir la entrega con calendario y hitos",
+          "Convertir el trabajo exitoso en soporte recurrente o proyectos mayores"
+        ],
+        "intakeRequirements": [
+          "Problema por resolver",
+          "Contexto del negocio o proyecto",
+          "Calendario deseado",
+          "Herramientas o configuración actuales"
+        ],
+        "records": [
+          "Notas de descubrimiento",
+          "Versiones del alcance",
+          "Paquetización de ofertas",
+          "Oportunidades de contrato recurrente"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Diferencia las consultas de las ofertas de implementación."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Define desarrollos y trabajos técnicos mayores."
+          },
+          {
+            "label": "Documentos y registros",
+            "reason": "Usa planes, alcances y plantillas reutilizables."
+          },
+          {
+            "label": "Analítica",
+            "reason": "Mide qué ofertas técnicas convierten."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar clientes de descubrimiento",
+          "Avanzar conversaciones de alcance",
+          "Registrar actualizaciones de hitos"
+        ],
+        "weeklyCadence": [
+          "Auditar conversión de propuestas",
+          "Actualizar claridad de ofertas",
+          "Revisar la cartera recurrente"
+        ],
+        "monthlyCadence": [
+          "Ajustar paquetes de servicios",
+          "Analizar margen por tipo de oferta",
+          "Crear pruebas de implementaciones exitosas"
+        ],
+        "qualityControls": [
+          "Claridad entre problema y oferta",
+          "Disciplina de alcance",
+          "Comunicación de hitos",
+          "Seguimiento recurrente"
+        ],
+        "monetization": [
+          "Sesiones de descubrimiento",
+          "Sprints de implementación",
+          "Contratos mensuales"
+        ]
+    },
+    "professional": {
+        "operatingModel": "Flujo de confianza y gestión de servicios profesionales",
+        "headline": "Usa la plantilla para convertir clientes sensibles a la confianza en encargos estructurados con mejores registros y entrega al cliente.",
+        "operatorBrief": "Los servicios profesionales necesitan seriedad, documentación y una gestión disciplinada de encargos. El flujo debe reducir la incertidumbre y conservar la autoridad.",
+        "primaryDemand": [
+          "Solicitudes de consulta",
+          "Ayuda con documentos o trámites",
+          "Asesoría recurrente"
+        ],
+        "workflowStages": [
+          "Calificar al cliente sensible a la confianza",
+          "Aclarar alcance y tipo de encargo",
+          "Prestar el servicio con un proceso documentado",
+          "Pasar al cliente a soporte recurrente o cumplimiento"
+        ],
+        "intakeRequirements": [
+          "Servicio necesario",
+          "Calendario",
+          "Registros o documentos involucrados",
+          "Forma de comunicación preferida"
+        ],
+        "records": [
+          "Notas del encargo",
+          "Estado de documentos",
+          "Obligaciones recurrentes",
+          "Oportunidades de continuidad o venta adicional"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Organiza consultas y tipos de encargo."
+          },
+          {
+            "label": "Documentos y registros",
+            "reason": "Mantiene procesos y entregables en un solo flujo."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Presenta encargos mayores con más profesionalidad."
+          },
+          {
+            "label": "Mensajes",
+            "reason": "Conserva la comunicación documentada."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar nuevas consultas",
+          "Avanzar el estado de documentos o procesos",
+          "Confirmar hitos de entrega"
+        ],
+        "weeklyCadence": [
+          "Comprobar la cartera por tipo de encargo",
+          "Revisar obligaciones de clientes recurrentes",
+          "Ajustar la presentación del servicio"
+        ],
+        "monthlyCadence": [
+          "Lanzar ofertas estacionales o de cumplimiento",
+          "Revisar ingresos de clientes recurrentes",
+          "Actualizar pruebas de credibilidad"
+        ],
+        "qualityControls": [
+          "Tono profesional",
+          "Disciplina documental",
+          "Límites claros del encargo",
+          "Preparación para soporte recurrente"
+        ],
+        "monetization": [
+          "Ampliación de encargos",
+          "Asesoría recurrente",
+          "Demanda estacional de servicios"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

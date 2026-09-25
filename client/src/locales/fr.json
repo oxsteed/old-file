@@ -18454,6 +18454,150 @@
           "Soins et produits additionnels"
         ]
     },
+    "tech": {
+        "operatingModel": "Flux de livraison technique guidé par la consultation",
+        "headline": "Utilisez ce modèle pour conduire de la découverte du problème vers un travail technique cadré avec de meilleurs forfaits et preuves.",
+        "operatorBrief": "Les entreprises technologiques doivent mieux présenter le diagnostic, le conseil, l’implémentation et le support récurrent. Le flux doit réduire l’ambiguïté tout en préservant l’expertise.",
+        "primaryDemand": [
+          "Consultations techniques",
+          "Périmètres d’implémentation",
+          "Échanges sur le support récurrent"
+        ],
+        "workflowStages": [
+          "Comprendre le problème ou l’objectif",
+          "Recommander la bonne consultation ou offre",
+          "Cadrer la livraison avec calendrier et jalons",
+          "Transformer les réussites en support récurrent ou en projets plus importants"
+        ],
+        "intakeRequirements": [
+          "Problème à résoudre",
+          "Contexte de l’entreprise ou du projet",
+          "Calendrier souhaité",
+          "Outils ou configuration actuels"
+        ],
+        "records": [
+          "Notes de découverte",
+          "Versions du périmètre",
+          "Présentation des offres",
+          "Possibilités de contrat récurrent"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Distinguez la consultation des offres d’implémentation."
+          },
+          {
+            "label": "Devis",
+            "reason": "Cadrez les développements et travaux techniques plus importants."
+          },
+          {
+            "label": "Documents et registres",
+            "reason": "Utilisez des plans, périmètres et modèles réutilisables."
+          },
+          {
+            "label": "Analytique",
+            "reason": "Suivez les offres techniques qui convertissent."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les prospects de découverte",
+          "Faire avancer les échanges de périmètre",
+          "Consigner les jalons de livraison"
+        ],
+        "weeklyCadence": [
+          "Auditer la conversion des propositions",
+          "Actualiser la clarté des offres",
+          "Examiner le portefeuille récurrent"
+        ],
+        "monthlyCadence": [
+          "Réajuster les forfaits de service",
+          "Analyser la marge par type d’offre",
+          "Créer des preuves d’implémentations réussies"
+        ],
+        "qualityControls": [
+          "Clarté problème-offre",
+          "Rigueur du périmètre",
+          "Communication des jalons",
+          "Relance des contrats récurrents"
+        ],
+        "monetization": [
+          "Sessions de découverte",
+          "Sprints d’implémentation",
+          "Contrats mensuels"
+        ]
+    },
+    "professional": {
+        "operatingModel": "Flux de confiance et de gestion des missions professionnelles",
+        "headline": "Utilisez ce modèle pour transformer les prospects sensibles à la confiance en missions structurées avec des dossiers et une transmission client plus clairs.",
+        "operatorBrief": "Les services professionnels exigent sérieux, documentation et gestion rigoureuse des missions. Le flux doit réduire l’incertitude tout en préservant l’autorité.",
+        "primaryDemand": [
+          "Demandes de consultation",
+          "Aide documentaire ou administrative",
+          "Conseil récurrent"
+        ],
+        "workflowStages": [
+          "Qualifier un prospect sensible à la confiance",
+          "Clarifier le périmètre et le type de mission",
+          "Réaliser le service avec un processus documenté",
+          "Faire passer le client vers un support récurrent ou un suivi de conformité"
+        ],
+        "intakeRequirements": [
+          "Service nécessaire",
+          "Calendrier",
+          "Documents ou dossiers concernés",
+          "Mode de communication préféré"
+        ],
+        "records": [
+          "Notes de mission",
+          "État des documents",
+          "Obligations récurrentes",
+          "Possibilités de suite ou de vente complémentaire"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Structurez les consultations et types de mission."
+          },
+          {
+            "label": "Documents et registres",
+            "reason": "Gardez le processus et les livrables dans un flux unique."
+          },
+          {
+            "label": "Devis",
+            "reason": "Présentez les missions importantes avec plus de professionnalisme."
+          },
+          {
+            "label": "Messages",
+            "reason": "Conservez les échanges client documentés."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les nouvelles demandes",
+          "Faire avancer l’état des documents ou du processus",
+          "Confirmer les jalons de livraison"
+        ],
+        "weeklyCadence": [
+          "Vérifier le portefeuille par type de mission",
+          "Examiner les obligations récurrentes",
+          "Ajuster la présentation du service"
+        ],
+        "monthlyCadence": [
+          "Lancer des offres saisonnières ou de conformité",
+          "Examiner les revenus des clients récurrents",
+          "Actualiser les preuves de crédibilité"
+        ],
+        "qualityControls": [
+          "Ton professionnel",
+          "Rigueur documentaire",
+          "Limites de mission claires",
+          "Préparation au support récurrent"
+        ],
+        "monetization": [
+          "Extension des missions",
+          "Conseil récurrent",
+          "Demande saisonnière de services"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"
