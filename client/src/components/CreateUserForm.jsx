@@ -5,6 +5,7 @@ import CountrySelect from './CountrySelect';
 import RegionInput from './RegionInput';
 import PostalCodeInput from './PostalCodeInput';
 import { detectCountryFromLocale } from '../lib/countries';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Full user creation form used by super-admins.
@@ -15,26 +16,26 @@ import { detectCountryFromLocale } from '../lib/countries';
  *   onCancel   – callback fired when the user clicks Cancel
  */
 const ACCOUNT_TYPES = [
-  { value: 'customer', label: 'Customer', hint: 'Standard customer account' },
-  { value: 'investor', label: 'Investor', hint: 'Investor mode account with dedicated dashboard flow' },
-  { value: 'helper', label: 'Helper', hint: 'Base helper account' },
-  { value: 'helper_pro', label: 'Helper Pro', hint: 'Paid helper tier' },
-  { value: 'broker', label: 'Broker', hint: 'Tier 3 helper / broker account' },
-  { value: 'logistics', label: 'Logistics', hint: 'Core logistics buyer mode' },
-  { value: 'business_owner', label: 'Business Owner', hint: 'Business workspace owner' },
-  { value: 'consultant', label: 'Consultant', hint: 'Consulting workspace account' },
-  { value: 'tool_owner', label: 'Tool Owner', hint: 'Tool-rental owner account' },
-  { value: 'franchise_applicant', label: 'Franchise Applicant', hint: 'Franchise intake + status flow' },
-  { value: 'life_only', label: 'Life Only', hint: 'Life dashboard only account' },
-  { value: 'business_manager', label: 'Business Manager', hint: 'Granted business management workspace' },
-  { value: 'business_representative', label: 'Business Representative', hint: 'Granted business representative workspace' },
-  { value: 'business_employee', label: 'Business Employee', hint: 'Granted employee workspace' },
-  { value: 'business_support_agent', label: 'Business Support Agent', hint: 'Granted support-agent workspace' },
-  { value: 'employee', label: 'Employee', hint: 'Internal employee without admin portal access' },
-  { value: 'operations_employee', label: 'Operations Employee', hint: 'Internal employee for logistics operations workspace' },
-  { value: 'compliance_employee', label: 'Compliance Employee', hint: 'Internal employee for logistics compliance workspace' },
-  { value: 'admin', label: 'Admin', hint: 'Internal admin portal account' },
-  { value: 'super_admin', label: 'Super Admin', hint: 'Full internal platform access' },
+  { value: 'customer', labelKey: 'customer', hintKey: 'customer' },
+  { value: 'investor', labelKey: 'investor', hintKey: 'investor' },
+  { value: 'helper', labelKey: 'helper', hintKey: 'helper' },
+  { value: 'helper_pro', labelKey: 'helperPro', hintKey: 'helperPro' },
+  { value: 'broker', labelKey: 'broker', hintKey: 'broker' },
+  { value: 'logistics', labelKey: 'logistics', hintKey: 'logistics' },
+  { value: 'business_owner', labelKey: 'businessOwner', hintKey: 'businessOwner' },
+  { value: 'consultant', labelKey: 'consultant', hintKey: 'consultant' },
+  { value: 'tool_owner', labelKey: 'toolOwner', hintKey: 'toolOwner' },
+  { value: 'franchise_applicant', labelKey: 'franchiseApplicant', hintKey: 'franchiseApplicant' },
+  { value: 'life_only', labelKey: 'lifeOnly', hintKey: 'lifeOnly' },
+  { value: 'business_manager', labelKey: 'businessManager', hintKey: 'businessManager' },
+  { value: 'business_representative', labelKey: 'businessRepresentative', hintKey: 'businessRepresentative' },
+  { value: 'business_employee', labelKey: 'businessEmployee', hintKey: 'businessEmployee' },
+  { value: 'business_support_agent', labelKey: 'businessSupportAgent', hintKey: 'businessSupportAgent' },
+  { value: 'employee', labelKey: 'employee', hintKey: 'employee' },
+  { value: 'operations_employee', labelKey: 'operationsEmployee', hintKey: 'operationsEmployee' },
+  { value: 'compliance_employee', labelKey: 'complianceEmployee', hintKey: 'complianceEmployee' },
+  { value: 'admin', labelKey: 'admin', hintKey: 'admin' },
+  { value: 'super_admin', labelKey: 'superAdmin', hintKey: 'superAdmin' },
 ];
 
 // Must match the Postgres enum subscription_status defined in
@@ -42,12 +43,12 @@ const ACCOUNT_TYPES = [
 //   ('none', 'trialing', 'active', 'past_due', 'cancelled', 'paused')
 // Mismatches here surface as cryptic 500 errors from the backend.
 const SUBSCRIPTION_STATUSES = [
-  { value: 'none',      label: 'None' },
-  { value: 'trialing',  label: 'Trialing' },
-  { value: 'active',    label: 'Active' },
-  { value: 'past_due',  label: 'Past due' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'paused',    label: 'Paused' },
+  { value: 'none',      labelKey: 'none' },
+  { value: 'trialing',  labelKey: 'trialing' },
+  { value: 'active',    labelKey: 'active' },
+  { value: 'past_due',  labelKey: 'pastDue' },
+  { value: 'cancelled', labelKey: 'cancelled' },
+  { value: 'paused',    labelKey: 'paused' },
 ];
 
 const INITIAL = {
@@ -72,6 +73,7 @@ const INITIAL = {
 };
 
 export default function CreateUserForm({ onCreated, onCancel }) {
+  const { t } = useTranslation();
   const [form,        setForm]        = useState(INITIAL);
   const [submitting,  setSubmitting]  = useState(false);
   const [errors,      setErrors]      = useState({});
@@ -100,7 +102,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
         '/admin/super/users/create-full', payload
       );
 
-      setSuccess(`User ${data.user?.email || form.email} created successfully.`);
+      setSuccess(t('adminCreateUser.success', { email: data.user?.email || form.email }));
       setForm(INITIAL);
       if (onCreated) onCreated(data.user);
     } catch (err) {
@@ -110,7 +112,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
       }
       // Backend may return { error, detail } - show the underlying detail to
       // super-admins so schema/enum/validation problems are debuggable.
-      const baseMsg = resp?.error || 'Failed to create user.';
+      const baseMsg = resp?.error || t('adminCreateUser.createFailed');
       const detail  = resp?.detail;
       setServerError(detail ? `${baseMsg} (${detail})` : baseMsg);
     } finally {
@@ -148,10 +150,10 @@ export default function CreateUserForm({ onCreated, onCancel }) {
 
       {/* Identity */}
       <section>
-        <h3 className="text-sm font-semibold text-gray-200 mb-3">Identity</h3>
+        <h3 className="text-sm font-semibold text-gray-200 mb-3">{t('adminCreateUser.identity')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>First name *</label>
+            <label className={labelCls}>{t('adminCreateUser.firstNameRequired')}</label>
             <input
               type="text"
               className={inputCls}
@@ -163,7 +165,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             {fieldErr('first_name')}
           </div>
           <div>
-            <label className={labelCls}>Last name *</label>
+            <label className={labelCls}>{t('adminCreateUser.lastNameRequired')}</label>
             <input
               type="text"
               className={inputCls}
@@ -175,7 +177,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             {fieldErr('last_name')}
           </div>
           <div>
-            <label className={labelCls}>Email *</label>
+            <label className={labelCls}>{t('adminCreateUser.emailRequired')}</label>
             <input
               type="email"
               className={inputCls}
@@ -187,7 +189,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             {fieldErr('email')}
           </div>
           <div>
-            <label className={labelCls}>Password *</label>
+            <label className={labelCls}>{t('adminCreateUser.passwordRequired')}</label>
             <input
               type="password"
               className={inputCls}
@@ -200,7 +202,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             {fieldErr('password')}
           </div>
           <div>
-            <label className={labelCls}>Phone</label>
+            <label className={labelCls}>{t('adminCreateUser.phone')}</label>
             <input
               type="tel"
               className={inputCls}
@@ -210,7 +212,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             />
           </div>
           <div>
-            <label className={labelCls}>Business name</label>
+            <label className={labelCls}>{t('adminCreateUser.businessName')}</label>
             <input
               type="text"
               className={inputCls}
@@ -224,10 +226,10 @@ export default function CreateUserForm({ onCreated, onCancel }) {
 
       {/* Location */}
       <section>
-        <h3 className="text-sm font-semibold text-gray-200 mb-3">Location</h3>
+        <h3 className="text-sm font-semibold text-gray-200 mb-3">{t('adminCreateUser.location')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className={labelCls}>Country *</label>
+            <label className={labelCls}>{t('adminCreateUser.countryRequired')}</label>
             <CountrySelect
               className={inputCls}
               value={form.country}
@@ -247,7 +249,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className={labelCls}>City</label>
+            <label className={labelCls}>{t('adminCreateUser.city')}</label>
             <input
               type="text"
               className={inputCls}
@@ -256,7 +258,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             />
           </div>
           <div>
-            <label className={labelCls}>State / region</label>
+            <label className={labelCls}>{t('adminCreateUser.stateRegion')}</label>
             <RegionInput
               className={inputCls}
               country={form.country}
@@ -266,7 +268,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             {fieldErr('state')}
           </div>
           <div>
-            <label className={labelCls}>Postal code</label>
+            <label className={labelCls}>{t('adminCreateUser.postalCode')}</label>
             <PostalCodeInput
               className={inputCls}
               country={form.country}
@@ -280,23 +282,23 @@ export default function CreateUserForm({ onCreated, onCancel }) {
 
       {isLogisticsEmployeeType && (
         <section>
-          <h3 className="text-sm font-semibold text-gray-200 mb-3">Internal Workspace</h3>
+          <h3 className="text-sm font-semibold text-gray-200 mb-3">{t('adminCreateUser.internalWorkspace')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Logistics role</label>
+              <label className={labelCls}>{t('adminCreateUser.logisticsRole')}</label>
               <select
                 className={inputCls}
                 value={form.logistics_role}
                 onChange={e => setField('logistics_role', e.target.value)}
               >
-                <option value="">Use account-type default</option>
-                <option value="logistics_coordinator">Logistics Coordinator</option>
-                <option value="sourcing_operator">Sourcing Operator</option>
-                <option value="warehouse_operator">Warehouse Operator</option>
-                <option value="compliance_reviewer">Compliance Reviewer</option>
+                <option value="">{t('adminCreateUser.logisticsDefault')}</option>
+                <option value="logistics_coordinator">{t('adminCreateUser.logisticsRoles.coordinator')}</option>
+                <option value="sourcing_operator">{t('adminCreateUser.logisticsRoles.sourcing')}</option>
+                <option value="warehouse_operator">{t('adminCreateUser.logisticsRoles.warehouse')}</option>
+                <option value="compliance_reviewer">{t('adminCreateUser.logisticsRoles.compliance')}</option>
               </select>
               <p className="text-xs text-gray-500 mt-2">
-                This controls which internal logistics workspace the employee can be provisioned into later.
+                {t('adminCreateUser.logisticsHint')}
               </p>
               {fieldErr('logistics_role')}
             </div>
@@ -306,10 +308,10 @@ export default function CreateUserForm({ onCreated, onCancel }) {
 
       {/* Account */}
       <section>
-        <h3 className="text-sm font-semibold text-gray-200 mb-3">Account</h3>
+        <h3 className="text-sm font-semibold text-gray-200 mb-3">{t('adminCreateUser.account')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Account type *</label>
+            <label className={labelCls}>{t('adminCreateUser.accountTypeRequired')}</label>
             <select
               className={inputCls}
               value={form.account_type}
@@ -317,34 +319,34 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             >
               {ACCOUNT_TYPES.map((accountType) => (
                 <option key={accountType.value} value={accountType.value}>
-                  {accountType.label}
+                  {t(`adminCreateUser.accountTypes.${accountType.labelKey}`)}
                 </option>
               ))}
             </select>
             {fieldErr('role')}
             <p className="text-xs text-gray-500 mt-2">
-              {ACCOUNT_TYPES.find((accountType) => accountType.value === form.account_type)?.hint}
+              {t(`adminCreateUser.accountTypeHints.${ACCOUNT_TYPES.find((accountType) => accountType.value === form.account_type)?.hintKey}`)}
             </p>
           </div>
           <div>
-            <label className={labelCls}>Membership tier</label>
+            <label className={labelCls}>{t('adminCreateUser.membershipTier')}</label>
             <input
               type="text"
               className={inputCls}
               value={form.membership_tier}
               onChange={e => setField('membership_tier', e.target.value)}
-              placeholder="auto (tier1/tier2 if helper)"
+              placeholder={t('adminCreateUser.membershipPlaceholder')}
             />
           </div>
           <div>
-            <label className={labelCls}>Subscription status</label>
+            <label className={labelCls}>{t('adminCreateUser.subscriptionStatus')}</label>
             <select
               className={inputCls}
               value={form.subscription_status}
               onChange={e => setField('subscription_status', e.target.value)}
             >
               {SUBSCRIPTION_STATUSES.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(`adminCreateUser.subscriptionStatuses.${s.labelKey}`)}</option>
               ))}
             </select>
           </div>
@@ -358,7 +360,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
               onChange={e => setField('email_verified', e.target.checked)}
               className="rounded bg-gray-900 border-gray-700"
             />
-            Email verified
+            {t('adminCreateUser.emailVerified')}
           </label>
           <label className="inline-flex items-center gap-2 text-sm text-gray-300">
             <input
@@ -367,7 +369,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
               onChange={e => setField('is_verified', e.target.checked)}
               className="rounded bg-gray-900 border-gray-700"
             />
-            Identity verified
+            {t('adminCreateUser.identityVerified')}
           </label>
           <label className="inline-flex items-center gap-2 text-sm text-gray-300">
             <input
@@ -376,19 +378,19 @@ export default function CreateUserForm({ onCreated, onCancel }) {
               onChange={e => setField('background_check_passed', e.target.checked)}
               className="rounded bg-gray-900 border-gray-700"
             />
-            Background check passed
+            {t('adminCreateUser.backgroundCheckPassed')}
           </label>
         </div>
       </section>
 
       {/* Notes */}
       <section>
-        <label className={labelCls}>Internal notes</label>
+        <label className={labelCls}>{t('adminCreateUser.internalNotes')}</label>
         <textarea
           className={inputCls + ' min-h-[80px]'}
           value={form.notes}
           onChange={e => setField('notes', e.target.value)}
-          placeholder="Optional. Visible to admins only."
+          placeholder={t('adminCreateUser.notesPlaceholder')}
         />
       </section>
 
@@ -400,7 +402,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             disabled={submitting}
             className="px-4 py-2 rounded-md text-sm text-gray-300 hover:text-white"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         )}
         <button
@@ -409,7 +411,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? 'Creating…' : 'Create user'}
+          {submitting ? t('adminCreateUser.creating') : t('adminCreateUser.createUser')}
         </button>
       </div>
     </form>
