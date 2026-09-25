@@ -31,11 +31,11 @@ function CheckoutPageContent() {
         const response = await api.get(`/carts/${cartId}/session`);
         const session = response.data?.data;
         if (!session || !Array.isArray(session.items)) {
-          throw new Error('Checkout session is missing order details.');
+          throw new Error(t('checkout.sessionMissing'));
         }
         setOrderDetails(session);
       } catch (err) {
-        setError(err.response?.data?.error || err.message || 'Failed to load checkout details');
+        setError(err.response?.data?.error || err.message || t('checkout.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -81,7 +81,7 @@ function CheckoutPageContent() {
 
   return (
     <>
-      <PageMeta title={t('checkout.title', { defaultValue: 'Checkout' })} description="Launch-safe checkout summary for restaurant credit and direct payment." />
+      <PageMeta title={t('checkout.title')} description={t('checkout.pageDescription')} />
       <div className="min-h-screen bg-[var(--color-bg)] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
@@ -89,7 +89,7 @@ function CheckoutPageContent() {
               <div>
                 <h1 className="text-3xl font-bold">{t('checkout.title', { defaultValue: 'Checkout' })}</h1>
                 <p className="text-sm text-[var(--color-text-muted)] mt-2">
-                  Restaurant credit and direct payment are the launch payment paths. Card checkout is not shown here.
+                  {t('checkout.paymentPathsNotice')}
                 </p>
               </div>
               <button
@@ -102,7 +102,7 @@ function CheckoutPageContent() {
 
             {paymentRecorded && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900">
-                Payment proof saved. The record is now available in activity/history.
+                {t('checkout.paymentSaved')}
               </div>
             )}
           </div>
@@ -110,7 +110,7 @@ function CheckoutPageContent() {
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold">{t('checkout.orderSummary', { defaultValue: 'Order Summary' })}</h2>
             {items.length === 0 ? (
-              <p className="text-[var(--color-text-muted)]">This cart is empty.</p>
+              <p className="text-[var(--color-text-muted)]">{t('checkout.emptyCart')}</p>
             ) : (
                 <div className="space-y-3">
                   {items.map(item => (
@@ -141,23 +141,22 @@ function CheckoutPageContent() {
           </div>
 
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow p-6 space-y-4">
-            <h2 className="text-lg font-semibold">What happens next</h2>
+            <h2 className="text-lg font-semibold">{t('checkout.whatNext')}</h2>
             <p className="text-[var(--color-text-muted)] leading-relaxed">
-              For launch, this page keeps the checkout flow honest: no card payment screen is shown.
-              If payment is handled outside OxSteed, record the proof here so the order can be matched later.
+              {t('checkout.whatNextBody')}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setPaymentRecordOpen(true)}
                 className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark"
               >
-                Record direct payment proof
+                {t('checkout.recordPaymentProof')}
               </button>
               <button
                 onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
                 className="bg-[var(--color-surface-2)] text-[var(--color-text)] px-5 py-3 rounded-xl font-semibold hover:bg-[var(--color-surface-3)]"
               >
-                Return to cart
+                {t('checkout.returnToCart')}
               </button>
             </div>
           </div>
@@ -166,11 +165,11 @@ function CheckoutPageContent() {
 
       <DirectPaymentRecordModal
         isOpen={paymentRecordOpen}
-        title="Record checkout payment"
-        subtitle="Add the payment method, confirmation number, and proof link so the payment can be matched to this checkout later."
+        title={t('checkout.recordPaymentTitle')}
+        subtitle={t('checkout.recordPaymentSubtitle')}
         sourceType="other"
         sourceId={cartId}
-        sourceLabel={orderDetails?.cartId ? `Cart checkout · ${orderDetails.cartId}` : 'Cart checkout'}
+        sourceLabel={orderDetails?.cartId ? `${t('checkout.cartCheckout')} · ${orderDetails.cartId}` : t('checkout.cartCheckout')}
         amountCents={totalCents}
         currencyCode="USD"
         payerId={null}

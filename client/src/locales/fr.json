@@ -11865,7 +11865,20 @@
     "subtotal": "Total",
     "tax": "Impôt",
     "total": "Total",
-    "completeOrder": "Terminer la commande"
+    "completeOrder": "Terminer la commande",
+    "sessionMissing": "Finalisez votre achat",
+    "loadFailed": "Finalisez votre achat",
+    "pageDescription": "Finalisez votre achat",
+    "paymentPathsNotice": "Mode de paiement",
+    "paymentSaved": "Terminer la commande",
+    "emptyCart": "Finalisez votre achat",
+    "whatNext": "Terminer la commande",
+    "whatNextBody": "Finalisez votre achat",
+    "recordPaymentProof": "Mode de paiement",
+    "returnToCart": "Retour au panier",
+    "recordPaymentTitle": "Mode de paiement",
+    "recordPaymentSubtitle": "Finalisez votre achat",
+    "cartCheckout": "Vérifier"
   },
   "myBids": {
     "title": "Mes enchères",

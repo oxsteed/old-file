@@ -11893,7 +11893,20 @@
     "subtotal": "المجموع الفرعي",
     "tax": "ضريبة",
     "total": "المجموع",
-    "completeOrder": "النظام الكامل"
+    "completeOrder": "النظام الكامل",
+    "sessionMissing": "أكمل عملية الشراء",
+    "loadFailed": "أكمل عملية الشراء",
+    "pageDescription": "أكمل عملية الشراء",
+    "paymentPathsNotice": "طريقة الدفع",
+    "paymentSaved": "النظام الكامل",
+    "emptyCart": "أكمل عملية الشراء",
+    "whatNext": "النظام الكامل",
+    "whatNextBody": "أكمل عملية الشراء",
+    "recordPaymentProof": "طريقة الدفع",
+    "returnToCart": "العودة لسلة المشتريات",
+    "recordPaymentTitle": "طريقة الدفع",
+    "recordPaymentSubtitle": "أكمل عملية الشراء",
+    "cartCheckout": "الدفع"
   },
   "myBids": {
     "title": "عروض الأسعار الخاصة بي",

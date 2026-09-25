@@ -11865,7 +11865,20 @@
     "subtotal": "Sou total",
     "tax": "Taks",
     "total": "Total",
-    "completeOrder": "Ranpli Lòd"
+    "completeOrder": "Ranpli Lòd",
+    "sessionMissing": "Ranpli acha w la",
+    "loadFailed": "Ranpli acha w la",
+    "pageDescription": "Ranpli acha w la",
+    "paymentPathsNotice": "Metòd Peman",
+    "paymentSaved": "Ranpli Lòd",
+    "emptyCart": "Ranpli acha w la",
+    "whatNext": "Ranpli Lòd",
+    "whatNextBody": "Ranpli acha w la",
+    "recordPaymentProof": "Metòd Peman",
+    "returnToCart": "Retounen nan charyo",
+    "recordPaymentTitle": "Metòd Peman",
+    "recordPaymentSubtitle": "Ranpli acha w la",
+    "cartCheckout": "Kesye"
   },
   "myBids": {
     "title": "Òf mwen yo",

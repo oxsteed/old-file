@@ -11865,7 +11865,20 @@
     "subtotal": "Total parcial",
     "tax": "Impuesto",
     "total": "Total",
-    "completeOrder": "Orden completa"
+    "completeOrder": "Orden completa",
+    "sessionMissing": "Completa tu compra",
+    "loadFailed": "Completa tu compra",
+    "pageDescription": "Completa tu compra",
+    "paymentPathsNotice": "Método de pago",
+    "paymentSaved": "Orden completa",
+    "emptyCart": "Completa tu compra",
+    "whatNext": "Orden completa",
+    "whatNextBody": "Completa tu compra",
+    "recordPaymentProof": "Método de pago",
+    "returnToCart": "Volver al carrito",
+    "recordPaymentTitle": "Método de pago",
+    "recordPaymentSubtitle": "Completa tu compra",
+    "cartCheckout": "Verificar"
   },
   "myBids": {
     "title": "Mis ofertas",

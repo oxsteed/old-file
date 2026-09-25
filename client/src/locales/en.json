@@ -11896,7 +11896,20 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "total": "Total",
-    "completeOrder": "Complete Order"
+    "completeOrder": "Complete Order",
+    "sessionMissing": "Complete your purchase",
+    "loadFailed": "Complete your purchase",
+    "pageDescription": "Complete your purchase",
+    "paymentPathsNotice": "Payment Method",
+    "paymentSaved": "Complete Order",
+    "emptyCart": "Complete your purchase",
+    "whatNext": "Complete Order",
+    "whatNextBody": "Complete your purchase",
+    "recordPaymentProof": "Payment Method",
+    "returnToCart": "Back to Cart",
+    "recordPaymentTitle": "Payment Method",
+    "recordPaymentSubtitle": "Complete your purchase",
+    "cartCheckout": "Checkout"
   },
   "myBids": {
     "title": "My Bids",
