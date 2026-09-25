@@ -519,6 +519,7 @@
     "experiencePlaceholder": "Describe tu experiencia relevante, disponibilidad y enfoque…",
     "cancellationReasonPlaceholder": "Razón para la cancelación (opcional)",
     "bidMessagePlaceholder": "Dile al cliente por qué eres un buen candidato...",
+    "locationMapUnavailable": "Añade una clave restringida de Amazon Location Maps para mostrar el mapa.",
     "aria": {
       "closeButton": "Cerrar",
       "openChat": "Abrir chat",
@@ -8617,6 +8618,7 @@
     "averageRating": "Calificación Promedio",
     "yourReview": "Tu Reseña",
     "reviewSubmitted": "Reseña enviada exitosamente",
+    "days": "{{count}} día(s)",
     "booking": "Reservar",
     "bookings": "Reservas",
     "bookingDate": "Fecha de Reserva",

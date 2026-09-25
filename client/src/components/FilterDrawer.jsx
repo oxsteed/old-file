@@ -30,7 +30,7 @@ export default function FilterDrawer({
         {/* Header */}
         <div className="fd-header">
           <h2>{t('marketplace.filters')}</h2>
-          <button className="fd-close" onClick={onClose} aria-label="Close filters">
+          <button className="fd-close" onClick={onClose} aria-label={t('common.aria.closeFilters')}>
             <X size={24} />
           </button>
         </div>

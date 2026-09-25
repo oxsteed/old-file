@@ -519,6 +519,7 @@
     "experiencePlaceholder": "Dekri eksperyans ou relevan, disponibilite, ak apwòch...",
     "cancellationReasonPlaceholder": "Rezon anilasyon (opsyonèl)",
     "bidMessagePlaceholder": "Di kliyent lan poukisa ou bon kandida...",
+    "locationMapUnavailable": "Ajoute yon kle API Amazon Location Maps ki limite pou montre kat la.",
     "aria": {
       "closeButton": "Fèmen",
       "openChat": "Louvri chat",
@@ -8617,6 +8618,7 @@
     "averageRating": "Evalyasyon Mwayèn",
     "yourReview": "Revizyon Ou",
     "reviewSubmitted": "Revizyon soumèt avèk siksè",
+    "days": "{{count}} jou",
     "booking": "Rezève",
     "bookings": "Rezèvasyon",
     "bookingDate": "Dat Rezèvasyon",

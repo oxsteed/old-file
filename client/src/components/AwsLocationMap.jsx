@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../styles/AwsLocationMap.css';
@@ -21,20 +22,20 @@ function addLocationApiKey(url) {
   return `${url}${separator}key=${encodeURIComponent(API_KEY)}`;
 }
 
-function popupContent(place) {
+function popupContent(place, t) {
   const wrapper = document.createElement('div');
   const title = document.createElement('strong');
   title.textContent = place.display_name || place.title || place.display || 'Location';
   wrapper.appendChild(title);
   if (place.external) {
     const note = document.createElement('p');
-    note.textContent = 'External place - not orderable on OxSteed.';
+    note.textContent = t('food.home.externalPlaceDescription');
     note.className = 'aws-location-popup-note';
     wrapper.appendChild(note);
   } else if (place.href) {
     const link = document.createElement('a');
     link.href = place.href;
-    link.textContent = 'View menu';
+    link.textContent = t('food.home.viewMenu');
     link.className = 'aws-location-popup-link';
     wrapper.appendChild(link);
   }
@@ -65,6 +66,7 @@ function circlePolygon(center, radiusMiles) {
 }
 
 export default function AwsLocationMap({ places = [], center = [25, -40], zoom = 2, radiusMiles, className = '' }) {
+  const { t } = useTranslation();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -151,18 +153,18 @@ export default function AwsLocationMap({ places = [], center = [25, -40], zoom =
       .map((place) => {
         const marker = new maplibregl.Marker(markerElement(place.external))
           .setLngLat([Number(place.lng), Number(place.lat)])
-          .setPopup(new maplibregl.Popup({ offset: 18 }).setDOMContent(popupContent(place)))
+          .setPopup(new maplibregl.Popup({ offset: 18 }).setDOMContent(popupContent(place, t)))
           .addTo(map);
         return { marker, place };
       });
-  }, [places]);
+  }, [places, t]);
 
   if (!API_KEY) {
     return (
       <div className={`aws-location-map aws-location-map-disabled ${className}`} role="status">
-        Add a restricted Amazon Location Maps API key to display the map.
+        {t('common.locationMapUnavailable')}
       </div>
     );
   }
-  return <div ref={containerRef} className={`aws-location-map ${className}`} aria-label="Location map" />;
+  return <div ref={containerRef} className={`aws-location-map ${className}`} aria-label={t('common.aria.location')} />;
 }

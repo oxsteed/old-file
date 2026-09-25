@@ -111,7 +111,7 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
       <div className="rsm-modal" onClick={e => e.stopPropagation()}>
         <div className="rsm-header">
           <h2>{t('reschedule.title', { defaultValue: 'Propose a new time' })}</h2>
-          <button className="rsm-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="rsm-close" onClick={onClose} aria-label={t('common.aria.closeButton')}>✕</button>
         </div>
 
         {/* Pending request from the other party */}

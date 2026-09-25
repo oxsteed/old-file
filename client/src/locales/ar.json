@@ -519,6 +519,7 @@
     "experiencePlaceholder": "صف تجربتك وإتاحتك ونهجك ذي الصلة...",
     "cancellationReasonPlaceholder": "سبب الإلغاء (اختياري)",
     "bidMessagePlaceholder": "أخبر العميل عن سبب ملاءمتك...",
+    "locationMapUnavailable": "أضف مفتاح API مقيداً لخرائط Amazon Location لعرض الخريطة.",
     "aria": {
       "closeButton": "خاتمة",
       "openChat": "محادثة مفتوحة",
@@ -8617,6 +8618,7 @@
     "averageRating": "متوسط التقييم",
     "yourReview": "تقييمك",
     "reviewSubmitted": "تم إرسال التقييم بنجاح",
+    "days": "{{count}} يوم(أيام)",
     "booking": "الحجز",
     "bookings": "الحجوزات",
     "bookingDate": "تاريخ الحجز",

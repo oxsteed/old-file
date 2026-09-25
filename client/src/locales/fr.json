@@ -519,6 +519,7 @@
     "experiencePlaceholder": "Décrivez votre expérience pertinente, votre disponibilité et votre approche...",
     "cancellationReasonPlaceholder": "Raison de l'annulation (facultatif)",
     "bidMessagePlaceholder": "Dites au client pourquoi vous êtes un bon candidat...",
+    "locationMapUnavailable": "Ajoutez une clé API Amazon Location Maps restreinte pour afficher la carte.",
     "aria": {
       "closeButton": "Fermer",
       "openChat": "Ouvrir la discussion",
@@ -8617,6 +8618,7 @@
     "averageRating": "Note Moyenne",
     "yourReview": "Votre Avis",
     "reviewSubmitted": "Avis soumis avec succès",
+    "days": "{{count}} jour(s)",
     "booking": "Réserver",
     "bookings": "Réservations",
     "bookingDate": "Date de Réservation",

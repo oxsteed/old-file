@@ -131,7 +131,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
         {/* Header */}
         <div className="booking-modal-header">
           <h2 className="booking-modal-title">{t('toolRentals.booking')}</h2>
-          <button onClick={onClose} className="booking-modal-close-btn" aria-label="Close modal">
+          <button onClick={onClose} className="booking-modal-close-btn" aria-label={t('common.aria.closeButton')}>
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -183,7 +183,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
             {days > 0 && (
               <div className="booking-price-summary">
                 <div className="booking-price-row">
-                  <span>{days} day(s)</span>
+                  <span>{t('toolRentals.days', { count: days })}</span>
                   <span>${(days * tool.daily_rate).toFixed(2)}</span>
                 </div>
                 <div className="booking-price-row booking-total">

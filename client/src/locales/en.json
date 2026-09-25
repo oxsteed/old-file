@@ -519,6 +519,7 @@
     "experiencePlaceholder": "Describe your relevant experience, availability, and approach…",
     "cancellationReasonPlaceholder": "Reason for cancellation (optional)",
     "bidMessagePlaceholder": "Tell the customer why you're a good fit...",
+    "locationMapUnavailable": "Add a restricted Amazon Location Maps API key to display the map.",
     "aria": {
       "closeButton": "Close",
       "openChat": "Open chat",
@@ -8652,6 +8653,7 @@
     "averageRating": "Average Rating",
     "yourReview": "Your Review",
     "reviewSubmitted": "Review submitted successfully",
+    "days": "{{count}} day(s)",
     "booking": "Book",
     "bookings": "Bookings",
     "bookingDate": "Booking Date",
