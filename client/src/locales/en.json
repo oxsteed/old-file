@@ -10151,6 +10151,10 @@
     "centerLongitude": "Center longitude",
     "radiusMiles": "Radius (miles)"
   },
+  "templateBehavior": {
+    "bestSetup": "Best setup for this mode",
+    "connectedFeatures": "Connected OxSteed features"
+  },
   "payment": {
     "purchaseConsulting": "Purchase Consulting Package",
     "selectPackage": "Select Package",

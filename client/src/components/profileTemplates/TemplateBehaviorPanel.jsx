@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function TemplateBehaviorPanel({
   behavior,
@@ -6,6 +7,7 @@ export default function TemplateBehaviorPanel({
   onSecondaryAction,
   compact = false,
 }) {
+  const { t } = useTranslation();
   if (!behavior) return null;
 
   return (
@@ -46,7 +48,7 @@ export default function TemplateBehaviorPanel({
       {!compact && (
         <div className="template-behavior-bottom">
           <div>
-            <h3>Best setup for this mode</h3>
+            <h3>{t('templateBehavior.bestSetup')}</h3>
             <ul>
               {behavior.setup?.map((item) => (
                 <li key={item}>
@@ -57,7 +59,7 @@ export default function TemplateBehaviorPanel({
             </ul>
           </div>
           <div>
-            <h3>Connected OxSteed features</h3>
+            <h3>{t('templateBehavior.connectedFeatures')}</h3>
             <div className="template-behavior-tags">
               {behavior.recommendedFeatures?.map((feature) => (
                 <span key={feature}>{feature}</span>

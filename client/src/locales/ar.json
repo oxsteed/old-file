@@ -10145,6 +10145,10 @@
     "centerLongitude": "خط طول المركز",
     "radiusMiles": "النطاق (أميال)"
   },
+  "templateBehavior": {
+    "bestSetup": "أفضل إعداد لهذا الوضع",
+    "connectedFeatures": "ميزات OxSteed المتصلة"
+  },
   "payment": {
     "purchaseConsulting": "شراء حزمة الاستشارات",
     "selectPackage": "حدد الحزمة",

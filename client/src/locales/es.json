@@ -10145,6 +10145,10 @@
     "centerLongitude": "Longitud central",
     "radiusMiles": "Radio (millas)"
   },
+  "templateBehavior": {
+    "bestSetup": "Mejor configuración para este modo",
+    "connectedFeatures": "Funciones de OxSteed conectadas"
+  },
   "payment": {
     "purchaseConsulting": "Comprar Paquete de Consultoría",
     "selectPackage": "Seleccionar Paquete",

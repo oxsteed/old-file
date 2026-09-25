@@ -10145,6 +10145,10 @@
     "centerLongitude": "Longitude du centre",
     "radiusMiles": "Rayon (miles)"
   },
+  "templateBehavior": {
+    "bestSetup": "Configuration recommandée pour ce mode",
+    "connectedFeatures": "Fonctionnalités OxSteed connectées"
+  },
   "payment": {
     "purchaseConsulting": "Acheter un forfait de consultation",
     "selectPackage": "Sélectionner un forfait",

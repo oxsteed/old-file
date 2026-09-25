@@ -10145,6 +10145,10 @@
     "centerLongitude": "Lonjitid sant lan",
     "radiusMiles": "Reyon (mil)"
   },
+  "templateBehavior": {
+    "bestSetup": "Pi bon konfigirasyon pou mòd sa a",
+    "connectedFeatures": "Fonksyon OxSteed ki konekte"
+  },
   "payment": {
     "purchaseConsulting": "Achte Pakèt Konsiltasyon",
     "selectPackage": "Chwazi Pakèt",
