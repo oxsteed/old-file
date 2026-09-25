@@ -101,7 +101,7 @@ function PulseRing({ score }) {
 
 // ── Cross-sell engine ──────────────────────────────────────────────────────────
 // Generates contextual OxSteed suggestions from pillar data already on the page.
-function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
+function buildCrossSells({ vehicles, homes, goals, expenses, summary, t }) {
   const suggestions = [];
 
   // Car pillar → car maintenance helpers
@@ -109,10 +109,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'car_maintenance',
       icon: <Car size={16} className="text-yellow-400" />,
-      title: 'Schedule car maintenance',
-      subtitle: `You have ${vehicles.length} vehicle${vehicles.length > 1 ? 's' : ''} in your garage. Stay ahead of service.`,
+      title: t('dashboards.life.crossSell.scheduleCarMaintenance'),
+      subtitle: t('dashboards.life.crossSell.carSubtitle', { count: vehicles.length }),
       href: '/helpers?categories=Automotive',
-      cta: 'Find a mechanic',
+      cta: t('dashboards.life.crossSell.findMechanic'),
       color: 'yellow',
     });
   }
@@ -122,10 +122,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'home_repair',
       icon: <Home size={16} className="text-blue-400" />,
-      title: 'Home maintenance on demand',
-      subtitle: `You own ${homes.length} propert${homes.length > 1 ? 'ies' : 'y'}. Keep it in top shape.`,
+      title: t('dashboards.life.crossSell.homeMaintenance'),
+      subtitle: t('dashboards.life.crossSell.homeSubtitle', { count: homes.length }),
       href: '/helpers?categories=Home+Repair',
-      cta: 'Find a helper',
+      cta: t('dashboards.life.crossSell.findHelper'),
       color: 'blue',
     });
   }
@@ -140,10 +140,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'tool_rental',
       icon: <Hammer size={16} className="text-orange-400" />,
-      title: 'Earn side income with your tools',
-      subtitle: `"${shortfallGoal.title}" is less than halfway there. List idle tools and earn while you sleep.`,
+      title: t('dashboards.life.crossSell.earnSideIncome'),
+      subtitle: t('dashboards.life.crossSell.toolSubtitle', { goal: shortfallGoal.title }),
       href: '/tool-rentals/list',
-      cta: 'List your tools',
+      cta: t('dashboards.life.crossSell.listTools'),
       color: 'orange',
     });
   }
@@ -154,10 +154,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'become_helper',
       icon: <Wrench size={16} className="text-green-400" />,
-      title: 'Turn your skills into income',
-      subtitle: 'You spent more than you earned this month. Helpers on OxSteed earn on their own schedule.',
+      title: t('dashboards.life.crossSell.turnSkills'),
+      subtitle: t('dashboards.life.crossSell.helperSubtitle'),
       href: '/register/helper',
-      cta: 'Become a helper',
+      cta: t('dashboards.life.crossSell.becomeHelper'),
       color: 'green',
     });
   }
@@ -170,10 +170,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'planned_needs',
       icon: <CalendarClock size={16} className="text-purple-400" />,
-      title: 'Plan your home expenses',
-      subtitle: "You've logged several home costs. Set up planned needs to stay ahead.",
+      title: t('dashboards.life.crossSell.planHomeExpenses'),
+      subtitle: t('dashboards.life.crossSell.planHomeSubtitle'),
       href: '/planned-needs',
-      cta: 'Set up a plan',
+      cta: t('dashboards.life.crossSell.setupPlan'),
       color: 'purple',
     });
   }
@@ -184,10 +184,10 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
     suggestions.push({
       id: 'consulting',
       icon: <Sparkles size={16} className="text-pink-400" />,
-      title: 'Get a business consultant',
-      subtitle: `Working toward "${businessGoal.title}"? OxSteed consultants can accelerate it.`,
+      title: t('dashboards.life.crossSell.businessConsultant'),
+      subtitle: t('dashboards.life.crossSell.consultingSubtitle', { goal: businessGoal.title }),
       href: '/consulting',
-      cta: 'Find a consultant',
+      cta: t('dashboards.life.crossSell.findConsultant'),
       color: 'pink',
     });
   }
@@ -204,14 +204,14 @@ const COLOR_MAP = {
   pink:    { bg: 'rgba(236,72,153,0.08)',   border: 'rgba(236,72,153,0.25)', text: '#f472b6' },
 };
 
-function CrossSellPanel({ vehicles, homes, goals, expenses, summary, loaded }) {
+function CrossSellPanel({ vehicles, homes, goals, expenses, summary, loaded, t }) {
   const suggestions = useMemo(
-    () => buildCrossSells({ vehicles, homes, goals, expenses, summary }),
-    [vehicles, homes, goals, expenses, summary],
+    () => buildCrossSells({ vehicles, homes, goals, expenses, summary, t }),
+    [vehicles, homes, goals, expenses, summary, t],
   );
   if (!loaded || suggestions.length === 0) return null;
   return (
-    <Card title="Tailored for your life" icon={<Sparkles size={16} className="text-orange-500" />}>
+    <Card title={t('dashboards.life.crossSell.title')} icon={<Sparkles size={16} className="text-orange-500" />}>
       <div className="grid sm:grid-cols-2 gap-3 pt-1">
         {suggestions.map((s) => {
           const c = COLOR_MAP[s.color] || COLOR_MAP.orange;
@@ -325,19 +325,19 @@ export default function LifeDashboard() {
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
                   <div>
-                    <div style={{ color: 'var(--color-text-muted)' }}>Coverage</div>
+                    <div style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.coverage')}</div>
                     <div className="font-semibold">{pulse?.score?.coverage ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--color-text-muted)' }}>Buffer</div>
+                    <div style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.buffer')}</div>
                     <div className="font-semibold">{pulse?.score?.buffer ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--color-text-muted)' }}>Reliability</div>
+                    <div style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.reliability')}</div>
                     <div className="font-semibold">{pulse?.score?.reliability ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--color-text-muted)' }}>Obligations</div>
+                    <div style={{ color: 'var(--color-text-muted)' }}>{t('dashboards.life.obligations')}</div>
                     <div className="font-semibold">{pulse?.score?.obligations ?? '—'}</div>
                   </div>
                 </div>
@@ -374,7 +374,7 @@ export default function LifeDashboard() {
             />
             {next30Need && (
               <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
-                <div className="text-[11px] uppercase tracking-wide" style={{ color: '#F97316' }}>Next up</div>
+                <div className="text-[11px] uppercase tracking-wide" style={{ color: '#F97316' }}>{t('dashboards.life.nextUp')}</div>
                 <div className="text-sm font-semibold mt-0.5">{next30Need.title}</div>
                 <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                   {next30Need.due_date ? new Date(next30Need.due_date).toLocaleDateString() : ''}
@@ -496,6 +496,7 @@ export default function LifeDashboard() {
           expenses={expenses}
           summary={summary}
           loaded={loaded}
+          t={t}
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
