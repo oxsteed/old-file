@@ -33,7 +33,7 @@ const PaymentMethodSettings: React.FC = () => {
         setIdentifier(data.payment_identifier || '');
       }
     } catch (err) {
-      toast.error(t('toolRentals.loadingError') || 'Failed to load payment method');
+      toast.error(t('toolRentals.loadingError'));
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ const PaymentMethodSettings: React.FC = () => {
 
   const handleSave = async () => {
     if (!identifier.trim()) {
-      toast.error(t('toolRentals.paymentIdentifierRequired') || 'Payment identifier is required');
+      toast.error(t('toolRentals.paymentIdentifierRequired'));
       return;
     }
 
@@ -52,9 +52,9 @@ const PaymentMethodSettings: React.FC = () => {
         paymentIdentifier: identifier.trim()
       });
       setMethod(data);
-      toast.success(t('toolRentals.paymentMethodSaved') || 'Payment method saved');
+      toast.success(t('toolRentals.paymentMethodSaved'));
     } catch (err) {
-      toast.error(t('toolRentals.paymentMethodSaveFailed') || 'Failed to save payment method');
+      toast.error(t('toolRentals.paymentMethodSaveFailed'));
       console.error('Error saving:', err);
     } finally {
       setSaving(false);
@@ -62,67 +62,67 @@ const PaymentMethodSettings: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(t('toolRentals.confirmDeletePaymentMethod') || 'Are you sure?')) return;
+    if (!window.confirm(t('toolRentals.confirmDeletePaymentMethod'))) return;
 
     setSaving(true);
     try {
       await api.delete('/tool-rentals/payment-method');
       setMethod(null);
       setIdentifier('');
-      toast.success(t('toolRentals.paymentMethodDeleted') || 'Payment method deleted');
+      toast.success(t('toolRentals.paymentMethodDeleted'));
     } catch (err) {
-      toast.error(t('toolRentals.paymentMethodDeleteFailed') || 'Failed to delete');
+      toast.error(t('toolRentals.paymentMethodDeleteFailed'));
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="payment-settings-loading">Loading...</div>;
+  if (loading) return <div className="payment-settings-loading">{t('common.loading')}</div>;
 
   return (
     <div className="payment-settings-container">
-      <h2>{t('toolRentals.paymentMethod') || 'Payment Method'}</h2>
+      <h2>{t('toolRentals.paymentMethod')}</h2>
       <p className="payment-settings-desc">
-        {t('toolRentals.paymentMethodDesc') || 'Set your payment account for receiving rental payments'}
+        {t('toolRentals.paymentMethodDesc')}
       </p>
 
       <div className="payment-settings-warning">
         <AlertCircle className="w-4 h-4" />
-        <p>{t('toolRentals.paymentMethodWarning') || 'This information will be shared on invoices'}</p>
+        <p>{t('toolRentals.paymentMethodWarning')}</p>
       </div>
 
       <div className="payment-settings-form">
         <div className="payment-settings-field">
-          <label htmlFor="payment-type">{t('toolRentals.paymentType') || 'Payment Type'}</label>
+          <label htmlFor="payment-type">{t('toolRentals.paymentType')}</label>
           <select
             id="payment-type"
             value={paymentType}
             onChange={e => setPaymentType(e.target.value as 'cash_app' | 'venmo' | 'bank_transfer')}
             disabled={saving}
           >
-            <option value="cash_app">Cash App</option>
-            <option value="venmo">Venmo</option>
-            <option value="bank_transfer">{t('toolRentals.bankTransfer') || 'Bank Transfer'}</option>
+            <option value="cash_app">{t('toolRentals.cashApp')}</option>
+            <option value="venmo">{t('toolRentals.venmo')}</option>
+            <option value="bank_transfer">{t('toolRentals.bankTransfer')}</option>
           </select>
         </div>
 
         <div className="payment-settings-field">
           <label htmlFor="identifier">
             {paymentType === 'cash_app'
-              ? 'Cash App Handle'
+              ? t('toolRentals.cashAppHandle')
               : paymentType === 'venmo'
-                ? 'Venmo Username'
-                : t('toolRentals.bankAccount') || 'Bank Account Info'}
+                ? t('toolRentals.venmoUsername')
+                : t('toolRentals.bankAccount')}
           </label>
           <input
             id="identifier"
             type="text"
             placeholder={
               paymentType === 'cash_app'
-                ? '$username'
+                ? t('toolRentals.cashAppPlaceholder')
                 : paymentType === 'venmo'
-                  ? '@username'
-                  : 'Account details'
+                  ? t('toolRentals.venmoPlaceholder')
+                  : t('toolRentals.accountDetailsPlaceholder')
             }
             value={identifier}
             onChange={e => setIdentifier(e.target.value)}
@@ -130,10 +130,10 @@ const PaymentMethodSettings: React.FC = () => {
           />
           <p className="payment-settings-hint">
             {paymentType === 'cash_app'
-              ? 'Include the $ symbol'
+              ? t('toolRentals.cashAppHint')
               : paymentType === 'venmo'
-                ? 'Include the @ symbol'
-                : 'Customers will see this info'}
+                ? t('toolRentals.venmoHint')
+                : t('toolRentals.bankAccountHint')}
           </p>
         </div>
 
@@ -144,20 +144,20 @@ const PaymentMethodSettings: React.FC = () => {
             className="payment-settings-btn save"
           >
             <Save className="w-4 h-4" />
-            {saving ? t('common.saving') : t('common.save') || 'Save'}
+            {saving ? t('common.saving') : t('common.save')}
           </button>
 
           {method && (
             <button onClick={handleDelete} disabled={saving} className="payment-settings-btn delete">
               <Trash2 className="w-4 h-4" />
-              {t('common.delete') || 'Delete'}
+              {t('common.delete')}
             </button>
           )}
         </div>
 
         {method && (
           <div className="payment-settings-status">
-            <p>✓ {t('toolRentals.paymentMethodActive') || 'Active payment method on file'}</p>
+            <p>✓ {t('toolRentals.paymentMethodActive')}</p>
           </div>
         )}
       </div>
