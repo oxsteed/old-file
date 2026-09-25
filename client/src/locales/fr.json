@@ -88,7 +88,8 @@
     "cancellationPolicies": "Politiques de Paiement et d’Annulation",
     "howOxsteedWorks": "Comment fonctionne OxSteed",
     "learnToDiy": "Apprendre à le faire soi-même",
-    "network": "Réseau OxSteed"
+    "network": "Réseau OxSteed",
+    "localFoodDirectory": "Annuaire alimentaire local"
   },
   "supportAgentPortal": {
     "title": "Espace d’assistance",
@@ -6964,6 +6965,7 @@
     "assistantTitle": "Assistant IA OxSteed",
     "assistantStatus": "Assistant IA · pas un agent humain",
     "contactHuman": "Contacter une personne",
+    "talkToHuman": "Contacter le support",
     "contactHumanAria": "Contacter l’assistance humaine",
     "exportTranscript": "Télécharger la transcription",
     "clearConversation": "Effacer la conversation",

@@ -88,7 +88,8 @@
     "cancellationPolicies": "Polisi Peman ak Anile",
     "howOxsteedWorks": "Kijan OxSteed mache",
     "learnToDiy": "Aprann fè DIY",
-    "network": "Rezo OxSteed"
+    "network": "Rezo OxSteed",
+    "localFoodDirectory": "Anyè Manje Lokal"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -6964,6 +6965,7 @@
     "assistantTitle": "Asistan IA OxSteed",
     "assistantStatus": "Asistan IA · se pa yon ajan moun",
     "contactHuman": "Kontakte yon moun",
+    "talkToHuman": "Kontakte sipò",
     "contactHumanAria": "Kontakte sipò moun",
     "exportTranscript": "Telechaje transkripsyon",
     "clearConversation": "Netwaye konvèsasyon an",

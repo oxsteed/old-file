@@ -88,7 +88,8 @@
     "cancellationPolicies": "Payment & Cancellation Policies",
     "howOxsteedWorks": "How OxSteed Works",
     "learnToDiy": "Learn to DIY",
-    "network": "OxSteed Network"
+    "network": "OxSteed Network",
+    "localFoodDirectory": "Local Food Directory"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -6964,6 +6965,7 @@
     "assistantTitle": "OxSteed AI Assistant",
     "assistantStatus": "AI assistant · not a human agent",
     "contactHuman": "Contact a human",
+    "talkToHuman": "Contact support",
     "contactHumanAria": "Contact human support",
     "exportTranscript": "Download transcript",
     "clearConversation": "Clear conversation",

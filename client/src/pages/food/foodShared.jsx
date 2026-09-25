@@ -1,6 +1,7 @@
 // Shared OxSteed Food UI bits. The logo is the same OxSteed mark used in the
 // main navbar - the Food experience reuses the brand identity by design.
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function FoodLogo({ size = 32 }) {
   return (
@@ -23,11 +24,13 @@ export function FoodLogo({ size = 32 }) {
   );
 }
 
-export function FoodBrand({ size = 32, label = 'Local Food Directory' }) {
+export function FoodBrand({ size = 32, label }) {
+  const { t } = useTranslation();
+  const resolvedLabel = label || t('nav.localFoodDirectory', { defaultValue: 'Local Food Directory' });
   return (
     <span className="fd-brand-badge">
       <FoodLogo size={size} />
-      <span className="fd-brand-food">{label}</span>
+      <span className="fd-brand-food">{resolvedLabel}</span>
     </span>
   );
 }
