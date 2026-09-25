@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   createTradesRecommendation,
@@ -97,6 +98,8 @@ function Select(props) {
 }
 
 export default function TradesOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`businessHub.tradesOps.${key}`, options);
   const settings = workspace?.settings || {};
   const diagnostics = workspace?.diagnostics || [];
   const recommendations = workspace?.recommendations || [];
@@ -137,10 +140,10 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         service_asset_types: parseCommaList(settingsForm.service_asset_types),
         trust_artifacts: parseCommaList(settingsForm.trust_artifacts),
       });
-      toast.success('Trades settings saved');
+      toast.success(copy('settingsSaved'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save trades settings');
+      toast.error(error?.response?.data?.error || copy('settingsSaveFailed'));
     } finally {
       setSavingSettings(false);
     }
@@ -157,12 +160,12 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
       };
       if (editingRecommendationId) await updateTradesRecommendation(businessId, editingRecommendationId, payload);
       else await createTradesRecommendation(businessId, payload);
-      toast.success(editingRecommendationId ? 'Recommendation updated' : 'Recommendation added');
+      toast.success(editingRecommendationId ? copy('recommendationUpdated') : copy('recommendationAdded'));
       setRecommendationForm(EMPTY_RECOMMENDATION);
       setEditingRecommendationId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save recommendation');
+      toast.error(error?.response?.data?.error || copy('recommendationSaveFailed'));
     }
   }
 
@@ -171,22 +174,22 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
     try {
       if (editingTrustId) await updateTradesTrustRecord(businessId, editingTrustId, trustForm);
       else await createTradesTrustRecord(businessId, trustForm);
-      toast.success(editingTrustId ? 'Trust record updated' : 'Trust record added');
+      toast.success(editingTrustId ? copy('trustRecordUpdated') : copy('trustRecordAdded'));
       setTrustForm(EMPTY_TRUST);
       setEditingTrustId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save trust record');
+      toast.error(error?.response?.data?.error || copy('trustRecordSaveFailed'));
     }
   }
 
   async function quickUpdateRequest(requestId, patch) {
     try {
       await updateTradesDiagnosticRequest(businessId, requestId, patch);
-      toast.success('Request updated');
+      toast.success(copy('requestUpdated'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not update request');
+      toast.error(error?.response?.data?.error || copy('requestUpdateFailed'));
     }
   }
 
@@ -196,33 +199,32 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-blue-400/25 bg-blue-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-100">
-              Trades Ops
+              {copy('label')}
             </span>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Technical-service operating system</h2>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{copy('title')}</h2>
             <p className="mt-3 text-sm leading-7 text-gray-300">
-              Run diagnostics, estimate follow-up, repair approvals, and trust artifacts from one workspace designed for
-              technical trades, electrical service, and auto repair intake.
+              {copy('description')}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
-            <Card label="Open diagnostics" value={metrics.open_requests || 0} hint={`${metrics.auto_requests || 0} auto · ${metrics.field_requests || 0} field`} />
-            <Card label="Critical recommendations" value={metrics.critical_recommendations || 0} hint="Not yet completed or declined" />
+            <Card label={copy('openDiagnostics')} value={metrics.open_requests || 0} hint={copy('diagnosticSplit', { auto: metrics.auto_requests || 0, field: metrics.field_requests || 0 })} />
+            <Card label={copy('criticalRecommendations')} value={metrics.critical_recommendations || 0} hint={copy('criticalRecommendationsHint')} />
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <Card label="Follow-ups due" value={metrics.follow_up_due || 0} hint="Quotes or diagnostics needing response" />
-        <Card label="SLA risk" value={metrics.overdue_sla || 0} hint="Requests past promised response" />
-        <Card label="Open value" value={formatMoney((metrics.open_recommendation_value || 0) / 100, { currency })} hint="Recommendations still in play" />
-        <Card label="Trust records" value={metrics.active_trust_records || 0} hint={`${metrics.trust_expiring || 0} expiring or expired`} />
+        <Card label={copy('followUpsDue')} value={metrics.follow_up_due || 0} hint={copy('followUpsDueHint')} />
+        <Card label={copy('slaRisk')} value={metrics.overdue_sla || 0} hint={copy('slaRiskHint')} />
+        <Card label={copy('openValue')} value={formatMoney((metrics.open_recommendation_value || 0) / 100, { currency })} hint={copy('openValueHint')} />
+        <Card label={copy('trustRecords')} value={metrics.active_trust_records || 0} hint={copy('trustExpiring', { count: metrics.trust_expiring || 0 })} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
         <Section
-          title="Diagnostic Pipeline"
-          subtitle="Prioritize urgent issues, keep estimates moving, and convert approved repairs without losing the technical thread."
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>Open quotes</button>}
+          title={copy('pipelineTitle')}
+          subtitle={copy('pipelineSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>{copy('openQuotes')}</button>}
         >
           <div className="space-y-4">
             {diagnostics.slice(0, 12).map((item) => (
@@ -238,8 +240,8 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                     <p className="mt-1 text-sm text-gray-400">{item.issue_type}{item.asset_label ? ` · ${item.asset_label}` : ''}{item.vin ? ` · VIN ${item.vin}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'quoted', workflow_stage: 'estimate' })}>Mark quoted</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'approved', workflow_stage: 'repair' })}>Approve repair</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'quoted', workflow_stage: 'estimate' })}>{copy('markQuoted')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'approved', workflow_stage: 'repair' })}>{copy('approveRepair')}</button>
                   </div>
                 </div>
               </div>
@@ -248,31 +250,31 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         </Section>
 
         <Section
-          title="Queue Snapshot"
-          subtitle="Small operator view of what needs attention first."
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>Refresh</button>}
+          title={copy('queueSnapshot')}
+          subtitle={copy('queueSnapshotSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Urgent</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.urgent.length} requests need fast triage or dispatch.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('urgent')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('urgentHint', { count: groupedDiagnostics.urgent.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estimate stage</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.estimate.length} requests are waiting on quote/recommendation follow-up.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('estimateStage')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('estimateStageHint', { count: groupedDiagnostics.estimate.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Repair approved</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.repair.length} requests have moved into live repair work.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('repairApproved')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('repairApprovedHint', { count: groupedDiagnostics.repair.length })}</p>
             </div>
           </div>
         </Section>
       </div>
 
       <Section
-        title="Technical Intake and Quote Settings"
-        subtitle="These settings control how technical-service demand is framed, promised, and routed from the public profile into the team workflow."
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+        title={copy('settingsTitle')}
+        subtitle={copy('settingsSubtitle')}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
