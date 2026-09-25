@@ -18014,6 +18014,154 @@
         "Vann lòt sèvis kay ki gen rapò"
       ]
     },
+    "trades": {
+        "operatingModel": "Pwosesis metye teknik ak disiplin nan devis ak konfyans ki chita sou sekirite",
+        "headline": "Transfòme demann teknik an travay ki byen defini ak konfyans, ak pi bon kontwòl dyagnostik, devis ak sekirite.",
+        "operatorBrief": "Biznis metye yo bezwen plis pase rezèvasyon. Yo bezwen siy otorite, dimansyon travay ki klè, prèv pwojè ak bon chemen pou pwopoze amelyorasyon apre dyagnostik.",
+        "primaryDemand": [
+          "Dyagnostik",
+          "Amelyorasyon sekirite oswa kòd",
+          "Enstalasyon ak ranplasman"
+        ],
+        "workflowStages": [
+          "Rasanble pwoblèm teknik la oswa kategori travay la",
+          "Fè dyagnostik epi prepare devis la avèk konfyans",
+          "Fè travay la epi dokimante li",
+          "Rekòmande amelyorasyon, antretyen oswa koreksyon pou pi devan"
+        ],
+        "intakeRequirements": [
+          "Kalite pwoblèm teknik",
+          "Kontèks pwopriyete oswa ekipman an",
+          "Ijans sekirite",
+          "Foto oswa nòt"
+        ],
+        "records": [
+          "Lisans ak badj",
+          "Istwa devis yo",
+          "Nòt pwojè",
+          "Rekòmandasyon amelyorasyon"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operasyon metye",
+            "reason": "Jere dyagnostik, rekòmandasyon ak dosye konfyans teknik."
+          },
+          {
+            "label": "Devis",
+            "reason": "Mete dyagnostik ak gwo pwopozisyon yo nan bon estrikti."
+          },
+          {
+            "label": "Pri sèvis",
+            "reason": "Ajiste fason òf teknik yo mache ak maj yo."
+          },
+          {
+            "label": "Orè",
+            "reason": "Kowòdone vizit sou plas ak lè enstalasyon."
+          },
+          {
+            "label": "Evalyasyon",
+            "reason": "Rasanble prèv rezilta ki fyab."
+          }
+        ],
+        "dailyCadence": [
+          "Triye dyagnostik ijan",
+          "Konfime swivi devis yo",
+          "Dokimante travay teknik ki fini"
+        ],
+        "weeklyCadence": [
+          "Revize pousantaj devis ki genyen",
+          "Chèche posiblite amelyorasyon",
+          "Verifye pri pou apèl ki komen"
+        ],
+        "monthlyCadence": [
+          "Revize maj pa kalite sèvis",
+          "Pwomouvwa amelyorasyon sezon oswa sekirite",
+          "Mete galri prèv travay la ajou"
+        ],
+        "qualityControls": [
+          "Disiplin nan devis",
+          "Kominikasyon ki mete sekirite devan",
+          "Prèv ak dokiman teknik",
+          "Rekòmandasyon ki mache ak yon bezwen reyèl"
+        ],
+        "monetization": [
+          "Amelyorasyon apre dyagnostik",
+          "Plan antretyen",
+          "Pwopozisyon pwojè ki gen plis valè"
+        ]
+    },
+    "creative": {
+        "operatingModel": "Pwosesis konsiltasyon ak livrezon pwojè ki chita sou pòtfolyo",
+        "headline": "Sèvi ak modèl la pou mennen moun soti nan enterè vizyèl pou rive nan travay kreyatif ki byen defini ak òf ak prèv ki pi klè.",
+        "operatorBrief": "Biznis kreyatif vann bon jan kalite ak gou anvan yo vann èdtan. Pwosesis entèn lan dwe mete dekouvèt, pakè pwojè, klète sou koreksyon ak prèv vizyèl devan.",
+        "primaryDemand": [
+          "Kesyon sou pòtfolyo",
+          "Travay mak oswa kanpay",
+          "Pwojè pèsonalize ki soti nan konsiltasyon"
+        ],
+        "workflowStages": [
+          "Mete moun nan sou bon kalite travay",
+          "Fè yon etap dekouvèt oswa konsiltasyon",
+          "Mete livrable ak kalandriye a nan yon pakè",
+          "Livre fichye yo epi mande temwayaj oswa pèmisyon pou montre travay la"
+        ],
+        "intakeRequirements": [
+          "Objektif pwojè a",
+          "Direksyon stil",
+          "Dat limit",
+          "Livrable ki nesesè"
+        ],
+        "records": [
+          "Etid ka",
+          "Limit koreksyon",
+          "Nòt brief kreyatif",
+          "Apwobasyon kliyan"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Galri",
+            "reason": "Mete travay ki ka vann pwojè a devan."
+          },
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Mete travay kreyatif yo nan òf ki pi klè."
+          },
+          {
+            "label": "Devis",
+            "reason": "Defini pwojè pèsonalize san dezòd."
+          },
+          {
+            "label": "Dokiman ak dosye",
+            "reason": "Sèvi ak plan, livrable ak pwosesis ki ka repete."
+          }
+        ],
+        "dailyCadence": [
+          "Reponn kesyon sou pòtfolyo",
+          "Fè apèl dekouvèt yo avanse",
+          "Anrejistre apwobasyon oswa nòt koreksyon"
+        ],
+        "weeklyCadence": [
+          "Mete travay ki prezante yo ajou",
+          "Revize konvèsyon pwopozisyon yo",
+          "Chèche posiblite pou pakè"
+        ],
+        "monthlyCadence": [
+          "Retire ansyen travay nan pòtfolyo",
+          "Amelyore pakè yo",
+          "Analize demann selon kalite pwojè"
+        ],
+        "qualityControls": [
+          "Bon seleksyon travay",
+          "Dimansyon livrable ki klè",
+          "Limit koreksyon",
+          "Swivi ki gen bon prèv"
+        ],
+        "monetization": [
+          "Pakè premium",
+          "Kontra repete",
+          "Vann lòt livrable kreyatif ki gen rapò"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

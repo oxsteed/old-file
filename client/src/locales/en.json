@@ -17965,6 +17965,154 @@
         "Cross-sell adjacent household services"
       ]
     },
+    "trades": {
+        "operatingModel": "Technical trade workflow with quote discipline and safety-forward trust",
+        "headline": "Turn technical demand into scoped, high-confidence jobs with stronger diagnostic, quote, and safety controls.",
+        "operatorBrief": "Trade businesses need more than bookings. They need authority signals, clearer job scoping, project proof, and disciplined post-diagnosis upsell paths.",
+        "primaryDemand": [
+          "Diagnostics",
+          "Safety or code upgrades",
+          "Install and replacement work"
+        ],
+        "workflowStages": [
+          "Capture technical issue or job category",
+          "Diagnose and quote with confidence",
+          "Deliver work with documentation",
+          "Recommend upgrades, maintenance, or future corrections"
+        ],
+        "intakeRequirements": [
+          "Technical issue type",
+          "Property or asset context",
+          "Safety urgency",
+          "Photos or notes"
+        ],
+        "records": [
+          "Licenses and badges",
+          "Quote history",
+          "Project notes",
+          "Upgrade recommendations"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Trades Ops",
+            "reason": "Run diagnostics, recommendations, and technical trust records."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Structure diagnostics and larger-scope proposals."
+          },
+          {
+            "label": "Service Pricing",
+            "reason": "Tune technical offer logic and margins."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Coordinate site visits and install windows."
+          },
+          {
+            "label": "Reviews",
+            "reason": "Capture proof of trustworthy outcomes."
+          }
+        ],
+        "dailyCadence": [
+          "Triage urgent diagnostics",
+          "Confirm quote follow-ups",
+          "Document completed technical work"
+        ],
+        "weeklyCadence": [
+          "Review win rate on quotes",
+          "Spot upgrade opportunities",
+          "Audit pricing for common calls"
+        ],
+        "monthlyCadence": [
+          "Review margin by service type",
+          "Promote seasonal or safety upgrades",
+          "Update proof-of-work gallery"
+        ],
+        "qualityControls": [
+          "Quote discipline",
+          "Safety-forward communication",
+          "Technical proof and documentation",
+          "Upsell recommendations tied to real need"
+        ],
+        "monetization": [
+          "Upgrades after diagnostics",
+          "Maintenance plans",
+          "Higher-value project proposals"
+        ]
+    },
+    "creative": {
+        "operatingModel": "Portfolio-led consultation and project delivery workflow",
+        "headline": "Use the template to move people from visual interest into scoped creative work with clearer packages and proof.",
+        "operatorBrief": "Creative businesses sell fit and taste before they sell hours. The internal workflow should emphasize discovery, project packaging, revision clarity, and visual proof.",
+        "primaryDemand": [
+          "Portfolio inquiries",
+          "Brand or campaign work",
+          "Consultation-led custom projects"
+        ],
+        "workflowStages": [
+          "Match the lead to the right body of work",
+          "Run a discovery or consultation step",
+          "Package deliverables and timeline",
+          "Deliver assets and request testimonial or showcase permission"
+        ],
+        "intakeRequirements": [
+          "Project goal",
+          "Style direction",
+          "Deadline",
+          "Deliverables needed"
+        ],
+        "records": [
+          "Case studies",
+          "Revision boundaries",
+          "Creative brief notes",
+          "Client approvals"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Gallery",
+            "reason": "Lead with work that sells the next project."
+          },
+          {
+            "label": "Services & Booking",
+            "reason": "Package creative work more clearly."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Scope custom projects without chaos."
+          },
+          {
+            "label": "Documents & Records",
+            "reason": "Use repeatable plans, deliverables, and reusable process docs."
+          }
+        ],
+        "dailyCadence": [
+          "Answer inbound portfolio leads",
+          "Move discovery calls forward",
+          "Log approval or revision notes"
+        ],
+        "weeklyCadence": [
+          "Refresh featured work",
+          "Review proposal conversion",
+          "Spot bundle opportunities"
+        ],
+        "monthlyCadence": [
+          "Retire stale portfolio pieces",
+          "Refine packages",
+          "Analyze demand by project type"
+        ],
+        "qualityControls": [
+          "Strong work curation",
+          "Clear deliverable scoping",
+          "Revision boundaries",
+          "Proof-rich follow-up"
+        ],
+        "monetization": [
+          "Premium packages",
+          "Retainers",
+          "Cross-sell adjacent creative deliverables"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"

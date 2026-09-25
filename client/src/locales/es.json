@@ -18014,6 +18014,154 @@
         "Venta cruzada de servicios complementarios para el hogar"
       ]
     },
+    "trades": {
+        "operatingModel": "Flujo de oficios técnicos con disciplina de presupuestos y confianza centrada en la seguridad",
+        "headline": "Convierte la demanda técnica en trabajos bien definidos y confiables con mejores controles de diagnóstico, presupuesto y seguridad.",
+        "operatorBrief": "Los negocios de oficios necesitan más que reservas: señales de autoridad, alcances claros, pruebas del proyecto y rutas disciplinadas para ofrecer mejoras después del diagnóstico.",
+        "primaryDemand": [
+          "Diagnósticos",
+          "Mejoras de seguridad o cumplimiento",
+          "Instalaciones y reemplazos"
+        ],
+        "workflowStages": [
+          "Capturar el problema técnico o la categoría del trabajo",
+          "Diagnosticar y presupuestar con confianza",
+          "Realizar el trabajo con documentación",
+          "Recomendar mejoras, mantenimiento o correcciones futuras"
+        ],
+        "intakeRequirements": [
+          "Tipo de problema técnico",
+          "Contexto de la propiedad o activo",
+          "Urgencia de seguridad",
+          "Fotos o notas"
+        ],
+        "records": [
+          "Licencias y distintivos",
+          "Historial de presupuestos",
+          "Notas del proyecto",
+          "Recomendaciones de mejora"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operaciones de oficios",
+            "reason": "Gestiona diagnósticos, recomendaciones y registros de confianza técnica."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Estructura diagnósticos y propuestas de mayor alcance."
+          },
+          {
+            "label": "Precios de servicios",
+            "reason": "Ajusta la lógica de ofertas técnicas y los márgenes."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Coordina visitas al sitio y ventanas de instalación."
+          },
+          {
+            "label": "Reseñas",
+            "reason": "Recopila pruebas de resultados confiables."
+          }
+        ],
+        "dailyCadence": [
+          "Clasificar diagnósticos urgentes",
+          "Confirmar seguimientos de presupuestos",
+          "Documentar trabajos técnicos terminados"
+        ],
+        "weeklyCadence": [
+          "Revisar la tasa de éxito de presupuestos",
+          "Detectar oportunidades de mejora",
+          "Auditar precios de llamadas frecuentes"
+        ],
+        "monthlyCadence": [
+          "Revisar el margen por tipo de servicio",
+          "Promover mejoras estacionales o de seguridad",
+          "Actualizar la galería de trabajos realizados"
+        ],
+        "qualityControls": [
+          "Disciplina de presupuestos",
+          "Comunicación centrada en la seguridad",
+          "Pruebas y documentación técnica",
+          "Recomendaciones ligadas a una necesidad real"
+        ],
+        "monetization": [
+          "Mejoras después del diagnóstico",
+          "Planes de mantenimiento",
+          "Propuestas de proyectos de mayor valor"
+        ]
+    },
+    "creative": {
+        "operatingModel": "Flujo de consulta y entrega de proyectos guiado por el portafolio",
+        "headline": "Usa la plantilla para llevar a las personas del interés visual a un trabajo creativo definido con paquetes y pruebas más claros.",
+        "operatorBrief": "Los negocios creativos venden afinidad y criterio antes que horas. El flujo interno debe priorizar descubrimiento, paquetes, claridad sobre revisiones y pruebas visuales.",
+        "primaryDemand": [
+          "Consultas sobre el portafolio",
+          "Trabajos de marca o campañas",
+          "Proyectos personalizados guiados por consulta"
+        ],
+        "workflowStages": [
+          "Relacionar el cliente con el trabajo adecuado",
+          "Realizar una etapa de descubrimiento o consulta",
+          "Definir entregables y calendario",
+          "Entregar recursos y solicitar testimonio o permiso para mostrar el trabajo"
+        ],
+        "intakeRequirements": [
+          "Objetivo del proyecto",
+          "Dirección de estilo",
+          "Fecha límite",
+          "Entregables necesarios"
+        ],
+        "records": [
+          "Casos de estudio",
+          "Límites de revisiones",
+          "Notas del brief creativo",
+          "Aprobaciones del cliente"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Galería",
+            "reason": "Destaca trabajos que vendan el próximo proyecto."
+          },
+          {
+            "label": "Servicios y reservas",
+            "reason": "Presenta el trabajo creativo en paquetes más claros."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Define proyectos personalizados sin desorden."
+          },
+          {
+            "label": "Documentos y registros",
+            "reason": "Usa planes, entregables y procesos reutilizables."
+          }
+        ],
+        "dailyCadence": [
+          "Responder consultas del portafolio",
+          "Avanzar llamadas de descubrimiento",
+          "Registrar aprobaciones o notas de revisión"
+        ],
+        "weeklyCadence": [
+          "Actualizar trabajos destacados",
+          "Revisar la conversión de propuestas",
+          "Detectar oportunidades de paquetes"
+        ],
+        "monthlyCadence": [
+          "Retirar piezas antiguas del portafolio",
+          "Perfeccionar paquetes",
+          "Analizar la demanda por tipo de proyecto"
+        ],
+        "qualityControls": [
+          "Curaduría de trabajos sólidos",
+          "Alcance claro de entregables",
+          "Límites de revisiones",
+          "Seguimiento con buenas pruebas"
+        ],
+        "monetization": [
+          "Paquetes premium",
+          "Contratos recurrentes",
+          "Venta cruzada de entregables creativos relacionados"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

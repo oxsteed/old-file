@@ -18014,6 +18014,154 @@
         "Vente croisée de services complémentaires pour le foyer"
       ]
     },
+    "trades": {
+        "operatingModel": "Flux pour métiers techniques avec rigueur des devis et confiance axée sur la sécurité",
+        "headline": "Transformez la demande technique en travaux bien cadrés et fiables grâce à de meilleurs contrôles de diagnostic, de devis et de sécurité.",
+        "operatorBrief": "Les métiers techniques ont besoin de plus que des réservations : signes d’autorité, périmètres clairs, preuves de projet et parcours disciplinés après diagnostic.",
+        "primaryDemand": [
+          "Diagnostics",
+          "Mises aux normes ou améliorations de sécurité",
+          "Installation et remplacement"
+        ],
+        "workflowStages": [
+          "Recueillir le problème technique ou la catégorie de travail",
+          "Diagnostiquer et établir un devis avec assurance",
+          "Réaliser le travail avec sa documentation",
+          "Recommander des améliorations, une maintenance ou de futures corrections"
+        ],
+        "intakeRequirements": [
+          "Type de problème technique",
+          "Contexte du bien ou de l’équipement",
+          "Urgence de sécurité",
+          "Photos ou notes"
+        ],
+        "records": [
+          "Licences et badges",
+          "Historique des devis",
+          "Notes de projet",
+          "Recommandations d’amélioration"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Opérations techniques",
+            "reason": "Gérez les diagnostics, recommandations et preuves de confiance technique."
+          },
+          {
+            "label": "Devis",
+            "reason": "Structurez les diagnostics et les propositions plus larges."
+          },
+          {
+            "label": "Tarifs des services",
+            "reason": "Ajustez la logique des offres techniques et les marges."
+          },
+          {
+            "label": "Planning",
+            "reason": "Coordonnez les visites et les créneaux d’installation."
+          },
+          {
+            "label": "Avis",
+            "reason": "Recueillez la preuve de résultats fiables."
+          }
+        ],
+        "dailyCadence": [
+          "Trier les diagnostics urgents",
+          "Confirmer les relances de devis",
+          "Documenter les travaux techniques terminés"
+        ],
+        "weeklyCadence": [
+          "Examiner le taux de réussite des devis",
+          "Repérer les possibilités d’amélioration",
+          "Auditer les tarifs des interventions courantes"
+        ],
+        "monthlyCadence": [
+          "Examiner la marge par type de service",
+          "Promouvoir les améliorations saisonnières ou de sécurité",
+          "Actualiser la galerie des travaux réalisés"
+        ],
+        "qualityControls": [
+          "Rigueur des devis",
+          "Communication axée sur la sécurité",
+          "Preuves et documentation techniques",
+          "Recommandations liées à un besoin réel"
+        ],
+        "monetization": [
+          "Améliorations après diagnostic",
+          "Plans de maintenance",
+          "Propositions de projets à plus forte valeur"
+        ]
+    },
+    "creative": {
+        "operatingModel": "Flux de consultation et de livraison de projets guidé par le portfolio",
+        "headline": "Utilisez ce modèle pour faire passer l’intérêt visuel vers un projet créatif cadré avec des offres et des preuves plus claires.",
+        "operatorBrief": "Les entreprises créatives vendent l’affinité et le goût avant les heures. Le flux interne doit privilégier la découverte, les forfaits, la clarté des révisions et les preuves visuelles.",
+        "primaryDemand": [
+          "Demandes liées au portfolio",
+          "Travaux de marque ou de campagne",
+          "Projets personnalisés issus d’une consultation"
+        ],
+        "workflowStages": [
+          "Associer le prospect au bon travail",
+          "Mener une étape de découverte ou de consultation",
+          "Définir les livrables et le calendrier",
+          "Livrer les éléments et demander un témoignage ou l’autorisation de les présenter"
+        ],
+        "intakeRequirements": [
+          "Objectif du projet",
+          "Direction artistique",
+          "Date limite",
+          "Livrables nécessaires"
+        ],
+        "records": [
+          "Études de cas",
+          "Limites de révision",
+          "Notes du brief créatif",
+          "Approbations du client"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Galerie",
+            "reason": "Mettez en avant les travaux qui vendent le prochain projet."
+          },
+          {
+            "label": "Services et réservations",
+            "reason": "Présentez le travail créatif dans des forfaits plus clairs."
+          },
+          {
+            "label": "Devis",
+            "reason": "Cadrez les projets personnalisés sans désordre."
+          },
+          {
+            "label": "Documents et registres",
+            "reason": "Utilisez des plans, livrables et processus réutilisables."
+          }
+        ],
+        "dailyCadence": [
+          "Répondre aux demandes du portfolio",
+          "Faire avancer les appels de découverte",
+          "Consigner les approbations ou les révisions"
+        ],
+        "weeklyCadence": [
+          "Actualiser les travaux à la une",
+          "Examiner la conversion des propositions",
+          "Repérer les possibilités de forfait"
+        ],
+        "monthlyCadence": [
+          "Retirer les pièces vieillissantes du portfolio",
+          "Affiner les forfaits",
+          "Analyser la demande par type de projet"
+        ],
+        "qualityControls": [
+          "Curation de travaux solides",
+          "Périmètre clair des livrables",
+          "Limites de révision",
+          "Relance riche en preuves"
+        ],
+        "monetization": [
+          "Forfaits premium",
+          "Contrats récurrents",
+          "Vente croisée de livrables créatifs associés"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"
