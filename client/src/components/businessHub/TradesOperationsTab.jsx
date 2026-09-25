@@ -17,7 +17,7 @@ const EMPTY_SETTINGS = {
   response_promise_hours: 12,
   estimate_turnaround_hours: 24,
   booking_style: 'diagnostic_first',
-  primary_quote_label: 'Diagnostic and estimate',
+  primary_quote_label: '',
   supported_issue_types: '',
   service_asset_types: '',
   trust_artifacts: '',
@@ -117,6 +117,7 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
     setSettingsForm({
       ...EMPTY_SETTINGS,
       ...settings,
+      primary_quote_label: settings.primary_quote_label || copy('defaultQuoteLabel'),
       supported_issue_types: (settings.supported_issue_types || []).join(', '),
       service_asset_types: (settings.service_asset_types || []).join(', '),
       trust_artifacts: (settings.trust_artifacts || []).join(', '),
@@ -277,33 +278,33 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
         actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
-          <Input label="Estimate turnaround (hours)"><TextInput type="number" min="1" value={settingsForm.estimate_turnaround_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, estimate_turnaround_hours: e.target.value }))} /></Input>
-          <Input label="Booking style"><Select value={settingsForm.booking_style} onChange={(e) => setSettingsForm((current) => ({ ...current, booking_style: e.target.value }))}><option value="diagnostic_first">Diagnostic first</option><option value="quote_first">Quote first</option><option value="direct_service">Direct service</option></Select></Input>
-          <Input label="Primary quote label"><TextInput value={settingsForm.primary_quote_label} onChange={(e) => setSettingsForm((current) => ({ ...current, primary_quote_label: e.target.value }))} /></Input>
-          <Input label="Emergency phone"><TextInput value={settingsForm.emergency_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_phone: e.target.value }))} /></Input>
-          <Input label="Service asset types"><TextInput value={settingsForm.service_asset_types} onChange={(e) => setSettingsForm((current) => ({ ...current, service_asset_types: e.target.value }))} placeholder="Residential, Commercial, Vehicle" /></Input>
-          <Input label="Supported issue types" wide><TextInput value={settingsForm.supported_issue_types} onChange={(e) => setSettingsForm((current) => ({ ...current, supported_issue_types: e.target.value }))} placeholder="Comma-separated issue types" /></Input>
-          <Input label="Trust artifacts" wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Comma-separated trust records or proofs" /></Input>
-          <Input label="Intake instructions" wide><TextArea rows={3} value={settingsForm.intake_instructions} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_instructions: e.target.value }))} /></Input>
-          <Input label="Dispatch notes" wide><TextArea rows={3} value={settingsForm.dispatch_notes} onChange={(e) => setSettingsForm((current) => ({ ...current, dispatch_notes: e.target.value }))} /></Input>
+          <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
+          <Input label={copy('estimateTurnaround')}><TextInput type="number" min="1" value={settingsForm.estimate_turnaround_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, estimate_turnaround_hours: e.target.value }))} /></Input>
+          <Input label={copy('bookingStyle')}><Select value={settingsForm.booking_style} onChange={(e) => setSettingsForm((current) => ({ ...current, booking_style: e.target.value }))}>{['diagnostic_first', 'quote_first', 'direct_service'].map((style) => <option key={style} value={style}>{copy(`bookingStyles.${style}`)}</option>)}</Select></Input>
+          <Input label={copy('primaryQuoteLabel')}><TextInput value={settingsForm.primary_quote_label} onChange={(e) => setSettingsForm((current) => ({ ...current, primary_quote_label: e.target.value }))} /></Input>
+          <Input label={copy('emergencyPhone')}><TextInput value={settingsForm.emergency_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_phone: e.target.value }))} /></Input>
+          <Input label={copy('serviceAssetTypes')}><TextInput value={settingsForm.service_asset_types} onChange={(e) => setSettingsForm((current) => ({ ...current, service_asset_types: e.target.value }))} placeholder={copy('serviceAssetTypesPlaceholder')} /></Input>
+          <Input label={copy('supportedIssueTypes')} wide><TextInput value={settingsForm.supported_issue_types} onChange={(e) => setSettingsForm((current) => ({ ...current, supported_issue_types: e.target.value }))} placeholder={copy('commaSeparatedPlaceholder')} /></Input>
+          <Input label={copy('trustArtifacts')} wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder={copy('trustArtifactsPlaceholder')} /></Input>
+          <Input label={copy('intakeInstructions')} wide><TextArea rows={3} value={settingsForm.intake_instructions} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_instructions: e.target.value }))} /></Input>
+          <Input label={copy('dispatchNotes')} wide><TextArea rows={3} value={settingsForm.dispatch_notes} onChange={(e) => setSettingsForm((current) => ({ ...current, dispatch_notes: e.target.value }))} /></Input>
         </div>
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Section title="Recommendations and Upsell Path" subtitle="Document repair, replacement, maintenance, and safety recommendations with real dollar value.">
+        <Section title={copy('recommendationsTitle')} subtitle={copy('recommendationsSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecommendation}>
-            <Input label="Diagnostic request"><Select value={recommendationForm.diagnostic_request_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, diagnostic_request_id: e.target.value }))}><option value="">Unlinked</option>{diagnostics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</Select></Input>
-            <Input label="Quote ID"><TextInput value={recommendationForm.quote_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, quote_id: e.target.value }))} /></Input>
-            <Input label="Title"><TextInput value={recommendationForm.title} onChange={(e) => setRecommendationForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-            <Input label="Type"><Select value={recommendationForm.recommendation_type} onChange={(e) => setRecommendationForm((current) => ({ ...current, recommendation_type: e.target.value }))}><option value="repair">Repair</option><option value="upgrade">Upgrade</option><option value="maintenance">Maintenance</option><option value="replacement">Replacement</option><option value="safety">Safety</option></Select></Input>
-            <Input label="Priority"><Select value={recommendationForm.priority} onChange={(e) => setRecommendationForm((current) => ({ ...current, priority: e.target.value }))}><option value="critical">Critical</option><option value="recommended">Recommended</option><option value="optional">Optional</option></Select></Input>
-            <Input label="Status"><Select value={recommendationForm.status} onChange={(e) => setRecommendationForm((current) => ({ ...current, status: e.target.value }))}><option value="open">Open</option><option value="quoted">Quoted</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="declined">Declined</option></Select></Input>
-            <Input label="Estimated cents"><TextInput type="number" min="0" value={recommendationForm.estimated_cents} onChange={(e) => setRecommendationForm((current) => ({ ...current, estimated_cents: e.target.value }))} /></Input>
-            <Input label="Description" wide><TextArea rows={2} value={recommendationForm.description} onChange={(e) => setRecommendationForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <Input label={copy('diagnosticRequest')}><Select value={recommendationForm.diagnostic_request_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, diagnostic_request_id: e.target.value }))}><option value="">{copy('unlinked')}</option>{diagnostics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</Select></Input>
+            <Input label={copy('quoteId')}><TextInput value={recommendationForm.quote_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, quote_id: e.target.value }))} /></Input>
+            <Input label={copy('titleField')}><TextInput value={recommendationForm.title} onChange={(e) => setRecommendationForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label={copy('type')}><Select value={recommendationForm.recommendation_type} onChange={(e) => setRecommendationForm((current) => ({ ...current, recommendation_type: e.target.value }))}>{['repair', 'upgrade', 'maintenance', 'replacement', 'safety'].map((type) => <option key={type} value={type}>{copy(`recommendationTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('priority')}><Select value={recommendationForm.priority} onChange={(e) => setRecommendationForm((current) => ({ ...current, priority: e.target.value }))}>{['critical', 'recommended', 'optional'].map((priority) => <option key={priority} value={priority}>{copy(`priorities.${priority}`)}</option>)}</Select></Input>
+            <Input label={copy('statusField')}><Select value={recommendationForm.status} onChange={(e) => setRecommendationForm((current) => ({ ...current, status: e.target.value }))}>{['open', 'quoted', 'approved', 'completed', 'declined'].map((status) => <option key={status} value={status}>{copy(`statuses.${status}`)}</option>)}</Select></Input>
+            <Input label={copy('estimatedCents')}><TextInput type="number" min="0" value={recommendationForm.estimated_cents} onChange={(e) => setRecommendationForm((current) => ({ ...current, estimated_cents: e.target.value }))} /></Input>
+            <Input label={copy('descriptionField')} wide><TextArea rows={2} value={recommendationForm.description} onChange={(e) => setRecommendationForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingRecommendationId ? 'Update recommendation' : 'Add recommendation'}</button>
-              {editingRecommendationId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecommendationId(null); setRecommendationForm(EMPTY_RECOMMENDATION); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingRecommendationId ? copy('updateRecommendation') : copy('addRecommendation')}</button>
+              {editingRecommendationId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecommendationId(null); setRecommendationForm(EMPTY_RECOMMENDATION); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -316,12 +317,12 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                       <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.recommendation_type}</span>
                       <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">{item.priority}</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">{item.description || 'No description provided.'}</p>
+                    <p className="mt-1 text-sm text-gray-400">{item.description || copy('noDescription')}</p>
                     {item.estimated_cents != null ? <p className="mt-2 text-sm font-semibold text-white">{formatMoney((item.estimated_cents || 0) / 100, { currency })}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingRecommendationId(item.id); setRecommendationForm({ ...EMPTY_RECOMMENDATION, ...item, estimated_cents: item.estimated_cents ?? '' }); }}>Edit</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this recommendation?')) return; await deleteTradesRecommendation(businessId, item.id); toast.success('Recommendation deleted'); await onRefresh?.(); }}>Delete</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingRecommendationId(item.id); setRecommendationForm({ ...EMPTY_RECOMMENDATION, ...item, estimated_cents: item.estimated_cents ?? '' }); }}>{copy('edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecommendationConfirm'))) return; await deleteTradesRecommendation(businessId, item.id); toast.success(copy('recommendationDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
@@ -329,18 +330,18 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
           </div>
         </Section>
 
-        <Section title="Trust and Compliance Records" subtitle="Keep licenses, certifications, inspections, and coverage documents visible so the template can project real authority.">
+        <Section title={copy('trustTitle')} subtitle={copy('trustSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
-            <Input label="Record type"><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
-            <Input label="Title"><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-            <Input label="Issuer"><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
-            <Input label="Status"><Select value={trustForm.status} onChange={(e) => setTrustForm((current) => ({ ...current, status: e.target.value }))}><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="archived">Archived</option></Select></Input>
-            <Input label="Expires on"><TextInput type="date" value={trustForm.expires_on} onChange={(e) => setTrustForm((current) => ({ ...current, expires_on: e.target.value }))} /></Input>
-            <Input label="Document URL"><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
-            <Input label="Notes" wide><TextArea rows={2} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <Input label={copy('recordType')}><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
+            <Input label={copy('titleField')}><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label={copy('issuer')}><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
+            <Input label={copy('statusField')}><Select value={trustForm.status} onChange={(e) => setTrustForm((current) => ({ ...current, status: e.target.value }))}>{['active', 'expiring', 'expired', 'archived'].map((status) => <option key={status} value={status}>{copy(`trustStatuses.${status}`)}</option>)}</Select></Input>
+            <Input label={copy('expiresOn')}><TextInput type="date" value={trustForm.expires_on} onChange={(e) => setTrustForm((current) => ({ ...current, expires_on: e.target.value }))} /></Input>
+            <Input label={copy('documentUrl')}><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
+            <Input label={copy('notesField')} wide><TextArea rows={2} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingTrustId ? 'Update record' : 'Add record'}</button>
-              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -351,13 +352,13 @@ export default function TradesOperationsTab({ businessId, workspace, currency = 
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
                       <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.record_type}</span>
-                      <span className="rounded-full bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">{item.status}</span>
+                      <span className="rounded-full bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">{copy(`trustStatuses.${item.status}`)}</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">{item.issuer || 'No issuer specified'}{item.expires_on ? ` · expires ${new Date(item.expires_on).toLocaleDateString()}` : ''}</p>
+                    <p className="mt-1 text-sm text-gray-400">{item.issuer || copy('noIssuer')}{item.expires_on ? ` · ${copy('expiresOnText', { date: new Date(item.expires_on).toLocaleDateString() })}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingTrustId(item.id); setTrustForm({ ...EMPTY_TRUST, ...item, expires_on: item.expires_on ? String(item.expires_on).slice(0, 10) : '' }); }}>Edit</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this record?')) return; await deleteTradesTrustRecord(businessId, item.id); toast.success('Trust record deleted'); await onRefresh?.(); }}>Delete</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingTrustId(item.id); setTrustForm({ ...EMPTY_TRUST, ...item, expires_on: item.expires_on ? String(item.expires_on).slice(0, 10) : '' }); }}>{copy('edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(copy('deleteRecordConfirm'))) return; await deleteTradesTrustRecord(businessId, item.id); toast.success(copy('trustRecordDeleted')); await onRefresh?.(); }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
