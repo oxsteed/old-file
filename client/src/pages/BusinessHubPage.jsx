@@ -1593,7 +1593,7 @@ function BusinessHubInner() {
               ))}
             </div>
 
-            <Suspense fallback={<p className="bh-loading">Loading workspace...</p>}>
+            <Suspense fallback={<p className="bh-loading">{t('businessHub.rooms.loadingWorkspace')}</p>}>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
@@ -1645,9 +1645,9 @@ function BusinessHubInner() {
               <div className="space-y-6">
                 <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                   <div className="mb-4">
-                    <h2 className="text-xl font-semibold text-white">Services & Booking</h2>
+                    <h2 className="text-xl font-semibold text-white">{t('businessHub.rooms.servicesBookingTitle')}</h2>
                     <p className="mt-1 text-sm leading-6 text-gray-400">
-                      Manage the public services customers see and the bookable service configurations they can schedule against from one place.
+                      {t('businessHub.rooms.servicesBookingDescription')}
                     </p>
                   </div>
                   <ServicesTab services={services} businessId={bizId}
@@ -1659,9 +1659,9 @@ function BusinessHubInner() {
                 {bizId && canEditBizProfile && (
                   <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white">Bookable Service Setup</h3>
+                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.bookableServiceTitle')}</h3>
                       <p className="mt-1 text-sm leading-6 text-gray-400">
-                        Set durations, capacity, pricing, booking notice, and service-level scheduling rules for appointments tied to this business.
+                        {t('businessHub.rooms.bookableServiceDescription')}
                       </p>
                     </div>
                     <BusinessServicesTab businessId={bizId} />
@@ -1718,7 +1718,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'maintenance' && (
-              maintenanceLoading ? <p className="bh-loading">Loading maintenance requests...</p> :
+              maintenanceLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingMaintenance')}</p> :
               <MaintenanceRequestsTab
                 businessId={bizId}
                 data={maintenanceData}
@@ -1730,7 +1730,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'property-ops' && (
-              propertyOpsLoading ? <p className="bh-loading">Loading property operations...</p> :
+              propertyOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingPropertyOps')}</p> :
               <PropertyOperationsTab
                 businessId={bizId}
                 workspace={propertyOpsData}
@@ -1741,7 +1741,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'trades-ops' && (
-              tradesOpsLoading ? <p className="bh-loading">Loading trades operations...</p> :
+              tradesOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingTradesOps')}</p> :
               <TradesOperationsTab
                 businessId={bizId}
                 workspace={tradesOpsData}
@@ -1752,7 +1752,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'beauty-ops' && (
-              beautyOpsLoading ? <p className="bh-loading">Loading beauty operations...</p> :
+              beautyOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingBeautyOps')}</p> :
               <BeautyOperationsTab
                 businessId={bizId}
                 workspace={beautyOpsData}
@@ -1763,7 +1763,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'creative-ops' && (
-              creativeOpsLoading ? <p className="bh-loading">Loading creative operations...</p> :
+              creativeOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingCreativeOps')}</p> :
               <CreativeOperationsTab
                 businessId={bizId}
                 workspace={creativeOpsData}
@@ -1774,7 +1774,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'professional-ops' && (
-              professionalOpsLoading ? <p className="bh-loading">Loading professional operations...</p> :
+              professionalOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingProfessionalOps')}</p> :
               <ProfessionalOperationsTab
                 businessId={bizId}
                 workspace={professionalOpsData}
@@ -1785,7 +1785,7 @@ function BusinessHubInner() {
             )}
 
             {tab === 'continuity-ops' && (
-              continuityOpsLoading ? <p className="bh-loading">Loading continuity operations...</p> :
+              continuityOpsLoading ? <p className="bh-loading">{t('businessHub.rooms.loadingContinuityOps')}</p> :
               <ContinuityOperationsTab
                 businessId={bizId}
                 workspace={continuityOpsData}
@@ -1800,11 +1800,9 @@ function BusinessHubInner() {
               <div className="space-y-6">
                 <div className="bh-calendar-wrap">
                   <div className="bh-calendar-header">
-                    <h2>{currentBiz?.business_name || 'Business'} schedule</h2>
+                    <h2>{currentBiz?.business_name || t('businessHub.rooms.businessFallback')} {t('businessHub.rooms.scheduleTitleSuffix')}</h2>
                     <p>
-                      This combined schedule workspace keeps business hours, appointments,
-                      calendar events, and follow-up demand in one place so the team can plan
-                      work without bouncing between tabs.
+                      {t('businessHub.rooms.combinedScheduleDescription')}
                     </p>
                   </div>
                 </div>
@@ -1812,9 +1810,9 @@ function BusinessHubInner() {
                 <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">Business Hours</h3>
+                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.businessHoursTitle')}</h3>
                       <p className="mt-1 text-sm leading-6 text-gray-400">
-                        Set when this business is open so customers and staff see the right operating rhythm.
+                        {t('businessHub.rooms.businessHoursDescription')}
                       </p>
                     </div>
                   </div>
@@ -1845,9 +1843,9 @@ function BusinessHubInner() {
                 {canEditBizProfile && (
                   <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white">Appointments</h3>
+                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.appointmentsTitle')}</h3>
                       <p className="mt-1 text-sm leading-6 text-gray-400">
-                        Manage the appointment calendar tied to this business, including bookable slots and customer reservations.
+                        {t('businessHub.rooms.appointmentsDescription')}
                       </p>
                     </div>
                     <AppointmentCalendarView businessId={bizId} />
@@ -1856,9 +1854,9 @@ function BusinessHubInner() {
 
                 <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                   <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-white">Business Calendar</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.businessCalendarTitle')}</h3>
                     <p className="mt-1 text-sm leading-6 text-gray-400">
-                      Track team meetings, deliveries, supplier visits, training, and other events that belong to this business.
+                      {t('businessHub.rooms.businessCalendarDescription')}
                     </p>
                   </div>
                   <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
@@ -1867,9 +1865,9 @@ function BusinessHubInner() {
                 {canEditBizProfile && (
                   <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-white">Waitlist & Follow-ups</h3>
+                      <h3 className="text-lg font-semibold text-white">{t('businessHub.rooms.waitlistTitle')}</h3>
                       <p className="mt-1 text-sm leading-6 text-gray-400">
-                        Keep demand warm by tracking people waiting for availability, reschedules, or the next open spot.
+                        {t('businessHub.rooms.waitlistDescription')}
                       </p>
                     </div>
                     <WaitlistManager businessId={bizId} />
@@ -2926,6 +2924,7 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete, currency }) {
 
 // ── Team tab ──────────────────────────────────────────────────────────────────
 function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdate, onConvert }) {
+  const { t } = useTranslation();
   const requests = data?.requests || [];
   const stats = data?.stats || {};
   const [drafts, setDrafts] = useState({});
@@ -2951,31 +2950,31 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   return (
     <div>
       <div className="bh-kpi-grid">
-        <KPI label="Open requests" value={stats.open_count || 0} cls="warn" sub="Reported, scheduled, assigned, or in progress" />
-        <KPI label="Completed" value={stats.completed_count || 0} cls="positive" sub="Closed maintenance records" />
-        <KPI label="Follow-ups due" value={stats.follow_up_count || 0} cls="warn" sub="Requests in follow-up stage" />
-        <KPI label="SLA at risk" value={stats.overdue_sla_count || 0} cls="danger" sub="Requests past response target" />
-        <KPI label="Tracked cost" value={fmt$(stats.actual_cost_total || 0, currency)} sub="Actual repair costs logged" />
+        <KPI label={t('businessHub.rooms.openRequests')} value={stats.open_count || 0} cls="warn" sub={t('businessHub.rooms.openRequestsHint')} />
+        <KPI label={t('businessHub.rooms.completed')} value={stats.completed_count || 0} cls="positive" sub={t('businessHub.rooms.completedHint')} />
+        <KPI label={t('businessHub.rooms.followUpsDue')} value={stats.follow_up_count || 0} cls="warn" sub={t('businessHub.rooms.followUpsDueHint')} />
+        <KPI label={t('businessHub.rooms.slaAtRisk')} value={stats.overdue_sla_count || 0} cls="danger" sub={t('businessHub.rooms.slaAtRiskHint')} />
+        <KPI label={t('businessHub.rooms.trackedCost')} value={fmt$(stats.actual_cost_total || 0, currency)} sub={t('businessHub.rooms.trackedCostHint')} />
       </div>
 
       <div className="bh-card">
         <div className="bh-card-header">
           <div>
-            <h2>Property Maintenance Requests</h2>
-            <p>Tenant issues from the public profile land here before they become scheduled work, assigned helper jobs, invoices, or year-end records.</p>
+            <h2>{t('businessHub.rooms.propertyMaintenanceTitle')}</h2>
+            <p>{t('businessHub.rooms.propertyMaintenanceDescription')}</p>
           </div>
           <div className="bh-header-actions">
             <Link className="bh-btn" to={`/business/${businessId}/maintenance-request`} target="_blank" rel="noopener noreferrer">
-              Open tenant form
+              {t('businessHub.rooms.openTenantForm')}
             </Link>
-            <button className="bh-btn" onClick={onRefresh}>Refresh</button>
+            <button className="bh-btn" onClick={onRefresh}>{t('businessHub.rooms.refresh')}</button>
           </div>
         </div>
 
         {requests.length === 0 ? (
           <div className="bh-empty">
-            <p style={{ fontWeight: 700 }}>No maintenance requests yet.</p>
-            <p>When tenants report issues from the property profile, you can accept, schedule, assign, convert to a job, and track repair cost here.</p>
+            <p style={{ fontWeight: 700 }}>{t('businessHub.rooms.noMaintenanceRequests')}</p>
+            <p>{t('businessHub.rooms.noMaintenanceRequestsDescription')}</p>
           </div>
         ) : (
           <div className="bh-maint-list">
@@ -2994,7 +2993,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                       <span>{request.urgency}</span>
                       <span>{fmtDate(request.created_at)}</span>
                       {request.unit_label && <span>Unit {request.unit_label}</span>}
-                      {request.job_id && <Link to={`/jobs/${request.job_id}`}>Job created</Link>}
+                      {request.job_id && <Link to={`/jobs/${request.job_id}`}>{t('businessHub.rooms.jobCreated')}</Link>}
                     </div>
                   </div>
 
@@ -3009,18 +3008,18 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   )}
 
                   <div className="bh-maint-details">
-                    {request.property_label && <p><strong>Property:</strong> {request.property_label}</p>}
-                    {request.preferred_times && <p><strong>Preferred times:</strong> {request.preferred_times}</p>}
-                    {request.access_notes && <p><strong>Access:</strong> {request.access_notes}</p>}
-                    {request.template_intake?.location_area && <p><strong>Area:</strong> {request.template_intake.location_area}</p>}
-                    {request.template_intake?.asset_label && <p><strong>Asset:</strong> {request.template_intake.asset_label}</p>}
-                    {request.template_intake?.entry_preference && <p><strong>Entry preference:</strong> {request.template_intake.entry_preference}</p>}
-                    {request.permission_to_enter && <p><strong>Permission:</strong> Tenant granted permission to enter with scheduling.</p>}
+                    {request.property_label && <p><strong>{t('businessHub.rooms.property')}:</strong> {request.property_label}</p>}
+                    {request.preferred_times && <p><strong>{t('businessHub.rooms.preferredTimes')}:</strong> {request.preferred_times}</p>}
+                    {request.access_notes && <p><strong>{t('businessHub.rooms.access')}:</strong> {request.access_notes}</p>}
+                    {request.template_intake?.location_area && <p><strong>{t('businessHub.rooms.area')}:</strong> {request.template_intake.location_area}</p>}
+                    {request.template_intake?.asset_label && <p><strong>{t('businessHub.rooms.asset')}:</strong> {request.template_intake.asset_label}</p>}
+                    {request.template_intake?.entry_preference && <p><strong>{t('businessHub.rooms.entryPreference')}:</strong> {request.template_intake.entry_preference}</p>}
+                    {request.permission_to_enter && <p><strong>{t('businessHub.rooms.permission')}:</strong> {t('businessHub.rooms.permissionGranted')}</p>}
                   </div>
 
                   <div className="bh-maint-controls">
                     <label>
-                      Workflow stage
+                      {t('businessHub.rooms.workflowStage')}
                       <select value={draft.workflow_stage} onChange={(e) => patchDraft(request.id, { workflow_stage: e.target.value })}>
                         {['intake', 'triage', 'dispatch', 'scheduled', 'repair', 'follow_up', 'closed'].map((stage) => (
                           <option key={stage} value={stage}>{stage.replaceAll('_', ' ')}</option>
@@ -3028,7 +3027,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                       </select>
                     </label>
                     <label>
-                      Status
+                      {t('businessHub.rooms.status')}
                       <select value={draft.status} onChange={(e) => patchDraft(request.id, { status: e.target.value })}>
                         {['reported', 'accepted', 'scheduled', 'assigned', 'in_progress', 'completed', 'rejected', 'cancelled'].map((status) => (
                           <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>
@@ -3036,23 +3035,23 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                       </select>
                     </label>
                     <label>
-                      Schedule
+                      {t('businessHub.rooms.schedule')}
                       <input type="datetime-local" value={draft.scheduled_start_at || ''} onChange={(e) => patchDraft(request.id, { scheduled_start_at: e.target.value })} />
                     </label>
                     <label>
-                      Helper ID
-                      <input value={draft.assigned_helper_id || ''} onChange={(e) => patchDraft(request.id, { assigned_helper_id: e.target.value })} placeholder="Optional OxSteed helper ID" />
+                      {t('businessHub.rooms.helperId')}
+                      <input value={draft.assigned_helper_id || ''} onChange={(e) => patchDraft(request.id, { assigned_helper_id: e.target.value })} placeholder={t('businessHub.rooms.optionalHelperId')} />
                     </label>
                     <label>
-                      Vendor / handyman
-                      <input value={draft.vendor_name || ''} onChange={(e) => patchDraft(request.id, { vendor_name: e.target.value })} placeholder="Optional" />
+                      {t('businessHub.rooms.vendorHandyman')}
+                      <input value={draft.vendor_name || ''} onChange={(e) => patchDraft(request.id, { vendor_name: e.target.value })} placeholder={t('businessHub.rooms.optional')} />
                     </label>
                     <label>
-                      Actual cost
+                      {t('businessHub.rooms.actualCost')}
                       <input type="number" min="0" step="0.01" value={draft.actual_cost || ''} onChange={(e) => patchDraft(request.id, { actual_cost: e.target.value })} placeholder="0.00" />
                     </label>
                     <label>
-                      Bill to
+                      {t('businessHub.rooms.billTo')}
                       <select value={draft.billable_party || 'owner'} onChange={(e) => patchDraft(request.id, { billable_party: e.target.value })}>
                         {['owner', 'tenant', 'hoa', 'internal'].map((value) => (
                           <option key={value} value={value}>{value}</option>
@@ -3060,21 +3059,21 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                       </select>
                     </label>
                     <label className="wide">
-                      Tenant-visible update
-                      <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder="Example: We can send someone Friday morning." />
+                      {t('businessHub.rooms.tenantVisibleUpdate')}
+                      <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder={t('businessHub.rooms.tenantVisiblePlaceholder')} />
                     </label>
                     <label className="wide">
-                      Resolution summary
-                      <textarea value={draft.resolution_summary || ''} onChange={(e) => patchDraft(request.id, { resolution_summary: e.target.value })} rows={2} placeholder="What was fixed, what still needs approval, or what should be billed." />
+                      {t('businessHub.rooms.resolutionSummary')}
+                      <textarea value={draft.resolution_summary || ''} onChange={(e) => patchDraft(request.id, { resolution_summary: e.target.value })} rows={2} placeholder={t('businessHub.rooms.resolutionPlaceholder')} />
                     </label>
                   </div>
 
                   <div className="bh-maint-actions">
-                    <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)}>Save update</button>
+                    <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)}>{t('businessHub.rooms.saveUpdate')}</button>
                     <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id}>
-                      {request.job_id ? 'Already converted' : 'Convert to job'}
+                      {request.job_id ? t('businessHub.rooms.alreadyConverted') : t('businessHub.rooms.convertToJob')}
                     </button>
-                    <Link className="bh-btn" to="/helpers">Find helper</Link>
+                    <Link className="bh-btn" to="/helpers">{t('businessHub.rooms.findHelper')}</Link>
                   </div>
                 </article>
               );
@@ -3445,7 +3444,7 @@ function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
               <h4 className="font-semibold text-white">{svc.name}</h4>
               {svc.description && <p className="text-sm text-gray-400 mt-1">{svc.description}</p>}
               <p className="text-sm text-orange-400 mt-2">${svc.price || 0}{svc.price_unit === 'hour' ? '/hr' : ''}</p>
-              {!svc.is_active && <span style={{ fontSize: '0.75rem', color: '#f87171', marginLeft: '0.5rem' }}>(Inactive)</span>}
+              {!svc.is_active && <span style={{ fontSize: '0.75rem', color: '#f87171', marginLeft: '0.5rem' }}>({t('businessHub.rooms.inactive')})</span>}
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(svc)}>{t('businessHub.btnEdit')}</button>
