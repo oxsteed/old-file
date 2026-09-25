@@ -3142,6 +3142,7 @@
     "taskAdded": "Travay ajoute: {title}"
   },
   "helperDashboard": {
+    "client": "Kliyan",
     "newActivityCount": "{{count}} nouvo aktivite",
     "nearbyLoading": "N ap chèche travay lokal…",
     "nearbyLocationUnavailable": "Nou pa ka jwenn kote ou ye a. Pèmèt aksè ak lokalizasyon oswa ajoute vil ou nan pwofil ou.",

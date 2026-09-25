@@ -3057,6 +3057,7 @@
     "taskAdded": "Tâche ajoutée : {title}"
   },
   "helperDashboard": {
+    "client": "Client",
     "newActivityCount": "{{count}} nouvelles activités",
     "nearbyLoading": "Recherche d'offres locales…",
     "nearbyLocationUnavailable": "Impossible de déterminer votre position. Autorisez la localisation ou ajoutez une ville à votre profil.",

@@ -3057,6 +3057,7 @@
     "taskAdded": "Tarea agregada: {title}"
   },
   "helperDashboard": {
+    "client": "Cliente",
     "newActivityCount": "{{count}} novedades",
     "nearbyLoading": "Buscando trabajos locales…",
     "nearbyLocationUnavailable": "No pudimos determinar tu ubicación. Permite el acceso a la ubicación o añade una ciudad a tu perfil.",

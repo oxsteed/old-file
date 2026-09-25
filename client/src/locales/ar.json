@@ -3057,6 +3057,7 @@
     "taskAdded": "تمت إضافة المهمة: {title}"
   },
   "helperDashboard": {
+    "client": "العميل",
     "newActivityCount": "{{count}} تحديثات جديدة",
     "nearbyLoading": "جارٍ البحث عن وظائف محلية…",
     "nearbyLocationUnavailable": "تعذر تحديد موقعك. اسمح بالوصول إلى الموقع أو أضف مدينة إلى ملفك الشخصي.",

@@ -3057,6 +3057,7 @@
     "taskAdded": "Task added: {title}"
   },
   "helperDashboard": {
+    "client": "Client",
     "newActivityCount": "{{count}} new updates",
     "nearbyLoading": "Finding local jobs…",
     "nearbyLocationUnavailable": "We couldn't determine your location. Allow location access or add a city to your profile.",

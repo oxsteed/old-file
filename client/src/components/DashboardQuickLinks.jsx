@@ -14,10 +14,19 @@ import {
 } from 'lucide-react';
 import '../styles/Dashboard.css';
 
-const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '') => ({ to, labelKey, defaultLabel, Icon, tone, activityKey });
+const link = (to, labelKey, defaultLabel, Icon, tone = '', activityKey = '', action = '') => ({
+  to,
+  labelKey,
+  defaultLabel,
+  Icon,
+  tone,
+  activityKey,
+  action,
+});
 
 export const DASHBOARD_QUICK_LINKS = {
   helper: [
+    link('/dashboard', 'helperDashboard.client', 'Client', LayoutDashboard, '', '', 'switchToCustomer'),
     link('/activity', 'helperDashboard.viewHistory', 'View history', Activity, 'history'),
     link('/verify-identity', 'helperDashboard.verifyId', 'Verify ID', ShieldCheck, 'verify'),
     link('/jobs', 'helperDashboard.browseJobs', 'Browse jobs', Briefcase),
@@ -65,7 +74,7 @@ export const DASHBOARD_QUICK_LINKS = {
   ],
 };
 
-export default function DashboardQuickLinks({ items, className = '', activity = {}, onActivityOpen }) {
+export default function DashboardQuickLinks({ items, className = '', activity = {}, onActivityOpen, onAction }) {
   const { t } = useTranslation();
 
   return (
@@ -76,11 +85,14 @@ export default function DashboardQuickLinks({ items, className = '', activity = 
       <span className="dashboard-quick-links__label">
         {t('dashboard.quickLinks', { defaultValue: 'Quick links' })}
       </span>
-      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey }) => (
+      {items.map(({ to, labelKey, defaultLabel, Icon, tone, activityKey, action }) => (
         <Link
           key={to}
           to={to}
-          onClick={activityKey ? () => onActivityOpen?.(activityKey) : undefined}
+          onClick={(event) => {
+            if (action) onAction?.(action, event);
+            if (activityKey) onActivityOpen?.(activityKey);
+          }}
           className={`dashboard-quick-links__link${tone ? ` dashboard-quick-links__link--${tone}` : ''}`}
         >
           <Icon size={15} aria-hidden="true" />
