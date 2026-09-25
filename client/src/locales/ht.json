@@ -4700,6 +4700,34 @@
     "accountTypeHints": { "customer": "Kont kliyan estanda", "investor": "Kont envestisè ak tablodbò espesyal", "helper": "Kont èdè debaz", "helperPro": "Nivo èdè ki peye", "broker": "Kont èdè/koutye nivo 3", "logistics": "Mòd achtè lojistik", "businessOwner": "Pwopriyetè espas biznis", "consultant": "Kont espas konsiltasyon", "toolOwner": "Kont pwopriyetè lokasyon zouti", "franchiseApplicant": "Fason pou aplike epi swiv estati franchiz", "lifeOnly": "Kont tablodbò lavi sèlman", "businessManager": "Espas jesyon biznis yo bay", "businessRepresentative": "Espas reprezantan yo bay", "businessEmployee": "Espas anplwaye yo bay", "businessSupportAgent": "Espas ajan sipò yo bay", "employee": "Anplwaye entèn san aksè pòtal admin", "operationsEmployee": "Anplwaye entèn operasyon lojistik", "complianceEmployee": "Anplwaye entèn konfòmite lojistik", "admin": "Kont pòtal administratè", "superAdmin": "Aksè entèn konplè sou platfòm lan" },
     "subscriptionStatuses": { "none": "Pa gen", "trialing": "Peryòd esè", "active": "Aktif", "pastDue": "Anreta", "cancelled": "Anile", "paused": "Sou poz" }
   },
+  "adminLegal": {
+  "approval": {
+    "loading": "Loading approval queue…",
+    "loadFailed": "Failed to load approval queue",
+    "approveFailed": "Failed to approve document",
+    "queueTitle": "Approval Queue",
+    "queueTitleWithCount": "Approval Queue ({{count}})",
+    "queueSubtitle": "Review and approve pending legal documents",
+    "emptyTitle": "No pending approvals",
+    "emptyBody": "All documents have been reviewed!",
+    "pendingApprovals": "Pending Approvals",
+    "hoursAgo": "{{count}}h ago",
+    "pendingReview": "Pending Review",
+    "requestedBy": "Requested By",
+    "requestedAt": "Requested At",
+    "changeSummary": "Change Summary",
+    "changedSections": "Changed Sections",
+    "reviewComments": "Review Comments",
+    "reviewCommentsPlaceholder": "Add comments for the document creator (optional)",
+    "reviewCommentsHint": "Visible to document creator if rejected",
+    "schedulePublishDate": "Schedule Publish Date (Optional)",
+    "schedulePublishHint": "Leave blank to publish immediately upon approval",
+    "approving": "Approving…",
+    "approveDocument": "Approve Document",
+    "rejectChanges": "Reject (Request Changes)",
+    "previewTerms": "Preview document in Terms page"
+  }
+},
   "businessHub": {
     "procurement": {
       "title": "Acha",

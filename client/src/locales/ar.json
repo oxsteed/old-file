@@ -4615,6 +4615,34 @@
     "accountTypeHints": { "customer": "حساب عميل قياسي", "investor": "حساب مستثمر مع لوحة تحكم مخصصة", "helper": "حساب مساعد أساسي", "helperPro": "مستوى مساعد مدفوع", "broker": "حساب مساعد/وسيط من المستوى الثالث", "logistics": "وضع مشتري الخدمات اللوجستية", "businessOwner": "مالك مساحة عمل تجارية", "consultant": "حساب مساحة استشارية", "toolOwner": "حساب مالك تأجير الأدوات", "franchiseApplicant": "مسار طلب الامتياز وحالته", "lifeOnly": "حساب لوحة الحياة فقط", "businessManager": "مساحة إدارة نشاط ممنوحة", "businessRepresentative": "مساحة ممثل ممنوحة", "businessEmployee": "مساحة موظف ممنوحة", "businessSupportAgent": "مساحة وكيل دعم ممنوحة", "employee": "موظف داخلي بلا وصول إلى بوابة الإدارة", "operationsEmployee": "موظف داخلي لعمليات الخدمات اللوجستية", "complianceEmployee": "موظف داخلي للامتثال اللوجستي", "admin": "حساب بوابة المسؤول", "superAdmin": "وصول داخلي كامل إلى المنصة" },
     "subscriptionStatuses": { "none": "لا يوجد", "trialing": "تجريبي", "active": "نشط", "pastDue": "متأخر", "cancelled": "ملغى", "paused": "متوقف مؤقتًا" }
   },
+  "adminLegal": {
+  "approval": {
+    "loading": "Loading approval queue…",
+    "loadFailed": "Failed to load approval queue",
+    "approveFailed": "Failed to approve document",
+    "queueTitle": "Approval Queue",
+    "queueTitleWithCount": "Approval Queue ({{count}})",
+    "queueSubtitle": "Review and approve pending legal documents",
+    "emptyTitle": "No pending approvals",
+    "emptyBody": "All documents have been reviewed!",
+    "pendingApprovals": "Pending Approvals",
+    "hoursAgo": "{{count}}h ago",
+    "pendingReview": "Pending Review",
+    "requestedBy": "Requested By",
+    "requestedAt": "Requested At",
+    "changeSummary": "Change Summary",
+    "changedSections": "Changed Sections",
+    "reviewComments": "Review Comments",
+    "reviewCommentsPlaceholder": "Add comments for the document creator (optional)",
+    "reviewCommentsHint": "Visible to document creator if rejected",
+    "schedulePublishDate": "Schedule Publish Date (Optional)",
+    "schedulePublishHint": "Leave blank to publish immediately upon approval",
+    "approving": "Approving…",
+    "approveDocument": "Approve Document",
+    "rejectChanges": "Reject (Request Changes)",
+    "previewTerms": "Preview document in Terms page"
+  }
+},
   "businessHub": {
     "procurement": {
       "title": "المشتريات",

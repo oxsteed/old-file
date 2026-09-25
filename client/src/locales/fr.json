@@ -4615,6 +4615,34 @@
     "accountTypeHints": { "customer": "Compte client standard", "investor": "Compte investisseur avec tableau de bord dédié", "helper": "Compte assistant de base", "helperPro": "Niveau d’assistant payant", "broker": "Compte assistant/courtier de niveau 3", "logistics": "Mode acheteur logistique", "businessOwner": "Propriétaire de l’espace d’entreprise", "consultant": "Compte d’espace de conseil", "toolOwner": "Compte de propriétaire de location d’outils", "franchiseApplicant": "Parcours de candidature et de statut de franchise", "lifeOnly": "Compte réservé au tableau de bord vie", "businessManager": "Espace de gestion d’entreprise accordé", "businessRepresentative": "Espace de représentant accordé", "businessEmployee": "Espace d’employé accordé", "businessSupportAgent": "Espace d’agent support accordé", "employee": "Employé interne sans accès au portail admin", "operationsEmployee": "Employé interne des opérations logistiques", "complianceEmployee": "Employé interne de conformité logistique", "admin": "Compte du portail administrateur", "superAdmin": "Accès interne complet à la plateforme" },
     "subscriptionStatuses": { "none": "Aucun", "trialing": "Essai", "active": "Actif", "pastDue": "En retard", "cancelled": "Annulé", "paused": "En pause" }
   },
+  "adminLegal": {
+  "approval": {
+    "loading": "Loading approval queue…",
+    "loadFailed": "Failed to load approval queue",
+    "approveFailed": "Failed to approve document",
+    "queueTitle": "Approval Queue",
+    "queueTitleWithCount": "Approval Queue ({{count}})",
+    "queueSubtitle": "Review and approve pending legal documents",
+    "emptyTitle": "No pending approvals",
+    "emptyBody": "All documents have been reviewed!",
+    "pendingApprovals": "Pending Approvals",
+    "hoursAgo": "{{count}}h ago",
+    "pendingReview": "Pending Review",
+    "requestedBy": "Requested By",
+    "requestedAt": "Requested At",
+    "changeSummary": "Change Summary",
+    "changedSections": "Changed Sections",
+    "reviewComments": "Review Comments",
+    "reviewCommentsPlaceholder": "Add comments for the document creator (optional)",
+    "reviewCommentsHint": "Visible to document creator if rejected",
+    "schedulePublishDate": "Schedule Publish Date (Optional)",
+    "schedulePublishHint": "Leave blank to publish immediately upon approval",
+    "approving": "Approving…",
+    "approveDocument": "Approve Document",
+    "rejectChanges": "Reject (Request Changes)",
+    "previewTerms": "Preview document in Terms page"
+  }
+},
   "businessHub": {
     "procurement": {
       "title": "Approvisionnement",
