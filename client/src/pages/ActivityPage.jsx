@@ -26,13 +26,13 @@ import { formatDateTime, formatMoney } from '../lib/format';
 import ConfirmPaymentReceiptModal from '../components/ConfirmPaymentReceiptModal';
 
 const ACTIVITY_FILTERS = [
-  { key: 'all', label: 'All activity' },
-  { key: 'notifications', label: 'Notifications' },
-  { key: 'bids', label: 'Bids' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'bookings', label: 'Bookings' },
-  { key: 'messages', label: 'Messages' },
-  { key: 'support', label: 'Support' },
+  { key: 'all', labelKey: 'filters.all' },
+  { key: 'notifications', labelKey: 'filters.notifications' },
+  { key: 'bids', labelKey: 'filters.bids' },
+  { key: 'orders', labelKey: 'filters.orders' },
+  { key: 'bookings', labelKey: 'filters.bookings' },
+  { key: 'messages', labelKey: 'filters.messages' },
+  { key: 'support', labelKey: 'filters.support' },
 ];
 
 const EVENT_ICONS = {
@@ -136,7 +136,7 @@ function ActivityCard({ event, onOpen }) {
             </span>
             {event.isUnread && (
               <span className="inline-flex items-center rounded-full bg-blue-500/15 px-2.5 py-1 text-[11px] font-semibold text-blue-300">
-                Unread
+                {t('activity.unread')}
               </span>
             )}
             {event.actionUrl && (
@@ -157,6 +157,7 @@ function ActivityCard({ event, onOpen }) {
 }
 
 function PaymentRequestCard({ request, onConfirm, currentUserId }) {
+  const { t } = useTranslation();
   const isRecipient = request.payeeId && String(request.payeeId) === String(currentUserId);
   const confirmed = request.status === 'confirmed' || !!request.confirmedAt;
   const metadata = request.metadata || {};
@@ -176,7 +177,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-white font-semibold leading-tight">{request.description || 'Payment record'}</h3>
+            <h3 className="text-white font-semibold leading-tight">{request.description || t('activity.paymentRecord')}</h3>
               <p className="mt-1 text-sm text-slate-400">
                 {request.sourceType?.replace('_', ' ')}{request.sourceId ? ` · ${request.sourceId}` : ''}
               </p>
@@ -195,25 +196,25 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
             )}
             {confirmed && (
               <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                Confirmed in app
+                {t('activity.confirmedInApp')}
               </span>
             )}
           </div>
 
           <div className="mt-3 space-y-1 text-sm text-slate-400">
-            {confirmationCode && <p>Confirmation code: <span className="text-slate-200">{confirmationCode}</span></p>}
-            {note && <p>Note: <span className="text-slate-200">{note}</span></p>}
+            {confirmationCode && <p>{t('activity.confirmationCode')}: <span className="text-slate-200">{confirmationCode}</span></p>}
+            {note && <p>{t('activity.note')}: <span className="text-slate-200">{note}</span></p>}
             {(proofAttachment?.name || proofLink) && (
               <div className="space-y-1">
                 {proofAttachment?.name && (
                   <p className="flex items-center gap-2">
-                    Attachment: <span className="text-slate-200">{proofAttachment.name}</span>
+                    {t('activity.attachment')}: <span className="text-slate-200">{proofAttachment.name}</span>
                     <Link2 size={14} />
                   </p>
                 )}
                 {proofLink && (
                   <p className="flex items-center gap-2">
-                    Proof link available
+                    {t('activity.proofLinkAvailable')}
                     <Link2 size={14} />
                   </p>
                 )}
@@ -229,7 +230,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-white/10"
                 >
-                  Open proof <ExternalLink size={14} />
+                  {t('activity.openProof')} <ExternalLink size={14} />
                 </a>
             )}
             {isRecipient && !confirmed && (
@@ -239,7 +240,7 @@ function PaymentRequestCard({ request, onConfirm, currentUserId }) {
                 className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-600"
               >
                 <CheckCircle2 size={14} />
-                Confirm receipt
+                {t('activity.confirmReceipt')}
               </button>
             )}
           </div>
@@ -333,13 +334,13 @@ export default function ActivityPage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">
               <Activity size={13} />
-              Live history
+              {t('activity.liveHistory')}
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {t('activity.title', { defaultValue: 'Activity' })}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-              One place for bids, orders, bookings, messages, support cases, and direct-payment receipts so proof and history never disappear.
+              {t('activity.description')}
             </p>
           </div>
 
@@ -350,7 +351,7 @@ export default function ActivityPage() {
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10"
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-              Refresh
+              {t('activity.refresh')}
             </button>
           </div>
         </div>
@@ -362,16 +363,16 @@ export default function ActivityPage() {
         )}
 
         <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Unread items" value={unreadCount} hint="Events waiting for your attention." icon={Bell} />
-          <StatCard label="Payment records" value={paymentRequests.length} hint="Direct-payment receipts stored in the app." icon={Wallet} />
-          <StatCard label="Needs confirmation" value={paymentActionCount} hint="Payment records that still need a recipient response." icon={CheckCircle2} />
-          <StatCard label="Confirmed receipts" value={confirmedCount} hint="Receipts the other party already confirmed." icon={FileText} />
+          <StatCard label={t('activity.stats.unread')} value={unreadCount} hint={t('activity.stats.unreadHint')} icon={Bell} />
+          <StatCard label={t('activity.stats.paymentRecords')} value={paymentRequests.length} hint={t('activity.stats.paymentRecordsHint')} icon={Wallet} />
+          <StatCard label={t('activity.stats.needsConfirmation')} value={paymentActionCount} hint={t('activity.stats.needsConfirmationHint')} icon={CheckCircle2} />
+          <StatCard label={t('activity.stats.confirmedReceipts')} value={confirmedCount} hint={t('activity.stats.confirmedReceiptsHint')} icon={FileText} />
         </section>
 
         <section className="mb-6 rounded-2xl border border-white/10 bg-slate-950/70 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
             <Filter size={15} className="text-orange-400" />
-            Filter activity
+            {t('activity.filterActivity')}
           </div>
           <div className="flex flex-wrap gap-2">
             {ACTIVITY_FILTERS.map((filter) => {
@@ -387,7 +388,7 @@ export default function ActivityPage() {
                       : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  {filter.label}
+                  {t(`activity.${filter.labelKey}`)}
                 </button>
               );
             })}
@@ -398,9 +399,9 @@ export default function ActivityPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-white">Live activity feed</h2>
+                <h2 className="text-xl font-semibold text-white">{t('activity.feedTitle')}</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Notifications, bids, orders, bookings, messages, and support events from the backend.
+                  {t('activity.feedDescription')}
                 </p>
               </div>
               {loading ? (
@@ -410,7 +411,7 @@ export default function ActivityPage() {
 
             {loading ? (
               <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-8 text-center text-slate-400">
-                Loading activity…
+                {t('activity.loading')}
               </div>
             ) : visibleEvents.length ? (
               <div className="space-y-4">
@@ -420,9 +421,9 @@ export default function ActivityPage() {
               </div>
             ) : (
               <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-8 text-center">
-                <p className="text-lg font-semibold text-white">Nothing here yet</p>
+                <p className="text-lg font-semibold text-white">{t('activity.emptyTitle')}</p>
                 <p className="mt-2 text-sm text-slate-400">
-                  As you use the app, messages, bids, orders, bookings, and support items will show up here.
+                  {t('activity.emptyDescription')}
                 </p>
               </div>
             )}
@@ -432,9 +433,9 @@ export default function ActivityPage() {
             <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Payment receipts</h2>
+                  <h2 className="text-lg font-semibold text-white">{t('activity.paymentReceipts')}</h2>
                   <p className="mt-1 text-sm text-slate-400">
-                    Restaurant credit records and direct-payment confirmations stay visible here for long-term history.
+                    {t('activity.paymentDescription')}
                   </p>
                 </div>
                 <Wallet size={18} className="text-orange-400" />
@@ -452,7 +453,7 @@ export default function ActivityPage() {
                   ))
                 ) : (
                   <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-slate-400">
-                    No payment records yet. Once a restaurant-credit or direct-payment flow is used, the proof will show up here.
+                    {t('activity.noPaymentRecords')}
                   </div>
                 )}
               </div>
@@ -461,20 +462,20 @@ export default function ActivityPage() {
             <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Clock3 size={16} className="text-orange-400" />
-                What this page covers
+                {t('activity.coverageTitle')}
               </div>
               <ul className="mt-4 space-y-3 text-sm text-slate-400">
                 <li className="flex gap-2">
                   <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                  Bids, orders, bookings, messages, and support cases are pulled from the backend feed.
+                  {t('activity.coverageFeed')}
                 </li>
                 <li className="flex gap-2">
                   <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                  Payment receipts can be confirmed inside the app instead of disappearing into chat only.
+                  {t('activity.coverageConfirmations')}
                 </li>
                 <li className="flex gap-2">
                   <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                  Direct-payment proof now has a visible history surface for both parties.
+                  {t('activity.coverageProof')}
                 </li>
               </ul>
             </div>
