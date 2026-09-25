@@ -15,7 +15,7 @@ import { formatMoney } from '../../lib/format';
 
 const EMPTY_SETTINGS = {
   response_promise_hours: 12,
-  intake_label: 'Guided intake and continuity planning',
+  intake_label: '',
   follow_up_window_days: 14,
   next_session_window_days: 14,
   preferred_contact_channel: 'message',
@@ -43,7 +43,7 @@ const EMPTY_PLAN = {
 };
 
 const EMPTY_TRUST = {
-  record_type: 'Credential',
+  record_type: '',
   title: '',
   issuer: '',
   status: 'active',
@@ -123,6 +123,7 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
     setSettingsForm({
       ...EMPTY_SETTINGS,
       ...settings,
+      intake_label: settings.intake_label || copy('defaultIntakeLabel'),
       intake_focuses: (settings.intake_focuses || []).join(', '),
       trust_artifacts: (settings.trust_artifacts || []).join(', '),
       plan_focuses: (settings.plan_focuses || []).join(', '),
@@ -311,19 +312,19 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Section title="Continuity plans and package logic" subtitle="Package repeat support into memberships, plans, or session blocks the team can actually sell and renew.">
+        <Section title={copy('plansTitle')} subtitle={copy('plansSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={savePlan}>
-            <Input label="Plan name"><TextInput value={planForm.plan_name} onChange={(e) => setPlanForm((current) => ({ ...current, plan_name: e.target.value }))} /></Input>
-            <Input label="Type"><Select value={planForm.plan_type} onChange={(e) => setPlanForm((current) => ({ ...current, plan_type: e.target.value }))}><option value="membership">Membership</option><option value="session_pack">Session pack</option><option value="care_plan">Care plan</option><option value="learning_plan">Learning plan</option><option value="wellness_plan">Wellness plan</option></Select></Input>
-            <Input label="Price cents"><TextInput type="number" min="0" value={planForm.price_cents} onChange={(e) => setPlanForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
-            <Input label="Session count"><TextInput type="number" min="0" value={planForm.session_count} onChange={(e) => setPlanForm((current) => ({ ...current, session_count: e.target.value }))} /></Input>
-            <Input label="Cadence label"><TextInput value={planForm.cadence_label} onChange={(e) => setPlanForm((current) => ({ ...current, cadence_label: e.target.value }))} placeholder="Weekly, twice monthly, school-year plan" /></Input>
-            <Input label="Target templates" wide><TextInput value={planForm.target_templates} onChange={(e) => setPlanForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder="wellness_therapy, math_tutor, dog_walker" /></Input>
-            <Input label="Focus areas" wide><TextInput value={planForm.focus_areas} onChange={(e) => setPlanForm((current) => ({ ...current, focus_areas: e.target.value }))} placeholder="Strength, anxiety support, exam prep, puppy routine" /></Input>
-            <Input label="Description" wide><TextArea rows={2} value={planForm.description} onChange={(e) => setPlanForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <Input label={copy('planName')}><TextInput value={planForm.plan_name} onChange={(e) => setPlanForm((current) => ({ ...current, plan_name: e.target.value }))} /></Input>
+            <Input label={copy('type')}><Select value={planForm.plan_type} onChange={(e) => setPlanForm((current) => ({ ...current, plan_type: e.target.value }))}>{['membership', 'session_pack', 'care_plan', 'learning_plan', 'wellness_plan'].map((type) => <option key={type} value={type}>{copy(`planTypes.${type}`)}</option>)}</Select></Input>
+            <Input label={copy('priceCents')}><TextInput type="number" min="0" value={planForm.price_cents} onChange={(e) => setPlanForm((current) => ({ ...current, price_cents: e.target.value }))} /></Input>
+            <Input label={copy('sessionCount')}><TextInput type="number" min="0" value={planForm.session_count} onChange={(e) => setPlanForm((current) => ({ ...current, session_count: e.target.value }))} /></Input>
+            <Input label={copy('cadenceLabel')}><TextInput value={planForm.cadence_label} onChange={(e) => setPlanForm((current) => ({ ...current, cadence_label: e.target.value }))} placeholder={copy('cadencePlaceholder')} /></Input>
+            <Input label={copy('targetTemplates')} wide><TextInput value={planForm.target_templates} onChange={(e) => setPlanForm((current) => ({ ...current, target_templates: e.target.value }))} placeholder={copy('targetTemplatesPlaceholder')} /></Input>
+            <Input label={copy('focusAreas')} wide><TextInput value={planForm.focus_areas} onChange={(e) => setPlanForm((current) => ({ ...current, focus_areas: e.target.value }))} placeholder={copy('focusAreasPlaceholder')} /></Input>
+            <Input label={copy('descriptionField')} wide><TextArea rows={2} value={planForm.description} onChange={(e) => setPlanForm((current) => ({ ...current, description: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPlanId ? 'Update plan' : 'Add plan'}</button>
-              {editingPlanId ? <button className="bh-btn" type="button" onClick={() => { setEditingPlanId(null); setPlanForm(EMPTY_PLAN); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingPlanId ? copy('updatePlan') : copy('addPlan')}</button>
+              {editingPlanId ? <button className="bh-btn" type="button" onClick={() => { setEditingPlanId(null); setPlanForm(EMPTY_PLAN); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -333,9 +334,9 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.plan_name}</p>
-                      <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">{item.plan_type}</span>
+                      <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">{copy(`planTypes.${item.plan_type}`)}</span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-400">{item.description || 'No description yet.'}</p>
+                    <p className="mt-2 text-sm text-gray-400">{item.description || copy('noDescription')}</p>
                     <p className="mt-2 text-xs text-gray-500">{formatMoney((item.price_cents || 0) / 100, { currency })}{item.cadence_label ? ` · ${item.cadence_label}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
@@ -352,36 +353,36 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                         focus_areas: (item.focus_areas || []).join(', '),
                         active: item.active !== false,
                       });
-                    }}>Edit</button>
+                    }}>{copy('edit')}</button>
                     <button className="bh-btn sm" type="button" onClick={async () => {
                       try {
                         await deleteContinuityPlan(businessId, item.id);
-                        toast.success('Plan removed');
+                        toast.success(copy('planRemoved'));
                         await onRefresh?.();
                       } catch (error) {
-                        toast.error(error?.response?.data?.error || 'Could not remove plan');
+                        toast.error(error?.response?.data?.error || copy('planRemoveFailed'));
                       }
-                    }}>Delete</button>
+                    }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
             ))}
-            {plans.length === 0 ? <p className="text-sm text-gray-400">No continuity plans yet.</p> : null}
+            {plans.length === 0 ? <p className="text-sm text-gray-400">{copy('noPlans')}</p> : null}
           </div>
         </Section>
 
-        <Section title="Trust, credential, and compliance records" subtitle="Keep credentials, safety records, or documentation visible so continuity-led clients see the trust layer behind the work.">
+        <Section title={copy('trustTitle')} subtitle={copy('trustSubtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
-            <Input label="Record type"><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
-            <Input label="Title"><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-            <Input label="Issuer"><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
-            <Input label="Status"><Select value={trustForm.status} onChange={(e) => setTrustForm((current) => ({ ...current, status: e.target.value }))}><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="archived">Archived</option></Select></Input>
-            <Input label="Expires on"><TextInput type="date" value={trustForm.expires_on} onChange={(e) => setTrustForm((current) => ({ ...current, expires_on: e.target.value }))} /></Input>
-            <Input label="Document URL"><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
-            <Input label="Notes" wide><TextArea rows={3} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <Input label={copy('recordType')}><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
+            <Input label={copy('titleField')}><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label={copy('issuer')}><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
+            <Input label={copy('statusField')}><Select value={trustForm.status} onChange={(e) => setTrustForm((current) => ({ ...current, status: e.target.value }))}>{['active', 'expiring', 'expired', 'archived'].map((status) => <option key={status} value={status}>{copy(`statuses.${status}`)}</option>)}</Select></Input>
+            <Input label={copy('expiresOn')}><TextInput type="date" value={trustForm.expires_on} onChange={(e) => setTrustForm((current) => ({ ...current, expires_on: e.target.value }))} /></Input>
+            <Input label={copy('documentUrl')}><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
+            <Input label={copy('notesField')} wide><TextArea rows={3} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingTrustId ? 'Update record' : 'Add record'}</button>
-              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingTrustId ? copy('updateRecord') : copy('addRecord')}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>{copy('cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -391,9 +392,9 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
-                      <span className="rounded-full bg-sky-400/10 px-2 py-0.5 text-[11px] font-semibold text-sky-200">{item.status}</span>
+                      <span className="rounded-full bg-sky-400/10 px-2 py-0.5 text-[11px] font-semibold text-sky-200">{copy(`statuses.${item.status}`)}</span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-400">{item.record_type}{item.issuer ? ` · ${item.issuer}` : ''}{item.expires_on ? ` · expires ${item.expires_on}` : ''}</p>
+                    <p className="mt-2 text-sm text-gray-400">{item.record_type}{item.issuer ? ` · ${item.issuer}` : ''}{item.expires_on ? ` · ${copy('expiresOnText', { date: item.expires_on })}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
                     <button className="bh-btn sm" type="button" onClick={() => {
@@ -407,21 +408,21 @@ export default function ContinuityOperationsTab({ businessId, workspace, currenc
                         document_url: item.document_url || '',
                         notes: item.notes || '',
                       });
-                    }}>Edit</button>
+                    }}>{copy('edit')}</button>
                     <button className="bh-btn sm" type="button" onClick={async () => {
                       try {
                         await deleteContinuityTrustRecord(businessId, item.id);
-                        toast.success('Trust record removed');
+                        toast.success(copy('trustRecordRemoved'));
                         await onRefresh?.();
                       } catch (error) {
-                        toast.error(error?.response?.data?.error || 'Could not remove trust record');
+                        toast.error(error?.response?.data?.error || copy('trustRecordRemoveFailed'));
                       }
-                    }}>Delete</button>
+                    }}>{copy('delete')}</button>
                   </div>
                 </div>
               </div>
             ))}
-            {trustRecords.length === 0 ? <p className="text-sm text-gray-400">No trust records yet.</p> : null}
+            {trustRecords.length === 0 ? <p className="text-sm text-gray-400">{copy('noTrustRecords')}</p> : null}
           </div>
         </Section>
       </div>
