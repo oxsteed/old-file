@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   createCreativeApprovalRecord,
@@ -99,6 +100,8 @@ function Select(props) {
 }
 
 export default function CreativeOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`businessHub.creativeOps.${key}`, options);
   const settings = workspace?.settings || {};
   const intakeRequests = workspace?.intakeRequests || [];
   const packages = workspace?.packages || [];
@@ -137,10 +140,10 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
         deliverable_types: parseCommaList(settingsForm.deliverable_types),
         trust_artifacts: parseCommaList(settingsForm.trust_artifacts),
       });
-      toast.success('Creative settings saved');
+      toast.success(copy('settingsSaved'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save creative settings');
+      toast.error(error?.response?.data?.error || copy('settingsSaveFailed'));
     } finally {
       setSavingSettings(false);
     }
@@ -158,12 +161,12 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
       };
       if (editingPackageId) await updateCreativePackage(businessId, editingPackageId, payload);
       else await createCreativePackage(businessId, payload);
-      toast.success(editingPackageId ? 'Package updated' : 'Package added');
+      toast.success(editingPackageId ? copy('packageUpdated') : copy('packageAdded'));
       setPackageForm(EMPTY_PACKAGE);
       setEditingPackageId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save package');
+      toast.error(error?.response?.data?.error || copy('packageSaveFailed'));
     }
   }
 
@@ -172,22 +175,22 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
     try {
       if (editingRecordId) await updateCreativeApprovalRecord(businessId, editingRecordId, recordForm);
       else await createCreativeApprovalRecord(businessId, recordForm);
-      toast.success(editingRecordId ? 'Approval record updated' : 'Approval record added');
+      toast.success(editingRecordId ? copy('recordUpdated') : copy('recordAdded'));
       setRecordForm(EMPTY_RECORD);
       setEditingRecordId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save approval record');
+      toast.error(error?.response?.data?.error || copy('recordSaveFailed'));
     }
   }
 
   async function quickUpdateIntake(requestId, patch) {
     try {
       await updateCreativeIntakeRequest(businessId, requestId, patch);
-      toast.success('Creative intake updated');
+      toast.success(copy('intakeUpdated'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not update creative intake');
+      toast.error(error?.response?.data?.error || copy('intakeUpdateFailed'));
     }
   }
 
@@ -197,32 +200,32 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-orange-400/25 bg-orange-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-100">
-              Creative Ops
+              {copy('label')}
             </span>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Discovery, proposal, approval, delivery</h2>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{copy('title')}</h2>
             <p className="mt-3 text-sm leading-7 text-gray-300">
-              Run project intake, package framing, proof approvals, and delivery follow-up from one workspace built for photographers, design studios, and visual-service operators.
+              {copy('description')}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
-            <Card label="Open intakes" value={metrics.open_intakes || 0} hint={`${metrics.proposals_waiting || 0} proposals waiting`} />
-            <Card label="Approval pressure" value={metrics.approvals_pending || 0} hint={`${metrics.approvals_overdue || 0} overdue approvals`} />
+            <Card label={copy('openIntakes')} value={metrics.open_intakes || 0} hint={copy('proposalsWaiting', { count: metrics.proposals_waiting || 0 })} />
+            <Card label={copy('approvalPressure')} value={metrics.approvals_pending || 0} hint={copy('overdueApprovals', { count: metrics.approvals_overdue || 0 })} />
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <Card label="Delivered 30d" value={metrics.delivered_last_30 || 0} hint="Projects moved into completed delivery" />
-        <Card label="Follow-ups due" value={metrics.follow_up_due || 0} hint="Testimonials, referrals, or final nudges" />
-        <Card label="Active packages" value={metrics.active_packages || 0} hint={formatMoney((metrics.package_value_cents || 0) / 100, { currency }) + ' in live package pricing'} />
-        <Card label="Proof queue" value={approvalRecords.filter((item) => item.status === 'revisions_requested').length} hint="Approvals bounced back for revisions" />
+        <Card label={copy('delivered30d')} value={metrics.delivered_last_30 || 0} hint={copy('delivered30dHint')} />
+        <Card label={copy('followUpsDue')} value={metrics.follow_up_due || 0} hint={copy('followUpsDueHint')} />
+        <Card label={copy('activePackages')} value={metrics.active_packages || 0} hint={`${formatMoney((metrics.package_value_cents || 0) / 100, { currency })} ${copy('livePackagePricing')}`} />
+        <Card label={copy('proofQueue')} value={approvalRecords.filter((item) => item.status === 'revisions_requested').length} hint={copy('proofQueueHint')} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
         <Section
-          title="Creative Intake Pipeline"
-          subtitle="Capture project goals, push people into discovery or proposal, and keep active creative work moving through review and delivery."
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>Open quotes</button>}
+          title={copy('intakePipeline')}
+          subtitle={copy('intakePipelineSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>{copy('openQuotes')}</button>}
         >
           <div className="space-y-4">
             {intakeRequests.slice(0, 12).map((item) => (
@@ -234,59 +237,59 @@ export default function CreativeOperationsTab({ businessId, workspace, currency 
                       <span className="rounded-full bg-orange-400/10 px-2.5 py-1 text-[11px] font-semibold text-orange-200">{item.workflow_stage}</span>
                     </div>
                     <p className="mt-2 text-sm font-semibold text-white">{item.project_type}</p>
-                    <p className="mt-1 text-sm text-gray-400">{item.package_interest || 'Custom scope'}{item.contact_name ? ` · ${item.contact_name}` : ''}</p>
+                    <p className="mt-1 text-sm text-gray-400">{item.package_interest || copy('customScope')}{item.contact_name ? ` · ${item.contact_name}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'proposal_sent', workflow_stage: 'proposal' })}>Proposal sent</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'delivered', workflow_stage: 'follow_up' })}>Delivered</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'proposal_sent', workflow_stage: 'proposal' })}>{copy('proposalSent')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateIntake(item.id, { status: 'delivered', workflow_stage: 'follow_up' })}>{copy('delivered')}</button>
                   </div>
                 </div>
               </div>
             ))}
-            {intakeRequests.length === 0 ? <p className="text-sm text-gray-400">No creative intake requests yet. Public discovery will feed new projects here.</p> : null}
+            {intakeRequests.length === 0 ? <p className="text-sm text-gray-400">{copy('noIntakes')}</p> : null}
           </div>
         </Section>
 
         <Section
-          title="Queue Snapshot"
-          subtitle="See what needs discovery calls, proposal follow-up, or approval handling first."
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>Refresh</button>}
+          title={copy('queueSnapshot')}
+          subtitle={copy('queueSnapshotSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Discovery queue</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedIntakes.discovery.length} inquiries still need fit-check, call scheduling, or brief clarification.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('discoveryQueue')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('discoveryQueueHint', { count: groupedIntakes.discovery.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Proposal and production</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedIntakes.proposal.length} projects are in proposal or active production right now.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('proposalProduction')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('proposalProductionHint', { count: groupedIntakes.proposal.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Review and delivery</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedIntakes.review.length} projects are waiting on proof approval, delivery, or testimonial follow-up.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('reviewDelivery')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('reviewDeliveryHint', { count: groupedIntakes.review.length })}</p>
             </div>
           </div>
         </Section>
       </div>
 
       <Section
-        title="Discovery, revision, and delivery settings"
-        subtitle="Define how fast you respond, how revisions work, what approvals mean, and what post-delivery follow-up looks like."
-        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+        title={copy('settingsTitle')}
+        subtitle={copy('settingsSubtitle')}
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? t('common.saving') : copy('saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
-          <Input label="Discovery label"><TextInput value={settingsForm.discovery_call_label} onChange={(e) => setSettingsForm((current) => ({ ...current, discovery_call_label: e.target.value }))} /></Input>
-          <Input label="Delivery window (days)"><TextInput type="number" min="1" value={settingsForm.delivery_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, delivery_window_days: e.target.value }))} /></Input>
-          <Input label="Approval turnaround (hours)"><TextInput type="number" min="1" value={settingsForm.approval_turnaround_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, approval_turnaround_hours: e.target.value }))} /></Input>
-          <Input label="Preferred contact channel"><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}><option value="email">Email</option><option value="call">Call</option><option value="meeting">Meeting</option><option value="message">Message</option></Select></Input>
-          <Input label="Gallery focus tags"><TextInput value={settingsForm.gallery_focus_tags} onChange={(e) => setSettingsForm((current) => ({ ...current, gallery_focus_tags: e.target.value }))} placeholder="Portraits, brand campaigns, logo systems" /></Input>
-          <Input label="Deliverable types" wide><TextInput value={settingsForm.deliverable_types} onChange={(e) => setSettingsForm((current) => ({ ...current, deliverable_types: e.target.value }))} placeholder="Concepts, retouched finals, brand kit, web assets" /></Input>
-          <Input label="Trust artifacts" wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Revision policy, approval checkpoints, usage rights" /></Input>
-          <Input label="Revision policy" wide><TextArea rows={3} value={settingsForm.revision_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, revision_policy: e.target.value }))} /></Input>
-          <Input label="Approval policy" wide><TextArea rows={3} value={settingsForm.approval_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, approval_policy: e.target.value }))} /></Input>
-          <Input label="Follow-up prompt" wide><TextArea rows={3} value={settingsForm.follow_up_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_prompt: e.target.value }))} /></Input>
-          <Input label="Testimonial prompt" wide><TextArea rows={3} value={settingsForm.testimonial_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, testimonial_prompt: e.target.value }))} /></Input>
+          <Input label={copy('responsePromise')}><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
+          <Input label={copy('discoveryLabel')}><TextInput value={settingsForm.discovery_call_label} onChange={(e) => setSettingsForm((current) => ({ ...current, discovery_call_label: e.target.value }))} /></Input>
+          <Input label={copy('deliveryWindow')}><TextInput type="number" min="1" value={settingsForm.delivery_window_days} onChange={(e) => setSettingsForm((current) => ({ ...current, delivery_window_days: e.target.value }))} /></Input>
+          <Input label={copy('approvalTurnaround')}><TextInput type="number" min="1" value={settingsForm.approval_turnaround_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, approval_turnaround_hours: e.target.value }))} /></Input>
+          <Input label={copy('preferredContact')}><Select value={settingsForm.preferred_contact_channel} onChange={(e) => setSettingsForm((current) => ({ ...current, preferred_contact_channel: e.target.value }))}><option value="email">{copy('email')}</option><option value="call">{copy('call')}</option><option value="meeting">{copy('meeting')}</option><option value="message">{copy('message')}</option></Select></Input>
+          <Input label={copy('galleryFocusTags')}><TextInput value={settingsForm.gallery_focus_tags} onChange={(e) => setSettingsForm((current) => ({ ...current, gallery_focus_tags: e.target.value }))} placeholder={copy('galleryFocusTagsPlaceholder')} /></Input>
+          <Input label={copy('deliverableTypes')} wide><TextInput value={settingsForm.deliverable_types} onChange={(e) => setSettingsForm((current) => ({ ...current, deliverable_types: e.target.value }))} placeholder={copy('deliverableTypesPlaceholder')} /></Input>
+          <Input label={copy('trustArtifacts')} wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder={copy('trustArtifactsPlaceholder')} /></Input>
+          <Input label={copy('revisionPolicy')} wide><TextArea rows={3} value={settingsForm.revision_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, revision_policy: e.target.value }))} /></Input>
+          <Input label={copy('approvalPolicy')} wide><TextArea rows={3} value={settingsForm.approval_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, approval_policy: e.target.value }))} /></Input>
+          <Input label={copy('followUpPrompt')} wide><TextArea rows={3} value={settingsForm.follow_up_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_prompt: e.target.value }))} /></Input>
+          <Input label={copy('testimonialPrompt')} wide><TextArea rows={3} value={settingsForm.testimonial_prompt} onChange={(e) => setSettingsForm((current) => ({ ...current, testimonial_prompt: e.target.value }))} /></Input>
         </div>
       </Section>
 
