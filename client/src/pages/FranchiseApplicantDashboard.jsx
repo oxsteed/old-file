@@ -32,18 +32,18 @@ const STATUS_PROGRESS = {
 };
 
 const READINESS_LABELS = {
-  not_started: 'Not started',
-  scheduled: 'Scheduled',
-  in_progress: 'In progress',
-  completed: 'Completed',
-  draft: 'Draft',
-  sent: 'Sent',
-  signed: 'Signed',
-  waived: 'Waived',
-  not_ready: 'Not ready',
-  planning: 'Planning',
-  ready: 'Ready',
-  launched: 'Launched',
+  not_started: 'notStarted',
+  scheduled: 'scheduled',
+  in_progress: 'inProgress',
+  completed: 'completed',
+  draft: 'draft',
+  sent: 'sent',
+  signed: 'signed',
+  waived: 'waived',
+  not_ready: 'notReady',
+  planning: 'planning',
+  ready: 'ready',
+  launched: 'launched',
 };
 
 const STATUS_LABELS = (t) => ({
@@ -68,7 +68,7 @@ function formatMoney(cents) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(cents) / 100);
 }
 
-function ProgressRing({ pct }) {
+function ProgressRing({ pct, label = 'Progress' }) {
   const radius = 42;
   const stroke = 7;
   const circumference = 2 * Math.PI * radius;
@@ -94,7 +94,7 @@ function ProgressRing({ pct }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-2xl font-bold">{Math.round(pct)}%</div>
         <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: 'var(--color-text-muted)' }}>
-          Progress
+          {label}
         </div>
       </div>
     </div>
@@ -115,6 +115,7 @@ function MiniMetric({ icon: Icon, label, value, accent = '#93c5fd' }) {
 
 export default function FranchiseApplicantDashboard() {
   const { t } = useTranslation();
+  const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [applications, setApplications] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -164,7 +165,7 @@ export default function FranchiseApplicantDashboard() {
           <section className="rounded-[28px] border p-8 text-center" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)' }}>
               <Flag size={15} />
-              Franchise mode
+              {copy('modeLabel')}
             </div>
             <h1 className="text-4xl font-bold tracking-tight mt-5">
               {t('dashboards.franchise.heroTitle', { defaultValue: 'Start your OxSteed franchise application' })}
@@ -202,7 +203,7 @@ export default function FranchiseApplicantDashboard() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.2em]" style={{ background: 'rgba(59,130,246,0.12)', color: '#93c5fd' }}>
                 <ShieldCheck size={14} />
-                Franchise applicant
+                {copy('applicantLabel')}
               </div>
               <h1 className="text-4xl font-bold tracking-tight mt-4">
                 {t('dashboards.franchise.title', { defaultValue: 'Your franchise journey' })}
@@ -213,72 +214,64 @@ export default function FranchiseApplicantDashboard() {
               <div className="flex flex-wrap gap-3 mt-6">
                 {(primary.status === 'launched' || primary.status === 'approved') && (
                   <Link to="/franchise/territory" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">
-                    Territory ops <ArrowRight size={15} />
+                    {copy('territoryOps')} <ArrowRight size={15} />
                   </Link>
                 )}
                 <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                  Submit another territory <ArrowRight size={15} />
+                  {copy('submitAnotherTerritory')} <ArrowRight size={15} />
                 </Link>
                 <Link to="/support/escalation" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'var(--color-border)' }}>
-                  Contact support
+                  {copy('contactSupport')}
                 </Link>
               </div>
             </div>
-            <ProgressRing pct={progress} />
+            <ProgressRing pct={progress} label={copy('progress')} />
           </div>
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.3fr,0.7fr] gap-4">
           <article className="rounded-[28px] border p-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: '#fdba74' }}>
-              Current application
+              {copy('currentApplication')}
             </div>
             <div className="text-2xl font-bold mt-2">
-              {primary.desired_brand_name || primary.current_company_name || 'OxSteed franchise application'}
+              {primary.desired_brand_name || primary.current_company_name || copy('applicationFallback')}
             </div>
             <div className="text-sm mt-2" style={{ color: 'var(--color-text-muted, #94a3b8)' }}>
-              {labels[primary.status] || primary.status} · submitted {formatDate(primary.submitted_at)}
+              {labels[primary.status] || primary.status} · {copy('submitted')} {formatDate(primary.submitted_at)}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-6">
-              <MiniMetric icon={MapPin} label="Territory" value={territory} accent="#93c5fd" />
-              <MiniMetric icon={CheckCircle2} label="Checklist" value={checklistValue} accent="#34d399" />
-              <MiniMetric icon={FileText} label="Agreement" value={READINESS_LABELS[primary.agreement_status] || primary.agreement_status || 'Pending'} accent="#fca5a5" />
-              <MiniMetric icon={Rocket} label="Launch readiness" value={READINESS_LABELS[primary.launch_readiness_status] || primary.launch_readiness_status || 'Pending'} accent="#c4b5fd" />
+              <MiniMetric icon={MapPin} label={copy('territory')} value={territory} accent="#93c5fd" />
+              <MiniMetric icon={CheckCircle2} label={copy('checklist')} value={checklistValue} accent="#34d399" />
+              <MiniMetric icon={FileText} label={copy('agreement')} value={primary.agreement_status ? copy(`readiness.${READINESS_LABELS[primary.agreement_status]}`, { defaultValue: primary.agreement_status }) : copy('pending')} accent="#fca5a5" />
+              <MiniMetric icon={Rocket} label={copy('launchReadiness')} value={primary.launch_readiness_status ? copy(`readiness.${READINESS_LABELS[primary.launch_readiness_status]}`, { defaultValue: primary.launch_readiness_status }) : copy('pending')} accent="#c4b5fd" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
               <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <Briefcase size={15} className="text-orange-400" />
-                  Capital profile
+                  {copy('capitalProfile')}
                 </div>
                 <div className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Available capital: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.available_capital_cents)}</strong>
+                  {copy('availableCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.available_capital_cents)}</strong>
                 </div>
                 <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Liquid capital: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.liquid_capital_cents)}</strong>
+                  {copy('liquidCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.liquid_capital_cents)}</strong>
                 </div>
                 <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Store goal: <strong style={{ color: 'var(--color-text)' }}>{primary.preferred_store_count || 1}</strong>
+                  {copy('storeGoal')}: <strong style={{ color: 'var(--color-text)' }}>{primary.preferred_store_count || 1}</strong>
                 </div>
               </div>
 
               <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <Compass size={15} className="text-orange-400" />
-                  Next milestone
+                  {copy('nextMilestone')}
                 </div>
                 <p className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-                  {primary.status === 'inquiry' && 'Your territory request is being reviewed for fit and availability. No action needed yet — you\'ll be contacted within 3–5 business days to discuss your interest and timeline.'}
-                  {primary.status === 'screening' && 'Screening is underway. Watch your email for a short questionnaire about your professional background, capital readiness, and local market experience. Responding promptly keeps your application moving.'}
-                  {primary.status === 'application_review' && 'Your full application is with the franchise review team. This stage typically takes 1–2 weeks. Check your email for any requests for clarification or additional documents.'}
-                  {primary.status === 'diligence' && 'Diligence is active. Our team is validating territory data, checking financial readiness, and confirming operational fit. You may receive reference or document requests — respond within 48 hours to avoid delays.'}
-                  {primary.status === 'agreement_pending' && 'You\'re almost there. Franchise agreement documents have been prepared or are awaiting your signature. Check your email for a DocuSign link. Contact your franchise coordinator if you haven\'t received documents yet.'}
-                  {primary.status === 'approved' && 'Congratulations — you\'re approved! Training materials and your launch-readiness checklist are being prepared. Your franchise coordinator will reach out with next steps within 5 business days.'}
-                  {primary.status === 'launched' && 'Your franchise is live. Visit the Territory Operations page to manage your helpers, track activity, and monitor revenue.'}
-                  {primary.status === 'rejected' && 'This application did not advance. Common reasons include territory unavailability, capital requirements, or market fit. Contact support@oxsteed.com if you have questions or believe there has been an error.'}
-                  {primary.status === 'archived' && 'This application is archived. If you\'d like to reapply or start a new territory inquiry, contact franchise@oxsteed.com.'}
+                  {primary.status && copy(`milestones.${primary.status}`)}
                 </p>
               </div>
             </div>
@@ -287,14 +280,14 @@ export default function FranchiseApplicantDashboard() {
           <aside className="rounded-[28px] border p-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <div className="text-sm font-semibold flex items-center gap-2">
               <Clock3 size={15} className="text-orange-400" />
-              Timeline
+              {copy('timeline')}
             </div>
             <div className="mt-4 grid gap-3">
               {[
-                ['Submitted', formatDate(primary.submitted_at)],
-                ['Last updated', formatDate(primary.updated_at)],
-                ['Launch target', primary.timeline_window || 'Not specified'],
-                ['Training', READINESS_LABELS[primary.training_status] || primary.training_status || 'Pending'],
+                [copy('submittedLabel'), formatDate(primary.submitted_at)],
+                [copy('lastUpdated'), formatDate(primary.updated_at)],
+                [copy('launchTarget'), primary.timeline_window || copy('notSpecified')],
+                [copy('training'), primary.training_status ? copy(`readiness.${READINESS_LABELS[primary.training_status]}`, { defaultValue: primary.training_status }) : copy('pending')],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
                   <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
@@ -308,14 +301,14 @@ export default function FranchiseApplicantDashboard() {
         {sortedApplications.length > 1 && (
           <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
             <header className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-              <h2 className="text-lg font-semibold">All franchise applications</h2>
+              <h2 className="text-lg font-semibold">{copy('allApplications')}</h2>
             </header>
             <div className="divide-y" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>
               {sortedApplications.map((application) => (
                 <div key={application.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
                   <div>
                     <div className="font-semibold">
-                      {application.desired_brand_name || application.current_company_name || `Application #${application.id}`}
+                      {application.desired_brand_name || application.current_company_name || copy('applicationNumber', { id: application.id })}
                     </div>
                     <div className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
                       {(labels[application.status] || application.status)} · {formatDate(application.submitted_at)}
