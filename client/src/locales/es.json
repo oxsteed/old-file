@@ -7060,6 +7060,124 @@
       "noLeadsYet": "Aún no hay prospectos. Agrega tu primer prospecto.",
       "noContactInfo": "Sin información de contacto",
       "via": "por"
+    },
+    "templateWorkflow": {
+      "badge": "Sistema de flujo de trabajo de plantilla",
+      "internalWorkflow": "Flujo interno de {{name}}",
+      "metrics": {
+        "workflowReadiness": {
+          "label": "Preparación del flujo",
+          "hint": "Basado en la integridad de la vitrina y del sistema operativo."
+        },
+        "businessMode": {
+          "label": "Modo del negocio",
+          "hint": "Rol activo: {{role}}"
+        },
+        "servicesLive": {
+          "label": "Servicios activos",
+          "hint": "Ofertas disponibles para vender"
+        },
+        "galleryAssets": {
+          "label": "Recursos de galería",
+          "hint": "Prueba y apoyo para convertir"
+        },
+        "monthlyRevenue": {
+          "label": "Ingresos mensuales",
+          "hint": "Mes registrado actual"
+        },
+        "openWork": {
+          "label": "Trabajo abierto",
+          "hint": "Trabajos o tareas activas registradas"
+        }
+      },
+      "checklistCompletion": "Progreso de la lista",
+      "checklistProgress": "{{completed}} de {{total}} requisitos del flujo están listos.",
+      "ready": "Listo",
+      "needsWork": "Requiere trabajo",
+      "intakeRequirements": "Requisitos de admisión",
+      "qualityControls": "Controles de calidad",
+      "readySystemDetail": "El flujo está listo. Usa {{system}} para ejecutar mejor el modelo de {{model}}.",
+      "promiseBody": "Se espera que {{name}} cambie cómo el equipo presenta la demanda, recopila datos, asigna trabajo, conserva la confianza y aumenta los ingresos recurrentes. Usa este espacio como guía operativa y ejecuta los sistemas vinculados con este sector en mente.",
+      "sections": {
+        "readiness": {
+          "title": "Lista de preparación del flujo",
+          "subtitle": "Estas comprobaciones convierten la plantilla en una configuración operativa interna."
+        },
+        "nextActions": {
+          "title": "Siguientes mejores acciones",
+          "subtitle": "Si solo haces algunas cosas, empieza por estas para esta plantilla."
+        },
+        "demand": {
+          "title": "Demanda que atiende esta plantilla",
+          "subtitle": "Usa estos patrones para decidir cómo empaquetar, dotar de personal y vender el negocio."
+        },
+        "systems": {
+          "title": "Sistemas desbloqueados por esta plantilla",
+          "subtitle": "Estos son los espacios internos que este sector debe usar cada semana."
+        },
+        "operating": {
+          "title": "Flujo operativo",
+          "subtitle": "Este es el ciclo interno que el equipo debe seguir cada vez que la plantilla gana demanda."
+        },
+        "records": {
+          "title": "Registros que el equipo debe mantener",
+          "subtitle": "Estos registros mantienen la plantilla creíble y escalable."
+        },
+        "daily": {
+          "title": "Ritmo diario",
+          "subtitle": "El ciclo breve que los operadores deben ejecutar cada día."
+        },
+        "weekly": {
+          "title": "Ritmo semanal",
+          "subtitle": "El ciclo de optimización que mantiene el negocio enfocado."
+        },
+        "monthly": {
+          "title": "Ritmo mensual",
+          "subtitle": "La revisión del negocio para precios, crecimiento y retención."
+        },
+        "monetization": {
+          "title": "Retención y monetización",
+          "subtitle": "Usa estas acciones para convertir la plantilla en una ventaja operativa real."
+        },
+        "promise": {
+          "title": "Compromiso interno de la plantilla",
+          "subtitle": "Lo que esta plantilla activada debe permitir internamente, no solo en el perfil público."
+        }
+      },
+      "checklist": {
+        "identity": {
+          "title": "Identidad y descripción del negocio",
+          "help": "Completa la historia, el posicionamiento y las bases de confianza pública."
+        },
+        "services": {
+          "title": "Estructura de servicios o paquetes",
+          "help": "Esta plantilla funciona mejor cuando las ofertas están claramente empaquetadas."
+        },
+        "proof": {
+          "title": "Pruebas y galería",
+          "help": "Los clientes necesitan pruebas visibles antes de decidir."
+        },
+        "hours": {
+          "title": "Disponibilidad y ritmo operativo",
+          "help": "Configura horarios, citas y seguimiento."
+        },
+        "faq": {
+          "title": "Preguntas frecuentes de expectativas",
+          "help": "Responde de antemano las preguntas clave de compra."
+        },
+        "team": {
+          "title": "Equipo interno o colaboradores",
+          "help": "Muchas plantillas funcionan mejor con responsabilidades claras."
+        },
+        "activity": {
+          "title": "Tracción del flujo activo",
+          "help": "Un flujo activo debe mostrar ingresos o trabajo en curso."
+        },
+        "systems": {
+          "title": "{{count}}+ sistemas específicos en uso",
+          "help": "La plantilla es más sólida cuando el equipo usa los sistemas recomendados."
+        }
+      }
     }
   },
   "plans": {

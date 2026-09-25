@@ -7145,6 +7145,124 @@
       "noLeadsYet": "Pa gen kandida ankò. Ajoute premye kandida ou.",
       "noContactInfo": "Pa gen enfòmasyon kontak",
       "via": "pa"
+    },
+    "templateWorkflow": {
+      "badge": "Sistèm workflow modèl la",
+      "internalWorkflow": "Workflow entèn {{name}}",
+      "metrics": {
+        "workflowReadiness": {
+          "label": "Preparasyon workflow",
+          "hint": "Baze sou vitrin lan ak sistèm operasyon an."
+        },
+        "businessMode": {
+          "label": "Mòd biznis",
+          "hint": "Wòl aktif: {{role}}"
+        },
+        "servicesLive": {
+          "label": "Sèvis aktif",
+          "hint": "Òf ki disponib pou vann"
+        },
+        "galleryAssets": {
+          "label": "Resous galri",
+          "hint": "Prèv ak sipò pou konvèti"
+        },
+        "monthlyRevenue": {
+          "label": "Revni chak mwa",
+          "hint": "Mwa y ap swiv la"
+        },
+        "openWork": {
+          "label": "Travay ouvè",
+          "hint": "Travay oswa tach aktif yo suiv"
+        }
+      },
+      "checklistCompletion": "Pwogrè lis la",
+      "checklistProgress": "{{completed}} sou {{total}} kondisyon workflow yo pare.",
+      "ready": "Pare",
+      "needsWork": "Bezwen travay",
+      "intakeRequirements": "Kondisyon pou ranmase enfòmasyon",
+      "qualityControls": "Kontwòl kalite",
+      "readySystemDetail": "Workflow la pare. Pase tan nan {{system}} pou pi byen fè modèl {{model}} la mache.",
+      "promiseBody": "{{name}} dwe chanje fason ekip la òganize demann, ranmase enfòmasyon, voye travay, kenbe konfyans, epi devlope revni ki repete. Sèvi ak espas sa a kòm gid operasyonèl la pandan w ap panse ak sektè sa a.",
+      "sections": {
+        "readiness": {
+          "title": "Lis preparasyon workflow",
+          "subtitle": "Verifikasyon sa yo fè modèl la tounen yon bon konfigirasyon entèn."
+        },
+        "nextActions": {
+          "title": "Pi bon aksyon pou apre",
+          "subtitle": "Si w ap fè kèk bagay sèlman, kòmanse ak sa yo pou modèl sa a."
+        },
+        "demand": {
+          "title": "Demann modèl sa a fèt pou sèvi",
+          "subtitle": "Sèvi ak modèl demann sa yo pou deside kijan pou pake, òganize ak vann biznis la."
+        },
+        "systems": {
+          "title": "Sistèm modèl la louvri",
+          "subtitle": "Men espas entèn sektè sa a ta dwe itilize chak semèn."
+        },
+        "operating": {
+          "title": "Workflow operasyonèl",
+          "subtitle": "Men sik entèn ekip la dwe swiv chak fwa modèl la jwenn demann."
+        },
+        "records": {
+          "title": "Dosye ekip la dwe kenbe",
+          "subtitle": "Dosye sa yo fè modèl la kredib epi fasil pou grandi."
+        },
+        "daily": {
+          "title": "Rit chak jou",
+          "subtitle": "Ti sik operatè yo dwe fè chak jou."
+        },
+        "weekly": {
+          "title": "Rit chak semèn",
+          "subtitle": "Sik amelyorasyon ki kenbe biznis la solid."
+        },
+        "monthly": {
+          "title": "Rit chak mwa",
+          "subtitle": "Revizyon biznis la pou pri, kwasans ak retansyon."
+        },
+        "monetization": {
+          "title": "Retansyon ak monetizasyon",
+          "subtitle": "Sèvi ak aksyon sa yo pou fè modèl la tounen yon avantaj reyèl."
+        },
+        "promise": {
+          "title": "Pwomès entèn modèl la",
+          "subtitle": "Sa modèl la dwe pèmèt andedan, pa sèlman sou pwofil piblik la."
+        }
+      },
+      "checklist": {
+        "identity": {
+          "title": "Idantite ak deskripsyon biznis",
+          "help": "Ranpli istwa biznis la, pozisyon li ak baz konfyans piblik la."
+        },
+        "services": {
+          "title": "Estrikti sèvis oswa pake",
+          "help": "Modèl sa a mache pi byen lè òf yo klè."
+        },
+        "proof": {
+          "title": "Prèv ak galri",
+          "help": "Kliyan yo bezwen wè prèv anvan yo chwazi."
+        },
+        "hours": {
+          "title": "Disponibilite ak rit operasyon",
+          "help": "Mete lè, randevou ak swivi yo."
+        },
+        "faq": {
+          "title": "FAQ pou fikse atant",
+          "help": "Reponn kesyon prensipal kliyan yo davans."
+        },
+        "team": {
+          "title": "Ekip entèn oswa kolaboratè",
+          "help": "Responsablite ki klè ede anpil modèl mache pi byen."
+        },
+        "activity": {
+          "title": "Mouvman workflow aktif",
+          "help": "Yon workflow aktif dwe montre revni oswa travay k ap fèt."
+        },
+        "systems": {
+          "title": "{{count}}+ sistèm modèl la itilize",
+          "help": "Modèl la pi solid lè ekip la sèvi ak sistèm yo rekòmande yo."
+        }
+      }
     }
   },
   "plans": {

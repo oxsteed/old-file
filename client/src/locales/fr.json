@@ -7060,6 +7060,124 @@
       "noLeadsYet": "Aucun prospect pour le moment. Ajoutez votre premier prospect.",
       "noContactInfo": "Aucune coordonnée",
       "via": "via"
+    },
+    "templateWorkflow": {
+      "badge": "Système de workflow du modèle",
+      "internalWorkflow": "Workflow interne de {{name}}",
+      "metrics": {
+        "workflowReadiness": {
+          "label": "Préparation du workflow",
+          "hint": "Basée sur la vitrine et le système opérationnel."
+        },
+        "businessMode": {
+          "label": "Mode de l’entreprise",
+          "hint": "Rôle actif : {{role}}"
+        },
+        "servicesLive": {
+          "label": "Services actifs",
+          "hint": "Offres disponibles à la vente"
+        },
+        "galleryAssets": {
+          "label": "Ressources de galerie",
+          "hint": "Preuves et aide à la conversion"
+        },
+        "monthlyRevenue": {
+          "label": "Revenus mensuels",
+          "hint": "Mois suivi actuellement"
+        },
+        "openWork": {
+          "label": "Travail ouvert",
+          "hint": "Tâches ou emplois actifs suivis"
+        }
+      },
+      "checklistCompletion": "Avancement de la liste",
+      "checklistProgress": "{{completed}} exigences sur {{total}} du workflow sont en place.",
+      "ready": "Prêt",
+      "needsWork": "À améliorer",
+      "intakeRequirements": "Éléments à recueillir",
+      "qualityControls": "Contrôles qualité",
+      "readySystemDetail": "Le workflow est prêt. Utilisez {{system}} pour mieux appliquer le modèle {{model}}.",
+      "promiseBody": "{{name}} doit changer la façon dont l’équipe présente la demande, recueille les informations, distribue le travail, préserve la confiance et développe les revenus récurrents. Utilisez cet espace comme guide opérationnel et gardez ce secteur en tête.",
+      "sections": {
+        "readiness": {
+          "title": "Liste de préparation du workflow",
+          "subtitle": "Ces vérifications transforment le modèle en véritable configuration interne."
+        },
+        "nextActions": {
+          "title": "Prochaines actions prioritaires",
+          "subtitle": "Si vous ne faites que quelques actions, commencez par celles-ci."
+        },
+        "demand": {
+          "title": "Demande couverte par ce modèle",
+          "subtitle": "Utilisez ces tendances pour décider comment présenter, organiser et vendre l’entreprise."
+        },
+        "systems": {
+          "title": "Systèmes activés par ce modèle",
+          "subtitle": "Voici les espaces internes à utiliser chaque semaine."
+        },
+        "operating": {
+          "title": "Workflow opérationnel",
+          "subtitle": "Voici le cycle interne à suivre lorsque ce modèle gagne une demande."
+        },
+        "records": {
+          "title": "Registres à maintenir",
+          "subtitle": "Ces registres rendent le modèle fiable et évolutif."
+        },
+        "daily": {
+          "title": "Rythme quotidien",
+          "subtitle": "La boucle courte à suivre chaque jour."
+        },
+        "weekly": {
+          "title": "Rythme hebdomadaire",
+          "subtitle": "La boucle d’optimisation qui garde l’entreprise efficace."
+        },
+        "monthly": {
+          "title": "Rythme mensuel",
+          "subtitle": "La revue de l’entreprise pour les prix, la croissance et la fidélisation."
+        },
+        "monetization": {
+          "title": "Fidélisation et monétisation",
+          "subtitle": "Utilisez ces leviers pour transformer le modèle en avantage opérationnel."
+        },
+        "promise": {
+          "title": "Promesse interne du modèle",
+          "subtitle": "Ce que le modèle activé doit permettre en interne, au-delà du profil public."
+        }
+      },
+      "checklist": {
+        "identity": {
+          "title": "Identité et description de l’entreprise",
+          "help": "Complétez l’histoire, le positionnement et les bases de confiance."
+        },
+        "services": {
+          "title": "Structure des services ou forfaits",
+          "help": "Ce modèle fonctionne mieux lorsque les offres sont clairement structurées."
+        },
+        "proof": {
+          "title": "Preuves et galerie",
+          "help": "Les clients ont besoin de preuves visibles avant de choisir."
+        },
+        "hours": {
+          "title": "Disponibilité et rythme opérationnel",
+          "help": "Définissez les horaires, les rendez-vous et le suivi."
+        },
+        "faq": {
+          "title": "FAQ pour clarifier les attentes",
+          "help": "Répondez à l’avance aux principales questions d’achat."
+        },
+        "team": {
+          "title": "Équipe interne ou collaborateurs",
+          "help": "Les responsabilités claires améliorent souvent les résultats."
+        },
+        "activity": {
+          "title": "Dynamique du workflow actif",
+          "help": "Un workflow actif doit montrer des revenus ou du travail en cours."
+        },
+        "systems": {
+          "title": "{{count}}+ systèmes du modèle utilisés",
+          "help": "Le modèle est plus efficace lorsque l’équipe utilise les systèmes recommandés."
+        }
+      }
     }
   },
   "plans": {

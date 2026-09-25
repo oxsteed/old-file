@@ -7095,6 +7095,124 @@
       "noLeadsYet": "No leads yet. Add your first prospect.",
       "noContactInfo": "No contact info",
       "via": "via"
+    },
+    "templateWorkflow": {
+      "badge": "Template Workflow System",
+      "internalWorkflow": "{{name}} internal workflow",
+      "metrics": {
+        "workflowReadiness": {
+          "label": "Workflow readiness",
+          "hint": "Based on live storefront and operating-system completeness."
+        },
+        "businessMode": {
+          "label": "Business mode",
+          "hint": "Active role: {{role}}"
+        },
+        "servicesLive": {
+          "label": "Services live",
+          "hint": "Offers available to sell"
+        },
+        "galleryAssets": {
+          "label": "Gallery assets",
+          "hint": "Proof and conversion fuel"
+        },
+        "monthlyRevenue": {
+          "label": "Monthly revenue",
+          "hint": "Current tracked month"
+        },
+        "openWork": {
+          "label": "Open work",
+          "hint": "Tracked active jobs or tasks"
+        }
+      },
+      "checklistCompletion": "Checklist completion",
+      "checklistProgress": "{{completed}} of {{total}} workflow requirements are currently in place.",
+      "ready": "Ready",
+      "needsWork": "Needs work",
+      "intakeRequirements": "Intake requirements",
+      "qualityControls": "Quality controls",
+      "readySystemDetail": "Workflow is ready. Spend time inside {{system}} to run the {{model}} model better.",
+      "promiseBody": "{{name}} is expected to change how the team packages demand, collects intake, routes work, preserves trust, and grows repeat revenue. Use this workspace as the operating playbook for that template, then run the linked systems from Services, Schedule, Clients, Messages, Quotes, Reviews, and Growth Center with this industry in mind.",
+      "sections": {
+        "readiness": {
+          "title": "Workflow Readiness Checklist",
+          "subtitle": "These checks translate the template into an actual internal operating setup."
+        },
+        "nextActions": {
+          "title": "Next Best Actions",
+          "subtitle": "If you only do a few things next, do these first for this template."
+        },
+        "demand": {
+          "title": "Demand This Template Is Built To Serve",
+          "subtitle": "Use these demand patterns to decide how this business should be packaged, staffed, and sold."
+        },
+        "systems": {
+          "title": "Systems Unlocked By This Template",
+          "subtitle": "These are the internal workspaces this industry should lean on every week."
+        },
+        "operating": {
+          "title": "Operating Workflow",
+          "subtitle": "This is the internal lifecycle the team should run every time this template wins demand."
+        },
+        "records": {
+          "title": "Records The Team Must Maintain",
+          "subtitle": "These are the internal operating records that keep this template credible and scalable."
+        },
+        "daily": {
+          "title": "Daily Cadence",
+          "subtitle": "The tight loop operators should run every day."
+        },
+        "weekly": {
+          "title": "Weekly Cadence",
+          "subtitle": "The optimization loop that keeps the business sharp."
+        },
+        "monthly": {
+          "title": "Monthly Cadence",
+          "subtitle": "The business-review loop for pricing, growth, and retention."
+        },
+        "monetization": {
+          "title": "Retention And Monetization Plays",
+          "subtitle": "Use these growth motions to turn the template into a real operating advantage."
+        },
+        "promise": {
+          "title": "Template-Specific Internal Promise",
+          "subtitle": "What this activated template should enable behind the scenes, not just on the public profile."
+        }
+      },
+      "checklist": {
+        "identity": {
+          "title": "Business identity and description",
+          "help": "Complete the business story, positioning, and public trust basics."
+        },
+        "services": {
+          "title": "Service or package structure",
+          "help": "This template sells best when offers are packaged clearly for the industry."
+        },
+        "proof": {
+          "title": "Proof assets and gallery",
+          "help": "Customers in this market need visible proof before they convert."
+        },
+        "hours": {
+          "title": "Availability and operating rhythm",
+          "help": "Set hours, appointment flow, and follow-up timing."
+        },
+        "faq": {
+          "title": "Expectation-setting FAQ",
+          "help": "Answer the biggest buying questions for this industry up front."
+        },
+        "team": {
+          "title": "Internal staff or collaborator context",
+          "help": "Many templates perform better when responsibilities are clearly assigned."
+        },
+        "activity": {
+          "title": "Active workflow traction",
+          "help": "A live workflow should show either revenue movement or active work."
+        },
+        "systems": {
+          "title": "{{count}}+ template-specific systems in use",
+          "help": "This template is strongest when the team actively uses the recommended systems below."
+        }
+      }
     }
   },
   "plans": {

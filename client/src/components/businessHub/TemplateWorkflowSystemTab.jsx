@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   BarChart3,
@@ -81,7 +82,7 @@ function CompletionScore({ currentBiz, services, gallery, reviews, faqs, hours, 
   return Math.round((passed / checks.length) * 100);
 }
 
-function buildReadinessChecklist({ currentBiz, services, gallery, faqs, hours, members, analytics, workflow }) {
+function buildReadinessChecklist({ currentBiz, services, gallery, faqs, hours, members, analytics, workflow, t }) {
   const hasHours = hours.some((item) => !item.is_closed && item.start_time && item.end_time);
   const revenue = analytics?.monthly_revenue ?? analytics?.revenue_this_month ?? 0;
   const jobs = analytics?.open_jobs ?? analytics?.active_jobs ?? 0;
@@ -89,64 +90,64 @@ function buildReadinessChecklist({ currentBiz, services, gallery, faqs, hours, m
   return [
     {
       key: 'identity',
-      title: 'Business identity and description',
+      title: t('businessHub.templateWorkflow.checklist.identity.title'),
       done: !!currentBiz?.business_name && !!currentBiz?.description,
       tab: 'profile',
-      help: 'Complete the business story, positioning, and public trust basics.',
+      help: t('businessHub.templateWorkflow.checklist.identity.help'),
     },
     {
       key: 'services',
-      title: 'Service or package structure',
+      title: t('businessHub.templateWorkflow.checklist.services.title'),
       done: services.length >= 2,
       tab: 'services',
-      help: 'This template sells best when offers are packaged clearly for the industry.',
+      help: t('businessHub.templateWorkflow.checklist.services.help'),
     },
     {
       key: 'proof',
-      title: 'Proof assets and gallery',
+      title: t('businessHub.templateWorkflow.checklist.proof.title'),
       done: gallery.length >= 3,
       tab: 'gallery',
-      help: 'Customers in this market need visible proof before they convert.',
+      help: t('businessHub.templateWorkflow.checklist.proof.help'),
     },
     {
       key: 'hours',
-      title: 'Availability and operating rhythm',
+      title: t('businessHub.templateWorkflow.checklist.hours.title'),
       done: hasHours,
       tab: 'calendar',
-      help: 'Set hours, appointment flow, and follow-up timing.',
+      help: t('businessHub.templateWorkflow.checklist.hours.help'),
     },
     {
       key: 'faq',
-      title: 'Expectation-setting FAQ',
+      title: t('businessHub.templateWorkflow.checklist.faq.title'),
       done: faqs.length >= 3,
       tab: 'faqs',
-      help: 'Answer the biggest buying questions for this industry up front.',
+      help: t('businessHub.templateWorkflow.checklist.faq.help'),
     },
     {
       key: 'team',
-      title: 'Internal staff or collaborator context',
+      title: t('businessHub.templateWorkflow.checklist.team.title'),
       done: members.length > 0,
       tab: 'team',
-      help: 'Many templates perform better when responsibilities are clearly assigned.',
+      help: t('businessHub.templateWorkflow.checklist.team.help'),
     },
     {
       key: 'activity',
-      title: 'Active workflow traction',
+      title: t('businessHub.templateWorkflow.checklist.activity.title'),
       done: revenue > 0 || jobs > 0,
       tab: 'overview',
-      help: 'A live workflow should show either revenue movement or active work.',
+      help: t('businessHub.templateWorkflow.checklist.activity.help'),
     },
     {
       key: 'systems',
-      title: `${workflow.unlockedSystems.length}+ template-specific systems in use`,
+      title: t('businessHub.templateWorkflow.checklist.systems.title', { count: workflow.unlockedSystems.length }),
       done: workflow.unlockedSystems.length >= 3,
       tab: 'workflow',
-      help: 'This template is strongest when the team actively uses the recommended systems below.',
+      help: t('businessHub.templateWorkflow.checklist.systems.help'),
     },
   ];
 }
 
-function buildPriorityActions(checklist, workflow) {
+function buildPriorityActions(checklist, workflow, t) {
   return checklist
     .filter((item) => !item.done)
     .slice(0, 3)
@@ -164,7 +165,7 @@ function buildPriorityActions(checklist, workflow) {
             order: index + 1,
             title: system.label,
             tab: system.tab,
-            detail: `Workflow is ready. Spend time inside ${system.label} to run the ${workflow.operatingModel.toLowerCase()} model better.`,
+            detail: t('businessHub.templateWorkflow.readySystemDetail', { system: system.label, model: workflow.operatingModel.toLowerCase() }),
           }))
         : []
     );
@@ -183,6 +184,7 @@ export default function TemplateWorkflowSystemTab({
   analytics = null,
   onJumpTab,
 }) {
+  const { t } = useTranslation();
   const registryEntry = TEMPLATE_REGISTRY[activeTemplate] || TEMPLATE_REGISTRY.default;
   const workflow = getTemplateWorkflowSystem(activeTemplate, registryEntry.category);
   const score = CompletionScore({ currentBiz, services, gallery, reviews, faqs, hours, members });
@@ -197,9 +199,10 @@ export default function TemplateWorkflowSystemTab({
     members,
     analytics,
     workflow,
+    t,
   });
   const completedChecklist = checklist.filter((item) => item.done).length;
-  const priorityActions = buildPriorityActions(checklist, workflow);
+  const priorityActions = buildPriorityActions(checklist, workflow, t);
 
   return (
     <div className="space-y-6">
@@ -207,10 +210,10 @@ export default function TemplateWorkflowSystemTab({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex items-center rounded-full border border-orange-400/20 bg-orange-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-200">
-              Template Workflow System
+              {t('businessHub.templateWorkflow.badge')}
             </span>
             <h2 className="mt-4 text-3xl font-semibold text-white">
-              {registryEntry.name} internal workflow
+              {t('businessHub.templateWorkflow.internalWorkflow', { name: registryEntry.name })}
             </h2>
             <p className="mt-3 text-sm leading-7 text-gray-300">
               {workflow.headline}
@@ -222,15 +225,15 @@ export default function TemplateWorkflowSystemTab({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
             <MetricCard
-              label="Workflow readiness"
+              label={t('businessHub.templateWorkflow.metrics.workflowReadiness.label')}
               value={`${score}%`}
-              hint="Based on live storefront and operating-system completeness."
+              hint={t('businessHub.templateWorkflow.metrics.workflowReadiness.hint')}
               icon={CheckCircle2}
             />
             <MetricCard
-              label="Business mode"
+              label={t('businessHub.templateWorkflow.metrics.businessMode.label')}
               value={workflow.operatingModel}
-              hint={`Active role: ${currentRole}`}
+              hint={t('businessHub.templateWorkflow.metrics.businessMode.hint', { role: currentRole })}
               icon={Building2}
             />
           </div>
@@ -238,23 +241,23 @@ export default function TemplateWorkflowSystemTab({
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <MetricCard label="Services live" value={services.length} hint="Offers available to sell" icon={Briefcase} />
-        <MetricCard label="Gallery assets" value={gallery.length} hint="Proof and conversion fuel" icon={BarChart3} />
-        <MetricCard label="Monthly revenue" value={monthlyRevenue ? `$${Number(monthlyRevenue).toFixed(0)}` : '$0'} hint="Current tracked month" icon={Target} />
-        <MetricCard label="Open work" value={openItems} hint="Tracked active jobs or tasks" icon={Clock3} />
+        <MetricCard label={t('businessHub.templateWorkflow.metrics.servicesLive.label')} value={services.length} hint={t('businessHub.templateWorkflow.metrics.servicesLive.hint')} icon={Briefcase} />
+        <MetricCard label={t('businessHub.templateWorkflow.metrics.galleryAssets.label')} value={gallery.length} hint={t('businessHub.templateWorkflow.metrics.galleryAssets.hint')} icon={BarChart3} />
+        <MetricCard label={t('businessHub.templateWorkflow.metrics.monthlyRevenue.label')} value={monthlyRevenue ? `$${Number(monthlyRevenue).toFixed(0)}` : '$0'} hint={t('businessHub.templateWorkflow.metrics.monthlyRevenue.hint')} icon={Target} />
+        <MetricCard label={t('businessHub.templateWorkflow.metrics.openWork.label')} value={openItems} hint={t('businessHub.templateWorkflow.metrics.openWork.hint')} icon={Clock3} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
-          title="Workflow Readiness Checklist"
-          subtitle="These checks translate the template into an actual internal operating setup."
+          title={t('businessHub.templateWorkflow.sections.readiness.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.readiness.subtitle')}
           icon={CheckCircle2}
         >
           <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Checklist completion</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessHub.templateWorkflow.checklistCompletion')}</p>
               <p className="mt-1 text-sm text-gray-300">
-                {completedChecklist} of {checklist.length} workflow requirements are currently in place.
+                {t('businessHub.templateWorkflow.checklistProgress', { completed: completedChecklist, total: checklist.length })}
               </p>
             </div>
             <div className="text-2xl font-semibold text-white">{Math.round((completedChecklist / checklist.length) * 100)}%</div>
@@ -275,7 +278,7 @@ export default function TemplateWorkflowSystemTab({
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
                       <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.done ? 'bg-emerald-400/10 text-emerald-300' : 'bg-orange-400/10 text-orange-300'}`}>
-                        {item.done ? 'Ready' : 'Needs work'}
+                        {item.done ? t('businessHub.templateWorkflow.ready') : t('businessHub.templateWorkflow.needsWork')}
                       </span>
                     </div>
                     <p className="mt-1 text-sm leading-6 text-gray-400">{item.help}</p>
@@ -287,8 +290,8 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Next Best Actions"
-          subtitle="If you only do a few things next, do these first for this template."
+          title={t('businessHub.templateWorkflow.sections.nextActions.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.nextActions.subtitle')}
           icon={Sparkles}
         >
           <div className="space-y-3">
@@ -317,14 +320,14 @@ export default function TemplateWorkflowSystemTab({
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
-          title="Demand This Template Is Built To Serve"
-          subtitle="Use these demand patterns to decide how this business should be packaged, staffed, and sold."
+          title={t('businessHub.templateWorkflow.sections.demand.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.demand.subtitle')}
           icon={Target}
         >
           <ChipList items={workflow.primaryDemand} />
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Intake requirements</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessHub.templateWorkflow.intakeRequirements')}</p>
               <ul className="mt-3 space-y-2">
                 {workflow.intakeRequirements.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
@@ -335,7 +338,7 @@ export default function TemplateWorkflowSystemTab({
               </ul>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Quality controls</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('businessHub.templateWorkflow.qualityControls')}</p>
               <ul className="mt-3 space-y-2">
                 {workflow.qualityControls.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
@@ -349,8 +352,8 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Systems Unlocked By This Template"
-          subtitle="These are the internal workspaces this industry should lean on every week."
+          title={t('businessHub.templateWorkflow.sections.systems.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.systems.subtitle')}
           icon={Building2}
         >
           <div className="space-y-3">
@@ -376,8 +379,8 @@ export default function TemplateWorkflowSystemTab({
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <SectionCard
-          title="Operating Workflow"
-          subtitle="This is the internal lifecycle the team should run every time this template wins demand."
+          title={t('businessHub.templateWorkflow.sections.operating.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.operating.subtitle')}
           icon={Calendar}
         >
           <div className="space-y-4">
@@ -393,8 +396,8 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Records The Team Must Maintain"
-          subtitle="These are the internal operating records that keep this template credible and scalable."
+          title={t('businessHub.templateWorkflow.sections.records.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.records.subtitle')}
           icon={FileText}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -412,8 +415,8 @@ export default function TemplateWorkflowSystemTab({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <SectionCard
-          title="Daily Cadence"
-          subtitle="The tight loop operators should run every day."
+          title={t('businessHub.templateWorkflow.sections.daily.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.daily.subtitle')}
           icon={Clock3}
         >
           <ul className="space-y-2">
@@ -427,8 +430,8 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Weekly Cadence"
-          subtitle="The optimization loop that keeps the business sharp."
+          title={t('businessHub.templateWorkflow.sections.weekly.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.weekly.subtitle')}
           icon={Calendar}
         >
           <ul className="space-y-2">
@@ -442,8 +445,8 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Monthly Cadence"
-          subtitle="The business-review loop for pricing, growth, and retention."
+          title={t('businessHub.templateWorkflow.sections.monthly.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.monthly.subtitle')}
           icon={BarChart3}
         >
           <ul className="space-y-2">
@@ -459,8 +462,8 @@ export default function TemplateWorkflowSystemTab({
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <SectionCard
-          title="Retention And Monetization Plays"
-          subtitle="Use these growth motions to turn the template into a real operating advantage."
+          title={t('businessHub.templateWorkflow.sections.monetization.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.monetization.subtitle')}
           icon={Users}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -476,12 +479,12 @@ export default function TemplateWorkflowSystemTab({
         </SectionCard>
 
         <SectionCard
-          title="Template-Specific Internal Promise"
-          subtitle="What this activated template should enable behind the scenes, not just on the public profile."
+          title={t('businessHub.templateWorkflow.sections.promise.title')}
+          subtitle={t('businessHub.templateWorkflow.sections.promise.subtitle')}
           icon={MessageSquare}
         >
           <p className="text-sm leading-7 text-gray-300">
-            {registryEntry.name} is expected to change how the team packages demand, collects intake, routes work, preserves trust, and grows repeat revenue. Use this workspace as the operating playbook for that template, then run the linked systems from Services, Schedule, Clients, Messages, Quotes, Reviews, and Growth Center with this industry in mind.
+            {t('businessHub.templateWorkflow.promiseBody', { name: registryEntry.name })}
           </p>
         </SectionCard>
       </div>
