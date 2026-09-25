@@ -123,6 +123,9 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               {t('booking.expiresIn')} {timeRemaining}
             </p>
           )}
+          {live.status === 'pending' && live.autoPostOnExpiry && (
+            <p className="booking-countdown">{t('booking.autoPostPending')}</p>
+          )}
           {live.helperResponseReason && (
             <p className="booking-reason">{live.helperResponseReason}</p>
           )}
@@ -150,7 +153,9 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
           <div className="detail-row">
             <span className="detail-label">{t('booking.time')}:</span>
             <span className="detail-value">
-              {formatTime(live.requestedStartTime)} – {formatTime(live.requestedEndTime)}
+              {live.availabilityMode === 'request_only'
+                ? t('booking.flexibleTime')
+                : `${formatTime(live.requestedStartTime)} – ${formatTime(live.requestedEndTime)}`}
             </span>
           </div>
           <div className="detail-row">
@@ -205,7 +210,11 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
             </div>
           )}
 
-          {shouldShowConvertOption && (
+          {live.status === 'expired' && live.convertedToJobId ? (
+            <Link to={`/jobs/${encodeURIComponent(live.convertedToJobId)}`} className="booking-btn-primary" style={{ textDecoration: 'none' }}>
+              {t('booking.viewPublicJob')}
+            </Link>
+          ) : shouldShowConvertOption && (
             <button type="button" onClick={onConvertToJob} className="booking-btn-primary">
               {t('booking.postAsJob')}
             </button>

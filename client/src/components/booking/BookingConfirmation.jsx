@@ -27,6 +27,7 @@ export default function BookingConfirmation({
   const locale = i18n.language || 'en';
   const [agreed, setAgreed] = useState(false);
   const [confirmationHours, setConfirmationHours] = useState(24);
+  const effectiveConfirmationHours = bookingData.availabilityMode === 'request_only' ? 72 : confirmationHours;
 
   const handleConfirm = () => {
     if (!agreed) {
@@ -36,7 +37,9 @@ export default function BookingConfirmation({
 
     onConfirm({
       ...bookingData,
-      confirmationHours: Math.min(168, Math.max(1, Number(confirmationHours) || 24)),
+      confirmationHours: bookingData.availabilityMode === 'request_only'
+        ? 72
+        : Math.min(168, Math.max(1, Number(confirmationHours) || 24)),
     });
   };
 
@@ -70,7 +73,9 @@ export default function BookingConfirmation({
             <div>
               <span className="summary-label">{t('booking.time')}</span>
               <span className="summary-value">
-                {formatTime(bookingData.requestedStartTime)} – {formatTime(bookingData.requestedEndTime)}
+                {bookingData.availabilityMode === 'request_only'
+                  ? t('booking.flexibleTime')
+                  : `${formatTime(bookingData.requestedStartTime)} – ${formatTime(bookingData.requestedEndTime)}`}
               </span>
             </div>
           </div>
@@ -104,13 +109,20 @@ export default function BookingConfirmation({
           </div>
         )}
 
+        {bookingData.availabilityMode === 'request_only' && (
+          <div className="booking-fallback-summary">
+            <strong>{t('booking.noScheduleTitle')}</strong>
+            <p>{bookingData.autoPostOnExpiry ? t('booking.autoPostSummary') : t('booking.expireSummary')}</p>
+          </div>
+        )}
+
         {/* Important Info */}
         <div className="booking-info-box">
           <AlertCircle size={18} />
           <div>
             <h4>{t('booking.importantToKnow')}</h4>
             <ul>
-              <li>{t('booking.infoWaitingForResponse', { hours: confirmationHours })}</li>
+              <li>{t('booking.infoWaitingForResponse', { hours: effectiveConfirmationHours })}</li>
               <li>{t('booking.infoHelperCanDecline')}</li>
               <li>{t('booking.infoCanConvertToJob')}</li>
             </ul>
@@ -122,8 +134,9 @@ export default function BookingConfirmation({
           <select
             id="booking-confirm-hours"
             className="booking-input"
-            value={confirmationHours}
+            value={bookingData.availabilityMode === 'request_only' ? 72 : confirmationHours}
             onChange={(e) => setConfirmationHours(Number(e.target.value))}
+            disabled={bookingData.availabilityMode === 'request_only'}
           >
             {[6, 12, 24, 48, 72, 96, 120, 168].map((h) => (
               <option key={h} value={h}>
@@ -132,7 +145,7 @@ export default function BookingConfirmation({
             ))}
           </select>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)', marginTop: '0.35rem' }}>
-            {t('booking.confirmationWindowHint')}
+            {bookingData.availabilityMode === 'request_only' ? t('booking.requestOnlyWindowHint') : t('booking.confirmationWindowHint')}
           </p>
         </div>
 

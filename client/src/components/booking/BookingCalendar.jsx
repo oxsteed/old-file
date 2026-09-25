@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock } from 'lucide-react';
-import { getAvailableSlots } from '../../api/bookings';
+import { Clock, Info, RefreshCw } from 'lucide-react';
+import { getAvailableSlots, getBusinessAvailableSlots } from '../../api/bookings';
+import api from '../../api/axios';
 import './BookingCalendar.css';
 
-/**
- * Format "HH:MM" → "9:00 AM" using the active i18n locale.
- */
 function formatTime(hhmm) {
   if (!hhmm) return hhmm;
   const [h, m] = hhmm.split(':').map(Number);
@@ -14,38 +12,26 @@ function formatTime(hhmm) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-/**
- * BookingCalendar Component
- *
- * Shows a calendar for the next 30 days with available time slots
- * Fetches available slots from the helper's business hours and existing appointments
- */
-export default function BookingCalendar({ helperId, helperName, onSelectSlot, initialServiceName = '' }) {
+export default function BookingCalendar({
+  helperId, helperName, businessId, businessName, onSelectSlot, initialServiceName = '',
+}) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
-
   const [selectedDate, setSelectedDate] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [serviceData, setServiceData] = useState({
-    serviceName: initialServiceName || '',
-    serviceLocation: '',
-    description: ''
-  });
+  const [availability, setAvailability] = useState(null);
+  const [services, setServices] = useState([]);
+  const [serviceId, setServiceId] = useState('');
+  const [serviceData, setServiceData] = useState({ serviceName: initialServiceName || '', serviceLocation: '', description: '' });
+  const [fallbackChoice, setFallbackChoice] = useState('post');
   const [loading, setLoading] = useState(false);
+  const [servicesLoading, setServicesLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (initialServiceName) {
-      setServiceData((d) => ({ ...d, serviceName: initialServiceName }));
-    }
-  }, [initialServiceName]);
-
-  // Get next 30 days for calendar
-  const days = React.useMemo(() => {
+  const days = useMemo(() => {
     const result = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 30; i += 1) {
       const day = new Date(today);
       day.setDate(day.getDate() + i);
       result.push(day);
@@ -53,152 +39,130 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
     return result;
   }, []);
 
-  // Fetch available slots when date is selected
   useEffect(() => {
-    if (!selectedDate) return;
+    if (initialServiceName) setServiceData((d) => ({ ...d, serviceName: initialServiceName }));
+  }, [initialServiceName]);
 
-    setLoading(true);
-    setError(null);
-
-    const dateStr = selectedDate.toISOString().split('T')[0];
-
-    getAvailableSlots(helperId, dateStr)
-      .then((data) => {
-        if (data.success) {
-          setAvailableSlots(data.data.slots || []);
-        } else {
-          setError('Failed to fetch available slots');
+  useEffect(() => {
+    if (!businessId) return undefined;
+    let active = true;
+    setServicesLoading(true);
+    api.get(`/businesses/${businessId}/services`)
+      .then(({ data }) => {
+        if (!active) return;
+        const rows = data?.data ?? data;
+        const next = Array.isArray(rows) ? rows : [];
+        setServices(next);
+        if (!initialServiceName && next[0]) {
+          setServiceId(String(next[0].id));
+          setServiceData((d) => ({ ...d, serviceName: next[0].name || '' }));
         }
       })
-      .catch((err) => {
-        setError(err.message || 'Failed to fetch available slots');
+      .catch(() => { if (active) setServices([]); })
+      .finally(() => { if (active) setServicesLoading(false); });
+    return () => { active = false; };
+  }, [businessId, initialServiceName]);
+
+  const loadAvailability = (date, selectedServiceId = serviceId) => {
+    if (!date) return;
+    setSelectedDate(date);
+    setLoading(true);
+    setError(null);
+    setAvailability(null);
+    const dateStr = date.toISOString().split('T')[0];
+    const request = businessId
+      ? getBusinessAvailableSlots(businessId, dateStr, selectedServiceId)
+      : getAvailableSlots(helperId, dateStr);
+    request
+      .then((data) => {
+        if (!data?.success) throw new Error('availability_failed');
+        setAvailability(data.data || { slots: [] });
       })
+      .catch(() => setError('availability_failed'))
       .finally(() => setLoading(false));
-  }, [selectedDate, helperId]);
+  };
+
+  const updateService = (value) => {
+    const selected = services.find((service) => String(service.id) === String(value));
+    setServiceId(value);
+    setServiceData((d) => ({ ...d, serviceName: selected?.name || d.serviceName }));
+    if (selectedDate) loadAvailability(selectedDate, value);
+  };
+
+  const validateRequest = () => {
+    if (!serviceData.serviceName || !serviceData.serviceLocation) {
+      setError('missing_details');
+      return false;
+    }
+    return true;
+  };
 
   const handleSelectTimeSlot = (slot) => {
-    if (!serviceData.serviceName || !serviceData.serviceLocation) {
-      setError('Please enter service name and location');
-      return;
-    }
-
+    if (!validateRequest() || !selectedDate) return;
     onSelectSlot({
       requestedDate: selectedDate.toISOString().split('T')[0],
       requestedStartTime: slot.startTime,
       requestedEndTime: slot.endTime,
-      ...serviceData
+      availabilityMode: 'scheduled', autoPostOnExpiry: false, serviceId: serviceId || null, ...serviceData,
     });
   };
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString(locale, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
+  const handleRequestOnly = () => {
+    if (!validateRequest() || !selectedDate) return;
+    onSelectSlot({
+      requestedDate: selectedDate.toISOString().split('T')[0],
+      requestedStartTime: null, requestedEndTime: null,
+      availabilityMode: 'request_only', autoPostOnExpiry: fallbackChoice === 'post', serviceId: serviceId || null, ...serviceData,
     });
   };
 
-  const isDateDisabled = (date) => {
-    return date < new Date();
-  };
+  const formatDate = (date) => date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
 
   return (
     <div className="booking-calendar">
-      {/* Service Details Form */}
-      <div className="booking-calendar-form">
-        <h3>{t('booking.selectService')}</h3>
-
+      <section className="booking-calendar-form booking-panel">
+        <div className="booking-panel-heading"><div><span className="booking-eyebrow">{t('booking.selectService')}</span><h3>{businessName || helperName || t('booking.serviceRequest')}</h3></div><span className="booking-step-pill">1 / 2</span></div>
         <div className="booking-form-group">
-          <label>{t('booking.serviceName')}</label>
-          <input
-            type="text"
-            placeholder={t('booking.serviceName')}
-            value={serviceData.serviceName}
-            onChange={e => setServiceData({ ...serviceData, serviceName: e.target.value })}
-            className="booking-input"
-          />
+          <label htmlFor="booking-service-name">{t('booking.serviceName')}</label>
+          {businessId && services.length > 0 ? (
+            <select id="booking-service-name" className="booking-input" value={serviceId} onChange={(e) => updateService(e.target.value)} disabled={servicesLoading}>
+              <option value="">{t('booking.chooseService')}</option>
+              {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+            </select>
+          ) : (
+            <input id="booking-service-name" type="text" placeholder={t('booking.serviceName')} value={serviceData.serviceName} onChange={(e) => setServiceData({ ...serviceData, serviceName: e.target.value })} className="booking-input" />
+          )}
         </div>
+        <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label><input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => setServiceData({ ...serviceData, serviceLocation: e.target.value })} className="booking-input" /></div>
+        <div className="booking-form-group"><label htmlFor="booking-description">{t('booking.description')}</label><textarea id="booking-description" placeholder={t('booking.descriptionPlaceholder')} value={serviceData.description} onChange={(e) => setServiceData({ ...serviceData, description: e.target.value })} className="booking-textarea" rows="5" /></div>
+      </section>
 
-        <div className="booking-form-group">
-          <label>{t('booking.serviceLocation')}</label>
-          <input
-            type="text"
-            placeholder={t('booking.serviceLocation')}
-            value={serviceData.serviceLocation}
-            onChange={e => setServiceData({ ...serviceData, serviceLocation: e.target.value })}
-            className="booking-input"
-          />
-        </div>
-
-        <div className="booking-form-group">
-          <label>{t('booking.description')}</label>
-          <textarea
-            placeholder={t('booking.descriptionPlaceholder')}
-            value={serviceData.description}
-            onChange={e => setServiceData({ ...serviceData, description: e.target.value })}
-            className="booking-textarea"
-            rows="3"
-          />
-        </div>
-      </div>
-
-      {/* Calendar View */}
-      <div className="booking-calendar-container">
-        <h3>{t('booking.selectDateTime')}</h3>
-
-        {/* Date Grid */}
+      <section className="booking-calendar-container booking-panel">
+        <div className="booking-panel-heading"><div><span className="booking-eyebrow">{t('booking.selectDateTime')}</span><h3>{t('booking.chooseDate')}</h3></div><span className="booking-step-pill">2 / 2</span></div>
         <div className="booking-date-grid">
-          {days.map((day, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedDate(day)}
-              disabled={isDateDisabled(day)}
-              className={`booking-date-btn ${selectedDate?.toDateString() === day.toDateString() ? 'selected' : ''}`}
-              aria-pressed={selectedDate?.toDateString() === day.toDateString()}
-            >
-              <div className="booking-date-day">
-                {day.toLocaleDateString(locale, { weekday: 'short' })}
-              </div>
-              <div className="booking-date-num">
-                {day.getDate()}
-              </div>
-            </button>
-          ))}
+          {days.map((day) => <button type="button" key={day.toISOString()} onClick={() => loadAvailability(day)} className={`booking-date-btn ${selectedDate?.toDateString() === day.toDateString() ? 'selected' : ''}`} aria-pressed={selectedDate?.toDateString() === day.toDateString()}><div className="booking-date-day">{day.toLocaleDateString(locale, { weekday: 'short' })}</div><div className="booking-date-num">{day.getDate()}</div></button>)}
         </div>
-
-        {/* Time Slots */}
         {selectedDate && (
           <div className="booking-time-slots">
-            <h4>
-              {t('booking.availableSlots')} - {formatDate(selectedDate)}
-            </h4>
-
-            {loading && <div className="booking-loading">{t('common.loading')}</div>}
-
-            {error && <div className="booking-error">{error}</div>}
-
-            {!loading && availableSlots.length === 0 && (
-              <div className="booking-no-slots">
-                {t('booking.noAvailableSlots')}
+            <div className="booking-slots-heading"><h4>{formatDate(selectedDate)}</h4>{availability && <span>{availability.slots?.filter((slot) => slot.available).length || 0} {t('booking.timesAvailable')}</span>}</div>
+            {loading && <div className="booking-state-card"><RefreshCw size={17} className="booking-spin" />{t('booking.loadingAvailability')}</div>}
+            {!loading && error === 'availability_failed' && <div className="booking-state-card booking-state-error"><Info size={18} /><div><strong>{t('booking.availabilityLoadFailed')}</strong><p>{t('booking.tryAnotherDate')}</p></div><button type="button" className="booking-inline-action" onClick={() => loadAvailability(selectedDate)}>{t('common.retry')}</button></div>}
+            {!loading && error === 'missing_details' && <div className="booking-error">{t('booking.detailsRequired')}</div>}
+            {!loading && !error && availability?.scheduleConfigured === false && (
+              <div className="booking-request-only">
+                <div className="booking-state-card"><Info size={18} /><div><strong>{t('booking.noScheduleTitle')}</strong><p>{t('booking.noScheduleDescription')}</p></div></div>
+                <div className="booking-choice-list" role="radiogroup" aria-label={t('booking.noScheduleChoiceLabel')}>
+                  <label className={`booking-choice ${fallbackChoice === 'post' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="post" checked={fallbackChoice === 'post'} onChange={() => setFallbackChoice('post')} /><span><strong>{t('booking.autoPostChoice')}</strong><small>{t('booking.autoPostChoiceHint')}</small></span></label>
+                  <label className={`booking-choice ${fallbackChoice === 'expire' ? 'selected' : ''}`}><input type="radio" name="fallbackChoice" value="expire" checked={fallbackChoice === 'expire'} onChange={() => setFallbackChoice('expire')} /><span><strong>{t('booking.expireChoice')}</strong><small>{t('booking.expireChoiceHint')}</small></span></label>
+                </div>
+                <button type="button" className="booking-btn-primary booking-request-button" onClick={handleRequestOnly}>{t('booking.requestWithoutSchedule')}</button>
               </div>
             )}
-
-            <div className="booking-time-grid">
-              {availableSlots.map((slot, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSelectTimeSlot(slot)}
-                  className="booking-time-slot"
-                  disabled={!slot.available}
-                >
-                  <Clock size={16} />
-                  <span>{formatTime(slot.startTime)} – {formatTime(slot.endTime)}</span>
-                </button>
-              ))}
-            </div>
+            {!loading && !error && availability?.scheduleConfigured !== false && availability?.slots?.length === 0 && <div className="booking-state-card"><Info size={18} /><span>{t('booking.noAvailableSlots')}</span></div>}
+            {!loading && !error && availability?.scheduleConfigured !== false && availability?.slots?.length > 0 && <div className="booking-time-grid">{availability.slots.map((slot) => <button type="button" key={`${slot.startTime}-${slot.endTime}`} onClick={() => handleSelectTimeSlot(slot)} className="booking-time-slot" disabled={!slot.available}><Clock size={16} /><span>{formatTime(slot.startTime)} – {formatTime(slot.endTime)}</span></button>)}</div>}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

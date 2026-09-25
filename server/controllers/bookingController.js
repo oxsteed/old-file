@@ -28,6 +28,18 @@ async function expireIfStale(bookingRow) {
   const exp = new Date(bookingRow.expires_at);
   if (exp > new Date()) return bookingRow;
 
+  if (bookingRow.auto_post_on_expiry && bookingRow.customer_id) {
+    try {
+      const posted = await autoPostExpiredBooking(bookingRow.id);
+      if (posted?.booking) return posted.booking;
+    } catch (err) {
+      logger.warn('Failed to auto-post stale booking during read', {
+        bookingId: bookingRow.id,
+        error: err.message,
+      });
+    }
+  }
+
   const r = await pool.query(
     `UPDATE booking_requests
      SET status = 'expired', updated_at = CURRENT_TIMESTAMP
@@ -94,6 +106,8 @@ exports.createBookingRequest = async (req, res) => {
       serviceLocation,
       description,
       confirmationHours,
+      availabilityMode = 'scheduled',
+      autoPostOnExpiry = false,
       conversationId,
       guestSessionId,
       serviceId,
@@ -123,14 +137,22 @@ exports.createBookingRequest = async (req, res) => {
     }
 
     const errors = {};
+    const normalizedAvailabilityMode = String(availabilityMode || 'scheduled').trim().toLowerCase();
+    const requestOnly = normalizedAvailabilityMode === 'request_only';
+    if (!['scheduled', 'request_only'].includes(normalizedAvailabilityMode)) {
+      errors.availabilityMode = 'Invalid availability mode';
+    }
     if (!helperId && !businessId) errors.helperId = 'Helper ID or Business ID is required';
     if (!serviceName || !String(serviceName).trim()) errors.serviceName = 'Service name is required';
     if (!requestedDate) errors.requestedDate = 'Date is required';
-    if (!requestedStartTime) errors.requestedStartTime = 'Start time is required';
-    if (!requestedEndTime) errors.requestedEndTime = 'End time is required';
+    if (!requestOnly && !requestedStartTime) errors.requestedStartTime = 'Start time is required';
+    if (!requestOnly && !requestedEndTime) errors.requestedEndTime = 'End time is required';
 
     let hours = DEFAULT_CONFIRMATION_HOURS;
-    if (confirmationHours !== undefined && confirmationHours !== null && confirmationHours !== '') {
+    if (requestOnly) {
+      // A provider without published hours gets one clear 72 hour response window.
+      hours = 72;
+    } else if (confirmationHours !== undefined && confirmationHours !== null && confirmationHours !== '') {
       const n = parseInt(String(confirmationHours), 10);
       if (!Number.isFinite(n) || n < MIN_CONFIRMATION_HOURS || n > MAX_CONFIRMATION_HOURS) {
         errors.confirmationHours = `Must be between ${MIN_CONFIRMATION_HOURS} and ${MAX_CONFIRMATION_HOURS}`;
@@ -147,7 +169,7 @@ exports.createBookingRequest = async (req, res) => {
       return sendValidationError(res, { helperId: 'Cannot book with yourself' });
     }
 
-    if (requestedStartTime >= requestedEndTime) {
+    if (!requestOnly && requestedStartTime >= requestedEndTime) {
       return sendValidationError(res, { requestedEndTime: 'End time must be after start time' });
     }
 
@@ -190,8 +212,9 @@ const bookingId = uuidv4();
         id, customer_id, helper_id, business_id, service_name, requested_date,
         requested_start_time, requested_end_time, service_location,
         description, expires_at, confirmation_hours,
+        availability_mode, auto_post_on_expiry,
         conversation_id, guest_session_id, source, service_id, timezone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         bookingId,
@@ -200,12 +223,14 @@ const bookingId = uuidv4();
         businessId || null,
         String(serviceName).trim(),
         requestedDate,
-        requestedStartTime,
-        requestedEndTime,
+        requestOnly ? null : requestedStartTime,
+        requestOnly ? null : requestedEndTime,
         serviceLocation || null,
         description || null,
         expiresAt,
         hours,
+        normalizedAvailabilityMode,
+        requestOnly && Boolean(autoPostOnExpiry),
         conversationId || null,
         guestSessionId || null,
         source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
@@ -652,7 +677,7 @@ exports.getHelperAvailableSlots = async (req, res) => {
     }
 
     const helperCheck = await pool.query(
-      'SELECT COALESCE(hp.booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM users u JOIN helper_profiles hp ON hp.user_id = u.id WHERE u.id = $1 AND u.deleted_at IS NULL',
+      'SELECT COALESCE(hp.booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM users u LEFT JOIN helper_profiles hp ON hp.user_id = u.id WHERE u.id = $1 AND u.deleted_at IS NULL',
       [helperId]
     );
     if (!helperCheck.rows.length) {
@@ -667,6 +692,15 @@ exports.getHelperAvailableSlots = async (req, res) => {
 
     const dow = dateObj.getDay();
 
+    const scheduleResult = await pool.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM helper_availability
+          WHERE helper_id = $1 AND is_active = TRUE
+       ) AS schedule_configured`,
+      [helperId]
+    );
+    const scheduleConfigured = Boolean(scheduleResult.rows[0]?.schedule_configured);
+
     const weekly = await pool.query(
       `SELECT start_time, end_time FROM helper_availability
        WHERE helper_id = $1 AND day_of_week = $2 AND is_active = TRUE
@@ -680,10 +714,6 @@ exports.getHelperAvailableSlots = async (req, res) => {
         start: row.start_time,
         end: row.end_time,
       });
-    }
-
-    if (dayBlocks.length === 0) {
-      dayBlocks.push({ start: '09:00:00', end: '17:00:00' });
     }
 
     // Whole-day block overrides
@@ -741,12 +771,142 @@ exports.getHelperAvailableSlots = async (req, res) => {
         date,
         dayOfWeek: dayNames[dow],
         slots,
+        scheduleConfigured,
+        dayHasAvailability: effectiveBlocks.length > 0,
         bookingBufferMinutes,
       },
     });
   } catch (err) {
     logger.error('Error fetching available slots', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to fetch available slots');
+  }
+};
+
+/**
+ * Public business availability. Businesses may publish hours at the business
+ * level, independently from the owner's helper profile. An empty schedule is
+ * returned as a valid request-only state so the booking UI can offer the
+ * 72-hour request fallback instead of showing a server error.
+ */
+exports.getBusinessAvailableSlots = async (req, res) => {
+  try {
+    const businessId = Number.parseInt(req.params.businessId, 10);
+    const { date, serviceId } = req.query;
+    if (!Number.isInteger(businessId) || businessId <= 0) {
+      return sendValidationError(res, { businessId: 'Invalid business ID' });
+    }
+    if (!date) return sendValidationError(res, { date: 'Date is required' });
+
+    const dateObj = new Date(`${date}T12:00:00`);
+    if (Number.isNaN(dateObj.getTime())) return sendValidationError(res, { date: 'Invalid date' });
+
+    const businessResult = await pool.query(
+      `SELECT id, is_active, is_listed FROM businesses
+        WHERE id = $1 AND business_kind = 'service'`,
+      [businessId]
+    );
+    const business = businessResult.rows[0];
+    if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
+    if (!business.is_active || business.is_listed === false) {
+      return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
+    }
+
+    const scheduleResult = await pool.query(
+      `SELECT (
+        EXISTS (
+          SELECT 1 FROM business_hours
+           WHERE business_id = $1
+             AND is_closed = FALSE
+             AND start_time IS NOT NULL
+             AND end_time IS NOT NULL
+        ) OR EXISTS (
+          SELECT 1
+            FROM business_service_availability bsa
+            JOIN business_services bs ON bs.id = bsa.service_id
+           WHERE bs.business_id = $1
+             AND bsa.is_available = TRUE
+        )
+      ) AS schedule_configured`,
+      [businessId]
+    );
+    const scheduleConfigured = Boolean(scheduleResult.rows[0]?.schedule_configured);
+    const dow = dateObj.getDay();
+
+    const hoursResult = await pool.query(
+      `SELECT start_time, end_time
+         FROM business_hours
+        WHERE business_id = $1
+          AND day_of_week = $2
+          AND is_closed = FALSE
+          AND start_time IS NOT NULL
+          AND end_time IS NOT NULL
+        ORDER BY start_time`,
+      [businessId, dow]
+    );
+
+    let effectiveHours = hoursResult.rows;
+    if (effectiveHours.length === 0 && serviceId) {
+      const serviceHours = await pool.query(
+        `SELECT start_time, end_time
+           FROM business_service_availability
+          WHERE service_id = $1
+            AND day_of_week = $2
+            AND is_available = TRUE
+          ORDER BY start_time`,
+        [String(serviceId), dow]
+      );
+      effectiveHours = serviceHours.rows;
+    }
+
+    let durationMinutes = 60;
+    if (serviceId) {
+      const serviceResult = await pool.query(
+        `SELECT duration_minutes, duration
+           FROM business_services
+          WHERE id = $1 AND business_id = $2 AND is_active = TRUE`,
+        [String(serviceId), businessId]
+      );
+      if (serviceResult.rows[0]) {
+        const service = serviceResult.rows[0];
+        const parsed = Number.parseInt(service.duration_minutes || service.duration, 10);
+        if (Number.isFinite(parsed) && parsed > 0) durationMinutes = Math.min(480, parsed);
+      }
+    }
+
+    const appointmentsResult = await pool.query(
+      `SELECT start_time::time AS start_time, end_time::time AS end_time
+         FROM business_appointments
+        WHERE business_id = $1
+          AND start_time::date = $2::date
+          AND status NOT IN ('cancelled', 'no_show')
+        ORDER BY start_time`,
+      [businessId, date]
+    );
+    const busy = appointmentsResult.rows.map((row) => ({ start: row.start_time, end: row.end_time }));
+    const slots = [];
+    for (const block of effectiveHours) {
+      slots.push(...sliceWindowToHourSlots(block.start_time, block.end_time, busy, durationMinutes, 30));
+    }
+
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return res.json({
+      success: true,
+      data: {
+        date,
+        dayOfWeek: dayNames[dow],
+        slots,
+        scheduleConfigured,
+        dayHasAvailability: effectiveHours.length > 0,
+        durationMinutes,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching business available slots', {
+      businessId: req.params?.businessId,
+      error: err.message,
+      stack: err.stack,
+    });
+    sendError(res, 500, 'Failed to fetch business availability');
   }
 };
 
@@ -1037,7 +1197,7 @@ function minutesToTime(mins) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges) {
+function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges, durationMinutes = 60, incrementMinutes = durationMinutes) {
   const slots = [];
   let cur = timeToMinutes(windowStart);
   const endMin = timeToMinutes(windowEnd);
@@ -1048,16 +1208,18 @@ function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges) {
     }))
     .filter((r) => r.b > r.a);
 
-  while (cur + 60 <= endMin) {
+  const duration = Math.max(15, Math.min(480, Number(durationMinutes) || 60));
+  const increment = Math.max(15, Math.min(duration, Number(incrementMinutes) || duration));
+  while (cur + duration <= endMin) {
     const slotStart = cur;
-    const slotEnd = cur + 60;
+    const slotEnd = cur + duration;
     const overlaps = busy.some((b) => slotStart < b.b && slotEnd > b.a);
     slots.push({
       startTime: minutesToTime(slotStart),
       endTime: minutesToTime(slotEnd),
       available: !overlaps,
     });
-    cur += 60;
+    cur += increment;
   }
   return slots;
 }
@@ -1081,6 +1243,9 @@ function transformBooking(booking) {
     status: booking.status,
     expiresAt: booking.expires_at,
     confirmationHours: booking.confirmation_hours,
+    availabilityMode: booking.availability_mode || 'scheduled',
+    autoPostOnExpiry: Boolean(booking.auto_post_on_expiry),
+    marketplacePostedAt: booking.marketplace_posted_at || null,
     acceptedAt: booking.accepted_at,
     declinedAt: booking.declined_at,
     helperResponseReason: booking.helper_response_reason,
@@ -1199,17 +1364,139 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
   }
 }
 
+/**
+ * Atomically turn an opted-in request-only booking into a public job when its
+ * 72 hour confirmation window expires. The booking remains an expired record
+ * and keeps the job id so both sides can follow the handoff.
+ */
+async function autoPostExpiredBooking(bookingId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const bookingResult = await client.query(
+      `SELECT * FROM booking_requests
+        WHERE id = $1
+        FOR UPDATE`,
+      [bookingId]
+    );
+    const booking = bookingResult.rows[0];
+    if (!booking || booking.status !== 'pending' || !booking.auto_post_on_expiry || !booking.customer_id) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    if (new Date(booking.expires_at) > new Date()) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const title = String(booking.service_name || 'Service request').trim().slice(0, 255) || 'Service request';
+    const description = [
+      booking.description,
+      booking.requested_date ? `Requested date: ${booking.requested_date}` : null,
+      booking.requested_start_time && booking.requested_end_time
+        ? `Requested time: ${booking.requested_start_time}–${booking.requested_end_time}`
+        : 'The provider had not published availability; please coordinate a time.',
+      booking.service_location ? `Service location: ${booking.service_location}` : null,
+    ].filter(Boolean).join('\n\n');
+
+    const jobResult = await client.query(
+      `INSERT INTO jobs (
+         client_id, title, description, category_name,
+         location_address, status, expires_at
+       ) VALUES ($1, $2, $3, $4, $5, 'published', NOW() + INTERVAL '30 days')
+       RETURNING id`,
+      [booking.customer_id, title, description || title, title.slice(0, 100), booking.service_location || null]
+    );
+    const job = jobResult.rows[0];
+
+    const updatedResult = await client.query(
+      `UPDATE booking_requests
+          SET status = 'expired',
+              converted_to_job_id = $2,
+              marketplace_posted_at = CURRENT_TIMESTAMP,
+              helper_response_reason = COALESCE(
+                helper_response_reason,
+                'Published as a public job after the 72 hour request window expired'
+              ),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status = 'pending'
+        RETURNING *`,
+      [booking.id, job.id]
+    );
+    if (!updatedResult.rows[0]) {
+      throw new Error('Booking changed before marketplace fallback could be recorded');
+    }
+
+    await client.query(
+      `INSERT INTO booking_request_audit_log
+        (booking_request_id, action, actor_id, actor_type, old_status, new_status, metadata)
+       VALUES ($1, 'auto_posted', NULL, 'system', 'pending', 'expired', $2::jsonb)`,
+      [booking.id, JSON.stringify({ jobId: job.id })]
+    );
+    await client.query('COMMIT');
+    return { booking: updatedResult.rows[0], jobId: job.id };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* best effort */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /** Pending bookings past expires_at → expired. Notifies customer via socket. */
 exports.expirePendingBookingRequests = async () => {
   try {
+    const autoCandidates = await pool.query(
+      `SELECT id
+         FROM booking_requests
+        WHERE status = 'pending'
+          AND expires_at < NOW()
+          AND auto_post_on_expiry = TRUE
+          AND customer_id IS NOT NULL
+        ORDER BY expires_at
+        LIMIT 100`
+    );
+    let postedCount = 0;
+    for (const candidate of autoCandidates.rows) {
+      try {
+        const result = await autoPostExpiredBooking(candidate.id);
+        if (!result) continue;
+        postedCount += 1;
+        const { booking, jobId } = result;
+        broadcastToUser(booking.customer_id, 'booking:updated', {
+          bookingId: booking.id,
+          status: 'expired',
+          marketplaceJobId: jobId,
+        });
+        broadcastToUser(booking.helper_id, 'booking:updated', {
+          bookingId: booking.id,
+          status: 'expired',
+          marketplaceJobId: jobId,
+        });
+        sendNotification({
+          userId: booking.customer_id,
+          type: 'booking_auto_posted',
+          body: `${booking.service_name} is now open for bids`,
+          data: { bookingId: booking.id, jobId },
+          action_url: `/jobs/${jobId}`,
+        }).catch((err) => logger.warn('Failed marketplace fallback notification', { error: err.message }));
+      } catch (err) {
+        logger.error('Failed to publish expired booking as job', {
+          bookingId: candidate.id,
+          error: err.message,
+        });
+      }
+    }
+
     const r = await pool.query(
       `UPDATE booking_requests
        SET status = 'expired', updated_at = CURRENT_TIMESTAMP
        WHERE status = 'pending' AND expires_at < NOW()
+         AND (COALESCE(auto_post_on_expiry, FALSE) = FALSE OR customer_id IS NULL)
        RETURNING id, customer_id, service_name, requested_date`
     );
-    if (r.rowCount > 0) {
-      logger.info('Expired pending booking requests', { count: r.rowCount });
+    if (r.rowCount > 0 || postedCount > 0) {
+      logger.info('Expired pending booking requests', { count: r.rowCount, autoPosted: postedCount });
       for (const row of r.rows) {
         broadcastToUser(row.customer_id, 'booking:updated', {
           bookingId: row.id,
@@ -1225,7 +1512,7 @@ exports.expirePendingBookingRequests = async () => {
         }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
       }
     }
-    return r.rowCount || 0;
+    return (r.rowCount || 0) + postedCount;
   } catch (err) {
     logger.warn('expirePendingBookingRequests failed', { error: err.message });
     return 0;

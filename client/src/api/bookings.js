@@ -26,3 +26,10 @@ export async function getAvailableSlots(helperId, dateStr) {
   });
   return data;
 }
+
+export async function getBusinessAvailableSlots(businessId, dateStr, serviceId) {
+  const { data } = await api.get(`/bookings/business/${businessId}/available-slots`, {
+    params: { date: dateStr, ...(serviceId ? { serviceId } : {}) },
+  });
+  return data;
+}

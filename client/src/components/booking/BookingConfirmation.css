@@ -205,3 +205,13 @@
     flex-direction: column;
   }
 }
+
+.booking-fallback-summary {
+  padding: 16px;
+  border: 1px solid rgba(249, 115, 22, .35);
+  border-radius: 12px;
+  background: rgba(249, 115, 22, .08);
+  color: var(--app-text);
+}
+
+.booking-fallback-summary p { margin: 6px 0 0; color: var(--muted-text); line-height: 1.45; }

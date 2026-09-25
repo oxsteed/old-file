@@ -201,3 +201,49 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.booking-calendar {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.35fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.booking-panel {
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--card-bg);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.booking-panel-heading,
+.booking-slots-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.booking-panel-heading h3 { margin: 4px 0 20px; font-size: 20px; }
+.booking-eyebrow { color: var(--orange-color, #f97316); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.booking-step-pill { padding: 5px 9px; border-radius: 999px; background: rgba(249, 115, 22, .1); color: var(--orange-color, #f97316); font-size: 12px; font-weight: 700; }
+.booking-slots-heading h4 { margin: 0 0 12px; font-size: 15px; }
+.booking-slots-heading span { color: var(--muted-text); font-size: 12px; }
+.booking-state-card { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--border-color); border-radius: 12px; color: var(--muted-text); background: color-mix(in srgb, var(--card-bg) 88%, var(--app-bg)); }
+.booking-state-card strong { color: var(--app-text); }
+.booking-state-card p { margin: 4px 0 0; font-size: 13px; }
+.booking-state-error { align-items: flex-start; border-color: rgba(239, 68, 68, .35); }
+.booking-inline-action { margin-left: auto; border: 0; background: none; color: var(--orange-color, #f97316); font-weight: 700; cursor: pointer; }
+.booking-spin { animation: booking-spin 1s linear infinite; }
+@keyframes booking-spin { to { transform: rotate(360deg); } }
+.booking-choice-list { display: grid; gap: 10px; margin-top: 12px; }
+.booking-choice { display: flex; gap: 10px; padding: 13px; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; }
+.booking-choice.selected { border-color: var(--orange-color, #f97316); background: rgba(249, 115, 22, .07); }
+.booking-choice span { display: grid; gap: 3px; }
+.booking-choice small { color: var(--muted-text); line-height: 1.4; }
+.booking-request-button { width: 100%; margin-top: 14px; }
+
+@media (max-width: 820px) {
+  .booking-calendar { grid-template-columns: 1fr; }
+}

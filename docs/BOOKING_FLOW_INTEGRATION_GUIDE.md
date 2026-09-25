@@ -4,6 +4,15 @@
 
 This guide documents the implementation of the "Book Now" feature on helper profiles. This is a calendar-aware booking flow that allows customers to book specific helpers for specific times, with an automatic fallback to job posting if the booking is declined or expires.
 
+### Request-only availability fallback
+
+Migration `563_booking_request_availability_fallback.sql` adds the request-only path used when a helper or business has no published schedule. The calendar API returns `scheduleConfigured: false` instead of inventing default hours. Customers can send a date-only request with a fixed 72-hour confirmation window and choose either:
+
+- publish a public job automatically when the window expires; or
+- keep the request private and let it expire.
+
+Automatic publication is performed transactionally by the booking maintenance worker and links the expired request to the published job through `converted_to_job_id`. Requests with a published schedule keep the existing selectable confirmation window.
+
 ## Architecture
 
 ### Database Schema (Migration 176)
@@ -16,7 +25,10 @@ The booking system uses three tables:
    - `service_name`, `requested_date`, `requested_start_time`, `requested_end_time`: Booking details
    - `service_location`, `description`: Additional context
    - `status`: pending | accepted | declined | expired | cancelled
-   - `expires_at`: Auto-expiry timestamp (24 hours from creation)
+   - `expires_at`: Auto-expiry timestamp (24 hours from creation, or 72 hours for request-only availability)
+   - `availability_mode`: `scheduled` or `request_only`
+   - `auto_post_on_expiry`: Whether a request-only booking should become a public job after 72 hours
+   - `marketplace_posted_at`: Timestamp for the automatic public-job handoff
    - `converted_to_job_id`: Link to job created from failed booking
    - Timestamps: `created_at`, `updated_at`, `accepted_at`, `declined_at`
 
@@ -132,6 +144,7 @@ POST /api/bookings/:bookingId/decline        - Helper declines
 POST /api/bookings/:bookingId/cancel         - Customer cancels
 POST /api/bookings/:bookingId/convert-to-job - Convert to job
 GET /api/bookings/helper/:helperId/available-slots?date=YYYY-MM-DD - Available slots
+GET /api/bookings/business/:businessId/available-slots?date=YYYY-MM-DD&serviceId=... - Business slots or request-only availability state
 ```
 
 ## Integration Points

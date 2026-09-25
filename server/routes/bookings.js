@@ -14,6 +14,7 @@ router.post('/recurring', requireAuth, bookingController.createRecurringBooking)
 router.post('/recurring/:id/cancel', requireAuth, bookingController.updateRecurringBookingStatus);
 router.post('/recurring/:id/pause', requireAuth, bookingController.updateRecurringBookingStatus);
 router.post('/recurring/:id/resume', requireAuth, bookingController.updateRecurringBookingStatus);
+router.get('/business/:businessId/available-slots', bookingController.getBusinessAvailableSlots);
 router.get('/helper/:helperId/available-slots', bookingController.getHelperAvailableSlots);
 
 router.get('/:bookingId', requireAuth, bookingController.getBookingRequest);

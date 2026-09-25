@@ -40,7 +40,7 @@ export default function BookBusinessPage() {
         }
         description={t('booking.pageDescription')}
       />
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
         <div style={{ marginBottom: '1.25rem' }}>
           <Link
             to={`/businesses/public/${id}`}

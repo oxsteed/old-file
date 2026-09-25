@@ -59,6 +59,9 @@ export default function BookingFlow({ helperId, helperName, businessId, business
         serviceLocation: formData.serviceLocation,
         description: formData.description || null,
         confirmationHours: formData.confirmationHours ?? 24,
+        availabilityMode: formData.availabilityMode || 'scheduled',
+        autoPostOnExpiry: Boolean(formData.autoPostOnExpiry),
+        serviceId: formData.serviceId || undefined,
       });
 
       setBookingRequest(bookingRow);
@@ -188,6 +191,8 @@ export default function BookingFlow({ helperId, helperName, businessId, business
           <BookingCalendar
             helperId={helperId}
             helperName={helperName}
+            businessId={businessId}
+            businessName={businessName}
             initialServiceName={serviceHint}
             onSelectSlot={handleSelectSlot}
           />
