@@ -90,6 +90,17 @@ export function canManageBusinesses(user) {
   return m === 'business_owner' || m === 'helper' || m === 'business_manager' || m === 'admin';
 }
 
+// Pro entitlement is granted by an active first-year trial or a paid legacy
+// tier. Role checks remain separate because some Pro tools are intentionally
+// limited to helper-class accounts.
+export function hasProAccess(user) {
+  if (!user) return false;
+  if (['helper_pro', 'broker'].includes(user.role)) return true;
+  const tier = String(user.effective_tier || user.membership_tier || '').toLowerCase();
+  if (['pro', 'tier2'].includes(tier)) return true;
+  return Boolean(user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now());
+}
+
 // Business Hub gate — helper-class modes (helper, business_owner, team roles)
 // aligned with SmartDashboard families that operate workspaces.
 export function canAccessBusinessHub(user) {
@@ -103,15 +114,7 @@ export function canAccessBusinessHub(user) {
 // users without access do not see a page that can only fail with 403.
 export function canUseQrGenerator(user) {
   if (!user || !['helper', 'helper_pro', 'broker'].includes(user.role)) return false;
-  if (['helper_pro', 'broker'].includes(user.role)) return true;
-
-  // Auth responses expose effective_tier for active trials and current plans.
-  // Keep tier2 for older accounts that have not been migrated to the newer
-  // "pro" membership value yet.
-  const tier = user.effective_tier || user.membership_tier;
-  if (['pro', 'tier2'].includes(tier)) return true;
-
-  return Boolean(user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now());
+  return hasProAccess(user);
 }
 
 export function canOfferConsulting(user) {
@@ -178,6 +181,7 @@ export default {
   canBidOnJobs,
   canListTools,
   canManageBusinesses,
+  hasProAccess,
   canAccessBusinessHub,
   canUseQrGenerator,
   canOfferConsulting,

@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
-const { getEffectiveTier } = require('../utils/trial');
+const { hasProAccess } = require('../utils/trial');
 const {
   createQRCode,
   getQRCodes,
@@ -24,14 +24,7 @@ const requireProTier = (req, res, next) => {
   }
 
   const helperRole = ['helper', 'helper_pro', 'broker'].includes(req.user.role);
-  const proRole = ['helper_pro', 'broker'].includes(req.user.role);
-  const membershipTier = String(req.user.membership_tier || '').toLowerCase();
-  const effectiveTier = getEffectiveTier(req.user);
-  const hasProTier = proRole
-    || ['pro', 'tier2'].includes(membershipTier)
-    || effectiveTier === 'pro';
-
-  if (!helperRole || !hasProTier) {
+  if (!helperRole || !hasProAccess(req.user)) {
     return res.status(403).json({
       error: 'Pro tier required',
       code: 'QR_PRO_REQUIRED',

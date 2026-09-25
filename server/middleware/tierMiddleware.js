@@ -1,15 +1,16 @@
 // server/middleware/tierMiddleware.js
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { hasProAccess } = require('../utils/trial');
 
 function requireTier2Helper(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Authentication required' });
   }
-  if (req.user.role !== 'helper') {
+  if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Helper access required' });
   }
-  if (req.user.membership_tier !== 'tier2') {
+  if (!hasProAccess(req.user)) {
     return res.status(403).json({
       success: false,
       code: 'TIER2_REQUIRED',

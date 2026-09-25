@@ -576,16 +576,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
 
         <div className={`messages-workspace${showStandaloneEmpty ? ' messages-workspace--empty' : ''}${showQuoteHistory ? ' messages-workspace--quotes' : ''}`}>
           {showStandaloneEmpty ? (
-            showQuoteHistory ? (
-              <div className="messages-inbox-pane">
-                <QuoteHistoryPanel
-                  mode="provider"
-                  kind={businessId || businessFilter !== 'all' ? 'business' : 'all'}
-                  businessId={businessId || (businessFilter !== 'all' ? businessFilter : null)}
-                  onOpenQuote={openQuoteHistoryItem}
-                />
-              </div>
-            ) : loadError ? (
+            loadError ? (
               <section className="messages-empty messages-empty--error" role="alert">
                 <div className="messages-empty-main">
                   <div className="messages-empty-icon"><MessageSquare size={30} aria-hidden /></div>

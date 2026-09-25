@@ -7,7 +7,7 @@ const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
-const { trialDefaults } = require('../utils/trial');
+const { trialDefaults, hasProAccess } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
@@ -549,7 +549,7 @@ async function getOnboardingStatus(req, res) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
-      `SELECT u.onboarding_status, u.membership_tier, u.id_verified,
+      `SELECT u.onboarding_status, u.membership_tier, u.trial_ends_at, u.id_verified,
               u.background_check_passed, u.profile_completed, u.contact_completed,
               u.tier_selected, u.w9_completed, u.terms_accepted, u.onboarding_completed,
               hp.bio_long AS bio
@@ -584,8 +584,8 @@ async function getOnboardingStatus(req, res) {
       background_check_passed: u.background_check_passed,
       profile_complete:        !!u.profile_completed,
       canBrowseJobs:           true,
-      canApplyToJobs:          u.membership_tier === 'tier2' || u.onboarding_completed,
-      canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed,
+      canApplyToJobs:          hasProAccess(u) || u.onboarding_completed,
+      canAppearInSearch:       hasProAccess(u) && u.onboarding_completed,
     });
   } catch (err) {
     logger.error('getOnboardingStatus error:', { err });

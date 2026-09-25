@@ -1,6 +1,6 @@
 const db = require('../db');
 const { invalidateCache, DEFAULTS } = require('../utils/feeCalculator');
-const { invalidateTrialCache } = require('../utils/trial');
+const { invalidateTrialCache, DEFAULT_TRIAL_DURATION_DAYS } = require('../utils/trial');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
@@ -61,6 +61,15 @@ exports.updateFeeConfig = async (req, res, next) => {
 
     const current = existing[0];
     const newValue = parseFloat(value);
+
+    if (key === 'trial_duration_days' && newValue < DEFAULT_TRIAL_DURATION_DAYS) {
+      throw new AppError(
+        `Trial duration cannot be shorter than ${DEFAULT_TRIAL_DURATION_DAYS} days`,
+        400,
+        'validation_failed',
+        { value: `Must be at least ${DEFAULT_TRIAL_DURATION_DAYS} days` },
+      );
+    }
 
     // Validate within allowed range
     if (current.min_value !== null && newValue < current.min_value) {

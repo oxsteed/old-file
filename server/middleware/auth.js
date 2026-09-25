@@ -7,6 +7,7 @@ const pool   = require('../db');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { isDiditIdentitySatisfied } = require('../utils/diditGate');
+const { getEffectiveTier, hasProAccess } = require('../utils/trial');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -185,15 +186,17 @@ function requireRole(...roles) {
   };
 }
 
-// Check tier from helper_profiles table (not JWT)
+// Check the caller's effective tier, including a live first-year Pro trial.
 function requireTier(...tiers) {
   return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     try {
-      const { rows } = await pool.query(
-        'SELECT tier FROM helper_profiles WHERE user_id = $1',
-        [req.user.id]
-      );
-      if (!rows[0] || !tiers.includes(rows[0].tier)) {
+      const effectiveTier = getEffectiveTier(req.user);
+      const acceptsProTrial = tiers.some((tier) => ['pro', 'tier2'].includes(tier))
+        && hasProAccess(req.user);
+      if (!tiers.includes(effectiveTier) && !acceptsProTrial) {
         return res.status(403).json({ error: 'Subscription tier required', requiredTiers: tiers });
       }
       next();
@@ -206,6 +209,12 @@ function requireTier(...tiers) {
 
 // Check active subscription from subscriptions table
 async function requireActiveSubscription(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (hasProAccess(req.user)) {
+    return next();
+  }
   try {
     const { rows } = await pool.query(
       `SELECT s.status, s.current_period_end

@@ -17,6 +17,19 @@ function getEffectiveTier(user) {
   return user.membership_tier || 'free';
 }
 
+/**
+ * Return whether the account can use Pro-only features.
+ *
+ * A live first-year trial is an entitlement in its own right. Keep legacy
+ * paid values and paid helper roles here so API gates share one rule.
+ */
+function hasProAccess(user) {
+  if (!user) return false;
+  if (['helper_pro', 'broker'].includes(user.role)) return true;
+  if (['pro', 'tier2'].includes(String(user.membership_tier || '').toLowerCase())) return true;
+  return isTrialActive(user);
+}
+
 function isTrialActive(user) {
   if (!user?.trial_ends_at) return false;
   return new Date(user.trial_ends_at) > new Date();
@@ -44,9 +57,14 @@ async function getTrialDurationDays() {
     );
 
     if (rows.length > 0) {
-      cachedTrialDays = Math.floor(parseFloat(rows[0].value));
-      cachedAt = now;
-      return cachedTrialDays;
+      const configuredDays = Math.floor(parseFloat(rows[0].value));
+      // A stale row from the old 90-day rollout must not shorten the
+      // first-year Pro promise while the migration is being applied.
+      if (Number.isFinite(configuredDays) && configuredDays >= DEFAULT_TRIAL_DURATION_DAYS) {
+        cachedTrialDays = configuredDays;
+        cachedAt = now;
+        return cachedTrialDays;
+      }
     }
   } catch (err) {
     // Log error but don't throw - fall back to default
@@ -72,6 +90,7 @@ async function trialDefaults() {
 
 module.exports = {
   getEffectiveTier,
+  hasProAccess,
   isTrialActive,
   trialDaysLeft,
   trialDefaults,
