@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, AlertCircle, CheckCircle2, Save } from 'lucide-react';
 import adminApi from '../lib/adminApi';
 import CountrySelect from './CountrySelect';
@@ -22,18 +23,18 @@ const SUBSCRIPTION_STATUSES = [
 // Plain text fields rendered by the generic <input> loop. Country/state/zip
 // are rendered with country-aware components below.
 const TEXT_FIELDS = [
-  { key: 'first_name',          label: 'First name'           },
-  { key: 'last_name',           label: 'Last name'            },
-  { key: 'phone',               label: 'Phone'                },
-  { key: 'city',                label: 'City'                 },
-  { key: 'membership_tier',     label: 'Membership tier'      },
+  { key: 'first_name',          labelKey: 'firstName'          },
+  { key: 'last_name',           labelKey: 'lastName'           },
+  { key: 'phone',               labelKey: 'phone'              },
+  { key: 'city',                labelKey: 'city'               },
+  { key: 'membership_tier',     labelKey: 'membershipTier'     },
 ];
 
 const BOOLEAN_FIELDS = [
-  { key: 'email_verified',          label: 'Email verified'           },
-  { key: 'is_verified',             label: 'Identity verified'        },
-  { key: 'background_check_passed', label: 'Background check passed'  },
-  { key: 'is_active',               label: 'Account active'           },
+  { key: 'email_verified',          labelKey: 'emailVerified'          },
+  { key: 'is_verified',             labelKey: 'identityVerified'       },
+  { key: 'background_check_passed', labelKey: 'backgroundCheckPassed'   },
+  { key: 'is_active',               labelKey: 'accountActive'           },
 ];
 
 function buildInitial(user) {
@@ -49,6 +50,8 @@ function buildInitial(user) {
 }
 
 export default function UserEditForm({ user, onSaved }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`adminUsers.edit.${key}`, options);
   const [form,        setForm]        = useState(() => buildInitial(user));
   const [original]                    = useState(() => buildInitial(user));
   const [submitting,  setSubmitting]  = useState(false);
@@ -82,7 +85,7 @@ export default function UserEditForm({ user, onSaved }) {
 
     const diff = buildDiff();
     if (Object.keys(diff).length === 0) {
-      setServerError('No changes to save.');
+      setServerError(copy('noChanges'));
       return;
     }
 
@@ -102,13 +105,13 @@ export default function UserEditForm({ user, onSaved }) {
       setSuccess(
         count > 0
           ? `Saved ${count} change${count === 1 ? '' : 's'}.`
-          : 'No changes detected.'
+          : copy('noChangesDetected')
       );
       if (onSaved) onSaved(data.user || { ...user, ...diff });
     } catch (err) {
       const resp = err.response?.data;
       if (resp?.fields) setErrors(resp.fields);
-      setServerError(resp?.error || 'Failed to save changes.');
+      setServerError(resp?.error || copy('saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -140,11 +143,11 @@ export default function UserEditForm({ user, onSaved }) {
       )}
 
       <section>
-        <h3 className="text-sm font-semibold text-gray-200 mb-3">Profile</h3>
+        <h3 className="text-sm font-semibold text-gray-200 mb-3">{copy('profile')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TEXT_FIELDS.map(f => (
             <div key={f.key}>
-              <label className={labelCls}>{f.label}</label>
+              <label className={labelCls}>{copy(f.labelKey)}</label>
               <input
                 type="text"
                 className={inputCls}
@@ -155,7 +158,7 @@ export default function UserEditForm({ user, onSaved }) {
             </div>
           ))}
           <div>
-            <label className={labelCls}>Country</label>
+            <label className={labelCls}>{copy('country')}</label>
             <CountrySelect
               className={inputCls}
               value={form.country}
@@ -172,7 +175,7 @@ export default function UserEditForm({ user, onSaved }) {
             {fieldErr('country')}
           </div>
           <div>
-            <label className={labelCls}>State / region</label>
+            <label className={labelCls}>{copy('stateRegion')}</label>
             <RegionInput
               className={inputCls}
               country={form.country}
@@ -182,7 +185,7 @@ export default function UserEditForm({ user, onSaved }) {
             {fieldErr('state')}
           </div>
           <div>
-            <label className={labelCls}>Postal code</label>
+            <label className={labelCls}>{copy('postalCode')}</label>
             <PostalCodeInput
               className={inputCls}
               country={form.country}
@@ -195,27 +198,27 @@ export default function UserEditForm({ user, onSaved }) {
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold text-gray-200 mb-3">Account</h3>
+        <h3 className="text-sm font-semibold text-gray-200 mb-3">{copy('account')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Role</label>
+            <label className={labelCls}>{copy('role')}</label>
             <select
               className={inputCls}
               value={form.role}
               onChange={e => setField('role', e.target.value)}
             >
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              {ROLES.map(r => <option key={r} value={r}>{copy(`roles.${r}`)}</option>)}
             </select>
             {fieldErr('role')}
           </div>
           <div>
-            <label className={labelCls}>Subscription status</label>
+            <label className={labelCls}>{copy('subscriptionStatus')}</label>
             <select
               className={inputCls}
               value={form.subscription_status}
               onChange={e => setField('subscription_status', e.target.value)}
             >
-              {SUBSCRIPTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              {SUBSCRIPTION_STATUSES.map(s => <option key={s} value={s}>{copy(`subscriptions.${s}`)}</option>)}
             </select>
           </div>
         </div>
@@ -229,7 +232,7 @@ export default function UserEditForm({ user, onSaved }) {
                 onChange={e => setField(f.key, e.target.checked)}
                 className="rounded bg-gray-900 border-gray-700"
               />
-              {f.label}
+              {copy(f.labelKey)}
             </label>
           ))}
         </div>
@@ -243,12 +246,12 @@ export default function UserEditForm({ user, onSaved }) {
             onChange={e => setNotify(e.target.checked)}
             className="rounded bg-gray-900 border-gray-700"
           />
-          Notify user about these changes
+          {copy('notifyUser')}
         </label>
         {notify && (
           <textarea
             className={inputCls + ' min-h-[60px] mt-3'}
-            placeholder="Optional message to include in the notification."
+            placeholder={copy('notificationPlaceholder')}
             value={message}
             onChange={e => setMessage(e.target.value)}
           />
@@ -258,8 +261,8 @@ export default function UserEditForm({ user, onSaved }) {
       <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-800">
         <span className="text-xs text-gray-500 mr-auto">
           {dirty
-            ? `${Object.keys(buildDiff()).length} unsaved change(s)`
-            : 'No changes'}
+            ? copy('unsaved', { count: Object.keys(buildDiff()).length })
+            : copy('noChanges')}
         </span>
         <button
           type="submit"
@@ -267,7 +270,7 @@ export default function UserEditForm({ user, onSaved }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50"
         >
           {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {submitting ? 'Saving…' : 'Save changes'}
+          {submitting ? copy('saving') : copy('saveChanges')}
         </button>
       </div>
     </form>

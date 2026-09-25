@@ -4615,6 +4615,48 @@
     "accountTypeHints": { "customer": "حساب عميل قياسي", "investor": "حساب مستثمر مع لوحة تحكم مخصصة", "helper": "حساب مساعد أساسي", "helperPro": "مستوى مساعد مدفوع", "broker": "حساب مساعد/وسيط من المستوى الثالث", "logistics": "وضع مشتري الخدمات اللوجستية", "businessOwner": "مالك مساحة عمل تجارية", "consultant": "حساب مساحة استشارية", "toolOwner": "حساب مالك تأجير الأدوات", "franchiseApplicant": "مسار طلب الامتياز وحالته", "lifeOnly": "حساب لوحة الحياة فقط", "businessManager": "مساحة إدارة نشاط ممنوحة", "businessRepresentative": "مساحة ممثل ممنوحة", "businessEmployee": "مساحة موظف ممنوحة", "businessSupportAgent": "مساحة وكيل دعم ممنوحة", "employee": "موظف داخلي بلا وصول إلى بوابة الإدارة", "operationsEmployee": "موظف داخلي لعمليات الخدمات اللوجستية", "complianceEmployee": "موظف داخلي للامتثال اللوجستي", "admin": "حساب بوابة المسؤول", "superAdmin": "وصول داخلي كامل إلى المنصة" },
     "subscriptionStatuses": { "none": "لا يوجد", "trialing": "تجريبي", "active": "نشط", "pastDue": "متأخر", "cancelled": "ملغى", "paused": "متوقف مؤقتًا" }
   },
+  "adminUsers": {
+    "edit": {
+      "profile": "الملف الشخصي",
+      "account": "الحساب",
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "phone": "الهاتف",
+      "city": "المدينة",
+      "membershipTier": "مستوى العضوية",
+      "emailVerified": "تم التحقق من البريد الإلكتروني",
+      "identityVerified": "تم التحقق من الهوية",
+      "backgroundCheckPassed": "اجتاز فحص الخلفية",
+      "accountActive": "الحساب نشط",
+      "country": "البلد",
+      "stateRegion": "الولاية / المنطقة",
+      "postalCode": "الرمز البريدي",
+      "role": "الدور",
+      "subscriptionStatus": "حالة الاشتراك",
+      "noChanges": "لا تغييرات",
+      "noChangesDetected": "لم يتم اكتشاف تغييرات.",
+      "saveFailed": "تعذر حفظ التغييرات.",
+      "notifyUser": "إخطار المستخدم بهذه التغييرات",
+      "notificationPlaceholder": "رسالة اختيارية لإدراجها في الإشعار.",
+      "unsaved": "{{count}} تغييرات غير محفوظة",
+      "saving": "جارٍ الحفظ…",
+      "saveChanges": "حفظ التغييرات",
+      "roles": {
+        "customer": "عميل",
+        "helper": "مساعد",
+        "helper_pro": "مساعد محترف",
+        "broker": "وسيط",
+        "admin": "مسؤول"
+      },
+      "subscriptions": {
+        "none": "لا يوجد",
+        "trial": "تجريبي",
+        "active": "نشط",
+        "past_due": "متأخر",
+        "canceled": "ملغى"
+      }
+    }
+  },
   "adminLegal": {
   "approval": {
     "loading": "Loading approval queue…",

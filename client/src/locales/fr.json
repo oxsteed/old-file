@@ -4615,6 +4615,48 @@
     "accountTypeHints": { "customer": "Compte client standard", "investor": "Compte investisseur avec tableau de bord dédié", "helper": "Compte assistant de base", "helperPro": "Niveau d’assistant payant", "broker": "Compte assistant/courtier de niveau 3", "logistics": "Mode acheteur logistique", "businessOwner": "Propriétaire de l’espace d’entreprise", "consultant": "Compte d’espace de conseil", "toolOwner": "Compte de propriétaire de location d’outils", "franchiseApplicant": "Parcours de candidature et de statut de franchise", "lifeOnly": "Compte réservé au tableau de bord vie", "businessManager": "Espace de gestion d’entreprise accordé", "businessRepresentative": "Espace de représentant accordé", "businessEmployee": "Espace d’employé accordé", "businessSupportAgent": "Espace d’agent support accordé", "employee": "Employé interne sans accès au portail admin", "operationsEmployee": "Employé interne des opérations logistiques", "complianceEmployee": "Employé interne de conformité logistique", "admin": "Compte du portail administrateur", "superAdmin": "Accès interne complet à la plateforme" },
     "subscriptionStatuses": { "none": "Aucun", "trialing": "Essai", "active": "Actif", "pastDue": "En retard", "cancelled": "Annulé", "paused": "En pause" }
   },
+  "adminUsers": {
+    "edit": {
+      "profile": "Profil",
+      "account": "Compte",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "phone": "Téléphone",
+      "city": "Ville",
+      "membershipTier": "Niveau d’adhésion",
+      "emailVerified": "E-mail vérifié",
+      "identityVerified": "Identité vérifiée",
+      "backgroundCheckPassed": "Vérification des antécédents réussie",
+      "accountActive": "Compte actif",
+      "country": "Pays",
+      "stateRegion": "État / région",
+      "postalCode": "Code postal",
+      "role": "Rôle",
+      "subscriptionStatus": "Statut de l’abonnement",
+      "noChanges": "Aucune modification",
+      "noChangesDetected": "Aucune modification détectée.",
+      "saveFailed": "Impossible d’enregistrer les modifications.",
+      "notifyUser": "Notifier l’utilisateur de ces modifications",
+      "notificationPlaceholder": "Message facultatif à inclure dans la notification.",
+      "unsaved": "{{count}} modification(s) non enregistrée(s)",
+      "saving": "Enregistrement…",
+      "saveChanges": "Enregistrer les modifications",
+      "roles": {
+        "customer": "Client",
+        "helper": "Aidant",
+        "helper_pro": "Aidant Pro",
+        "broker": "Courtier",
+        "admin": "Administrateur"
+      },
+      "subscriptions": {
+        "none": "Aucun",
+        "trial": "Essai",
+        "active": "Actif",
+        "past_due": "En retard",
+        "canceled": "Annulé"
+      }
+    }
+  },
   "adminLegal": {
   "approval": {
     "loading": "Loading approval queue…",

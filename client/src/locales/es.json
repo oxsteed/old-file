@@ -4615,6 +4615,48 @@
     "accountTypeHints": { "customer": "Cuenta de cliente estándar", "investor": "Cuenta de inversor con panel dedicado", "helper": "Cuenta básica de ayudante", "helperPro": "Nivel de ayudante de pago", "broker": "Cuenta de ayudante/intermediario de nivel 3", "logistics": "Modo comprador de logística", "businessOwner": "Propietario del espacio de negocio", "consultant": "Cuenta de espacio de consultoría", "toolOwner": "Cuenta de propietario de alquiler de herramientas", "franchiseApplicant": "Flujo de solicitud y estado de franquicia", "lifeOnly": "Cuenta solo para el panel de vida", "businessManager": "Espacio de gestión de negocio otorgado", "businessRepresentative": "Espacio de representante otorgado", "businessEmployee": "Espacio de empleado otorgado", "businessSupportAgent": "Espacio de agente de soporte otorgado", "employee": "Empleado interno sin acceso al portal de administración", "operationsEmployee": "Empleado interno para operaciones logísticas", "complianceEmployee": "Empleado interno para cumplimiento logístico", "admin": "Cuenta del portal de administración", "superAdmin": "Acceso interno completo a la plataforma" },
     "subscriptionStatuses": { "none": "Ninguna", "trialing": "Prueba", "active": "Activa", "pastDue": "Vencida", "cancelled": "Cancelada", "paused": "Pausada" }
   },
+  "adminUsers": {
+    "edit": {
+      "profile": "Perfil",
+      "account": "Cuenta",
+      "firstName": "Nombre",
+      "lastName": "Apellidos",
+      "phone": "Teléfono",
+      "city": "Ciudad",
+      "membershipTier": "Nivel de membresía",
+      "emailVerified": "Correo verificado",
+      "identityVerified": "Identidad verificada",
+      "backgroundCheckPassed": "Verificación de antecedentes aprobada",
+      "accountActive": "Cuenta activa",
+      "country": "País",
+      "stateRegion": "Estado / región",
+      "postalCode": "Código postal",
+      "role": "Rol",
+      "subscriptionStatus": "Estado de suscripción",
+      "noChanges": "Sin cambios",
+      "noChangesDetected": "No se detectaron cambios.",
+      "saveFailed": "No se pudieron guardar los cambios.",
+      "notifyUser": "Notificar al usuario sobre estos cambios",
+      "notificationPlaceholder": "Mensaje opcional para incluir en la notificación.",
+      "unsaved": "{{count}} cambio(s) sin guardar",
+      "saving": "Guardando…",
+      "saveChanges": "Guardar cambios",
+      "roles": {
+        "customer": "Cliente",
+        "helper": "Ayudante",
+        "helper_pro": "Ayudante Pro",
+        "broker": "Intermediario",
+        "admin": "Administrador"
+      },
+      "subscriptions": {
+        "none": "Ninguna",
+        "trial": "Prueba",
+        "active": "Activa",
+        "past_due": "Vencida",
+        "canceled": "Cancelada"
+      }
+    }
+  },
   "adminLegal": {
   "approval": {
     "loading": "Loading approval queue…",

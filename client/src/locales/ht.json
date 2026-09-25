@@ -4700,6 +4700,48 @@
     "accountTypeHints": { "customer": "Kont kliyan estanda", "investor": "Kont envestisè ak tablodbò espesyal", "helper": "Kont èdè debaz", "helperPro": "Nivo èdè ki peye", "broker": "Kont èdè/koutye nivo 3", "logistics": "Mòd achtè lojistik", "businessOwner": "Pwopriyetè espas biznis", "consultant": "Kont espas konsiltasyon", "toolOwner": "Kont pwopriyetè lokasyon zouti", "franchiseApplicant": "Fason pou aplike epi swiv estati franchiz", "lifeOnly": "Kont tablodbò lavi sèlman", "businessManager": "Espas jesyon biznis yo bay", "businessRepresentative": "Espas reprezantan yo bay", "businessEmployee": "Espas anplwaye yo bay", "businessSupportAgent": "Espas ajan sipò yo bay", "employee": "Anplwaye entèn san aksè pòtal admin", "operationsEmployee": "Anplwaye entèn operasyon lojistik", "complianceEmployee": "Anplwaye entèn konfòmite lojistik", "admin": "Kont pòtal administratè", "superAdmin": "Aksè entèn konplè sou platfòm lan" },
     "subscriptionStatuses": { "none": "Pa gen", "trialing": "Peryòd esè", "active": "Aktif", "pastDue": "Anreta", "cancelled": "Anile", "paused": "Sou poz" }
   },
+  "adminUsers": {
+    "edit": {
+      "profile": "Pwofil",
+      "account": "Kont",
+      "firstName": "Prenon",
+      "lastName": "Non fanmi",
+      "phone": "Telefòn",
+      "city": "Vil",
+      "membershipTier": "Nivo manm",
+      "emailVerified": "Imèl verifye",
+      "identityVerified": "Idantite verifye",
+      "backgroundCheckPassed": "Verifikasyon antesedan pase",
+      "accountActive": "Kont aktif",
+      "country": "Peyi",
+      "stateRegion": "Eta / rejyon",
+      "postalCode": "Kòd postal",
+      "role": "Wòl",
+      "subscriptionStatus": "Estati abònman",
+      "noChanges": "Pa gen chanjman",
+      "noChangesDetected": "Pa gen chanjman yo detekte.",
+      "saveFailed": "Chanjman yo pa t kapab sove.",
+      "notifyUser": "Notifye itilizatè a sou chanjman sa yo",
+      "notificationPlaceholder": "Mesaj opsyonèl pou mete nan notifikasyon an.",
+      "unsaved": "{{count}} chanjman ki poko anrejistre",
+      "saving": "Ap sove…",
+      "saveChanges": "Sove chanjman yo",
+      "roles": {
+        "customer": "Kliyan",
+        "helper": "Èdè",
+        "helper_pro": "Èdè Pro",
+        "broker": "Koutye",
+        "admin": "Administratè"
+      },
+      "subscriptions": {
+        "none": "Pa gen",
+        "trial": "Esè",
+        "active": "Aktif",
+        "past_due": "Anreta",
+        "canceled": "Anile"
+      }
+    }
+  },
   "adminLegal": {
   "approval": {
     "loading": "Loading approval queue…",
