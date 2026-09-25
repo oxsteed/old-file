@@ -4641,6 +4641,83 @@
     "approveDocument": "Approve Document",
     "rejectChanges": "Reject (Request Changes)",
     "previewTerms": "Preview document in Terms page"
+  },
+  "documents": {
+    "loadFailed": "Impossible de charger les documents",
+    "loading": "Chargement des documents…",
+    "title": "Documents juridiques",
+    "subtitle": "Gérez les conditions d’utilisation, la politique de confidentialité et les autres documents juridiques",
+    "newDocument": "Nouveau document",
+    "statusLabel": "Statut",
+    "empty": "Aucun document pour le moment. Créez votre premier document juridique.",
+    "createDocument": "Créer un document",
+    "filters": {
+      "all": "Tous les documents"
+    },
+    "status": {
+      "all": "Tous les documents",
+      "draft": "Brouillon",
+      "draftPlural": "Brouillons",
+      "pending_review": "Révision en attente",
+      "pendingReview": "Révision en attente",
+      "scheduled": "Programmé",
+      "live": "Publié",
+      "published": "Publié",
+      "archived": "Archivé"
+    },
+    "table": {
+      "title": "Titre",
+      "category": "Catégorie",
+      "version": "Version",
+      "status": "Statut",
+      "updated": "Mis à jour",
+      "actions": "Actions"
+    },
+    "actions": {
+      "preview": "Aperçu",
+      "edit": "Modifier",
+      "requestApproval": "Demander l’approbation",
+      "publishNow": "Publier maintenant"
+    },
+    "editor": {
+      "loadFailed": "Impossible de charger le document",
+      "saveFailed": "Impossible d’enregistrer le document",
+      "approvalFailed": "Impossible de demander l’approbation",
+      "loading": "Chargement du document…",
+      "createTitle": "Créer un document",
+      "editTitle": "Modifier : {{title}}",
+      "subtitle": "Créez et modifiez des documents juridiques avec une gestion par sections",
+      "saving": "Enregistrement…",
+      "saveDraft": "Enregistrer le brouillon",
+      "requestApproval": "Demander l’approbation",
+      "titleLabel": "Titre",
+      "titlePlaceholder": "p. ex. Conditions d’utilisation",
+      "categoryLabel": "Catégorie",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Brève description de ce document",
+      "changeSummaryLabel": "Résumé des modifications",
+      "changeSummaryPlaceholder": "Qu’est-ce qui a changé dans cette version ? (p. ex. « Conditions de paiement mises à jour »)",
+      "sections": "Sections",
+      "addSection": "Ajouter une section",
+      "newSection": "Nouvelle section",
+      "introduction": "Introduction",
+      "sectionTitlePlaceholder": "Titre de la section",
+      "sectionContentPlaceholder": "Contenu de la section (Markdown accepté)",
+      "cancel": "Annuler",
+      "categories": {
+        "termsOfService": "Conditions d’utilisation",
+        "privacyPolicy": "Politique de confidentialité",
+        "helperAgreement": "Accord de l’aidant",
+        "sellerAgreement": "Accord du vendeur",
+        "paymentTerms": "Conditions de paiement",
+        "disputeResolution": "Résolution des litiges",
+        "dataRetention": "Conservation des données",
+        "backgroundCheckPolicy": "Politique de vérification des antécédents",
+        "fcraCompliance": "Conformité FCRA",
+        "incidentResponse": "Réponse aux incidents",
+        "accessibilityPolicy": "Politique d’accessibilité"
+      }
+    }
   }
 },
   "businessHub": {

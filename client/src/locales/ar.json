@@ -4641,6 +4641,83 @@
     "approveDocument": "Approve Document",
     "rejectChanges": "Reject (Request Changes)",
     "previewTerms": "Preview document in Terms page"
+  },
+  "documents": {
+    "loadFailed": "تعذر تحميل المستندات",
+    "loading": "جارٍ تحميل المستندات…",
+    "title": "المستندات القانونية",
+    "subtitle": "إدارة شروط الخدمة وسياسة الخصوصية والمستندات القانونية الأخرى",
+    "newDocument": "مستند جديد",
+    "statusLabel": "الحالة",
+    "empty": "لا توجد مستندات بعد. أنشئ مستندك القانوني الأول.",
+    "createDocument": "إنشاء مستند",
+    "filters": {
+      "all": "كل المستندات"
+    },
+    "status": {
+      "all": "كل المستندات",
+      "draft": "مسودة",
+      "draftPlural": "مسودات",
+      "pending_review": "قيد المراجعة",
+      "pendingReview": "قيد المراجعة",
+      "scheduled": "مجدول",
+      "live": "منشور",
+      "published": "منشور",
+      "archived": "مؤرشف"
+    },
+    "table": {
+      "title": "العنوان",
+      "category": "الفئة",
+      "version": "الإصدار",
+      "status": "الحالة",
+      "updated": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "actions": {
+      "preview": "معاينة",
+      "edit": "تعديل",
+      "requestApproval": "طلب الموافقة",
+      "publishNow": "نشر الآن"
+    },
+    "editor": {
+      "loadFailed": "تعذر تحميل المستند",
+      "saveFailed": "تعذر حفظ المستند",
+      "approvalFailed": "تعذر طلب الموافقة",
+      "loading": "جارٍ تحميل المستند…",
+      "createTitle": "إنشاء مستند",
+      "editTitle": "تعديل: {{title}}",
+      "subtitle": "إنشاء المستندات القانونية وتعديلها مع إدارة الأقسام",
+      "saving": "جارٍ الحفظ…",
+      "saveDraft": "حفظ المسودة",
+      "requestApproval": "طلب الموافقة",
+      "titleLabel": "العنوان",
+      "titlePlaceholder": "مثال: شروط الخدمة",
+      "categoryLabel": "الفئة",
+      "descriptionLabel": "الوصف",
+      "descriptionPlaceholder": "وصف موجز لهذا المستند",
+      "changeSummaryLabel": "ملخص التغييرات",
+      "changeSummaryPlaceholder": "ما الذي تغيّر في هذا الإصدار؟",
+      "sections": "الأقسام",
+      "addSection": "إضافة قسم",
+      "newSection": "قسم جديد",
+      "introduction": "مقدمة",
+      "sectionTitlePlaceholder": "عنوان القسم",
+      "sectionContentPlaceholder": "محتوى القسم (يدعم Markdown)",
+      "cancel": "إلغاء",
+      "categories": {
+        "termsOfService": "شروط الخدمة",
+        "privacyPolicy": "سياسة الخصوصية",
+        "helperAgreement": "اتفاقية المساعد",
+        "sellerAgreement": "اتفاقية البائع",
+        "paymentTerms": "شروط الدفع",
+        "disputeResolution": "حل النزاعات",
+        "dataRetention": "الاحتفاظ بالبيانات",
+        "backgroundCheckPolicy": "سياسة التحقق من الخلفية",
+        "fcraCompliance": "الامتثال لقانون FCRA",
+        "incidentResponse": "الاستجابة للحوادث",
+        "accessibilityPolicy": "سياسة إمكانية الوصول"
+      }
+    }
   }
 },
   "businessHub": {

@@ -4671,6 +4671,83 @@
     "approveDocument": "Approve Document",
     "rejectChanges": "Reject (Request Changes)",
     "previewTerms": "Preview document in Terms page"
+  },
+  "documents": {
+    "loadFailed": "Failed to load documents",
+    "loading": "Loading documents...",
+    "title": "Legal Documents",
+    "subtitle": "Manage Terms of Service, Privacy Policy, and other legal documents",
+    "newDocument": "New Document",
+    "statusLabel": "Status",
+    "empty": "No documents yet. Create your first legal document.",
+    "createDocument": "Create Document",
+    "filters": {
+      "all": "All Documents"
+    },
+    "status": {
+      "all": "All Documents",
+      "draft": "Draft",
+      "draftPlural": "Drafts",
+      "pending_review": "Pending Review",
+      "pendingReview": "Pending Review",
+      "scheduled": "Scheduled",
+      "live": "Published",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "table": {
+      "title": "Title",
+      "category": "Category",
+      "version": "Version",
+      "status": "Status",
+      "updated": "Updated",
+      "actions": "Actions"
+    },
+    "actions": {
+      "preview": "Preview",
+      "edit": "Edit",
+      "requestApproval": "Request Approval",
+      "publishNow": "Publish Now"
+    },
+    "editor": {
+      "loadFailed": "Failed to load document",
+      "saveFailed": "Failed to save document",
+      "approvalFailed": "Failed to request approval",
+      "loading": "Loading document...",
+      "createTitle": "Create Document",
+      "editTitle": "Edit: {{title}}",
+      "subtitle": "Create and edit legal documents with section management",
+      "saving": "Saving...",
+      "saveDraft": "Save Draft",
+      "requestApproval": "Request Approval",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g., Terms of Service",
+      "categoryLabel": "Category",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Brief description of this document",
+      "changeSummaryLabel": "Change Summary",
+      "changeSummaryPlaceholder": "What changed in this version? (e.g., 'Updated payment terms', 'Added GDPR section')",
+      "sections": "Sections",
+      "addSection": "Add Section",
+      "newSection": "New Section",
+      "introduction": "Introduction",
+      "sectionTitlePlaceholder": "Section title",
+      "sectionContentPlaceholder": "Section content (supports markdown)",
+      "cancel": "Cancel",
+      "categories": {
+        "termsOfService": "Terms of Service",
+        "privacyPolicy": "Privacy Policy",
+        "helperAgreement": "Helper Agreement",
+        "sellerAgreement": "Seller Agreement",
+        "paymentTerms": "Payment Terms",
+        "disputeResolution": "Dispute Resolution",
+        "dataRetention": "Data Retention",
+        "backgroundCheckPolicy": "Background Check Policy",
+        "fcraCompliance": "FCRA Compliance",
+        "incidentResponse": "Incident Response",
+        "accessibilityPolicy": "Accessibility Policy"
+      }
+    }
   }
 },
   "businessHub": {

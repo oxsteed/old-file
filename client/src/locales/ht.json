@@ -4726,6 +4726,83 @@
     "approveDocument": "Approve Document",
     "rejectChanges": "Reject (Request Changes)",
     "previewTerms": "Preview document in Terms page"
+  },
+  "documents": {
+    "loadFailed": "Dokiman yo pa t kapab chaje",
+    "loading": "Chaje dokiman yo...",
+    "title": "Dokiman legal",
+    "subtitle": "Jere Kondisyon sèvis yo, Règleman sou enfòmasyon prive, ak lòt dokiman legal",
+    "newDocument": "Nouvo dokiman",
+    "statusLabel": "Estati",
+    "empty": "Pa gen dokiman ankò. Kreye premye dokiman legal ou.",
+    "createDocument": "Kreye dokiman",
+    "filters": {
+      "all": "Tout dokiman yo"
+    },
+    "status": {
+      "all": "Tout dokiman yo",
+      "draft": "Bouyon",
+      "draftPlural": "Bouyon yo",
+      "pending_review": "Revizyon annatant",
+      "pendingReview": "Revizyon annatant",
+      "scheduled": "Pwograme",
+      "live": "Pibliye",
+      "published": "Pibliye",
+      "archived": "Achive"
+    },
+    "table": {
+      "title": "Tit",
+      "category": "Kategori",
+      "version": "Vèsyon",
+      "status": "Estati",
+      "updated": "Mizajou",
+      "actions": "Aksyon"
+    },
+    "actions": {
+      "preview": "Aperçu",
+      "edit": "Modifye",
+      "requestApproval": "Mande apwobasyon",
+      "publishNow": "Pibliye kounye a"
+    },
+    "editor": {
+      "loadFailed": "Dokiman an pa t kapab chaje",
+      "saveFailed": "Dokiman an pa t kapab sove",
+      "approvalFailed": "Apwobasyon an pa t kapab mande",
+      "loading": "Chaje dokiman an...",
+      "createTitle": "Kreye dokiman",
+      "editTitle": "Modifye: {{title}}",
+      "subtitle": "Kreye epi modifye dokiman legal ak jesyon seksyon",
+      "saving": "Ap sove...",
+      "saveDraft": "Sove bouyon",
+      "requestApproval": "Mande apwobasyon",
+      "titleLabel": "Tit",
+      "titlePlaceholder": "egzanp, Kondisyon sèvis",
+      "categoryLabel": "Kategori",
+      "descriptionLabel": "Deskripsyon",
+      "descriptionPlaceholder": "Kout deskripsyon dokiman sa a",
+      "changeSummaryLabel": "Rezime chanjman",
+      "changeSummaryPlaceholder": "Kisa ki chanje nan vèsyon sa a?",
+      "sections": "Seksyon yo",
+      "addSection": "Ajoute seksyon",
+      "newSection": "Nouvo seksyon",
+      "introduction": "Entwodiksyon",
+      "sectionTitlePlaceholder": "Tit seksyon an",
+      "sectionContentPlaceholder": "Kontni seksyon an (Markdown disponib)",
+      "cancel": "Anile",
+      "categories": {
+        "termsOfService": "Kondisyon sèvis",
+        "privacyPolicy": "Règleman sou enfòmasyon prive",
+        "helperAgreement": "Akò èdè a",
+        "sellerAgreement": "Akò vandè a",
+        "paymentTerms": "Kondisyon peman",
+        "disputeResolution": "Rezolisyon diskisyon",
+        "dataRetention": "Retansyon done",
+        "backgroundCheckPolicy": "Règleman verifikasyon antesedan",
+        "fcraCompliance": "Konfòmite FCRA",
+        "incidentResponse": "Repons pou ensidan",
+        "accessibilityPolicy": "Règleman aksè"
+      }
+    }
   }
 },
   "businessHub": {

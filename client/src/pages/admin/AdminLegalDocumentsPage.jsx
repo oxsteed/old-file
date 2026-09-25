@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, Edit, CheckCircle, Clock, AlertCircle, Trash2, Eye } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
@@ -10,6 +11,8 @@ import './AdminLegalDocumentsPage.css';
 
 export default function AdminLegalDocumentsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`adminLegal.documents.${key}`, options);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,7 +33,7 @@ export default function AdminLegalDocumentsPage() {
       setDocuments(data.documents || []);
     } catch (err) {
       logger.error('Failed to fetch documents', { err });
-      setError('Failed to load documents');
+      setError(copy('loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -63,22 +66,22 @@ export default function AdminLegalDocumentsPage() {
     const style = styles[status] || styles.draft;
     return (
       <span className="admin-status-badge" style={{ backgroundColor: style.bg, color: style.text }}>
-        {status.replace('_', ' ')}
+        {copy(`status.${status}`)}
       </span>
     );
   };
 
   const statusOptions = [
-    { value: 'all', label: 'All Documents' },
-    { value: 'draft', label: 'Drafts' },
-    { value: 'pending_review', label: 'Pending Review' },
-    { value: 'scheduled', label: 'Scheduled' },
-    { value: 'live', label: 'Published' },
-    { value: 'archived', label: 'Archived' }
+    { value: 'all', label: copy('filters.all') },
+    { value: 'draft', label: copy('status.draftPlural') },
+    { value: 'pending_review', label: copy('status.pendingReview') },
+    { value: 'scheduled', label: copy('status.scheduled') },
+    { value: 'live', label: copy('status.published') },
+    { value: 'archived', label: copy('status.archived') }
   ];
 
   if (loading) {
-    return <div className="admin-page-loading">Loading documents...</div>;
+    return <div className="admin-page-loading">{copy('loading')}</div>;
   }
 
   return (
@@ -86,12 +89,12 @@ export default function AdminLegalDocumentsPage() {
       {/* Header */}
       <div className="admin-page-header">
         <div>
-          <h1>Legal Documents</h1>
-          <p>Manage Terms of Service, Privacy Policy, and other legal documents</p>
+          <h1>{copy('title')}</h1>
+          <p>{copy('subtitle')}</p>
         </div>
         <button className="admin-btn admin-btn-primary" onClick={handleCreateNew}>
           <Plus size={18} />
-          New Document
+          {copy('newDocument')}
         </button>
       </div>
 
@@ -105,7 +108,7 @@ export default function AdminLegalDocumentsPage() {
       {/* Filters */}
       <div className="admin-filters">
         <div className="admin-filter-group">
-          <label>Status</label>
+          <label>{copy('statusLabel')}</label>
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
@@ -123,10 +126,10 @@ export default function AdminLegalDocumentsPage() {
       {/* Documents Table */}
       {documents.length === 0 ? (
         <div className="admin-empty-state">
-          <p>No documents yet. Create your first legal document.</p>
+          <p>{copy('empty')}</p>
           <button className="admin-btn admin-btn-primary" onClick={handleCreateNew}>
             <Plus size={18} />
-            Create Document
+            {copy('createDocument')}
           </button>
         </div>
       ) : (
@@ -134,12 +137,12 @@ export default function AdminLegalDocumentsPage() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Actions</th>
+                <th>{copy('table.title')}</th>
+                <th>{copy('table.category')}</th>
+                <th>{copy('table.version')}</th>
+                <th>{copy('table.status')}</th>
+                <th>{copy('table.updated')}</th>
+                <th>{copy('table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -156,14 +159,14 @@ export default function AdminLegalDocumentsPage() {
                     <button
                       className="admin-action-btn admin-action-preview"
                       onClick={() => handlePreview(doc.id)}
-                      title="Preview"
+                      title={copy('actions.preview')}
                     >
                       <Eye size={16} />
                     </button>
                     <button
                       className="admin-action-btn admin-action-edit"
                       onClick={() => handleEdit(doc.id)}
-                      title="Edit"
+                      title={copy('actions.edit')}
                     >
                       <Edit size={16} />
                     </button>
@@ -171,7 +174,7 @@ export default function AdminLegalDocumentsPage() {
                       <button
                         className="admin-action-btn admin-action-approve"
                         onClick={() => handleApprove(doc.id)}
-                        title="Request Approval"
+                        title={copy('actions.requestApproval')}
                       >
                         <CheckCircle size={16} />
                       </button>
@@ -180,7 +183,7 @@ export default function AdminLegalDocumentsPage() {
                       <button
                         className="admin-action-btn admin-action-publish"
                         onClick={() => handleApprove(doc.id)}
-                        title="Publish Now"
+                        title={copy('actions.publishNow')}
                       >
                         <Clock size={16} />
                       </button>

@@ -4641,6 +4641,83 @@
     "approveDocument": "Approve Document",
     "rejectChanges": "Reject (Request Changes)",
     "previewTerms": "Preview document in Terms page"
+  },
+  "documents": {
+    "loadFailed": "No se pudieron cargar los documentos",
+    "loading": "Cargando documentos...",
+    "title": "Documentos legales",
+    "subtitle": "Administra los Términos de servicio, la Política de privacidad y otros documentos legales",
+    "newDocument": "Nuevo documento",
+    "statusLabel": "Estado",
+    "empty": "Aún no hay documentos. Crea tu primer documento legal.",
+    "createDocument": "Crear documento",
+    "filters": {
+      "all": "Todos los documentos"
+    },
+    "status": {
+      "all": "Todos los documentos",
+      "draft": "Borrador",
+      "draftPlural": "Borradores",
+      "pending_review": "Revisión pendiente",
+      "pendingReview": "Revisión pendiente",
+      "scheduled": "Programado",
+      "live": "Publicado",
+      "published": "Publicado",
+      "archived": "Archivado"
+    },
+    "table": {
+      "title": "Título",
+      "category": "Categoría",
+      "version": "Versión",
+      "status": "Estado",
+      "updated": "Actualizado",
+      "actions": "Acciones"
+    },
+    "actions": {
+      "preview": "Vista previa",
+      "edit": "Editar",
+      "requestApproval": "Solicitar aprobación",
+      "publishNow": "Publicar ahora"
+    },
+    "editor": {
+      "loadFailed": "No se pudo cargar el documento",
+      "saveFailed": "No se pudo guardar el documento",
+      "approvalFailed": "No se pudo solicitar la aprobación",
+      "loading": "Cargando documento...",
+      "createTitle": "Crear documento",
+      "editTitle": "Editar: {{title}}",
+      "subtitle": "Crea y edita documentos legales con gestión por secciones",
+      "saving": "Guardando...",
+      "saveDraft": "Guardar borrador",
+      "requestApproval": "Solicitar aprobación",
+      "titleLabel": "Título",
+      "titlePlaceholder": "p. ej., Términos de servicio",
+      "categoryLabel": "Categoría",
+      "descriptionLabel": "Descripción",
+      "descriptionPlaceholder": "Descripción breve de este documento",
+      "changeSummaryLabel": "Resumen de cambios",
+      "changeSummaryPlaceholder": "¿Qué cambió en esta versión? (p. ej., 'Se actualizaron los términos de pago')",
+      "sections": "Secciones",
+      "addSection": "Agregar sección",
+      "newSection": "Nueva sección",
+      "introduction": "Introducción",
+      "sectionTitlePlaceholder": "Título de la sección",
+      "sectionContentPlaceholder": "Contenido de la sección (admite Markdown)",
+      "cancel": "Cancelar",
+      "categories": {
+        "termsOfService": "Términos de servicio",
+        "privacyPolicy": "Política de privacidad",
+        "helperAgreement": "Acuerdo del ayudante",
+        "sellerAgreement": "Acuerdo del vendedor",
+        "paymentTerms": "Términos de pago",
+        "disputeResolution": "Resolución de disputas",
+        "dataRetention": "Retención de datos",
+        "backgroundCheckPolicy": "Política de verificación de antecedentes",
+        "fcraCompliance": "Cumplimiento de la FCRA",
+        "incidentResponse": "Respuesta a incidentes",
+        "accessibilityPolicy": "Política de accesibilidad"
+      }
+    }
   }
 },
   "businessHub": {

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Save, X, Plus, Edit, Trash2, ChevronDown, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
@@ -11,6 +12,8 @@ import './AdminLegalDocumentEditorPage.css';
 export default function AdminLegalDocumentEditorPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`adminLegal.documents.editor.${key}`, options);
   const isNew = !id;
 
   const [document, setDocument] = useState({
@@ -21,7 +24,7 @@ export default function AdminLegalDocumentEditorPage() {
   });
 
   const [sections, setSections] = useState([
-    { key: 'introduction', title: 'Introduction', content: '' }
+    { key: 'introduction', title: copy('introduction'), content: '' }
   ]);
 
   const [loading, setLoading] = useState(!isNew);
@@ -30,17 +33,17 @@ export default function AdminLegalDocumentEditorPage() {
   const [expandedSection, setExpandedSection] = useState(0);
 
   const categories = [
-    { value: 'terms_of_service', label: 'Terms of Service' },
-    { value: 'privacy_policy', label: 'Privacy Policy' },
-    { value: 'helper_agreement', label: 'Helper Agreement' },
-    { value: 'seller_agreement', label: 'Seller Agreement' },
-    { value: 'payment_terms', label: 'Payment Terms' },
-    { value: 'dispute_resolution', label: 'Dispute Resolution' },
-    { value: 'data_retention', label: 'Data Retention' },
-    { value: 'background_check_policy', label: 'Background Check Policy' },
-    { value: 'fcra_compliance', label: 'FCRA Compliance' },
-    { value: 'incident_response', label: 'Incident Response' },
-    { value: 'accessibility_policy', label: 'Accessibility Policy' }
+    { value: 'terms_of_service', label: copy('categories.termsOfService') },
+    { value: 'privacy_policy', label: copy('categories.privacyPolicy') },
+    { value: 'helper_agreement', label: copy('categories.helperAgreement') },
+    { value: 'seller_agreement', label: copy('categories.sellerAgreement') },
+    { value: 'payment_terms', label: copy('categories.paymentTerms') },
+    { value: 'dispute_resolution', label: copy('categories.disputeResolution') },
+    { value: 'data_retention', label: copy('categories.dataRetention') },
+    { value: 'background_check_policy', label: copy('categories.backgroundCheckPolicy') },
+    { value: 'fcra_compliance', label: copy('categories.fcraCompliance') },
+    { value: 'incident_response', label: copy('categories.incidentResponse') },
+    { value: 'accessibility_policy', label: copy('categories.accessibilityPolicy') }
   ];
 
   // Load document if editing
@@ -58,7 +61,7 @@ export default function AdminLegalDocumentEditorPage() {
       setSections(data.sections || []);
     } catch (err) {
       logger.error('Failed to load document', { err });
-      setError('Failed to load document');
+      setError(copy('loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +93,7 @@ export default function AdminLegalDocumentEditorPage() {
       navigate('/admin/legal/documents');
     } catch (err) {
       logger.error('Failed to save document', { err });
-      setError(err.response?.data?.message || 'Failed to save document');
+      setError(err.response?.data?.message || copy('saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -100,7 +103,7 @@ export default function AdminLegalDocumentEditorPage() {
     const newKey = `section_${Date.now()}`;
     setSections([
       ...sections,
-      { key: newKey, title: 'New Section', content: '' }
+      { key: newKey, title: copy('newSection'), content: '' }
     ]);
     setExpandedSection(sections.length);
   };
@@ -128,14 +131,14 @@ export default function AdminLegalDocumentEditorPage() {
       navigate('/admin/legal/approvals');
     } catch (err) {
       logger.error('Failed to request approval', { err });
-      setError(err.response?.data?.message || 'Failed to request approval');
+      setError(err.response?.data?.message || copy('approvalFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="admin-editor-loading">Loading document...</div>;
+    return <div className="admin-editor-loading">{copy('loading')}</div>;
   }
 
   return (
@@ -143,8 +146,8 @@ export default function AdminLegalDocumentEditorPage() {
       {/* Header */}
       <div className="admin-editor-header">
         <div>
-          <h1>{isNew ? 'Create Document' : `Edit: ${document.title}`}</h1>
-          <p>Create and edit legal documents with section management</p>
+          <h1>{isNew ? copy('createTitle') : copy('editTitle', { title: document.title })}</h1>
+          <p>{copy('subtitle')}</p>
         </div>
         <div className="admin-editor-actions">
           <button
@@ -153,7 +156,7 @@ export default function AdminLegalDocumentEditorPage() {
             disabled={saving}
           >
             <Save size={18} />
-            {saving ? 'Saving...' : 'Save Draft'}
+            {saving ? copy('saving') : copy('saveDraft')}
           </button>
           {!isNew && (
             <button
@@ -161,7 +164,7 @@ export default function AdminLegalDocumentEditorPage() {
               onClick={handleRequestApproval}
               disabled={saving}
             >
-              Request Approval
+              {copy('requestApproval')}
             </button>
           )}
           <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/admin/legal/documents')}>
@@ -180,19 +183,19 @@ export default function AdminLegalDocumentEditorPage() {
       {/* Document Settings */}
       <div className="admin-editor-settings">
         <div className="admin-editor-field">
-          <label>Title</label>
+          <label>{copy('titleLabel')}</label>
           <input
             type="text"
             value={document.title}
             onChange={(e) => setDocument({ ...document, title: e.target.value })}
-            placeholder="e.g., Terms of Service"
+            placeholder={copy('titlePlaceholder')}
             className="admin-input"
           />
         </div>
 
         {isNew && (
           <div className="admin-editor-field">
-            <label>Category</label>
+            <label>{copy('categoryLabel')}</label>
             <select
               value={document.category}
               onChange={(e) => setDocument({ ...document, category: e.target.value })}
@@ -208,22 +211,22 @@ export default function AdminLegalDocumentEditorPage() {
         )}
 
         <div className="admin-editor-field">
-          <label>Description</label>
+          <label>{copy('descriptionLabel')}</label>
           <textarea
             value={document.description}
             onChange={(e) => setDocument({ ...document, description: e.target.value })}
-            placeholder="Brief description of this document"
+            placeholder={copy('descriptionPlaceholder')}
             className="admin-textarea"
             rows={2}
           />
         </div>
 
         <div className="admin-editor-field">
-          <label>Change Summary</label>
+          <label>{copy('changeSummaryLabel')}</label>
           <textarea
             value={document.changeSummary}
             onChange={(e) => setDocument({ ...document, changeSummary: e.target.value })}
-            placeholder="What changed in this version? (e.g., 'Updated payment terms', 'Added GDPR section')"
+            placeholder={copy('changeSummaryPlaceholder')}
             className="admin-textarea"
             rows={2}
           />
@@ -233,10 +236,10 @@ export default function AdminLegalDocumentEditorPage() {
       {/* Sections Editor */}
       <div className="admin-editor-sections">
         <div className="admin-sections-header">
-          <h2>Sections</h2>
+          <h2>{copy('sections')}</h2>
           <button className="admin-btn admin-btn-sm" onClick={handleAddSection}>
             <Plus size={16} />
-            Add Section
+            {copy('addSection')}
           </button>
         </div>
 
@@ -257,7 +260,7 @@ export default function AdminLegalDocumentEditorPage() {
                   value={section.title}
                   onChange={(e) => updateSection(index, 'title', e.target.value)}
                   className="admin-section-title-input"
-                  placeholder="Section title"
+                  placeholder={copy('sectionTitlePlaceholder')}
                   onClick={(e) => e.stopPropagation()}
                 />
                 {sections.length > 1 && (
@@ -278,7 +281,7 @@ export default function AdminLegalDocumentEditorPage() {
                   <textarea
                     value={section.content}
                     onChange={(e) => updateSection(index, 'content', e.target.value)}
-                    placeholder="Section content (supports markdown)"
+                    placeholder={copy('sectionContentPlaceholder')}
                     className="admin-section-textarea"
                     rows={10}
                   />
@@ -297,10 +300,10 @@ export default function AdminLegalDocumentEditorPage() {
           disabled={saving}
         >
           <Save size={18} />
-          {saving ? 'Saving...' : 'Save Draft'}
+          {saving ? copy('saving') : copy('saveDraft')}
         </button>
         <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/admin/legal/documents')}>
-          Cancel
+          {copy('cancel')}
         </button>
       </div>
     </div>
