@@ -8416,6 +8416,7 @@
     "authRequired": "Por favor inicia sesión para usar el asesor financiero.",
     "error": "El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo.",
     "windowLabel": "Ventana de análisis",
+    "windows": { "oneMonth": "1 mes", "threeMonths": "3 meses", "sixMonths": "6 meses", "oneYear": "1 año" },
     "buttonLabel": "Calculadora IA"
   },
   "qrGenerator": {

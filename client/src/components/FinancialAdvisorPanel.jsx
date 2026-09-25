@@ -53,8 +53,8 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
     } catch (err) {
       const errText = err?.response?.status === 401
-        ? (t('financialAdvisor.authRequired') || 'Please sign in to use the financial advisor.')
-        : (t('financialAdvisor.error') || 'AI service temporarily unavailable. Please try again.');
+        ? t('financialAdvisor.authRequired')
+        : t('financialAdvisor.error');
       setMessages(prev => [...prev, { role: 'error', content: errText }]);
     } finally {
       setSending(false);
@@ -69,24 +69,24 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       <div className="flex items-center gap-2 px-4 py-3 bg-emerald-900/60 border-b border-emerald-800/60 flex-shrink-0">
         <DollarSign className="w-4 h-4 text-emerald-400 flex-shrink-0" aria-hidden="true" />
         <span className="text-sm font-semibold text-white flex-1">
-          {t('financialAdvisor.title') || '💰 AI Finance Calculator'}
+          {t('financialAdvisor.title')}
         </span>
         {/* Window selector */}
         <select
           value={window_}
           onChange={e => setWindow_(e.target.value)}
           className="text-xs bg-gray-800 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none"
-          aria-label={t('financialAdvisor.windowLabel') || 'Analysis window'}
+          aria-label={t('financialAdvisor.windowLabel')}
         >
-          <option value="1m">1 Month</option>
-          <option value="3m">3 Months</option>
-          <option value="6m">6 Months</option>
-          <option value="1y">1 Year</option>
+          <option value="1m">{t('financialAdvisor.windows.oneMonth')}</option>
+          <option value="3m">{t('financialAdvisor.windows.threeMonths')}</option>
+          <option value="6m">{t('financialAdvisor.windows.sixMonths')}</option>
+          <option value="1y">{t('financialAdvisor.windows.oneYear')}</option>
         </select>
         <button
           onClick={onClose}
           className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition"
-          aria-label={t('common.close') || 'Close'}
+          aria-label={t('common.close')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -101,7 +101,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-hidden="true" />
           <span className="text-xs text-amber-300 font-medium flex-1">
-            {t('financialAdvisor.disclaimerTitle') || 'AI Disclaimer - Not Financial Advice'}
+            {t('financialAdvisor.disclaimerTitle')}
           </span>
           {disclaimerOpen
             ? <ChevronUp className="w-3.5 h-3.5 text-amber-400" />
@@ -110,10 +110,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         {disclaimerOpen && (
           <div className="px-4 py-3 bg-amber-950/20 border-b border-amber-800/20 text-xs text-amber-200/80 leading-relaxed">
             <p>
-              {t('financialAdvisor.disclaimerBody') ||
-                'This AI can make mistakes and does not constitute professional financial advice. ' +
-                'Always consult a licensed financial advisor before making financial decisions. ' +
-                'Responses are based on your account data and may be inaccurate.'}
+              {t('financialAdvisor.disclaimerBody')}
             </p>
           </div>
         )}
@@ -123,8 +120,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 max-h-80 min-h-[160px]">
         {messages.length === 0 && (
           <p className="text-xs text-gray-500 text-center mt-4">
-            {t('financialAdvisor.emptyPrompt') ||
-              'Ask me anything about your finances - income, expenses, goals, or planned needs.'}
+            {t('financialAdvisor.emptyPrompt')}
           </p>
         )}
         {messages.map((msg, i) => (
@@ -143,7 +139,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
                   {msg.content}
                 </div>
                 <p className="text-[10px] text-amber-400/70 px-1">
-                  {t('financialAdvisor.notAdviceTag') || '⚠️ Not professional financial advice'}
+                  {t('financialAdvisor.notAdviceTag')}
                 </p>
               </div>
             )}
@@ -168,7 +164,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder={t('financialAdvisor.inputPlaceholder') || 'Ask about your finances…'}
+          placeholder={t('financialAdvisor.inputPlaceholder')}
           maxLength={800}
           disabled={sending}
           className="flex-1 rounded-xl bg-gray-800 border border-gray-700 text-white placeholder-gray-500 text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition disabled:opacity-50"
@@ -177,7 +173,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
           type="submit"
           disabled={!input.trim() || sending}
           className="w-9 h-9 flex-shrink-0 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white flex items-center justify-center transition"
-          aria-label={t('messages.sendMessage') || 'Send'}
+          aria-label={t('messages.sendMessage')}
         >
           <Send className="w-4 h-4" />
         </button>

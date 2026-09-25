@@ -8451,6 +8451,7 @@
     "authRequired": "Please sign in to use the financial advisor.",
     "error": "AI service temporarily unavailable. Please try again.",
     "windowLabel": "Analysis window",
+    "windows": { "oneMonth": "1 Month", "threeMonths": "3 Months", "sixMonths": "6 Months", "oneYear": "1 Year" },
     "buttonLabel": "AI Finance Calculator"
   },
   "qrGenerator": {

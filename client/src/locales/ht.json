@@ -8416,6 +8416,7 @@
     "authRequired": "Tanpri konekte pou itilize konsèyè finansyal la.",
     "error": "Sèvis IA a pa disponib pandan tan. Tanpri eseye ankò.",
     "windowLabel": "Fenèt analiz",
+    "windows": { "oneMonth": "1 mwa", "threeMonths": "3 mwa", "sixMonths": "6 mwa", "oneYear": "1 an" },
     "buttonLabel": "Kalkil IA"
   },
   "qrGenerator": {

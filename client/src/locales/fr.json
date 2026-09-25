@@ -8416,6 +8416,7 @@
     "authRequired": "Veuillez vous connecter pour utiliser le conseiller financier.",
     "error": "Le service IA est temporairement indisponible. Veuillez réessayer.",
     "windowLabel": "Fenêtre d'analyse",
+    "windows": { "oneMonth": "1 mois", "threeMonths": "3 mois", "sixMonths": "6 mois", "oneYear": "1 an" },
     "buttonLabel": "Calculatrice IA"
   },
   "qrGenerator": {
