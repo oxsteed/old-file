@@ -167,7 +167,7 @@ export default function HelperDashboard() {
       setSearchParams({},{replace:true});
     }
     if(searchParams.get('onboarding')==='complete'){
-      toast.success('✅ Payment details saved. You can now record and receive job payments.');
+      toast.success(`✅ ${t('helperDashboard.paymentDetailsSaved')}`);
       refreshUser?.();
       setSearchParams({},{replace:true});
     }
@@ -1318,21 +1318,21 @@ export default function HelperDashboard() {
 
           <HelperOffersCard />
 
-          {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
+          {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title={t('helperDashboard.nextAction')} />}
 
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
           {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
-              <h2 className="text-base font-bold text-white mb-1">Promote your services with ready-made links, QR codes, and local posts.</h2>
+              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">{t('helperDashboard.growthCenterLabel')}</p>
+              <h2 className="text-base font-bold text-white mb-1">{t('helperDashboard.growthCenterTitle')}</h2>
               <p className="text-sm text-gray-400 max-w-2xl">
-                Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.
+                {t('helperDashboard.growthCenterDescription')}
               </p>
             </div>
           <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition">
-              Open Growth Center
+              {t('helperDashboard.openGrowthCenter')}
             </Link>
           </div>
           )}
@@ -1658,8 +1658,8 @@ export default function HelperDashboard() {
           <Link to="/affiliate" className="block mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-400 font-semibold text-sm mb-0.5">Affiliate earnings dashboard</p>
-                <p className="text-gray-400 text-xs">Track commissions, conversion funnel, top products, and request payouts</p>
+                <p className="text-orange-400 font-semibold text-sm mb-0.5">{t('helperDashboard.affiliateTitle')}</p>
+                <p className="text-gray-400 text-xs">{t('helperDashboard.affiliateDescription')}</p>
               </div>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </div>
@@ -1780,7 +1780,7 @@ export default function HelperDashboard() {
           {/* My Properties */}
           <Card className="mb-5">
             <CardHeader icon={IcoHome} title={t('dashboard.home.myProperties')}
-              right={<span className="text-[10px] text-gray-600">Census · OSM · FEMA</span>}/>
+              right={<span className="text-[10px] text-gray-600">{t('helperDashboard.censusSources')}</span>}/>
 
             <div className="flex gap-2 mb-3">
               <input
@@ -2096,7 +2096,7 @@ export default function HelperDashboard() {
             {/* Car Care Tasks */}
             <div className="flex items-center justify-between">
               <div><h3 className="font-semibold text-white text-lg">{t('dashboard.carCare.scheduleTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.carCare.scheduleSub')}</p></div>
-              <Btn onClick={()=>setShowCcModal(true)}>+ Add Service</Btn>
+              <Btn onClick={()=>setShowCcModal(true)}>{t('helperDashboard.addServiceBtn')}</Btn>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-2">{t('dashboard.carCare.quickAddLabel')}</p>
@@ -2256,7 +2256,7 @@ export default function HelperDashboard() {
             {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('helperDashboard.noBidsYet')}</p><Link to="/jobs" className="bg-action hover:bg-action-hover text-on-action font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('helperDashboard.browseJobs')}</Link></Card>
             :<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
-                <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title || t('helperDashboard.jobNumber', { id: bid.job_id })}</p><p className="text-xs text-gray-500 mt-1">Bid <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
+        <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title || t('helperDashboard.jobNumber', { id: bid.job_id })}</p><p className="text-xs text-gray-500 mt-1">{t('helperDashboard.bidLabel')} <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
                 <Tag text={bid.status.replace(/_/g,' ')} color={bid.status==='accepted'?'green':bid.status==='pending'?'orange':bid.status==='rejected'?'red':'gray'}/>
               </Link>
             ))}</div>}
@@ -2681,8 +2681,8 @@ export default function HelperDashboard() {
       {/* Invoice Modal */}
       <Modal open={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} title={editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}>
         <form onSubmit={handleSaveInvoice} className="space-y-4">
-          <Input label={t('helperDashboard.invoices.clientName')} placeholder="John Doe" value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
-          <Input label={t('helperDashboard.invoices.clientEmail')} type="email" placeholder="john@example.com" value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
+          <Input label={t('helperDashboard.invoices.clientName')} placeholder={t('helperDashboard.invoices.clientNamePlaceholder')} value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
+          <Input label={t('helperDashboard.invoices.clientEmail')} type="email" placeholder={t('helperDashboard.invoices.clientEmailPlaceholder')} value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
 
           <div className="border-t border-gray-700 pt-4">
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-2">{t('helperDashboard.invoices.lineItems')}</label>

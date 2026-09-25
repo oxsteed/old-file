@@ -3482,6 +3482,8 @@
     "sectionVisibility": "Section Visibility",
     "visibilityHint": "Toggle sections on or off to control what appears on your public profile. Turn off sections you haven't completed yet.",
     "visibilitySaved": "Visibility settings saved",
+    "growthCenterDescription": "Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.",
+    "openGrowthCenter": "Open Growth Center",
     "tabs": {
       "overview": "Overview",
       "editProfile": "Edit Profile",
@@ -3556,7 +3558,9 @@
       "tax": "Tax:",
       "total": "Total:",
       "dueDate": "Due Date (Optional)",
-      "memo": "Notes/Memo (optional)"
+      "memo": "Notes/Memo (optional)",
+      "clientNamePlaceholder": "Your client name",
+      "clientEmailPlaceholder": "client@example.com"
     },
     "personalCare": {
       "added": "Personal care added"
@@ -3631,7 +3635,15 @@
     "addTool": "Add Tool",
     "manageTools": "Manage Tools",
     "imageLoadError": "Failed to load image",
-    "uploading": "Uploading…"
+    "uploading": "Uploading…",
+    "nextAction": "What to do next",
+    "growthCenterLabel": "Growth Center",
+    "growthCenterTitle": "Promote your services with ready-made links, QR codes, and local posts.",
+    "affiliateTitle": "Affiliate earnings dashboard",
+    "affiliateDescription": "Track commissions, conversion funnel, top products, and request payouts",
+    "censusSources": "Census · OSM · FEMA",
+    "paymentDetailsSaved": "Payment details saved. You can now record and receive job payments.",
+    "bidLabel": "Bid"
   },
   "postJob": {
     "title": "Post a Job",

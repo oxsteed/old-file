@@ -3482,6 +3482,8 @@
     "sectionVisibility": "Visibilidad de Secciones",
     "visibilityHint": "Activa o desactiva secciones para controlar qué aparece en tu perfil público. Desactiva secciones que aún no has completado.",
     "visibilitySaved": "Configuración de visibilidad guardada",
+    "growthCenterDescription": "Convierte tu perfil, servicios, disponibilidad y enlace de reservas en publicaciones, mensajes, correos y folletos para compartir.",
+    "openGrowthCenter": "Abrir centro de crecimiento",
     "tabs": {
       "overview": "Resumen",
       "editProfile": "Editar perfil",
@@ -3563,7 +3565,9 @@
       "tax": "Impuesto:",
       "total": "Total:",
       "dueDate": "Fecha de Vencimiento (Opcional)",
-      "memo": "Notas/Memo (opcional)"
+      "memo": "Notas/Memo (opcional)",
+      "clientNamePlaceholder": "Nombre del cliente",
+      "clientEmailPlaceholder": "cliente@ejemplo.com"
     },
     "personalCare": {
       "added": "Cuidado personal agregado"
@@ -3631,7 +3635,15 @@
     "pro": "Pro",
     "subscribed": "Suscrito",
     "imageLoadError": "Error al cargar imagen",
-    "uploading": "Subiendo…"
+    "uploading": "Subiendo…",
+    "nextAction": "Qué hacer a continuación",
+    "growthCenterLabel": "Centro de crecimiento",
+    "growthCenterTitle": "Promociona tus servicios con enlaces listos, códigos QR y publicaciones locales.",
+    "affiliateTitle": "Panel de ganancias de afiliados",
+    "affiliateDescription": "Consulta comisiones, conversiones, productos principales y solicita pagos",
+    "censusSources": "Census · OSM · FEMA",
+    "paymentDetailsSaved": "Detalles de pago guardados. Ya puedes registrar y recibir pagos de trabajos.",
+    "bidLabel": "Oferta"
   },
   "postJob": {
     "title": "Publicar un trabajo",

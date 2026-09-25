@@ -3482,6 +3482,8 @@
     "sectionVisibility": "رؤية القسم",
     "visibilityHint": "قم بتبديل الأقسام أو إيقاف تشغيلها للتحكم في ما يظهر في ملفك الشخصي العام. قم بإيقاف تشغيل الأقسام التي لم تكملها بعد.",
     "visibilitySaved": "تم حفظ إعدادات الرؤية",
+    "growthCenterDescription": "حوّل ملفك وخدماتك وتوفرك ورابط الحجز إلى منشورات ورسائل ورسائل بريد ومنشورات قابلة للمشاركة.",
+    "openGrowthCenter": "فتح مركز النمو",
     "tabs": {
       "overview": "ملخص",
       "editProfile": "تحرير الملف الشخصي",
@@ -3556,7 +3558,9 @@
       "tax": "ضريبة:",
       "total": "المجموع:",
       "dueDate": "تاريخ الاستحقاق (اختياري)",
-      "memo": "ملاحظات/مذكرة (اختياري)"
+      "memo": "ملاحظات/مذكرة (اختياري)",
+      "clientNamePlaceholder": "اسم العميل",
+      "clientEmailPlaceholder": "client@example.com"
     },
     "personalCare": {
       "added": "تمت إضافة العناية الشخصية"
@@ -3631,7 +3635,15 @@
     "addTool": "إضافة أداة",
     "manageTools": "إدارة الأدوات",
     "imageLoadError": "فشل تحميل الصورة",
-    "uploading": "جارٍ التحميل…"
+    "uploading": "جارٍ التحميل…",
+    "nextAction": "ما التالي",
+    "growthCenterLabel": "مركز النمو",
+    "growthCenterTitle": "روّج لخدماتك عبر روابط جاهزة ورموز QR ومنشورات محلية.",
+    "affiliateTitle": "لوحة أرباح الإحالة",
+    "affiliateDescription": "تتبع العمولات ومسار التحويل وأفضل المنتجات واطلب المدفوعات",
+    "censusSources": "Census · OSM · FEMA",
+    "paymentDetailsSaved": "تم حفظ تفاصيل الدفع. يمكنك الآن تسجيل مدفوعات العمل واستلامها.",
+    "bidLabel": "عرض"
   },
   "postJob": {
     "title": "نشر وظيفة",

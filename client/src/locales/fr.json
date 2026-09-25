@@ -3482,6 +3482,8 @@
     "sectionVisibility": "Visibilité des Sections",
     "visibilityHint": "Activez ou désactivez les sections pour contrôler ce qui apparaît sur votre profil public. Désactivez les sections que vous n'avez pas encore complétées.",
     "visibilitySaved": "Paramètres de visibilité enregistrés",
+    "growthCenterDescription": "Transformez votre profil, vos services, vos disponibilités et votre lien de réservation en publications, messages, e-mails et flyers à partager.",
+    "openGrowthCenter": "Ouvrir le centre de croissance",
     "tabs": {
       "overview": "Vue d'ensemble",
       "editProfile": "Modifier le profil",
@@ -3563,7 +3565,9 @@
       "tax": "Taxe :",
       "total": "Total :",
       "dueDate": "Date d'échéance (Optionnel)",
-      "memo": "Notes/Mémo (optionnel)"
+      "memo": "Notes/Mémo (optionnel)",
+      "clientNamePlaceholder": "Nom du client",
+      "clientEmailPlaceholder": "client@exemple.com"
     },
     "personalCare": {
       "added": "Soins personnels ajoutés"
@@ -3631,7 +3635,15 @@
     "pro": "Pro",
     "subscribed": "Abonné",
     "imageLoadError": "Erreur lors du chargement de l'image",
-    "uploading": "Téléchargement…"
+    "uploading": "Téléchargement…",
+    "nextAction": "À faire ensuite",
+    "growthCenterLabel": "Centre de croissance",
+    "growthCenterTitle": "Faites connaître vos services avec des liens prêts à l’emploi, des QR codes et des publications locales.",
+    "affiliateTitle": "Tableau des revenus d’affiliation",
+    "affiliateDescription": "Suivez les commissions, le parcours de conversion, les meilleurs produits et demandez des paiements",
+    "censusSources": "Census · OSM · FEMA",
+    "paymentDetailsSaved": "Détails de paiement enregistrés. Vous pouvez maintenant enregistrer et recevoir les paiements des missions.",
+    "bidLabel": "Offre"
   },
   "postJob": {
     "title": "Publier une mission",

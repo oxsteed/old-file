@@ -3470,6 +3470,8 @@
     "sectionVisibility": "Vizibilite Seksyon",
     "visibilityHint": "Lonje oswa fèmen seksyon pou kontwole sa ki parèt sou pwofil piblik ou. Fèmen seksyon ou poko fini.",
     "visibilitySaved": "Anviwònman vizibilite te sove",
+    "growthCenterDescription": "Transfòme pwofil ou, sèvis ou yo, disponiblite ou ak lyen rezèvasyon an an piblikasyon, tèks, imèl ak feyè pou pataje.",
+    "openGrowthCenter": "Louvri sant kwasans lan",
     "tabs": {
       "overview": "Apèsi",
       "editProfile": "Modifye pwofil",
@@ -3647,7 +3649,9 @@
       "tax": "Taks:",
       "total": "Total:",
       "dueDate": "Dat Echeyans (Opsyonèl)",
-      "memo": "Not/Memo (opsyonèl)"
+      "memo": "Not/Memo (opsyonèl)",
+      "clientNamePlaceholder": "Non kliyan an",
+      "clientEmailPlaceholder": "kliyan@egzanp.com"
     },
     "personalCare": {
       "added": "Swen pèsonèl ajoute"
@@ -3716,7 +3720,15 @@
     "subscribed": "Souskebi",
     "jobNumber": "Travay #{{id}}",
     "imageLoadError": "Erè chajman imaj",
-    "uploading": "Envoy…"
+    "uploading": "Envoy…",
+    "nextAction": "Kisa pou fè apre",
+    "growthCenterLabel": "Sant kwasans",
+    "growthCenterTitle": "Pwomote sèvis ou yo ak lyen pare, kòd QR ak piblikasyon lokal.",
+    "affiliateTitle": "Dashboard revni afilye",
+    "affiliateDescription": "Swiv komisyon, chemen konvèsyon, pi bon pwodwi yo epi mande peman",
+    "censusSources": "Census · OSM · FEMA",
+    "paymentDetailsSaved": "Detay peman yo sove. Kounye a ou ka anrejistre epi resevwa peman travay yo.",
+    "bidLabel": "Òf"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
