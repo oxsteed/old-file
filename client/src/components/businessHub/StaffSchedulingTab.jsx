@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 function weekDays(weekStart) {
   const days = [];
@@ -25,6 +26,7 @@ const DEFAULT_SHIFT = { user_id: '', shift_date: '', start_time: '09:00', end_ti
 const DEFAULT_HOURS = { user_id: '', entry_date: new Date().toISOString().split('T')[0], hours_worked: '', description: '' };
 
 export function StaffSchedulingTab({ businessId }) {
+  const { t } = useTranslation();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [schedule, setSchedule] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -55,7 +57,7 @@ export function StaffSchedulingTab({ businessId }) {
       setEntries(timeRes.data.entries || []);
       setTotals(timeRes.data.totals || []);
     } catch {
-      toast.error('Could not load schedule');
+      toast.error(t('businessHub.staffScheduling.loadScheduleFailed'));
     } finally {
       setLoading(false);
     }
@@ -78,75 +80,75 @@ export function StaffSchedulingTab({ businessId }) {
   const days = weekDays(weekStart);
 
   async function handleAddShift() {
-    if (!shiftForm.user_id || !shiftForm.shift_date) return toast.error('User and date required');
+    if (!shiftForm.user_id || !shiftForm.shift_date) return toast.error(t('businessHub.staffScheduling.userDateRequired'));
     setSaving(true);
     try {
       await api.post(`/businesses/${businessId}/staff-schedule`, shiftForm);
-      toast.success('Shift added');
+      toast.success(t('businessHub.staffScheduling.shiftAdded'));
       setShowShiftForm(false);
       setShiftForm(DEFAULT_SHIFT);
       await loadSchedule();
-    } catch (e) { toast.error(e?.response?.data?.error || 'Could not add shift'); }
+    } catch (e) { toast.error(e?.response?.data?.error || t('businessHub.staffScheduling.shiftAddFailed')); }
     finally { setSaving(false); }
   }
 
   async function handleDeleteShift(id) {
-    if (!window.confirm('Delete this shift?')) return;
+    if (!window.confirm(t('businessHub.staffScheduling.shiftDeleteConfirm'))) return;
     try {
       await api.delete(`/businesses/${businessId}/staff-schedule/${id}`);
-      toast.success('Shift deleted');
+      toast.success(t('businessHub.staffScheduling.shiftDeleted'));
       await loadSchedule();
-    } catch { toast.error('Could not delete shift'); }
+    } catch { toast.error(t('businessHub.staffScheduling.shiftDeleteFailed')); }
   }
 
   async function handleLogHours() {
-    if (!hoursForm.user_id || !hoursForm.hours_worked) return toast.error('User and hours required');
+    if (!hoursForm.user_id || !hoursForm.hours_worked) return toast.error(t('businessHub.staffScheduling.userHoursRequired'));
     setSaving(true);
     try {
       await api.post(`/businesses/${businessId}/time-entries`, hoursForm);
-      toast.success('Hours logged');
+      toast.success(t('businessHub.staffScheduling.hoursLogged'));
       setShowHoursForm(false);
       setHoursForm(DEFAULT_HOURS);
       await loadSchedule();
-    } catch (e) { toast.error(e?.response?.data?.error || 'Could not log hours'); }
+    } catch (e) { toast.error(e?.response?.data?.error || t('businessHub.staffScheduling.hoursLogFailed')); }
     finally { setSaving(false); }
   }
 
   async function handleDeleteEntry(id) {
     try {
       await api.delete(`/businesses/${businessId}/time-entries/${id}`);
-      toast.success('Entry deleted');
+      toast.success(t('businessHub.staffScheduling.entryDeleted'));
       await loadSchedule();
-    } catch { toast.error('Could not delete entry'); }
+    } catch { toast.error(t('businessHub.staffScheduling.entryDeleteFailed')); }
   }
 
   return (
     <div className="p-4 text-white">
-      <h2 className="text-xl font-bold mb-4">Staff Scheduling & Time Tracking</h2>
+      <h2 className="text-xl font-bold mb-4">{t('businessHub.staffScheduling.title')}</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Schedule panel */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-orange-400">This Week's Schedule</h3>
+            <h3 className="font-semibold text-orange-400">{t('businessHub.staffScheduling.scheduleTitle')}</h3>
             <div className="flex items-center gap-2">
-              <button onClick={prevWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">‹</button>
+              <button onClick={prevWeek} aria-label={t('businessHub.staffScheduling.previousWeek')} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">‹</button>
               <span className="text-xs text-gray-400">{weekStart}</span>
-              <button onClick={nextWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">›</button>
+              <button onClick={nextWeek} aria-label={t('businessHub.staffScheduling.nextWeek')} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">›</button>
             </div>
           </div>
 
           {loading ? (
-            <div className="text-center text-gray-400 py-6">Loading schedule...</div>
+            <div className="text-center text-gray-400 py-6">{t('businessHub.staffScheduling.loadingSchedule')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-700">
-                    <th className="text-left pb-2 pr-2 text-gray-400">Staff</th>
+                    <th className="text-left pb-2 pr-2 text-gray-400">{t('businessHub.staffScheduling.staff')}</th>
                     {days.map((d, i) => (
                       <th key={d} className="pb-2 px-1 text-gray-400 text-center">
-                        {DAYS[new Date(d + 'T00:00:00').getDay()]}<br />
+                        {t(`common.weekdays.${DAYS[new Date(d + 'T00:00:00').getDay()]}`)}<br />
                         <span className="text-gray-500">{d.slice(5)}</span>
                       </th>
                     ))}
@@ -155,7 +157,7 @@ export function StaffSchedulingTab({ businessId }) {
                 <tbody>
                   {schedule.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center text-gray-500 py-4">No shifts this week</td>
+                      <td colSpan={8} className="text-center text-gray-500 py-4">{t('businessHub.staffScheduling.noShifts')}</td>
                     </tr>
                   ) : schedule.map(person => (
                     <tr key={person.user_id} className="border-b border-gray-800">
@@ -168,7 +170,7 @@ export function StaffSchedulingTab({ businessId }) {
                               <div className="bg-orange-500/20 border border-orange-500/40 rounded p-1 text-orange-300 text-xs">
                                 <div>{shift.start_time?.slice(0,5)}-{shift.end_time?.slice(0,5)}</div>
                                 {shift.role_label && <div className="text-orange-400 text-xs opacity-75 truncate">{shift.role_label}</div>}
-                                <button onClick={() => handleDeleteShift(shift.id)} className="text-red-400 hover:text-red-300 text-xs">×</button>
+                                <button onClick={() => handleDeleteShift(shift.id)} aria-label={t('businessHub.staffScheduling.deleteShift')} className="text-red-400 hover:text-red-300 text-xs">×</button>
                               </div>
                             ) : <span className="text-gray-700">-</span>}
                           </td>
@@ -183,16 +185,16 @@ export function StaffSchedulingTab({ businessId }) {
 
           <button onClick={() => setShowShiftForm(!showShiftForm)}
             className="mt-3 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium">
-            + Add Shift
+            + {t('businessHub.staffScheduling.addShift')}
           </button>
 
           {showShiftForm && (
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mt-3 space-y-2">
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Staff Member</label>
+                <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.staffMember')}</label>
                 <select value={shiftForm.user_id} onChange={e => setShiftForm(f => ({ ...f, user_id: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm">
-                  <option value="">Select staff...</option>
+                  <option value="">{t('businessHub.staffScheduling.selectStaff')}</option>
                   {members.map(m => (
                     <option key={m.user_id || m.id} value={m.user_id || m.id}>
                       {m.first_name} {m.last_name}
@@ -202,19 +204,19 @@ export function StaffSchedulingTab({ businessId }) {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Date</label>
+                  <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.date')}</label>
                   <input type="date" value={shiftForm.shift_date}
                     onChange={e => setShiftForm(f => ({ ...f, shift_date: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Start</label>
+                  <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.start')}</label>
                   <input type="time" value={shiftForm.start_time}
                     onChange={e => setShiftForm(f => ({ ...f, start_time: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">End</label>
+                  <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.end')}</label>
                   <input type="time" value={shiftForm.end_time}
                     onChange={e => setShiftForm(f => ({ ...f, end_time: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
@@ -222,14 +224,14 @@ export function StaffSchedulingTab({ businessId }) {
               </div>
               <div>
                 <input value={shiftForm.role_label} onChange={e => setShiftForm(f => ({ ...f, role_label: e.target.value }))}
-                  className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder="Role label (optional)" />
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.roleLabelOptional')} />
               </div>
               <div className="flex gap-2">
                 <button onClick={handleAddShift} disabled={saving}
                   className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50">
-                  {saving ? 'Adding...' : 'Add Shift'}
+                  {saving ? t('businessHub.staffScheduling.adding') : t('businessHub.staffScheduling.addShift')}
                 </button>
-                <button onClick={() => setShowShiftForm(false)} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">Cancel</button>
+                <button onClick={() => setShowShiftForm(false)} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">{t('common.cancel')}</button>
               </div>
             </div>
           )}
@@ -238,7 +240,7 @@ export function StaffSchedulingTab({ businessId }) {
         {/* Time entries panel */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-orange-400">Time Entries</h3>
+            <h3 className="font-semibold text-orange-400">{t('businessHub.staffScheduling.timeEntriesTitle')}</h3>
           </div>
 
           {totals.length > 0 && (
@@ -254,16 +256,16 @@ export function StaffSchedulingTab({ businessId }) {
 
           <button onClick={() => setShowHoursForm(!showHoursForm)}
             className="mb-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium">
-            + Log Hours
+            + {t('businessHub.staffScheduling.logHours')}
           </button>
 
           {showHoursForm && (
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 mb-3 space-y-2">
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Staff Member</label>
+                <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.staffMember')}</label>
                 <select value={hoursForm.user_id} onChange={e => setHoursForm(f => ({ ...f, user_id: e.target.value }))}
                   className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm">
-                  <option value="">Select staff...</option>
+                  <option value="">{t('businessHub.staffScheduling.selectStaff')}</option>
                   {members.map(m => (
                     <option key={m.user_id || m.id} value={m.user_id || m.id}>
                       {m.first_name} {m.last_name}
@@ -273,32 +275,32 @@ export function StaffSchedulingTab({ businessId }) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Date</label>
+                  <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.date')}</label>
                   <input type="date" value={hoursForm.entry_date}
                     onChange={e => setHoursForm(f => ({ ...f, entry_date: e.target.value }))}
                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Hours Worked</label>
+                  <label className="text-xs text-gray-400 block mb-1">{t('businessHub.staffScheduling.hoursWorked')}</label>
                   <input type="number" value={hoursForm.hours_worked} step="0.5" min="0.5" max="24"
                     onChange={e => setHoursForm(f => ({ ...f, hours_worked: e.target.value }))}
-                    className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder="8.0" />
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.hoursPlaceholder')} />
                 </div>
               </div>
               <input value={hoursForm.description} onChange={e => setHoursForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder="Description (optional)" />
+                className="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" placeholder={t('businessHub.staffScheduling.descriptionOptional')} />
               <div className="flex gap-2">
                 <button onClick={handleLogHours} disabled={saving}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm disabled:opacity-50">
-                  {saving ? 'Logging...' : 'Log Hours'}
+                  {saving ? t('businessHub.staffScheduling.logging') : t('businessHub.staffScheduling.logHours')}
                 </button>
-                <button onClick={() => setShowHoursForm(false)} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">Cancel</button>
+                <button onClick={() => setShowHoursForm(false)} className="bg-gray-700 text-white px-3 py-1 rounded text-sm">{t('common.cancel')}</button>
               </div>
             </div>
           )}
 
           {entries.length === 0 ? (
-            <div className="text-center text-gray-500 py-6 text-sm">No time entries this week</div>
+            <div className="text-center text-gray-500 py-6 text-sm">{t('businessHub.staffScheduling.noTimeEntries')}</div>
           ) : (
             <div className="space-y-2">
               {entries.map(e => (
@@ -309,8 +311,8 @@ export function StaffSchedulingTab({ businessId }) {
                     {e.description && <div className="text-gray-400 text-xs">{e.description}</div>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-orange-400 font-bold">{parseFloat(e.hours_worked).toFixed(1)} hrs</span>
-                    <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300 text-xs">×</button>
+                    <span className="text-orange-400 font-bold">{parseFloat(e.hours_worked).toFixed(1)} {t('businessHub.staffScheduling.hoursUnit')}</span>
+                    <button onClick={() => handleDeleteEntry(e.id)} aria-label={t('businessHub.staffScheduling.deleteEntry')} className="text-red-400 hover:text-red-300 text-xs">×</button>
                   </div>
                 </div>
               ))}
