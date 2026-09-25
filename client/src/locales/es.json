@@ -18598,6 +18598,154 @@
           "Demanda estacional de servicios"
         ]
     },
+    "education": {
+        "operatingModel": "Flujo de progreso estudiantil y sesiones recurrentes",
+        "headline": "Usa la plantilla para convertir objetivos de aprendizaje en sesiones recurrentes, progreso visible y mejor retención.",
+        "operatorBrief": "Los negocios educativos ganan con claridad sobre materias, resultados, ritmo recurrente y seguimiento del progreso. El sistema interno debe reflejarlo.",
+        "primaryDemand": [
+          "Apoyo por materia",
+          "Preparación de exámenes",
+          "Acompañamiento académico recurrente"
+        ],
+        "workflowStages": [
+          "Aclarar el objetivo o desafío del estudiante",
+          "Relacionarlo con el plan o ritmo adecuado",
+          "Impartir sesiones y controlar el progreso",
+          "Retener mediante resultados y planificación del siguiente objetivo"
+        ],
+        "intakeRequirements": [
+          "Nivel del estudiante",
+          "Materia o tema",
+          "Objetivo",
+          "Preferencia de horario"
+        ],
+        "records": [
+          "Notas de progreso",
+          "Patrones de demanda por materia",
+          "Comunicación con padres",
+          "Salud del plan recurrente"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operaciones de continuidad",
+            "reason": "Gestiona admisión, progreso y ritmo académico recurrente."
+          },
+          {
+            "label": "Servicios y reservas",
+            "reason": "Organiza sesiones por resultado y nivel."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Gestiona sesiones recurrentes sin confusión."
+          },
+          {
+            "label": "Clientes",
+            "reason": "Conserva el contexto del estudiante y su familia."
+          },
+          {
+            "label": "Fidelidad",
+            "reason": "Fomenta el apoyo académico recurrente."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar estudiantes de hoy",
+          "Preparar notas por materia",
+          "Registrar el progreso después de las sesiones"
+        ],
+        "weeklyCadence": [
+          "Comprobar asistencia y continuidad",
+          "Revisar el progreso de cada estudiante",
+          "Promover paquetes del siguiente objetivo"
+        ],
+        "monthlyCadence": [
+          "Analizar demanda por materia",
+          "Actualizar paquetes",
+          "Reforzar pruebas para padres"
+        ],
+        "qualityControls": [
+          "Sesiones en torno a objetivos",
+          "Progreso visible",
+          "Estructura de plan recurrente",
+          "Claridad para padres y estudiantes"
+        ],
+        "monetization": [
+          "Planes de tutoría recurrentes",
+          "Intensivos de preparación",
+          "Mejoras de paquetes por materia"
+        ]
+    },
+    "food": {
+        "operatingModel": "Flujo de hostelería y servicio guiado por el menú",
+        "headline": "Usa la plantilla para llevar a las personas del interés por la comida o el evento a menús, paquetes y logística confirmada.",
+        "operatorBrief": "Los negocios de comida y hostelería necesitan mejor presentación del menú, lógica de paquetes y confianza para eventos, para vender una experiencia y no una disponibilidad genérica.",
+        "primaryDemand": [
+          "Consultas de cenas privadas",
+          "Solicitudes de menús para eventos",
+          "Reservas de experiencias gastronómicas"
+        ],
+        "workflowStages": [
+          "Calificar el contexto gastronómico o del evento",
+          "Relacionar al cliente con el menú o paquete",
+          "Confirmar horarios, logística y necesidades especiales",
+          "Entregar la experiencia y recopilar reseñas o referencias"
+        ],
+        "intakeRequirements": [
+          "Ocasión",
+          "Número de invitados",
+          "Dirección del menú",
+          "Fecha y ubicación"
+        ],
+        "records": [
+          "Paquetes de menú",
+          "Notas dietéticas",
+          "Logística del evento",
+          "Oportunidades de referencia"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Servicios y reservas",
+            "reason": "Convierte menús y experiencias en ofertas."
+          },
+          {
+            "label": "Presupuestos",
+            "reason": "Define servicios gastronómicos y eventos de mayor atención."
+          },
+          {
+            "label": "Agenda",
+            "reason": "Protege compromisos de hostelería basados en fechas."
+          },
+          {
+            "label": "Centro de crecimiento",
+            "reason": "Promueve pruebas del evento y material visual gastronómico."
+          }
+        ],
+        "dailyCadence": [
+          "Revisar nuevos clientes de eventos o cenas",
+          "Avanzar conversaciones de menú",
+          "Confirmar logística próxima"
+        ],
+        "weeklyCadence": [
+          "Actualizar experiencias destacadas",
+          "Revisar mezcla de paquetes",
+          "Dar seguimiento a presupuestos personalizados"
+        ],
+        "monthlyCadence": [
+          "Lanzar ofertas de menú estacionales",
+          "Revisar rentabilidad de hostelería",
+          "Recopilar pruebas de eventos destacados"
+        ],
+        "qualityControls": [
+          "Claridad del menú",
+          "Confianza en la experiencia",
+          "Disciplina logística",
+          "Pruebas visuales recientes"
+        ],
+        "monetization": [
+          "Experiencias premium",
+          "Menús estacionales",
+          "Complementos y mejoras"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Flujo general de negocio OxSteed"

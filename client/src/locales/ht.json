@@ -18598,6 +18598,154 @@
           "Demann sèvis sezon"
         ]
     },
+    "education": {
+        "operatingModel": "Pwosesis pwogrè elèv ak sesyon ki repete",
+        "headline": "Sèvi ak modèl la pou transfòme objektif aprantisaj an sesyon ki repete, pwogrè ki vizib ak pi bon retansyon.",
+        "operatorBrief": "Biznis edikasyon reyisi ak klète sou matyè, rezilta, ritm ki repete ak istwa pwogrè. Sistèm entèn lan dwe montre sa.",
+        "primaryDemand": [
+          "Sipò pou matyè",
+          "Preparasyon egzamen",
+          "Antrenè akademik ki repete"
+        ],
+        "workflowStages": [
+          "Klarifye objektif oswa defi elèv la",
+          "Mete l sou bon plan oswa ritm sesyon",
+          "Fè sesyon yo epi swiv pwogrè",
+          "Kenbe elèv la ak rezilta ak plan pou pwochen objektif"
+        ],
+        "intakeRequirements": [
+          "Nivo elèv la",
+          "Matyè oswa sijè",
+          "Objektif",
+          "Preferans orè"
+        ],
+        "records": [
+          "Nòt pwogrè",
+          "Modèl demann matyè",
+          "Kominikasyon ak paran",
+          "Sante plan ki repete"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Operasyon kontinwite",
+            "reason": "Jere admisyon elèv, nòt pwogrè ak ritm akademik la."
+          },
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Mete sesyon yo nan pakè selon rezilta ak nivo."
+          },
+          {
+            "label": "Orè",
+            "reason": "Jere sesyon ki repete san konfizyon."
+          },
+          {
+            "label": "Kliyan",
+            "reason": "Swiv kontèks elèv la ak fanmi an."
+          },
+          {
+            "label": "Fidelite",
+            "reason": "Ankouraje sipò akademik ki repete."
+          }
+        ],
+        "dailyCadence": [
+          "Revize elèv jodi a",
+          "Prepare nòt selon matyè",
+          "Anrejistre pwogrè apre sesyon yo"
+        ],
+        "weeklyCadence": [
+          "Tcheke prezans ak kontinwite",
+          "Revize pwogrè chak elèv",
+          "Pwomouvwa pakè pwochen objektif"
+        ],
+        "monthlyCadence": [
+          "Analize demann selon matyè",
+          "Mete pakè yo ajou",
+          "Ranfòse prèv pou paran yo"
+        ],
+        "qualityControls": [
+          "Sesyon ki baze sou objektif",
+          "Pwogrè ki vizib",
+          "Estrikti plan ki repete",
+          "Klète pou paran ak elèv"
+        ],
+        "monetization": [
+          "Plan leson ki repete",
+          "Entansif preparasyon egzamen",
+          "Amelyorasyon pakè selon matyè"
+        ]
+    },
+    "food": {
+        "operatingModel": "Pwosesis ospitalite ak sèvis ki gide pa meni",
+        "headline": "Sèvi ak modèl la pou mennen moun soti nan enterè pou manje oswa evènman rive nan meni, pakè ak lojistik ki konfime.",
+        "operatorBrief": "Biznis manje ak ospitalite bezwen pi bon prezantasyon meni, lojik pakè ak konfyans pou evènman pou pwofil la vann eksperyans olye disponiblite jeneral.",
+        "primaryDemand": [
+          "Kesyon sou manje prive",
+          "Demann meni evènman",
+          "Rezèvasyon eksperyans ospitalite"
+        ],
+        "workflowStages": [
+          "Kalifye kontèks manje oswa evènman an",
+          "Mete kliyan an sou bon meni oswa pakè",
+          "Konfime lè, lojistik ak bezwen espesyal",
+          "Livre eksperyans lan epi rasanble evalyasyon oswa referans"
+        ],
+        "intakeRequirements": [
+          "Okazyon",
+          "Kantite envite",
+          "Direksyon meni",
+          "Dat ak kote"
+        ],
+        "records": [
+          "Pakè meni",
+          "Nòt sou rejim",
+          "Lojistik evènman",
+          "Opòtinite referans"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Sèvis ak rezèvasyon",
+            "reason": "Transfòme meni ak eksperyans an òf."
+          },
+          {
+            "label": "Devis",
+            "reason": "Defini manje ak evènman ki mande plis atansyon."
+          },
+          {
+            "label": "Orè",
+            "reason": "Pwoteje angajman ospitalite ki baze sou dat."
+          },
+          {
+            "label": "Sant kwasans",
+            "reason": "Pwomouvwa prèv evènman ak vizyèl manje."
+          }
+        ],
+        "dailyCadence": [
+          "Tcheke nouvo kliyan manje oswa evènman",
+          "Fè konvèsasyon meni yo avanse",
+          "Konfime lojistik k ap vini"
+        ],
+        "weeklyCadence": [
+          "Mete eksperyans prezante yo ajou",
+          "Revize melanj pakè",
+          "Swiv devis pèsonalize ki cho"
+        ],
+        "monthlyCadence": [
+          "Lanse òf meni sezon",
+          "Revize pwofi ospitalite",
+          "Rasanble prèv nan pi bon evènman yo"
+        ],
+        "qualityControls": [
+          "Klète meni",
+          "Konfyans nan eksperyans",
+          "Disiplin lojistik",
+          "Prèv vizyèl ki fre"
+        ],
+        "monetization": [
+          "Eksperyans premium",
+          "Meni sezon",
+          "Ajout ak amelyorasyon"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow jeneral biznis OxSteed"

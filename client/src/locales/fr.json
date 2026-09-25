@@ -18598,6 +18598,154 @@
           "Demande saisonnière de services"
         ]
     },
+    "education": {
+        "operatingModel": "Flux de progression des élèves et de séances récurrentes",
+        "headline": "Utilisez ce modèle pour transformer les objectifs d’apprentissage en séances récurrentes, progrès visibles et fidélité accrue.",
+        "operatorBrief": "Les activités éducatives gagnent par la clarté des matières, résultats, rythme et récit de progression. Le système interne doit le refléter.",
+        "primaryDemand": [
+          "Soutien par matière",
+          "Préparation aux examens",
+          "Accompagnement scolaire récurrent"
+        ],
+        "workflowStages": [
+          "Clarifier l’objectif ou le défi de l’élève",
+          "L’associer au bon plan ou rythme de séance",
+          "Réaliser les séances et suivre le progrès",
+          "Fidéliser par le suivi des résultats et le prochain objectif"
+        ],
+        "intakeRequirements": [
+          "Niveau de l’élève",
+          "Matière ou sujet",
+          "Objectif",
+          "Préférence d’horaire"
+        ],
+        "records": [
+          "Notes de progrès",
+          "Tendances de demande par matière",
+          "Communication avec les parents",
+          "Santé du plan récurrent"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Opérations de continuité",
+            "reason": "Gérez l’accueil, les progrès et le rythme scolaire récurrent."
+          },
+          {
+            "label": "Services et réservations",
+            "reason": "Présentez les séances par résultat et niveau."
+          },
+          {
+            "label": "Planning",
+            "reason": "Gérez les séances récurrentes sans confusion."
+          },
+          {
+            "label": "Clients",
+            "reason": "Suivez le contexte de l’élève et de sa famille."
+          },
+          {
+            "label": "Fidélité",
+            "reason": "Encouragez le soutien scolaire récurrent."
+          }
+        ],
+        "dailyCadence": [
+          "Examiner les élèves du jour",
+          "Préparer les notes par matière",
+          "Consigner les progrès après les séances"
+        ],
+        "weeklyCadence": [
+          "Vérifier la présence et la continuité",
+          "Examiner le progrès par élève",
+          "Promouvoir les forfaits du prochain objectif"
+        ],
+        "monthlyCadence": [
+          "Analyser la demande par matière",
+          "Actualiser les forfaits",
+          "Renforcer les preuves destinées aux parents"
+        ],
+        "qualityControls": [
+          "Séances guidées par l’objectif",
+          "Progrès visibles",
+          "Structure de plan récurrent",
+          "Clarté parents-élèves"
+        ],
+        "monetization": [
+          "Plans de tutorat récurrents",
+          "Intensifs de préparation aux examens",
+          "Forfaits renforcés par matière"
+        ]
+    },
+    "food": {
+        "operatingModel": "Flux de service hôtelier et de menu",
+        "headline": "Utilisez ce modèle pour faire passer l’intérêt gastronomique ou événementiel vers des menus, forfaits et une logistique confirmée.",
+        "operatorBrief": "Les entreprises de restauration et d’accueil ont besoin d’un meilleur cadrage des menus, des forfaits et de la confiance événementielle pour vendre une expérience plutôt qu’une disponibilité générique.",
+        "primaryDemand": [
+          "Demandes de repas privés",
+          "Demandes de menus événementiels",
+          "Réservations d’expériences gastronomiques"
+        ],
+        "workflowStages": [
+          "Qualifier le contexte du repas ou de l’événement",
+          "Associer le client au menu ou au forfait",
+          "Confirmer horaires, logistique et besoins particuliers",
+          "Livrer l’expérience et recueillir un avis ou une recommandation"
+        ],
+        "intakeRequirements": [
+          "Occasion",
+          "Nombre d’invités",
+          "Orientation du menu",
+          "Date et lieu"
+        ],
+        "records": [
+          "Forfaits de menu",
+          "Notes alimentaires",
+          "Logistique événementielle",
+          "Occasions de recommandation"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services et réservations",
+            "reason": "Transformez les menus et expériences en offres."
+          },
+          {
+            "label": "Devis",
+            "reason": "Cadrez les prestations gastronomiques et événementielles exigeantes."
+          },
+          {
+            "label": "Planning",
+            "reason": "Protégez les engagements hôteliers liés aux dates."
+          },
+          {
+            "label": "Centre de croissance",
+            "reason": "Mettez en avant les preuves d’événements et visuels gastronomiques."
+          }
+        ],
+        "dailyCadence": [
+          "Vérifier les nouveaux prospects repas ou événements",
+          "Faire avancer les échanges de menu",
+          "Confirmer la logistique à venir"
+        ],
+        "weeklyCadence": [
+          "Actualiser les expériences à la une",
+          "Examiner le mix de forfaits",
+          "Relancer les devis personnalisés"
+        ],
+        "monthlyCadence": [
+          "Lancer des offres de menu saisonnières",
+          "Examiner la rentabilité hôtelière",
+          "Recueillir les preuves des événements marquants"
+        ],
+        "qualityControls": [
+          "Clarté du menu",
+          "Confiance dans l’expérience",
+          "Rigueur logistique",
+          "Fraîcheur des preuves visuelles"
+        ],
+        "monetization": [
+          "Expériences premium",
+          "Menus saisonniers",
+          "Compléments et améliorations"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "Workflow général d’entreprise OxSteed"

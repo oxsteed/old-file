@@ -18549,6 +18549,154 @@
           "Seasonal service demand"
         ]
     },
+    "education": {
+        "operatingModel": "Student-progression and recurring session workflow",
+        "headline": "Use the template to turn learning goals into recurring sessions, progress momentum, and stronger retention.",
+        "operatorBrief": "Education businesses win with clarity around subjects, outcomes, recurring cadence, and progress storytelling. The internal system should reflect that.",
+        "primaryDemand": [
+          "Subject support",
+          "Exam prep",
+          "Recurring academic coaching"
+        ],
+        "workflowStages": [
+          "Clarify student goal or challenge",
+          "Match to the right plan or session cadence",
+          "Deliver sessions and monitor progress",
+          "Retain through outcome tracking and next-goal planning"
+        ],
+        "intakeRequirements": [
+          "Student level",
+          "Subject or topic",
+          "Goal",
+          "Schedule preference"
+        ],
+        "records": [
+          "Progress notes",
+          "Subject demand patterns",
+          "Parent communication",
+          "Recurring plan health"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Continuity Ops",
+            "reason": "Run student intake, progress notes, and recurring academic cadence."
+          },
+          {
+            "label": "Services & Booking",
+            "reason": "Package sessions by outcome and level."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Run recurring sessions without confusion."
+          },
+          {
+            "label": "Clients",
+            "reason": "Track student and family context."
+          },
+          {
+            "label": "Loyalty",
+            "reason": "Encourage repeat academic support."
+          }
+        ],
+        "dailyCadence": [
+          "Review today’s learners",
+          "Prepare subject-specific notes",
+          "Capture progress after sessions"
+        ],
+        "weeklyCadence": [
+          "Check attendance and continuation",
+          "Review progress by student",
+          "Promote next-goal packages"
+        ],
+        "monthlyCadence": [
+          "Analyze subject demand",
+          "Refresh packages",
+          "Strengthen parent-facing proof"
+        ],
+        "qualityControls": [
+          "Goal-based session framing",
+          "Progress visibility",
+          "Recurring plan structure",
+          "Parent/student clarity"
+        ],
+        "monetization": [
+          "Recurring tutoring plans",
+          "Exam-prep intensives",
+          "Subject-specific package upgrades"
+        ]
+    },
+    "food": {
+        "operatingModel": "Hospitality and menu-led service workflow",
+        "headline": "Use the template to move people from appetite and event interest into menus, packages, and confirmed hospitality logistics.",
+        "operatorBrief": "Food and hospitality businesses need stronger menu framing, package logic, and event confidence so the profile sells experience instead of generic availability.",
+        "primaryDemand": [
+          "Private dining inquiries",
+          "Event menu requests",
+          "Hospitality experience bookings"
+        ],
+        "workflowStages": [
+          "Qualify dining or event context",
+          "Match client to menu or package",
+          "Confirm timing, logistics, and special needs",
+          "Deliver experience and collect review or referral proof"
+        ],
+        "intakeRequirements": [
+          "Occasion",
+          "Guest count",
+          "Menu direction",
+          "Date and location"
+        ],
+        "records": [
+          "Menu packages",
+          "Dietary notes",
+          "Event logistics",
+          "Referral opportunities"
+        ],
+        "unlockedSystems": [
+          {
+            "label": "Services & Booking",
+            "reason": "Turn menus and experiences into offers."
+          },
+          {
+            "label": "Quotes",
+            "reason": "Scope higher-touch dining and event work."
+          },
+          {
+            "label": "Schedule",
+            "reason": "Protect date-based hospitality commitments."
+          },
+          {
+            "label": "Growth Center",
+            "reason": "Promote event-proof and hospitality visuals."
+          }
+        ],
+        "dailyCadence": [
+          "Check new event or dining leads",
+          "Advance menu conversations",
+          "Confirm upcoming logistics"
+        ],
+        "weeklyCadence": [
+          "Refresh featured experiences",
+          "Review package mix",
+          "Follow up on warm custom quotes"
+        ],
+        "monthlyCadence": [
+          "Launch seasonal menu offers",
+          "Review hospitality profitability",
+          "Capture proof from standout events"
+        ],
+        "qualityControls": [
+          "Menu clarity",
+          "Hospitality confidence",
+          "Event logistics discipline",
+          "Visual proof freshness"
+        ],
+        "monetization": [
+          "Premium experiences",
+          "Seasonal menus",
+          "Add-ons and upgrades"
+        ]
+    },
     "templates": {
       "default": {
         "operatingModel": "General OxSteed business workflow"
