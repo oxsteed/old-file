@@ -232,10 +232,6 @@ async function register(req, res, next) {
     );
     const user = rows[0];
 
-    invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
-      logger.warn('Failed to invalidate guest chat access codes after registration', { userId: user.id, error: claimErr.message })
-    );
-
     if (isHelper) {
       await pool.query(
         `INSERT INTO helper_profiles (user_id, tier, is_listed, created_at, updated_at)
@@ -292,6 +288,11 @@ async function register(req, res, next) {
    WHERE u.id = $1`,
   [user.id]
 );
+    // Run this cleanup after the registration reads and writes above so the
+    // non-critical query cannot race the session or full-user queries.
+    invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
+      logger.warn('Failed to invalidate guest chat access codes after registration', { userId: user.id, error: claimErr.message })
+    );
 res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
   } catch (err) {
     next(err);
