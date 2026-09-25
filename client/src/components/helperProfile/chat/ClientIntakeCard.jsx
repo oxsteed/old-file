@@ -33,35 +33,35 @@ export default function ClientIntakeCard({
   };
 
   return (
-    <div className="rounded-xl border border-orange-400/30 bg-orange-950/20 p-3.5 text-left">
+    <div className="client-intake-card rounded-xl border border-orange-400/30 bg-orange-950/20 p-3.5 text-left">
       <div className="flex items-start gap-2">
         <ClipboardList className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-300" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <h4 className="font-semibold text-white">{intake?.title || t('messages.clientIntake.title')}</h4>
-          {intake?.description ? <p className="mt-1 text-xs leading-relaxed text-gray-300">{intake.description}</p> : null}
+          <h4 className="client-intake-card__title font-semibold text-white">{intake?.title || t('messages.clientIntake.title')}</h4>
+          {intake?.description ? <p className="client-intake-card__description mt-1 text-xs leading-relaxed text-gray-300">{intake.description}</p> : null}
         </div>
         {submitted ? <CheckCircle2 className="h-5 w-5 text-emerald-400" aria-label={t('messages.clientIntake.completed')} /> : null}
       </div>
       {completed || submitted ? (
-        <div className="mt-3 space-y-2 text-xs text-gray-300">
+        <div className="client-intake-card__responses mt-3 space-y-2 text-xs text-gray-300">
           {fields.map((field) => (
-            <div key={field.id} className="rounded-lg bg-gray-900/50 px-2.5 py-2">
-              <span className="font-medium text-gray-400">{field.label}</span>
-              <p className="mt-0.5 text-gray-100">{String(responses?.[field.id] || '—')}</p>
+            <div key={field.id} className="client-intake-card__response rounded-lg bg-gray-900/50 px-2.5 py-2">
+              <span className="client-intake-card__question font-medium text-gray-400">{field.label}</span>
+              <p className="client-intake-card__answer mt-0.5 text-gray-100">{String(responses?.[field.id] || '—')}</p>
             </div>
           ))}
           {!isProvider && submitted ? <p className="text-emerald-300">{t('messages.clientIntake.thanks')}</p> : null}
         </div>
       ) : isProvider ? (
-        <p className="mt-3 text-xs text-gray-400">{t('messages.clientIntake.waiting')}</p>
+        <p className="client-intake-card__waiting mt-3 text-xs text-gray-400">{t('messages.clientIntake.waiting')}</p>
       ) : (
         <form className="mt-3 space-y-2.5" onSubmit={submit}>
           {fields.map((field) => (
-            <label key={field.id} className="block text-xs text-gray-300">
+            <label key={field.id} className="client-intake-card__label block text-xs text-gray-300">
               <span className="mb-1 block font-medium">{field.label}{field.required ? ' *' : ''}</span>
               {field.type === 'textarea' ? (
                 <textarea
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
+                  className="client-intake-card__input w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
                   rows={3}
                   value={responses[field.id] || ''}
                   onChange={(event) => setResponses((prev) => ({ ...prev, [field.id]: event.target.value }))}
@@ -69,7 +69,7 @@ export default function ClientIntakeCard({
                 />
               ) : field.type === 'select' ? (
                 <select
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
+                  className="client-intake-card__input w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
                   value={responses[field.id] || ''}
                   onChange={(event) => setResponses((prev) => ({ ...prev, [field.id]: event.target.value }))}
                   required={field.required}
@@ -80,7 +80,7 @@ export default function ClientIntakeCard({
               ) : (
                 <input
                   type={field.type || 'text'}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
+                  className="client-intake-card__input w-full rounded-lg border border-gray-700 bg-gray-900 px-2.5 py-2 text-sm text-white"
                   value={responses[field.id] || ''}
                   onChange={(event) => setResponses((prev) => ({ ...prev, [field.id]: event.target.value }))}
                   required={field.required}
@@ -88,8 +88,8 @@ export default function ClientIntakeCard({
               )}
             </label>
           ))}
-          {error ? <p className="text-xs text-red-300" role="alert">{error}</p> : null}
-          <button type="submit" disabled={busy || !guestVerified} className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          {error ? <p className="client-intake-card__error text-xs text-red-300" role="alert">{error}</p> : null}
+          <button type="submit" disabled={busy || !guestVerified} className="client-intake-card__submit inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {t('messages.clientIntake.submit')}
           </button>
