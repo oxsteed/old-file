@@ -2,12 +2,15 @@
 // Complete compliance audit trail with filtering and export
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Download, Filter, X } from 'lucide-react';
 import api from '../../api/axios';
 import logger from '../../utils/logger';
 import './AdminLegalAuditLogPage.css';
 
 export default function AdminLegalAuditLogPage() {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`adminLegal.audit.${key}`, options);
   const [auditLogs, setAuditLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,16 +23,16 @@ export default function AdminLegalAuditLogPage() {
   });
 
   const actionTypes = [
-    { value: 'all', label: 'All Actions' },
-    { value: 'document_created', label: 'Document Created' },
-    { value: 'document_updated', label: 'Document Updated' },
-    { value: 'document_viewed', label: 'Document Viewed' },
-    { value: 'document_published', label: 'Document Published' },
-    { value: 'approval_requested', label: 'Approval Requested' },
-    { value: 'approval_approved', label: 'Approval Approved' },
-    { value: 'approval_rejected', label: 'Approval Rejected' },
-    { value: 'user_accepted', label: 'User Accepted' },
-    { value: 'translation_completed', label: 'Translation Completed' }
+    { value: 'all', label: copy('actions.all') },
+    { value: 'document_created', label: copy('actions.documentCreated') },
+    { value: 'document_updated', label: copy('actions.documentUpdated') },
+    { value: 'document_viewed', label: copy('actions.documentViewed') },
+    { value: 'document_published', label: copy('actions.documentPublished') },
+    { value: 'approval_requested', label: copy('actions.approvalRequested') },
+    { value: 'approval_approved', label: copy('actions.approvalApproved') },
+    { value: 'approval_rejected', label: copy('actions.approvalRejected') },
+    { value: 'user_accepted', label: copy('actions.userAccepted') },
+    { value: 'translation_completed', label: copy('actions.translationCompleted') }
   ];
 
   useEffect(() => {
@@ -207,15 +210,15 @@ export default function AdminLegalAuditLogPage() {
   };
 
   if (loading) {
-    return <div className="audit-log-loading">Loading audit logs...</div>;
+    return <div className="audit-log-loading">{copy('loading')}</div>;
   }
 
   return (
     <div className="audit-log-page">
       {/* Header */}
       <div className="audit-log-header">
-        <h1>Audit Log</h1>
-        <p>Complete compliance audit trail for legal documents</p>
+        <h1>{copy('title')}</h1>
+        <p>{copy('subtitle')}</p>
       </div>
 
       {/* Filters */}
@@ -224,7 +227,7 @@ export default function AdminLegalAuditLogPage() {
           <Search size={18} />
           <input
             type="text"
-            placeholder="Search by resource ID, document ID, or user..."
+            placeholder={copy('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="audit-filter-input"
@@ -249,7 +252,7 @@ export default function AdminLegalAuditLogPage() {
         <div className="audit-filter-group">
           <input
             type="text"
-            placeholder="Filter by user..."
+            placeholder={copy('userPlaceholder')}
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
             className="audit-filter-input"
@@ -262,47 +265,47 @@ export default function AdminLegalAuditLogPage() {
             value={dateRange.startDate}
             onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
             className="audit-filter-input"
-            title="Start date"
+            title={copy('startDate')}
           />
-          <span className="audit-date-separator">to</span>
+          <span className="audit-date-separator">{copy('to')}</span>
           <input
             type="date"
             value={dateRange.endDate}
             onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
             className="audit-filter-input"
-            title="End date"
+            title={copy('endDate')}
           />
         </div>
 
-        <button className="audit-filter-clear" onClick={clearFilters} title="Clear filters">
+        <button className="audit-filter-clear" onClick={clearFilters} title={copy('clearFilters')}>
           <X size={18} />
         </button>
 
         <button className="audit-filter-export" onClick={handleExportCSV}>
           <Download size={18} />
-          Export CSV
+          {copy('exportCsv')}
         </button>
       </div>
 
       {/* Results */}
       <div className="audit-log-results">
         <div className="audit-log-count">
-          Showing {filteredLogs.length} of {auditLogs.length} events
+          {copy('showing', { visible: filteredLogs.length, total: auditLogs.length })}
         </div>
 
         {filteredLogs.length === 0 ? (
           <div className="audit-log-empty">
-            <p>No events match your filters</p>
+            <p>{copy('empty')}</p>
           </div>
         ) : (
           <div className="audit-log-table">
             <div className="audit-log-table-header">
-              <div className="audit-col-timestamp">Timestamp</div>
-              <div className="audit-col-action">Action</div>
-              <div className="audit-col-user">User</div>
-              <div className="audit-col-resource">Resource</div>
-              <div className="audit-col-ip">IP Address</div>
-              <div className="audit-col-details">Details</div>
+              <div className="audit-col-timestamp">{copy('columns.timestamp')}</div>
+              <div className="audit-col-action">{copy('columns.action')}</div>
+              <div className="audit-col-user">{copy('columns.user')}</div>
+              <div className="audit-col-resource">{copy('columns.resource')}</div>
+              <div className="audit-col-ip">{copy('columns.ipAddress')}</div>
+              <div className="audit-col-details">{copy('columns.details')}</div>
             </div>
 
             <div className="audit-log-table-body">
@@ -328,7 +331,7 @@ export default function AdminLegalAuditLogPage() {
                   </div>
                   <div className="audit-col-details">
                     <details className="audit-metadata">
-                      <summary>View</summary>
+                      <summary>{copy('view')}</summary>
                       <pre>{JSON.stringify(log.metadata, null, 2)}</pre>
                     </details>
                   </div>

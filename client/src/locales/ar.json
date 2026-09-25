@@ -4718,6 +4718,41 @@
         "accessibilityPolicy": "سياسة إمكانية الوصول"
       }
     }
+  },
+  "audit": {
+    "loading": "جارٍ تحميل سجلات التدقيق…",
+    "title": "سجل التدقيق",
+    "subtitle": "سجل امتثال كامل للمستندات القانونية",
+    "searchPlaceholder": "البحث حسب معرّف المورد أو المستند أو المستخدم…",
+    "userPlaceholder": "التصفية حسب المستخدم…",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء",
+    "to": "إلى",
+    "clearFilters": "مسح عوامل التصفية",
+    "exportCsv": "تصدير CSV",
+    "showing": "عرض {{visible}} من {{total}} حدث",
+    "empty": "لا توجد أحداث تطابق عوامل التصفية",
+    "view": "عرض",
+    "actions": {
+      "all": "كل الإجراءات",
+      "documentCreated": "تم إنشاء المستند",
+      "documentUpdated": "تم تحديث المستند",
+      "documentViewed": "تم عرض المستند",
+      "documentPublished": "تم نشر المستند",
+      "approvalRequested": "تم طلب الموافقة",
+      "approvalApproved": "تمت الموافقة",
+      "approvalRejected": "رُفضت الموافقة",
+      "userAccepted": "قبل المستخدم",
+      "translationCompleted": "اكتملت الترجمة"
+    },
+    "columns": {
+      "timestamp": "الطابع الزمني",
+      "action": "الإجراء",
+      "user": "المستخدم",
+      "resource": "المورد",
+      "ipAddress": "عنوان IP",
+      "details": "التفاصيل"
+    }
   }
 },
   "businessHub": {

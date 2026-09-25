@@ -4803,6 +4803,41 @@
         "accessibilityPolicy": "Règleman aksè"
       }
     }
+  },
+  "audit": {
+    "loading": "Chaje jounal odit yo...",
+    "title": "Jounal odit",
+    "subtitle": "Tras konfòmite konplè pou dokiman legal yo",
+    "searchPlaceholder": "Chèche pa ID resous, ID dokiman, oswa itilizatè...",
+    "userPlaceholder": "Filtre pa itilizatè...",
+    "startDate": "Dat kòmansman",
+    "endDate": "Dat finisman",
+    "to": "rive",
+    "clearFilters": "Netwaye filtè yo",
+    "exportCsv": "Ekspòte CSV",
+    "showing": "Ap montre {{visible}} sou {{total}} evènman",
+    "empty": "Pa gen evènman ki koresponn ak filtè ou yo",
+    "view": "Gade",
+    "actions": {
+      "all": "Tout aksyon yo",
+      "documentCreated": "Dokiman kreye",
+      "documentUpdated": "Dokiman mete ajou",
+      "documentViewed": "Dokiman gade",
+      "documentPublished": "Dokiman pibliye",
+      "approvalRequested": "Apwobasyon mande",
+      "approvalApproved": "Apwobasyon apwouve",
+      "approvalRejected": "Apwobasyon rejte",
+      "userAccepted": "Itilizatè aksepte",
+      "translationCompleted": "Tradiksyon fini"
+    },
+    "columns": {
+      "timestamp": "Lè",
+      "action": "Aksyon",
+      "user": "Itilizatè",
+      "resource": "Resous",
+      "ipAddress": "Adrès IP",
+      "details": "Detay"
+    }
   }
 },
   "businessHub": {

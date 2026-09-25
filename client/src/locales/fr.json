@@ -4718,6 +4718,41 @@
         "accessibilityPolicy": "Politique d’accessibilité"
       }
     }
+  },
+  "audit": {
+    "loading": "Chargement des journaux d’audit…",
+    "title": "Journal d’audit",
+    "subtitle": "Piste d’audit complète des documents juridiques",
+    "searchPlaceholder": "Rechercher par ID de ressource, ID de document ou utilisateur…",
+    "userPlaceholder": "Filtrer par utilisateur…",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "to": "à",
+    "clearFilters": "Effacer les filtres",
+    "exportCsv": "Exporter en CSV",
+    "showing": "{{visible}} événement(s) sur {{total}}",
+    "empty": "Aucun événement ne correspond à vos filtres",
+    "view": "Voir",
+    "actions": {
+      "all": "Toutes les actions",
+      "documentCreated": "Document créé",
+      "documentUpdated": "Document mis à jour",
+      "documentViewed": "Document consulté",
+      "documentPublished": "Document publié",
+      "approvalRequested": "Approbation demandée",
+      "approvalApproved": "Approbation approuvée",
+      "approvalRejected": "Approbation rejetée",
+      "userAccepted": "Utilisateur accepté",
+      "translationCompleted": "Traduction terminée"
+    },
+    "columns": {
+      "timestamp": "Horodatage",
+      "action": "Action",
+      "user": "Utilisateur",
+      "resource": "Ressource",
+      "ipAddress": "Adresse IP",
+      "details": "Détails"
+    }
   }
 },
   "businessHub": {

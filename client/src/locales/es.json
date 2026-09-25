@@ -4718,6 +4718,41 @@
         "accessibilityPolicy": "Política de accesibilidad"
       }
     }
+  },
+  "audit": {
+    "loading": "Cargando registros de auditoría...",
+    "title": "Registro de auditoría",
+    "subtitle": "Registro completo de cumplimiento de los documentos legales",
+    "searchPlaceholder": "Busca por ID de recurso, ID de documento o usuario...",
+    "userPlaceholder": "Filtrar por usuario...",
+    "startDate": "Fecha inicial",
+    "endDate": "Fecha final",
+    "to": "a",
+    "clearFilters": "Borrar filtros",
+    "exportCsv": "Exportar CSV",
+    "showing": "Mostrando {{visible}} de {{total}} eventos",
+    "empty": "Ningún evento coincide con tus filtros",
+    "view": "Ver",
+    "actions": {
+      "all": "Todas las acciones",
+      "documentCreated": "Documento creado",
+      "documentUpdated": "Documento actualizado",
+      "documentViewed": "Documento consultado",
+      "documentPublished": "Documento publicado",
+      "approvalRequested": "Aprobación solicitada",
+      "approvalApproved": "Aprobación aprobada",
+      "approvalRejected": "Aprobación rechazada",
+      "userAccepted": "Usuario aceptó",
+      "translationCompleted": "Traducción completada"
+    },
+    "columns": {
+      "timestamp": "Marca de tiempo",
+      "action": "Acción",
+      "user": "Usuario",
+      "resource": "Recurso",
+      "ipAddress": "Dirección IP",
+      "details": "Detalles"
+    }
   }
 },
   "businessHub": {

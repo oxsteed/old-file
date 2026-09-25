@@ -4748,6 +4748,41 @@
         "accessibilityPolicy": "Accessibility Policy"
       }
     }
+  },
+  "audit": {
+    "loading": "Loading audit logs...",
+    "title": "Audit Log",
+    "subtitle": "Complete compliance audit trail for legal documents",
+    "searchPlaceholder": "Search by resource ID, document ID, or user...",
+    "userPlaceholder": "Filter by user...",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "to": "to",
+    "clearFilters": "Clear filters",
+    "exportCsv": "Export CSV",
+    "showing": "Showing {{visible}} of {{total}} events",
+    "empty": "No events match your filters",
+    "view": "View",
+    "actions": {
+      "all": "All Actions",
+      "documentCreated": "Document Created",
+      "documentUpdated": "Document Updated",
+      "documentViewed": "Document Viewed",
+      "documentPublished": "Document Published",
+      "approvalRequested": "Approval Requested",
+      "approvalApproved": "Approval Approved",
+      "approvalRejected": "Approval Rejected",
+      "userAccepted": "User Accepted",
+      "translationCompleted": "Translation Completed"
+    },
+    "columns": {
+      "timestamp": "Timestamp",
+      "action": "Action",
+      "user": "User",
+      "resource": "Resource",
+      "ipAddress": "IP Address",
+      "details": "Details"
+    }
   }
 },
   "businessHub": {
