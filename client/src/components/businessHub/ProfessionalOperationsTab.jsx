@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   createProfessionalComplianceRecord,
@@ -96,6 +97,8 @@ function Select(props) {
 }
 
 export default function ProfessionalOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`businessHub.professionalOps.${key}`, options);
   const settings = workspace?.settings || {};
   const engagementRequests = workspace?.engagementRequests || [];
   const packages = workspace?.packages || [];
@@ -134,10 +137,10 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
         obligation_types: parseCommaList(settingsForm.obligation_types),
         trust_artifacts: parseCommaList(settingsForm.trust_artifacts),
       });
-      toast.success('Professional settings saved');
+      toast.success(copy('settingsSaved'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save professional settings');
+      toast.error(error?.response?.data?.error || copy('settingsSaveFailed'));
     } finally {
       setSavingSettings(false);
     }
@@ -154,12 +157,12 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
       };
       if (editingPackageId) await updateProfessionalPackage(businessId, editingPackageId, payload);
       else await createProfessionalPackage(businessId, payload);
-      toast.success(editingPackageId ? 'Package updated' : 'Package added');
+      toast.success(editingPackageId ? copy('packageUpdated') : copy('packageAdded'));
       setPackageForm(EMPTY_PACKAGE);
       setEditingPackageId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save package');
+      toast.error(error?.response?.data?.error || copy('packageSaveFailed'));
     }
   }
 
@@ -168,22 +171,22 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
     try {
       if (editingRecordId) await updateProfessionalComplianceRecord(businessId, editingRecordId, recordForm);
       else await createProfessionalComplianceRecord(businessId, recordForm);
-      toast.success(editingRecordId ? 'Compliance record updated' : 'Compliance record added');
+      toast.success(editingRecordId ? copy('recordUpdated') : copy('recordAdded'));
       setRecordForm(EMPTY_RECORD);
       setEditingRecordId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save compliance record');
+      toast.error(error?.response?.data?.error || copy('recordSaveFailed'));
     }
   }
 
   async function quickUpdateRequest(requestId, patch) {
     try {
       await updateProfessionalEngagementRequest(businessId, requestId, patch);
-      toast.success('Engagement updated');
+      toast.success(copy('engagementUpdated'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not update engagement');
+      toast.error(error?.response?.data?.error || copy('engagementUpdateFailed'));
     }
   }
 
@@ -193,32 +196,32 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-sky-400/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-100">
-              Professional Ops
+              {copy('label')}
             </span>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Engagement, documents, obligations</h2>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{copy('title')}</h2>
             <p className="mt-3 text-sm leading-7 text-gray-300">
-              Run trust-sensitive intake, package logic, document discipline, and recurring obligation follow-up from one workspace built for accountants, coaches, consultants, and legal-admin operators.
+              {copy('description')}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
-            <Card label="Open engagements" value={metrics.open_requests || 0} hint={`${metrics.proposals_waiting || 0} proposals waiting`} />
-            <Card label="Obligations due" value={metrics.obligations_due || 0} hint={`${metrics.follow_up_due || 0} follow-ups due`} />
+            <Card label={copy('openEngagements')} value={metrics.open_requests || 0} hint={copy('proposalsWaiting', { count: metrics.proposals_waiting || 0 })} />
+            <Card label={copy('obligationsDue')} value={metrics.obligations_due || 0} hint={copy('followUpsDue', { count: metrics.follow_up_due || 0 })} />
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <Card label="Compliance queue" value={metrics.records_needing_attention || 0} hint="Records or deadlines needing action" />
-        <Card label="Completed records" value={metrics.completed_records || 0} hint="Completed document or compliance milestones" />
-        <Card label="Active packages" value={metrics.active_packages || 0} hint={formatMoney((metrics.package_value_cents || 0) / 100, { currency }) + ' in live package pricing'} />
-        <Card label="Waiting on client" value={engagementRequests.filter((item) => item.status === 'waiting_on_client').length} hint="Requests blocked on client docs or response" />
+        <Card label={copy('complianceQueue')} value={metrics.records_needing_attention || 0} hint={copy('complianceQueueHint')} />
+        <Card label={copy('completedRecords')} value={metrics.completed_records || 0} hint={copy('completedRecordsHint')} />
+        <Card label={copy('activePackages')} value={metrics.active_packages || 0} hint={`${formatMoney((metrics.package_value_cents || 0) / 100, { currency })} ${copy('livePackagePricing')}`} />
+        <Card label={copy('waitingOnClient')} value={engagementRequests.filter((item) => item.status === 'waiting_on_client').length} hint={copy('waitingOnClientHint')} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
         <Section
-          title="Engagement Pipeline"
-          subtitle="Move trust-sensitive leads from intake to scoping, documents, delivery, and recurring obligation follow-up."
-          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>Open quotes</button>}
+          title={copy('pipelineTitle')}
+          subtitle={copy('pipelineSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>{copy('openQuotes')}</button>}
         >
           <div className="space-y-4">
             {engagementRequests.slice(0, 12).map((item) => (
@@ -230,11 +233,11 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
                       <span className="rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold text-sky-200">{item.workflow_stage}</span>
                     </div>
                     <p className="mt-2 text-sm font-semibold text-white">{item.service_need}</p>
-                    <p className="mt-1 text-sm text-gray-400">{item.package_interest || 'Custom engagement'}{item.contact_name ? ` · ${item.contact_name}` : ''}</p>
+                    <p className="mt-1 text-sm text-gray-400">{item.package_interest || copy('customEngagement')}{item.contact_name ? ` · ${item.contact_name}` : ''}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'proposal_sent', workflow_stage: 'scoping' })}>Proposal sent</button>
-                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'completed', workflow_stage: 'follow_up' })}>Completed</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'proposal_sent', workflow_stage: 'scoping' })}>{copy('proposalSent')}</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'completed', workflow_stage: 'follow_up' })}>{copy('completed')}</button>
                   </div>
                 </div>
               </div>
@@ -243,22 +246,22 @@ export default function ProfessionalOperationsTab({ businessId, workspace, curre
         </Section>
 
         <Section
-          title="Queue Snapshot"
-          subtitle="See what needs discovery, documents, or recurring obligation follow-up first."
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>Refresh</button>}
+          title={copy('queueSnapshot')}
+          subtitle={copy('queueSnapshotSubtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{copy('refresh')}</button>}
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Intake queue</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.intake.length} leads still need fit-check, consultation scheduling, or scope clarification.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('intakeQueue')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('intakeQueueHint', { count: groupedRequests.intake.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Scope and documents</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.scope.length} engagements are in scoping, delivery, or waiting-on-client mode.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('scopeDocuments')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('scopeDocumentsHint', { count: groupedRequests.scope.length })}</p>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Follow-up</p>
-              <p className="mt-2 text-sm text-gray-300">{groupedRequests.followUp.length} completed engagements need retention or obligation follow-up.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{copy('followUp')}</p>
+              <p className="mt-2 text-sm text-gray-300">{copy('followUpHint', { count: groupedRequests.followUp.length })}</p>
             </div>
           </div>
         </Section>
