@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import {
   listSourcingRequests,
   listRecurringPrograms,
@@ -24,6 +25,7 @@ const STATUS_COLOR = {
  * Rendered inside BusinessHubComplete — no PageShell or workspace switcher needed.
  */
 export function BusinessProcurementTab({ businessId }) {
+  const { t, i18n } = useTranslation();
   const [requests,  setRequests]  = useState([]);
   const [programs,  setPrograms]  = useState([]);
   const [lanes,     setLanes]     = useState([]);
@@ -77,7 +79,7 @@ export function BusinessProcurementTab({ businessId }) {
   );
 
   const createProgramFromForm = async () => {
-    if (!form.title) { toast.error('Program title is required'); return; }
+    if (!form.title) { toast.error(t('businessHub.procurement.titleRequired')); return; }
     setSaving(true);
     try {
       await createRecurringProgram({
@@ -89,7 +91,7 @@ export function BusinessProcurementTab({ businessId }) {
         sourcing_request_id:   form.sourcing_request_id || null,
         status: 'active',
       });
-      toast.success('Recurring procurement program created');
+      toast.success(t('businessHub.procurement.programCreated'));
       setShowForm(false);
       setForm({
         title: '', category: '', cadence: 'monthly', lane_id: '', target_qty: '',
@@ -108,7 +110,7 @@ export function BusinessProcurementTab({ businessId }) {
     const next = program.status === 'active' ? 'paused' : 'active';
     try {
       await updateRecurringProgramStatus(program.id, next);
-      toast.success(`Program ${next}`);
+      toast.success(t('businessHub.procurement.programStatusChanged', { status: t(`businessHub.procurement.statuses.${next}`) }));
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
@@ -118,7 +120,7 @@ export function BusinessProcurementTab({ businessId }) {
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-        Loading procurement data…
+        {t('businessHub.procurement.loading')}
       </div>
     );
   }
@@ -129,9 +131,9 @@ export function BusinessProcurementTab({ businessId }) {
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Procurement</h2>
+          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>{t('businessHub.procurement.title')}</h2>
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#64748b' }}>
-            Recurring sourcing programs and supply requests linked to this business.
+            {t('businessHub.procurement.subtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
@@ -142,7 +144,7 @@ export function BusinessProcurementTab({ businessId }) {
               background: '#f97316', color: '#fff', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer',
             }}
           >
-            {showForm ? 'Close' : '+ New program'}
+            {showForm ? t('common.close') : `+ ${t('businessHub.procurement.newProgram')}`}
           </button>
           <Link
             to={`/logistics/requests/new?business_id=${businessId}`}
@@ -152,7 +154,7 @@ export function BusinessProcurementTab({ businessId }) {
               fontWeight: 600, fontSize: '0.8125rem', textDecoration: 'none',
             }}
           >
-            New sourcing request
+            {t('businessHub.procurement.newSourcingRequest')}
           </Link>
           <Link
             to="/logistics/procurement"
@@ -162,7 +164,7 @@ export function BusinessProcurementTab({ businessId }) {
               fontWeight: 500, fontSize: '0.8125rem', textDecoration: 'none',
             }}
           >
-            Full logistics portal ↗
+            {t('businessHub.procurement.fullPortal')} ↗
           </Link>
         </div>
       </div>
@@ -170,9 +172,9 @@ export function BusinessProcurementTab({ businessId }) {
       {/* ── Stats row ───────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {[
-          { label: 'Active programs',      value: activePrograms },
-          { label: 'Upcoming runs (21d)',  value: upcomingRuns },
-          { label: 'Business requests',    value: linkedRequests.length },
+          { label: t('businessHub.procurement.activePrograms'), value: activePrograms },
+          { label: t('businessHub.procurement.upcomingRuns'), value: upcomingRuns },
+          { label: t('businessHub.procurement.businessRequests'), value: linkedRequests.length },
         ].map(({ label, value }) => (
           <div
             key={label}
@@ -194,18 +196,18 @@ export function BusinessProcurementTab({ businessId }) {
           borderRadius: '0.875rem', padding: '1.25rem', marginBottom: '1.5rem',
         }}>
           <h3 style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 700 }}>
-            Recurring procurement planner
+            {t('businessHub.procurement.plannerTitle')}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
             {[
-              { label: 'Program title',   key: 'title',               type: 'text'   },
-              { label: 'Category',        key: 'category',            type: 'text'   },
-              { label: 'Target quantity', key: 'target_qty',          type: 'number' },
-              { label: 'Unit',            key: 'target_unit',         type: 'text'   },
-              { label: 'Destination country (2-letter)', key: 'destination_country', type: 'text' },
-              { label: 'Destination city',key: 'destination_city',    type: 'text'   },
-              { label: 'Budget max (USD)',key: 'budget_max_usd',       type: 'number' },
-              { label: 'Next run date',   key: 'next_run_date',       type: 'date'   },
+              { label: t('businessHub.procurement.programTitle'), key: 'title', type: 'text' },
+              { label: t('businessHub.procurement.category'), key: 'category', type: 'text' },
+              { label: t('businessHub.procurement.targetQuantity'), key: 'target_qty', type: 'number' },
+              { label: t('businessHub.procurement.unit'), key: 'target_unit', type: 'text' },
+              { label: t('businessHub.procurement.destinationCountry'), key: 'destination_country', type: 'text' },
+              { label: t('businessHub.procurement.destinationCity'), key: 'destination_city', type: 'text' },
+              { label: t('businessHub.procurement.budgetMax'), key: 'budget_max_usd', type: 'number' },
+              { label: t('businessHub.procurement.nextRunDate'), key: 'next_run_date', type: 'date' },
             ].map(({ label, key, type }) => (
               <div key={key}>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>{label}</label>
@@ -223,43 +225,43 @@ export function BusinessProcurementTab({ businessId }) {
               </div>
             ))}
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>Cadence</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>{t('businessHub.procurement.cadence')}</label>
               <select
                 value={form.cadence}
                 onChange={e => setForm(f => ({ ...f, cadence: e.target.value }))}
                 style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '0.875rem' }}
               >
-                {CADENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                {CADENCE_OPTIONS.map(o => <option key={o} value={o}>{t(`businessHub.procurement.cadences.${o}`)}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>Preferred lane</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>{t('businessHub.procurement.preferredLane')}</label>
               <select
                 value={form.lane_id}
                 onChange={e => setForm(f => ({ ...f, lane_id: e.target.value }))}
                 style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '0.875rem' }}
               >
-                <option value="">Any approved lane</option>
+                <option value="">{t('businessHub.procurement.anyLane')}</option>
                 {lanes.map(l => (
                   <option key={l.id} value={l.id}>{l.name} ({l.origin_country} → {l.destination_country})</option>
                 ))}
               </select>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>Link existing sourcing request (optional)</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>{t('businessHub.procurement.linkRequest')}</label>
               <select
                 value={form.sourcing_request_id}
                 onChange={e => setForm(f => ({ ...f, sourcing_request_id: e.target.value }))}
                 style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '0.875rem' }}
               >
-                <option value="">No linked request</option>
+                <option value="">{t('businessHub.procurement.noLinkedRequest')}</option>
                 {linkedRequests.map(r => (
                   <option key={r.id} value={r.id}>{r.reference} · {r.title}</option>
                 ))}
               </select>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>Notes</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.375rem' }}>{t('businessHub.procurement.notes')}</label>
               <textarea
                 rows={2}
                 value={form.notes}
@@ -281,7 +283,7 @@ export function BusinessProcurementTab({ businessId }) {
                 background: '#f97316', color: '#fff', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
-              {saving ? 'Saving…' : 'Create program'}
+              {saving ? t('common.saving') : t('businessHub.procurement.createProgram')}
             </button>
             <button
               onClick={() => setShowForm(false)}
@@ -291,7 +293,7 @@ export function BusinessProcurementTab({ businessId }) {
                 fontWeight: 500, fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -300,16 +302,16 @@ export function BusinessProcurementTab({ businessId }) {
       {/* ── Recurring programs table ────────────────────────────── */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>Recurring programs</h3>
+          <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>{t('businessHub.procurement.recurringPrograms')}</h3>
           <Link to="/logistics/procurement" style={{ fontSize: '0.8125rem', color: '#f97316', textDecoration: 'none' }}>
-            See all ↗
+            {t('businessHub.procurement.seeAll')} ↗
           </Link>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-                {['Program', 'Cadence', 'Next run', 'Status', ''].map(h => (
+                {[t('businessHub.procurement.program'), t('businessHub.procurement.cadence'), t('businessHub.procurement.nextRun'), t('businessHub.procurement.status'), ''].map(h => (
                   <th key={h} style={{ padding: '0.5rem 0.625rem', textAlign: 'left', color: '#64748b', fontWeight: 500 }}>{h}</th>
                 ))}
               </tr>
@@ -323,14 +325,14 @@ export function BusinessProcurementTab({ businessId }) {
                   </td>
                   <td style={{ padding: '0.625rem 0.625rem', color: '#94a3b8' }}>{p.cadence}</td>
                   <td style={{ padding: '0.625rem 0.625rem', color: '#94a3b8' }}>
-                    {p.next_run_date ? new Date(p.next_run_date).toLocaleDateString() : '—'}
+                    {p.next_run_date ? new Date(p.next_run_date).toLocaleDateString(i18n.resolvedLanguage) : '—'}
                   </td>
                   <td style={{ padding: '0.625rem 0.625rem' }}>
                     <span style={{
                       display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: '9999px',
                       fontSize: '0.7rem', fontWeight: 600, background: STATUS_COLOR[p.status] || '#64748b', color: '#fff',
                     }}>
-                      {p.status}
+                      {t(`businessHub.procurement.statuses.${p.status}`, p.status)}
                     </span>
                   </td>
                   <td style={{ padding: '0.625rem 0.625rem' }}>
@@ -342,7 +344,7 @@ export function BusinessProcurementTab({ businessId }) {
                         color: '#94a3b8', fontSize: '0.72rem', cursor: 'pointer',
                       }}
                     >
-                      {p.status === 'active' ? 'Pause' : 'Activate'}
+                      {p.status === 'active' ? t('businessHub.procurement.pause') : t('businessHub.procurement.activate')}
                     </button>
                   </td>
                 </tr>
@@ -350,12 +352,12 @@ export function BusinessProcurementTab({ businessId }) {
               {!loading && programs.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
-                    No recurring procurement programs yet.{' '}
+                    {t('businessHub.procurement.noPrograms')}{' '}
                     <button
                       onClick={() => setShowForm(true)}
                       style={{ background: 'none', border: 'none', color: '#f97316', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}
                     >
-                      Create one
+                      {t('businessHub.procurement.createOne')}
                     </button>
                   </td>
                 </tr>
@@ -368,19 +370,19 @@ export function BusinessProcurementTab({ businessId }) {
       {/* ── Business-linked sourcing requests ───────────────────── */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>Sourcing requests</h3>
+          <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600 }}>{t('businessHub.procurement.sourcingRequests')}</h3>
           <Link
             to={`/logistics/requests/new?business_id=${businessId}`}
             style={{ fontSize: '0.8125rem', color: '#f97316', textDecoration: 'none' }}
           >
-            + New request
+            + {t('businessHub.procurement.newRequest')}
           </Link>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-                {['Reference', 'Title', 'Status', 'Converted to'].map(h => (
+                {[t('businessHub.procurement.reference'), t('businessHub.procurement.programTitle'), t('businessHub.procurement.status'), t('businessHub.procurement.convertedTo')].map(h => (
                   <th key={h} style={{ padding: '0.5rem 0.625rem', textAlign: 'left', color: '#64748b', fontWeight: 500 }}>{h}</th>
                 ))}
               </tr>
@@ -399,7 +401,7 @@ export function BusinessProcurementTab({ businessId }) {
                       display: 'inline-block', padding: '0.125rem 0.5rem', borderRadius: '9999px',
                       fontSize: '0.7rem', fontWeight: 600, background: '#64748b', color: '#fff',
                     }}>
-                      {r.status}
+                      {t(`businessHub.procurement.statuses.${r.status}`, r.status)}
                     </span>
                   </td>
                   <td style={{ padding: '0.625rem 0.625rem', color: '#94a3b8' }}>{r.converted_to || '—'}</td>
@@ -408,7 +410,7 @@ export function BusinessProcurementTab({ businessId }) {
               {!loading && linkedRequests.length === 0 && (
                 <tr>
                   <td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
-                    No sourcing requests linked to this business yet.
+                    {t('businessHub.procurement.noRequests')}
                   </td>
                 </tr>
               )}
