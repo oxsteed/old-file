@@ -138,20 +138,20 @@ export default function BusinessSkillsSelector({
                         max="99"
                         value={editingMinExp}
                         onChange={(e) => setEditingMinExp(e.target.value)}
-                        placeholder="Years (optional)"
+                        placeholder={t('businessSkills.yearsOptional', { defaultValue: 'Years (optional)' })}
                         className="w-32 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm text-white"
                       />
                       <button
                         onClick={() => handleSaveMinExp(skill.skill_id, editingMinExp)}
                         className="px-2 py-1 bg-brand-500 hover:bg-brand-600 text-white text-xs rounded"
                       >
-                        Save
+                        {t('common.save')}
                       </button>
                       <button
                         onClick={() => setEditingSkillId(null)}
                         className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   ) : (
@@ -178,7 +178,7 @@ export default function BusinessSkillsSelector({
                   <button
                     onClick={() => handleRemoveSkill(skill.skill_id)}
                     className="ml-2 p-1 text-gray-400 hover:text-red-400 transition-colors"
-                    aria-label="Remove skill"
+                    aria-label={t('businessSkills.removeSkillAria', { defaultValue: 'Remove skill' })}
                   >
                     <X className="w-4 h-4" />
                   </button>

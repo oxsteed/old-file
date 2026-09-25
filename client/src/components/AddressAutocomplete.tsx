@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { suggestLocation } from '../api/geo';
 import './AddressAutocomplete.css';
 
@@ -44,7 +45,7 @@ export default function AddressAutocomplete({
   onBlur,
   id,
   name,
-  placeholder = 'Start typing an address',
+  placeholder,
   ariaLabel,
   autoComplete = 'street-address',
   inputClassName = '',
@@ -57,6 +58,8 @@ export default function AddressAutocomplete({
   minChars = 2,
   querySuffix = '',
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder || t('common.addressPlaceholder', { defaultValue: 'Start typing an address' });
   const generatedId = useId();
   const listId = `${id || generatedId}-address-suggestions`;
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -157,7 +160,7 @@ export default function AddressAutocomplete({
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         aria-label={ariaLabel}
         aria-autocomplete="list"
         aria-controls={open ? listId : undefined}
@@ -192,7 +195,7 @@ export default function AddressAutocomplete({
           ))}
         </ul>
       )}
-      {loading && <span className="address-autocomplete__loading" aria-live="polite">Searching...</span>}
+      {loading && <span className="address-autocomplete__loading" aria-live="polite">{t('common.searching', { defaultValue: 'Searching…' })}</span>}
     </div>
   );
 }

@@ -290,7 +290,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g., Update business website"
+              placeholder={t('actionItems.titlePlaceholder', { defaultValue: 'e.g., Update business website' })}
               style={inputStyle}
             />
           </div>
@@ -300,7 +300,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Additional details..."
+              placeholder={t('actionItems.descriptionPlaceholder', { defaultValue: 'Additional details...' })}
               style={textareaStyle}
             />
           </div>
@@ -340,9 +340,9 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
                 onChange={(e) => setFormData({ ...formData, assignedToType: e.target.value })}
                 style={inputStyle}
               >
-                {ASSIGNED_TO_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {ASSIGNED_TO_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {t(`actionItems.assignee.${type}`, { defaultValue: type.charAt(0).toUpperCase() + type.slice(1) })}
                   </option>
                 ))}
               </select>
@@ -419,7 +419,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
                   </span>
                 )}
                 <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                  {t('actionItems.assignedTo') || 'Assigned to'}: {item.assigned_to_type}
+                  {t('actionItems.assignedTo') || 'Assigned to'}: {t(`actionItems.assignee.${item.assigned_to_type}`, { defaultValue: item.assigned_to_type })}
                 </span>
                 {item.client_visible && (
                   <span style={{ color: '#3b82f6', fontSize: '0.85rem' }}>
