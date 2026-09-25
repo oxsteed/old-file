@@ -1689,7 +1689,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
           >
             {loadingOlder && (
-              <p className="px-4 pt-2 text-center text-xs text-gray-500" role="status">{t('common.loading')}</p>
+              <p
+                className="px-4 pt-2 text-center text-xs text-gray-500"
+                role="status"
+                aria-label={t('messages.loadOlderMessages')}
+              >
+                {t('common.loading')}
+              </p>
             )}
             {displayTimeline.length === 0 && !sending ? (
               <div className={`messages-thread-empty chat-panel__empty ${isDockMode ? 'chat-panel__empty--dock' : ''} flex flex-col items-center justify-center gap-2 px-6 py-10 text-center h-full min-h-[10rem]`}>

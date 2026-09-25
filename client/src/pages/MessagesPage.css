@@ -1172,6 +1172,56 @@ html:not(.dark) .messages-page .messages-guest-message {
   color: var(--color-text) !important;
 }
 
+/* Guest inquiry timelines use their own dark-first palette. Keep every
+   surface, bubble, loading state, and composer in sync with the page theme. */
+html:not(.dark) .messages-page .messages-guest-thread {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-thread-status {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-bubble {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-bubble.is-guest {
+  border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border)) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-bubble.is-helper {
+  background: var(--color-primary-bg) !important;
+  border-color: var(--color-primary) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-bubble-meta {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-bubble-body {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-composer-input {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-composer-input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) .messages-page .messages-guest-composer-tools .messages-quote-share-btn {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
 .mobile-only {
   display: none;
 }
