@@ -10699,6 +10699,7 @@
     "noTemplateBody": "Vous pouvez tout de même accepter cette offre. Vous coordonnerez l'heure exacte directement avec l'intervenant après l'acceptation.",
     "noSlotsTitle": "Aucune disponibilité dans les 28 prochains jours",
     "noSlotsBody": "Acceptez quand même et coordonnez l'heure directement avec l'intervenant.",
+    "available": "Disponible",
     "legendAvailable": "Disponible",
     "legendSelected": "Sélectionné",
     "noSlotsThisDay": "Aucun créneau disponible - choisissez un autre jour.",

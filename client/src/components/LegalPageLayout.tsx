@@ -49,7 +49,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
       >
         {/* Breadcrumb Navigation */}
         <nav
-          aria-label="Breadcrumb"
+          aria-label={t('common.aria.breadcrumb')}
           style={{
             maxWidth: 800,
             margin: '0 auto',

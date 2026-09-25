@@ -10872,6 +10872,7 @@
     "noTemplateBody": "You can still accept this bid. You'll coordinate the exact time directly with the helper after accepting.",
     "noSlotsTitle": "No availability in the next 28 days",
     "noSlotsBody": "Accept anyway and coordinate the time directly with the helper.",
+    "available": "Available",
     "legendAvailable": "Available",
     "legendSelected": "Selected",
     "noSlotsThisDay": "No slots available - pick another day.",

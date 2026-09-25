@@ -175,7 +175,7 @@ export default function Navbar() {
   return (
     <nav
       className="ox-navbar"
-      aria-label="Main navigation"
+      aria-label={t('common.aria.mainNavigation')}
       style={{
         position: 'sticky',
         top: 0,

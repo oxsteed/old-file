@@ -90,7 +90,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   </h3>
                   <button
                     onClick={() => setOpen(false)}
-                    aria-label="Close"
+                    aria-label={t('common.aria.closeButton')}
                     className="p-2 -mr-1 text-gray-400 hover:text-gray-600 transition rounded-lg"
                   >
                     ✕

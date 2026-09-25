@@ -24,12 +24,6 @@ import '../../styles/BidAcceptanceModal.css';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_LABELS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
-
 function isSameDate(a, b) {
   return a.getFullYear() === b.getFullYear() &&
          a.getMonth()    === b.getMonth()    &&
@@ -50,7 +44,7 @@ function formatDateLong(date) {
 // ── component ──────────────────────────────────────────────────────────────────
 
 export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose, onAccept }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [slots,       setSlots]       = useState([]);   // raw slot array from API
   const [hasTemplate, setHasTemplate] = useState(null); // null = loading
@@ -67,6 +61,10 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
   }, []);
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear,  setCalYear]  = useState(today.getFullYear());
+  const dayLabels = useMemo(() => Array.from({ length: 7 }, (_, index) => (
+    new Intl.DateTimeFormat(i18n.language, { weekday: 'short' }).format(new Date(2021, 7, 1 + index))
+  )), [i18n.language]);
+  const monthLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(new Date(calYear, calMonth, 1)), [calMonth, calYear, i18n.language]);
 
   // ── load available slots ─────────────────────────────────────
   const loadSlots = useCallback(async () => {
@@ -157,7 +155,7 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
             <h2>{t('bidAccept.title', { defaultValue: 'Pick a time with {{name}}', name: helperName })}</h2>
             <p className="bam-subtitle">{jobTitle}</p>
           </div>
-          <button className="bam-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="bam-close" onClick={onClose} aria-label={t('common.aria.closeButton')}>✕</button>
         </div>
 
         {/* Body */}
@@ -192,12 +190,12 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
             <div className="bam-calendar-pane">
               <div className="bam-cal-nav">
                 <button className="bam-cal-nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
-                <span className="bam-cal-month-label">{MONTH_LABELS[calMonth]} {calYear}</span>
+                <span className="bam-cal-month-label">{monthLabel} {calYear}</span>
                 <button className="bam-cal-nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
               </div>
 
               <div className="bam-cal-grid">
-                {DAY_LABELS.map(d => (
+                {dayLabels.map(d => (
                   <div key={d} className="bam-cal-dow">{d}</div>
                 ))}
                 {calendarDays.map((day, i) => {
@@ -222,7 +220,7 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
                         setSelectedDate(day);
                         setSelectedSlot(null);
                       }}
-                      aria-label={`${key}${isAvail ? ' - available' : ''}`}
+                      aria-label={`${key}${isAvail ? ` - ${t('bidAccept.available')}` : ''}`}
                       aria-pressed={isSelected}
                     >
                       {day.getDate()}

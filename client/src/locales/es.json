@@ -10699,6 +10699,7 @@
     "noTemplateBody": "Puedes aceptar esta oferta de todas formas. Coordinarás el horario exacto directamente con el ayudante después de aceptar.",
     "noSlotsTitle": "Sin disponibilidad en los próximos 28 días",
     "noSlotsBody": "Acepta de todas formas y coordina el horario directamente con el ayudante.",
+    "available": "Disponible",
     "legendAvailable": "Disponible",
     "legendSelected": "Seleccionado",
     "noSlotsThisDay": "Sin horarios disponibles - elige otro día.",
