@@ -7,14 +7,14 @@ import '../../styles/PricingRulesManager.css';
 
 // Server rule_type values (not 'time_based' etc.)
 const RULE_TYPES = [
-  { id: 'time',     name: 'Time-Based',       description: 'Different prices for peak/off-peak hours', icon: Clock },
-  { id: 'demand',   name: 'Demand-Based',     description: 'Surge pricing based on availability',      icon: Zap },
-  { id: 'volume',   name: 'Volume-Based',     description: 'Discounts for bulk bookings',              icon: TrendingUp },
-  { id: 'segment',  name: 'Customer Segment', description: 'Loyalty tier discounts',                   icon: Users },
-  { id: 'seasonal', name: 'Seasonal',         description: 'Date-range pricing overrides',             icon: Calendar },
+  { id: 'time', nameKey: 'time', descriptionKey: 'timeDescription', icon: Clock },
+  { id: 'demand', nameKey: 'demand', descriptionKey: 'demandDescription', icon: Zap },
+  { id: 'volume', nameKey: 'volume', descriptionKey: 'volumeDescription', icon: TrendingUp },
+  { id: 'segment', nameKey: 'segment', descriptionKey: 'segmentDescription', icon: Users },
+  { id: 'seasonal', nameKey: 'seasonal', descriptionKey: 'seasonalDescription', icon: Calendar },
 ];
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 const DEFAULT_FORM = {
   rule_type: 'time',
@@ -121,7 +121,7 @@ export function PricingRulesManager({ businessId }) {
     }
   };
 
-  const getRuleTypeInfo = (ruleType) => RULE_TYPES.find(t => t.id === ruleType) || { name: ruleType, icon: TrendingUp };
+  const getRuleTypeInfo = (ruleType) => RULE_TYPES.find(type => type.id === ruleType) || { nameKey: ruleType, descriptionKey: '', icon: TrendingUp };
 
   const setDimension = (key, patch) =>
     setFormData(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
@@ -132,32 +132,32 @@ export function PricingRulesManager({ businessId }) {
       case 'time':
         return (
           <div className="prm-config-section">
-            <h5>Time-Based Configuration</h5>
+            <h5>{t('businessHub.pricingRules.config.time')}</h5>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Day of Week</label>
+                <label>{t('businessHub.pricingRules.dayOfWeek')}</label>
                 <select
                   value={formData.time.day_of_week}
                   onChange={e => setDimension('time', { day_of_week: parseInt(e.target.value) })}
                 >
-                  {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                  {DAY_NAMES.map((d, i) => <option key={i} value={i}>{t(`common.weekdays.${d}`)}</option>)}
                 </select>
               </div>
               <div className="prm-form-group">
-                <label>Peak Period?</label>
+                <label>{t('businessHub.pricingRules.peakPeriod')}</label>
                 <label className="prm-checkbox-label">
                   <input
                     type="checkbox"
                     checked={formData.time.is_peak}
                     onChange={e => setDimension('time', { is_peak: e.target.checked })}
                   />
-                  Is Peak
+                  {t('businessHub.pricingRules.isPeak')}
                 </label>
               </div>
             </div>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Start Time (24h)</label>
+                <label>{t('businessHub.pricingRules.startTime')}</label>
                 <input
                   type="time"
                   value={formData.time.start_time}
@@ -165,7 +165,7 @@ export function PricingRulesManager({ businessId }) {
                 />
               </div>
               <div className="prm-form-group">
-                <label>End Time (24h)</label>
+                <label>{t('businessHub.pricingRules.endTime')}</label>
                 <input
                   type="time"
                   value={formData.time.end_time}
@@ -175,13 +175,13 @@ export function PricingRulesManager({ businessId }) {
             </div>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Price Multiplier</label>
+                <label>{t('businessHub.pricingRules.priceMultiplier')}</label>
                 <input
                   type="number" step="0.05" min="0.1"
                   value={formData.time.price_multiplier}
                   onChange={e => setDimension('time', { price_multiplier: parseFloat(e.target.value) })}
                 />
-                <small>e.g. 1.5 = 50% markup</small>
+                <small>{t('businessHub.pricingRules.multiplierHint', { value: '1.5', percent: '50%' })}</small>
               </div>
             </div>
           </div>
@@ -189,19 +189,19 @@ export function PricingRulesManager({ businessId }) {
       case 'demand':
         return (
           <div className="prm-config-section">
-            <h5>Demand-Based Configuration</h5>
+            <h5>{t('businessHub.pricingRules.config.demand')}</h5>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Availability Threshold (%)</label>
+                <label>{t('businessHub.pricingRules.availabilityThreshold')}</label>
                 <input
                   type="number" min="0" max="100"
                   value={formData.demand.availability_threshold_percent}
                   onChange={e => setDimension('demand', { availability_threshold_percent: parseInt(e.target.value) })}
                 />
-                <small>When availability drops below this %, apply surge pricing</small>
+                <small>{t('businessHub.pricingRules.surgeHint')}</small>
               </div>
               <div className="prm-form-group">
-                <label>Surge Multiplier</label>
+                <label>{t('businessHub.pricingRules.surgeMultiplier')}</label>
                 <input
                   type="number" step="0.05" min="1"
                   value={formData.demand.surge_multiplier}
@@ -214,10 +214,10 @@ export function PricingRulesManager({ businessId }) {
       case 'volume':
         return (
           <div className="prm-config-section">
-            <h5>Volume-Based Configuration</h5>
+            <h5>{t('businessHub.pricingRules.config.volume')}</h5>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Min Quantity</label>
+                <label>{t('businessHub.pricingRules.minQuantity')}</label>
                 <input
                   type="number" min="1"
                   value={formData.volume.min_quantity}
@@ -225,7 +225,7 @@ export function PricingRulesManager({ businessId }) {
                 />
               </div>
               <div className="prm-form-group">
-                <label>Max Quantity (optional)</label>
+                <label>{t('businessHub.pricingRules.maxQuantity')}</label>
                 <input
                   type="number" min="1"
                   value={formData.volume.max_quantity ?? ''}
@@ -235,15 +235,15 @@ export function PricingRulesManager({ businessId }) {
             </div>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Period</label>
+                <label>{t('businessHub.pricingRules.period')}</label>
                 <select
                   value={formData.volume.period}
                   onChange={e => setDimension('volume', { period: e.target.value })}
                 >
-                  <option value="order">Per Order</option>
-                  <option value="day">Per Day</option>
-                  <option value="week">Per Week</option>
-                  <option value="month">Per Month</option>
+                  <option value="order">{t('businessHub.pricingRules.periods.order')}</option>
+                  <option value="day">{t('businessHub.pricingRules.periods.day')}</option>
+                  <option value="week">{t('businessHub.pricingRules.periods.week')}</option>
+                  <option value="month">{t('businessHub.pricingRules.periods.month')}</option>
                 </select>
               </div>
               <div className="prm-form-group">
@@ -253,7 +253,7 @@ export function PricingRulesManager({ businessId }) {
                   value={formData.volume.price_multiplier}
                   onChange={e => setDimension('volume', { price_multiplier: parseFloat(e.target.value) })}
                 />
-                <small>e.g. 0.9 = 10% off</small>
+                <small>{t('businessHub.pricingRules.multiplierHint', { value: '0.9', percent: '10%' })}</small>
               </div>
             </div>
           </div>
@@ -261,21 +261,21 @@ export function PricingRulesManager({ businessId }) {
       case 'segment':
         return (
           <div className="prm-config-section">
-            <h5>Customer Segment Configuration</h5>
+            <h5>{t('businessHub.pricingRules.config.segment')}</h5>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Segment Type</label>
+                <label>{t('businessHub.pricingRules.segmentType')}</label>
                 <select
                   value={formData.segment.segment_type}
                   onChange={e => setDimension('segment', { segment_type: e.target.value })}
                 >
-                  <option value="new">New Customer</option>
-                  <option value="returning">Returning</option>
-                  <option value="vip">VIP</option>
-                  <option value="loyalty_tier_bronze">Bronze</option>
-                  <option value="loyalty_tier_silver">Silver</option>
-                  <option value="loyalty_tier_gold">Gold</option>
-                  <option value="loyalty_tier_platinum">Platinum</option>
+                  <option value="new">{t('businessHub.pricingRules.segments.new')}</option>
+                  <option value="returning">{t('businessHub.pricingRules.segments.returning')}</option>
+                  <option value="vip">{t('businessHub.pricingRules.segments.vip')}</option>
+                  <option value="loyalty_tier_bronze">{t('businessHub.pricingRules.segments.bronze')}</option>
+                  <option value="loyalty_tier_silver">{t('businessHub.pricingRules.segments.silver')}</option>
+                  <option value="loyalty_tier_gold">{t('businessHub.pricingRules.segments.gold')}</option>
+                  <option value="loyalty_tier_platinum">{t('businessHub.pricingRules.segments.platinum')}</option>
                 </select>
               </div>
               <div className="prm-form-group">
@@ -285,7 +285,7 @@ export function PricingRulesManager({ businessId }) {
                   value={formData.segment.price_multiplier}
                   onChange={e => setDimension('segment', { price_multiplier: parseFloat(e.target.value) })}
                 />
-                <small>e.g. 0.95 = 5% off</small>
+                <small>{t('businessHub.pricingRules.multiplierHint', { value: '0.95', percent: '5%' })}</small>
               </div>
             </div>
           </div>
@@ -293,10 +293,10 @@ export function PricingRulesManager({ businessId }) {
       case 'seasonal':
         return (
           <div className="prm-config-section">
-            <h5>Seasonal Configuration</h5>
+            <h5>{t('businessHub.pricingRules.config.seasonal')}</h5>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Start Date</label>
+                <label>{t('businessHub.pricingRules.startDate')}</label>
                 <input
                   type="date"
                   value={formData.seasonal.start_date}
@@ -304,7 +304,7 @@ export function PricingRulesManager({ businessId }) {
                 />
               </div>
               <div className="prm-form-group">
-                <label>End Date</label>
+                <label>{t('businessHub.pricingRules.endDate')}</label>
                 <input
                   type="date"
                   value={formData.seasonal.end_date}
@@ -314,13 +314,13 @@ export function PricingRulesManager({ businessId }) {
             </div>
             <div className="prm-form-row">
               <div className="prm-form-group">
-                <label>Price Multiplier</label>
+                <label>{t('businessHub.pricingRules.priceMultiplier')}</label>
                 <input
                   type="number" step="0.05" min="0.1"
                   value={formData.seasonal.price_multiplier}
                   onChange={e => setDimension('seasonal', { price_multiplier: parseFloat(e.target.value) })}
                 />
-                <small>e.g. 1.2 = 20% markup</small>
+                <small>{t('businessHub.pricingRules.multiplierHint', { value: '1.2', percent: '20%' })}</small>
               </div>
             </div>
           </div>
@@ -331,13 +331,13 @@ export function PricingRulesManager({ businessId }) {
   };
 
   if (loadingSvc) {
-    return <div className="prm-loading">Loading services...</div>;
+    return <div className="prm-loading">{t('businessHub.pricingRules.loadingServices')}</div>;
   }
 
   if (services.length === 0) {
     return (
       <div className="prm-empty">
-        <p>No services found. Add a service first before setting pricing rules.</p>
+        <p>{t('businessHub.pricingRules.noServices')}</p>
       </div>
     );
   }
@@ -345,20 +345,20 @@ export function PricingRulesManager({ businessId }) {
   return (
     <div className="prm-container">
       <div className="prm-header">
-        <h3>Pricing Rules</h3>
+        <h3>{t('businessHub.pricingRules.title')}</h3>
         {!showForm && (
           <button
             onClick={() => { setFormData(DEFAULT_FORM); setShowForm(true); }}
             className="prm-btn-new"
           >
-            <Plus size={18} /> New Rule
+            <Plus size={18} /> {t('businessHub.pricingRules.newRule')}
           </button>
         )}
       </div>
 
       {/* Service selector */}
       <div className="prm-form-group" style={{ marginBottom: '1rem' }}>
-        <label>Service</label>
+        <label>{t('businessHub.pricingRules.service')}</label>
         <select
           value={selectedServiceId || ''}
           onChange={e => { setSelectedServiceId(e.target.value); setShowForm(false); }}
@@ -371,28 +371,28 @@ export function PricingRulesManager({ businessId }) {
 
       {showForm ? (
         <div className="prm-form-container">
-          <h4>Create Pricing Rule</h4>
+          <h4>{t('businessHub.pricingRules.createRule')}</h4>
 
           <div className="prm-form-row">
             <div className="prm-form-group">
-              <label>Rule Type *</label>
+              <label>{t('businessHub.pricingRules.ruleTypeRequired')}</label>
               <select
                 value={formData.rule_type}
                 onChange={e => setFormData({ ...formData, rule_type: e.target.value })}
               >
-                {RULE_TYPES.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                {RULE_TYPES.map(ruleType => (
+                  <option key={ruleType.id} value={ruleType.id}>{t(`businessHub.pricingRules.types.${ruleType.nameKey}`)}</option>
                 ))}
               </select>
             </div>
             <div className="prm-form-group">
-              <label>Priority</label>
+              <label>{t('businessHub.pricingRules.priority')}</label>
               <input
                 type="number" min="0" max="100"
                 value={formData.priority}
                 onChange={e => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
               />
-              <small>Higher value = evaluated first</small>
+              <small>{t('businessHub.pricingRules.priorityHint')}</small>
             </div>
           </div>
 
@@ -400,10 +400,10 @@ export function PricingRulesManager({ businessId }) {
 
           <div className="prm-form-buttons">
             <button onClick={() => setShowForm(false)} className="prm-btn-cancel">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button onClick={handleSaveRule} className="prm-btn-save">
-              Save Rule
+              {t('businessHub.pricingRules.saveRule')}
             </button>
           </div>
         </div>
@@ -411,19 +411,19 @@ export function PricingRulesManager({ businessId }) {
         <div className="prm-rules-grid">
           {error && (
             <div className="prm-error" style={{ padding: '1rem', backgroundColor: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b', marginBottom: '1rem' }}>
-              <p><strong>Error:</strong> {error}</p>
+              <p><strong>{t('businessHub.pricingRules.errorLabel')}:</strong> {error}</p>
               <button onClick={loadRules} className="prm-btn-new" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                Try Again
+                {t('common.tryAgain')}
               </button>
             </div>
           )}
           {loadingRules ? (
-            <div className="prm-loading">Loading pricing rules...</div>
+            <div className="prm-loading">{t('businessHub.pricingRules.loadingRules')}</div>
           ) : rules.length === 0 ? (
             <div className="prm-empty">
-              <p>No pricing rules for this service yet.</p>
+              <p>{t('businessHub.pricingRules.noRules')}</p>
               <button onClick={() => setShowForm(true)} className="prm-btn-new-large">
-                Create First Rule
+                {t('businessHub.pricingRules.createFirstRule')}
               </button>
             </div>
           ) : (
@@ -442,13 +442,13 @@ export function PricingRulesManager({ businessId }) {
                       <div className="prm-rule-icon">
                         <Icon size={16} />
                       </div>
-                      <h4>{typeInfo.name}</h4>
+                      <h4>{t(`businessHub.pricingRules.types.${typeInfo.nameKey}`, typeInfo.nameKey || rule.rule_type)}</h4>
                       <div className="prm-rule-actions">
                         <button
                           onClick={() => handleToggleRule(rule.id, rule.is_active)}
                           className="prm-btn-action"
-                          aria-label={rule.is_active ? 'Disable rule' : 'Enable rule'}
-                          title={rule.is_active ? 'Disable' : 'Enable'}
+                          aria-label={rule.is_active ? t('businessHub.pricingRules.disableRule') : t('businessHub.pricingRules.enableRule')}
+                          title={rule.is_active ? t('businessHub.pricingRules.disable') : t('businessHub.pricingRules.enable')}
                         >
                           {rule.is_active
                             ? <ToggleRight size={18} style={{ color: '#f97316' }} />
@@ -457,7 +457,7 @@ export function PricingRulesManager({ businessId }) {
                         <button
                           onClick={() => handleDeleteRule(rule.id)}
                           className="prm-btn-action delete"
-                          aria-label="Delete rule"
+                          aria-label={t('businessHub.pricingRules.deleteRule')}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -465,18 +465,18 @@ export function PricingRulesManager({ businessId }) {
                     </div>
 
                     <p className="prm-rule-description" style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: 'var(--muted-text)' }}>
-                      {typeInfo.description}
+                      {t(`businessHub.pricingRules.types.${typeInfo.descriptionKey}`, typeInfo.descriptionKey || '')}
                     </p>
 
                     {rule.priority > 0 && (
                       <div className="prm-rule-detail">
-                        <strong>Priority:</strong> {rule.priority}
+                        <strong>{t('businessHub.pricingRules.priority')}:</strong> {rule.priority}
                       </div>
                     )}
 
                     <div className="prm-rule-meta">
                       <span className={`prm-status ${rule.is_active ? 'active' : 'inactive'}`}>
-                        {rule.is_active ? 'Active' : 'Inactive'}
+                        {rule.is_active ? t('businessHub.pricingRules.active') : t('businessHub.pricingRules.inactive')}
                       </span>
                     </div>
                   </div>
