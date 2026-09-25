@@ -8,21 +8,21 @@ import '../../styles/BusinessIntegrations.css';
 const INTEGRATIONS = [
   {
     id: 'webhooks',
-    name: 'Webhooks',
+    nameKey: 'webhooks',
     description: 'Receive real-time notifications for events',
     icon: '🔗',
     status_field: 'webhooks_enabled'
   },
   {
     id: 'sms',
-    name: 'SMS Notifications',
+    nameKey: 'sms',
     description: 'Send appointment reminders via SMS',
     icon: '📱',
     status_field: 'sms_enabled'
   },
   {
     id: 'calendar',
-    name: 'Calendar Sync',
+    nameKey: 'calendar',
     description: 'Sync appointments to Google Calendar or Outlook',
     icon: '📅',
     status_field: 'calendar_sync_enabled'
@@ -30,13 +30,13 @@ const INTEGRATIONS = [
 ];
 
 const WEBHOOK_EVENTS = [
-  { id: 'appointment.created', name: 'Appointment Created', description: 'When a new appointment is booked' },
-  { id: 'appointment.confirmed', name: 'Appointment Confirmed', description: 'When customer confirms appointment' },
-  { id: 'appointment.completed', name: 'Appointment Completed', description: 'When appointment is finished' },
-  { id: 'appointment.cancelled', name: 'Appointment Cancelled', description: 'When appointment is cancelled' },
-  { id: 'payment.received', name: 'Payment Received', description: 'When payment is received' },
-  { id: 'customer.joined', name: 'New Customer', description: 'When a new customer signs up' },
-  { id: 'review.received', name: 'Review Received', description: 'When customer leaves a review' }
+  { id: 'appointment.created', nameKey: 'appointmentCreated', descriptionKey: 'appointmentCreatedDesc' },
+  { id: 'appointment.confirmed', nameKey: 'appointmentConfirmed', descriptionKey: 'appointmentConfirmedDesc' },
+  { id: 'appointment.completed', nameKey: 'appointmentCompleted', descriptionKey: 'appointmentCompletedDesc' },
+  { id: 'appointment.cancelled', nameKey: 'appointmentCancelled', descriptionKey: 'appointmentCancelledDesc' },
+  { id: 'payment.received', nameKey: 'paymentReceived', descriptionKey: 'paymentReceivedDesc' },
+  { id: 'customer.joined', nameKey: 'newCustomer', descriptionKey: 'newCustomerDesc' },
+  { id: 'review.received', nameKey: 'reviewReceived', descriptionKey: 'reviewReceivedDesc' }
 ];
 
 export function BusinessIntegrations({ businessId }) {
@@ -115,10 +115,10 @@ export function BusinessIntegrations({ businessId }) {
         `/businesses/${businessId}/integrations/sms_notifications`,
         { enabled: nextEnabled }
       );
-      toast.success(nextEnabled ? 'SMS reminders enabled' : 'SMS reminders disabled');
+      toast.success(nextEnabled ? t('businessHub.integrations.smsEnabled') : t('businessHub.integrations.smsDisabled'));
       await loadIntegrations();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to update SMS settings');
+      toast.error(error.response?.data?.error || t('businessHub.integrations.smsUpdateFailed'));
     } finally {
       setSavingIntegration(null);
     }
@@ -131,17 +131,17 @@ export function BusinessIntegrations({ businessId }) {
         `/businesses/${businessId}/integrations/google_calendar`,
         { enabled: true, setup_requested: true }
       );
-      toast.success('Calendar setup request saved');
+      toast.success(t('businessHub.integrations.calendarSetupSaved'));
       await loadIntegrations();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to save calendar setup request');
+      toast.error(error.response?.data?.error || t('businessHub.integrations.calendarSetupFailed'));
     } finally {
       setSavingIntegration(null);
     }
   };
 
   const handleRegenerateApiKey = async () => {
-    if (!window.confirm('Regenerate this API key? The previous key will stop working immediately.')) return;
+    if (!window.confirm(t('businessHub.integrations.regenerateConfirm'))) return;
 
     try {
       setSavingIntegration('api-key');
@@ -151,9 +151,9 @@ export function BusinessIntegrations({ businessId }) {
       const apiKey = response.data?.api_key || '';
       setNewApiKey(apiKey);
       setIntegrations((current) => ({ ...current, api_key: apiKey }));
-      toast.success('API key regenerated');
+      toast.success(t('businessHub.integrations.apiKeyRegenerated'));
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to regenerate API key');
+      toast.error(error.response?.data?.error || t('businessHub.integrations.apiKeyRegenerateFailed'));
     } finally {
       setSavingIntegration(null);
     }
@@ -190,7 +190,7 @@ export function BusinessIntegrations({ businessId }) {
             <div key={integration.id} className={`bi-integration-card ${isEnabled ? 'enabled' : 'disabled'}`}>
               <div className="bi-integration-header">
                 <span className="bi-integration-icon">{integration.icon}</span>
-                <h4>{integration.name}</h4>
+                <h4>{t(`businessHub.integrations.cardNames.${integration.nameKey}`)}</h4>
                 <span className={`bi-status-badge ${isEnabled ? 'active' : 'inactive'}`}>
                   {isEnabled ? <Check size={14} /> : <X size={14} />}
                   {isEnabled ? t('businessHub.integrations.connected') : t('businessHub.integrations.notConnected')}
@@ -201,13 +201,13 @@ export function BusinessIntegrations({ businessId }) {
               {integration.id === 'webhooks' && (
                 <div className="bi-integration-actions">
                   <p className="bi-status-text">
-                    {webhooks.length} webhook{webhooks.length !== 1 ? 's' : ''} configured
+                    {t('businessHub.integrations.webhooksConfigured', { count: webhooks.length })}
                   </p>
                   <button
                     onClick={() => setShowWebhookForm(!showWebhookForm)}
                     className="bi-btn-secondary"
                   >
-                    <Plus size={16} /> Add Webhook
+                    <Plus size={16} /> {t('businessHub.integrations.addWebhook')}
                   </button>
                 </div>
               )}
@@ -215,14 +215,14 @@ export function BusinessIntegrations({ businessId }) {
               {integration.id === 'sms' && (
                 <div className="bi-integration-actions">
                   <p className="bi-status-text">
-                    {isEnabled ? 'SMS reminders enabled' : 'Enable SMS reminders for customers'}
+                    {isEnabled ? t('businessHub.integrations.smsEnabled') : t('businessHub.integrations.smsPrompt')}
                   </p>
                   <button
                     className={isEnabled ? 'bi-btn-danger' : 'bi-btn-primary'}
                     onClick={handleToggleSms}
                     disabled={savingIntegration === 'sms'}
                   >
-                    {savingIntegration === 'sms' ? 'Saving...' : `${isEnabled ? 'Disable' : 'Enable'} SMS`}
+                    {savingIntegration === 'sms' ? t('businessHub.integrations.saving') : (isEnabled ? t('businessHub.integrations.disableSms') : t('businessHub.integrations.enableSms'))}
                   </button>
                 </div>
               )}
@@ -231,15 +231,15 @@ export function BusinessIntegrations({ businessId }) {
                 <div className="bi-integration-actions">
                   <p className="bi-status-text">
                     {integrations.calendar_setup_status === 'setup_requested'
-                      ? 'Setup request saved. OxSteed will guide connection next.'
-                      : isEnabled ? 'Calendar sync setup requested' : 'Request guided calendar setup'}
+                      ? t('businessHub.integrations.calendarSetupRequested')
+                      : isEnabled ? t('businessHub.integrations.calendarSyncRequested') : t('businessHub.integrations.calendarSetupPrompt')}
                   </p>
                   <button
                     className="bi-btn-primary"
                     onClick={handleRequestCalendarSetup}
                     disabled={savingIntegration === 'calendar'}
                   >
-                    <Settings size={16} /> {savingIntegration === 'calendar' ? 'Saving...' : 'Request Setup'}
+                    <Settings size={16} /> {savingIntegration === 'calendar' ? t('businessHub.integrations.saving') : t('businessHub.integrations.requestSetup')}
                   </button>
                 </div>
               )}
@@ -250,22 +250,22 @@ export function BusinessIntegrations({ businessId }) {
 
       {showWebhookForm && (
         <div className="bi-webhook-form-container">
-          <h4>Add Webhook</h4>
+          <h4>{t('businessHub.integrations.addWebhook')}</h4>
           
           <div className="bi-form-group">
-            <label>Webhook URL *</label>
+            <label>{t('businessHub.integrations.webhookUrlRequired')}</label>
             <input
               type="url"
               value={webhookForm.url}
               onChange={(e) => setWebhookForm({ ...webhookForm, url: e.target.value })}
-              placeholder="https://your-api.example.com/webhooks"
+              placeholder={t('businessHub.integrations.webhookUrlPlaceholder')}
               required
             />
-            <small>HTTPS URLs only. We'll POST events to this URL.</small>
+            <small>{t('businessHub.integrations.webhookUrlHint')}</small>
           </div>
 
           <div className="bi-form-group">
-            <label>Events to Subscribe To *</label>
+            <label>{t('businessHub.integrations.eventsRequired')}</label>
             <div className="bi-event-checkboxes">
               {WEBHOOK_EVENTS.map(event => (
                 <label key={event.id} className="bi-checkbox-label">
@@ -275,8 +275,8 @@ export function BusinessIntegrations({ businessId }) {
                     onChange={() => toggleWebhookEvent(event.id)}
                   />
                   <span className="bi-checkbox-text">
-                    <strong>{event.name}</strong>
-                    <span className="bi-event-desc">{event.description}</span>
+                    <strong>{t(`businessHub.integrations.events.${event.nameKey}`)}</strong>
+                    <span className="bi-event-desc">{t(`businessHub.integrations.events.${event.descriptionKey}`)}</span>
                   </span>
                 </label>
               ))}
@@ -285,10 +285,10 @@ export function BusinessIntegrations({ businessId }) {
 
           <div className="bi-form-buttons">
             <button onClick={() => setShowWebhookForm(false)} className="bi-btn-cancel">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button onClick={handleAddWebhook} className="bi-btn-save">
-              Create Webhook
+              {t('businessHub.integrations.createWebhook')}
             </button>
           </div>
         </div>
@@ -296,7 +296,7 @@ export function BusinessIntegrations({ businessId }) {
 
       {webhooks.length > 0 && (
         <div className="bi-webhooks-list">
-          <h4>Active Webhooks</h4>
+          <h4>{t('businessHub.integrations.activeWebhooks')}</h4>
           {webhooks.map(webhook => (
             <div key={webhook.id} className="bi-webhook-item">
               <div className="bi-webhook-info">
@@ -305,22 +305,22 @@ export function BusinessIntegrations({ businessId }) {
                   <button
                     onClick={() => copyToClipboard(webhook.url)}
                     className="bi-btn-copy"
-                    aria-label="Copy URL"
+                    aria-label={t('businessHub.integrations.copyUrl')}
                   >
                     <Copy size={14} />
                   </button>
                 </p>
                 <p className="bi-webhook-events">
-                  <strong>Events:</strong> {webhook.events.length} subscribed
+                  <strong>{t('businessHub.integrations.eventsLabel')}:</strong> {t('businessHub.integrations.subscribed', { count: webhook.events.length })}
                 </p>
                 <p className="bi-webhook-status">
-                  Last delivery: {webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleDateString() : 'Never'}
+                  {t('businessHub.integrations.lastDelivery')}: {webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleDateString() : t('businessHub.integrations.never')}
                 </p>
               </div>
               <button
                 onClick={() => handleDeleteWebhook(webhook.id)}
                 className="bi-btn-delete"
-                aria-label="Delete webhook"
+                aria-label={t('businessHub.integrations.deleteWebhook')}
               >
                 <Trash2 size={16} />
               </button>
@@ -330,15 +330,15 @@ export function BusinessIntegrations({ businessId }) {
       )}
 
       <div className="bi-settings-section">
-        <h4>API & Developer Settings</h4>
+        <h4>{t('businessHub.integrations.apiSettings')}</h4>
         
         <div className="bi-setting-item">
           <div className="bi-setting-info">
-            <h5>API Key</h5>
-            <p>{newApiKey ? 'Copy this key now and store it securely.' : 'Use a generated key for direct API access.'}</p>
+            <h5>{t('businessHub.integrations.apiKey')}</h5>
+            <p>{newApiKey ? t('businessHub.integrations.copyKeyHint') : t('businessHub.integrations.apiKeyHint')}</p>
           </div>
           <div className="bi-setting-value">
-            <code>{integrations.api_key || 'No API key generated yet'}</code>
+            <code>{integrations.api_key || t('businessHub.integrations.noApiKey')}</code>
             <button
               onClick={() => copyToClipboard(integrations.api_key || '')}
               className="bi-btn-copy"
@@ -351,15 +351,15 @@ export function BusinessIntegrations({ businessId }) {
 
         <div className="bi-setting-item">
           <div className="bi-setting-info">
-            <h5>Regenerate API Key</h5>
-            <p>Create a new API key. Old key will be invalidated.</p>
+            <h5>{t('businessHub.integrations.regenerateApiKey')}</h5>
+            <p>{t('businessHub.integrations.regenerateApiKeyHint')}</p>
           </div>
           <button
             onClick={handleRegenerateApiKey}
             className="bi-btn-secondary"
             disabled={savingIntegration === 'api-key'}
           >
-            <RefreshCw size={16} /> {savingIntegration === 'api-key' ? 'Regenerating...' : 'Regenerate'}
+            <RefreshCw size={16} /> {savingIntegration === 'api-key' ? t('businessHub.integrations.regenerating') : t('businessHub.integrations.regenerate')}
           </button>
         </div>
       </div>
