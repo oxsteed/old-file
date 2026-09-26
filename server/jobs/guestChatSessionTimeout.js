@@ -58,6 +58,7 @@ const startGuestChatSessionTimeoutJob = () => {
             await client.query(
               `UPDATE guest_profile_chat_inbound
                SET session_status = $1,
+                   helper_response_deadline = NULL,
                    ai_fallback_triggered_at = CURRENT_TIMESTAMP,
                    last_activity_at = CURRENT_TIMESTAMP
                WHERE id = $2`,

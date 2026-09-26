@@ -90,6 +90,13 @@ async function updateSessionStatus(
     ...updates
   };
 
+  // The database requires helper_response_deadline to be NULL once a session
+  // leaves waiting_for_helper. Enforce that invariant centrally so every
+  // status transition remains valid, including future callers.
+  if (newStatus !== 'waiting_for_helper') {
+    updateFields.helper_response_deadline = null;
+  }
+
   const updateKeys = Object.keys(updateFields);
   const setClause = updateKeys
     .map((key, i) => `${key} = $${i + 2}`)
