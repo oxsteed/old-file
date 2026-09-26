@@ -11,6 +11,7 @@ import QRCodeStyling from 'qr-code-styling';
 import logger from '../utils/logger';
 import './QRCodeGeneratorPage.css';
 import { canUseQrGenerator } from '../utils/modeAccess';
+import { prepareQrLogo } from '../utils/qrLogo';
 import { Trash2, Download, Copy, Check, Plus } from 'lucide-react';
 
 const QRCodeGeneratorPage = () => {
@@ -18,6 +19,7 @@ const QRCodeGeneratorPage = () => {
   const { user } = useAuth();
   const qrRef = useRef(null);
   const logoInputRef = useRef(null);
+  const logoUploadRef = useRef(null);
   const canUseQr = canUseQrGenerator(user);
 
   // State for live preview form
@@ -40,11 +42,17 @@ const QRCodeGeneratorPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
+  const [logoProcessing, setLogoProcessing] = useState(false);
   const previewInput = JSON.stringify([
     formData.url, formData.size, formData.dotColor,
     formData.backgroundColor, formData.dotStyle, logoDataUrl,
   ]);
-  const previewReady = Boolean(qrInstance && generatedInput === previewInput);
+  const previewReady = Boolean(!logoProcessing && qrInstance && generatedInput === previewInput);
+
+  useEffect(() => () => {
+    logoUploadRef.current?.abort();
+    logoUploadRef.current = null;
+  }, []);
 
   // Initialize QR code instance and regenerate on changes. Keep the async
   // preview work inside the effect so rejected image generation is surfaced
@@ -151,39 +159,35 @@ const QRCodeGeneratorPage = () => {
     }));
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
+    const input = e.target;
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error(t('qrGenerator.logoUnsupported'));
-      e.target.value = '';
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t('qrGenerator.logoTooLarge'));
-      e.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setLogoDataUrl(reader.result);
-      } else {
-        toast.error(t('qrGenerator.errorGenerating'));
+    logoUploadRef.current?.abort();
+    const controller = new AbortController();
+    logoUploadRef.current = controller;
+    setLogoProcessing(true);
+    try {
+      const normalized = await prepareQrLogo(file, controller.signal);
+      if (!controller.signal.aborted) setLogoDataUrl(normalized);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      const key = ['logoTooLarge', 'logoUnsupported', 'logoDimensions', 'logoInvalid'].includes(err.message)
+        ? err.message : 'logoInvalid';
+      toast.error(t(`qrGenerator.${key}`));
+      input.value = '';
+    } finally {
+      if (logoUploadRef.current === controller) {
+        logoUploadRef.current = null;
+        setLogoProcessing(false);
       }
-    };
-    reader.onerror = () => {
-      logger.error('QRCodeGeneratorPage: failed to read logo image');
-      toast.error(t('qrGenerator.errorGenerating'));
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleRemoveLogo = () => {
+    logoUploadRef.current?.abort();
+    logoUploadRef.current = null;
+    setLogoProcessing(false);
     setLogoDataUrl('');
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
@@ -422,8 +426,11 @@ const QRCodeGeneratorPage = () => {
                   accept="image/png,image/jpeg,image/webp"
                   onChange={handleLogoChange}
                   className="qrg-file-input"
+                  aria-describedby="logo-help"
                 />
-                {logoDataUrl && (
+                <p id="logo-help">{t('qrGenerator.logoHelp')}</p>
+                {logoProcessing && <p role="status">{t('qrGenerator.logoProcessing')}</p>}
+                {(logoDataUrl || logoProcessing) && (
                   <button
                     type="button"
                     onClick={handleRemoveLogo}

@@ -32,3 +32,27 @@ Verification completed:
 - Production container inspection confirmed the upload directory has a
   persistent bind mount. No legacy saved QR images were present in the inspected
   container. No customer account records were changed during verification.
+
+## Larger logo uploads
+
+The logo picker now accepts up to 15 MiB (shown as 15 MB in the UI) for PNG,
+JPEG, and WebP. The source file stays in the browser; the server still receives
+only the final generated QR PNG and keeps its existing 1 MB JSON-body limit.
+
+Before decoding, the browser reads at most 64 KiB of headers, checks that the
+content matches the declared supported image type, and rejects dimensions above
+24 million pixels or 8192 pixels per side. Files whose dimensions cannot be
+determined within that bounded header are rejected. Header parsing uses pinned
+`image-size@2.0.4` with only its PNG/JPEG/WebP parsers imported; see its
+[buffer API documentation](https://github.com/image-size/image-size#passing-in-a-bufferuint8array).
+Header checks are followed by actual browser decoding. The accepted image is
+redrawn to a PNG of at most 512 pixels per side, preserving aspect ratio and
+transparency while dropping original metadata. Decoding times out after 10
+seconds. Changing/removing an upload cancels stale work, and object URLs are
+revoked after processing. Client validation protects this browser flow; it is
+not a replacement for server-side request limits or authorization.
+
+The real Chrome test accepted an 11.5 MiB JPEG, verified PNG/JPEG/WebP resizing,
+and rejected forged PNG content and a file over 15 MiB. Unit tests cover the
+exact size boundary, empty/corrupt images, mismatched file types, and excessive
+pixel dimensions. The four unit tests now run automatically before `build:ci`.

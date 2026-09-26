@@ -33,6 +33,8 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     stdin: {
       contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
         import Page from './src/pages/QRCodeGeneratorPage.jsx';
+        import {prepareQrLogo} from './src/utils/qrLogo.js';
+        window.prepareQrLogo = prepareQrLogo;
         window.qrErrors = []; window.savedQRs = [];
         createRoot(document.getElementById('root')).render(<Page />);`,
       resolveDir: path.resolve(__dirname, '..'), loader: 'jsx',
@@ -80,6 +82,58 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
     await page.getByRole('button', {name: 'qrGenerator.removeLogo'}).click();
     await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
+    // A real high-quality JPEG larger than the old limit, not just a fake MIME label.
+    const largeJpeg = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2300; canvas.height = 1800;
+      const context = canvas.getContext('2d');
+      const pixels = context.createImageData(canvas.width, canvas.height);
+      let seed = 42;
+      for (let i = 0; i < pixels.data.length; i += 4) {
+        for (let c = 0; c < 3; c++) { seed = (Math.imul(seed, 1664525) + 1013904223) | 0; pixels.data[i+c] = seed >>> 24; }
+        pixels.data[i+3] = 255;
+      }
+      context.putImageData(pixels, 0, 0);
+      return canvas.toDataURL('image/jpeg', 1);
+    });
+    const jpegBytes = Buffer.from(largeJpeg.split(',')[1], 'base64');
+    assert.ok(jpegBytes.length > 5 * 1024 * 1024 && jpegBytes.length < 15 * 1024 * 1024);
+    await page.locator('#logoUpload').setInputFiles({name:'large-logo.jpg', mimeType:'image/jpeg', buffer:jpegBytes});
+    await page.waitForFunction(() => !document.querySelector('.qrg-download-buttons button').disabled);
+    const normalized = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1600; canvas.height = 800;
+      canvas.getContext('2d').fillRect(0, 0, 1600, 800);
+      const results = [];
+      for (const type of ['image/png', 'image/jpeg', 'image/webp']) {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, type));
+        const data = await window.prepareQrLogo(blob);
+        const img = new Image(); img.src = data; await img.decode();
+        results.push({type, width:img.naturalWidth, height:img.naturalHeight, png:data.startsWith('data:image/png;')});
+      }
+      return results;
+    });
+    for (const result of normalized) assert.deepEqual(result, {type:result.type, width:512, height:256, png:true});
+    const failureChecks = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas');
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const results = [];
+      // Valid PNG dimensions but missing image data must fail native decoding.
+      try { await window.prepareQrLogo(blob.slice(0, 30, 'image/png')); }
+      catch (error) { results.push(error.message); }
+      const controller = new AbortController();
+      const pending = window.prepareQrLogo(blob, controller.signal);
+      controller.abort();
+      try { await pending; } catch (error) { results.push(error.name); }
+      return results;
+    });
+    assert.deepEqual(failureChecks, ['logoInvalid', 'AbortError']);
+    await page.locator('#logoUpload').setInputFiles({name:'forged.png', mimeType:'image/png', buffer:Buffer.from('<svg onload="alert(1)"/>')});
+    await page.waitForFunction(() => window.qrErrors.includes('qrGenerator.logoInvalid'));
+    await page.locator('#logoUpload').setInputFiles({name:'too-big.png', mimeType:'image/png', buffer:Buffer.alloc(15 * 1024 * 1024 + 1)});
+    await page.waitForFunction(() => window.qrErrors.includes('qrGenerator.logoTooLarge'));
+    assert.deepEqual(await page.evaluate(() => window.qrErrors.splice(0)), ['qrGenerator.logoInvalid', 'qrGenerator.logoTooLarge']);
+    console.log(`Verified ${(jpegBytes.length / 1024 / 1024).toFixed(1)} MiB JPG, PNG/JPG/WebP resizing, forged-file rejection, and 15 MiB boundary.`);
     await page.locator('#url').fill('');
     assert.equal(await png.isDisabled(), true);
     assert.equal(await page.getByRole('button', {name:'qrGenerator.save',exact:true}).isDisabled(), true);
