@@ -9848,6 +9848,7 @@
     "logoDimensions": "Choisissez une image de 24 mégapixels maximum et 8192 pixels par côté.",
     "logoHelp": "PNG, JPG ou WebP de 15 Mo et 24 mégapixels maximum. Les logos sont redimensionnés automatiquement.",
     "logoProcessing": "Préparation du logo…",
+    "logoProcessingDetail": "Vérification du fichier, redimensionnement et actualisation de l’aperçu QR.",
     "save": "Enregistrer le Code QR",
     "savedQRs": "Vos Codes QR Enregistrés",
     "noImage": "Aucune image",

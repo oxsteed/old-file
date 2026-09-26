@@ -49,6 +49,7 @@ const QRCodeGeneratorPage = () => {
     formData.backgroundColor, formData.dotStyle, logoDataUrl,
   ]);
   const previewReady = Boolean(!logoProcessing && qrInstance && generatedInput === previewInput);
+  const showLogoProcessing = logoProcessing || (Boolean(logoDataUrl) && !previewReady);
 
   useEffect(() => () => {
     logoUploadRef.current?.abort();
@@ -432,7 +433,16 @@ const QRCodeGeneratorPage = () => {
                   aria-describedby="logo-help"
                 />
                 <p id="logo-help">{t('qrGenerator.logoHelp')}</p>
-                {logoProcessing && <p role="status">{t('qrGenerator.logoProcessing')}</p>}
+                {showLogoProcessing && (
+                  <div className="qrg-logo-processing" role="status" aria-live="polite">
+                    <span className="qrg-processing-spinner" aria-hidden="true" />
+                    <span className="qrg-processing-copy">
+                      <strong>{t('qrGenerator.logoProcessing')}</strong>
+                      <small>{t('qrGenerator.logoProcessingDetail')}</small>
+                    </span>
+                    <span className="qrg-processing-track" aria-hidden="true"><span /></span>
+                  </div>
+                )}
                 {(logoDataUrl || logoProcessing) && (
                   <button
                     type="button"

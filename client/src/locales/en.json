@@ -9883,6 +9883,7 @@
     "logoDimensions": "Choose an image up to 24 megapixels and 8192 pixels per side.",
     "logoHelp": "PNG, JPG, or WebP up to 15 MB and 24 megapixels. Logos are resized automatically.",
     "logoProcessing": "Preparing logo…",
+    "logoProcessingDetail": "Checking the file, resizing it, and rebuilding your QR preview.",
     "save": "Save QR Code",
     "savedQRs": "Your Saved QR Codes",
     "noImage": "No image",
