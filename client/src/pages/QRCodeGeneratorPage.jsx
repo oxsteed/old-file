@@ -31,8 +31,8 @@ const QRCodeGeneratorPage = () => {
   });
 
   // QR code instance
-  const [qrCode, setQRCode] = useState(null);
   const [qrInstance, setQRInstance] = useState(null);
+  const [generatedInput, setGeneratedInput] = useState(null);
 
   // Saved QR codes list
   const [savedQRs, setSavedQRs] = useState([]);
@@ -40,18 +40,22 @@ const QRCodeGeneratorPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
+  const previewInput = JSON.stringify([
+    formData.url, formData.size, formData.dotColor,
+    formData.backgroundColor, formData.dotStyle, logoDataUrl,
+  ]);
+  const previewReady = Boolean(qrInstance && generatedInput === previewInput);
 
   // Initialize QR code instance and regenerate on changes. Keep the async
   // preview work inside the effect so rejected image generation is surfaced
   // instead of becoming an unhandled promise rejection.
   useEffect(() => {
     let cancelled = false;
-    let previewUrl = null;
+    setQRInstance(null);
+    setGeneratedInput(null);
+    if (qrRef.current) qrRef.current.innerHTML = '';
 
-    if (!formData.url) {
-      setQRInstance(null);
-      setQRCode(null);
-      if (qrRef.current) qrRef.current.innerHTML = '';
+    if (!canUseQr || !formData.url.trim()) {
       return undefined;
     }
 
@@ -62,12 +66,14 @@ const QRCodeGeneratorPage = () => {
           height: Number(formData.size),
           data: formData.url,
           image: logoDataUrl || undefined,
-          imageOptions: logoDataUrl ? {
+          // Undefined nested options overwrite the library defaults and crash
+          // its constructor. Supply valid options with and without a logo.
+          imageOptions: {
             hideBackgroundDots: true,
             imageSize: 0.22,
             margin: 5,
-          } : undefined,
-          qrOptions: logoDataUrl ? { errorCorrectionLevel: 'H' } : undefined,
+          },
+          qrOptions: { errorCorrectionLevel: logoDataUrl ? 'H' : 'Q' },
           dotsOptions: {
             color: formData.dotColor,
             type: formData.dotStyle,
@@ -78,22 +84,19 @@ const QRCodeGeneratorPage = () => {
           margin: 10,
         });
 
+        const blob = await qr.getRawData('png');
         if (cancelled) return;
-        setQRInstance(qr);
-
+        if (!blob || !blob.size) throw new Error('QR image is empty');
         if (qrRef.current) {
           qrRef.current.innerHTML = '';
           qr.append(qrRef.current);
         }
-
-        const blob = await qr.getRawData('png');
-        if (cancelled) return;
-        previewUrl = URL.createObjectURL(blob);
-        setQRCode(previewUrl);
+        setQRInstance(qr);
+        setGeneratedInput(previewInput);
       } catch (err) {
         if (cancelled) return;
         setQRInstance(null);
-        setQRCode(null);
+        setGeneratedInput(null);
         logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
         toast.error(t('qrGenerator.errorGenerating'));
       }
@@ -103,9 +106,8 @@ const QRCodeGeneratorPage = () => {
 
     return () => {
       cancelled = true;
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
-  }, [formData, logoDataUrl, t]);
+  }, [previewInput, canUseQr, t]);
 
   // Fetch saved QR codes only after the same Pro entitlement check used by
   // the API. This prevents a generic load error for regular helpers.
@@ -193,7 +195,7 @@ const QRCodeGeneratorPage = () => {
       return;
     }
 
-    if (!qrInstance) {
+    if (!previewReady) {
       toast.error(t('qrGenerator.errorGenerating'));
       return;
     }
@@ -202,9 +204,9 @@ const QRCodeGeneratorPage = () => {
       setLoading(true);
 
       // Get current QR code image
-      let imageData = null;
       const blob = await qrInstance.getRawData('png');
-      imageData = await new Promise((resolve, reject) => {
+      if (!blob || !blob.size) throw new Error('QR image is empty');
+      const imageData = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
         reader.onerror = () => reject(new Error('Failed to read generated QR image'));
@@ -255,12 +257,21 @@ const QRCodeGeneratorPage = () => {
         throw new Error('Saved QR image is unavailable');
       }
 
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('Saved QR image is unavailable');
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('Saved QR image is invalid');
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = objectUrl;
       link.download = `${qr.title || 'qr-code'}.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setSavedQRs((items) => items.map((item) => item.id === qr.id
+        ? { ...item, download_count: Number(item.download_count || 0) + 1 }
+        : item));
       toast.success(t('qrGenerator.downloadSuccess'));
     } catch (err) {
       logger.error('QRCodeGeneratorPage: saved QR download error', {
@@ -273,7 +284,7 @@ const QRCodeGeneratorPage = () => {
 
   const handleDownloadQR = async (format = 'png') => {
     try {
-      if (!qrInstance) {
+      if (!previewReady) {
         toast.error(t('qrGenerator.errorGenerating'));
         return;
       }
@@ -485,6 +496,7 @@ const QRCodeGeneratorPage = () => {
             <div className="qrg-download-buttons">
               <button
                 onClick={() => handleDownloadQR('png')}
+                disabled={!previewReady}
                 className="qrg-button qrg-button-primary"
               >
                 <Download size={16} />
@@ -492,6 +504,7 @@ const QRCodeGeneratorPage = () => {
               </button>
               <button
                 onClick={() => handleDownloadQR('svg')}
+                disabled={!previewReady}
                 className="qrg-button qrg-button-secondary"
               >
                 <Download size={16} />
@@ -502,7 +515,7 @@ const QRCodeGeneratorPage = () => {
             <button
               onClick={() => setShowSaveModal(true)}
               className="qrg-button qrg-button-accent"
-              disabled={!formData.title.trim() || loading}
+              disabled={!formData.title.trim() || !previewReady || loading}
             >
               <Plus size={16} />
               {t('qrGenerator.save')}
@@ -543,7 +556,7 @@ const QRCodeGeneratorPage = () => {
                     <button
                       onClick={() => handleDownloadSavedQR(qr)}
                       className="qrg-action-btn"
-                      title={t('qrGenerator.downloadPNG')}
+                      title={t(qr.image_format === 'svg' ? 'qrGenerator.downloadSVG' : 'qrGenerator.downloadPNG')}
                     >
                       <Download size={18} />
                     </button>
@@ -587,7 +600,7 @@ const QRCodeGeneratorPage = () => {
               <button
                 onClick={handleSaveQR}
                 className="qrg-button qrg-button-primary"
-                disabled={loading}
+                disabled={loading || !previewReady}
               >
                 {loading ? t('common.saving') : t('qrGenerator.save')}
               </button>

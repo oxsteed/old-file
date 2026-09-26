@@ -8,18 +8,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 
-// Ensure upload directory exists
-const QR_UPLOAD_DIR = path.join(__dirname, '../../public/qr-codes');
-
-async function ensureUploadDir() {
-  try {
-    await fs.mkdir(QR_UPLOAD_DIR, { recursive: true });
-  } catch (err) {
-    logger.warn('qrCodesController: failed to create upload dir', { err: err.message });
-  }
-}
-
-ensureUploadDir();
+const { QR_UPLOAD_DIR } = require('../utils/qrCodeStorage');
 
 // ────────────────────────────────────────────────────────────────────────────
 // CREATE - Generate and save a new QR code
@@ -73,11 +62,12 @@ exports.createQRCode = async (req, res, next) => {
 
         const filename = `${uuidv4()}.${imageFormat}`;
         const filepath = path.join(QR_UPLOAD_DIR, filename);
+        await fs.mkdir(QR_UPLOAD_DIR, { recursive: true });
         await fs.writeFile(filepath, buffer);
         imageUrl = `/qr-codes/${filename}`;
       } catch (err) {
         logger.error('qrCodesController.createQRCode: failed to save image', { err: err.message, userId });
-        // Don't fail the entire request, just don't attach the image
+        return res.status(500).json({ error: 'Failed to save QR image' });
       }
     }
 
@@ -203,7 +193,7 @@ exports.updateQRCode = async (req, res, next) => {
 
     // Build dynamic update query
     const updates = [];
-    const values = [userId, id];
+    const values = [id, userId];
     let paramCount = 2;
 
     if (title !== undefined) {
