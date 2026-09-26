@@ -48,7 +48,7 @@ function getDateRange(date, mode) {
 }
 
 // Convert jobs and bookings to calendar events
-function buildCalendarEvents(jobs, bookings) {
+function buildCalendarEvents(jobs, bookings, t) {
   const events = [];
 
   // Add jobs as events
@@ -71,7 +71,7 @@ function buildCalendarEvents(jobs, bookings) {
         scheduled_end_time: endDate.toISOString(),
         status: job.status,
         price: job.budget_max || job.budget_min,
-        helper_name: job.preferred_helper_name || 'Pending',
+        helper_name: job.preferred_helper_name || t('calendar.statusPending'),
         category: job.category_name,
       });
     }
@@ -92,12 +92,12 @@ function buildCalendarEvents(jobs, bookings) {
         id: `booking-${booking.id}`,
         booking_id: booking.id,
         type: 'booking',
-        title: booking.service_name || 'Service Request',
+        title: booking.service_name || t('calendar.serviceRequest'),
         scheduled_start_time: startDate.toISOString(),
         scheduled_end_time: endDate.toISOString(),
         status: booking.status,
         price: booking.price,
-        helper_name: booking.helper_name || 'Pending',
+        helper_name: booking.helper_name || t('calendar.statusPending'),
         category: 'Booking',
       });
     }
@@ -112,7 +112,8 @@ export default function CustomerCalendarView({
   onDateChange,
   onEventClick,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const [jobs, setJobs] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [events, setEvents] = useState([]);
@@ -164,8 +165,8 @@ export default function CustomerCalendarView({
 
       setJobs(scheduledJobs);
       setBookings(scheduledBookings);
-      // buildCalendarEvents is unchanged; it uses jobs + bookings. Appointments
-      // are merged into events via a shape adapter below.
+      // Jobs and bookings are normalized before appointments are merged into
+      // the same event collection used by each calendar view.
       const apptEvents = visibleAppointments.map(a => ({
         id: `appt-${a.id}`,
         title: a.service_description || a.job_title || t('calendar.appointment', { defaultValue: 'Appointment' }),
@@ -175,7 +176,7 @@ export default function CustomerCalendarView({
         type: 'appointment',
         appointment: a,
       }));
-      setEvents([...buildCalendarEvents(scheduledJobs, scheduledBookings), ...apptEvents]);
+      setEvents([...buildCalendarEvents(scheduledJobs, scheduledBookings, t), ...apptEvents]);
 
       if (jobsResult.status === 'rejected' && bookingsResult.status === 'rejected' && apptsResult.status === 'rejected') {
         toast.error(t('calendar.errorLoading'));
@@ -218,7 +219,7 @@ export default function CustomerCalendarView({
   const getHeaderLabel = () => {
     const d = selectedDate;
     if (viewMode === 'day') {
-      return d.toLocaleDateString(undefined, {
+      return d.toLocaleDateString(locale, {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -233,12 +234,12 @@ export default function CustomerCalendarView({
       const we = new Date(ws);
       we.setDate(ws.getDate() + 6);
       const opts = { month: 'short', day: 'numeric' };
-      return `${ws.toLocaleDateString(undefined, opts)} – ${we.toLocaleDateString(undefined, { ...opts, year: 'numeric' })}`;
+      return `${ws.toLocaleDateString(locale, opts)} – ${we.toLocaleDateString(locale, { ...opts, year: 'numeric' })}`;
     }
     if (viewMode === 'agenda') {
       return t('calendar.agenda', { defaultValue: 'Agenda' });
     }
-    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
   };
 
   const showNav = viewMode !== 'agenda';
@@ -286,6 +287,7 @@ export default function CustomerCalendarView({
           events={events}
           onDateChange={onDateChange}
           onEventClick={onEventClick}
+          locale={locale}
         />
       )}
 
@@ -294,6 +296,7 @@ export default function CustomerCalendarView({
           selectedDate={selectedDate}
           events={events}
           onEventClick={onEventClick}
+          locale={locale}
         />
       )}
 
@@ -302,6 +305,7 @@ export default function CustomerCalendarView({
           selectedDate={selectedDate}
           events={events}
           onEventClick={onEventClick}
+          locale={locale}
         />
       )}
 
@@ -310,6 +314,7 @@ export default function CustomerCalendarView({
           events={events}
           onEventClick={onEventClick}
           t={t}
+          locale={locale}
         />
       )}
     </div>
@@ -318,7 +323,7 @@ export default function CustomerCalendarView({
 
 // ─── Month View ───────────────────────────────────────────────────────────────
 
-function MonthView({ selectedDate, events, onDateChange, onEventClick }) {
+function MonthView({ selectedDate, events, onDateChange, onEventClick, locale }) {
   const { t } = useTranslation();
   const today = new Date();
 
@@ -405,7 +410,7 @@ function MonthView({ selectedDate, events, onDateChange, onEventClick }) {
 
 // ─── Week View ────────────────────────────────────────────────────────────────
 
-function WeekView({ selectedDate, events, onEventClick }) {
+function WeekView({ selectedDate, events, onEventClick, locale }) {
   const { t } = useTranslation();
   const today = new Date();
   const scrollRef = useRef(null);
@@ -508,7 +513,7 @@ function WeekView({ selectedDate, events, onEventClick }) {
                       {slotEvents.map((evt) => {
                         try {
                           const evtStart = new Date(evt.scheduled_start_time);
-                          const timeStr = evtStart.toLocaleTimeString(undefined, {
+                          const timeStr = evtStart.toLocaleTimeString(locale, {
                             hour: '2-digit',
                             minute: '2-digit',
                           });
@@ -542,7 +547,7 @@ function WeekView({ selectedDate, events, onEventClick }) {
 
 // ─── Day View ─────────────────────────────────────────────────────────────────
 
-function DayView({ selectedDate, events, onEventClick }) {
+function DayView({ selectedDate, events, onEventClick, locale }) {
   const scrollRef = useRef(null);
   const today = new Date();
   const isToday = isSameDay(selectedDate, today);
@@ -570,7 +575,7 @@ function DayView({ selectedDate, events, onEventClick }) {
   return (
     <div className="ccv-day-view">
       <div className="ccv-day-title">
-        {selectedDate.toLocaleDateString(undefined, {
+        {selectedDate.toLocaleDateString(locale, {
           weekday: 'long',
           month: 'long',
           day: 'numeric',
@@ -616,7 +621,7 @@ function DayView({ selectedDate, events, onEventClick }) {
                   {hourEvents.map((evt) => {
                     try {
                       const evtStart = new Date(evt.scheduled_start_time);
-                      const timeStr = evtStart.toLocaleTimeString(undefined, {
+                      const timeStr = evtStart.toLocaleTimeString(locale, {
                         hour: '2-digit',
                         minute: '2-digit',
                       });
@@ -648,7 +653,7 @@ function DayView({ selectedDate, events, onEventClick }) {
 
 // ─── Agenda View ──────────────────────────────────────────────────────────────
 
-function AgendaView({ events, onEventClick, t }) {
+function AgendaView({ events, onEventClick, t, locale }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -713,7 +718,7 @@ function AgendaView({ events, onEventClick, t }) {
             <div className={`ccv-agenda-date-header ${isToday ? 'ccv-agenda-today' : ''}`}>
               {isToday
                 ? t('calendar.today', { defaultValue: 'Today' })
-                : date.toLocaleDateString(undefined, {
+                : date.toLocaleDateString(locale, {
                     weekday: 'long',
                     month: 'long',
                     day: 'numeric',
@@ -732,11 +737,11 @@ function AgendaView({ events, onEventClick, t }) {
                     style={{ borderLeftColor: color }}
                   >
                     <div className="ccv-agenda-event-time">
-                      {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      {start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       {end && (
                         <>
                           {' – '}
-                          {end.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          {end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                         </>
                       )}
                     </div>

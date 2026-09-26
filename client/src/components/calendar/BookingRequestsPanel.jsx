@@ -14,7 +14,8 @@ import '../helperProfile/chat/MessengerDock.css';
  * Shows pending + counter_proposed (messenger + calendar origins).
  */
 export default function BookingRequestsPanel({ compact = true, onBookingConfirmed }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const { socket } = useSocket();
   const [bookingRequests, setBookingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +161,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
             onDecline={() => handleDeclineBooking(booking.id)}
             onPropose={() => setProposingBooking(booking)}
             t={t}
+            locale={locale}
           />
         ))}
       </div>
@@ -197,7 +199,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, t }) {
+function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -223,7 +225,7 @@ function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, 
 
   const formatDateDisplay = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString(locale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -251,7 +253,7 @@ function CalendarBookingRequestCard({ booking, onConfirm, onDecline, onPropose, 
             <h4>{customerDisplayName}</h4>
             <p className="request-time">
               {t('calendar.requestedOn', { defaultValue: 'Requested' })}{' '}
-              {createdAt ? new Date(createdAt).toLocaleDateString() : '—'}
+              {createdAt ? new Date(createdAt).toLocaleDateString(locale) : '—'}
               {source && source !== 'direct' && source !== 'calendar' ? (
                 <span className="booking-source"> · {source}</span>
               ) : null}

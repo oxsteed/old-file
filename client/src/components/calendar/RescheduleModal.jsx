@@ -24,7 +24,8 @@ function toLocalInputValue(date) {
 }
 
 export default function RescheduleModal({ appointment, isCustomer, onClose, onRescheduled }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
 
   // Pre-fill with the current appointment time
   const [proposedStart, setProposedStart] = useState(
@@ -121,12 +122,12 @@ export default function RescheduleModal({ appointment, isCustomer, onClose, onRe
             <div className="rsm-pending-body">
               <strong>{t('reschedule.pendingTitle', { defaultValue: '{{role}} requested a new time', role: otherLabel })}</strong>
               <span className="rsm-pending-time">
-                {new Date(pendingRequest.proposed_start).toLocaleString(undefined, {
+                {new Date(pendingRequest.proposed_start).toLocaleString(locale, {
                   weekday: 'short', month: 'short', day: 'numeric',
                   hour: '2-digit', minute: '2-digit',
                 })}
                 {' – '}
-                {new Date(pendingRequest.proposed_end).toLocaleTimeString(undefined, {
+                {new Date(pendingRequest.proposed_end).toLocaleTimeString(locale, {
                   hour: '2-digit', minute: '2-digit',
                 })}
               </span>

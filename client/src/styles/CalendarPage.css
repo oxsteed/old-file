@@ -809,3 +809,63 @@
     max-height: none;
   }
 }
+
+/* Light mode keeps the calendar's hierarchy without carrying over dark-only
+   translucent surfaces and pale text colors. */
+[data-theme='light'] .calendar-page .calendar-hero {
+  background:
+    radial-gradient(circle at top left, rgba(234, 88, 12, 0.09), transparent 28%),
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.07), transparent 24%),
+    var(--card-bg);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme='light'] .calendar-page .calendar-hero-badge,
+[data-theme='light'] .calendar-page .calendar-main-shell-meta {
+  color: #9a3412;
+}
+
+[data-theme='light'] .calendar-page .calendar-focus-pill,
+[data-theme='light'] .calendar-page .calendar-view-toggle button,
+[data-theme='light'] .calendar-page .calendar-summary-icon,
+[data-theme='light'] .calendar-page .calendar-quick-links a {
+  background: #f8fafc;
+  color: var(--app-text);
+}
+
+[data-theme='light'] .calendar-page .calendar-view-toggle button:hover,
+[data-theme='light'] .calendar-page .calendar-quick-links a:hover {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+[data-theme='light'] .calendar-page .calendar-summary-icon {
+  color: #334155;
+}
+
+[data-theme='light'] .calendar-page .calendar-main-shell {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme='light'] .calendar-page .calendar-main-shell-header {
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme='light'] .calendar-page .booking-request-card {
+  background: rgba(234, 88, 12, 0.045);
+}
+
+[data-theme='light'] .calendar-page .booking-request-card:hover {
+  background: rgba(234, 88, 12, 0.08);
+}
+
+[data-theme='light'] .calendar-page .ccv-month-event.ccv-event-job,
+[data-theme='light'] .calendar-page .ccv-event.ccv-event-job {
+  color: #1d4ed8;
+}
+
+[data-theme='light'] .calendar-page .ccv-month-event.ccv-event-booking,
+[data-theme='light'] .calendar-page .ccv-event.ccv-event-booking {
+  color: #6d28d9;
+}

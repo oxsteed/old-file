@@ -30,21 +30,23 @@ function isSameDate(a, b) {
          a.getDate()     === b.getDate();
 }
 
-function formatTime(hhmm) {
+function formatTime(hhmm, locale) {
   const [h, m] = hhmm.split(':').map(Number);
-  const ampm = h < 12 ? 'AM' : 'PM';
-  const h12  = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  return new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(2021, 0, 1, h, m));
 }
 
-function formatDateLong(date) {
-  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+function formatDateLong(date, locale) {
+  return date.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 // ── component ──────────────────────────────────────────────────────────────────
 
 export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose, onAccept }) {
   const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
 
   const [slots,       setSlots]       = useState([]);   // raw slot array from API
   const [hasTemplate, setHasTemplate] = useState(null); // null = loading
@@ -62,9 +64,9 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear,  setCalYear]  = useState(today.getFullYear());
   const dayLabels = useMemo(() => Array.from({ length: 7 }, (_, index) => (
-    new Intl.DateTimeFormat(i18n.language, { weekday: 'short' }).format(new Date(2021, 7, 1 + index))
-  )), [i18n.language]);
-  const monthLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'long' }).format(new Date(calYear, calMonth, 1)), [calMonth, calYear, i18n.language]);
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2021, 7, 1 + index))
+  )), [locale]);
+  const monthLabel = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(calYear, calMonth, 1)), [calMonth, calYear, locale]);
 
   // ── load available slots ─────────────────────────────────────
   const loadSlots = useCallback(async () => {
@@ -189,9 +191,9 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
             {/* Left: mini calendar */}
             <div className="bam-calendar-pane">
               <div className="bam-cal-nav">
-                <button className="bam-cal-nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
+                <button className="bam-cal-nav-btn" onClick={prevMonth} aria-label={t('calendar.previousMonth')}>‹</button>
                 <span className="bam-cal-month-label">{monthLabel} {calYear}</span>
-                <button className="bam-cal-nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
+                <button className="bam-cal-nav-btn" onClick={nextMonth} aria-label={t('calendar.nextMonth')}>›</button>
               </div>
 
               <div className="bam-cal-grid">
@@ -241,7 +243,7 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
             <div className="bam-slots-pane">
               {selectedDate ? (
                 <>
-                  <h3 className="bam-slots-date-heading">{formatDateLong(selectedDate)}</h3>
+                  <h3 className="bam-slots-date-heading">{formatDateLong(selectedDate, locale)}</h3>
                   {slotsForDate.length === 0 ? (
                     <p className="bam-slots-none">
                       {t('bidAccept.noSlotsThisDay', { defaultValue: 'No slots available — pick another day.' })}
@@ -292,7 +294,7 @@ export default function BidAcceptanceModal({ bid, helperName, jobTitle, onClose,
           <div className="bam-footer-summary">
             {selectedSlot ? (
               <span className="bam-selected-summary">
-                ✓ {formatDateLong(selectedDate)} · {formatTime(selectedSlot.start)} – {formatTime(selectedSlot.end)}
+                ✓ {formatDateLong(selectedDate, locale)} · {formatTime(selectedSlot.start, locale)} – {formatTime(selectedSlot.end, locale)}
               </span>
             ) : hasTemplate && slots.length > 0 ? (
               <span className="bam-selected-summary bam-muted">

@@ -8,7 +8,8 @@ import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/AppointmentDetailModal.css';
 
 export default function AppointmentDetailModal({ appointment, onClose, onUpdate, isCustomer }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [confirmReason, setConfirmReason] = useState('');
@@ -27,7 +28,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
 
   // Google Calendar link
   function buildGoogleCalendarUrl() {
-    const title   = encodeURIComponent(appointment.service_description || 'OxSteed Appointment');
+    const title   = encodeURIComponent(appointment.service_description || t('calendar.appointment'));
     const loc     = encodeURIComponent(appointment.location_address || '');
     const start   = new Date(appointment.scheduled_start_time).toISOString().replace(/[-:]/g, '').replace('.000', '');
     const end     = new Date(appointment.scheduled_end_time).toISOString().replace(/[-:]/g, '').replace('.000', '');
@@ -88,13 +89,13 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             <h3>{t('calendar.appointmentInfo')}</h3>
             <div className="adm-detail">
               <label>{t('calendar.date')}</label>
-              <div className="adm-value">{startTime.toLocaleDateString()}</div>
+              <div className="adm-value">{startTime.toLocaleDateString(locale)}</div>
             </div>
             <div className="adm-detail">
               <label>{t('calendar.time')}</label>
               <div className="adm-value">
-                {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {startTime.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} -
+                {endTime.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
             <div className="adm-detail">
@@ -129,7 +130,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             </div>
             {!isCustomer && appointment.customer_email && (
               <div className="adm-detail">
-                <label>{t('common.email', { defaultValue: 'Email' })}</label>
+                <label>{t('calendar.email')}</label>
                 <div className="adm-value">
                   <a href={`mailto:${appointment.customer_email}`}>{appointment.customer_email}</a>
                 </div>
@@ -137,7 +138,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             )}
             {!isCustomer && appointment.guest_phone && (
               <div className="adm-detail">
-                <label>{t('common.phone', { defaultValue: 'Phone' })}</label>
+                <label>{t('calendar.phone')}</label>
                 <div className="adm-value">
                   <a href={`tel:${appointment.guest_phone}`}>{appointment.guest_phone}</a>
                 </div>

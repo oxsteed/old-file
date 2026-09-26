@@ -25,7 +25,8 @@ function isSameDay(a, b) {
 }
 
 function MiniCalendar({ selectedDate, onDateChange }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const today = new Date();
 
   const [viewMonth, setViewMonth] = useState(() => {
@@ -68,7 +69,7 @@ function MiniCalendar({ selectedDate, onDateChange }) {
   for (let i = 0; i < firstDay; i += 1) days.push(null);
   for (let i = 1; i <= daysInMonth; i += 1) days.push(new Date(year, month, i));
 
-  const monthLabel = viewMonth.toLocaleDateString(undefined, {
+  const monthLabel = viewMonth.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
   });
@@ -93,7 +94,7 @@ function MiniCalendar({ selectedDate, onDateChange }) {
               key={idx}
               className={`mini-calendar-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
               onClick={() => onDateChange(day)}
-              aria-label={day.toLocaleDateString()}
+              aria-label={day.toLocaleDateString(locale)}
               aria-pressed={isSelected}
             >
               {day.getDate()}
@@ -121,7 +122,8 @@ function SummaryCard({ icon: Icon, label, value, hint }) {
 }
 
 export default function CalendarPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const { user, isHelper } = useAuth();
   const [viewMode, setViewMode] = useState('month');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -129,13 +131,13 @@ export default function CalendarPage() {
 
   if (!user) return null;
 
-  const selectedDateLabel = selectedDate.toLocaleDateString(undefined, {
+  const selectedDateLabel = selectedDate.toLocaleDateString(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
 
-  const selectedMonthLabel = selectedDate.toLocaleDateString(undefined, {
+  const selectedMonthLabel = selectedDate.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
   });
@@ -159,7 +161,7 @@ export default function CalendarPage() {
         {
           icon: Clock3,
           label: t('calendar.summaryDateFocus'),
-          value: selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          value: selectedDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
           hint: t('calendar.summaryDateHint'),
         },
         {
@@ -179,7 +181,7 @@ export default function CalendarPage() {
         {
           icon: Clock3,
           label: t('calendar.summaryDateFocus'),
-          value: selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          value: selectedDate.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
           hint: t('calendar.summaryDateHint'),
         },
         {

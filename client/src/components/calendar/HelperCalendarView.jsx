@@ -60,7 +60,8 @@ export default function HelperCalendarView({
   blockModalRequest = false,
   onBlockModalRequestHandled,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language;
   const { socket } = useSocket();
   const [appointments, setAppointments] = useState([]);
   const [availabilityBlocks, setAvailabilityBlocks] = useState([]);
@@ -200,7 +201,7 @@ export default function HelperCalendarView({
   const getHeaderLabel = () => {
     const d = selectedDate;
     if (viewMode === 'day') {
-      return d.toLocaleDateString(undefined, {
+      return d.toLocaleDateString(locale, {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -215,13 +216,13 @@ export default function HelperCalendarView({
       const we = new Date(ws);
       we.setDate(ws.getDate() + 6);
       const opts = { month: 'short', day: 'numeric' };
-      return `${ws.toLocaleDateString(undefined, opts)} – ${we.toLocaleDateString(undefined, { ...opts, year: 'numeric' })}`;
+      return `${ws.toLocaleDateString(locale, opts)} – ${we.toLocaleDateString(locale, { ...opts, year: 'numeric' })}`;
     }
     if (viewMode === 'agenda') {
       return t('calendar.agenda', { defaultValue: 'Agenda' });
     }
     // month
-    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
   };
 
   // Hide prev/next nav for agenda (it's always "next 30 days")
@@ -280,6 +281,7 @@ export default function HelperCalendarView({
             selectedDate={selectedDate}
             onBlockTime={handleBlockTimeClick}
             onSelectAppointment={setSelectedAppointment}
+            locale={locale}
           />
           <p className="hcv-slot-hint">
             {t('calendar.slotHint', { defaultValue: 'Click any time slot to set your availability or block time.' })}
@@ -295,6 +297,7 @@ export default function HelperCalendarView({
             selectedDate={selectedDate}
             onBlockTime={handleBlockTimeClick}
             onSelectAppointment={setSelectedAppointment}
+            locale={locale}
           />
           <p className="hcv-slot-hint">
             {t('calendar.slotHint', { defaultValue: 'Click any time slot to set your availability or block time.' })}
@@ -307,6 +310,7 @@ export default function HelperCalendarView({
           selectedDate={selectedDate}
           appointments={appointments}
           onDateChange={onDateChange}
+          locale={locale}
         />
       )}
 
@@ -321,6 +325,7 @@ export default function HelperCalendarView({
           appointments={appointments}
           onSelectAppointment={setSelectedAppointment}
           t={t}
+          locale={locale}
         />
       )}
 
@@ -346,7 +351,7 @@ export default function HelperCalendarView({
 
 // ─── Week View ────────────────────────────────────────────────────────────────
 
-function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
+function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment, locale }) {
   const { t } = useTranslation();
   const today = new Date();
   const scrollRef = useRef(null);
@@ -486,7 +491,7 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
                         const aptStart = new Date(apt.scheduled_start_time);
                         const timeStr = isNaN(aptStart)
                           ? ''
-                          : aptStart.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                          : aptStart.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
                         return (
                           <div
                             key={apt.id}
@@ -516,7 +521,7 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
 
 // ─── Day View ─────────────────────────────────────────────────────────────────
 
-function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
+function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment, locale }) {
   const scrollRef = useRef(null);
   const today = new Date();
   const isToday = isSameDay(selectedDate, today);
@@ -544,7 +549,7 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
   return (
     <div className="hcv-day-view">
       <div className="hcv-day-title">
-        {selectedDate.toLocaleDateString(undefined, {
+        {selectedDate.toLocaleDateString(locale, {
           weekday: 'long',
           month: 'long',
           day: 'numeric',
@@ -620,7 +625,7 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
                     const aptStart = new Date(apt.scheduled_start_time);
                     const timeStr = isNaN(aptStart)
                       ? ''
-                      : aptStart.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                      : aptStart.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
                     return (
                       <div
                         key={apt.id}
@@ -651,7 +656,7 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
 // ─── Month View ───────────────────────────────────────────────────────────────
 // No internal state or nav — driven entirely by selectedDate from parent.
 
-function MonthView({ selectedDate, appointments, onDateChange }) {
+function MonthView({ selectedDate, appointments, onDateChange, locale }) {
   const { t } = useTranslation();
   const today = new Date();
 
@@ -707,7 +712,7 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
                       .slice(0, 2)
                       .map((apt) => (
                         <div key={apt.id} className={`hcv-month-event hcv-apt-${apt.status || 'pending'}`}>
-                          {(apt.customer_name || 'Unknown').split(' ')[0]}
+                          {(apt.customer_name || t('calendar.unknownCustomer')).split(' ')[0]}
                         </div>
                       ))}
                   </div>
@@ -723,7 +728,7 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
 
 // ─── Agenda View ──────────────────────────────────────────────────────────────
 
-function AgendaView({ appointments, onSelectAppointment, t }) {
+function AgendaView({ appointments, onSelectAppointment, t, locale }) {
   // Sort all appointments by start time, filter to future/today only
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -780,7 +785,7 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
             <div className={`hcv-agenda-date-header ${isToday ? 'hcv-agenda-today' : ''}`}>
               {isToday
                 ? t('calendar.today', { defaultValue: 'Today' })
-                : date.toLocaleDateString(undefined, {
+                : date.toLocaleDateString(locale, {
                     weekday: 'long',
                     month: 'long',
                     day: 'numeric',
@@ -798,11 +803,11 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
                   style={{ borderLeftColor: color }}
                 >
                   <div className="hcv-agenda-event-time">
-                    {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    {start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                     {end && (
                       <>
                         {' – '}
-                        {end.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                        {end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       </>
                     )}
                   </div>
