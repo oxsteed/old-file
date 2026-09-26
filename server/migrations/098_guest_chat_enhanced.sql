@@ -70,7 +70,8 @@ CREATE TABLE chat_monitoring_log (
     'session_resolved',
     'guest_abandoned',
     'transition_queue_drained',
-    'error_occurred'
+    'error_occurred',
+    'status_changed'
   ))
 );
 

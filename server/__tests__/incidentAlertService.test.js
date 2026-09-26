@@ -113,4 +113,25 @@ describe('incident alert dispatch', () => {
       timestamp: '2026-09-14T22:00:00.000Z',
     })).rejects.toThrow('HTTP 503');
   });
+
+  test('includes diagnostic details in critical security emails', async () => {
+    await incidentAlertService._emailAlert({
+      type: 'HIGH_ERROR_RATE',
+      severity: 'critical',
+      message: 'Error rate 10% (100/1000)',
+      timestamp: '2026-09-26T00:00:00.000Z',
+      details: {
+        measurement: 'since_process_start',
+        errorsByStatus: [{ tags: { status: 404 }, count: 100 }],
+        topErrorEndpoints: [{ endpoint: 'GET /api/example 404', count: 100 }],
+      },
+    });
+
+    const email = require('../utils/email').sendSecurityAlertEmail;
+    expect(email).toHaveBeenCalledWith(
+      expect.any(String),
+      'HIGH_ERROR_RATE',
+      expect.stringContaining('topErrorEndpoints')
+    );
+  });
 });

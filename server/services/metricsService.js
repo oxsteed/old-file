@@ -27,6 +27,44 @@ class MetricsCollector {
       .reduce((sum, [, v]) => sum + v, 0);
   }
 
+  getCounterBreakdown(name, limit = 10) {
+    const prefix = `${name}:`;
+    return Array.from(this.counters.entries())
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, count]) => {
+        let tags = {};
+        try {
+          tags = JSON.parse(key.slice(prefix.length));
+        } catch {
+          tags = { raw: key.slice(prefix.length) };
+        }
+        return { tags, count };
+      })
+      .sort((left, right) => right.count - left.count)
+      .slice(0, Math.max(1, Number.parseInt(limit, 10) || 10));
+  }
+
+  getHttpErrorBreakdown(limit = 10) {
+    const grouped = new Map();
+    this.getCounterBreakdown('http.responses', 1000)
+      .filter(({ tags }) => Number(tags.status) >= 400)
+      .forEach(({ tags, count }) => {
+        const method = String(tags.method || 'UNKNOWN').slice(0, 12);
+        const path = String(tags.path || 'unknown')
+          .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+          .replace(/\/\d+(?=\/|$)/g, '/:id')
+          .slice(0, 160);
+        const status = Number(tags.status) || 0;
+        const key = `${method} ${path} ${status}`;
+        grouped.set(key, (grouped.get(key) || 0) + count);
+      });
+
+    return Array.from(grouped.entries())
+      .map(([endpoint, count]) => ({ endpoint, count }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, Math.max(1, Number.parseInt(limit, 10) || 10));
+  }
+
   // ── HISTOGRAMS (latency tracking) ──────────────────────────────
   recordHistogram(name, value, tags = {}) {
     const key = `${name}:${JSON.stringify(tags)}`;
@@ -167,10 +205,23 @@ class MetricsCollector {
     const totalReqs = this.getCounter('http.requests');
     const totalErrors = this.getCounter('http.errors');
     if (totalReqs > 1000 && (totalErrors / totalReqs) > 0.05) {
+      const recentServerErrors = this.getSecurityEvents()
+        .filter((event) => event.type === 'server_error')
+        .slice(-10)
+        .map(({ timestamp, details }) => ({ timestamp, ...details }));
       alerts.push({
         type: 'HIGH_ERROR_RATE',
         severity: 'critical',
         message: `Error rate ${((totalErrors / totalReqs) * 100).toFixed(2)}% (${totalErrors}/${totalReqs})`,
+        details: {
+          measurement: 'since_process_start',
+          thresholdPercent: 5,
+          totalRequests: totalReqs,
+          totalErrors,
+          errorsByStatus: this.getCounterBreakdown('http.errors', 10),
+          topErrorEndpoints: this.getHttpErrorBreakdown(10),
+          recentServerErrors,
+        },
       });
     }
 

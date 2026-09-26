@@ -45,5 +45,10 @@ describe('guest chat session timeout job', () => {
     expect(updateCall).toBeDefined();
     expect(updateCall[0]).toContain('helper_response_deadline = NULL');
     expect(updateCall[1]).toEqual(['ai_fallback_pending', 'session-1']);
+
+    const monitoringCall = client.query.mock.calls.find(([sql]) =>
+      sql.includes('INSERT INTO chat_monitoring_log')
+    );
+    expect(monitoringCall[1][1]).toBe('ai_fallback_triggered_timeout');
   });
 });

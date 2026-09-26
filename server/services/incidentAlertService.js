@@ -6,6 +6,28 @@ const metricsService = require('./metricsService');
 const { sendSecurityAlertEmail } = require('../utils/email');
 const incidentStore = require('./incidentStore');
 
+function formatIncidentDetails(incident, maxLength = 12000) {
+  const lines = [
+    `Message: ${incident.message}`,
+    `Detected: ${incident.timestamp}`,
+  ];
+  const details = incident.details && typeof incident.details === 'object'
+    ? incident.details
+    : {};
+
+  Object.entries(details).forEach(([key, value]) => {
+    let rendered;
+    try {
+      rendered = typeof value === 'string' ? value : JSON.stringify(value);
+    } catch {
+      rendered = '[unavailable]';
+    }
+    lines.push(`${key}: ${String(rendered || '').slice(0, 4000)}`);
+  });
+
+  return lines.join('\n').slice(0, maxLength);
+}
+
 class IncidentAlertService {
   constructor() {
     this.thresholds = {
@@ -47,7 +69,7 @@ class IncidentAlertService {
 
     if (alerts.length > 0) {
       alerts.forEach(alert => {
-        this._triggerAlert(alert.type, alert.severity, alert.message)
+        this._triggerAlert(alert.type, alert.severity, alert.message, alert.details || {})
           .catch((error) => logger.error('Incident alert processing failed', { error: error.message }));
       });
     }
@@ -124,7 +146,7 @@ class IncidentAlertService {
     if (incident.severity !== 'critical') return;
 
     const adminEmail = process.env.SECURITY_ALERT_EMAIL || 'security@oxsteed.com';
-    await sendSecurityAlertEmail(adminEmail, incident.type, incident.message);
+    await sendSecurityAlertEmail(adminEmail, incident.type, formatIncidentDetails(incident));
     logger.info('Security incident email sent', { type: incident.type, recipient: adminEmail });
   }
 
@@ -159,6 +181,9 @@ class IncidentAlertService {
             { title: 'Severity', value: incident.severity, short: true },
             { title: 'Message', value: incident.message, short: false },
             { title: 'Time', value: incident.timestamp, short: true },
+            ...(Object.keys(incident.details || {}).length > 0
+              ? [{ title: 'Details', value: formatIncidentDetails(incident, 3000), short: false }]
+              : []),
           ],
         },
       ],

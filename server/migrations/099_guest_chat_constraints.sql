@@ -56,7 +56,7 @@ BEGIN
       session_id, event_type, helper_id, metadata
     ) VALUES (
       NEW.id,
-      'status_changed_' || NEW.session_status,
+      'status_changed',
       NEW.helper_id,
       jsonb_build_object(
         'from_status', OLD.session_status,
