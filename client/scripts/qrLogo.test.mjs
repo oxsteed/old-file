@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateQrLogo, MAX_LOGO_BYTES } from '../src/utils/qrLogo.js';
+import { validateQrLogo, MAX_LOGO_BYTES, LOGO_DECODE_TIMEOUT_MS } from '../src/utils/qrLogo.js';
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0ZkAAAAASUVORK5CYII=', 'base64');
 const file = (bytes, type = 'image/png') => new Blob([bytes], {type});
+
+test('allows up to 60 seconds for browser image decoding', () => {
+  assert.equal(LOGO_DECODE_TIMEOUT_MS, 60_000);
+});
 
 test('accepts a PNG above 5 MiB and at the new 15 MiB limit', async () => {
   for (const size of [6 * 1024 * 1024, MAX_LOGO_BYTES]) {

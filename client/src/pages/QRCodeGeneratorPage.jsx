@@ -13,7 +13,20 @@ import './QRCodeGeneratorPage.css';
 import { canUseQrGenerator } from '../utils/modeAccess';
 import { prepareQrLogo } from '../utils/qrLogo';
 import { composeQrDownload, qrDownloadFileName } from '../utils/qrExport';
-import { Trash2, Download, Copy, Check, Plus } from 'lucide-react';
+import { Trash2, Download, Copy, Check, Plus, X, RotateCcw } from 'lucide-react';
+
+const LOGO_STAGE_KEYS = {
+  validating: 'logoStageValidating',
+  loading: 'logoStageLoading',
+  optimizing: 'logoStageOptimizing',
+  generating: 'logoStageGenerating',
+};
+
+function formatLogoBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  const megabytes = bytes / (1024 * 1024);
+  return `${megabytes >= 10 ? megabytes.toFixed(1) : megabytes.toFixed(2)} MB`;
+}
 
 const QRCodeGeneratorPage = () => {
   const { t } = useTranslation();
@@ -44,12 +57,27 @@ const QRCodeGeneratorPage = () => {
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
   const [logoProcessing, setLogoProcessing] = useState(false);
+  const [logoProcessingStage, setLogoProcessingStage] = useState('validating');
+  const [logoProcessingStartedAt, setLogoProcessingStartedAt] = useState(null);
+  const [logoElapsedSeconds, setLogoElapsedSeconds] = useState(0);
+  const [logoFileInfo, setLogoFileInfo] = useState(null);
+  const [logoProcessingError, setLogoProcessingError] = useState('');
   const previewInput = JSON.stringify([
     formData.url, formData.size, formData.dotColor,
     formData.backgroundColor, formData.dotStyle, logoDataUrl,
   ]);
   const previewReady = Boolean(!logoProcessing && qrInstance && generatedInput === previewInput);
-  const showLogoProcessing = logoProcessing || (Boolean(logoDataUrl) && !previewReady);
+  const showLogoProcessing = !logoProcessingError && (logoProcessing || (Boolean(logoDataUrl) && !previewReady));
+
+  useEffect(() => {
+    if (!showLogoProcessing || !logoProcessingStartedAt) return undefined;
+    const updateElapsed = () => {
+      setLogoElapsedSeconds(Math.max(0, Math.floor((Date.now() - logoProcessingStartedAt) / 1000)));
+    };
+    updateElapsed();
+    const timer = window.setInterval(updateElapsed, 250);
+    return () => window.clearInterval(timer);
+  }, [showLogoProcessing, logoProcessingStartedAt]);
 
   useEffect(() => () => {
     logoUploadRef.current?.abort();
@@ -71,6 +99,10 @@ const QRCodeGeneratorPage = () => {
 
     const generatePreview = async () => {
       try {
+        if (logoDataUrl) {
+          setLogoProcessingStage('generating');
+          setLogoProcessingStartedAt((previous) => previous || Date.now());
+        }
         const qr = new QRCodeStyling({
           width: Number(formData.size),
           height: Number(formData.size),
@@ -103,10 +135,21 @@ const QRCodeGeneratorPage = () => {
         }
         setQRInstance(qr);
         setGeneratedInput(previewInput);
+        if (logoDataUrl) {
+          setLogoProcessing(false);
+          setLogoProcessingStage('ready');
+          setLogoProcessingStartedAt(null);
+        }
       } catch (err) {
         if (cancelled) return;
         setQRInstance(null);
         setGeneratedInput(null);
+        if (logoDataUrl) {
+          setLogoProcessing(false);
+          setLogoProcessingStage('error');
+          setLogoProcessingError('logoInvalid');
+          setLogoProcessingStartedAt(null);
+        }
         logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
         toast.error(t('qrGenerator.errorGenerating'));
       }
@@ -161,35 +204,69 @@ const QRCodeGeneratorPage = () => {
     }));
   };
 
-  const handleLogoChange = async (e) => {
-    const input = e.target;
-    const file = e.target.files?.[0];
+  const processLogoFile = async (file) => {
     if (!file) return;
     logoUploadRef.current?.abort();
     const controller = new AbortController();
     logoUploadRef.current = controller;
+    setLogoFileInfo({ file, name: file.name, size: file.size, type: file.type, dimensions: null });
+    setLogoProcessingError('');
     setLogoProcessing(true);
+    setLogoProcessingStage('validating');
+    setLogoProcessingStartedAt(Date.now());
+    setLogoElapsedSeconds(0);
     try {
-      const normalized = await prepareQrLogo(file, controller.signal);
+      const normalized = await prepareQrLogo(file, controller.signal, ({ stage, dimensions }) => {
+        setLogoProcessingStage(stage);
+        if (dimensions) {
+          setLogoFileInfo((previous) => previous ? { ...previous, dimensions } : previous);
+        }
+      });
       if (!controller.signal.aborted) setLogoDataUrl(normalized);
     } catch (err) {
       if (controller.signal.aborted) return;
       const key = ['logoTooLarge', 'logoUnsupported', 'logoDimensions', 'logoInvalid'].includes(err.message)
         ? err.message : 'logoInvalid';
+      setLogoProcessing(false);
+      setLogoProcessingStage('error');
+      setLogoProcessingError(key);
+      setLogoProcessingStartedAt(null);
       toast.error(t(`qrGenerator.${key}`));
-      input.value = '';
+      if (logoInputRef.current) logoInputRef.current.value = '';
     } finally {
       if (logoUploadRef.current === controller) {
         logoUploadRef.current = null;
-        setLogoProcessing(false);
       }
     }
+  };
+
+  const handleLogoChange = (e) => {
+    processLogoFile(e.target.files?.[0]);
+  };
+
+  const handleCancelLogoProcessing = () => {
+    logoUploadRef.current?.abort();
+    logoUploadRef.current = null;
+    if (logoProcessingStage === 'generating') setLogoDataUrl('');
+    setLogoProcessing(false);
+    setLogoProcessingStage('idle');
+    setLogoProcessingStartedAt(null);
+    setLogoProcessingError('');
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleRetryLogo = () => {
+    if (logoFileInfo?.file) processLogoFile(logoFileInfo.file);
   };
 
   const handleRemoveLogo = () => {
     logoUploadRef.current?.abort();
     logoUploadRef.current = null;
     setLogoProcessing(false);
+    setLogoProcessingStage('idle');
+    setLogoProcessingStartedAt(null);
+    setLogoProcessingError('');
+    setLogoFileInfo(null);
     setLogoDataUrl('');
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
@@ -437,13 +514,46 @@ const QRCodeGeneratorPage = () => {
                   <div className="qrg-logo-processing" role="status" aria-live="polite">
                     <span className="qrg-processing-spinner" aria-hidden="true" />
                     <span className="qrg-processing-copy">
-                      <strong>{t('qrGenerator.logoProcessing')}</strong>
+                      <strong>{t(`qrGenerator.${LOGO_STAGE_KEYS[logoProcessingStage] || 'logoProcessing'}`)}</strong>
                       <small>{t('qrGenerator.logoProcessingDetail')}</small>
+                      {logoFileInfo && (
+                        <small className="qrg-processing-meta">
+                          {t('qrGenerator.logoFileDetails', {
+                            name: logoFileInfo.name,
+                            size: formatLogoBytes(logoFileInfo.size),
+                            dimensions: logoFileInfo.dimensions
+                              ? `${logoFileInfo.dimensions.width}×${logoFileInfo.dimensions.height}`
+                              : t('qrGenerator.logoDimensionsPending'),
+                          })}
+                          {logoElapsedSeconds > 0 && ` · ${t('qrGenerator.logoElapsed', { seconds: logoElapsedSeconds })}`}
+                        </small>
+                      )}
+                      {logoElapsedSeconds >= 3 && (
+                        <small className="qrg-processing-slow">{t('qrGenerator.logoProcessingSlow')}</small>
+                      )}
                     </span>
+                    {logoProcessing && (
+                      <button type="button" className="qrg-processing-cancel" onClick={handleCancelLogoProcessing}>
+                        <X size={14} />
+                        {t('qrGenerator.logoCancel')}
+                      </button>
+                    )}
                     <span className="qrg-processing-track" aria-hidden="true"><span /></span>
                   </div>
                 )}
-                {(logoDataUrl || logoProcessing) && (
+                {logoProcessingError && (
+                  <div className="qrg-logo-error" role="alert">
+                    <strong>{t('qrGenerator.logoProcessingFailed')}</strong>
+                    <small>{t('qrGenerator.logoRetryDetail')}</small>
+                    {logoFileInfo?.file && (
+                      <button type="button" className="qrg-button qrg-button-secondary" onClick={handleRetryLogo}>
+                        <RotateCcw size={16} />
+                        {t('qrGenerator.logoRetry')}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {logoDataUrl && !logoProcessing && (
                   <button
                     type="button"
                     onClick={handleRemoveLogo}

@@ -6,6 +6,7 @@ export const MAX_LOGO_BYTES = 15 * 1024 * 1024;
 export const MAX_LOGO_PIXELS = 24_000_000;
 export const MAX_LOGO_DIMENSION = 8192;
 export const LOGO_OUTPUT_DIMENSION = 512;
+export const LOGO_DECODE_TIMEOUT_MS = 60_000;
 const HEADER_BYTES = 64 * 1024;
 const parsers = { 'image/png': PNG, 'image/jpeg': JPG, 'image/webp': WEBP };
 
@@ -38,8 +39,9 @@ export async function validateQrLogo(file) {
   return dimensions;
 }
 
-export async function prepareQrLogo(file, signal) {
-  await validateQrLogo(file);
+export async function prepareQrLogo(file, signal, onProgress) {
+  const dimensions = await validateQrLogo(file);
+  onProgress?.({ stage: 'loading', dimensions });
   if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
   const url = URL.createObjectURL(file);
   const image = new Image();
@@ -60,8 +62,15 @@ export async function prepareQrLogo(file, signal) {
         cleanup();
         image.src = '';
         reject(new Error('logoInvalid'));
-      }, 10000);
-      image.onload = () => { cleanup(); resolve(); };
+      }, LOGO_DECODE_TIMEOUT_MS);
+      image.onload = () => {
+        cleanup();
+        onProgress?.({ stage: 'optimizing', dimensions: {
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        } });
+        resolve();
+      };
       image.onerror = () => { cleanup(); reject(new Error('logoInvalid')); };
       signal?.addEventListener('abort', abort, { once: true });
       image.src = url;

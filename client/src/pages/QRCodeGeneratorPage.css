@@ -210,7 +210,7 @@
 
 .qrg-logo-processing {
   display: grid;
-  grid-template-columns: 20px 1fr;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   margin-top: 12px;
@@ -244,6 +244,57 @@
   color: var(--muted-text);
   font-size: 11px;
   line-height: 1.35;
+}
+
+.qrg-processing-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qrg-processing-slow {
+  color: #b45309;
+}
+
+.qrg-processing-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qrg-processing-cancel:hover {
+  border-color: #ff6b35;
+  color: #ff6b35;
+}
+
+.qrg-logo-error {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.07);
+  color: var(--app-text);
+}
+
+.qrg-logo-error small {
+  color: var(--muted-text);
+  line-height: 1.4;
+}
+
+.qrg-logo-error .qrg-button {
+  justify-self: start;
+  padding: 8px 12px;
+  font-size: 0.82rem;
 }
 
 .qrg-processing-track {
