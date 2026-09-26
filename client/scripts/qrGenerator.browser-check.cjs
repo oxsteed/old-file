@@ -74,8 +74,14 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
       for await (const chunk of await download.createReadStream()) chunks.push(chunk);
       const content = Buffer.concat(chunks);
       assert.ok(content.length > 100, `${format} must contain image data`);
-      if (format === 'png') assert.equal(content.subarray(1, 4).toString(), 'PNG');
-      else assert.match(content.toString(), /<svg/);
+      if (format === 'png') {
+        assert.equal(content.subarray(1, 4).toString(), 'PNG');
+        assert.equal(download.suggestedFilename(), 'qr-regression.png');
+      } else {
+        assert.match(content.toString(), /<svg/);
+        assert.match(content.toString(), /QR regression/);
+        assert.equal(download.suggestedFilename(), 'qr-regression.svg');
+      }
     }
     const logo = await page.locator('.qrg-preview-container canvas').evaluate(canvas => canvas.toDataURL());
     await page.locator('#logoUpload').setInputFiles({name:'logo.png', mimeType:'image/png', buffer:Buffer.from(logo.split(',')[1], 'base64')});
@@ -147,7 +153,7 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
     assert.match(saved.imageData, /^data:image\/png;base64,/);
     const savedDownloadPromise = page.waitForEvent('download');
     await page.locator('.qrg-card').getByRole('button', {name:'qrGenerator.downloadPNG'}).click();
-    assert.equal((await savedDownloadPromise).suggestedFilename(), 'QR regression.png');
+    assert.equal((await savedDownloadPromise).suggestedFilename(), 'qr-regression.png');
     assert.deepEqual(await page.evaluate(() => window.qrErrors), []);
     assert.deepEqual(errors, []);
     console.log('Verified real canvas rendering, PNG/SVG exports, logo add/remove, blank-input guards, save payload, and saved download.');

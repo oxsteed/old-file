@@ -12,6 +12,7 @@ import logger from '../utils/logger';
 import './QRCodeGeneratorPage.css';
 import { canUseQrGenerator } from '../utils/modeAccess';
 import { prepareQrLogo } from '../utils/qrLogo';
+import { composeQrDownload, qrDownloadFileName } from '../utils/qrExport';
 import { Trash2, Download, Copy, Check, Plus } from 'lucide-react';
 
 const QRCodeGeneratorPage = () => {
@@ -265,10 +266,11 @@ const QRCodeGeneratorPage = () => {
       if (!response.ok) throw new Error('Saved QR image is unavailable');
       const blob = await response.blob();
       if (!blob.type.startsWith('image/')) throw new Error('Saved QR image is invalid');
-      const objectUrl = URL.createObjectURL(blob);
+      const titledBlob = await composeQrDownload(blob, qr.title, format);
+      const objectUrl = URL.createObjectURL(titledBlob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = `${qr.title || 'qr-code'}.${format}`;
+      link.download = qrDownloadFileName(qr.title, format);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -294,10 +296,11 @@ const QRCodeGeneratorPage = () => {
       }
 
       const blob = await qrInstance.getRawData(format);
-      const url = URL.createObjectURL(blob);
+      const titledBlob = await composeQrDownload(blob, formData.title, format);
+      const url = URL.createObjectURL(titledBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `qr-code-${Date.now()}.${format}`;
+      a.download = qrDownloadFileName(formData.title, format);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
