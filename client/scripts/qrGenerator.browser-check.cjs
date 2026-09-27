@@ -99,6 +99,30 @@ test('QR page renders without a logo, exports, saves, and handles input changes'
         assert.equal(download.suggestedFilename(), 'qr-regression.svg');
       }
     }
+    await page.locator('#downloadStyle').selectOption('promotional');
+    await page.locator('#promoDescription').fill('Discover our latest services and special offers.');
+    await page.locator('#promoCta').fill('Scan to get started');
+    const promoDownload = page.waitForEvent('download');
+    await png.click();
+    const promoFile = await promoDownload;
+    const promoChunks = [];
+    for await (const chunk of await promoFile.createReadStream()) promoChunks.push(chunk);
+    const promoBytes = Buffer.concat(promoChunks);
+    const promoSize = await page.evaluate(async (data) => {
+      const image = new Image(); image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      return {width: image.naturalWidth, height: image.naturalHeight};
+    }, promoBytes.toString('base64'));
+    assert.ok(promoSize.height > promoSize.width, 'promotional PNG must be a page layout');
+    const promoSvgDownload = page.waitForEvent('download');
+    await page.getByRole('button', {name: 'qrGenerator.downloadSVG', exact: true}).click();
+    const promoSvg = await promoSvgDownload;
+    const promoSvgChunks = [];
+    for await (const chunk of await promoSvg.createReadStream()) promoSvgChunks.push(chunk);
+    const promoSvgText = Buffer.concat(promoSvgChunks).toString();
+    assert.match(promoSvgText, /Discover our latest services/);
+    assert.match(promoSvgText, /Scan to get started/);
+    await page.locator('#downloadStyle').selectOption('branded');
     const logo = await page.evaluate(() => {
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 256;

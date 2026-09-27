@@ -56,6 +56,9 @@ const QRCodeGeneratorPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
+  const [downloadStyle, setDownloadStyle] = useState('branded');
+  const [promoDescription, setPromoDescription] = useState('');
+  const [promoCta, setPromoCta] = useState('');
   const [logoRevision, setLogoRevision] = useState(0);
   const [logoProcessing, setLogoProcessing] = useState(false);
   const [logoProcessingStage, setLogoProcessingStage] = useState('validating');
@@ -385,7 +388,7 @@ const QRCodeGeneratorPage = () => {
     }
   };
 
-  const handleDownloadQR = async (format = 'png') => {
+  const handleDownloadQR = async (format = 'png', mode = downloadStyle) => {
     try {
       if (!previewReady) {
         toast.error(t('qrGenerator.errorGenerating'));
@@ -393,7 +396,13 @@ const QRCodeGeneratorPage = () => {
       }
 
       const blob = await qrInstance.getRawData(format);
-      const titledBlob = await composeQrDownload(blob, formData.title, format);
+      const titledBlob = await composeQrDownload(blob, formData.title, format, {
+        mode,
+        description: promoDescription,
+        cta: promoCta,
+        backgroundColor: formData.backgroundColor,
+        accentColor: formData.dotColor,
+      });
       const url = URL.createObjectURL(titledBlob);
       const a = document.createElement('a');
       a.href = url;
@@ -642,9 +651,50 @@ const QRCodeGeneratorPage = () => {
             <h2 className="qrg-section-title">{t('qrGenerator.preview')}</h2>
             <div ref={qrRef} className="qrg-preview-container" />
 
+            <div className="qrg-download-options">
+              <label htmlFor="downloadStyle">{t('qrGenerator.downloadStyle')}</label>
+              <select
+                id="downloadStyle"
+                value={downloadStyle}
+                onChange={(event) => setDownloadStyle(event.target.value)}
+                className="qrg-select"
+              >
+                <option value="simple">{t('qrGenerator.downloadStyleSimple')}</option>
+                <option value="branded">{t('qrGenerator.downloadStyleBranded')}</option>
+                <option value="promotional">{t('qrGenerator.downloadStylePromotional')}</option>
+              </select>
+              <p>{t(`qrGenerator.downloadStyle${downloadStyle[0].toUpperCase()}${downloadStyle.slice(1)}Help`)}</p>
+              {downloadStyle === 'promotional' && (
+                <div className="qrg-promo-fields">
+                  <div className="qrg-form-group">
+                    <label htmlFor="promoDescription">{t('qrGenerator.promoDescription')}</label>
+                    <textarea
+                      id="promoDescription"
+                      value={promoDescription}
+                      onChange={(event) => setPromoDescription(event.target.value)}
+                      className="qrg-input qrg-textarea"
+                      maxLength={240}
+                      placeholder={t('qrGenerator.promoDescriptionPlaceholder')}
+                    />
+                  </div>
+                  <div className="qrg-form-group">
+                    <label htmlFor="promoCta">{t('qrGenerator.promoCta')}</label>
+                    <input
+                      id="promoCta"
+                      value={promoCta}
+                      onChange={(event) => setPromoCta(event.target.value)}
+                      className="qrg-input"
+                      maxLength={80}
+                      placeholder={t('qrGenerator.promoCtaPlaceholder')}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="qrg-download-buttons">
               <button
-                onClick={() => handleDownloadQR('png')}
+                onClick={() => handleDownloadQR('png', downloadStyle)}
                 disabled={!previewReady}
                 className="qrg-button qrg-button-primary"
               >
@@ -652,7 +702,7 @@ const QRCodeGeneratorPage = () => {
                 {t('qrGenerator.downloadPNG')}
               </button>
               <button
-                onClick={() => handleDownloadQR('svg')}
+                onClick={() => handleDownloadQR('svg', downloadStyle)}
                 disabled={!previewReady}
                 className="qrg-button qrg-button-secondary"
               >

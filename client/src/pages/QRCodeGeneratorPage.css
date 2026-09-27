@@ -411,6 +411,40 @@
   gap: 12px;
 }
 
+.qrg-download-options {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--app-bg);
+}
+
+.qrg-download-options > label {
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.qrg-download-options > p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.qrg-promo-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.qrg-textarea {
+  min-height: 76px;
+  resize: vertical;
+  font-family: inherit;
+}
+
 @media (max-width: 640px) {
   .qrg-download-buttons {
     grid-template-columns: 1fr;
