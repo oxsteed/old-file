@@ -31,7 +31,7 @@ self.onmessage = async ({ data }) => {
     const buffer = await blob.arrayBuffer();
     self.postMessage({ ok: true, buffer }, [buffer]);
   } catch (error) {
-    self.postMessage({ ok: false, error: error?.message || 'logoInvalid' });
+    self.postMessage({ ok: false, error: 'logoInvalid' });
   } finally {
     bitmap?.close?.();
   }
@@ -95,6 +95,7 @@ function runLogoWorker(file, dimensions, signal) {
       workerUrl = URL.createObjectURL(new Blob([QR_LOGO_WORKER_SOURCE], { type: 'application/javascript' }));
       worker = new Worker(workerUrl);
     } catch {
+      if (workerUrl) URL.revokeObjectURL(workerUrl);
       reject(new Error(WORKER_UNAVAILABLE));
       return;
     }

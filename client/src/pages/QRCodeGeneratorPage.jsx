@@ -56,6 +56,7 @@ const QRCodeGeneratorPage = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [logoDataUrl, setLogoDataUrl] = useState('');
+  const [logoRevision, setLogoRevision] = useState(0);
   const [logoProcessing, setLogoProcessing] = useState(false);
   const [logoProcessingStage, setLogoProcessingStage] = useState('validating');
   const [logoProcessingStartedAt, setLogoProcessingStartedAt] = useState(null);
@@ -89,6 +90,7 @@ const QRCodeGeneratorPage = () => {
   // instead of becoming an unhandled promise rejection.
   useEffect(() => {
     let cancelled = false;
+    let renderTimer;
     setQRInstance(null);
     setGeneratedInput(null);
     if (qrRef.current) qrRef.current.innerHTML = '';
@@ -111,6 +113,10 @@ const QRCodeGeneratorPage = () => {
           // Undefined nested options overwrite the library defaults and crash
           // its constructor. Supply valid options with and without a logo.
           imageOptions: {
+            // prepareQrLogo already returns a bounded, embedded PNG data URL.
+            // The default re-fetches it with XHR, which production connect-src
+            // blocks, leaving the library's drawing promise unresolved.
+            saveAsBlob: false,
             hideBackgroundDots: true,
             imageSize: 0.22,
             margin: 5,
@@ -126,7 +132,12 @@ const QRCodeGeneratorPage = () => {
           margin: 10,
         });
 
-        const blob = await qr.getRawData('png');
+        const blob = await Promise.race([
+          qr.getRawData('png'),
+          new Promise((_, reject) => {
+            renderTimer = window.setTimeout(() => reject(new Error('QR render timed out')), 15_000);
+          }),
+        ]);
         if (cancelled) return;
         if (!blob || !blob.size) throw new Error('QR image is empty');
         if (qrRef.current) {
@@ -152,6 +163,8 @@ const QRCodeGeneratorPage = () => {
         }
         logger.error('QRCodeGeneratorPage: QR generation error', { err: err.message });
         toast.error(t('qrGenerator.errorGenerating'));
+      } finally {
+        window.clearTimeout(renderTimer);
       }
     };
 
@@ -159,8 +172,9 @@ const QRCodeGeneratorPage = () => {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(renderTimer);
     };
-  }, [previewInput, canUseQr, t]);
+  }, [previewInput, logoRevision, canUseQr, t]);
 
   // Fetch saved QR codes only after the same Pro entitlement check used by
   // the API. This prevents a generic load error for regular helpers.
@@ -222,7 +236,12 @@ const QRCodeGeneratorPage = () => {
           setLogoFileInfo((previous) => previous ? { ...previous, dimensions } : previous);
         }
       });
-      if (!controller.signal.aborted) setLogoDataUrl(normalized);
+      if (!controller.signal.aborted) {
+        setLogoDataUrl(normalized);
+        // Retrying/reselecting the same logo must complete processing even if
+        // its normalized data URL is identical to the previous selection.
+        setLogoRevision((revision) => revision + 1);
+      }
     } catch (err) {
       if (controller.signal.aborted) return;
       const key = ['logoTooLarge', 'logoUnsupported', 'logoDimensions', 'logoInvalid'].includes(err.message)
